@@ -14,6 +14,8 @@ import { ZOOM } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
+import { toWorld } from '../world/geo.js';
+import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
 
 // ============================================================================
@@ -25,6 +27,7 @@ import { ROLE_TIERS } from '../data/roles.js';
 // ============================================================================
 
 const r1 = (v) => Math.round(v * 10) / 10;
+const TOO_FAR = 'farther apart than one nav window (1,024 m): a route that long needs the road graph (WEB_STREAMING P3); go by way of a nearer point';
 // A chronicle record in plain words for agents.
 const FLAG_NAMES = Object.entries(K);
 const readRec = (g, r) => ({
@@ -107,16 +110,22 @@ export class AgentAPI {
     const g = this.g;
     const wasPaused = g.paused;
     g.paused = false;
+    // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
+    const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
-    for (let i = 0; i < frames; i++) {
-      try { g.frame(dt); } catch (e) { g.reportError(e); }
-      // Yield to the event loop every ~30ms so the bridge keeps polling and the page stays alive.
-      if (performance.now() - slice > 30) {
-        await yieldNow();
-        slice = performance.now();
-        if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
+    try {
+      for (let i = 0; i < frames; i++) {
+        if (S) S.sync = true;
+        try { g.frame(dt); } catch (e) { g.reportError(e); }
+        if (S) S.sync = wasSync;
+        // Yield to the event loop every ~30ms so the bridge keeps polling and the page stays alive.
+        if (performance.now() - slice > 30) {
+          await yieldNow();
+          slice = performance.now();
+          if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
+        }
       }
-    }
+    } finally { if (S) S.sync = wasSync; }
     g.paused = wasPaused;
     g.render(dt);
   }
@@ -232,7 +241,55 @@ function buildCommands(api) {
         camps: g.world.spawns.camps,
         bases: g.bases.sites.map((s) => ({ id: s.id, name: s.name, faction: s.faction, x: s.ox, z: s.oz, fence: { ...s.fence }, gate: { x: s.ox + s.row.gate.at, z: s.row.gate.side === 'N' ? s.fence.z0 : s.fence.z1 }, alert: s.alert })),
         namedNpcs: g.chars.filter((c) => c.npc).map((c) => ({ id: c.id, npc: c.npc.id, name: c.npc.name, x: r1(c.x), z: r1(c.z) })),
+        // Past the island: the streamed I-10 corridor (world for the streamer's state, locate for a place).
+        streamed: (() => { const W = g.streamer.W; return {
+          island: { half: 464, note: 'Phoenix: everything above lies inside |x|,|z| <= 464; past it the world is streamed in 256 m chunks' },
+          road: { id: W.road.id, nickname: W.road.nickname, km: r1(W.cl.L / 1000), miles: Math.round(W.cl.L / 1609.344), from: { name: 'LOS ANGELES', ...W.ends.west }, to: { name: 'THE DUST WALL PAST EL PASO', x: r1(W.ends.east.x), z: r1(W.ends.east.z) }, splice: 'Route 66 (z = 0) runs onto I-10 at x = -464 and x = 464' },
+          exits: W.exits.map((X) => ({ id: X.id, number: X.number, name: X.name, archetype: X.archetype, mile: r1(X.s / 1609.344), x: r1(X.x), z: r1(X.z), community: X.community ? { x: r1(X.dest.x), z: r1(X.dest.z), buildings: X.community.n } : null })),
+          towns: W.towns.filter((t) => t.built).map((t) => ({ id: t.id, name: t.name, x: r1(t.x), z: r1(t.z), mile: r1(W.project(t.x, t.z, 2048).s / 1609.344) })),
+          dustWall: { radius: 45000, note: 'a fog fade and a hard stop for vehicles, 45 km from Phoenix' },
+        }; })(),
       }),
+    },
+    world: {
+      group: 'world', desc: 'The streamed world (docs/design/WEB_STREAMING.md): K, seed, dataHash, the render origin (0,0 in P1), the island golden hash and whether it still matches, layouts resident (and their build cost), hot chunks, every pool\'s fill, stream stalls by cause (cross and promote are the perf gates; teleport, screenshot, load, query and test are expected), the pump\'s ms per frame (p95, max), the nav windows, the dust wall, the corridor. chunks=true lists every resident chunk.',
+      args: { chunks: { type: 'boolean', default: false } },
+      run: async ({ chunks }) => {
+        const S = g.streamer, v = S.view();
+        return { ...v, islandMatches: v.islandHash === v.golden, ...(chunks ? { chunks: [...S.layouts.values()].map((L) => ({ key: L.key, tier: S.hot.get(L.key)?.hot?.done ? 'hot' : 'layout', hash: L.hash, buildMs: L.buildMs, boxes: L.boxCount, instances: L.instances, biome: L.biome })) } : {}) };
+      },
+    },
+    chunk: {
+      group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] } },
+      run: async ({ x, z, build, fresh, mode }) => {
+        const S = g.streamer, cx0 = x ?? P().x, cz0 = z ?? P().z;
+        if (build || fresh) S.ensureLayout(cx0, cz0, 'test');
+        const out = S.chunkView(cx0, cz0);
+        if (fresh) {
+          const { layoutChunk, makeScratch } = await import('../world/chunkgen.js');
+          const tiles = { foot: { a: new Uint8Array(256 * 256), any: false }, car: { a: new Uint8Array(128 * 128), any: false } };
+          const gen = layoutChunk(S.W, out.cx, out.cz, tiles, null, makeScratch());
+          let r, slices = 0;
+          const t0 = performance.now();
+          do {
+            r = gen.next(); slices++;
+            if (mode === 'sliced') await yieldNow(); // the game loop runs between slices: nothing it does may change the result
+          } while (!r.done);
+          out.fresh = { mode, hash: r.value.hash, slices, ms: +(performance.now() - t0).toFixed(1), matches: r.value.hash === out.hash, edges: r.value.edges };
+        }
+        return out;
+      },
+    },
+    locate: {
+      group: 'world', desc: 'Where a place is: a town or city (any of the 59 rows, built or not), an exit by name, id or "exit N", or an exit\'s community. Returns x,z (world metres), its chunk, kind, state, whether P1 builds it, and its mile on I-10 when it is on the corridor.',
+      args: { name: { type: 'string', required: true } },
+      run: async ({ name }) => {
+        const W = g.streamer.W, L = W.locate(name);
+        need(L, `no town or exit called "${name}"`);
+        const pr = W.project(L.x, L.z, 4096);
+        return { ...L, x: r1(L.x), z: r1(L.z), chunk: [Math.floor(L.x / 256), Math.floor(L.z / 256)], state: W.stateAt(L.x, L.z), mile: pr.d < 1500 ? r1(pr.s / 1609.344) : null, dist: r1(Math.hypot(L.x - P().x, L.z - P().z)) };
+      },
     },
     perf: {
       group: 'observe', desc: 'Frame rate, draw calls, triangles, entity counts.',
@@ -243,6 +300,7 @@ function buildCommands(api) {
           audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts },
           society: { witnessMsMax: +g.society.deeds.witnessMsMax.toFixed(3), deeds: g.society.deeds.deeds, rumorsPending: g.society.deeds.pending, rumorOverflow: g.society.deeds.overflow },
           interiors: { doors: g.interiors.doors.length, leaves: g.interiors.leaves.length, windows: g.interiors.windows.length, leavesSimulating: g.interiors.active.length },
+          stream: { stalls: g.streamer.stalls, byCause: { ...g.streamer.byCause }, pumpMs: g.streamer.pumpStats(), layouts: g.streamer.layouts.size, hot: g.streamer.hot.size, chunkBoxes: g.statics.chunkBoxes },
           runtimeErrors: g.errors ?? [] };
       },
     },
@@ -256,12 +314,17 @@ function buildCommands(api) {
         r.setPixelRatio(1); r.setSize(width, height, false);
         cam.aspect = width / height; cam.updateProjectionMatrix();
         if (g.qol.photo) g.qol.placePhotoCamera(); else g.updateCamera(0.016);
+        // A shot of somewhere far: its chunks go hot first (a `screenshot` stall), and the player's come back after.
+        const far = (x !== undefined || z !== undefined) && Math.hypot((x ?? g.camLook.x) - g.camLook.x, (z ?? g.camLook.z) - g.camLook.z) > 150;
+        if (far) g.streamer.ensureHot(x ?? g.camLook.x, z ?? g.camLook.z, 'screenshot');
         if (x !== undefined || z !== undefined || zoom || tilt !== undefined) {
           // Camera override for close-ups / inspecting a spot: zoom = camera height in metres.
           const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight, t = Math.max(-1.6, Math.min(1.6, tilt ?? 0.14));
           cam.position.set(cx, h, cz + h * t); cam.lookAt(cx, 0, cz);
+          if (far) { const vr = Math.hypot(h * 0.3839, h * 0.3839 * cam.aspect) * 1.15; g.sky.update(0, { x: cx, z: cz }, g.world.groundMat, g.world.roadMat, vr); g.streamer.postSky(); } // the sun's shadow box and the haze go with the shot
         }
         r.render(g.scene, cam);
+        if (far) { const f = g.streamer.focus(); g.streamer.ensureHot(f.x, f.z, 'screenshot'); g.sky.update(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); g.streamer.postSky(); }
         const image = r.domElement.toDataURL('image/jpeg', quality);
         r.setPixelRatio(prevPR); r.setSize(Math.max(1, prevW / prevPR), Math.max(1, prevH / prevPR), false);
         cam.aspect = prevAspect; cam.updateProjectionMatrix();
@@ -271,16 +334,32 @@ function buildCommands(api) {
 
     // ---------------------------------------------------------------- player
     teleport: {
-      group: 'player', desc: 'Move the player (and their vehicle) to x,z. Snaps out of walls.',
-      args: { x: { type: 'number', required: true }, z: { type: 'number', required: true } },
-      run: async ({ x, z }) => {
+      group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] } },
+      run: async ({ x, z, town, mile, dir }) => {
+        const S = g.streamer;
+        let h = null;
+        if (town !== undefined) {
+          const L = S.W.locate(town);
+          need(L, `no place called "${town}" (try locate name=...)`);
+          need(Math.hypot(L.x, L.z) < S.view().dustWall.radius - 200, `${L.name} is past the dust wall (P1 streams the I-10 corridor only)`);
+          x = L.community?.x ?? L.x; z = L.community?.z ?? L.z;
+        } else if (mile !== undefined) {
+          const s = mile * 1609.344, W = S.W;
+          need(s >= 0 && s <= W.cl.L, `mile must be 0..${Math.floor(W.cl.L / 1609.344)} (I-10 from Los Angeles)`);
+          const f = W.at(s), sec = W.section(s), sg = dir === 'west' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
+          x = f.x + f.nx * u; z = f.z + f.nz * u; h = Math.atan2(f.tx * sg, f.tz * sg);
+        }
+        need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
+        S.ensureHot(x, z, 'teleport');
         const p = P(), v = p.inVehicle;
         const pos = { x, z };
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
-        if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; }
+        if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
         p.x = pos.x; p.z = pos.z;
+        if (h !== null && !v) p.face = h;
         g.camLook.x = pos.x; g.camLook.z = pos.z;
-        return { x: r1(pos.x), z: r1(pos.z), location: locationName(pos.x, pos.z) };
+        return { x: r1(pos.x), z: r1(pos.z), location: locationName(pos.x, pos.z), region: districtName(pos.x, pos.z), ...(h !== null ? { heading: r1(h) } : {}) };
       },
     },
     moveTo: {
@@ -295,7 +374,9 @@ function buildCommands(api) {
         tolerance ??= 1;
         need(!P().inVehicle, 'player is in a vehicle; use drive or exitVehicle');
         need(P().alive, 'player is dead; step ~5s to respawn at the clinic');
+        const near = g.streamer.ensureSpan(P().x, P().z, x, z); // past the island: lay out the ground in between first
         const path = g.footPath(P().x, P().z, x, z);
+        need(path || near, `(${r1(x)}, ${r1(z)}) is ${Math.round(Math.hypot(x - P().x, z - P().z))} m away: ${TOO_FAR}`);
         need(path, `no walkable path from (${r1(P().x)}, ${r1(P().z)}) to (${r1(x)}, ${r1(z)}) — target inside a solid building or walled off?`);
         // Following: walk right up to the reachable cell beside the target (tolerance 1);
         // "arrived" is then judged against the target itself (outer loop).
@@ -605,9 +686,10 @@ function buildCommands(api) {
       group: 'player', desc: 'A* route from the player (or fx,fz) to x,z. mode=foot|car. Returns waypoints + length; nothing moves.',
       args: { x: { type: 'number', required: true }, z: { type: 'number', required: true }, fx: { type: 'number' }, fz: { type: 'number' }, mode: { type: 'string', default: 'foot', enum: ['foot', 'car'] } },
       run: async ({ x, z, fx, fz, mode }) => {
+        const near = g.streamer.ensureSpan(fx ?? P().x, fz ?? P().z, x, z); // lays out unbuilt ground between the ends (a `query` stall)
         const t0 = performance.now();
         const pts = g.nav[mode].find(fx ?? P().x, fz ?? P().z, x, z);
-        if (!pts) return { found: false, ms: +(performance.now() - t0).toFixed(1) };
+        if (!pts) return { found: false, ms: +(performance.now() - t0).toFixed(1), ...(near ? {} : { why: TOO_FAR }) };
         let len = 0, px = fx ?? P().x, pz = fz ?? P().z;
         for (const p of pts) { len += Math.hypot(p.x - px, p.z - pz); px = p.x; pz = p.z; }
         return { found: true, length: Math.round(len), searchMs: +(performance.now() - t0).toFixed(1), waypoints: pts.map((p) => ({ x: r1(p.x), z: r1(p.z) })) };
@@ -662,6 +744,7 @@ function buildCommands(api) {
         need(v, 'not in a vehicle; use enterVehicle');
         if (x !== undefined && z !== undefined) {
           // Follow an A* route on the vehicle nav grid (dilated for car width).
+          g.streamer.ensureSpan(v.x, v.z, x, z);
           const path = g.nav.car.find(v.x, v.z, x, z) ?? [{ x, z }];
           let t = 0, i = 0, stuckT = 0, lastX = v.x, lastZ = v.z;
           while (t < Math.max(seconds, 90) && i < path.length) {
@@ -1759,11 +1842,16 @@ async function runSelfTest(api) {
     const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 385, z: 398 })).id);
     await C('step', { seconds: 6 });
     const sank = car.sunk;
+    // The lake's raider gunboat charges anyone afloat within 60 m (all of this lake), and where its patrol happens to be
+    // decided the airboat's speed (0 to 20 m/s after 2 s, by patrol angle): park it on the far side for the drive.
+    const gb = g.vehicles.find((v) => v.ai === 'boatPatrol' && !v.dead);
+    if (gb) { gb.ai = 'none'; gb.throttle = 0; gb.steer = 0; gb.x = 440; gb.z = 420; gb.vx = gb.vz = 0; }
     const boat = api.findVeh((await C('spawnVehicle', { type: 'airboat', x: 380, z: 392, heading: 0 })).id);
     await C('teleport', { x: 380, z: 389 });
     await C('enterVehicle', { id: boat.id, force: true });
     await C('drive', { throttle: 1, seconds: 2 });
     const moved = g.vehiclesSys.speed(boat) > 6;
+    if (gb) gb.ai = 'boatPatrol';
     const land = api.findVeh((await C('spawnVehicle', { type: 'jetski', x: 250, z: 250 })).id);
     land.driver = g.player; land.throttle = 1; // dry land: a waterbike can't go
     for (let i = 0; i < 60; i++) { g.vehiclesSys.drive(land, 1 / 60); }
@@ -3125,6 +3213,187 @@ async function runSelfTest(api) {
       return ok ? true : JSON.stringify({ reg: reg.ok ? 'ok' : reg.error, warnings: reg.warnings, tier: v?.tier, renown: v?.renown, pm: R.priceMul('drifters'), bias: F.bias[dr] });
     } finally { R.unregister('selftest_hauler'); g.cash = cash0; R.reset(); }
   });
+  // ---- the streamed world (docs/design/WEB_STREAMING.md, P1 "Streamed Arizona"). The drives run the way the real-time
+  // loop runs (sliced streaming: a stall here is a real one), at a fixed 60 Hz step.
+  const SW = g.streamer, WI = SW.W;
+  // Home to Rust Haven, and the rig a check drove is taken away (nothing left parked in a lane the next check uses).
+  // These checks drive for minutes: by now the battery has kept you up for hours, and a microsleep takes the hands off the
+  // wheel (survival.js). Rested for the streaming checks; the battery's own state comes back after them.
+  const rest0 = g.needs?.rest;
+  const streamHome = async () => {
+    if (g.needs) { g.needs.rest = Math.max(g.needs.rest, 0.9); g.needs.blackout = 0; }
+    g.driveOverride = null;
+    const v = g.player.inVehicle;
+    if (v) { g.exitVehicle(true); g.vehiclesSys.remove(v); }
+    await C('teleport', { x: 0, z: -40 });
+  };
+  // No convoy rolls through these checks: they now run on out along I-10, into a lane a check is timing.
+  g.convoy.despawn(); const convoyNext = g.convoy.next; g.convoy.next = 1e9;
+  // A rig at arc length s of I-10 in direction dir's inner lane, you at the wheel.
+  const onI10 = async (type, s, dir) => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const q = SW.lanePoint(s, dir, 0), f = WI.at(s);
+    await C('teleport', { x: q.x, z: q.z });
+    const r = await C('spawnVehicle', { type, x: q.x, z: q.z, heading: Math.atan2(f.tx * dir, f.tz * dir) });
+    await C('enterVehicle', { id: r.id, force: true });
+    await C('teleport', { x: q.x, z: q.z });
+    return g.player.inVehicle;
+  };
+  const hotUnder = (x, z) => !!SW.hot.get(`${Math.floor(x / 256)},${Math.floor(z / 256)}`)?.hot?.done;
+  await check('streaming: the Phoenix island is untouched (its golden hash) and nothing streamed reaches inside it', async () => {
+    const w = await C('world');
+    let inside = 0;
+    for (const L of SW.layouts.values()) {
+      for (const b of L.boxes) if (b.maxX > -463 && b.minX < 463 && b.maxZ > -463 && b.minZ < 463) inside++;
+      for (const r of Object.values(L.inst)) for (let i = 0; i < r.n; i++) { const x = r.m[i * 16 + 12], z = r.m[i * 16 + 14]; if (Math.abs(x) < 463 && Math.abs(z) < 463) inside++; }
+    }
+    return w.islandMatches && w.islandExtent <= 464 && w.layout.pinned === 16 && inside === 0 ? true : JSON.stringify({ hash: w.islandHash, golden: w.golden, extent: w.islandExtent, pinned: w.layout.pinned, inside });
+  });
+  await check('streaming: a chunk is a pure function of the data (same hash after a trip away, built fresh in sync and in slices), and neighbours agree at their seams, the interstate\'s too', async () => {
+    const a = await C('chunk', { x: 2000, z: 0, build: true });
+    await C('teleport', { x: 0, z: -40 }); await C('step', { seconds: 30 });
+    const b = await C('chunk', { x: 2000, z: 0, build: true });
+    const fs = (await C('chunk', { x: 2000, z: 0, fresh: true, mode: 'sync' })).fresh, fl = (await C('chunk', { x: 2000, z: 0, fresh: true, mode: 'sliced' })).fresh;
+    const n = await C('chunk', { x: 2300, z: 0, build: true });
+    // A seam the interstate crosses: walk I-10 from mile 30 until two chunks in a row share an edge it runs over.
+    let roadSeam = null;
+    for (let s = 30 * 1609.344; s < 33 * 1609.344 && !roadSeam; s += 64) {
+      const p = WI.at(s), q = WI.at(s + 64), pa = await C('chunk', { x: p.x, z: p.z, build: true }), qa = await C('chunk', { x: q.x, z: q.z, build: true });
+      if (pa.key === qa.key) continue;
+      const e = qa.cx > pa.cx ? 'e' : qa.cx < pa.cx ? 'w' : qa.cz > pa.cz ? 's' : 'n', o = { e: 'w', w: 'e', s: 'n', n: 's' }[e];
+      if (qa.cx !== pa.cx && qa.cz !== pa.cz) continue; // a corner: try the next step
+      roadSeam = { a: pa.key, b: qa.key, roads: pa.edgeRoads[e], same: pa.edges[e] === qa.edges[o] };
+    }
+    const ok = a.hash === b.hash && fs.matches && fl.matches && fl.slices > 5 && a.edges.e === n.edges.w && roadSeam?.roads > 0 && roadSeam.same;
+    return ok ? true : JSON.stringify({ a: a.hash, b: b.hash, sync: fs, sliced: { matches: fl.matches, slices: fl.slices }, seam: [a.edges.e, n.edges.w], roadSeam });
+  });
+  await check('streaming: the nav window paths from the island over its edge and a chunk seam (300,0 to 900,0 by car: a route of at most 690 m found in under 5 ms)', async () => {
+    // No staging: `path` lays out the ground it has not seen yet between the two ends (a `query` stall), then searches.
+    const r = await C('path', { fx: 300, fz: 0, x: 900, z: 0, mode: 'car' });
+    return r.found && r.length <= 690 && r.searchMs < 5 ? true : JSON.stringify({ found: r.found, length: r.length, ms: r.searchMs });
+  });
+  await check('streaming: a car drives off the island onto I-10 and back, on the ground the whole way (never below it, never in the air, hot ground under it every frame), with no cross stalls', async () => {
+    await streamHome();
+    await C('teleport', { x: 280, z: 3.5 });
+    const r = await C('spawnVehicle', { type: 'interceptor', x: 280, z: 3.5, heading: Math.PI / 2 });
+    await C('enterVehicle', { id: r.id, force: true });
+    const v = g.player.inVehicle, st0 = SW.byCause.cross, sTurn = WI.sIslE + 1500;
+    let phase = 'out', minY = 0, maxY = 0, air = 0, cold = 0, farX = v.x, home = false;
+    await SW.runFrames(150, () => {
+      const a = SW.autopilot(v, phase === 'back' ? -1 : 1, 0, phase === 'brake' ? 4 : 34);
+      if (phase === 'out' && a.s > sTurn) phase = 'brake';
+      if (phase === 'brake' && Math.hypot(v.vx, v.vz) < 6) phase = 'back';
+      if (phase === 'back' && v.x < 100) { home = true; return false; }
+      g.driveOverride = { throttle: a.throttle, steer: a.steer };
+      minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y); if (v.air) air++; if ((Math.abs(v.x) > 470 || Math.abs(v.z) > 470) && !hotUnder(v.x, v.z)) cold++; farX = Math.max(farX, v.x);
+    }, { renderEvery: 10 });
+    const cross = SW.byCause.cross - st0;
+    await streamHome();
+    return home && farX > WI.at(sTurn).x - 50 && minY > -0.3 && maxY < 0.3 && air === 0 && cold === 0 && cross === 0 ? true : JSON.stringify({ home, phase, farX: Math.round(farX), minY, maxY, air, cold, cross, at: [Math.round(v.x), Math.round(v.z)] });
+  });
+  await check('streaming: every exit is where its row says, near real size: a deceleration lane, a ramp that climbs at a real grade to a stop at the cross road, a bridge the interstate runs under, and signs in game miles', async () => {
+    const bad = [], MI = 1609.344;
+    for (const X of WI.exits) {
+      const [rx, rz] = toWorld(X.row.pos);
+      if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`);
+      for (const rb of WI.ribbons.filter((r) => r.exit === X.id && r.rampKind === 'off')) {
+        const aux = (rb.aux[1] - rb.aux[0]) * 4, top = rb.y[rb.n - 1] - 0.04;
+        let maxGrade = 0, len = 0;
+        for (let i = rb.aux[1] + 1; i < rb.n; i++) { const d = Math.hypot(rb.x[i] - rb.x[i - 1], rb.z[i] - rb.z[i - 1]); len += d; maxGrade = Math.max(maxGrade, Math.abs(rb.y[i] - rb.y[i - 1]) / d); }
+        const stop = WI.stops.find((s) => s.exit === X.id && Math.hypot(s.x - rb.x[rb.n - 1], s.z - rb.z[rb.n - 1]) < 2);
+        if (aux < 200 || top < 4 || maxGrade > 0.07 || maxGrade < 0.025 || len < 200 || !stop) bad.push(`${rb.id}: aux ${aux} m, ramp ${Math.round(len)} m to ${top.toFixed(1)} m, max grade ${(maxGrade * 100).toFixed(1)}%, stop ${!!stop}`);
+      }
+      const deck = WI.heightAt(X.x, X.z, 7), under = WI.heightAt(X.x, X.z, 0);
+      if (Math.abs(deck - STREAM.ramp.deckH) > 0.01 || under !== 0) bad.push(`${X.id} bridge: deck ${deck}, under ${under}`);
+      for (const dir of [1, -1]) {
+        const one = WI.signs.find((s) => s.id === `${X.id}-${dir > 0 ? 'E' : 'W'}-1`), gore = X.s - dir * STREAM.ramp.gore;
+        if (one && Math.abs(Math.abs(gore - one.s) - MI) > 5) bad.push(`${one.id} is ${Math.round(Math.abs(gore - one.s))} m before the gore`);
+        const dist = WI.signs.find((s) => s.id === `${X.id}-${dir > 0 ? 'E' : 'W'}-dist`);
+        for (const line of dist?.lines ?? []) {
+          const m = line.match(/^(.*\S)\s+(\d+|1\/2)$/), target = m && (WI.exits.find((o) => o.name === m[1]) ?? WI.towns.find((t) => t.name === m[1]));
+          if (!target) { bad.push(`${dist.id}: "${line}"`); continue; }
+          const want = Math.abs((target.s ?? WI.project(target.x, target.z, 2048).s) - dist.s) / MI, said = m[2] === '1/2' ? 0.5 : +m[2];
+          if (Math.abs(said - want) > 0.51) bad.push(`${dist.id}: ${line} but it is ${want.toFixed(2)} mi`);
+        }
+      }
+    }
+    if (WI.exits.length < 3) bad.push(`only ${WI.exits.length} exits built`);
+    // And drive one: up exit 2's eastbound off-ramp to the stop, then a car under the bridge stays on the interstate.
+    const X = WI.exits[0], rb = WI.ribbons.find((r) => r.exit === X.id && r.rampKind === 'off' && r.dir === 1);
+    const v = await onI10('interceptor', X.s - 600, 1);
+    let i = 0, peak = 0, air = 0;
+    await SW.runFrames(75, () => {
+      // Follow the ramp's own centreline (pure pursuit), 14 m/s, braking for the stop line.
+      while (i < rb.n - 1 && Math.hypot(rb.x[i] - v.x, rb.z[i] - v.z) < 12) i++;
+      const want = Math.atan2(rb.x[i] - v.x, rb.z[i] - v.z), diff = Math.atan2(Math.sin(want - v.h), Math.cos(want - v.h)), sp = Math.hypot(v.vx, v.vz);
+      const left = Math.hypot(rb.x[rb.n - 1] - v.x, rb.z[rb.n - 1] - v.z);
+      const vWant = Math.min(14, Math.max(0, (left - 1.5) * 0.6)); // ease down to the stop line
+      g.driveOverride = { throttle: left < 2 ? (sp > 0.3 ? -1 : 0) : sp < vWant - 0.5 ? 0.8 : sp > vWant + 0.5 ? -0.6 : 0.1, steer: Math.max(-1, Math.min(1, diff * 2.2)) };
+      peak = Math.max(peak, v.y); if (v.air) air++;
+      if (left < 4 && sp < 0.5) return false;
+    }, { renderEvery: 15 });
+    const stopped = Math.hypot(rb.x[rb.n - 1] - v.x, rb.z[rb.n - 1] - v.z);
+    g.driveOverride = null; g.exitVehicle(true); g.vehiclesSys.remove(v);
+    const u = await onI10('interceptor', X.s - 300, 1);
+    let underMax = 0;
+    await SW.runFrames(16, () => { g.driveOverride = { throttle: 1, steer: SW.autopilot(u, 1).steer }; underMax = Math.max(underMax, u.y); }, { renderEvery: 15 });
+    const past = WI.project(u.x, u.z, 600).s > X.s + 50;
+    await streamHome();
+    if (peak < 4 || air || stopped > 6) bad.push(`ramp drive: peak ${peak.toFixed(2)} m, air ${air}, stopped ${stopped.toFixed(1)} m from the stop`);
+    if (underMax > 0.3 || !past) bad.push(`under the bridge: y up to ${underMax.toFixed(2)}, past it ${past}`);
+    return bad.length ? bad.join(' | ') : true;
+  });
+  await check('streaming: 60 s flat out east on I-10 (the fastest ground vehicle, sliced streaming) covers 2.4 km with no cross or promote stalls, under 150 draw calls', async () => {
+    await streamHome();
+    const v = await onI10('bike', WI.sIslE + 200, 1), x0 = v.x, z0 = v.z, st0 = { ...SW.byCause };
+    let off = 0, n = 0;
+    const run = await SW.runFrames(60, (i) => { const a = SW.autopilot(v, 1, 0); g.driveOverride = { throttle: 1, steer: a.steer }; if (i % 60 === 0) { n++; if (a.d > WI.section(a.s).out + 2) off++; } }, { renderEvery: 3 });
+    const dist = Math.hypot(v.x - x0, v.z - z0), cross = SW.byCause.cross - st0.cross, promote = SW.byCause.promote - st0.promote;
+    await streamHome();
+    return dist > 2400 && cross === 0 && promote === 0 && run.maxDrawCalls < 150 && off / n <= 0.1 ? true : JSON.stringify({ dist: Math.round(dist), cross, promote, calls: run.maxDrawCalls, offRoad: off, samples: n });
+  });
+  await check('streaming: the pools and geometries come back to where they started after a lap out to I-10 and home (no leaks)', async () => {
+    await streamHome(); await C('step', { seconds: 0.5 });
+    const used0 = Object.fromEntries(Object.entries(SW.pools).map(([k, p]) => [k, p.used])), geo0 = g.renderer.info.memory.geometries, hot0 = SW.hot.size;
+    await C('teleport', { mile: 18 }); await C('step', { seconds: 0.5 });
+    const busy = Object.values(SW.pools).reduce((s, p) => s + p.used, 0);
+    await C('teleport', { mile: 31 }); await C('step', { seconds: 0.5 });
+    await streamHome(); await C('step', { seconds: 0.5 });
+    const used1 = Object.fromEntries(Object.entries(SW.pools).map(([k, p]) => [k, p.used])), geo1 = g.renderer.info.memory.geometries;
+    const same = Object.keys(used0).every((k) => used0[k] === used1[k]);
+    return busy > 0 && same && geo1 === geo0 && SW.hot.size === hot0 ? true : JSON.stringify({ busy, used0, used1, geo0, geo1, hot0, hot1: SW.hot.size });
+  });
+  await check('streaming: the dust wall at 45 km stops a car at full throttle (the spec\'s run from x = 44,000, and one that reaches the wall)', async () => {
+    const run = async (x0) => {
+      await streamHome();
+      await C('teleport', { x: x0, z: 0 });
+      const r = await C('spawnVehicle', { type: 'interceptor', x: x0, z: 0, heading: Math.PI / 2 });
+      await C('enterVehicle', { id: r.id, force: true });
+      const v = g.player.inVehicle;
+      let maxR = 0;
+      await SW.runFrames(10, () => { g.driveOverride = { throttle: 1, steer: 0 }; maxR = Math.max(maxR, Math.hypot(v.x, v.z)); }, { renderEvery: 30 });
+      const out = { x: Math.round(v.x * 10) / 10, maxR: Math.round(maxR * 10) / 10, fade: Math.round(SW.wall.fade * 100) / 100 };
+      await streamHome();
+      return out;
+    };
+    const spec = await run(44000), wall = await run(44800);
+    return Math.abs(spec.x) <= 45000 && wall.maxR <= 45001 && wall.x > 44950 && wall.fade > 0.95 ? true : JSON.stringify({ spec, wall });
+  });
+  await check('streaming: a convoy is cleared once it is 3.5 km behind you, and not before', async () => {
+    await streamHome();
+    const cv = await C('convoy', { action: 'spawn', dir: 'east' });
+    const ids = cv.members.map((m) => m.id);
+    await C('teleport', { x: 2600, z: 0 }); await C('step', { seconds: 0.5 });
+    const kept = g.convoy.active && ids.every((id) => api.findVeh(id));
+    await C('teleport', { mile: 31 }); await C('step', { seconds: 0.5 });
+    const q = await C('query', { type: 'vehicle', radius: 4000, x: -400, z: 0 });
+    const gone = !g.convoy.active && !q.items.some((v) => ids.includes(v.id));
+    await streamHome();
+    return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
+  });
+  await streamHome();
+  g.convoy.next = convoyNext;
+  if (g.needs && rest0 !== undefined) { g.needs.rest = rest0; g.needs.blackout = 0; }
   // Witnesses who run home (systems/witnesses.js), last in the battery: they kill Rust Haven's own, and the chronicle keeps
   // that (four killings of the town on record bar the deputy's office in the role checks above). Staged out at STAGE with Rust Haven's hub moved 30-40 m away, so a
   // run takes seconds, not a minute through the hills; the townsfolk are Rust Haven's by an explicit fid.
@@ -3295,5 +3564,6 @@ export function restore(g, s) {
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.camLook.x = p.x; g.camLook.z = p.z;
+  g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

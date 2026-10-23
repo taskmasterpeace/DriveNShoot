@@ -87,8 +87,10 @@ export class QOL {
       });
     }
     this.el.mapCanvas.addEventListener('mousedown', (e) => {
-      const r = this.el.mapCanvas.getBoundingClientRect();
-      const x = ((e.clientX - r.left) / r.width) * HALF * 2 - HALF, z = ((e.clientY - r.top) / r.height) * HALF * 2 - HALF;
+      const r = this.el.mapCanvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+      // In Phoenix the map is the island; out on the corridor it is a regional map around you (drawRegion).
+      const R = this.region;
+      const x = R ? R.x0 + u * R.span : u * HALF * 2 - HALF, z = R ? R.z0 + v * R.span : v * HALF * 2 - HALF;
       if (e.button === 2) this.setWaypoint(null);
       else this.setWaypoint({ x, z });
       this.drawBigMap();
@@ -180,8 +182,70 @@ export class QOL {
     c.restore();
   }
 
+  // Out past the island the big map is regional: 24 km around you, the interstate, its exits and their communities,
+  // the towns the road reaches, the dust wall, the waypoint (docs/design/WEB_STREAMING.md §3.9; the atlas is P4).
+  drawRegion(px, pz) {
+    const g = this.g, W = g.streamer.W, c = this.el.mapCanvas.getContext('2d'), S = 760, span = 24000;
+    // Snapped to 400 m so the ground layer is painted once per 400 m moved, not every frame the map is open.
+    const x0 = Math.round((px - span / 2) / 400) * 400, z0 = Math.round((pz - span / 2) / 400) * 400, k = S / span, T = (x, z) => [(x - x0) * k, (z - z0) * k];
+    this.region = { x0, z0, span };
+    const key = `${x0},${z0}`;
+    if (this.regionBg?.key !== key) {
+      const bg = this.regionBg?.canvas ?? document.createElement('canvas');
+      bg.width = bg.height = S;
+      const b2 = bg.getContext('2d');
+      // Biome and relief, coarse: one cell per 400 m.
+      for (let j = 0; j < 60; j++) for (let i = 0; i < 60; i++) {
+        const x = x0 + (i + 0.5) * 400, z = z0 + (j + 0.5) * 400, b = W.biomeAt(x, z), rel = W.reliefAt(x, z);
+        const base = b === 'f' ? [62, 58, 40] : b === 'u' ? [64, 58, 52] : b === 'm' ? [78, 52, 36] : b === '.' ? [40, 56, 62] : b === 'w' ? [52, 50, 46] : [70, 52, 34];
+        const l = 1 + rel * 0.35;
+        b2.fillStyle = `rgb(${base[0] * l | 0},${base[1] * l | 0},${base[2] * l | 0})`; b2.fillRect(i * 400 * k, j * 400 * k, 400 * k + 1, 400 * k + 1);
+      }
+      this.regionBg = { key, canvas: bg };
+    }
+    c.drawImage(this.regionBg.canvas, 0, 0);
+    // The dust wall.
+    const [ox, oz] = T(0, 0);
+    c.strokeStyle = 'rgba(200,150,90,0.8)'; c.lineWidth = 3; c.setLineDash([8, 6]); c.beginPath(); c.arc(ox, oz, 45000 * k, 0, 7); c.stroke(); c.setLineDash([]);
+    // Phoenix.
+    c.fillStyle = '#5e4a36'; c.fillRect(...T(-464, -464), 928 * k, 928 * k);
+    // The interstate and the exits' roads.
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const rb of W.ribbons) {
+      if (rb.x1 < x0 || rb.x0 > x0 + span || rb.z1 < z0 || rb.z0 > z0 + span) continue;
+      c.strokeStyle = rb.kind === 'hwy' ? '#d8b066' : '#a88a5a'; c.lineWidth = rb.kind === 'hwy' ? 3 : 1.6;
+      c.beginPath();
+      const step = Math.max(1, Math.floor(rb.n / 600));
+      for (let i = 0; i < rb.n; i += step) { const [x, y] = T(rb.x[i], rb.z[i]); if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+      c.stroke();
+    }
+    c.font = '700 12px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeStyle = '#1b1410';
+    for (const X of W.exits) {
+      const [x, y] = T(X.x, X.z);
+      c.fillStyle = X.dead ? '#8a8270' : '#7fbf6a'; c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill();
+      const label = `EXIT ${X.number} · ${X.name}`; c.strokeText(label, x + 8, y - 6); c.fillStyle = '#f2e6d0'; c.fillText(label, x + 8, y - 6);
+      if (X.community) { const [cx, cy] = T(X.dest.x, X.dest.z); c.fillStyle = '#c9a46a'; c.fillRect(cx - 4, cy - 4, 8, 8); }
+    }
+    for (const t of W.towns) {
+      if (!t.built && t.id !== 'phoenix') continue;
+      const [x, y] = T(t.x, t.z);
+      c.fillStyle = '#f5c542'; c.beginPath(); c.arc(x, y, 6, 0, 7); c.fill();
+      c.font = '700 14px Barlow Condensed'; c.strokeText(t.name, x + 9, y + 5); c.fillStyle = '#f5c542'; c.fillText(t.name, x + 9, y + 5);
+    }
+    if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
+    const p = g.player, [ax, ay] = T(px, pz);
+    c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
+    c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 4); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore();
+    c.font = '700 13px Barlow Condensed'; c.fillStyle = '#f2e6d0'; c.textAlign = 'right';
+    c.fillText(`${W.regionAt(px, pz)} · 24 KM ACROSS`, S - 10, S - 12);
+  }
+
   drawBigMap() {
-    const g = this.g, c = this.el.mapCanvas.getContext('2d'), S = 760, k = S / (HALF * 2);
+    const g = this.g, pp = g.player, px = pp.inVehicle ? pp.inVehicle.x : pp.x, pz = pp.inVehicle ? pp.inVehicle.z : pp.z;
+    this.region = null;
+    if (g.streamer && (Math.abs(px) > 464 || Math.abs(pz) > 464)) { this.drawRegion(px, pz); return; }
+    const c = this.el.mapCanvas.getContext('2d'), S = 760, k = S / (HALF * 2);
     const T = (x, z) => [(x + HALF) * k, (z + HALF) * k];
     c.drawImage(g.world.minimap, 0, 0, S, S);
     for (const camp of g.world.spawns.camps) { const [x, y] = T(camp.x, camp.z); c.fillStyle = '#ff4a3a'; c.font = 'bold 16px Barlow Condensed'; c.textAlign = 'center'; c.fillText('✕', x, y + 5); }
@@ -209,7 +273,7 @@ export class QOL {
     for (const v of g.vehicles) if (!v.dead && !v.driver) { const [x, y] = T(v.x, v.z); c.fillStyle = '#e8e2d4'; c.fillRect(x - 2, y - 2, 4, 4); }
     this.drawRoute(c, T, 3);
     if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
-    const p = g.player, px = p.inVehicle ? p.inVehicle.x : p.x, pz = p.inVehicle ? p.inVehicle.z : p.z;
+    const p = g.player;
     const [x, y] = T(px, pz);
     c.save(); c.translate(x, y); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
     c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;

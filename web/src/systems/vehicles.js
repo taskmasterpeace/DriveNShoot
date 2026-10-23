@@ -289,7 +289,7 @@ export class Vehicles {
       // Each disc rides as high as that end of the body: the nose of a car climbing a ramp, or the whole car in
       // the air, passes over whatever is lower than it (a wreck, a ramp's own lip). A car flings doors open and
       // smashes window glass.
-      if (g.statics.resolveCircle(t, r, v, vy0 + sinP * off, own) > 0) {
+      if (g.statics.resolveCircle(t, r, v, vy0 + sinP * off, own, vy0 + sinP * off + v.tall) > 0) { // topY: a bridge parapet overhead is not in the way
         const dx = t.x - ox, dz = t.z - oz;
         v.x += dx; v.z += dz;
         const d = Math.hypot(dx, dz) || 1;
@@ -355,7 +355,7 @@ export class Vehicles {
       if (Math.abs(dx) > v.len || Math.abs(dz) > v.len) continue;
       const along = dx * fx + dz * fz, across = dx * fz - dz * fx;
       if (Math.abs(along) < v.len / 2 + 0.3 && Math.abs(across) < v.wid / 2 + 0.3) {
-        if (v.y > 0.3 && Math.abs(v.y - (g.stunts?.heightAt(c.x, c.z) ?? 0)) > 1.5) continue; // over their head
+        if (v.y > 0.3 && Math.abs(v.y - (g.stunts?.heightAt(c.x, c.z, c.gy ?? 0) ?? 0)) > 1.5) continue; // over their head (or they are under the bridge)
         if (sp > 6) {
           const dn = sp || 1;
           g.combat.damage(c, sp * 7, v.driver, v.vx / dn, v.vz / dn, 'vehicle');

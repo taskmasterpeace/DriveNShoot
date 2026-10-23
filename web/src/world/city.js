@@ -17,13 +17,22 @@ export const GRID = 320;
 export const SPACING = 80;
 export const ROAD_W = 14;
 export const TOWN = 88;
+// The Phoenix island (docs/design/WEB_STREAMING.md §3.4): everything this file builds lies inside |x|,|z| <= 464. Past
+// it the world is streamed (world/streamer.js); Route 66 meets I-10 at the island's edge.
+export const ISLAND = 464;
 export const roadLines = [];
 for (let c = -GRID; c <= GRID; c += SPACING) roadLines.push(c);
 
 const H_NAMES = ['DEAD MAN RD', 'CINDER ST', 'ASH AVE', 'BONE ST', 'ROUTE 66', 'RUST ST', 'GALLOWS RD', 'SALT ST', 'LAST CHANCE RD'];
 const V_NAMES = ['VULTURE AVE', 'CACTUS ST', 'OLD MILL RD', 'HAVEN ST', 'CENTRAL AVE', 'IRON ST', 'MESA DR', 'COYOTE RD', 'END OF THE LINE'];
 
+// Past the island the streamer names the place (the interstate and its mile, an exit, a dead town, the open desert)
+// and the state (WorldIndex.nameAt / regionAt). Null until the streamer exists.
+export const OUTSIDE = { name: null, region: null };
+const outside = (x, z) => Math.abs(x) > ISLAND || Math.abs(z) > ISLAND;
+
 export function locationName(x, z) {
+  if (OUTSIDE.name && outside(x, z)) return OUTSIDE.name(x, z);
   for (let k = 0; k < roadLines.length; k++) {
     const c = roadLines[k];
     const span = k === 4 ? HALF : GRID + 8;
@@ -34,6 +43,7 @@ export function locationName(x, z) {
 }
 
 export function districtName(x, z) {
+  if (OUTSIDE.region && outside(x, z)) return OUTSIDE.region(x, z);
   const m = Math.max(Math.abs(x), Math.abs(z));
   if (m < TOWN) return 'RUST HAVEN';
   if (m < GRID - 70) return 'OLD PHOENIX RUINS';
@@ -96,7 +106,11 @@ export function buildWorld(scene, statics) {
   const sand = sandTexture();
   sand.repeat.set(HALF * 2 / 28, HALF * 2 / 28);
   const groundMat = new THREE.MeshStandardMaterial({ map: sand, roughness: 0.96, metalness: 0 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2 + 400, HALF * 2 + 400), groundMat);
+  // The island's own ground stops at its edge (streamed chunks carry the sand on from there). Its UVs keep the old
+  // 1,300 m plane's mapping, (x + 650) / 1300, so the sand lies exactly where it always did and the chunks match it.
+  const groundGeo = new THREE.PlaneGeometry(ISLAND * 2, ISLAND * 2);
+  { const uv = groundGeo.attributes.uv, k = (ISLAND * 2) / 1300, o = (650 - ISLAND) / 1300; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * k + o, uv.getY(i) * k + o); }
+  const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
@@ -113,7 +127,7 @@ export function buildWorld(scene, statics) {
     roadGeos.push(g);
   };
   roadLines.forEach((c, k) => {
-    const lenH = k === 4 ? HALF * 2 + 200 : GRID * 2 + ROAD_W;
+    const lenH = k === 4 ? ISLAND * 2 : GRID * 2 + ROAD_W; // Route 66 ends at the island's edge, where I-10 picks it up
     roadPiece(0, c, lenH, false, 0.03);
     roadPiece(c, 0, GRID * 2 + ROAD_W, true, 0.04);
   });
@@ -548,11 +562,7 @@ export function buildWorld(scene, statics) {
   };
   wallLine(true, -TOWN); wallLine(true, TOWN); wallLine(false, -TOWN); wallLine(false, TOWN);
 
-  // World boundary.
-  statics.add(-HALF - 20, -HALF - 20, HALF + 20, -HALF, 'bound', 20);
-  statics.add(-HALF - 20, HALF, HALF + 20, HALF + 20, 'bound', 20);
-  statics.add(-HALF - 20, -HALF, -HALF, HALF, 'bound', 20);
-  statics.add(HALF, -HALF, HALF + 20, HALF, 'bound', 20);
+  // No world boundary any more: the map goes on past the island (world/streamer.js).
 
   // ---- build GPU batches ------------------------------------------------------------
   const box = new THREE.BoxGeometry(1, 1, 1);

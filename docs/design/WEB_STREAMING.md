@@ -1,6 +1,7 @@
 # WEB_STREAMING — one country, one chunk at a time
 
-**Status:** spec 2026-10-22. Nothing here is built yet; phase 1 is next.
+**Status:** **P1 Streamed Arizona SHIPPED 2026-10-22** (what was built, the gate numbers and what it taught: §1.2).
+P2 to P5 are still spec; P2 (render origin, K calibration, Florida) is next.
 **Owner of the call:** Robert. **Engine:** the three.js web engine (`web/`, see `web/AGENTS.md`).
 **Sources:** a read-only research pass over `web/src` and `game/data/usmap.json` (2026-10-22). The numbers that come from the
 data or the code were re-derived from the repo for this document; real-world distances and chunk costs are planning
@@ -69,6 +70,77 @@ compresses). Still open: which vehicle defines "fastest" (1), the access-road ca
    road (knob `EXIT_ACCESS_MAX_M`)?
 5. **City size.** Cities are built like Phoenix, about 1 km across, and do not follow the 1:14 law. At true scale
    Phoenix alone would be about 3 km, a 65-second drive across. Say if you want them larger.
+
+### 1.2 P1 as built (2026-10-22)
+**What you can drive.** Route 66 leaves the island at both ends and becomes I-10: 87.8 km of interstate (54.5 game
+miles) from Los Angeles (mile 0) through Phoenix (mile 26.3) to El Paso (mile 51.4) and on to the dust wall 45 km out.
+Two carriageways of two 3.6 m lanes, shoulders, a 6 m median, corners filleted at 800 m and a seeded meander. Three
+interchanges where the rows put them: **EXIT 2 FURNACE MILE 9** (service, mile 15.8), **EXIT 4 THE SAND TRAP** (dead,
+mile 31.7) and **EXIT 6 LAS PALMAS STRIP** (neighborhood, mile 47.5). Each is built near real size (Robert's ruling 4):
+a 220 m deceleration lane and a 70 m taper, a 230 m gore, an S-curved ramp that climbs at under 4% to a stop line and a
+STOP sign at a two-lane county road, which crosses the interstate on a bridge with a 7 m deck (fills at 4.5%, guardrails
+on every fill over 1.1 m, piers and abutments; the interstate runs under the deck). A live exit's county road runs on to its
+community; the dead one stops at a faded sign. Green guide signs (EXIT n 1 MILE, 1/2 MILE, the gore), distance signs to
+towns within 1.5 km of the road, PHOENIX signs both ways, state lines and mileposts, all in game miles. Los Angeles, El
+Paso, San Diego and Albuquerque stand as dead towns from their placement rows (streets, 111 buildings, wrecks at the
+kerb). The desert follows the biome grid and the state: creosote and brittlebush, saguaros and cholla, Joshua trees,
+mesquite and palo verde, boulders, wrecks on the shoulder and the median, power poles, a rare shack or camp, and mesas,
+buttes and ridges wherever the relief stands up (lobed rims, scrub on the cap, talus at the foot, solid). Convoys spawn
+900 m back and run on along I-10. The radar and the big map read streamed tiles past the island.
+
+**Where it lives.** New: `web/src/world/{geo,worldindex,chunkgen,streamer,pools,signs}.js`,
+`web/src/data/{streaming.js,usmap.json,golden.json}`, `web/tools/import-usmap.mjs` (`--check` says whether the copy is
+current; data hash `ed4aa16f908aab28`), `web/src/scenarios/stream-drive.js`. Changed: `engine/collision.js` (the chunk
+ring, floating boxes), `engine/nav.js` (the window), `systems/stunts.js` (relief outside the island comes from the
+WorldIndex), `world/city.js` (`ISLAND`, `OUTSIDE` name hooks, no bound walls), `systems/convoy.js`, `ui/hud.js` and
+`ui/qol.js` (radar and regional map), `agent/api.js` (`world`, `chunk`, `locate`, `teleport town= mile= dir=`, nine
+selftest checks).
+
+**The §8 C gates, measured** (fresh page, RTX 4090, headless Chrome, this machine shared with other agents):
+
+| # | Gate | Measured |
+|---|---|---|
+| 6 | island hash | `f206a6c8` = golden, `islandMatches: true` |
+| 7, 8 | determinism, seams | same hash after a teleport and 30 s, sync and sliced; every edge signature (ground and road) matches its neighbour's |
+| 9 | 60 s flat out | **2,601 m** (43.3 m/s average) on the MOTORCYCLE, 0 `cross` and 0 `promote` stalls, 73 draw calls, every 1 Hz sample on the road |
+| 10 | nav over the island edge | `path fx=300 fz=0 x=900 z=0 mode=car`: found, 600 m, 0.9 ms of search (the command first lays out the ground between the ends it has not seen: a `query` stall) |
+| 11 | no leaks | every pool's `used` and `perf.geometries` back to the start after a lap out and back |
+| 13 | perf (night acid storm, the widest zoom, two raider buggies, 120 s held at 46 m/s, 5.5 km through exit 4) | **75** draw calls (413k triangles), frame p95 **6.3 ms**, max 12 ms, pump p95 0.1 ms, max 3.9 ms, 0 stalls, live heap +1.7 / +9.1 MB after a full GC over two runs (an earlier, quieter run: p95 5.2, max 9.5) |
+| 14 | 60 m/s ceiling | 0 stalls, 65 draw calls |
+| 15 | dust wall | holds from 44,000 and from 44,800 |
+| 16 | convoys | a convoy 3.5 km behind is gone, and not before |
+| B5 | selftest, stress | **106/106** (97 + 9 streaming) twice on fresh pages on the merged tree; `scenario name=stress` **69** draw calls, **2.18 ms** a frame on two fresh pages; an ABBA A/B against the lead's tip, a fresh Chrome per leg on a busy machine: 3.15 vs 3.11 ms, 69 vs 69-71 calls (no difference) |
+
+**What P1 taught (and where it departs from this spec).**
+1. **No car reaches its `maxSpeed`.** Measured flat out on I-10: LAWMAN **37.5 m/s** (row 46), DUNE BUGGY 35.5 (row 40),
+   MOTORCYCLE **44.7** (row 52). The driving model settles below the row. So the 60 s gate runs on the bike, and P2's K
+   calibration must drive the reference vehicle and use what it really does, not read its row: at 37.5 m/s the LAWMAN
+   takes 12.3 minutes from Miami to Orlando at K = 5.2 (decision 1 is still open).
+2. **HOT by content distance, not a 3 × 3 ring.** A chunk is put on the GPU when its content comes within 224 m and taken
+   off past 300 m. The ring promoted chunks whose content was far off screen, and cost the island's stress scene six draw
+   calls; an island chunk's band is now measured from the island's edge.
+3. **Relief is layered.** A bridge puts two heights on one spot, so `heightAt(x, z, y)` returns the fill for everyone and
+   the deck only for those already up on it (y above h − 2.2); characters carry their ground height (`gy`), and vehicle
+   collision passes the car's top so a parapet over a road does not stop the car under it.
+4. **`step` builds synchronously.** Agent runs stay deterministic in a hidden tab; the real-time loop pumps. A stall names
+   its cause; `teleport`, `screenshot`, `load`, `query` (an agent's `path`/`moveTo`/`drive` laying out the ground it
+   routes over) and `test` stalls are expected.
+5. **A long drive found a bug.** Every engine overheated on a long highway run: the temperature rose whenever the throttle
+   was open, whatever the radiator. Fixed (a sound radiator now settles at 0.4).
+6. **Allocation.** The streamer's per-frame path allocates nothing, and over a 5.5 km night run the live heap after a full GC grows 2-9 MB (the bounded caches filling). One heap reading before and one after is not a leak test: a major GC between them swung it by 40 MB either way, so `stream-drive` uses `gc()` when Chrome exposes it (`--js-flags=--expose-gc`). The base game allocates about 26 MB/s while it renders,
+   so a 45 ms major GC lands now and then with or without streaming (streaming adds about 1 MB/s while it builds).
+7. **Two gates needed fixing.** §8 item 15 passes trivially (from 44,000, 10 s at 46 m/s cannot reach the wall), so the
+   selftest also runs it from 44,800. The stress number in item 5 (52 ± 5) is stale: the scene was 68-70 before P1 and is
+   69-70 after.
+8. **Towns at their authored scale.** The Godot layouts are a few hundred metres across; stretched by 2.6 they read as
+   empty lots, so `townScale` is 1 (decision 5 is still open). The interstate's end town has the freeway trimmed back to
+   its first street.
+9. **The render origin can wait.** At 45 km float32 error is about 4 mm, invisible; P2 brings it with Florida.
+
+**Not in P1** (each belongs to a later phase or is open): GPS and `drive`/`moveTo` routes longer than one nav window (the
+RoadGraph, P3); people, traffic and pickups in streamed chunks (ghosts, P3); enterable buildings and loot out of town
+(P4); water outside the island (the rivers are dry, P4); persistence of anything out there (P5); El Paso's streets cross
+the interstate at grade; a dead exit gets its cross road and bridge but no road beyond.
 
 ## 2. Player Fantasy
 

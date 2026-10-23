@@ -71,6 +71,7 @@ export class Stunts {
     this.ramps = []; this.byId = {};
     this.cells = new Array(N * N).fill(null);
     this.hitRamp = null; this.hitS = 0; this.hitU = 0;
+    this.ext = null; // the streamed world's relief (world/streamer.js sets it): ramps and bridges past the island
     for (const row of RAMPS) this.add(row);
     this.jumps = JUMPS;
     this.fromRamp = Object.fromEntries(JUMPS.map((j) => [j.from, j]));
@@ -108,9 +109,15 @@ export class Stunts {
     return r;
   }
 
+  // Past the island (|x| or |z| >= 464) the streamed world answers: exit ramps, their fills and the bridge decks
+  // (world/worldindex.js heightAt). y is how high the asker stands now: a deck counts only for someone already up on it,
+  // so traffic passes under a bridge while the cross road goes over.
+  outside(x, z) { return x >= HALF || x < -HALF || z >= HALF || z < -HALF; }
+
   // Ground height at (x, z), and which ramp made it (hitRamp, hitS, hitU) - or 0 and null on the open ground.
-  heightAt(x, z) {
+  heightAt(x, z, y = 0) {
     this.hitRamp = null;
+    if (this.ext && this.outside(x, z)) return this.ext.heightAt(x, z, y);
     const list = this.cells[this.ci(z) * N + this.ci(x)];
     if (!list) return 0;
     let best = 0;
@@ -126,7 +133,16 @@ export class Stunts {
 
   // Height plus the exact slope (out.gx, out.gz: rise per metre east and south). Analytic, so a kicker's lip
   // doesn't smear into a cliff the way a finite difference across it would.
-  surface(x, z, out) {
+  surface(x, z, out, y = 0) {
+    if (this.ext && this.outside(x, z)) {
+      // Streamed relief is smooth (fills and ramps), so central differences give its slope.
+      const E = this.ext, h = E.heightAt(x, z, y), e = 0.6;
+      this.hitRamp = null;
+      if (h <= 0 && !E.nearRelief(x, z)) { out.gx = 0; out.gz = 0; return 0; }
+      out.gx = (E.heightAt(x + e, z, y) - E.heightAt(x - e, z, y)) / (2 * e);
+      out.gz = (E.heightAt(x, z + e, y) - E.heightAt(x, z - e, y)) / (2 * e);
+      return h;
+    }
     const h = this.heightAt(x, z), r = this.hitRamp;
     if (!r) { out.gx = 0; out.gz = 0; return 0; }
     const s = this.hitS, u = this.hitU;
@@ -138,14 +154,14 @@ export class Stunts {
   // ---- vehicles -----------------------------------------------------------------------------------------------
   step(v, dt) {
     if (v.boat || v.sunk) return;
-    const near = this.cells[this.ci(v.z) * N + this.ci(v.x)];
+    const near = this.outside(v.x, v.z) ? (this.ext ? this.ext.nearRelief(v.x, v.z) : null) : this.cells[this.ci(v.z) * N + this.ci(v.x)];
     if (!near && !v.air) {
       // The open ground: settle onto it (a car coming off the edge of a site lands here first) and stop paying.
       if (v.y === 0 && v.vy === 0) { this.level(v, dt); return; }
       if (Math.abs(v.y) < 0.004 && Math.abs(v.vy) < 0.06) { v.y = 0; v.vy = 0; v.gy = 0; this.level(v, dt); return; }
     }
     const S = STUNT, G = S.gravity, sp = springsOf(v);
-    const gh = this.surface(v.x, v.z, _sl), ramp = this.hitRamp, rs = this.hitS;
+    const gh = this.surface(v.x, v.z, _sl, v.y), ramp = this.hitRamp, rs = this.hitS;
     const vg = _sl.gx * v.vx + _sl.gz * v.vz; // how fast the ground under the car is rising
     // A ledge taller than a tyre climbs, met on the ground: it's a wall (kickers are boxed in; this catches the rest).
     if (!v.air && gh - v.y > S.step + sp.bump) {

@@ -252,8 +252,10 @@ export class HUD {
       s.loc = loc;
       this.el.loc.textContent = loc;
       this.fit(this.el.loc, `700 64px "Overpass"`, 64, 312, 30);
-      const d = districtName(px, pz);
-      this.text('locSub', this.el.locSub, d === 'THE GLASS FLATS' ? 'MARICOPA CO. - ARIZONA' : 'PHOENIX - ARIZONA');
+      const d = districtName(px, pz), W = g.streamer?.W;
+      // Past the island the state comes from the map (world/worldindex.js), and the road you are near names the stretch.
+      const out = W && (Math.abs(px) > 464 || Math.abs(pz) > 464);
+      this.text('locSub', this.el.locSub, out ? `${W.project(px, pz, 2048).d < 2000 ? W.road.nickname : 'NO ROAD'} - ${d}` : d === 'THE GLASS FLATS' ? 'MARICOPA CO. - ARIZONA' : 'PHOENIX - ARIZONA');
     }
 
     // health / stamina / breath
@@ -510,9 +512,16 @@ export class HUD {
   drawMinimap(px, pz, heading) {
     const c = this.mmCtx, S = 200, R = 100;
     if (!this.mmTint) { this.mmTint = ART.tintMap(this.g.world.minimap); this.mmMesh = ART.paintRadarMesh(S); }
-    const src = this.mmTint, k = src.width / (HALF * 2), view = 150, scale = R / view;
+    // The radar opens out with speed (docs/design/WEB_STREAMING.md F13: 150 m + 6 s of road, up to 426 m).
+    const pv = this.g.player.inVehicle, want = Math.min(426, 150 + 6 * (pv ? this.g.vehiclesSys.speed(pv) : 0));
+    this.mmView = (this.mmView ?? 150) + (want - (this.mmView ?? 150)) * 0.06;
+    const view = this.mmView, scale = R / view;
     c.fillStyle = '#0c1209'; c.fillRect(0, 0, S, S);
-    c.drawImage(src, (px + HALF) * k - view * k, (pz + HALF) * k - view * k, view * 2 * k, view * 2 * k, 0, 0, S, S);
+    // Phoenix's own map while the radar stays inside it; past its edge, the streamer's window of chunk tiles (2 m a
+    // pixel, 1,280 m across, the island drawn into it from this same map).
+    const win = Math.abs(px) + view > HALF || Math.abs(pz) + view > HALF ? this.g.streamer?.minimap(this.mmTint) : null;
+    if (win) c.drawImage(win.canvas, (px - view - win.x0) / 2, (pz - view - win.z0) / 2, view, view, 0, 0, S, S);
+    else { const src = this.mmTint, k = src.width / (HALF * 2); c.drawImage(src, (px + HALF) * k - view * k, (pz + HALF) * k - view * k, view * 2 * k, view * 2 * k, 0, 0, S, S); }
     c.drawImage(this.mmMesh, 0, 0);
     // GPS route: dashed amber, a ring at the end
     const r = this.g.qol?.route;
