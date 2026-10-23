@@ -105,11 +105,11 @@ selftest checks).
 | 9 | 60 s flat out | **2,601 m** (43.3 m/s average) on the MOTORCYCLE, 0 `cross` and 0 `promote` stalls, 73 draw calls, every 1 Hz sample on the road |
 | 10 | nav over the island edge | `path fx=300 fz=0 x=900 z=0 mode=car`: found, 600 m, 0.9 ms of search (the command first lays out the ground between the ends it has not seen: a `query` stall) |
 | 11 | no leaks | every pool's `used` and `perf.geometries` back to the start after a lap out and back |
-| 13 | perf (night acid storm, the widest zoom, two raider buggies, 120 s held at 46 m/s, 5.5 km through exit 4) | **75** draw calls (413k triangles), frame p95 **6.3 ms**, max 12 ms, pump p95 0.1 ms, max 3.9 ms, 0 stalls, heap +11 MB (an earlier, quieter run: p95 5.2, max 9.5) |
+| 13 | perf (night acid storm, the widest zoom, two raider buggies, 120 s held at 46 m/s, 5.5 km through exit 4) | **75** draw calls (413k triangles), frame p95 **6.3 ms**, max 12 ms, pump p95 0.1 ms, max 3.9 ms, 0 stalls, live heap +1.7 / +9.1 MB after a full GC over two runs (an earlier, quieter run: p95 5.2, max 9.5) |
 | 14 | 60 m/s ceiling | 0 stalls, 65 draw calls |
 | 15 | dust wall | holds from 44,000 and from 44,800 |
 | 16 | convoys | a convoy 3.5 km behind is gone, and not before |
-| B5 | selftest, stress | **93/93** (84 + 9 streaming); `scenario name=stress` **69** draw calls, **2.18 ms** a frame on two fresh pages (68-70 before P1) |
+| B5 | selftest, stress | **106/106** (97 + 9 streaming) twice on fresh pages on the merged tree; `scenario name=stress` **69** draw calls, **2.18 ms** a frame on two fresh pages; an ABBA A/B against the lead's tip, a fresh Chrome per leg on a busy machine: 3.15 vs 3.11 ms, 69 vs 69-71 calls (no difference) |
 
 **What P1 taught (and where it departs from this spec).**
 1. **No car reaches its `maxSpeed`.** Measured flat out on I-10: LAWMAN **37.5 m/s** (row 46), DUNE BUGGY 35.5 (row 40),
@@ -127,7 +127,7 @@ selftest checks).
    routes over) and `test` stalls are expected.
 5. **A long drive found a bug.** Every engine overheated on a long highway run: the temperature rose whenever the throttle
    was open, whatever the radiator. Fixed (a sound radiator now settles at 0.4).
-6. **Allocation.** The streamer's per-frame path allocates nothing. The base game allocates about 26 MB/s while it renders,
+6. **Allocation.** The streamer's per-frame path allocates nothing, and over a 5.5 km night run the live heap after a full GC grows 2-9 MB (the bounded caches filling). One heap reading before and one after is not a leak test: a major GC between them swung it by 40 MB either way, so `stream-drive` uses `gc()` when Chrome exposes it (`--js-flags=--expose-gc`). The base game allocates about 26 MB/s while it renders,
    so a 45 ms major GC lands now and then with or without streaming (streaming adds about 1 MB/s while it builds).
 7. **Two gates needed fixing.** §8 item 15 passes trivially (from 44,000, 10 s at 46 m/s cannot reach the wall), so the
    selftest also runs it from 44,800. The stress number in item 5 (52 ± 5) is stale: the scene was 68-70 before P1 and is
