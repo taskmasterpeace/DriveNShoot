@@ -151,6 +151,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `talk` | `id:string force?:boolean` | Open a conversation with a character (id, npc id like "okonkwo", or name). You must be within 4m (moveTo them first); force=true snaps you next to them (testing only). A sleeper is shaken awake first, as E does (woke: true). |
 | `choose` | `index:number` | Pick a dialogue choice by index (0-based). Returns the next line + choices. |
 | `dialogue` | `(none)` | Current dialogue text + choices. |
+| `voice` | `id?:string key?:string text?:string vars?:string radio?:boolean dev?:boolean` | Voices (docs/design/WEB_VOICE.md). No args: what is being said now (who, gain, distance, pan), the counts (played, text-only, cut, busy) and the last lines. id= key= says a situation row as that person would, filled from the live world (vars= a JSON object for {who} {place} {dir}...): greet, refuse, under_fire, gunpoint.aimed\|surrender\|plead\|handover\|defiant\|rob\|rob_warn\|rob_paid, standoff.open\|hold\|back_down\|break, trade.hello\|deal\|broke, rumour, road.warning, death, thanks. id= text= speaks one exact line. radio=true speaks text= (or key=) on STATIC 1660 AM. dev=true lets the placeholder (flite) clips play. Audio when the forge rendered the line for their voice (tools/voiceforge), the subtitle always. |
 
 ## society
 
