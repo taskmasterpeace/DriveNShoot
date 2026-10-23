@@ -208,9 +208,14 @@ export function floorplan(o) {
     const uLo = u * uw, uHi = (u + 1) * uw, Wi = uHi - uLo - T, Vi = Vc - T;
     const urng = planRng(mix(o.seed >>> 0, 0x504c4e00 + u));
     let pick = null;
-    const feas = [];
-    for (let t = 0; t < list.length; t++) {
-      const P = list[t];
+    // Plans in a weighted random order, the first that fits wins (the same odds as a weighted pick among the ones that fit,
+    // without fitting them all).
+    const left = list.map((P, t) => ({ P, t }));
+    while (left.length && !pick) {
+      let tw = 0; for (const q of left) tw += q.P.w;
+      let p = urng() * tw, k = left.length - 1;
+      for (let i = 0; i < left.length; i++) if ((p -= left[i].P.w) < 0) { k = i; break; }
+      const { P, t } = left.splice(k, 1)[0];
       const mirrors = urng() < 0.5 ? [false, true] : [true, false];
       for (const mirror of mirrors) {
         const rng = planRng(mix(o.seed >>> 0, (t * 4 + (mirror ? 1 : 0)) * 64 + u + 1));
@@ -232,14 +237,9 @@ export function floorplan(o) {
         const cands = [];
         cands.push(...doorSpots(Math.min(lo, hi), Math.max(lo, hi), dw));
         if (!cands.length) continue;
-        feas.push({ P, mirror, out, ctx, cands, rng });
+        pick = { P, mirror, out, ctx, cands, rng };
         break;
       }
-    }
-    if (feas.length) {
-      let tw = 0; for (const f of feas) tw += f.P.w;
-      let p = urng() * tw; pick = feas[feas.length - 1];
-      for (const f of feas) if ((p -= f.P.w) < 0) { pick = f; break; }
     }
     if (!pick) {
       // Nothing fits (a footprint squeezed by its lot): one open room, the old shell's way.
