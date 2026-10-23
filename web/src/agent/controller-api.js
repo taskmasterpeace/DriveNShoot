@@ -151,10 +151,12 @@ export async function controllerChecks(x) {
       const light = p.x - x1;
       pad([0, 0, 0, 1]); await secs(0.5); // aim south
       const south = { face: +Math.cos(p.face).toFixed(2), aimZ: +(g.aim.z - p.z).toFixed(1), device: CT.device };
-      pad([-1, 0, -1, 0]); await secs(0.5); // walk and aim west
+      pad([0, 0, -1, 0]); await secs(0.5); // aim west (the stick alone: walking west at the stage could run you into a window's vault, which holds your facing)
       const west = { sin: +Math.sin(p.face).toFixed(2), aimX: +(g.aim.x - p.x).toFixed(1) };
       pad(); await secs(0.2);
-      // the wheel: a car beside you, RT for the gas, LT for the brake, the stick steers
+      // the wheel: a car beside you, RT for the gas, LT for the brake, the stick steers (3 m west first: where the walk used to
+      // leave you, so the car stands on the open sand it always did)
+      await C('teleport', { x: p.x - 3, z: p.z }); await secs(0.1);
       const v = (await C('spawnVehicle', { type: 'pickup', x: p.x + 4, z: p.z, ai: 'none' })).id, car = api.findVeh(v);
       await C('enterVehicle', { id: v, force: true });
       const cx = car.x, cz = car.z;
