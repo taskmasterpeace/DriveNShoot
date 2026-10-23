@@ -44,15 +44,16 @@ export class Skills {
 
   recompute() {
     const S = this.g.skills, L = this.lv;
-    S.spreadMul = 1 - PER_LEVEL.spread * L.dexterity;
+    const F = this.g.sheet?.fx; // the traits you were made with (data/creator.js): none, no change
+    S.spreadMul = (1 - PER_LEVEL.spread * L.dexterity) * (F ? F.spreadMul * ((this.g.sky?.night ?? 0) > 0.5 ? F.nightSpreadMul : 1) : 1);
     const G = this.g.gear; // what you wear (systems/gear.js): a sash's loops, a belt's pouches, boots
-    S.reloadMul = (1 - PER_LEVEL.reload * L.dexterity) * (G?.reloadMul() ?? 1);
-    S.sprintDrainMul = 1 - PER_LEVEL.sprintDrain * L.endurance;
-    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0) + (G?.carryKg() ?? 0); // a known scavenger packs smarter; a belt carries
+    S.reloadMul = (1 - PER_LEVEL.reload * L.dexterity) * (G?.reloadMul() ?? 1) * (F?.reloadMul ?? 1);
+    S.sprintDrainMul = (1 - PER_LEVEL.sprintDrain * L.endurance) * (F?.sprintDrainMul ?? 1);
+    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0) + (G?.carryKg() ?? 0) + (F?.carryKg ?? 0); // a known scavenger packs smarter; a belt carries
     S.kg = this.g.inv ? this.weigh() : 0;
     S.load = S.kg / S.carryKg;
     S.overloaded = S.load > 1;
-    S.speedMul = (S.overloaded ? CARRY.overSpeed : S.load > CARRY.slowAt ? CARRY.slowSpeed : 1) * (G?.speedMul() ?? 1);
+    S.speedMul = (S.overloaded ? CARRY.overSpeed : S.load > CARRY.slowAt ? CARRY.slowSpeed : 1) * (G?.speedMul() ?? 1) * (F?.speedMul ?? 1);
     S.drainMul = S.load > CARRY.slowAt ? CARRY.slowDrain : 1;
   }
 

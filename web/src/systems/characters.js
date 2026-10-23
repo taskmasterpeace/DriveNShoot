@@ -45,6 +45,7 @@ export const stridePhase = (v, dt) => (Math.PI * v * dt) / stepLength(v);
 export const HATS = ['short', 'cap', 'cowboy', 'mohawk', 'wrap', 'long', 'beanie', 'helmet', 'bandana', 'bald'];
 export const GEAR = ['none', 'vest', 'pack', 'pads', 'bandolier', 'poncho'];
 export const ACCESSORIES = ['none', 'goggles', 'mask', 'eyepatch'];
+export const SCARS = ['brow', 'cheek', 'jaw']; // an old wound, in a lighter tone than the skin (c.scar, c.scarColor; data/creator.js)
 const HAIR_STYLES = new Set(['short', 'mohawk', 'long']); // drawn in the hair colour, the rest in the hat colour
 
 export class Character {
@@ -236,6 +237,9 @@ function buildGeometries() {
   // Accessories on the head.
   G.goggles = merge([new THREE.CylinderGeometry(0.212, 0.212, 0.035, 14, 1, true).translate(0, 0.1, 0), box(0.07, 0.05, 0.04, -0.06, 0.12, 0.2), box(0.07, 0.05, 0.04, 0.06, 0.12, 0.2)]);
   G.mask = new THREE.CylinderGeometry(0.2, 0.17, 0.15, 12, 1, true, -Math.PI / 2, Math.PI).rotateY(Math.PI).translate(0, -0.1, 0.03);
+  G.scar_brow = merge([bar([-0.13, 0.12, 0.165], [-0.02, 0.0, 0.198], 0.022, 0.014), bar([-0.1, 0.11, 0.176], [-0.08, 0.07, 0.188], 0.03, 0.012)]);
+  G.scar_cheek = bar([0.075, 0.02, 0.19], [0.13, -0.11, 0.15], 0.022, 0.014);
+  G.scar_jaw = bar([-0.12, -0.13, 0.13], [0.05, -0.165, 0.165], 0.024, 0.014);
   G.eyepatch = merge([box(0.07, 0.06, 0.02, -0.07, 0.03, 0.195), bar([-0.11, 0.05, 0.17], [0.19, 0.11, -0.02], 0.012, 0.012)]);
   Object.assign(G, gunGeos());
   return G;
@@ -308,10 +312,11 @@ export class CharacterRenderer {
     for (const h of HATS) if (h !== 'bald') variant(`hat_${h}`, G[h], h === 'bandana' || h === 'beanie' ? gearMat : mat);
     for (const g of GEAR.slice(1)) variant(`gear_${g}`, G[g], gearMat);
     for (const a of ACCESSORIES.slice(1)) variant(`acc_${a}`, G[a], gearMat);
+    for (const s of SCARS) variant(`scar_${s}`, G[`scar_${s}`], mat);
     const gunMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.5 });
     for (const k of GUN_KEYS) { const m = make(G[k], gunMat, MAX_CHARS, false); this.meshes[`gun_${k}`] = m; this.variant.push(`gun_${k}`); }
     // Small parts don't need shadows from a top-down camera: skip them in the shadow pass.
-    for (const k of ['face', 'hand', 'boot', 'fore', 'hips', 'hat_short', 'hat_mohawk', 'hat_cap', 'hat_bandana', 'gear_pads', 'gear_vest', 'gear_bandolier', 'acc_goggles', 'acc_mask', 'acc_eyepatch', ...GUN_KEYS.map((k) => `gun_${k}`)]) this.meshes[k].castShadow = false;
+    for (const k of ['face', 'hand', 'boot', 'fore', 'hips', 'hat_short', 'hat_mohawk', 'hat_cap', 'hat_bandana', 'gear_pads', 'gear_vest', 'gear_bandolier', 'acc_goggles', 'acc_mask', 'acc_eyepatch', ...SCARS.map((s) => `scar_${s}`), ...GUN_KEYS.map((k) => `gun_${k}`)]) this.meshes[k].castShadow = false;
     this.packed = {};
   }
 
@@ -412,6 +417,7 @@ export class CharacterRenderer {
       _root.compose(_v.set(ch.x, 0.16 + gy, ch.z), _q, _one);
       _root.multiply(_r.makeRotationX(-Math.PI / 2)).multiply(_t.makeTranslation(0, -0.95, 0));
     }
+    if (ch.build) _root.multiply(_t.makeScale(ch.build.w, ch.build.h, ch.build.w)); // a made character's build (data/creator.js BUILDS)
 
     // ---- gait --------------------------------------------------------------------------------
     // The legs face where the body is going; the torso faces ch.face. Backpedalling walks the
@@ -521,6 +527,7 @@ export class CharacterRenderer {
       if (hat !== 'bald' && M[`hat_${hat}`]) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
       const acc = c.accStyle ?? 'none';
       if (acc !== 'none' && M[`acc_${acc}`]) this.put(`acc_${acc}`, headFrame, 0, 0, 0, 0, acc === 'mask' ? c.mask ?? '#6a2a1e' : '#2a2622');
+      if (c.scar && M[`scar_${c.scar}`]) this.put(`scar_${c.scar}`, headFrame, 0, 0, 0, 0, c.scarColor ?? '#d9a58a');
     }
     const gear = c.gearStyle ?? 'none';
     if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');

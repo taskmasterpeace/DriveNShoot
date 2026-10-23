@@ -65,6 +65,8 @@ import { startBridge } from './agent/bridge.js';
 import { Recorder } from './agent/recorder.js';
 import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
+import { Creator } from './systems/creator.js';
+import { CreatorUI } from './ui/creator.js';
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -211,6 +213,8 @@ class Game {
     this.regions.placeAtStart(); // ?start=florida (the players' default): a new game begins at Meridian's clinic door
     this.api = new AgentAPI(this);
     this.title(ui);
+    this.creator = new Creator(this); // point-buy survivors (data/creator.js, docs/design/WEB_CREATOR.md): the draft, the sheet, BEGIN
+    this.creatorUI = new CreatorUI(this); // its screen, and MAKE A SURVIVOR on the title
   }
 
   // ---- population ----------------------------------------------------------------

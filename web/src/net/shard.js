@@ -193,6 +193,9 @@ export class Shard {
     p.colors = outfit('player', makeRng(m.char.look)); g.charR.paint(p);
     g.hud.paintFlag?.(m.char.flag);
     if (apply) this.applyPersonal(m.char.data ?? this.baseline, m.char.id);
+    // A brand-new character (the shard has a name and a flag, nothing else): THE CREATOR opens on it and BEGIN saves it,
+    // once data/creator.js CREATOR.shardNew is on (off until the shard's two-client proof walks through the creator too).
+    if (apply && (!m.char.data || m.char.data.sheetPending) && g.creator?.opensForShard()) g.creator.forShard(m.char, () => this.save().catch(() => {}));
     this.applyWorld(m.world);
     for (const pl of m.players) this.addRemote(pl);
     this.state = 'inworld';
@@ -258,6 +261,8 @@ export class Shard {
       car: v ? { type: v.type, paint: v.paint, x: +v.x.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), hp: Math.round(v.hp), seed: v.shardSeed ?? null,
         plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined } : null,
       house: this.char?.house ?? null,
+      sheet: g.creator?.save() ?? null, gear: g.gear?.save(), // who you were made as (data/creator.js) and what you wear (additive: an older record has neither)
+      ...(g.creator?.pending ? { sheetPending: true } : {}), // made on the shard, the creator not finished yet: it opens again at the next login
     };
   }
 
@@ -272,11 +277,13 @@ export class Shard {
     if (!p.alive) { p.alive = true; p.hp = p.maxHp; }
     g.standOn(p);
     p.weapon = g.inv.current;
+    if (d.sheet !== undefined) g.creator?.load(d.sheet); // before skills and gear: their numbers fold the sheet's
     if (d.needs) g.survival.load(d.needs);
     if (d.skills) g.skillsSys.load(d.skills);
     // The pack is yours; every crate and shelf in the world stays as this page has it.
     if (d.pack) g.inventory.load({ ...g.inventory.save(), worn: d.pack.worn, carried: d.pack.carried });
     g.inventory.bindAmmo();
+    if (d.gear) g.gear?.load(d.gear);
     if (d.roles) g.roles.load(d.roles);
     if (d.society?.factions) { g.society.factions.load(d.society.factions); for (const c of g.chars) g.society.factions.assign(c); }
     if (d.society?.memory) g.society.memory.load(d.society.memory);

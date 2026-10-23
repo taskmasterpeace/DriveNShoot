@@ -105,9 +105,10 @@ export class Gear {
   wornKg() { let k = 0; for (const s of SLOTS) { const id = this.worn[s]; if (id) k += ITEMS[id]?.kg ?? 0; } return k; } // what you wear still weighs (inventory.kg)
   speedMul() { return 1 + this.mods.speed; }
   reloadMul() { return 1 - this.mods.reload; }
-  seenMul() { return 1 - this.mods.stealth; }     // how close a hostile must be to spot you
-  repairMul() { return 1 + this.mods.repair; }
-  luckRolls() { return Math.round(this.mods.luck); }
+  // ...and the traits you were made with (data/creator.js, g.sheet.fx) fold into the same three numbers.
+  seenMul() { return (1 - this.mods.stealth) * (this.g.sheet?.fx.seenMul ?? 1); }     // how close a hostile must be to spot you
+  repairMul() { return 1 + this.mods.repair + (this.g.sheet?.fx.repair ?? 0); }
+  luckRolls() { return Math.round(this.mods.luck + (this.g.sheet?.fx.luck ?? 0)); }
 
   // What the player's body shows: a vest, a helmet, a poncho, a bandolier while one is worn (characters.js styles).
   dress() {
