@@ -86,9 +86,7 @@ export const MATERIAL_RULES = {
     crate: 'wood', shelf: 'wood', furniture: 'wood', table: 'wood', desk: 'wood', bench: 'wood', booth: 'wood', stall: 'wood',
     barricade: 'wood', bleachers: 'wood',
     tent: 'cloth',
-    hut: 'cloth',  // a Greyborn shelter: hides and tarp over poles (systems/greyborn.js)
-    husk: 'cloth', // the body you left where you fell: soft, rounds pass (systems/clone.js)
-    barrel: 'sheet_metal', drum: 'sheet_metal', /* the hot ground's leaking drums (systems/hotground.js) */ junk: 'sheet_metal', shed: 'sheet_metal', pump: 'sheet_metal', lockers: 'sheet_metal', racks: 'sheet_metal',
+    barrel: 'sheet_metal', junk: 'sheet_metal', shed: 'sheet_metal', pump: 'sheet_metal', lockers: 'sheet_metal', racks: 'sheet_metal',
     wreck: 'carbody', car: 'carbody', chassis: 'carbody', engine: 'carbody',
     tank: 'steel', tower: 'steel', boxcar: 'steel', rail: 'steel', ramp: 'steel', mast: 'steel', flagpole: 'steel', post: 'steel',
     pole: 'steel', boom: 'steel', bunk: 'steel', milbox: 'steel', generator: 'steel',
