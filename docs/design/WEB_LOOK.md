@@ -519,7 +519,13 @@ dusk 18:36), same zoom: `docs/renders/web/look2/<shot>_before.jpg` and `_after.j
   floors are colour, the ground's no-tiling is a shader). Meridian's and the painted woods' chunk hashes changed on purpose
   (their new instances and boxes); none of them is pinned.
 - `terrain-check.mjs` is unaffected: the heights are not touched.
-- **Selftest:** BATTERY_RESULTS `node tools/ip-lint.mjs`: 0 deny.
+- **Selftest** (fresh pages, a machine shared with other agents' harnesses): before the merge of f71f81fe, 250/250,
+  246/250, 250/250, 249/250, 250/250. After it (263 checks), 260, 262, 261, 261. f71f81fe itself on the same harness, in
+  between: 262 and 261. The misses are a different input- or timing-bound check almost every run (the pad at the wheel,
+  the weapon bar's modes, a dog's heel, the bike's aim, the Mateo rumour, a resident's run, a raider on the stairs, the
+  bus) and as many miss on the base, so none is traced to this pass; not two clean batteries in a row on the merged tree.
+- **Stress after the merge** (interleaved, fresh pages): f71f81fe 6.59, 7.06, 7.17 ms; look2 6.47, 6.74, 6.16; 85-88 calls.
+- `node tools/ip-lint.mjs`: 0 deny.
 
 **Not done (look pass 2).** Meridian's street grid and its civic row are as they were (the programmes and the checks are
 built on them): the town is denser and rougher, but its blocks are still a grid. Burnt shells use the zone's smoke-dark
