@@ -1,0 +1,86 @@
+/* THE WEAPON BAR (docs/design/WEB_CONTROLLER.md §3.4): salvaged-steel tiles, stencilled gun silhouettes, brass on the
+   live slot; the fire-mode boxes stand up above the selected slot only. Laid out at 1600x900 and scaled by --s like the
+   other clusters; it sits in the gap left of the weapon plate, so the middle of the screen stays clear. No purple. */
+.wbar { position: absolute; right: calc(326px * var(--s)); bottom: calc(10px * var(--s)); transform: scale(var(--s)); transform-origin: 100% 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.wbar.hidden, .wradial.hidden { display: none; }
+.wb-tags { display: flex; flex-direction: row; gap: 5px; }
+.wb-tag { font: 700 11px var(--stencil); letter-spacing: 0.09em; padding: 2px 7px 2px; display: flex; gap: 6px; align-items: baseline; color: oklch(0.2 0.02 60); background: oklch(0.8 0.04 80); clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px); box-shadow: 2px 2px 0 rgba(0,0,0,0.6); text-align: center; min-width: 58px; }
+.wb-tag.t-raised { background: oklch(0.6 0.17 40); color: oklch(0.97 0.02 85); }
+.wb-tag.t-lowered { background: oklch(0.74 0.06 78); }
+.wb-tag.t-holstered { background: oklch(0.42 0.03 70); color: oklch(0.9 0.02 85); }
+.wb-tag.t-drawing { background: oklch(0.8 0.15 75); }
+.wb-tag.g-one { background: oklch(0.78 0.14 68); }
+.wb-tag.g-two { background: oklch(0.86 0.03 85); }
+.wb-tag i { font-style: normal; opacity: 0.75; font-size: 9px; letter-spacing: 0.05em; }
+.wb-slots { display: flex; gap: 6px; align-items: flex-end; }
+.wb-slot { position: relative; width: 74px; height: 56px; transition: transform 0.12s; }
+.wb-face { position: absolute; inset: 0; background: var(--speckle), linear-gradient(172deg, var(--steel-hi), var(--steel-lo)); border: 1px solid oklch(0.1 0.01 60); border-bottom: 3px solid oklch(0.32 0.01 70); box-shadow: inset 0 1px 0 rgba(255,250,235,0.12); clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%, 0 7px); filter: drop-shadow(3px 4px 0 rgba(0,0,0,0.55)); }
+.wb-slot img { position: absolute; left: 4px; right: 4px; top: 9px; width: calc(100% - 8px); height: 30px; object-fit: contain; opacity: 0.55; filter: grayscale(0.4); }
+.wb-slot.on { transform: translateY(-5px); }
+.wb-slot.on .wb-face { border-bottom-color: var(--gold); background: var(--speckle), linear-gradient(172deg, oklch(0.4 0.012 70), oklch(0.24 0.01 70)); }
+.wb-slot.on img { opacity: 1; filter: none; }
+.wb-slot.empty img { opacity: 0.25; }
+.wb-num { position: absolute; left: 5px; top: 3px; font: 700 13px var(--display); color: oklch(0.82 0.03 80); text-shadow: 1px 1px 0 #000; }
+.wb-slot.on .wb-num { color: var(--gold); }
+.wb-ammo { position: absolute; right: 6px; bottom: 2px; font: 700 13px var(--display); color: var(--sand); text-shadow: 1px 1px 0 #000; }
+.wb-ammo.dry { color: oklch(0.65 0.2 30); }
+.wb-mtag { position: absolute; left: 6px; bottom: 3px; font: 700 9px var(--stencil); letter-spacing: 0.08em; color: oklch(0.75 0.05 78); }
+.wb-slot.on .wb-mtag { color: var(--bone); }
+/* the mode boxes: stand up above the live slot only */
+.wb-modes { position: absolute; left: 50%; bottom: calc(100% + 32px); transform: translateX(-50%); display: flex; gap: 4px; opacity: 0; translate: 0 8px; transition: opacity 0.16s, translate 0.16s; }
+.wb-slot.on .wb-modes.up { opacity: 1; translate: 0 0; }
+.wb-box { position: relative; min-width: 54px; height: 34px; padding: 0 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 13px var(--stencil); letter-spacing: 0.08em; color: oklch(0.88 0.03 80); background: var(--speckle), linear-gradient(172deg, oklch(0.34 0.01 70), oklch(0.2 0.008 70)); border: 1px solid oklch(0.1 0.01 60); border-bottom: 2px solid oklch(0.5 0.04 70); box-shadow: 2px 3px 0 rgba(0,0,0,0.6); clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
+.wb-box b { display: flex; gap: 2px; margin-top: 2px; height: 5px; }
+.wb-box b i { width: 4px; height: 4px; border-radius: 1px; background: currentColor; opacity: 0.9; }
+.wb-box b.auto i { width: 14px; height: 3px; }
+.wb-box.on { color: oklch(0.2 0.03 60); background: linear-gradient(172deg, oklch(0.88 0.13 85), oklch(0.7 0.14 72)); }
+
+/* THE WEAPON WHEEL (pad: hold RB): a fan above the bar, wedges by slot, the hovered slot's modes on an inner arc */
+.wradial { position: absolute; right: calc(330px * var(--s)); bottom: calc(132px * var(--s)); width: 420px; height: 228px; transform: scale(var(--s)); transform-origin: 50% 100%; pointer-events: none; }
+.wradial svg { position: absolute; inset: 0; overflow: visible; }
+.wr-wedge path { fill: oklch(0.22 0.01 70 / 0.88); stroke: oklch(0.1 0.01 60); stroke-width: 2; }
+.wr-wedge.on path { fill: oklch(0.36 0.04 70 / 0.95); stroke: var(--gold); stroke-width: 3; }
+.wr-wedge text { font: 700 15px var(--display); fill: oklch(0.85 0.03 80); }
+.wr-wedge.on text { fill: var(--gold); }
+.wr-wedge image { opacity: 0.6; }
+.wr-wedge.on image { opacity: 1; }
+.wr-mode rect { fill: oklch(0.2 0.008 70 / 0.95); stroke: oklch(0.1 0.01 60); stroke-width: 1.5; }
+.wr-mode.on rect { fill: oklch(0.8 0.14 78); }
+.wr-mode text { font: 700 11px var(--stencil); letter-spacing: 0.08em; fill: oklch(0.85 0.03 80); }
+.wr-mode.on text { fill: oklch(0.2 0.03 60); }
+.wr-title { position: absolute; left: 0; right: 0; top: -18px; text-align: center; font: 700 13px var(--stencil); letter-spacing: 0.12em; color: var(--bone); text-shadow: 1px 1px 0 #000; }
+.wr-title kbd { font-size: 10px; }
+
+/* THE GUNPOINT plate (systems/gunpoint.js): who you hold and how; in a standoff each drawn gun's nerve meter fills toward
+   the shot. Top centre under the compass, small, so the middle stays clear. */
+.gpp { position: absolute; left: 50%; top: calc(90px * var(--s)); transform: translateX(-50%) scale(var(--s)); transform-origin: 50% 0; min-width: 300px; padding: 6px 10px 7px; background: var(--speckle), linear-gradient(172deg, oklch(0.3 0.008 70 / 0.94), oklch(0.19 0.008 70 / 0.94)); border: 1px solid oklch(0.1 0.01 60); border-bottom: 3px solid oklch(0.74 0.11 80); box-shadow: 3px 4px 0 rgba(0,0,0,0.55); clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%, 0 8px); pointer-events: none; }
+.gpp.hidden { display: none; }
+.gpp.hot { border-bottom-color: oklch(0.6 0.2 30); }
+.gp-head { font: 700 15px var(--stencil); letter-spacing: 0.14em; color: var(--sand); text-align: center; margin-bottom: 4px; }
+.gpp.hot .gp-head { color: oklch(0.72 0.17 40); }
+.gp-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; font: 700 13px var(--display); letter-spacing: 0.04em; color: var(--bone); padding: 2px 0; }
+.gp-row img { width: 30px; height: 20px; box-shadow: 1px 1px 0 rgba(0,0,0,0.6); }
+.gp-row span { font: 700 11px var(--stencil); letter-spacing: 0.08em; color: oklch(0.8 0.04 80); }
+.gp-row.s-draw span { color: oklch(0.7 0.18 35); }
+.gp-row.s-plead span, .gp-row.s-comply span { color: oklch(0.82 0.1 85); }
+.gp-t { grid-column: 1 / -1; height: 4px; background: oklch(0.14 0.01 60); border-radius: 1px; overflow: hidden; }
+.gp-t em { display: block; height: 100%; background: linear-gradient(90deg, oklch(0.75 0.15 75), oklch(0.6 0.21 28)); }
+
+/* THE CONTROLS panel (F2): the binding rows, press to rebind */
+.ctl-back { position: absolute; inset: 0; background: rgba(8,6,4,0.62); display: flex; align-items: center; justify-content: center; z-index: 40; }
+.ctl-back.hidden { display: none; }
+.ctl-card { width: min(980px, 94vw); max-height: 86vh; overflow: auto; padding: 18px 22px 16px; background: var(--speckle), linear-gradient(172deg, oklch(0.28 0.008 70), oklch(0.18 0.008 70)); border: 1px solid oklch(0.1 0.01 60); border-top-color: oklch(0.45 0.012 70); border-radius: 3px; box-shadow: 6px 8px 0 rgba(0,0,0,0.5), 0 20px 50px rgba(0,0,0,0.55); font: 400 14px var(--body); }
+.ctl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.ctl-head h2 { margin: 0; font: 700 28px var(--stencil); letter-spacing: 0.08em; color: var(--sand); }
+.ctl-head span { color: var(--muted); font-size: 12px; }
+.ctl-group { margin: 12px 0 4px; font: 700 13px var(--display); letter-spacing: 0.12em; color: var(--gold); border-bottom: 1px solid oklch(0.38 0.03 60 / 0.7); padding-bottom: 3px; }
+.ctl-row { display: grid; grid-template-columns: 1fr 190px 200px; gap: 10px; align-items: center; padding: 3px 4px; border-radius: 3px; }
+.ctl-row:hover { background: oklch(0.32 0.02 60 / 0.5); }
+.ctl-row .lbl { color: var(--bone); font-size: 13px; }
+.ctl-cell { cursor: pointer; font: 700 12px var(--display); letter-spacing: 0.04em; color: oklch(0.88 0.03 82); background: oklch(0.15 0.01 60 / 0.8); border: 1px solid oklch(0.36 0.02 60); padding: 4px 8px; border-radius: 3px; min-height: 16px; transition: border-color 0.15s, background 0.15s; }
+.ctl-cell:hover { border-color: var(--gold); }
+.ctl-cell.cap { border-color: var(--gold); background: oklch(0.5 0.12 70 / 0.5); color: #fff; }
+.ctl-cell.clash { border-color: oklch(0.6 0.17 40); }
+.ctl-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; color: var(--muted); font-size: 12px; }
+.ctl-foot button { font: 700 13px var(--display); letter-spacing: 0.06em; padding: 6px 14px; color: var(--ink); background: linear-gradient(oklch(0.88 0.1 82), oklch(0.7 0.12 72)); border: 1px solid oklch(0.2 0.02 60); border-radius: 3px; cursor: pointer; transition: filter 0.15s; }
+.ctl-foot button:hover { filter: brightness(1.12); }

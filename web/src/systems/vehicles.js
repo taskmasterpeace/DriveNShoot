@@ -13,6 +13,8 @@ import { STUNT } from '../data/stunts.js';
 // can be shot / grabbed directly.
 const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
+// Reverse gear: acceleration (x the rig's accel) and top speed (x its maxSpeed). Was 0.6 / 0.35.
+export const REVERSE = { accel: 0.95, top: 0.45 };
 export const VEHICLES = {
   rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
   interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
@@ -232,8 +234,10 @@ export class Vehicles {
     }
     if (!v.dead && v.driver && !v.fallen) {
       if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
-      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 : -v.accel * 0.6) * -v.throttle * dt;
-      if (fwd < -v.maxSpeed * 0.35) fwd = -v.maxSpeed * 0.35;
+      // Reverse (WEB_CONTROLLER §3.1, tuned 2026-10-23: it read as "super slow"): REVERSE.accel x the rig's accel off the
+      // line, up to REVERSE.top x its top speed.
+      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 : -v.accel * REVERSE.accel) * -v.throttle * dt;
+      if (fwd < -v.maxSpeed * REVERSE.top) fwd = -v.maxSpeed * REVERSE.top;
       // Steering bites with speed, softens at top speed.
       const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a

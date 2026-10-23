@@ -27,6 +27,7 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -1522,7 +1523,9 @@ function buildCommands(api) {
       group: 'player', desc: 'Buy and sell over a trader\'s counter (data/trade.js, systems/trade.js): stand at a shelf in their shop with them there (Ike: guns, rounds, tools; Doc Reyes: meds; Kenji: parts, tools, packs; Mags: water, food, valuables). No args: the deal here - who, the standing tier, the buy and sell multipliers, their stock with prices, what of yours they would buy and for how much. buy=<item id> n= buys from the shelf at your feet (as many as fit and you can pay for; a gun you carry none of is slung); sell=<item id> n= sells from your pack; sellgun=<weapon> sells a slung gun. Price = worth (value, less wear, use and age) x the tier multiplier. With the trader away, taking from their shelf is stealing. In the game: the PACK screen at their shelf (Space buys or sells, E buys one and uses it).',
       args: { buy: { type: 'string' }, sell: { type: 'string' }, sellgun: { type: 'string' }, n: { type: 'number', default: 1 } },
       run: async ({ buy, sell, sellgun, n }) => {
-        const inv = g.inventory, T = g.trade, box = g.invUI.pickOther(), D = T.at(box);
+        const inv = g.inventory, T = g.trade, box = g.invUI.pickOther();
+        if (box?.owner && g.arms?.stance === 'raised') { g.arms.holster('trade'); const c = g.chars.find((x) => x.id === box.owner); if (c?.tenseT > 0) await api._step(Math.ceil((c.tenseT + 0.1) * 60)); } // a gun out shuts a counter (systems/arms.js): put it away first
+        const D = T.at(box);
         need(D, box?.owner ? `${box.ownerName} is not at the counter (taking from ${box.label} would be stealing)` : `${box?.label ?? 'nothing here'} is nobody's shop: stand at a trader's shelf`);
         need(!D.refuse, `${D.name} won't deal with you (${D.tier})`);
         const out = {};
@@ -1747,6 +1750,7 @@ function buildCommands(api) {
       args: { save: { type: 'object', required: true } },
       run: async ({ save }) => restore(g, save),
     },
+    ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -4696,6 +4700,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -4734,6 +4739,7 @@ export function snapshot(g) {
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
     gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
+    arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
   };
 }
 
@@ -4792,6 +4798,7 @@ export function restore(g, s) {
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
+  g.arms?.load(s.arms); g.gunpoint?.clear();
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are

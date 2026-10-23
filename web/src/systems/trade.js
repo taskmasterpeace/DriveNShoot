@@ -17,7 +17,8 @@ export class Trade {
     if (Math.hypot(c.x - g.player.x, c.z - g.player.z) > TRADE.reach) return null;
     const F = g.society?.factions, tier = F && c.fi >= 0 ? F.tiers[c.fi] : 'neutral', T = PRICE_TIER[tier];
     // ...or what you are known for closes the counter (docs/design/WEB_ROLES.md: a known butcher at Ike's).
-    const refuse = !T || !!g.society?.memory?.refuses(c) || !!g.roles?.refusal?.(c);
+    // ...and a gun raised in their shop shuts it until it goes down (systems/arms.js: they noticed it).
+    const refuse = !T || !!g.society?.memory?.refuses(c) || !!g.roles?.refusal?.(c) || !!g.arms?.refuses(c);
     const mul = g.roles?.priceMul?.(c.fid, c) ?? 1; // a role that buys cheaper (a known trader, a Remnant quartermaster's friend)
     this.restock(box);
     return { c, id: c.npc.id, name: row.name, deals: row.deals, tier, refuse, buy: T ? T.buy * mul : 0, sell: T ? T.sell / mul : 0 };
