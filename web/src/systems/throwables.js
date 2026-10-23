@@ -131,7 +131,7 @@ export class Throwables {
   startFire(x, z, r, dur, by) {
     if (this.fires.length > 30) this.fires.shift();
     this.fires.push({ x, z, r, t: 0, dur, by });
-    this.g.fx.decal(x, z, r * 2, '#141210');
+    if (this.g.blood) this.g.blood.scorch(x, z, r * 2.2, '#141210'); else this.g.fx.decal(x, z, r * 2, '#141210'); // a soft burn, not a splat (systems/blood.js)
     this.g.emit('fire', { x: Math.round(x), z: Math.round(z) });
   }
 

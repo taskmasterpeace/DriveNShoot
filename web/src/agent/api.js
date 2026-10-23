@@ -25,6 +25,7 @@ import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/au
 import { LAB_SAMPLES } from '../data/authored.js';
 import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
+import { materialCommands, materialChecks } from './materials-api.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1728,10 +1729,11 @@ function buildCommands(api) {
       run: async ({ save }) => restore(g, save),
     },
     selftest: {
-      group: 'script', budget: 300, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery).',
+      group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery).',
       args: { only: { type: 'string' } },
       run: async ({ only } = {}) => runSelfTest(api, only),
     },
+    ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
   };
 }
 
@@ -2436,6 +2438,10 @@ async function runSelfTest(api, only = null) {
     return shattered && detached && kept && d && widest > 0.6 && through ? true
       : JSON.stringify({ id, shattered, why, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
   });
+
+  // ---- what things are made of: rounds through wood and not block, ricochets, a breached door, blood on a wall,
+  // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
+  await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
@@ -4707,6 +4713,7 @@ export function snapshot(g) {
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
     gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
+    materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
   };
 }
 
@@ -4768,6 +4775,7 @@ export function restore(g, s) {
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
+  if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
