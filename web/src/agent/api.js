@@ -4247,6 +4247,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await streamHome();
     return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
   });
+  await waterChecks(api, check, C); // L1 water and its L2 crossings, out on the corridor (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   // ---- the Phoenix ring, R1 (docs/design/WEB_STREAMING.md §1.3): the city itself, enterable and worth searching ----
   const RG = WI.ring;
   // The densest chunk of the ring (most buildings of its own), and one of its intact houses with a door to the street.
@@ -5364,7 +5365,6 @@ async function runSelfTest(api, only = null, skip = null) {
     const r = await C('load', { save: sv });
     return r.ok && g.cash === cash && Math.abs(g.player.x - x) < 0.01 ? true : `cash=${g.cash}/${cash} x=${g.player.x}/${x}`;
   });
-  await waterChecks(api, check, C); // L1 water and its L2 crossings (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));

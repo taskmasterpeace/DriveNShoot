@@ -29,7 +29,7 @@ export const WATER = {
 
   // ---- L1: how a channel sits in the ground
   drop: { river: 1.2, canal: 1.6, creek: 0.7, wash: 0, lake: 0.6 }, // m: the water's surface below the land around it
-  bankRun: { river: 5.0, canal: 1.2, creek: 4.0, wash: 3.5, lake: 6.0 }, // horizontal metres per metre of bank (1:5 for a river; a canal's is concrete)
+  bankRun: { river: 5.0, canal: 1.2, creek: 4.0, wash: 3.5, lake: 18.0 }, // horizontal metres per metre of bank (1:5 for a river; a lake's beach 1:18; a canal's is concrete)
   wadeSink: 0.45,           // m: how far a wader's feet sit below the surface (half the depth up to this) (0.3-0.6)
   swimDepth: 1.3,           // m: deeper than this you swim (world/water.js stateAt uses the same 1.3)
   washTint: [1.12, 1.12, 1.16], // the ground in a dry wash (its bed is drawn as a strip: colour.washBed); warm, no purple

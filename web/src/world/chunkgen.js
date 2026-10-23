@@ -383,7 +383,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       // water's edge (r, metres, + in the water) and the depth (g), both near-linear across the channel, so the 8 m grid
       // interpolates them exactly and the foam line and the depth bands follow the real shore, not the grid.
       const x = ox + i * 8, z = oz + j * 8, river = WG.kind[k] === 1;
-      return (vid[n] = Wb.v(i * 8, y, j * 8, 0, 1, 0, river ? WG.u[k] / 7 : x / 9, river ? WG.s[k] / 7 : z / 9, WG.edge[k], d, 0));
+      return (vid[n] = Wb.v(i * 8, y, j * 8, 0, 1, 0, river ? WG.u[k] / 7 : x / 16, river ? WG.s[k] / 7 : z / 16, WG.edge[k], d, river ? 0 : 0.2)); // blue 0.2: a lake (calmer ripples)
     };
     // A cell with water at a corner, or next to one: the sheet runs on under the cut bank, so the shoreline is always
     // where the ground comes up through it (never the sheet's own square edge).

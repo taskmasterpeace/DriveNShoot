@@ -240,8 +240,11 @@ for (const Lk of LAKES) {
   // A ring: drop the closing point, cut it at the vertex farthest from the first, simplify both halves (DP on a closed
   // ring would see a zero-length chord and keep nothing).
   if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
-  let far = 0; for (let i = 1; i < pts.length; i++) if (Math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]) > Math.hypot(pts[far][0] - pts[0][0], pts[far][1] - pts[0][1])) far = i;
-  const simp = far > 0 ? [...simplify(pts.slice(0, far + 1), 6), ...simplify([...pts.slice(far), pts[0]], 6).slice(1, -1)] : pts;
+  // The NHD outline is generalised to corners every ~50 m of game: round it (Chaikin four times, closed) before simplifying.
+  const chaikinRing = (p) => { const o = []; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } return o; };
+  const sm = chaikinRing(chaikinRing(chaikinRing(chaikinRing(pts))));
+  let far = 0; for (let i = 1; i < sm.length; i++) if (Math.hypot(sm[i][0] - sm[0][0], sm[i][1] - sm[0][1]) > Math.hypot(sm[far][0] - sm[0][0], sm[far][1] - sm[0][1])) far = i;
+  const simp = (far > 0 ? [...simplify(sm.slice(0, far + 1), 0.6), ...simplify([...sm.slice(far), sm[0]], 0.6).slice(1, -1)] : sm).map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]);
   if (simp.length < 4) { report.push(`${Lk.id}: out of reach`); continue; }
   lakes.push({ id: Lk.id, name: Lk.name, kind: Lk.kind, d: Lk.d, ...(Lk.shelf ? { shelf: Lk.shelf } : {}), src: `USGS NHD waterbody "${Lk.gnis}" (layer 10), strip-mapped onto I-10`, note: Lk.note, pts: simp });
   report.push(`${Lk.id}: ${best.length} NHD vertices -> ${simp.length}`);

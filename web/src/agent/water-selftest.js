@@ -10,6 +10,7 @@ export async function waterChecks(api, check, C) {
   if (!R) { await check('water: the streamed world carries L1 water', async () => 'no streamed world'); return; }
   const home = async () => {
     if (g.needs) { g.needs.rest = Math.max(g.needs.rest, 0.9); g.needs.blackout = 0; }
+    if (g.dialogue?.active) g.dialogue.close(); // an earlier check's conversation left open holds your feet and hands
     g.driveOverride = null;
     const v = g.player.inVehicle;
     if (v) { g.exitVehicle(true); g.vehiclesSys.remove(v); }
@@ -186,6 +187,28 @@ export async function waterChecks(api, check, C) {
       const e = await C('chunk', { x: colorado.x + 256, z: colorado.z, build: true }), s = await C('chunk', { x: colorado.x, z: colorado.z + 256, build: true });
       const ok = fs.matches && fl.matches && a.edges.e === e.edges.w && a.edges.s === s.edges.n && (a.surfaces.water ?? 0) > 0;
       return ok ? true : JSON.stringify({ sync: fs.matches, sliced: fl.matches, east: [a.edges.e, e.edges.w], south: [a.edges.s, s.edges.n], water: a.surfaces.water });
+    });
+
+    await check('water: with real terrain on, the rivers lie in their valleys (the Colorado deep below I-10) and every crossing is still bridged (no lane over water or a gorge off a deck); off again, the flat world comes back', async () => {
+      await home();
+      const t = await C('terrain', { on: true });
+      try {
+        const bad = [];
+        for (let s = 0; s < WI.cl.L && bad.length < 6; s += 6) for (const dir of [1, -1]) {
+          const q = SW.lanePoint(s, dir, 0);
+          if ((Math.abs(q.x) < 470 && Math.abs(q.z) < 470) || !R.near(q.x, q.z) || R.deckAt(q.x, q.z) >= 0) continue;
+          const sm = R.sample(q.x, q.z);
+          if (sm.depth > WATER.ford || sm.bedRel < -0.3) bad.push(`mile ${(s / 1609.344).toFixed(2)}: depth ${r2(sm.depth)}, cut ${r2(sm.bedRel)}`);
+        }
+        const D = R.bridges.find((b) => b.kind === 'deck' && b.road === 'I-10' && b.river === 'colorado');
+        const p = WI.at(D.s), road = WI.groundAt(p.x, p.z), b = body('colorado');
+        let bi = 0, bd = Infinity; for (let i = 0; i < b.n; i++) { const d = Math.hypot(b.x[i] - p.x, b.z[i] - p.z); if (d < bd) { bd = d; bi = i; } }
+        const m = midRiver('colorado', 2, 300, D), under = road - b.Y[bi]; // the river's own surface where the deck spans it
+        return t.on && !bad.length && D && under > WATER.gorge && m ? true : JSON.stringify({ on: t.on, bad, deck: !!D, under: r2(under), mid: !!m });
+      } finally {
+        await C('terrain', { on: false });
+        await home();
+      }
     });
 
     await check('water: over the Colorado bridge at the widest zoom the frame stays under 150 draw calls', async () => {

@@ -136,8 +136,14 @@ export class Rivers {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const [x, z] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     const inside = (px, pz) => { let c = false; for (let i = 0, k = n - 1; i < n; k = i++) { const [ax, az] = P[i], [bx, bz] = P[k]; if ((az > pz) !== (bz > pz) && px < ((bx - ax) * (pz - az)) / (bz - az) + ax) c = !c; } return c; };
-    const M = 8, mw = Math.ceil((x1 - x0) / M) + 1, mh = Math.ceil((z1 - z0) / M) + 1, mask = new Uint8Array(mw * mh);
-    for (let j = 0; j < mh; j++) for (let i = 0; i < mw; i++) mask[j * mw + i] = inside(x0 + i * M, z0 + j * M) ? 1 : 0;
+    // The inside mask at 8 m, filled by scanlines (each row's crossings of the ring, sorted, spans between pairs).
+    const M = 8, mw = Math.ceil((x1 - x0) / M) + 1, mh = Math.ceil((z1 - z0) / M) + 1, mask = new Uint8Array(mw * mh), xs = [];
+    for (let j = 0; j < mh; j++) {
+      const pz = z0 + j * M; xs.length = 0;
+      for (let i = 0, k = n - 1; i < n; k = i++) { const [ax, az] = P[i], [bx, bz] = P[k]; if ((az > pz) !== (bz > pz)) xs.push(((bx - ax) * (pz - az)) / (bz - az) + ax); }
+      xs.sort((a, b) => a - b);
+      for (let q = 0; q + 1 < xs.length; q += 2) { const i0 = Math.max(0, Math.ceil((xs[q] - x0) / M)), i1 = Math.min(mw - 1, Math.floor((xs[q + 1] - x0) / M)); for (let i = i0; i <= i1; i++) mask[j * mw + i] = 1; }
+    }
     const kind = row.kind, dry = kind === 'playa', shelf = row.shelf ?? 0.06;
     const lake = { row, id: row.id, name: row.name ?? row.id, kind, wet: !dry, d: row.d, shelf, P, x0, z0, x1, z1, M, mw, mh, mask, Y: 0, drop: dry ? 0.3 : WATER.drop.lake, bankRun: WATER.bankRun.lake, clearance: WATER.clearance.lake, inside };
     this.lakes.push(lake);
@@ -393,10 +399,14 @@ export class Rivers {
     }
     for (const A of axes) {
       const hits = [];
+      // A short road's box first: only the channel segments inside it are tested against its points.
+      let ax0 = -Infinity, ax1 = Infinity, az0 = -Infinity, az1 = Infinity;
+      if (!A.main) { ax0 = Infinity; ax1 = -Infinity; az0 = Infinity; az1 = -Infinity; for (let i = 0; i < A.n; i++) { ax0 = Math.min(ax0, A.x[i]); ax1 = Math.max(ax1, A.x[i]); az0 = Math.min(az0, A.z[i]); az1 = Math.max(az1, A.z[i]); } }
       for (const b of this.bodies) {
         for (let i = 0; i < b.n - 1; i++) {
           if (b.f[i] <= 0 && b.f[i + 1] <= 0) continue;
           const bx0 = Math.min(b.x[i], b.x[i + 1]), bx1 = Math.max(b.x[i], b.x[i + 1]), bz0 = Math.min(b.z[i], b.z[i + 1]), bz1 = Math.max(b.z[i], b.z[i + 1]);
+          if (bx1 < ax0 || bx0 > ax1 || bz1 < az0 || bz0 > az1) continue;
           const cand = A.main ? this.clSegs(W, bx0, bz0, bx1, bz1) : null;
           const lo = A.main ? 0 : 0, hi = A.main ? cand.length : A.n - 1;
           for (let m = lo; m < hi; m++) {
@@ -420,7 +430,10 @@ export class Rivers {
     {
       const iv = [];
       const near = (x, z, r) => { const p = W.project(x, z, r + 80); if (p.d < r + W.section(p.s).out + 4) iv.push([p.s - r - 30, p.s + r + 30]); };
-      for (const b of this.bodies) for (let i = 0; i < b.n; i += 2) if (b.f[i] > 0) near(b.x[i], b.z[i], b.w[i] / 2 + Math.max(b.wet ? b.drop : b.bed[i], 0.5) * b.bankRun + 4);
+      // How far a channel's cut reaches: its half-width plus its banks, as deep as it cuts below the ground there (real
+      // terrain: down from a road's fill to a valley floor, up to MAX_CARVE).
+      const cut = (b, i) => Math.min(MAX_CARVE, Math.max(0.5, (this.T ? this.T.at(b.x[i], b.z[i]) : 0) - b.Y[i] + (b.wet ? b.d[i] : 0)));
+      for (const b of this.bodies) for (let i = 0; i < b.n; i += 4) if (b.f[i] > 0) near(b.x[i], b.z[i], b.w[i] / 2 + cut(b, i) * b.bankRun + 4);
       for (const L of this.lakes) for (const [x, z] of L.P) near(x, z, 70);
       iv.sort((a, b) => a[0] - b[0]);
       const merged = [];

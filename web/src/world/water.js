@@ -70,7 +70,7 @@ export class Water {
     // along each river's own length (UV v = metres downstream / 7), so they run with the current.
     this.flowTex = this.normal.clone();
     this.flowTex.wrapS = this.flowTex.wrapT = THREE.RepeatWrapping; this.flowTex.needsUpdate = true;
-    this.streamMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.34, metalness: 0, normalMap: this.flowTex, normalScale: new THREE.Vector2(0.26, 0.26), vertexColors: true }); // silty water: a duller glint than the island's
+    this.streamMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.4, metalness: 0, normalMap: this.flowTex, normalScale: new THREE.Vector2(0.18, 0.18), vertexColors: true }); // silty water: a duller glint than the island's
     // Its colour per pixel: the sheet's vertex colour carries (signed metres from the water's edge, depth) instead of a
     // colour (world/chunkgen.js), so the shore's foam line is crisp and the depth bands follow the real shore.
     const C = WATER.colour, lin = (h) => new THREE.Color(h);
@@ -102,10 +102,11 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
   }
   diffuseColor.rgb *= wc;
 #endif`)
-        .replace('#include <normal_fragment_maps>', 'if (vColor.b < 0.5) {\n#include <normal_fragment_maps>\n}')
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vColor.b > 0.5) roughnessFactor = 1.0;');
+        // No ripples on a wash's sand (blue 1); a lake's (blue 0.2) calmer than a river's.
+        .replace('#include <normal_fragment_maps>', `if (vColor.b < 0.5) {\n${THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * (vColor.b > 0.1 ? 0.4 : 1.0);')}\n}`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vColor.b > 0.5) roughnessFactor = 1.0; else if (vColor.b > 0.1) roughnessFactor = 0.5;');
     };
-    this.streamMat.customProgramCacheKey = () => 'dsoa-stream-water-3';
+    this.streamMat.customProgramCacheKey = () => 'dsoa-stream-water-4';
 
     // River ribbon + lake disc, vertex-tinted deeper toward the middle; one mesh.
     const geos = [];
