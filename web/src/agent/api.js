@@ -3052,8 +3052,10 @@ async function runSelfTest(api, only = null) {
     await C('setTime', { hour: 23 }); await api._step(20);
     const on = OB.poolMesh.visible && OB.beamMesh.visible;
     const p0 = { x: tw.poolX, z: tw.poolZ };
-    await api._step(240);
-    const swept = Math.hypot(tw.poolX - p0.x, tw.poolZ - p0.z) > 1;
+    // The farthest the pool gets from where it started over 4 s (two samples a sweep period apart see it back home).
+    let far = 0;
+    for (let k = 0; k < 24; k++) { await api._step(10); far = Math.max(far, Math.hypot(tw.poolX - p0.x, tw.poolZ - p0.z)); }
+    const swept = far > 1;
     // 25 m down the west fence from the tower, in the open: dark, then under its beam.
     await C('teleport', { x: tw.x, z: tw.z + 25 });
     const search = OB.pools.filter((p) => p.kind === 'search');
