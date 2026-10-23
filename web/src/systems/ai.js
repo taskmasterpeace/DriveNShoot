@@ -18,6 +18,24 @@ export class AI {
     this.tmp = { x: 0, z: 0 };
   }
 
+  // Nobody c isn't hostile to stands in the line of fire to t (a review saw a townsman down the sheriff, and the sheriff
+  // kill one of her own wardens, in the opening seconds): hold the shot and sidestep for a clear line instead.
+  clearShot(c, t, ang, d) {
+    const fx = Math.sin(ang), fz = Math.cos(ang);
+    for (const o of this.g.chars) {
+      // The cheap geometry first (in range, ahead, inside the corridor); who they are only for someone actually in it.
+      // Asking hostile() of everyone on every shot showed in the stress profile.
+      const ox = o.x - c.x, oz = o.z - c.z;
+      if (Math.abs(ox) > d + 1 || Math.abs(oz) > d + 1) continue;
+      const along = ox * fx + oz * fz;
+      if (along <= 0.3 || along >= d) continue;
+      if (Math.abs(ox * fz - oz * fx) >= (o.radius ?? 0.45) + 0.4) continue;
+      if (o === c || o === t || !o.alive || o.inVehicle || o.hidden || this.hostile(c, o)) continue;
+      return false;
+    }
+    return true;
+  }
+
   hostile(a, b) {
     if (!a.alive || !b.alive || a === b) return false;
     // The dead hunt every living thing; anyone armed (and the player) fights them.
@@ -238,7 +256,7 @@ export class AI {
       if (c.bleed > 0.2 && Math.random() < dt * 4 * c.bleed) g.fx.decal(c.x, c.z, 0.25 + Math.random() * 0.3, '#5a0606');
 
       // A witness running home to tell it (systems/witnesses.js): runs at any distance, deaf to the rest.
-      if (c.runner && g.witnesses.think(c, dt)) continue;
+      if (c.telling && g.witnesses.think(c, dt)) continue;
       const pd = Math.hypot(g.player.x - c.x, g.player.z - c.z);
       // Far-away NPCs sleep (simulation LOD).
       if (pd > 150 && !c.target) continue;
@@ -288,7 +306,7 @@ export class AI {
           else c.speed = 0;
           c.aiming = true;
           if (c.mag <= 0 && c.reloading <= 0) { c.reloading = w.reload * 1.3; }
-          else if ((c.react = (c.react ?? 0) - dt) <= 0 && c.cool <= 0 && c.reloading <= 0 && Math.abs(angleLerp(c.face, want, 1) - c.face) < 0.3) {
+          else if ((c.react = (c.react ?? 0) - dt) <= 0 && c.cool <= 0 && c.reloading <= 0 && Math.abs(angleLerp(c.face, want, 1) - c.face) < 0.3 && (this.clearShot(c, t, want, d) || (c.strafeT = 0, false))) {
             // AI is deliberately worse than the player: reaction delay, burst discipline,
             // spread that grows with range and with a moving target.
             const tMoving = (t.inVehicle ? g.vehiclesSys.speed(t.inVehicle) : t.speed) > 2;

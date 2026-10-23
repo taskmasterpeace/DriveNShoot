@@ -12,6 +12,12 @@ const SH = INFECTED.shambler, SP = INFECTED.sprinter, EC = INFECTED.echo, CH = I
 const SMELL = SH.smell;    // metres: notice the living without seeing them
 const BITE = SH.claw;
 const CAP_NIGHT = 30;
+// Ambient spawns (night hordes here, Dustwolf top-ups in main.js) stop this many slots short of the 160-character cap,
+// so the director's events (hunters, raids, a herd drawn to the dead) are never starved by the background war.
+export const AMBIENT_RESERVE = 16;
+// Night hordes rise this far from the town's centre (its wall stands at 88 m: they used to spawn at the gates) and not in
+// the first HORDE_QUIET game-seconds of a game.
+const HORDE_MIN_R = 130, HORDE_QUIET = 180;
 
 export class Zombies {
   constructor(game) {
@@ -92,6 +98,7 @@ export class Zombies {
   burst(c, why = 'moved') {
     if (c.zkind !== 'sprinter' || c.zs.state !== 'dormant' || !c.alive) return false;
     c.zs.state = 'burst'; c.zs.t = SP.burst; c.zs.base = c.zs.base ?? c.zSpeed; c.zSpeed = SP.burstSpeed; c.crouch = false;
+    c.name = 'Sprinter'; // it has shown what it is (the tag says so until it is a walker again)
     this.counts.bursts++;
     this.g.emit('sprinterBurst', { id: c.id, why });
     return true;
@@ -99,7 +106,7 @@ export class Zombies {
   sprinter(c, dt) {
     const Z = c.zs, g = this.g;
     if (Z.state === 'dormant') {
-      if (c.zSpeed > SH.speed[1] + 0.5) c.zSpeed = SH.speed[0] + 0.35; // a save taken mid-burst: back to the walk
+      if (c.zSpeed > SH.speed[1] + 0.5) { c.zSpeed = SH.speed[0] + 0.35; c.name = SH.name; } // a save taken mid-burst: back to the walk
       if ((Z.t -= dt) > 0) return false; // re-arming
       // Someone living moving faster than a walk inside its ear (a car counts: it is loud and fast). Listened for about
       // seven times a second, staggered, not every frame: a scan of everyone per sprinter per frame showed in the stress A/B.
@@ -119,7 +126,7 @@ export class Zombies {
       return false;
     }
     if (Z.state === 'burst') { Z.state = 'overheat'; Z.t = SP.overheat; c.zSpeed = Z.base; this.counts.overheats++; g.emit('sprinterOverheat', { id: c.id }); return true; }
-    Z.state = 'dormant'; Z.t = SP.rearm; c.crouch = false; // stood up: a shambler again
+    Z.state = 'dormant'; Z.t = SP.rearm; c.crouch = false; c.name = SH.name; // stood up: a shambler again
     return false;
   }
 
@@ -328,12 +335,12 @@ export class Zombies {
       for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && !c.res && Math.hypot(c.x - g.player.x, c.z - g.player.z) > Math.max(140, (g.viewR ?? 0) + 20) && Math.random() < 0.3) g.removeChar(c);
       return;
     }
-    if (alive >= CAP_NIGHT) return;
+    if (alive >= CAP_NIGHT || g.freeSlots.length <= AMBIENT_RESERVE || g.time < HORDE_QUIET) return; // the director's events need room too; a new arrival gets a quiet start
     const px = g.player.x, pz = g.player.z;
     for (let tries = 0; tries < 8; tries++) {
       const a = Math.random() * Math.PI * 2, r = Math.max(55, (g.viewR ?? 0) + 8) + Math.random() * 55; // out of sight at any zoom
       const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
-      if (Math.max(Math.abs(x), Math.abs(z)) < 92 || Math.max(Math.abs(x), Math.abs(z)) > 440) continue;
+      if (Math.max(Math.abs(x), Math.abs(z)) < HORDE_MIN_R || Math.max(Math.abs(x), Math.abs(z)) > 440) continue; // out past the gates, not at them
       if (!g.nav.foot.free(x, z)) continue;
       this.horde(x, z, 3 + Math.floor(Math.random() * 4), 0.15, 5);
       g.emit('hordeSpawned', { x: Math.round(x), z: Math.round(z) });

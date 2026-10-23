@@ -2602,7 +2602,7 @@ async function runSelfTest(api, only = null) {
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
-        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), runner: !!c.runner }));
+        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
     } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
@@ -2767,6 +2767,7 @@ async function runSelfTest(api, only = null) {
   // Jumps (data/stunts.js): staged runs at real speed through real physics; only the start line is placed.
   const jumpRun = async (args) => {
     for (const o of [...g.vehicles]) if (o.ai && !o.occ?.includes(g.player) && Math.abs(o.z - 28) < 40 && Math.abs(o.x - 330) < 40) g.vehiclesSys.remove(o); // no traffic on the run-up
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.inVehicle && Math.abs(c.z - 28) < 40 && Math.abs(c.x - 330) < 40) g.removeChar(c); // nor anyone wandering on the deck
     return C('stunts', { back: 12, ...args });
   };
   const jumpDone = () => { if (g.player.inVehicle) g.exitVehicle(true); for (const o of [...g.vehicles]) if (o.stuntCar && !o.occ?.some(Boolean)) g.vehiclesSys.remove(o); };
@@ -3835,7 +3836,7 @@ async function runSelfTest(api, only = null) {
     w.hp = 30;
     const s2 = rhStanding(), since2 = g.eventSeq;
     await shootDead(victim);
-    const ran2 = !!w.runner;
+    const ran2 = !!w.telling;
     await C('step', { seconds: 1 });
     await shootDead(w);
     await C('step', { seconds: 1 });
@@ -3850,8 +3851,8 @@ async function runSelfTest(api, only = null) {
     let { victim, w } = await runStage(row, -60);
     const since = g.eventSeq, rnd = Math.random;
     await shootDead(victim);
-    const ran = !!w.runner;
-    if (w.runner) w.runner.speed = 1; // a slow runner: the check is the gun, not the chase
+    const ran = !!w.telling;
+    if (w.telling) w.telling.speed = 1; // a slow runner: the check is the gun, not the chase
     if (Math.hypot(w.x - g.player.x, w.z - g.player.z) > 6) await C('teleport', { x: w.x + 3, z: w.z }); // within the 9 m a gun reads at
     Math.random = () => 0.99; // their nerve fails
     let cowed = false;
@@ -3859,7 +3860,7 @@ async function runSelfTest(api, only = null) {
       for (let t = 0; t < 4 && !cowed; t += 0.1) { g.aimOverride = { x: w.x, z: w.z }; await C('step', { seconds: 0.1 }); cowed = g.events.some((e) => e.seq > since && e.type === 'witnessCowed' && e.id === w.id); }
     } finally { Math.random = rnd; g.aimOverride = null; }
     const gaveUp = g.events.some((e) => e.seq > since && e.type === 'rumorSilenced' && e.witness === w.id && e.how === 'cowed');
-    const handsUp = w.cowerT > 0, runner = !!w.runner;
+    const handsUp = w.cowerT > 0, runner = !!w.telling;
     const threat = g.society.chronicle.query({ verb: 'threaten', limit: 1 })[0]?.o === w.id;
     const killLanded = () => g.events.some((e) => e.seq > since && e.type === 'rumor' && e.verb === 'kill');
     await C('step', { seconds: 3 });
@@ -3869,8 +3870,8 @@ async function runSelfTest(api, only = null) {
     ({ victim, w } = await runStage(row, -60));
     const since2 = g.eventSeq;
     await shootDead(victim);
-    const ran2 = !!w.runner;
-    if (w.runner) w.runner.speed = 0.5;
+    const ran2 = !!w.telling;
+    if (w.telling) w.telling.speed = 0.5;
     const cost = g.witnesses.bribeCost(w);
     g.cash = 500;
     await C('teleport', { x: w.x + 1.2, z: w.z });
@@ -3879,7 +3880,7 @@ async function runSelfTest(api, only = null) {
     const paid = g.events.some((e) => e.seq > since2 && e.type === 'witnessPaid' && e.id === w.id);
     const cash = g.cash;
     await C('step', { seconds: 3 });
-    const bribe = { ran2, cost, paid, cash, runner: !!w.runner, killLanded: g.events.some((e) => e.seq > since2 && e.type === 'rumor' && e.verb === 'kill') };
+    const bribe = { ran2, cost, paid, cash, runner: !!w.telling, killLanded: g.events.some((e) => e.seq > since2 && e.type === 'rumor' && e.verb === 'kill') };
     g.removeChar(w);
     return ran && cowed && gaveUp && handsUp && !runner && threat && !gun.killLanded && ran2 && paid && cash === 500 - cost && !bribe.runner && !bribe.killLanded ? true : JSON.stringify({ gun, bribe, runners: g.witnesses.view() });
   }));
@@ -3934,7 +3935,7 @@ async function runSelfTest(api, only = null) {
     g.removeChar(up); g.removeChar(down);
     return moved < 0.15 && floors[0] === +S.Y[1].toFixed(2) && floors[1] === 0 && !sight && hit === 0 ? true : JSON.stringify({ moved, floors, sight, hit });
   });
-  await check('storeys: a raider with a grudge on the street floor finds the stairs and reaches you upstairs within 20 s', async () => {
+  await check('storeys: a raider with a grudge on the street floor finds the stairs and comes up within sight of you upstairs within 20 s', async () => {
     const S = storeyed((s) => s.n >= 1 && s.b.district === 'ruins') ?? storeyed(() => true), f = S.flights[0], p = g.player;
     clearAround(S, 70);
     g.godMode = true;
@@ -3949,7 +3950,7 @@ async function runSelfTest(api, only = null) {
       for (; t < 20; t += 0.5) {
         await C('step', { seconds: 0.5 });
         if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
-        if (Math.abs(r.gy - S.Y[1]) < 0.05 && g.storeys.sameFloor(r, p)) break;
+        if (g.storeys.sameFloor(r, p) && g.sees(r, p)) break; // up where it can see you and shoot: it may fight from the top steps
       }
       return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
     } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
@@ -4015,7 +4016,8 @@ async function runSelfTest(api, only = null) {
       const still = over && c.speed < 0.1 && c.crouch;
       let back = false;
       for (let t = 0; t < 5 && !back; t += 0.25) { await C('step', { seconds: 0.25 }); back = c.zs.state === 'dormant'; }
-      return dormant && walk < 3 && broke && top > 8 && still && back && c.zSpeed < 3 ? true : JSON.stringify({ dormant, walk, broke, top: +top.toFixed(2), over, still, back, pace: c.zSpeed });
+      const notWitness = !c.telling && !g.witnesses.canBribe(c); // its runner flag is not a witness's report (it once was)
+      return dormant && walk < 3 && broke && top > 8 && still && back && c.zSpeed < 3 && notWitness ? true : JSON.stringify({ dormant, walk, broke, top: +top.toFixed(2), over, still, back, pace: c.zSpeed, notWitness });
     } finally { g.input.down.delete('ShiftLeft'); g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
   }));
   await check('infected: an Echo works at a boarded window only while you look away, freezes mid-motion while you watch, and never comes for you', async () => hush(async () => {

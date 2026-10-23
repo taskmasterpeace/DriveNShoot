@@ -174,7 +174,7 @@ export class Feedback {
     for (const c of g.chars) {
       if (c === p || !c.alive || c.hidden || c.underwater) continue;
       const dp = Math.hypot(c.x - p.x, c.z - p.z);
-      if (c.runner && dp < 60) { cand.push({ c, s: -10 }); continue; } // a witness running home: always tagged, first
+      if (c.telling && dp < 60) { cand.push({ c, s: -10 }); continue; } // a witness running home: always tagged, first
       if (dp > 34) continue;
       const da = Math.hypot(c.x - aim.x, c.z - aim.z);
       const named = !!c.npc;
@@ -186,20 +186,20 @@ export class Feedback {
       const e = cand[i];
       if (!e) { t.el.style.display = 'none'; t.id = null; return; }
       const c = e.c;
-      const key = c.runner ? c.id + ':w' : c.id;
+      const key = c.telling ? c.id + ':w' : c.name === 'Sprinter' ? c.id + ':s' : c.id; // a tag re-reads when what it says changes
       if (t.id !== key) {
         t.id = key;
         t.img.src = this.flag(c.flag);
-        t.name.textContent = (c.runner ? 'WITNESS · ' : '') + (c.npc?.name ?? c.name ?? '');
-        t.el.style.setProperty('--acc', c.runner ? 'var(--blood, #ff3b3b)' : c.npc ? 'var(--gold)' : FACTION_COL[c.faction] ?? 'var(--muted)');
-        t.el.classList.toggle('runner', !!c.runner);
+        t.name.textContent = (c.telling ? 'WITNESS · ' : '') + (c.npc?.name ?? c.name ?? '');
+        t.el.style.setProperty('--acc', c.telling ? 'var(--blood, #ff3b3b)' : c.npc ? 'var(--gold)' : FACTION_COL[c.faction] ?? 'var(--muted)');
+        t.el.classList.toggle('runner', !!c.telling);
       }
       const y = c.seatPose?.y ?? 0;
       const [sx, sy, on] = this.screen(c.x, y + 2.3, c.z);
       t.el.style.display = on ? '' : 'none';
       t.el.style.transform = `translate(${sx.toFixed(0)}px, ${sy.toFixed(0)}px) translate(-50%, -100%)`;
-      t.el.style.opacity = c.runner ? '1' : Math.max(0.35, 1 - e.s / 9).toFixed(2);
-      this.lastTags.push({ id: c.id, name: t.name.textContent, flag: c.flag, faction: c.faction, runner: !!c.runner });
+      t.el.style.opacity = c.telling ? '1' : Math.max(0.35, 1 - e.s / 9).toFixed(2);
+      this.lastTags.push({ id: c.id, name: t.name.textContent, flag: c.flag, faction: c.faction, runner: !!c.telling });
     });
   }
 

@@ -3,6 +3,10 @@ import { INFECTED } from '../data/infected.js';
 // Names come from the ring's own pools (data/ring.js RES_NAMES), never npcs.js randomName: that one keeps a running list
 // of names already handed out, and a household must come out the same every time it is made.
 import { outfit } from './characters.js';
+import { AMBIENT_RESERVE } from './zombies.js';
+// Residents are ambient: they never take the last AMBIENT_RESERVE slots (the director's events need them; RES_RULES can
+// ask for more).
+const RESERVE = () => Math.max(RES_RULES.reserve, AMBIENT_RESERVE);
 import { hash32, rngOf } from '../world/geo.js';
 
 // THE PHOENIX RING, R2: the people who live in it (docs/design/WEB_STREAMING.md §1.3 "R2 as built"; rows in
@@ -219,7 +223,7 @@ export class Residents {
   budget(need) {
     const g = this.g;
     if (this.n + need > RES_RULES.max) return false;
-    while (g.freeSlots.length - need < RES_RULES.reserve) if (!this.reclaim()) return false;
+    while (g.freeSlots.length - need < RESERVE()) if (!this.reclaim()) return false;
     return true;
   }
   reclaim() {
@@ -277,7 +281,7 @@ export class Residents {
   engaged(c) {
     const g = this.g;
     if (!c.alive) return false;
-    return !!c.target || (c.ztarget && c.ztarget === g.player) || c.flee > 0 || (c.hitAt ?? -99) > g.time - RES_RULES.engaged || !!c.telling || !!c.runner?.seq || !!g.society?.deeds?.holdsRumor(c);
+    return !!c.target || (c.ztarget && c.ztarget === g.player) || c.flee > 0 || (c.hitAt ?? -99) > g.time - RES_RULES.engaged || !!c.telling ||!!g.society?.deeds?.holdsRumor(c);
   }
   // Back onto the record and out of the world.
   writeBack(rec, m, c) {
@@ -610,7 +614,7 @@ export class Residents {
     for (const rec of this.recs.values()) { const k = (byKind[rec.kind] ??= { households: 0, alive: 0, dead: 0 }); k.households++; for (const m of rec.members) m.dead ? k.dead++ : k.alive++; }
     const ms = this.stats.ms.slice().sort((a, b) => a - b);
     return { records: this.recs.size, unappliedSaved: this.deltas.size, promotedHouseholds: this.live.size, promotedPeople: this.n, queue: this.queue.length,
-      budget: { cap: this.g.freeSlots.length + this.g.chars.length, chars: this.g.chars.length, free: this.g.freeSlots.length, reserve: RES_RULES.reserve, max: RES_RULES.max },
+      budget: { cap: this.g.freeSlots.length + this.g.chars.length, chars: this.g.chars.length, free: this.g.freeSlots.length, reserve: RESERVE(), max: RES_RULES.max },
       byKind, stats: { ...this.stats, ms: undefined, promoteMs: ms.length ? { p50: +ms[Math.floor(ms.length / 2)].toFixed(2), p95: +ms[Math.floor(ms.length * 0.95)].toFixed(2), max: +this.stats.msMax.toFixed(2) } : null } };
   }
 }

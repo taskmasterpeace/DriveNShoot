@@ -195,7 +195,8 @@ export const RES_NAMES = {
 };
 
 // The knobs. promoteR / demoteR: metres from you (the streamer's hot reach is 224, its release 300); reserve: character
-// slots residents never take (the island's own people, hunters, hordes come first); max: residents promoted at most;
+// slots residents never take - never fewer than systems/zombies.js AMBIENT_RESERVE (16: residents are ambient, and the
+// director's events need room); max: residents promoted at most;
 // perFrame: households promoted per frame while streaming (sync: all); paths: foot paths planned per frame across all
 // residents; engaged: seconds after a hit, a fight or a flight that a resident is never demoted out from under you;
 // grudgeHours: how long a member who saw you wrong them remembers it; barkEvery: seconds between a household's lines;

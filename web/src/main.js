@@ -34,8 +34,11 @@ import { ZOOM } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
-import { Zombies } from './systems/zombies.js';
+import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Residents } from './systems/residents.js';
+// A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
+// patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
+const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
@@ -634,11 +637,18 @@ class Game {
         const fee = Math.floor(this.cash * 0.15);
         this.cash -= fee;
         this.wanted = 0;
-        for (const c of this.chars) if (c.grudge === p) { c.grudge = null; c.target = null; }
+        // Whoever was after you lets it go (they saw you fall), and you get RESPAWN_GRACE s on your feet before anything can
+        // hurt you: a review found the player killed twice at the clinic door inside 21 s by the raider who killed them.
+        for (const c of this.chars) {
+          if (c.grudge === p || c.target === p) { c.grudge = null; c.target = null; c.state = 'idle'; }
+          if (c.ztarget === p) c.ztarget = null;
+        }
+        p.graceT = RESPAWN_GRACE;
         this.hud.toast(`Doc Reyes patched you up. Fee: $${fee}`, 'warn');
       }
       return;
     }
+    if (p.graceT > 0) p.graceT -= dt;
     // Mouse -> ground.
     _ndc.set(I.mouse.nx, I.mouse.ny);
     _ray.setFromCamera(_ndc, this.camera);
@@ -861,7 +871,7 @@ class Game {
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? op ?? (box || bed ? this.boxRing : null));
-    const runner = best?.runner && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
+    const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
@@ -944,6 +954,9 @@ class Game {
       }
       return;
     }
+    // Auto-reload: an empty gun loads itself as soon as there are rounds for it in the pack (bought, looted, picked up
+    // after it ran dry) - not only at the trigger. It used to sit at 0 over 60 spare until you pulled.
+    if (this.inv.mag[k] === 0 && this.inv.ammo[w.ammo] > 0 && this.qol.settings.autoReload && !this.inv.jam[k] && this.inventory.cond(k) > 0) this.reload();
     const want = w.auto ? I.mouse.left : I.mouse.leftPressed;
     if (!want || p.cool > 0) return;
     // A jammed gun's trigger goes dead: the pull starts clearing it. A broken one does nothing at all.
@@ -1047,7 +1060,7 @@ class Game {
       const alive = this.chars.filter((c) => c.alive && c.faction === 'raider' && !c.res).length; // a chop shop's wolves live in the ring, not the camps
       // As many as the band can field (faction sim strength), and only from camps it still holds.
       const S = this.society, cap = Math.round(30 * S.sim.str('dustwolves') / 100);
-      if (alive < cap) {
+      if (alive < cap && this.freeSlots.length > AMBIENT_RESERVE && this.time > ARRIVAL_QUIET) { // leave the director room (systems/director.js needs 10 free)
         const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
         if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);

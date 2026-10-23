@@ -10,12 +10,14 @@ import { K } from './chronicle.js';
 const MAX_RUMORS = 64, MAX_WITNESSES = 8;
 const SIGHT_DAY = 42, SIGHT_NIGHT = 16, ID_FRACTION = 0.55, NEAR = 8, FACING_COS = Math.cos((110 * Math.PI) / 180), HURT_WINDOW = 4;
 const NO_ONE = Object.freeze([]);
+const TOAST_GAP = 8;
 
 export class Deeds {
   constructor(game, chronicle, factions) {
     this.g = game; this.chron = chronicle; this.F = factions;
     this.rumors = Array.from({ length: MAX_RUMORS }, () => ({ live: false, echo: false, seq: 0, due: 0, witness: null, wid: '', fid: '', verb: '', of: '', o: '', on: '', onpc: '', downed: false, p: '', x: 0, z: 0, m: 0, learn: 1, sd: false, stars: 0, runner: null, hop: '' }));
-    this.heard = new Map(); // deed seq -> bitmask of faction indices that have learned it (a faction learns a deed once)
+    this.heard = new Map();
+    this.toastAt = {}; // faction -> game time of its last WORD SPREADS toast // deed seq -> bitmask of faction indices that have learned it (a faction learns a deed once)
     this.pending = 0; this.nextDue = Infinity;
     this.scratch = []; this.sawOnly = 0;
     this.landed = 0; this.silenced = 0; this.overflow = 0;
@@ -169,7 +171,9 @@ export class Deeds {
     if (!r.hop) g.society?.memory?.heard(r); // the victim's kin and friends, and the faction's leaders, hear it too (once)
     this.chron.add({ t: +g.time.toFixed(2), day: g.society?.day ?? 0, hr: +(g.sky.time ?? 0).toFixed(2), a: 'player', af: 'player', v: r.verb, o: r.o, on: r.on, of: r.of, p: r.p, x: r.x, z: r.z, m: r.m, w: w ? [w.id] : [], ws: w ? 1 : 0, k: K.reported, src: 'rumor' });
     const row = this.F.row(r.fid), via = r.hop ? this.F.row(r.hop) : null;
-    if (d) g.hud?.toast?.(`WORD SPREADS — ${row.name.toUpperCase()} HEARD${via ? ` FROM ${(via.short ?? via.name).toUpperCase()}` : ''}`, d < 0 ? 'hot' : 'job');
+    // One WORD SPREADS a faction per TOAST_GAP s: a single murder (a hurt, then the kill, then the word hopping) used to
+    // put the same news up three times in ten seconds.
+    if (d && g.time - (this.toastAt[r.fid] ?? -99) > TOAST_GAP) { this.toastAt[r.fid] = g.time; g.hud?.toast?.(`WORD SPREADS — ${row.name.toUpperCase()} HEARD${via ? ` FROM ${(via.short ?? via.name).toUpperCase()}` : ''}`, d < 0 ? 'hot' : 'job'); }
     g.emit('rumor', { record: r.seq, witness: w?.id ?? null, witnessName: w ? w.npc?.name ?? w.name : null, faction: r.fid, via: r.hop || null, verb: r.verb, delta: +d.toFixed(1), standing: +(before + d).toFixed(1) });
     if (!r.hop) this.hop(r);
   }

@@ -282,7 +282,7 @@ export class Director {
 
   spawn_dead_draw_dead(def, ev) {
     const g = this.g, at = this.ringPoint(def.distance, def.distance + 20);
-    if (!at) throw new Error('no open ground for the herd');
+    if (!at) { this.g.emit('directorSkip', { event: ev.id, tpl: 'dead_draw_dead', why: 'no open ground for the herd' }); return; } // out on the interstate's fills: try another night, don't throw
     const n = def.herd.count[0] + Math.floor(Math.random() * (def.herd.count[1] - def.herd.count[0] + 1));
     const ids = g.zombies.horde(at.x, at.z, n, def.herd.runners, def.herd.radius) ?? [];
     for (const id of ids) { const c = g.chars.find((x) => x.id === id); if (c) { c.ztarget = g.player; ev.members.push(c); } }
@@ -324,7 +324,7 @@ export class Director {
       if (r.seq <= this.lastNewsSeq) break;
       if (r.src === 'rumor' || r.k & K.director) continue;
       const set = r.a !== 'player' ? L.world : r.k & K.unwitnessed ? L.unwitnessed : L.witnessed;
-      const t = set[r.v];
+      const t = r.v === 'kill' && r.k & K.downed ? set.downed : set[r.v]; // laid out and back up later: not "dead"
       if (!t) continue;
       const who = r.on || 'somebody', place = S.places[r.p]?.name ?? 'the flats', faction = F.row(r.of)?.name ?? 'their people';
       return { seq: r.seq, line: t.replaceAll('{who}', who).replaceAll('{place}', place).replaceAll('{faction}', faction) };

@@ -108,7 +108,7 @@ export class Combat {
       g.fx.bloodSpray(c.x, 0.4 + (c.gy ?? 0), c.z, dx, dz, 6, 0.6);
       return;
     }
-    if (c === g.player && g.godMode) return;
+    if (c === g.player && (g.godMode || c.graceT > 0)) return; // just patched up at the clinic (main.js RESPAWN_GRACE)
     // Continuous damage (burning, drowning) is "quiet": no blood, no hit sound, no event spam.
     const quiet = cause === 'fire' || cause === 'drown';
     if (quiet) {
