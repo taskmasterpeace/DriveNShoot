@@ -2848,7 +2848,9 @@ async function runSelfTest(api, only = null, skip = null) {
     if (!mateo || !rosa) return `letter-quest pack not loaded (mateo=${!!mateo}, rosa=${!!rosa})`;
     await C('teleport', { x: mateo.x - 6, z: mateo.z });
     mateo.hold = true; mateo.face = Math.atan2(g.player.x - mateo.x, g.player.z - mateo.z);
-    await C('fire', { id: mateo.id, shots: 1 });
+    // Up to four rounds until one lands (a round can go wide: this proves the memory and the word, not the aim).
+    const hp0 = mateo.hp;
+    for (let i = 0; i < 4 && mateo.hp >= hp0; i++) { g.arms?.setStance('raised'); await C('fire', { id: mateo.id, shots: 1 }); }
     const firsthand = (await C('memory', { id: 'mateo' })).memories.some((m) => m.kind === 'shotMe' && !m.heard);
     await C('step', { seconds: 9 });
     const heard = (await C('memory', { id: 'rosa' })).memories.some((m) => m.kind === 'shotKin' && m.heard && m.about === 'Mateo Quintero');
