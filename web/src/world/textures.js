@@ -46,7 +46,7 @@ function cracks(g, w, h, rng, n, color, width = 1.2) {
 export function sandTexture() {
   const rng = makeRng(11);
   const [c, g] = canvas(512);
-  g.fillStyle = '#a77d52'; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = '#c49a68'; g.fillRect(0, 0, 512, 512); // sun-bleached: the old #a77d52 read as mud under any light
   // Large soft patches for dune variation. Each one wraps around the tile's edges (drawn again a tile over), so the
   // texture repeats without a seam: from a highway at 100 m up, kilometres of desert would show every one.
   for (let i = 0; i < 60; i++) {
@@ -60,7 +60,7 @@ export function sandTexture() {
       g.fillStyle = gr; g.fillRect(px - r, py - r, r * 2, r * 2);
     }
   }
-  noise(g, 512, 512, rng, 9000, ['#5e4127', '#c7a074', '#87613d', '#3f2b1a'], [1, 2.5]);
+  noise(g, 512, 512, rng, 9000, ['#8a6440', '#dcb888', '#a27a50', '#6a4c30'], [1, 2.5]);
   cracks(g, 512, 512, rng, 14, 'rgba(60,40,24,0.35)', 1);
   // Scrub tufts like the reference footage.
   for (let i = 0; i < 70; i++) {

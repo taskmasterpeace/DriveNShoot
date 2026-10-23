@@ -50,32 +50,32 @@ export const ZONES = {
   residential: {
     name: 'THE DEAD HOUSES', lots: 'houses', kinds: [['house', 6], ['bungalow', 3], ['duplex', 2]],
     density: 0.84, ruin: 0.24, loot: [['kitchen', 4], ['bedroom', 3], ['bathroom', 2]],
-    walls: ['#b39b78', '#a8876a', '#9c8462', '#c2a882', '#8f7a62', '#a0703f', '#7e8a7a', '#b08a64'],
-    roofs: ['#7a4a32', '#5a3a26', '#6a5440', '#4a4440', '#80553a'], floors: ['#5c4a3a', '#6b5a48', '#4a4038', '#5e5446'],
+    walls: ['#d6c09a', '#c98e62', '#e4d3b0', '#a8b89a', '#d2a46a', '#b9705a', '#8fb0a8', '#e0bd8a'], // stucco the old paint still shows on
+    roofs: ['#8a5a3a', '#7a5236', '#9a8060', '#6e6a62', '#9a6a46'], floors: ['#8a6a4a', '#9a8670', '#7a6a58', '#8e7a62'],
     tint: [0.94, 0.9, 0.84], wrecks: 0.18, yard: 3, fence: 0.45,
     residents: [['family', 1]], occupancy: 0.11,
   },
   industrial: {
     name: 'THE YARDS', lots: 'yards', kinds: [['warehouse', 4], ['shop', 4]],
     density: 0.8, ruin: 0.35, loot: [['garage', 5], ['office', 2]],
-    walls: ['#6e6a62', '#5f5a53', '#7a5a3a', '#80786a', '#5a6260', '#6b5a48'],
-    roofs: ['#3d4544', '#4a4a46', '#5e5a54', '#55493c'], floors: ['#5a5650', '#625e57', '#4f4c47'],
+    walls: ['#9a948a', '#8a8478', '#a07a52', '#aaa190', '#7f8c8a', '#94806a', '#b8a27a'],
+    roofs: ['#6a7472', '#7a7a74', '#8a857c', '#7a6a58'], floors: ['#8a857c', '#928d84', '#7a766e'],
     tint: [0.86, 0.85, 0.82], wrecks: 0.3, yard: 6, fence: 0,
     residents: [['chopshop', 1]], occupancy: 0, // per quarter only (RESIDENTS.chopshop.perQuarter)
   },
   strip: {
     name: 'THE STRIP', lots: 'strip', kinds: [['mall', 5], ['gas', 2], ['diner', 2]],
     density: 0.86, ruin: 0.28, loot: [['storefront', 4], ['kitchen', 2], ['office', 1]],
-    walls: ['#a99c88', '#b7a68a', '#8a5a3c', '#9c8462', '#6f7f78', '#a37a52'],
-    roofs: ['#4c4a46', '#3f3c38', '#55504a'], floors: ['#6a645a', '#5e594f', '#726a5c'],
+    walls: ['#d8cbb2', '#e2d2b0', '#b8704a', '#c9a878', '#7fa0a0', '#c98e5a', '#a6b88e'],
+    roofs: ['#7a7670', '#6a6660', '#8a847a'], floors: ['#a39a8a', '#958c7c', '#aaa290'],
     tint: [0.88, 0.86, 0.82], wrecks: 0.34, yard: 2, fence: 0,
     residents: [['squatters', 1]], occupancy: 0.16,
   },
   ruins: {
     name: 'THE BURN', lots: 'houses', kinds: [['house', 6], ['bungalow', 3], ['shop', 1]],
     density: 0.62, ruin: 0.72, loot: [['wreck', 3], ['kitchen', 2], ['bedroom', 1]],
-    walls: ['#6e6a62', '#7c756a', '#5f5a53', '#857c6e', '#6a625a', '#4f4b46', '#3d3a36'],
-    roofs: ['#4a4440', '#3d3a36', '#55493c'], floors: ['#4a4540', '#3f3b36'],
+    walls: ['#8e877c', '#9a9184', '#7a736a', '#a39887', '#857c70', '#6e6860', '#5a5650'], // the Burn: smoke-dark, never black
+    roofs: ['#6a645c', '#5e5a54', '#7a6a58'], floors: ['#6e665c', '#625c54'],
     tint: [0.9, 0.86, 0.8], wrecks: 0.24, yard: 4, fence: 0.15,
     residents: [['nest', 1]], occupancy: 0, // per quarter only (RESIDENTS.nest.perQuarter)
   },

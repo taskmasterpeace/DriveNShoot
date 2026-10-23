@@ -18,13 +18,17 @@ const RAIN_N = 2600, MOTE_N = 2400, BOX = 110, BOX_H = 50;
 // of allocating ~10 THREE.Colors (and regex-parsing hex strings) per frame.
 const BLENDED = ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm'];
 const SUN_DAY = new THREE.Color('#fff4e0'), SUN_LOW = new THREE.Color('#ff9a52'), MOON = new THREE.Color('#a3b6cc');
-const HEMI_DAY = new THREE.Color('#d9c7a6'), HEMI_NIGHT = new THREE.Color('#5c7189'), HEMI_LOW = new THREE.Color('#e8b07a');
+const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82a0'), HEMI_LOW = new THREE.Color('#f0b884');
+// Light levels. three.js r155+ no longer multiplies a light by pi, and these were never raised to match: noon in Rust
+// Haven measured a mean of 53/255 on screen and the hour after sunset 11/255 (2026-10-23, Robert: "it's too dark, bro").
+// [night, day] for the sun (the moon at night) and the sky fill. Night stays dark enough to need a light, not black.
+const SUN_I = [1.5, 4.6], HEMI_I = [1.55, 2.0];
 // Golden-hour fill: the camera looks straight down, so nearly everything on screen is flat ground, and a sun a few
 // degrees up lights flat ground at a fifth of noon. Without help the hour either side of sunset read nearly black
 // (Playwright capture, 17:42). The sky fill rises (x1 + GOLDEN_FILL) and warms while the sun is low but up; the long
 // shadows stay, since only the sun's share is shadowed.
 const GOLDEN_FILL = 0.75;
-const GROUND_DAY = new THREE.Color('#5a4230'), GROUND_NIGHT = new THREE.Color('#2a2622');
+const GROUND_DAY = new THREE.Color('#9a7a58'), GROUND_NIGHT = new THREE.Color('#38342e'); // the bounce off sand
 const FOG_DAY = new THREE.Color('#d6bf96'), FOG_DUSK = new THREE.Color('#e08850'), FOG_NIGHT = new THREE.Color('#1c232b'), LIGHTNING = new THREE.Color('#dfe8ee');
 const _fog = new THREE.Color(), _night = new THREE.Color();
 
@@ -145,7 +149,7 @@ export class Sky {
 
     const low = 1 - smoothstep(0.05, 0.5, elev);
     this.sun.color.copy(SUN_DAY).lerp(SUN_LOW, low * 0.85).lerp(MOON, this.night);
-    this.sun.intensity = lerp(1.1, 2.7, day) * lerp(1, cloudDim, day * 0.7 + 0.3) * (1 - c.dust * 0.4);
+    this.sun.intensity = lerp(SUN_I[0], SUN_I[1], day) * lerp(1, cloudDim, day * 0.7 + 0.3) * (1 - c.dust * 0.4);
 
     // Lightning.
     if (c.storm > 0.5 && Math.random() < dt * 0.12) {
@@ -160,7 +164,7 @@ export class Sky {
     const flicker = this.flash > 0 ? this.flash * (0.6 + Math.random() * 0.4) : 0;
 
     const golden = low * day; // 0 at noon and in the night, ~0.75 at 17:30
-    this.hemi.intensity = lerp(1.0, 1.05, day) * (1 + GOLDEN_FILL * golden) * (1 - 0.25 * c.clouds) + flicker * 2.5;
+    this.hemi.intensity = lerp(HEMI_I[0], HEMI_I[1], day) * (1 + GOLDEN_FILL * golden) * (1 - 0.25 * c.clouds) + flicker * 2.5;
     this.hemi.color.copy(HEMI_DAY).lerp(HEMI_LOW, golden * 0.45).lerp(HEMI_NIGHT, this.night);
     this.hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, this.night);
 

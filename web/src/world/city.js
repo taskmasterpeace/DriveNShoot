@@ -5,6 +5,7 @@ import { sandTexture, asphaltTexture, concreteTexture, radialGlow } from './text
 import { nearWater } from './water.js';
 import { nearRail } from './rail.js';
 import { DOOR_MATERIALS, WINDOW, WINDOW_MIX } from '../data/interiors.js';
+import { roofSurface } from './surfaces.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -79,9 +80,12 @@ class BoxBatch {
   }
 }
 
-const TOWN_COLORS = ['#8a5a3c', '#6f7f78', '#9c8462', '#7b4a32', '#5d6b6a', '#a0703f', '#6b5e4d'];
-const RUIN_COLORS = ['#6e6a62', '#7c756a', '#5f5a53', '#857c6e', '#6a625a', '#4f4b46'];
-const ROOF_TOWN = ['#5a3a26', '#3f4a48', '#6a5440', '#4c3424', '#55493c'];
+// Rust Haven is rebuilt and painted: adobe, limewash, turquoise and sage trim, the colours a desert town paints itself.
+// The ruins are bleached concrete and the last of the old paint. (Robert, 2026-10-23: "I want more colors". Lengths are
+// free to change: a pick is one draw from the stream whatever the list, so the island's layout does not move.)
+const TOWN_COLORS = ['#c98a5a', '#7fa39a', '#d8b98a', '#b8624a', '#e2cfa8', '#6f9fb0', '#d29a52', '#9fb07c'];
+const RUIN_COLORS = ['#a39b8d', '#b4a994', '#8e877c', '#c1b49b', '#9a8c78', '#857f76', '#a88e78'];
+const ROOF_TOWN = ['#8a5a3a', '#6a7470', '#9a8060', '#7a5236', '#857868'];
 
 export function buildWorld(scene, statics) {
   const rng = makeRng(1977);
@@ -352,13 +356,13 @@ export function buildWorld(scene, statics) {
       // Ruins hang doors ajar; Rust Haven keeps them shut.
       if (!row.locked && (ruined ? orng.chance(0.5) : district !== 'town' && orng.chance(0.25))) row.open = (orng.chance(0.5) ? 1 : -1) * orng.range(0.5, 1.6);
     }
-    floors.add(cx, 0.07, cz, w, 0.1, d, district === 'town' ? rng.pick(['#5c4a3a', '#544638', '#4a4038']) : '#4a4540');
+    floors.add(cx, 0.07, cz, w, 0.1, d, district === 'town' ? rng.pick(['#8a6a4a', '#9a8670', '#7a6a58']) : '#6e665c');
     if (!ruined) {
       b.roofIdx.push(roofs.add(cx, h + 0.2, cz, w + 0.6, 0.4, d + 0.6, district === 'town' ? rng.pick(ROOF_TOWN) : rng.pick(RUIN_COLORS)));
       // Rooftop clutter: AC units, water tanks, solar scraps.
       const clutter = rng.int(1, 3);
       for (let i = 0; i < clutter; i++)
-        b.roofIdx.push(roofs.add(cx + rng.range(-w / 3, w / 3), h + 0.8, cz + rng.range(-d / 3, d / 3), rng.range(1.2, 2.6), rng.range(0.8, 1.4), rng.range(1.2, 2.6), rng.pick(['#5e5a54', '#6e665a', '#3d4544'])));
+        b.roofIdx.push(roofs.add(cx + rng.range(-w / 3, w / 3), h + 0.8, cz + rng.range(-d / 3, d / 3), rng.range(1.2, 2.6), rng.range(0.8, 1.4), rng.range(1.2, 2.6), rng.pick(['#8a857c', '#9a8f7c', '#6a7a7a'])));
     } else {
       for (let i = 0; i < 4; i++)
         props.add(cx + rng.range(-w / 3, w / 3), 0.3, cz + rng.range(-d / 3, d / 3), rng.range(0.8, 2), rng.range(0.3, 0.7), rng.range(0.8, 2), color, rng() * 3);
@@ -380,9 +384,9 @@ export function buildWorld(scene, statics) {
         walls.add(cx + ox, h + hh / 2, cz + oz, sx, hh, sz, color);
       }
     } else {
-      roofs.add(cx, h + 0.15, cz, w + 0.4, 0.3, d + 0.4, '#3a3734');
+      roofs.add(cx, h + 0.15, cz, w + 0.4, 0.3, d + 0.4, '#6a655e');
       for (let i = 0; i < rng.int(1, 4); i++)
-        roofs.add(cx + rng.range(-w / 3, w / 3), h + 0.9, cz + rng.range(-d / 3, d / 3), rng.range(1.5, 3.5), rng.range(1, 2), rng.range(1.5, 3.5), '#55504a');
+        roofs.add(cx + rng.range(-w / 3, w / 3), h + 0.9, cz + rng.range(-d / 3, d / 3), rng.range(1.5, 3.5), rng.range(1, 2), rng.range(1.5, 3.5), '#7a746c');
     }
     buildings.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, enterable: false, roofIdx: [], doors: [], h });
   };
@@ -568,7 +572,7 @@ export function buildWorld(scene, statics) {
   const box = new THREE.BoxGeometry(1, 1, 1);
   const wallMat = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.04 });
   scene.add(walls.build(box, wallMat));
-  const roofMat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.1 });
+  const roofMat = roofSurface(new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.1 })); // world/surfaces.js: what a roof looks like from above
   scene.add(roofs.build(box, roofMat));
   const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
   scene.add(floors.build(box, floorMat, { cast: false }));
@@ -583,7 +587,7 @@ export function buildWorld(scene, statics) {
 
   const concrete = concreteTexture();
   concrete.repeat.set((SPACING - ROAD_W) / 8, (SPACING - ROAD_W) / 8);
-  const sidewalks = new THREE.Mesh(mergeGeometries(sidewalkGeos), new THREE.MeshStandardMaterial({ map: concrete, color: '#a99c88', roughness: 0.95 }));
+  const sidewalks = new THREE.Mesh(mergeGeometries(sidewalkGeos), new THREE.MeshStandardMaterial({ map: concrete, color: '#cfc3ab', roughness: 0.95 }));
   sidewalks.receiveShadow = true;
   scene.add(sidewalks);
 
