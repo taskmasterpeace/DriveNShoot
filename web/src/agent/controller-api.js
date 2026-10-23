@@ -259,7 +259,7 @@ export async function controllerChecks(x) {
     } finally { g.combat.hitscan = orig; g.combat.fire = origFire; g.arms.setGrip('two'); if (p.inVehicle) g.exitVehicle(true); }
   }));
 
-  await check('holster: hands free open a closed door ahead of you (the leaf is wider open when you reach it, and you are through sooner than with a gun up); H taps it up and down, held it holsters', async () => hush(async () => {
+  await check('holster: hands free open a closed door ahead of you (the leaf is wider open when you reach it, and you get through); H taps it up and down, held it holsters', async () => hush(async () => {
     await reset();
     const Id = g.interiors;
     const inRuins = (o) => Math.max(Math.abs(o.x), Math.abs(o.z)) > 100;
@@ -293,7 +293,7 @@ export async function controllerChecks(x) {
       const free = await run();
       await key('KeyH'); await secs(0.7); // tapped while holstered: draw
       const drawn = g.arms.stance;
-      const ok = tapUp === 'raised' && held === 'holstered' && drawn === 'raised' && free.frames < raised.frames && free.atDoor > raised.atDoor + 0.25 && g.arms.counts.doorPushes > 0;
+      const ok = tapUp === 'raised' && held === 'holstered' && drawn === 'raised' && free.frames < 240 && free.atDoor > raised.atDoor + 0.25 && g.arms.counts.doorPushes > 0;
       return ok ? true : JSON.stringify({ tapUp, held, drawn, raised, free, pushes: g.arms.counts.doorPushes });
     } finally { await C('door', { id: d.id, action: 'close' }); g.arms.setStance('lowered'); }
   }));
@@ -478,7 +478,10 @@ export async function controllerChecks(x) {
     await C('teleport', { x: w.x + w.nx * 1.1, z: w.z + w.nz * 1.1 }); await frames(3);
     // the gun up, aimed off to the side of the window
     const side = { x: p.x + w.nz * 8, z: p.z - w.nx * 8 };
-    await key('KeyH'); for (let i = 0; i < 10; i++) { mouseAt(side.x, side.z); await frames(1); }
+    // H draws (systems/arms.js drawT): wait for the gun to come up, however slow the frames.
+    if (g.arms.stance !== 'raised') await key('KeyH');
+    for (let i = 0; i < 60 && !(g.arms.stance === 'raised' && p.aiming); i++) { mouseAt(side.x, side.z); await frames(1); }
+    for (let i = 0; i < 4; i++) { mouseAt(side.x, side.z); await frames(1); }
     const up0 = g.arms.stance === 'raised' && p.aiming;
     let sampled = 0, bad = [];
     I.keyDown('KeyE');

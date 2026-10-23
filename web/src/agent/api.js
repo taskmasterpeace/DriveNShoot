@@ -2958,7 +2958,9 @@ async function runSelfTest(api, only = null, skip = null) {
       await api._step(60);
       const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
       // The gun up first (systems/arms.js: a click on a lowered gun raises it), then the rounds: this proves the bed, not the stance.
-      for (let i = 0; i < 8 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
+      // Up to 16 rounds: shooting from anything moving adds spread with speed (vehicles.js DRIVING.shootSpread) - measured 1-6
+      // rounds to the first hit at 13 m/s, so 8 sometimes all missed.
+      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
       return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck });
     } finally { wvClean([v, d, t]); }
   }));
