@@ -1,7 +1,7 @@
 import { WEAPONS } from '../systems/combat.js';
 import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
 import { DECK_RULES, CAMP } from '../data/decks.js';
-import { WEATHER } from '../systems/sky.js';
+import { WEATHER, NIGHT_I } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
@@ -2060,6 +2060,16 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
   await check('weather cycles', async () => { for (const k of ['RAIN', 'DUST', 'STORM', 'CLEAR']) { const r = await C('setWeather', { key: k, instant: true }); if (!r.ok) return false; } return true; });
   await check('day/night', async () => { await C('setTime', { hour: 23 }); await C('step', { seconds: 0.2 }); const n = g.sky.night; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.2 }); return n > 0.8 && g.sky.night < 0.2 ? true : `night=${n} day=${g.sky.night}`; });
+  await check('night is dark: at 23:00 the default Night setting leaves the moon and sky fill at a fraction of the old night, the Bright setting brings that back, and your light carries further the darker it is', async () => {
+    const S = g.sky, nl0 = S.nightLight, fo = g.flashOverride, w0 = S.weatherKey ?? null;
+    try {
+      await C('setWeather', { key: 'CLEAR', instant: true }); await C('setTime', { hour: 23 });
+      const at = async (nl) => { S.nightLight = nl; g.flashOverride = true; await C('step', { seconds: 0.2 }); return { sun: +S.sun.intensity.toFixed(3), hemi: +S.hemi.intensity.toFixed(3), flash: +g.flashMat.opacity.toFixed(2), reach: +g.flashlight.scale.z.toFixed(2) }; };
+      const dflt = await at(NIGHT_I.dflt), bright = await at(1);
+      const ok = dflt.sun < bright.sun * 0.3 && dflt.hemi < bright.hemi * 0.3 && bright.sun > 1.2 && dflt.flash > bright.flash && dflt.reach > bright.reach;
+      return ok ? true : JSON.stringify({ dflt, bright });
+    } finally { S.nightLight = nl0; g.flashOverride = fo; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.2 }); }
+  });
   await check('raider spawn + gunfight kill', async () => {
     const { ids } = await C('spawn', { kind: 'raider', x: g.player.x + 10, z: g.player.z, hp: 30 });
     await C('give', { pistol: 50 });

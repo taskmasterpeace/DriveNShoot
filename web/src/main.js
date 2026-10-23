@@ -1229,7 +1229,11 @@ class Game {
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
     const flashOn = this.flashOverride ?? this.sky.night > 0.55;
-    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 : 0;
+    // The darker the night (the Night setting, systems/sky.js nightLight), the more your light carries: brighter and longer
+    // (an additive cone, no light of its own: the fixed light count holds).
+    const dark = this.sky.night * (1 - this.sky.nightLight);
+    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 + 0.35 * dark : 0;
+    this.flashlight.scale.set(1, 1, 1 + 0.45 * dark);
     this.flashlight.position.set(p.x, 0, p.z);
     this.flashlight.rotation.y = p.face;
     this.charR.sync(this.chars, dt);
