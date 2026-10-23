@@ -29,6 +29,7 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
@@ -38,6 +39,7 @@ import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { materialCommands, materialChecks } from './materials-api.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1940,6 +1942,9 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
+    // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
+    ...cloneCommands(api, need),
   };
 }
 
@@ -2653,6 +2658,10 @@ async function runSelfTest(api, only = null, skip = null) {
       : JSON.stringify({ id, shattered, why, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
   });
 
+  // ---- what things are made of: rounds through wood and not block, ricochets, a breached door, blood on a wall,
+  // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
+  await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
+
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
   const STAGE = { x: 280, z: -120 };
@@ -2850,7 +2859,9 @@ async function runSelfTest(api, only = null, skip = null) {
     if (!mateo || !rosa) return `letter-quest pack not loaded (mateo=${!!mateo}, rosa=${!!rosa})`;
     await C('teleport', { x: mateo.x - 6, z: mateo.z });
     mateo.hold = true; mateo.face = Math.atan2(g.player.x - mateo.x, g.player.z - mateo.z);
-    await C('fire', { id: mateo.id, shots: 1 });
+    // Up to four rounds until one lands (a round can go wide: this proves the memory and the word, not the aim).
+    const hp0 = mateo.hp;
+    for (let i = 0; i < 4 && mateo.hp >= hp0; i++) { g.arms?.setStance('raised'); await C('fire', { id: mateo.id, shots: 1 }); }
     const firsthand = (await C('memory', { id: 'mateo' })).memories.some((m) => m.kind === 'shotMe' && !m.heard);
     await C('step', { seconds: 9 });
     const heard = (await C('memory', { id: 'rosa' })).memories.some((m) => m.kind === 'shotKin' && m.heard && m.about === 'Mateo Quintero');
@@ -3194,6 +3205,8 @@ async function runSelfTest(api, only = null, skip = null) {
     return ok ? true : JSON.stringify({ rolling: rolling.ok ? 'slept rolling' : rolling.why, slept: r.ok ? true : r.why, woke: w, want: +want.toFixed(2), moved: +moved.toFixed(2) });
   }));
   await check('the town sleeps: at 23:00 Ike goes to bed and most of the town with him; asleep he keeps no counter and witnesses nothing; a gunshot wakes him', async () => {
+    // Neutral first: a gun left raised sends the unarmed running (systems/gunpoint.js), a feared name scares them (roles.js).
+    await stage();
     const inv = g.inventory, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
     const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
     if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
@@ -5675,6 +5688,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
   // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
   await floridaChecks({ api, g, check, C });
+  await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   // The underground (docs/design/WEB_UNDERGROUND.md §8): agent/underground-api.js.
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
@@ -5692,10 +5706,10 @@ export function snapshot(g) {
   return {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
-    player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
+    player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.ug).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
-    vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    vehicles: g.vehicles.filter((v) => !v.trundle).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
@@ -5713,6 +5727,9 @@ export function snapshot(g) {
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
     decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
     sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
+    materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
+    clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
+    travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
   };
 }
 
@@ -5781,7 +5798,10 @@ export function restore(g, s) {
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
+  if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;
+  g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
+  g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

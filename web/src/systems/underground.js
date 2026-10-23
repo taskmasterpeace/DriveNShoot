@@ -278,7 +278,7 @@ export class Underground {
     for (const id of A.rec.collapsed) { const C = L.collapses.find((c) => c.id === id); if (C) P.boxes.push(U.addBox(C.x - C.r, C.z - C.r, C.x + C.r, C.z + C.r, 'ug-rubble', y, y + UG.wallH)); }
     if (L.gate) { P.gate = U.addBox(L.gate.x0, L.gate.z0, L.gate.x1, L.gate.z1, 'ug-gate', y, y + LIFT.gateH); }
     // Furniture is solid (cover).
-    for (const p of L.props) if (p.kind !== 'rock' || p.h > 0.5) P.boxes.push(U.addBox(p.x0, p.z0, p.x1, p.z1, 'ug-prop', y, y + p.h));
+    for (const p of L.props) if (p.kind !== 'rock' || p.h > 0.5) P.boxes.push(U.addBox(p.x0, p.z0, p.x1, p.z1, PROP_TAG[p.kind] ?? p.kind, y, y + p.h)); // tagged as what it is (data/materials.js reads the tag)
     // Doors: leaves from the interiors pool, their ops in the UnderWorld at this level's heights.
     for (const d of L.doors) {
       const saved = lr.doors[d.id];
@@ -1126,5 +1126,7 @@ export class Underground {
 
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
+// A prop's collision tag: the name data/materials.js MATERIAL_RULES already knows it by.
+const PROP_TAG = { locker: 'lockers', rack: 'racks', cot: 'bunk', labbench: 'desk', console: 'milbox', cabinet: 'lockers', maptable: 'table', sink: 'milbox', counter: 'table', pylon: 'milbox', bunk: 'bunk', crate: 'crate', drum: 'drum', desk: 'desk', table: 'table', bench: 'bench', shelf: 'shelf', pump: 'pump', generator: 'generator' };
 function drop(arr, x) { const i = arr.indexOf(x); if (i >= 0) { arr[i] = arr[arr.length - 1]; arr.pop(); } }
 void _v; void KINDS; void ITEMS; void ROCK;

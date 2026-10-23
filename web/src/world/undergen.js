@@ -392,11 +392,11 @@ function finish(c) {
     for (let dj = -1; dj <= 1 && !touch; dj++) for (let di = -1; di <= 1; di++) { const n = at(i + di, j + dj); if (n >= 0 && L.cells[n] !== ROCK && L.cells[n] !== STAIR && L.cells[n] !== HOLE && L.cells[n] !== SHAFT) { touch = true; break; } }
     if (touch) edge[q] = 1;
   }
-  for (const R of mergeRects(edge, W, H)) L.colliders.push({ x0: L.ox + R[0], z0: L.oz + R[1], x1: L.ox + R[2], z1: L.oz + R[3], base: y, top: y + wallH, tag: 'ug-rock' });
+  for (const R of mergeRects(edge, W, H)) L.colliders.push({ x0: L.ox + R[0], z0: L.oz + R[1], x1: L.ox + R[2], z1: L.oz + R[3], base: y, top: y + wallH, tag: K.built ? 'ug-wall' : 'ug-rock' }); // poured concrete, or the living rock (data/materials.js)
   const deep = new Uint8Array(W * H); for (let q = 0; q < W * H; q++) if (L.cells[q] === DEEP) deep[q] = 1;
   for (const R of mergeRects(deep, W, H)) L.colliders.push({ x0: L.ox + R[0], z0: L.oz + R[1], x1: L.ox + R[2], z1: L.oz + R[3], base: y - 1.2, top: y + 0.15, tag: 'ug-water' });
   // Visual walls: a built level's merged concrete; a cave's rock is drawn cell by cell (systems/underground.js).
-  L.walls = K.built ? L.colliders.filter((b) => b.tag === 'ug-rock').map((b) => [b.x0, b.z0, b.x1, b.z1]) : null;
+  L.walls = K.built ? L.colliders.filter((b) => b.tag === 'ug-wall').map((b) => [b.x0, b.z0, b.x1, b.z1]) : null;
   L.edge = edge;
   // 3. Floors: a built level's rooms each their own colour (merged per space); a cave's open cells drawn cell by cell.
   if (K.built) {

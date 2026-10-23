@@ -68,6 +68,7 @@ export class Interiors {
       id: row.id, row, kind: row.kind, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width,
       material: row.material, mat, color: row.color, locked: !!row.locked, lockHp: mat.lockHp, kicks: mat.kicks,
       bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [],
+      broken: !!this.g.materials?.brokenDoors.has(row.id), // off its hinges for good (systems/materials.js)
     };
     const half = row.width / 2;
     // Hinges sit just inside each end of the opening, so an open leaf clears the wall's face.
@@ -125,6 +126,7 @@ export class Interiors {
   }
 
   leafCircle(L, p, r, mover) {
+    if (L.door.broken) return 0;
     const ex = p.x - L.hx, ez = p.z - L.hz;
     let s = ex * L.dx + ez * L.dz;
     if (s < 0) s = 0; else if (s > L.len) s = L.len;
@@ -166,6 +168,7 @@ export class Interiors {
 
   ray(op, x0, z0, dx, dz, maxT, mode) {
     if (op.kind === 'leaf') {
+      if (op.door.broken) return Infinity;
       if (mode !== RAY_SOLID && (op.th > DOOR.nearClosed || op.th < -DOOR.nearClosed)) return Infinity;
       return this.segRay(op.hx, op.hz, op.dx, op.dz, op.len, x0, z0, dx, dz, maxT);
     }
@@ -470,6 +473,7 @@ export class Interiors {
         L.w -= side * 12 * f; L.pusher = by; L.pushT = this.g.time; this.wake(L);
       }
     }
+    this.g.materials?.blast(x, z, r, by); // what the blast breaks, by what it is made of (systems/materials.js)
   }
 
   // ---- locks & kicks ------------------------------------------------------------------------------
@@ -563,7 +567,7 @@ export class Interiors {
           door._seen = stamp;
           let shut = true;
           for (const L of door.leaves) if (L.th > 0.3 || L.th < -0.3) shut = false;
-          if (!shut && !door.locked) continue;
+          if (door.broken || (!shut && !door.locked)) continue;
           const d = Math.hypot(p.x - door.x, p.z - door.z);
           if (d < bd) { bd = d; best = door; }
         } else {
@@ -793,6 +797,7 @@ export class Interiors {
   }
 
   writeLeaf(L) {
+    if (L.door.broken) { this.leafMesh.setMatrixAt(L.slot, ZERO); return; }
     _o.position.set(L.hx + L.dx * L.len / 2, (L.door.y ?? 0) + DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2); // y: a door below the street hangs on its own floor
     _o.rotation.set(0, Math.atan2(-L.dz, L.dx), 0);
     _o.scale.set(L.len, DOOR.height, DOOR.thick);

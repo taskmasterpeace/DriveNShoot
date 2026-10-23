@@ -139,6 +139,7 @@ Address one tab from the shell with `--tab <id>` (or `DL_TAB`; the MCP server re
 | `gear`, `gear wear=` / `off=` | The 19-slot paperdoll (WEB_INVENTORY.md §Gear, rows in `src/data/gear.js`): every slot, the soak per body part (armor is cut at `combat.damage`), the mods and the number each moves (carry, speed, reload, how close you are spotted, repairs, luck). `scenario name=pack-gear` stages a kitted-out PACK screen |
 | `residents`, `residents id=` | The ring's people (R2, WEB_STREAMING §1.3 "R2 as built", rows in `src/data/ring.js` RESIDENTS): households as records keyed by building id. No id: the character budget (free slots, the 16 they never take, their cap of 40), how many are promoted, promotion ms, yields, deaths, thefts, and the households near x,z with everyone in them (name, flag, asleep, at home, out on a run, in the lair). `id=R<k>.<j>.<n>`: one household in full - each member's hp, gun, death (by whom, when), grudge, where the clock has them and today's plan, what they carry, their body's box; its beds, owned shelves, the boards' hp, a nest's lair today and tomorrow. `action=promote|demote` |
 | `author row= x= z=` / `lot=` / `remove=` / `list=true` | Authored buildings (docs/design/WEB_BUILDING_LAB.md): stands a Building Lab export in the Phoenix ring now, in place of the generator's lots there (the chunks round it laid out again), and returns where, its rooms, the street point in front of its door and the reachability proof floor by floor; `sample=office2` is the fixture in `data/authored.js` |
+| `material x z` / `id=`, `build`, `breakAt`, `blood` | What things are made of (docs/design/WEB_MATERIALS.md, rows in `src/data/materials.js`): every box, door, window and car has a material by rule (no hand tags; a wall's is the finish its shader paints, a room's partition is drywall). Rounds go through wood, drywall and sheet metal with what is left, stop in block, brick, adobe, concrete and sandbags, glance off steel at shallow angles; wooden doors, drywall, crates, shelves, furniture, tents break (a breach you walk through, the nav grid told), blasts break by material, fire burns wood and cloth and spreads, cars ram through. `material` says what a thing is, why, and its state; `build kind=plank_wall\|shack\|... x z` stands a piece on the island; `breakAt x z cause=hit\|blast\|fire\|ram` hurts what is there; `blood x z` lists the marks on walls (blood dries darker over game hours, rain washes it outdoors). All of it is in the save |
 | `doors`, `door id= action=`, `windows`, `window id= action=` | Every door and window near a spot (angle, locked, kicks left; glass hp, crack, boards). `door` opens, closes, locks, unlocks or kicks (the E key's boot: 2-3 for a locked one, each a loud noise); `window` breaks, boards, unboards, repairs, or climbs you through. Doors and windows are data rows from `world/city.js`; `scenario name=interior-lineup` shows every state in one building |
 
 **Honest by default:** `talk` and `enterVehicle` require you to actually be there (within about 4 m), and the error tells you where the target is (`moveTo id=... first`). Pass `force=true` only in tests. Named characters dropped by raiders or traffic are downed and back on their feet after 45 s (you get a `downed` event with the countdown). If *you* kill one, they stay dead, except characters marked `essential: true` (the quest-giving sheriff and Doc Reyes), who always come back so the story can't dead-end. Killing them still earns wanted stars. Mark your own quest givers `essential` in content packs.
@@ -289,7 +290,12 @@ src/
     fx.js              blood/sparks/smoke particles, decals (pools, splats, skids), tracers, flashes, pooled lights
     characters.js      Character data + CharacterRenderer: one articulated body (two-segment limbs, IK feet and
                        hands, a model per weapon), left+right limbs packed, variants packed per wearer
-    combat.js          WEAPONS table, hitscan, damage, death
+    combat.js          WEAPONS table, hitscan (a round's legs through walls, systems/materials.js), damage, death
+    materials.js       what everything is made of (data/materials.js): classify a box by rule, rounds through / off / into it,
+                       breaking (walls in 1 m strips with breaches, doors, props), blasts, fire that spreads, rams, pieces
+                       (`build`), the nav grid told, save/load; one InstancedMesh for pieces, one for debris
+    blood.js           marks that stick: blood on the wall/door/car behind a hit person, holes, scorch, drag smears; drying
+                       over game hours and rain washing (fx.js's floor blood too); one InstancedMesh ring, an 8-tile atlas
     ai.js              on-foot AI: faction hostility (toward the player: faction standing), scan,
                        fight/strafe/flee/wander, crowd separation, `hold` (stand still)
     society.js         world memory facade: day count, places, hourly standing decay, save/load
@@ -362,6 +368,8 @@ src/
   data/stunts.js       ramps, sites (the Thrill Show, the Dunes), props, named jumps, and the jump tuning (gravity, springs' limits, landing lines)
   data/bases.js        military bases as rows: fence, gate, towers, buildings (doors, windows, furniture), props, boxes, posts,
                        patrols, parked vehicles; the trespass and searchlight tuning (BASE_RULES), the sentries' lines
+  data/materials.js    MATERIALS rows (stop, ricochet, hp per m², breaks, breach, blast resistance, fire, look), PUNCH by ammo,
+                       PEN/BLAST/RAM/FIRE tuning, MATERIAL_RULES (what a thing is made of, by tag/finish/partition), PIECES, BLOOD
   data/interiors.js    door materials (wood|metal: kicks, lock hp, colours), door physics, window numbers, boot-time mix
   data/ring.js         the Phoenix ring as rows: RING (footprint, grid, freeway and rail clearances, per-chunk budgets,
                        shell sizes), ZONE_RULES (first match wins), ZONES (kinds, density, ruin share, loot, palettes),
