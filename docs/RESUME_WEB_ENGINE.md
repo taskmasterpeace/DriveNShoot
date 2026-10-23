@@ -5,7 +5,7 @@ The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
 ## Landed
-`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`a242a5db`**: everything below, landed by fast-forward
+`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`9e64a9d2`** (the role system merged in, 94/94 twice on fresh pages): everything below, landed by fast-forward
 from the session branch `claude/web-engine-handoff-2fceb5` (which equals it). Land later work the same way, inside
 `.worktrees/web-engine`: `git fetch`, `git merge-base --is-ancestor origin/feat/web-engine claude/web-engine-handoff-2fceb5`,
 `git merge --ff-only claude/web-engine-handoff-2fceb5`, push. A fast-forward lands the exact commit the selftest ran on;
@@ -14,13 +14,18 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 84/84 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 94/94 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
 Gotchas (all paid for):
 - **Run the selftest on a fresh page:** `exec code="(setTimeout(() => location.reload(), 50), 'reloading')"`, wait ~15 s.
   Don't edit `web/src` while it runs (vite reloads the page mid-battery).
+- **A reload right after a long command can be lost** (the bridge answers 503 for ~25 s): confirm `game.time` is small
+  before a battery (scratchpad `fresh.sh` retries until it is).
+- **A long-lived headless Chrome measures stress 0.3-0.5 ms/frame slower than a fresh one:** A/B with fresh browsers
+  on both sides, in ABBA order (the first A/B of the role merge read +0.5 ms; fresh browsers, ABBA: +0.15, inside
+  noise; per-system timers and an on/off toggle confirmed no cost).
 - **Perf is an A/B, not a remembered number.** Other agents' headless Chromes moved stress from 2.2 to 4.3 ms/frame in
   one evening. Check out the previous commit inside the session worktree (`git worktree add --detach .ab-base <sha>`;
   esbuild can't walk up through `C:\WINDOWS\TEMP`), junction its `web/node_modules` to the live one (`mklink /J`), run
@@ -39,6 +44,9 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Roles (subagent) | ten roles you become by what you keep doing (wheelman, medic, scavenger, deputy, Dustwolf rider, trader, stunt driver, ghost, good Samaritan, butcher): renown, tiers with hysteresis, game-clock fading, standing bias, prices, refusals, greetings, jobs and offices, the role call, role tapes on the HUD, WHAT THEY CALL YOU in the pause menu | WEB_ROLES | 18745046 |
+| The town sleeps | 22:00-06:00 townsfolk go to bed (a mattress near home or a floor spot of their own, on a bedroll mat); asleep they witness nothing and traders keep no counter; noise within 45% of its reach, pain, a fight or someone at the bedside wakes them | WEB_SURVIVAL | 2855e98c |
+| Sleep in a parked car | N sleeps at a bed, on a bedroll or in a parked car seat (held on the handbrake) | WEB_SURVIVAL | bda48cd3 |
 | Rest, sleep, bite fever | REST as a third need (sway, darkened edges, microsleeps that take the screen and the hands, at the wheel too); sleep in a bed, on a bedroll or in a parked car's seat (N) while time runs x40 and danger, pain or noise wakes you; BITE FEVER per the canon (36 game hours of taxes, antibiotics + a full night break it, never a turn, a laboured breath you can hear); a REST dial and ailment tags on the HUD; `sleep`, `fever` commands | WEB_SURVIVAL | a242a5db (+ car sleep, pending) |
 | Storeys (spec) | levels as layers (`lv`), stairs as flight rows, the inside view, basements under a dark overlay, per-storey nav | WEB_STOREYS | 35906fa0 |
 | Guns and rounds as things | rounds live in the pack (a view the gun code reads), gun condition, wear, jams (R clears, a round lost), broken guns, cleaning kits, Ike's bench; the dead keep their guns (a soldier's rifle is the prize); the PACK screen's slung guns | WEB_INVENTORY | 9d8e644b |
@@ -54,10 +62,6 @@ Gotchas (all paid for):
 - **Streaming P1** (`worktree-agent-a222c78142bb03d72`, worktree `.claude/worktrees/agent-a222c78142bb03d72`): streamed
   Arizona (chunks, pools, chunked collision, a nav window, I-10 with real interchanges, the usmap importer). Merged
   feat/web-engine at 9d8e644b into itself; merges into the session branch with no conflicts (preview).
-- **Roles** (`feat/web-roles`, worktree `.claude/worktrees/agent-a88fa23d4f7993a96`): roles as data rows earned and lost
-  by what you do (renown, tiers with hysteresis), people reacting to them, role tapes on the HUD, eight checks.
-  Merging it into the session branch conflicts only in `ui/hud.js` and `ui/hud.css` (the REST dial and ailment tags vs
-  the role tapes): keep both.
 When each reports: review, merge into the session branch, selftest twice on fresh pages + stress A/B, land.
 
 ## Robert's answers (2026-10-22)
