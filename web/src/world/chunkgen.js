@@ -7,6 +7,7 @@ import { RING } from '../data/ring.js';
 import { SPECIES, FLORA_KINDS, P1_FLORA, poolName, floraVariant, floraHash, crownScale } from './flora.js';
 import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted density rows (docs/design/WEB_FORGE.md §3.4)
 import { regionWater, WK } from './regions.js';
+import { WATER } from '../data/water.js';
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -28,8 +29,7 @@ const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'bou
 // uses it, so every P1 chunk keeps the hash it had (docs/design/WEB_FLORIDA.md §5).
 const P1_POOLS = new Set(['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...P1_FLORA.map(poolName)]);
 const WG = 65; // a region chunk's water grid: 4 m samples, 65 x 65 (its edges shared with the neighbours')
-// Water colours by kind (world/regions.js WK), shallow -> deep: tea-dark swamp water, a canal, the lagoon, the sea.
-const WATER_COL = { 1: ['#4a4a2c', '#1d2518'], 2: ['#465236', '#1c2e26'], 3: ['#3d6f68', '#1c4648'], 4: ['#4f8e90', '#16445e'] };
+// (A region's water colours by kind live in data/water.js WATER.colour.region: the one water shader mixes them.)
 const URBAN = [0.9, 0.87, 0.82]; // the ring's ground: dust over old concrete and yards (data/ring.js zones tint their blocks)
 const ROCK_TONE = [0.9, 0.8, 0.72]; // real terrain (flag): steep ground goes to bare, ruddier rock
 const HILLSHADE = 0.24;            // real terrain (flag): how much a slope at the full grade lightens or darkens
@@ -86,7 +86,9 @@ class MeshBuf {
     };
   }
 }
-export const SURF_CAPS = { ground: [N_G * N_G, (N_G - 1) * (N_G - 1) * 6], road: [26000, 42000], rock: [44000, 90000], water: [WG * WG * 2, (WG - 1) * (WG - 1) * 9] };
+// water: ONE layer (world/water.js streamMat) for both sources of water: a region's 4 m sheet (the sea, the lagoon, the
+// canals, the sloughs; marching-squares shores) and L1's 8 m sheet and wash-bed strips (rivers, washes, lakes).
+export const SURF_CAPS = { ground: [N_G * N_G, (N_G - 1) * (N_G - 1) * 6], road: [26000, 42000], rock: [44000, 90000], water: [WG * WG * 2 + N_G * N_G + 4000, (WG - 1) * (WG - 1) * 9 + (N_G - 1) * (N_G - 1) * 6 + 8000] };
 // Scratch buffers for one generator at a time. The streamer runs one build at a time and owns the shared set; anything
 // that builds a layout beside it (the `chunk fresh=true` check) brings its own, so two builds never write the same arrays.
 export function makeScratch() {
@@ -97,6 +99,9 @@ export function makeScratch() {
       ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(SPECIES[k].chunk ?? 400, 1)])), // extra: the variant (world/flora.js); a forest species holds more
     },
     SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true), water: new MeshBuf(...SURF_CAPS.water, true, true) },
+    // L1 water's per-chunk grid (the ground's 33 x 33 vertices plus a ring): carve, surface, depth, flow coordinates.
+    // (LW, not WG: WG is a region's 4 m water grid size.)
+    LW: { carve: new Float32Array(35 * 35), surf: new Float32Array(35 * 35), depth: new Float32Array(35 * 35), u: new Float32Array(35 * 35), s: new Float32Array(35 * 35), edge: new Float32Array(35 * 35), kind: new Uint8Array(35 * 35) },
   };
 }
 const SHARED = makeScratch();
@@ -418,6 +423,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     for (const s of F.structs) if (Math.hypot(s.x - x, s.z - z) < Math.max(s.sa, s.su) / 2 + 3 + r) return true;
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
     if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
+    if ((WT && (wetNear(x, z, r) || WT.nearFord(x, z, 40 + r))) || onFill(x, z, r)) return true; // the water, its banks, a ford's way across, the bridges and their fills
     if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
     if (W.roadside?.solid(x, z, r)) return true; // the roadside's sites, fields, towers and billboards (world/roadside.js)
     return false;
@@ -426,6 +432,29 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
 
   // Real terrain (flag): the eight neighbours' ground grids (the ground's normals at the seams read them), a slice each.
   if (T) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) { if (dx || dz) { T.gridOf(cx + dx, cz + dz); pause(); yield; resume(); } }
+
+  // ---- L1 water (world/rivers.js): the chunk's water grid, once, on the ground's 8 m vertices plus a ring --------------
+  // carve (the channel and its banks cut into the ground, <= 0), the surface, the depth, and where along the river.
+  // Only a chunk some water reaches has one; every other chunk lays out exactly as it did before rivers.
+  const WT = W.water && W.water.inChunk(cx, cz) ? W.water : null, NW = N_G + 2, LW = WT ? scratch.LW ?? SHARED.LW : null;
+  if (WT) {
+    for (let j = -1; j <= N_G; j++) {
+      for (let i = -1; i <= N_G; i++) {
+        const q = WT.sample(ox + i * 8, oz + j * 8), k = (j + 1) * NW + i + 1;
+        LW.carve[k] = q.bedRel; LW.surf[k] = q.near ? q.surf : NaN; LW.depth[k] = q.depth; LW.u[k] = q.u; LW.s[k] = q.s; LW.edge[k] = Math.max(-40, q.edge);
+        LW.kind[k] = q.body ? (q.body.P ? 2 : 1) : q.dry ? (q.dry.P ? 4 : 3) : 0;
+      }
+      if ((j & 7) === 7) { pause(); yield; resume(); }
+    }
+  }
+  // Water or a cut bank within r of (x, z), from the grid (scatter, poles and wrecks keep off).
+  const wetNear = (x, z, r) => {
+    if (!WT) return false;
+    const i0 = Math.max(-1, Math.floor((x - r - ox) / 8)), i1 = Math.min(N_G, Math.ceil((x + r - ox) / 8)), j0 = Math.max(-1, Math.floor((z - r - oz) / 8)), j1 = Math.min(N_G, Math.ceil((z + r - oz) / 8));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = (j + 1) * NW + i + 1; if (LW.depth[k] > 0 || LW.carve[k] < -0.3) return true; }
+    return false;
+  };
+  const onFill = (x, z, r) => { for (const p of F.pieces) if (p.water && x > p.x0 - r && x < p.x1 + r && z > p.z0 - r && z < p.z1 + r && (p.kind === 'deck' ? W.water.deckAt(x, z) >= 0 : W.ribbonDist(p.rib, x, z) < p.halfW + 2 * p.rib.ymax + r)) return true; return false; };
 
   // ---- water (a region's: the sea, the lagoon, the canals, the sloughs; world/regions.js is the authority) -------------
   // A 4 m grid of depths and kinds, shared at the edges with the neighbours, cached by the region while the layout lives
@@ -531,9 +560,37 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const gr = di || dj ? T.gridOf(cx + di, cz + dj) : TG;
       return gr[(dj < 0 ? N_G - 2 : dj > 0 ? 1 : j) * N_G + (di < 0 ? N_G - 2 : di > 0 ? 1 : i)];
     } : null;
+    // L1 water: the carve (<= 0) at grid vertex (i, j), -1..N_G; and the tint of a wash's sand, a river's mud, a playa's crust.
+    const cv = LW ? (i, j) => LW.carve[(j + 1) * NW + i + 1] : null;
+    const wetTint = (i, j, out) => {
+      const k = (j + 1) * NW + i + 1, c = LW.carve[k], kind = LW.kind[k];
+      // A river's or a lake's banks go to wet mud for 12 m out from the water's edge (LW.edge < 0 out there).
+      const e = LW.edge[k], tint = kind === 3 ? WATER.washTint : kind === 4 ? WATER.playaTint : (kind === 1 || kind === 2) && e > -12 ? WATER.bankTint : null;
+      if (!tint) return;
+      const a = kind === 4 ? 1 : kind === 3 ? Math.min(1, -c / 0.5) : Math.min(1, Math.max(0, 1 + e / 12));
+      for (let q = 0; q < 3; q++) out[q] *= 1 + (tint[q] - 1) * a;
+      // A wash's cut banks: darker, the shadowed lip of the channel (the bed itself stays pale).
+      if (kind === 3 && c < -0.15 && c > -1.0) for (let q = 0; q < 3; q++) out[q] *= WATER.washBank[q];
+    };
     for (let j = 0; j < N_G; j++) for (let i = 0; i < N_G; i++) {
       const x = ox + i * 8, z = oz + j * 8;
       tintAt(x, z, tc);
+      if (LW) {
+        // A chunk the water reaches: the ground is cut (and its normals come from the cut ground, the land's too).
+        wetTint(i, j, tc);
+        const hh = (a, b) => (TG ? hAt(a, b) : 0) + cv(a, b);
+        const sx = (hh(i + 1, j) - hh(i - 1, j)) / 16, sz = (hh(i, j + 1) - hh(i, j - 1)) / 16, l = Math.hypot(sx, 1, sz);
+        if (TG) {
+          const rock = Math.min(1, Math.hypot(sx, sz) / T.g) * 0.3, hs = 1 + HILLSHADE * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / T.g));
+          for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs;
+        } else {
+          // Flat ground: the cut banks still read from straight above (the map-maker's light from the north-west).
+          const hs = 1 + HILLSHADE * 1.3 * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / 0.25));
+          for (let c = 0; c < 3; c++) tc[c] *= hs;
+        }
+        idx[j * N_G + i] = G.v(i * 8, hh(i, j), j * 8, -sx / l, 1 / l, -sz / l, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
+        continue;
+      }
       if (TG) {
         const sx = (hAt(i + 1, j) - hAt(i - 1, j)) / 16, sz = (hAt(i, j + 1) - hAt(i, j - 1)) / 16, l = Math.hypot(sx, 1, sz);
         const rock = Math.min(1, Math.hypot(sx, sz) / T.g) * 0.3;
@@ -551,25 +608,81 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const x = ox + i * 8 + 4, z = oz + j * 8 + 4;
       if (Math.abs(x) < ISLAND && Math.abs(z) < ISLAND) continue; // the island's own ground plane is under there
       const a = idx[j * N_G + i], b = idx[j * N_G + i + 1], c = idx[(j + 1) * N_G + i + 1], d = idx[(j + 1) * N_G + i];
+      // Near water, each cell splits along its flatter diagonal, so a shoreline crossing the grid aslant follows the bank
+      // instead of sawing along the grid's own diagonal. (Real terrain's T.at keeps the fixed split; the carve on top is
+      // the only difference, and movers stand on the analytic floor there.)
+      if (LW && (cv(i, j) || cv(i + 1, j) || cv(i, j + 1) || cv(i + 1, j + 1)) && Math.abs(G.pos[a * 3 + 1] - G.pos[c * 3 + 1]) > Math.abs(G.pos[b * 3 + 1] - G.pos[d * 3 + 1]) + 1e-6) { G.tri(a, d, b); G.tri(b, d, c); continue; }
       G.tri(a, d, c); G.tri(a, c, b);
     }
     // The edge signature: the ground along each edge (what the neighbour must agree with).
-    const edgeHash = (pick) => { const h = new Hasher(); for (let k = 0; k < N_G; k++) { const v = pick(k); h.num(G.col[v * 3]).num(G.col[v * 3 + 1]).num(G.col[v * 3 + 2]); if (TG) h.num(G.pos[v * 3 + 1]).num(G.nrm[v * 3]).num(G.nrm[v * 3 + 2]); } return h; };
+    const edgeHash = (pick) => { const h = new Hasher(); for (let k = 0; k < N_G; k++) { const v = pick(k); h.num(G.col[v * 3]).num(G.col[v * 3 + 1]).num(G.col[v * 3 + 2]); if (TG || G.pos[v * 3 + 1] !== 0) h.num(G.pos[v * 3 + 1]).num(G.nrm[v * 3]).num(G.nrm[v * 3 + 2]); } return h; }; // (a carved vertex: its height too)
     out.edges = { n: edgeHash((k) => idx[k]), s: edgeHash((k) => idx[(N_G - 1) * N_G + k]), w: edgeHash((k) => idx[k * N_G]), e: edgeHash((k) => idx[k * N_G + N_G - 1]) };
   }
   pause(); yield; resume();
 
+  // ---- L1 water: the sheet, on the same 8 m grid, wherever a cell has water at a corner -------------------------------
+  // Flat across the channel at the surface; where the cut bank stands above it the ground hides it, so the shoreline is
+  // where the ground meets the water. Colour by depth (muddy green-brown, darker deeper, pale at the edge); UVs run along
+  // a river (s) and across it (u), so the ripples flow downstream when world/water.js scrolls them.
+  if (LW) {
+    const Wb = SURF.water, vid = (scratch.wid ??= new Int32Array(N_G * N_G));
+    vid.fill(-1);
+    const dep = (i, j) => LW.depth[(j + 1) * NW + i + 1];
+    const surfOf = (i, j) => {
+      const k = (j + 1) * NW + i + 1;
+      if (Number.isFinite(LW.surf[k])) return LW.surf[k];
+      for (let r = 1; r <= 2; r++) for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) { const ii = i + a, jj = j + b; if (ii < -1 || jj < -1 || ii > N_G || jj > N_G) continue; const v = LW.surf[(jj + 1) * NW + ii + 1]; if (Number.isFinite(v)) return v; }
+      return NaN;
+    };
+    const vert = (i, j) => {
+      const n = j * N_G + i;
+      if (vid[n] >= 0) return vid[n];
+      const k = (j + 1) * NW + i + 1, d = LW.depth[k], y = surfOf(i, j);
+      if (!Number.isFinite(y)) return -1;
+      // The colour is worked out per pixel (world/water.js streamMat): the vertex carries the signed distance from the
+      // water's edge (r, metres, + in the water) and the depth (g), both near-linear across the channel, so the 8 m grid
+      // interpolates them exactly and the foam line and the depth bands follow the real shore, not the grid.
+      const x = ox + i * 8, z = oz + j * 8, river = LW.kind[k] === 1;
+      return (vid[n] = Wb.v(i * 8, y, j * 8, 0, 1, 0, river ? LW.u[k] / 7 : x / 16, river ? LW.s[k] / 7 : z / 16, LW.edge[k], d, river ? 0 : 0.2)); // blue 0.2: a lake (calmer ripples)
+    };
+    // A cell with water at a corner, or next to one: the sheet runs on under the cut bank, so the shoreline is always
+    // where the ground comes up through it (never the sheet's own square edge).
+    const wetCell = (i, j) => dep(i, j) > 0 || dep(i + 1, j) > 0 || dep(i, j + 1) > 0 || dep(i + 1, j + 1) > 0;
+    for (let j = 0; j < N_G - 1; j++) for (let i = 0; i < N_G - 1; i++) {
+      let any = false;
+      for (let b = -1; b <= 1 && !any; b++) for (let a = -1; a <= 1 && !any; a++) { const ii = i + a, jj = j + b; if (ii >= -1 && jj >= -1 && ii < N_G && jj < N_G && wetCell(ii, jj)) any = true; }
+      if (!any) continue;
+      if (Math.abs(ox + i * 8 + 4) < ISLAND && Math.abs(oz + j * 8 + 4) < ISLAND) continue;
+      if (!Wb.room(4, 6)) break;
+      const a = vert(i, j), b = vert(i + 1, j), c = vert(i + 1, j + 1), d = vert(i, j + 1);
+      if (a < 0 || b < 0 || c < 0 || d < 0) continue;
+      Wb.tri(a, d, c); Wb.tri(a, c, b);
+    }
+    // A dry wash's bed: a strip along the channel at the bed's own level, in the same layer (its vertex colour says
+    // "dry": blue = 1, red = metres in from the bed's edge), so it reads as pale sand and gravel with a dark lip where
+    // the cut bank comes up through it. Not under a culvert's fill.
+    WT.washStrips(cx, cz, (x0, z0, x1, z1, y0, y1, hb0, hb1, nx0, nz0, nx1, nz1, s0, s1) => {
+      if (!Wb.room(6, 12)) return;
+      const v = (x, z, y, nx, nz, u, s, e) => Wb.v(x + nx * u - ox, y + 0.03, z + nz * u - oz, 0, 1, 0, u / 6, s / 6, e, 0, 1);
+      const a0 = v(x0, z0, y0, nx0, nz0, -hb0 - 0.6, s0, 0), m0 = v(x0, z0, y0, nx0, nz0, 0, s0, hb0 + 0.6), b0 = v(x0, z0, y0, nx0, nz0, hb0 + 0.6, s0, 0);
+      const a1 = v(x1, z1, y1, nx1, nz1, -hb1 - 0.6, s1, 0), m1 = v(x1, z1, y1, nx1, nz1, 0, s1, hb1 + 0.6), b1 = v(x1, z1, y1, nx1, nz1, hb1 + 0.6, s1, 0);
+      // Wound to face up (n is the right of travel: +z when travel is +x).
+      Wb.tri(a0, m0, m1); Wb.tri(a0, m1, a1); Wb.tri(m0, b0, b1); Wb.tri(m0, b1, m1);
+    });
+    pause(); yield; resume();
+  }
   // ---- the water sheet: every 4 m cell with water at a corner, tinted by kind and depth, world-space UVs (world/water.js
   // material: ripples and glints run on across chunk seams) --------------------------------------------------------------
+  // The one water material (world/water.js streamMat) works the colour out per pixel: a region's vertex carries (0, depth,
+  // 0.4 + kind / 100) and the shader mixes data/water.js colour.region's shallow and deep for that kind, as this used to per vertex.
   if (wat?.any) {
-    const Wm = SURF.water, vid = new Int32Array(WG * WG).fill(-1), cs = {}, tmpc = new THREE.Color();
-    for (const [kk, [a, b]] of Object.entries(WATER_COL)) cs[kk] = [new THREE.Color(a), new THREE.Color(b)];
+    const Wm = SURF.water, vid = new Int32Array(WG * WG).fill(-1);
     const D = wat.d, K = wat.k, SG = wat.s, Y = 0.015;
-    const tint = (d, kind) => { const c = cs[kind] ?? cs[1]; return tmpc.copy(c[0]).lerp(c[1], Math.min(1, d / (kind === WK.ocean ? 6 : 2.2))); };
+    const mode = (kind) => 0.4 + (kind || 1) * 0.01;
     const vert = (q, kind) => {
       if (vid[q] >= 0) return vid[q];
-      const i = q % WG, j = (q - i) / WG, c = tint(D[q], K[q] || kind);
-      return (vid[q] = Wm.v(i * 4, Y, j * 4, 0, 1, 0, (ox + i * 4) / 7, (oz + j * 4) / 7, c.r, c.g, c.b));
+      const i = q % WG, j = (q - i) / WG;
+      return (vid[q] = Wm.v(i * 4, Y, j * 4, 0, 1, 0, (ox + i * 4) / 7, (oz + j * 4) / 7, 0, D[q], mode(K[q] || kind)));
     };
     const poly = [], CI = [[0, 0], [1, 0], [1, 1], [0, 1]];
     for (let j = 0; j < WG - 1; j++) for (let i = 0; i < WG - 1; i++) {
@@ -587,8 +700,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
         if (wet[c]) poly.push(vert(q[c], kind));
         if (wet[c] !== wet[c2]) {
           const s0 = SG[q[c]], s1 = SG[q[c2]], t = Math.max(0, Math.min(1, s0 / (s0 - s1)));
-          const x = (i + CI[c][0] + (CI[c2][0] - CI[c][0]) * t) * 4, z = (j + CI[c][1] + (CI[c2][1] - CI[c][1]) * t) * 4, cc = tint(0, kind);
-          poly.push(Wm.v(x, Y, z, 0, 1, 0, (ox + x) / 7, (oz + z) / 7, cc.r, cc.g, cc.b));
+          const x = (i + CI[c][0] + (CI[c2][0] - CI[c][0]) * t) * 4, z = (j + CI[c][1] + (CI[c2][1] - CI[c][1]) * t) * 4;
+          poly.push(Wm.v(x, Y, z, 0, 1, 0, (ox + x) / 7, (oz + z) / 7, 0, 0, mode(kind)));
         }
       }
       for (let p = 1; p < poly.length - 1; p++) Wm.tri(poly[0], poly[p + 1], poly[p]);
@@ -849,6 +962,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     for (let s = Math.ceil(sA / 70) * 70; s < sB; s += 70) {
       const f = cor.at(s), u = pside * (cor.section(s).out + 24), x = f.x + f.nx * u, z = f.z + f.nz * u;
       if (!own(x, z) || inIsland(x, z, 30) || cor.exits.some((X) => Math.abs(X.s - s) < 520) || W.ring?.inCity(x, z, 80)) continue;
+      if ((i10 && W.water?.onBridge(s, 40)) || wetNear(x, z, 3)) continue; // not in a river, not beside a bridge (L1 water, world/rivers.js)
       if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 700)) continue;
       if (!i10 && (s < cor.mainlineFrom || blocked(x, z, 0.5) || depthNear(x, z) > 0)) continue;
       const lean = ((i10 ? hash32(seed, Math.round(s)) : hash32(seed, Math.round(s), cor.salt)) % 100) / 100 - 0.5, rot = Math.atan2(f.tx, f.tz);
@@ -877,6 +991,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if (h % 1000 > 11) continue; // about one every 700 m
     const s = cl.s[i], sec = cor.section(s);
     if (cor.exits.some((X) => Math.abs(X.s - s) < 600) || (cor !== W.i10 && s < cor.mainlineFrom)) continue;
+    if (cor === W.i10 && W.water?.onBridge(s, 30)) continue; // a wreck is never left on a river bridge's deck or its approach
     const f = cor.at(s), roadRot = Math.atan2(f.tx, f.tz);
     const rot = Math.round(roadRot / (Math.PI / 2)) * (Math.PI / 2) + ((h >> 10) % 100 - 50) / 400;
     const median = (h >> 4) % 3 === 0, side = (h >> 6) % 2 ? 1 : -1;
@@ -1083,6 +1198,30 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       addBox(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 'tree', h);
     }
   }
+  // ---- L1 water: brush down the dry washes, mesquite thickets along the rivers (their own seed: nothing else moves) -----
+  if (WT) {
+    const br = rngOf(hash32(seed, cx, cz, 5150)), SHB = col('#5f5b3b'), SHR = col('#556038');
+    const depthNear = (x, z) => { const i = Math.round((x - ox) / 8), j = Math.round((z - oz) / 8); return i < -1 || j < -1 || i > N_G || j > N_G ? 0 : LW.depth[(j + 1) * NW + i + 1]; };
+    const tree = (kind, x, y, z, h) => { const b = INST[poolName(kind)], sc = h / SPECIES[kind].h, sh = 0.9 + 0.18 * floraHash(x, z), i = b.push(x, y, z, floraHash(z, x) * 6.283, sc, sc, sc, sh, sh, sh); if (i >= 0) b.e[i] = floraVariant(x, z); addBox(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 'tree', y + h); };
+    WT.banks(cx, cz, 7, (x, z, b, u, nx, nz) => {
+      const wash = !b.wet, hw = Math.abs(u);
+      for (const off of wash ? [0.3, 0.75, 1.0, 1.15] : [1.1, 1.3, 1.6, 2.0]) {
+        if (br() > (wash ? (off < 0.9 ? 0.22 : 0.7) : 0.55)) continue; // a wash: brush lines its banks, a little grows in the bed
+        const d = (wash ? hw * off : hw + (off - 1) * 22) + br.range(-1.6, 1.6), px = x + nx * d, pz = z + nz * d;
+        if (!own(px, pz) || inIsland(px, pz, 4) || (anySegs && roadD(px, pz) < 26) || onFill(px, pz, 2) || depthNear(px, pz) > 1 || WT.nearFord(px, pz, 45)) continue; // a ford's banks are kept clear (the way across)
+        if (F.buildings.some((bd) => px > bd.x0 - 4 && px < bd.x1 + 4 && pz > bd.z0 - 4 && pz < bd.z1 + 4)) continue;
+        const sq = WT.sample(px, pz);
+        if (sq.depth > 0) continue;
+        const y = sq.bedRel, r = br();
+        if (wash ? r < 0.1 : r < 0.32) tree(wash ? (r < 0.05 ? 'paloverde' : 'mesquite') : r < 0.26 ? 'mesquite' : 'deadtree', px, y, pz, br.range(3, 5.5));
+        else if (wash && r > 0.93) { const tb = INST[poolName('tumbleweed')], ti = tb.push(px, y, pz, br() * 6.28, 1, 1, 1, 1, 1, 1); if (ti >= 0) tb.e[ti] = floraVariant(px, pz); }
+        else if (wash && off < 0.9 && r > 0.55) { const rr = br.range(0.25, 0.7), v = br.range(0.85, 1.05); INST.boulders.push(px, y + rr * 0.25, pz, br() * 6.28, rr * 1.2, rr * 0.5, rr, 0.66 * v, 0.6 * v, 0.52 * v); } // river cobbles in a wash's bed
+        else { const ss = br.range(0.6, 1.4), c = wash ? SHB : SHR, v = br.range(0.78, 1.06); INST.shrubs.push(px, y + ss * 0.2, pz, br() * 6.28, ss * br.range(0.9, 1.3), ss * 0.55, ss * br.range(0.9, 1.3), c[0] * v, c[1] * v, c[2] * v); }
+      }
+    });
+    pause(); yield; resume();
+  }
+
   // A shack (5%) and a camp (2%): somebody tried to live out here.
   if (!isl && rng() < 0.05 && cityF < 0.2) {
     const p = spot(9);
@@ -1146,6 +1285,18 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     };
     rast(foot, 1, RAD_FOOT);
     rast(car, 2, RAD_CAR);
+    // L1 water: walkers do not plan through water deeper than 1.2 m, drivers through more than `ford` (you can still
+    // swim it, or boat it). A deck is dry ground here (depthAt in 2-D): routes go over the bridge.
+    if (WT) {
+      // Depth at the corners of a 4 m lattice; a cell takes its deepest corner (conservative: a route never grazes deep
+      // water at a cell's edge), each 1 m / 2 m nav cell its 4 m cell's.
+      const n4 = C / 4, m4 = n4 + 1, d4 = (scratch.d4 ??= new Float32Array(m4 * m4));
+      for (let j = 0; j < m4; j++) { for (let i = 0; i < m4; i++) d4[j * m4 + i] = WT.depthAt(ox + i * 4, oz + j * 4); if ((j & 3) === 3) { pause(); yield; resume(); } }
+      const cell = (i, j) => { const k = j * m4 + i; return Math.max(d4[k], d4[k + 1], d4[k + m4], d4[k + m4 + 1]); };
+      const fa = foot.a, ca = car.a;
+      for (let z = 0; z < C; z++) for (let x = 0; x < C; x++) if (cell(x >> 2, z >> 2) > 1.2) { fa[z * C + x] = 1; foot.any = true; }
+      for (let z = 0; z < C / 2; z++) for (let x = 0; x < C / 2; x++) if (cell(x >> 1, z >> 1) > WATER.ford) { ca[z * (C / 2) + x] = 1; car.any = true; }
+    }
   }
   pause(); yield; resume();
 
@@ -1161,6 +1312,12 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (let j = 0; j < WG - 1; j++) for (let i = 0; i < WG - 1; i++) { const q = j * WG + i; if (wat.d[q] + wat.d[q + 1] + wat.d[q + WG] + wat.d[q + WG + 1] > 0.6) g.fillRect(i * 4 * k, j * 4 * k, 4 * k + 0.5, 4 * k + 0.5); }
     }
     for (const m of mesas) { g.fillStyle = 'rgba(92,70,40,0.85)'; g.beginPath(); g.ellipse((m.x - ox) * k, (m.z - oz) * k, m.r * k * 0.85, (m.kind === 'ridge' ? m.r / 2.2 : m.r) * k * 0.85, -m.rot, 0, 6.29); g.fill(); }
+    // L1 water: open water in the island map's water colour, dry washes and playas in pale sand.
+    if (WT) for (let j = 0; j < N_G; j++) for (let i = 0; i < N_G; i++) {
+      const q = (j + 1) * NW + i + 1, kd = LW.kind[q];
+      const fill = LW.depth[q] > 0 ? '#2f5a5c' : (kd === 3 && LW.carve[q] < -0.3) ? '#7d7048' : kd === 4 ? '#a59f88' : null;
+      if (fill) { g.fillStyle = fill; g.fillRect((i * 8 - 4) * k, (j * 8 - 4) * k, 8 * k + 0.5, 8 * k + 0.5); }
+    }
     g.lineCap = 'round'; g.lineJoin = 'round';
     for (const rb of F.ribbons) {
       if (rb.x1 < ox || rb.x0 > X1 || rb.z1 < oz || rb.z0 > Z1) continue;
@@ -1187,6 +1344,13 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if (isl) g.clearRect(Math.max(0, (-ISLAND - ox) * k), Math.max(0, (-ISLAND - oz) * k), Math.max(0, (Math.min(X1, ISLAND) - Math.max(ox, -ISLAND)) * k), Math.max(0, (Math.min(Z1, ISLAND) - Math.max(oz, -ISLAND)) * k));
   }
 
+  // ---- L1 water: a road dips where it fords (a county road through a wash, shallow water); never on a deck or a culvert
+  if (WT) {
+    const p = SURF.road.pos;
+    for (let i = 0; i < SURF.road.nv; i++) { const x = p[i * 3] + ox, z = p[i * 3 + 2] + oz; if (WT.deckAt(x, z) >= 0) continue; p[i * 3 + 1] += WT.sample(x, z).floorRel; }
+    pause(); yield; resume();
+  }
+
   // ---- real terrain (flag): lift everything onto the ground ------------------------------------------------------------
   // Every instance and every road, rock and fill vertex was laid out over flat ground: each goes up by the ground under
   // it (the same grid and triangles the drawn ground uses, so nothing floats or sinks). The rails were pitched above.
@@ -1203,7 +1367,11 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
 
   // ---- take the results, hash them -----------------------------------------------------------------------------------
   out.surf = { ground: SURF.ground.take(ox, oz), road: SURF.road.take(ox, oz), rock: SURF.rock.take(ox, oz) };
-  if (wat?.any) out.surf.water = SURF.water.take(ox, oz); // a region's water sheet (P1 layouts have none: their hash keeps)
+  // ONE water layer: a region's sheet and L1's sheet and wash beds both wrote into SURF.water (only a chunk with water
+  // has the layer, so a dry P1 chunk keeps its hash).
+  if (SURF.water.nv) out.surf.water = SURF.water.take(ox, oz);
+  out.l1water = WT ? { depthMax: 0, cells: 0 } : null; // L1's stats (out.water is a region's 4 m grid: the streamer caches it)
+  if (WT) for (let k = 0; k < LW.depth.length; k++) if (LW.depth[k] > 0) { out.l1water.cells++; if (LW.depth[k] > out.l1water.depthMax) out.l1water.depthMax = +LW.depth[k].toFixed(2); }
   out.inst = {};
   let n = 0;
   for (const k of POOL_NAMES) { if (INST[k].n) out.inst[k] = INST[k].take(); out.counts[k] = INST[k].n; n += INST[k].n; if (INST[k].n >= INST[k].cap) out.warnings.push(`instance cap ${k}`); }

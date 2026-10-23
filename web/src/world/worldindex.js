@@ -8,6 +8,7 @@ import USMAP from '../data/usmap.json';
 import { STREAM, KIT_OF } from '../data/streaming.js';
 import { toWorld, toWorldX, toWorldZ, toUsmap, C, ISLAND, inIsland, hash32, rngOf, chunkOf } from './geo.js';
 import { Ring } from './ring.js';
+import { Rivers } from './rivers.js';
 import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md §3.4)
 import { buildRegions, regionAt, regionWater, makeDepthAt } from './regions.js';
 import { Holdout } from './holdout.js';
@@ -229,9 +230,14 @@ export class WorldIndex {
     this.buildExits();
     this.buildRegionWorld();
     this.buildTowns();
+    // L1 water and its L2 crossings (world/rivers.js, data/water.js): rivers carved in, decks, culverts and fords where
+    // the roads cross them (the mainline is laid again with its decks' lift). Signs keep off the decks.
+    this.water = new Rivers(this);
+    this.applyWater(false);
     this.buildSigns();
     for (const R of Object.values(this.regions)) for (const cor of R.corridors) this.buildCorridorSigns(cor);
     for (const H of this.holdouts) this.signs.push(...H.signList); // the name boards over a holdout's gates
+    this.water.fixSigns(this);
     // THE ROADSIDE (world/roadside.js): laid out now, so the dam road's ribbon, fill and rails are bucketed with the rest.
     this.roadside = new Roadside(this);
     this.bucketFeatures();
@@ -239,7 +245,12 @@ export class WorldIndex {
     this.ring = new Ring(this);
     // The holdouts' own generators (world/holdout.js): Meridian. Ring-like: chunks ask each what they hold.
     this.towners = [this.ring, ...this.holdouts, this.roadside];
-    this.depthAt = makeDepthAt(this);
+    // THE water authority past the island (world/water.js EXT): world/rivers.js answers, with a region's own water
+    // (world/regions.js: the sea, the lagoon, the canals, the sloughs) as its second source.
+    this.regionDepth = makeDepthAt(this);
+    this.water.region = this.regionDepth;
+    this.depthAt = (x, z, y, ignoreDeck) => this.water.depthAt(x, z, y, ignoreDeck);
+    this.surfaceAt = (x, z) => this.water.surfaceAt(x, z);
     this.buildMs = +(performance.now() - t0).toFixed(1);
   }
 
@@ -425,19 +436,37 @@ export class WorldIndex {
 
   // The mainline as two ribbons (one per carriageway), each painted inner shoulder -> outer shoulder, from corridor
   // point i0 on (the west end can be trimmed back to where the road meets its town's first street).
-  buildMainline(i0) {
+  // own (a river deck's re-plan, world/rivers.js): only I-10's carriageways are laid again, in the place they held in the
+  // list (a region corridor's stay, and the order every chunk draws its roads in does not change).
+  buildMainline(i0, own = false) {
     const c = this.cl;
-    this.ribbons = this.ribbons.filter((r) => !r.mainline);
+    let at = -1;
+    if (own) { at = this.ribbons.findIndex((r) => r.mainline && !r.cor); this.ribbons = this.ribbons.filter((r) => !(r.mainline && !r.cor)); }
+    else this.ribbons = this.ribbons.filter((r) => !r.mainline);
+    const add = [];
     for (const side of [1, -1]) {
       const pts = [];
       for (let i = i0; i < c.n; i++) {
         const sec = this.section(c.s[i]);
-        pts.push({ x: c.x[i] + -c.tz[i] * side * sec.med, z: c.z[i] + c.tx[i] * side * sec.med, y: 0.03, wl: 0, wr: sec.out - sec.med });
+        pts.push({ x: c.x[i] + -c.tz[i] * side * sec.med, z: c.z[i] + c.tx[i] * side * sec.med, y: 0.03 + (this.water ? this.water.liftAt(c.s[i]) : 0), wl: 0, wr: sec.out - sec.med }); // + a river deck's lift
       }
       // Eastbound: the ribbon's own right is +N (outward). Westbound runs the other way so its right is -N, also outward.
-      this.ribbons.push(ribbon(side > 0 ? 'I-10 E' : 'I-10 W', 'hwy', 'hwy', side > 0 ? pts : pts.reverse(), { mainline: true }));
+      add.push(ribbon(side > 0 ? 'I-10 E' : 'I-10 W', 'hwy', 'hwy', side > 0 ? pts : pts.reverse(), { mainline: true }));
     }
-    this.mainlineFrom = c.s[i0];
+    if (at >= 0) this.ribbons.splice(at, 0, ...add); else this.ribbons.push(...add);
+    this.mainlineFrom = c.s[i0]; this.mainlineI0 = i0;
+  }
+
+  // (Re)plan L2 over the water: decks, culverts, fords (world/rivers.js). Runs at boot and when the ground changes
+  // (the terrain flag): the features it added last time go first, the mainline is laid again with the new lift.
+  applyWater(rebucket = true) {
+    const R = this.water;
+    if (!R) return;
+    this.pieces = this.pieces.filter((p) => !p.water); this.structs = this.structs.filter((s) => !s.water); this.rails = this.rails.filter((r) => !r.water);
+    const P = R.plan(this);
+    this.pieces.push(...P.pieces); this.structs.push(...P.structs); this.rails.push(...P.rails);
+    this.buildMainline(this.mainlineI0 ?? 0, true);
+    if (rebucket) { this.water.fixSigns(this); this.bucketFeatures(); }
   }
 
   // ---- interchanges -----------------------------------------------------------------------------------------------
@@ -843,24 +872,28 @@ export class WorldIndex {
   // y: how high the asker is now (a car's ride height, a person's last ground). Fills are solid ground, so they count
   // whatever y is; the deck over the interstate is open below, so it counts only for someone already up near it.
   // With real terrain on (world/realterrain.js) the ground itself has height everywhere: there is always relief near.
-  nearRelief(x, z) { const l = this.reliefBuckets.get(chunkOf(x) * 100003 + chunkOf(z)) ?? null; return l || !this.terrain ? l : NO_RELIEF; }
+  // A river's channel (world/rivers.js) is relief too: near water there is always relief.
+  nearRelief(x, z) { const l = this.reliefBuckets.get(chunkOf(x) * 100003 + chunkOf(z)) ?? null; return l || (!this.terrain && !this.water?.near(x, z)) ? l : NO_RELIEF; }
   // The ground (real terrain, when on) plus the ramps, fills and decks laid on it; y is absolute, the relief is measured
-  // from the ground it stands on.
+  // from the ground it stands on. Where none of those holds you up, the water's floor does: a wash's bed, a wader's
+  // footing, a swimmer's surface (world/rivers.js sample().floorRel, 0 on dry land).
   heightAt(x, z, y = 0) {
-    const T = this.terrain;
-    if (!T) return this.rampAt(x, z, y);
-    const b = T.at(x, z);
-    return b + this.rampAt(x, z, y - b);
+    const T = this.terrain, b = T ? T.at(x, z) : 0;
+    const r = T ? this.rampAt(x, z, y - b) : this.rampAt(x, z, y);
+    if (r > 0 || this._deck || !this.water) return b + r;
+    return b + this.water.sample(x, z).floorRel;
   }
   // The ground under (x, z): 0, or the real terrain's (the base the collision boxes' heights are measured from).
   groundAt(x, z) { return this.terrain ? this.terrain.at(x, z) : 0; }
   rampAt(x, z, y = 0) {
+    this._deck = false; // set when a river deck holds the asker up (its top can be 0: a deck at grade over a gorge)
     const list = this.reliefBuckets.get(chunkOf(x) * 100003 + chunkOf(z));
     if (!list) return 0;
     let best = 0;
     for (let k = 0; k < list.length; k++) {
       const p = list[k];
       if (x < p.x0 || x > p.x1 || z < p.z0 || z > p.z1) continue;
+      if (p.kind === 'deck') { const d = this.water.deckRel(p, x, z, y); if (d >= 0) { this._deck = true; if (d > best) best = d; } continue; }
       const h = p.kind === 'cross' ? this.crossHeight(p, x, z, y) : this.ribbonHeight(p, x, z);
       if (h > best) best = h;
     }

@@ -1,3 +1,4 @@
+import { knowing as knowingFor } from '../data/creator.js'; // where you start decides where you are a local
 import { WEAPONS } from '../systems/combat.js';
 import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
 import { DECK_RULES, CAMP } from '../data/decks.js';
@@ -29,6 +30,8 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { waterCommands } from './water-api.js';
+import { waterChecks } from './water-selftest.js';
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
@@ -1942,6 +1945,9 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
+    // row above, same answers there), rivers, bridges.
+    ...waterCommands(api, need),
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
     ...cloneCommands(api, need),
@@ -4579,6 +4585,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await streamHome();
     return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
   });
+  await waterChecks(api, check, C); // L1 water and its L2 crossings, out on the corridor (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   // ---- the Phoenix ring, R1 (docs/design/WEB_STREAMING.md §1.3): the city itself, enterable and worth searching ----
   const RG = WI.ring;
   // The densest chunk of the ring (most buildings of its own), and one of its intact houses with a door to the street.
@@ -5690,6 +5697,13 @@ async function runSelfTest(api, only = null, skip = null) {
     } finally { V.hush(ok); V.allowDev = dev; }
   }));
   await creatorChecks({ api, g, C, check, snapshot, restore, stage, hush }); // the point-buy, BEGIN, the sheet through a save, the pad alone
+  await check('creator: where you start decides where you are a local - a Floridian starting at Meridian is known to the Meridian folk, an Arizonan at Rust Haven to the Rust Haven folk, and neither the other way round', async () => {
+    const pick = (state) => ({ background: null, traits: [], state, flag: 'US' });
+    const fl = knowingFor(pick('FL'), [], 'florida').standing, az = knowingFor(pick('AZ'), [], 'phoenix').standing;
+    const flAtAz = knowingFor(pick('FL'), [], 'phoenix').standing, azAtFl = knowingFor(pick('AZ'), [], 'florida').standing;
+    const ok = fl.meridian > 0 && !fl.rusthaven && az.rusthaven > 0 && !az.meridian && !flAtAz.meridian && !flAtAz.rusthaven && !azAtFl.rusthaven && !azAtFl.meridian;
+    return ok ? true : JSON.stringify({ fl, az, flAtAz, azAtFl });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
