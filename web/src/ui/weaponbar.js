@@ -2,6 +2,7 @@ import './weaponbar.css';
 import { WEAPONS } from '../systems/combat.js';
 import { silhouette } from './weaponart.js';
 import { BUTTONS, CONTEXTS } from '../engine/controls.js';
+import { drawFlag } from './portrait.js';
 
 // Robert's weapon bar (docs/design/WEB_CONTROLLER.md §3.4): a hotbar of the guns you carry, each a stencilled silhouette;
 // the live slot stands proud and raises its fire-mode boxes (SEMI / BURST / AUTO, BUCK / SLUG, SINGLE / FAN) above
@@ -17,13 +18,13 @@ export class WeaponBar {
     this.g = game;
     const hud = root.querySelector('.hud') ?? root;
     hud.insertAdjacentHTML('beforeend', `
-      <div class="wbar"><div class="wb-tags"><div class="wb-tag wb-stance"></div><div class="wb-tag wb-grip"></div></div><div class="wb-slots"></div>
-        <div class="wb-hint"><kbd>1</kbd>-<kbd>4</kbd> again: fire mode · <kbd>H</kbd> up/down, hold: holster · <kbd>J</kbd> one/two hands · <kbd>RMB</kbd> melee · <kbd>F2</kbd> controls</div></div>
+      <div class="wbar"><div class="wb-tags"><div class="wb-tag wb-stance"></div><div class="wb-tag wb-grip"></div></div><div class="wb-slots"></div></div>
+      <div class="gpp hidden"><div class="gp-head"></div><div class="gp-rows"></div></div>
       <div class="wradial hidden"><svg viewBox="-210 -214 420 228"></svg><div class="wr-title">WEAPON WHEEL · <kbd>RS</kbd> pick · <kbd>D-PAD</kbd> mode · let go of <kbd>RB</kbd></div></div>`);
     root.insertAdjacentHTML('beforeend', `<div class="ctl-back hidden"><div class="ctl-card"><div class="ctl-head"><h2>CONTROLS</h2><span>Click a binding, then press the new key, mouse button or pad button. Esc cancels. Saved on this machine.</span></div><div class="ctl-body"></div>
       <div class="ctl-foot"><span class="ctl-pad"></span><span><button data-a="reset">RESET ALL</button> <button data-a="close">CLOSE · F2</button></span></div></div></div>`);
     this.el = { bar: hud.querySelector('.wbar'), slots: hud.querySelector('.wb-slots'), stance: hud.querySelector('.wb-stance'), grip: hud.querySelector('.wb-grip'),
-      radial: hud.querySelector('.wradial'), svg: hud.querySelector('.wradial svg'), panel: root.querySelector('.ctl-back'), body: root.querySelector('.ctl-body'), padInfo: root.querySelector('.ctl-pad') };
+      radial: hud.querySelector('.wradial'), gp: hud.querySelector('.gpp'), gpHead: hud.querySelector('.gp-head'), gpRows: hud.querySelector('.gp-rows'), svg: hud.querySelector('.wradial svg'), panel: root.querySelector('.ctl-back'), body: root.querySelector('.ctl-body'), padInfo: root.querySelector('.ctl-pad') };
     this.sig = ''; this.t = 0; this.slotEls = []; this.radSig = '';
     this.capture = null; this.open = false;
     this.el.panel.addEventListener('click', (e) => {
@@ -59,7 +60,7 @@ export class WeaponBar {
     this.t = 0;
     const p = g.player, W = g.inv.weapons, cur = g.inv.current, up = g.time < A.barT;
     const stance = A.drawT > 0 ? 'drawing' : A.stance;
-    const sig = `${W.join(',')}|${cur}|${W.map((k) => `${A.modeOf(k).id}:${g.inv.mag[k]}`).join(',')}|${up}|${stance}|${A.grip}|${A.gripWhy}|${p.alive}|${g.invUI?.open}`;
+    const sig = `${A.radialOpen}|${W.join(',')}|${cur}|${W.map((k) => `${A.modeOf(k).id}:${g.inv.mag[k]}`).join(',')}|${up}|${stance}|${A.grip}|${A.gripWhy}|${p.alive}|${g.invUI?.open}`;
     if (sig !== this.sig) {
       this.sig = sig;
       this.el.bar.classList.toggle('hidden', !p.alive || !!g.invUI?.open || !W.length);
@@ -75,18 +76,39 @@ export class WeaponBar {
         el.querySelector('.wb-ammo').classList.toggle('dry', !(g.inv.mag[k] > 0));
         el.querySelector('.wb-mtag').textContent = modes.length > 1 ? m.name : '';
         const box = el.querySelector('.wb-modes');
-        box.classList.toggle('up', on && up && modes.length > 1);
+        box.classList.toggle('up', on && up && modes.length > 1 && !A.radialOpen); // the wheel shows its own
         box.innerHTML = modes.length > 1 ? modes.map((x) => `<div class="wb-box${x.id === m.id ? ' on' : ''}">${x.name}<b class="${x.burst === 0 ? 'auto' : ''}">${x.burst === 0 ? '<i></i>' : '<i></i>'.repeat(Math.min(5, x.burst))}</b></div>`).join('') : '';
         void w;
       });
-      this.el.bar.classList.toggle('hint', up);
     }
     this.updateRadial();
+    this.updateGunpoint();
   }
 
   buildSlots(W) {
-    this.el.slots.innerHTML = W.map((k, i) => `<div class="wb-slot" data-k="${k}"><div class="wb-modes"></div><img alt="" src="${silhouette(WEAPONS[k], k)}"><b class="wb-num">${i + 1}</b><span class="wb-mtag"></span><span class="wb-ammo"></span></div>`).join('');
+    this.el.slots.innerHTML = W.map((k, i) => `<div class="wb-slot" data-k="${k}"><i class="wb-face"></i><div class="wb-modes"></div><img alt="" src="${silhouette(WEAPONS[k], k)}"><b class="wb-num">${i + 1}</b><span class="wb-mtag"></span><span class="wb-ammo"></span></div>`).join('');
     this.slotEls = [...this.el.slots.querySelectorAll('.wb-slot')];
+  }
+
+  // ---- the gunpoint plate: who you hold, how, and the standoff's tension --------------------------------------------------
+  flag(code) { this.flags ??= {}; return (this.flags[code] ??= drawFlag(code ?? 'US', 30, 20).toDataURL()); }
+  updateGunpoint() {
+    const G = this.g.gunpoint;
+    if (!G) return;
+    const H = G.held, S = G.standoff;
+    const sig = H.map((h) => `${h.c.id}:${h.state}:${Math.round(h.tension * 10)}:${h.robbed}`).join(',') + `|${!!S}`;
+    if (sig === this.gpSig) return;
+    this.gpSig = sig;
+    this.el.gp.classList.toggle('hidden', !H.length);
+    if (!H.length) return;
+    const drawn = H.filter((h) => h.state === 'draw').length;
+    this.el.gp.classList.toggle('hot', drawn > 0);
+    this.el.gpHead.textContent = drawn ? (drawn > 1 ? `STANDOFF · ${drawn} GUNS ON YOU` : 'STANDOFF') : 'AT GUNPOINT';
+    const WORD = { comply: 'HANDS UP', plead: 'BEGGING', run: 'RUNNING', draw: 'DRAWN ON YOU', prisoner: 'YOUR PRISONER' };
+    this.el.gpRows.innerHTML = H.map((h) => {
+      const c = h.c, t = Math.min(1, h.tension / (1 + h.nerve));
+      return `<div class="gp-row s-${h.state}"><img alt="" src="${this.flag(c.flag)}"><b>${(c.npc?.name ?? c.name ?? '?').toUpperCase()}</b><span>${WORD[h.state] ?? h.state.toUpperCase()}${h.robbed ? ' · ROBBED' : ''}</span>${h.state === 'draw' ? `<i class="gp-t"><em style="width:${Math.round(t * 100)}%"></em></i>` : ''}</div>`;
+    }).join('');
   }
 
   // ---- the weapon wheel (pad) -------------------------------------------------------------------------------------------
