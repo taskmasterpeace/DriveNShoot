@@ -14,7 +14,7 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 94/94 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 96/96 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Witnesses run home | a witness to a theft, carjack, robbery or killing runs to their people's hub to tell it (red ring on the minimap, WITNESS tag); the word lands when they arrive. Stop them: kill them (a silence), hold a gun on them (most fold: a threat in the book instead), or catch them and pay ($20 + $15 a deed's weight, x2 named). `runners` command | WEB_WORLD_MEMORY §3.7 | (pending) |
 | Roles (subagent) | ten roles you become by what you keep doing (wheelman, medic, scavenger, deputy, Dustwolf rider, trader, stunt driver, ghost, good Samaritan, butcher): renown, tiers with hysteresis, game-clock fading, standing bias, prices, refusals, greetings, jobs and offices, the role call, role tapes on the HUD, WHAT THEY CALL YOU in the pause menu | WEB_ROLES | 18745046 |
 | The town sleeps | 22:00-06:00 townsfolk go to bed (a mattress near home or a floor spot of their own, on a bedroll mat); asleep they witness nothing and traders keep no counter; noise within 45% of its reach, pain, a fight or someone at the bedside wakes them | WEB_SURVIVAL | 2855e98c |
 | Sleep in a parked car | N sleeps at a bed, on a bedroll or in a parked car seat (held on the handbrake) | WEB_SURVIVAL | bda48cd3 |
@@ -90,7 +91,6 @@ When each reports: review, merge into the session branch, selftest twice on fres
 - Merge and land the two subagent branches (above).
 - **Multi-storey buildings and basements** (WEB_STOREYS spec; after the streaming merge: it shares collision, nav,
   city, characters, interiors).
-- NPCs who sleep at night in the town's beds (night burglary: a sleeping shopkeeper sees nothing).
-- **World memory phase 5, rest:** witnesses who run home to report (interceptable), rumors hopping between allies.
+- **World memory phase 5, rest:** rumors hopping between allies (witnesses who run home shipped).
 - The military continued (checkpoints, the Remnant in the faction sim, the answers to question 2).
 - Then the power suit, jets, more watercraft.

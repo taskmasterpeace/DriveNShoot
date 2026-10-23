@@ -962,6 +962,15 @@ function buildCommands(api) {
         return D.view();
       },
     },
+    runners: {
+      group: 'society', desc: "Witnesses running home to tell it (systems/witnesses.js): who, which people, how far from the hub, seconds until the report lands anyway, the price of their silence. bribe=<id> pays one you stand next to (the E prompt's path). Stop one by killing them, or by holding your gun on them (aim at them inside 9 m for 1.2 s).",
+      args: { bribe: { type: 'string' } },
+      run: async ({ bribe }) => {
+        const W = g.witnesses;
+        if (bribe) { const c = api.findChar(bribe); need(c, `no character ${bribe}`); return { ...W.bribe(c), ...W.view() }; }
+        return W.view();
+      },
+    },
     factions: {
       group: 'society', desc: 'Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances.', args: { id: { type: 'string' } },
       run: async ({ id }) => {
@@ -2108,7 +2117,7 @@ async function runSelfTest(api) {
     g.roles.reset(); // what the battery did so far (kills, drives, searches) must not colour how the factions read you
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
-    D.pending = 0; D.nextDue = Infinity; g.wanted = 0;
+    D.pending = 0; D.nextDue = Infinity; g.wanted = 0; g.witnesses.clear();
     g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
     for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
     await C('equip', { weapon: 'pistol' });
@@ -2358,16 +2367,16 @@ async function runSelfTest(api) {
       await C('teleport', { x: box.x + 7, z: box.z });
       for (let i = 0; i < 60 && !ike.sleeping; i++) await C('step', { seconds: 0.5 });
       const asleep = ike.sleeping === true;
-      await C('step', { seconds: 4 });
-      const town = await C('town', { radius: 150 });
-      const most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6);
+      // The rest walk to their beds from across town: give them up to 20 s to settle (a bed 90 m off is ~20 s at a walk).
+      let town, most = false;
+      for (let i = 0; i < 10 && !most; i++) { await C('step', { seconds: 2 }); town = await C('town', { radius: 150 }); most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6); }
       g.player.x = box.x + 0.8; g.player.z = box.z;
       const noCounter = g.trade.at(box) === null;
       const saw = g.society.deeds.witnessPass(box.x, box.z, g.player, null).includes(ike);
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
-        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0) }));
+        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), runner: !!c.runner }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
     } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
@@ -3091,6 +3100,87 @@ async function runSelfTest(api) {
       return ok ? true : JSON.stringify({ reg: reg.ok ? 'ok' : reg.error, warnings: reg.warnings, tier: v?.tier, renown: v?.renown, pm: R.priceMul('drifters'), bias: F.bias[dr] });
     } finally { R.unregister('selftest_hauler'); g.cash = cash0; R.reset(); }
   });
+  // Witnesses who run home (systems/witnesses.js), last in the battery: they kill Rust Haven's own, and the chronicle keeps
+  // that (four killings of the town on record bar the deputy's office in the role checks above). Staged out at STAGE with Rust Haven's hub moved 30-40 m away, so a
+  // run takes seconds, not a minute through the hills; the townsfolk are Rust Haven's by an explicit fid.
+  const runHome = async (fn) => {
+    const F = g.society.factions, row = F.row('rusthaven'), hub = row.hub;
+    try { return await fn(row); } finally { row.hub = hub; g.witnesses.clear(); g.aimOverride = null; }
+  };
+  const runStage = async (row, hubDx) => {
+    await stage();
+    row.hub = [g.player.x + hubDx, g.player.z];
+    const victim = person('drifter', 4, 0, { hp: 30, fid: 'rusthaven' }), w = person('drifter', -3, 3, { hp: 400, fid: 'rusthaven' });
+    w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+    return { victim, w };
+  };
+  const rhStanding = () => g.society.factions.standing[g.society.factions.index.rusthaven];
+  await check('witnesses run home: one who saw a killing runs to their people and the word lands when they get there; kill a runner and it dies with them', async () => runHome(async (row) => {
+    let { victim, w } = await runStage(row, -36);
+    const s0 = rhStanding(), since = g.eventSeq;
+    await shootDead(victim);
+    const ran = g.events.some((e) => e.seq > since && e.type === 'witnessRuns' && e.id === w.id);
+    const x0 = w.x;
+    let arrived = false;
+    for (let t = 0; t < 20 && !arrived; t += 0.5) { await C('step', { seconds: 0.5 }); arrived = g.events.some((e) => e.seq > since && e.type === 'wordArrived' && e.id === w.id); }
+    await C('step', { seconds: 0.2 });
+    const landed = g.events.some((e) => e.seq > since && e.type === 'rumor' && e.witness === w.id && e.verb === 'kill');
+    const moved = x0 - w.x, s1 = rhStanding();
+    const first = { ran, arrived, landed, moved: +moved.toFixed(1), s0, s1 };
+    g.removeChar(w);
+    // A second killing, and this time the runner doesn't make it.
+    ({ victim, w } = await runStage(row, -40));
+    w.hp = 30;
+    const s2 = rhStanding(), since2 = g.eventSeq;
+    await shootDead(victim);
+    const ran2 = !!w.runner;
+    await C('step', { seconds: 1 });
+    await shootDead(w);
+    await C('step', { seconds: 1 });
+    const silenced = g.events.some((e) => e.seq > since2 && e.type === 'rumorSilenced' && e.witness === w.id);
+    const silence = g.society.chronicle.query({ verb: 'silence', limit: 1 })[0]?.o === w.id;
+    const s3 = rhStanding();
+    const killLanded = g.events.some((e) => e.seq > since2 && e.type === 'rumor' && e.verb === 'kill');
+    const second = { ran2, silenced, silence, s2, s3, killLanded };
+    return ran && arrived && landed && moved > 10 && s1 < s0 && ran2 && silenced && silence && Math.abs(s3 - s2) < 0.5 && !killLanded ? true : JSON.stringify({ first, second, runners: g.witnesses.view() });
+  }));
+  await check('witnesses run home: a gun held on a runner makes most give it up (their word never lands, a threat goes in the book), and cash buys the rest', async () => runHome(async (row) => {
+    let { victim, w } = await runStage(row, -60);
+    const since = g.eventSeq, rnd = Math.random;
+    await shootDead(victim);
+    const ran = !!w.runner;
+    if (w.runner) w.runner.speed = 1; // a slow runner: the check is the gun, not the chase
+    if (Math.hypot(w.x - g.player.x, w.z - g.player.z) > 6) await C('teleport', { x: w.x + 3, z: w.z }); // within the 9 m a gun reads at
+    Math.random = () => 0.99; // their nerve fails
+    let cowed = false;
+    try {
+      for (let t = 0; t < 4 && !cowed; t += 0.1) { g.aimOverride = { x: w.x, z: w.z }; await C('step', { seconds: 0.1 }); cowed = g.events.some((e) => e.seq > since && e.type === 'witnessCowed' && e.id === w.id); }
+    } finally { Math.random = rnd; g.aimOverride = null; }
+    const gaveUp = g.events.some((e) => e.seq > since && e.type === 'rumorSilenced' && e.witness === w.id && e.how === 'cowed');
+    const handsUp = w.cowerT > 0, runner = !!w.runner;
+    const threat = g.society.chronicle.query({ verb: 'threaten', limit: 1 })[0]?.o === w.id;
+    const killLanded = () => g.events.some((e) => e.seq > since && e.type === 'rumor' && e.verb === 'kill');
+    await C('step', { seconds: 3 });
+    const gun = { ran, cowed, gaveUp, handsUp, runner, threat, killLanded: killLanded() };
+    g.removeChar(w);
+    // Paid: catch them up and press E.
+    ({ victim, w } = await runStage(row, -60));
+    const since2 = g.eventSeq;
+    await shootDead(victim);
+    const ran2 = !!w.runner;
+    if (w.runner) w.runner.speed = 0.5;
+    const cost = g.witnesses.bribeCost(w);
+    g.cash = 500;
+    await C('teleport', { x: w.x + 1.2, z: w.z });
+    await C('step', { seconds: 0.1 });
+    await tapKey('KeyE'); await C('step', { seconds: 0.2 });
+    const paid = g.events.some((e) => e.seq > since2 && e.type === 'witnessPaid' && e.id === w.id);
+    const cash = g.cash;
+    await C('step', { seconds: 3 });
+    const bribe = { ran2, cost, paid, cash, runner: !!w.runner, killLanded: g.events.some((e) => e.seq > since2 && e.type === 'rumor' && e.verb === 'kill') };
+    g.removeChar(w);
+    return ran && cowed && gaveUp && handsUp && !runner && threat && !gun.killLanded && ran2 && paid && cash === 500 - cost && !bribe.runner && !bribe.killLanded ? true : JSON.stringify({ gun, bribe, runners: g.witnesses.view() });
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;

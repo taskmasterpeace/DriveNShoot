@@ -1,6 +1,6 @@
 # WEB_WORLD_MEMORY — the world keeps score
 
-**Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 in progress: the HUD respect chips shipped with the stamped-steel HUD (76b5ff1); **the morning digest** shipped - at 06:30 STATIC 1660 AM reads yesterday back from the day totals (the dead, where it was worst, a camp that changed hands or a fight between factions, a witnessed feat), and witnessed feats (`K.feat`, the `stunt` deed from WEB_JUMPS) join the legend so the regular news can tell them. Still to come: witnesses who run home, rumors hopping between allies.
+**Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 in progress: the HUD respect chips shipped with the stamped-steel HUD (76b5ff1); **the morning digest** shipped - at 06:30 STATIC 1660 AM reads yesterday back from the day totals (the dead, where it was worst, a camp that changed hands or a fight between factions, a witnessed feat), and witnessed feats (`K.feat`, the `stunt` deed from WEB_JUMPS) join the legend so the regular news can tell them. **Witnesses who run home** shipped (§3.7, `systems/witnesses.js`): the one who put a name to your face runs to their people's hub, and you can stop them on the way. Still to come: rumors hopping between allies.
 **Roles** (2026-10-22, `docs/design/WEB_ROLES.md`): what the world knows about you also becomes what it calls you. Deeds,
 jobs, jumps and searches build roles (medic, deputy, Dustwolf rider, butcher...), and a role colours how each faction
 reads your standing (`factions.reading`), who greets or refuses you, what the director sends and what the radio says.
@@ -89,6 +89,32 @@ A faction learns a given deed **once**: the first of its witnesses to report it 
 of the same deed only add chronicle weight. The victim's own faction counts as the deed's direct counterparty
 (learn factor 1) when the victim survives to report.
 
+### 3.7 Witnesses who run home (phase 5, `systems/witnesses.js`)
+A rumor that waits out a timer can only be stopped by finding the witness before the clock runs out, and you can't see
+the clock. A runner you can see. When a witness is queued (§3.3) for a deed weighing **at least 2** (`steal`, `carjack`,
+`rob`, `kill`, `silence`, `betray`; not `hurt` or `trespass`), and the witness is **unarmed** (the armed answer it
+themselves), awake, on foot, not your follower, and belongs to a faction **with a hub** that lies between `arriveR + 4`
+and `maxHub` metres away, they **run home** instead of gossiping:
+- **One runner a deed.** The first such witness becomes the runner; every other witness *of the same faction* leaves the
+  telling to them (their reports are pushed back to the runner's fallback). Other factions' witnesses gossip as usual.
+- **The run.** A foot path (`g.footPath`, re-planned when they stall) to the hub at `speed` m/s, at any distance from
+  the player (runners are never put to sleep by the AI's 150 m LOD). Gunfire close by still sends them to the ground
+  for a moment (ambient cower). Inside `arriveR` of the hub they **tell it**: the report lands at once (`wordArrived`,
+  then the usual `rumor`). If they never get there, it lands after `fallback` seconds anyway.
+- **Seen:** a toast (A WITNESS IS RUNNING TO TELL RUST HAVEN), a pulsing red ring on the minimap (held at the rim when
+  they are off it), and a red **WITNESS** name tag over them within 60 m, always shown first.
+- **Stopping one:**
+  - **Kill them**: as §3.3, the report is silenced and the killing is a `silence` deed (it runs its own witness pass).
+  - **Hold a gun on them**: aim within `aimSlack` m of them, inside `cowerR` m, with line of sight, for `aimFor` s. They
+    roll their `nerve`: on a fail they give it up (the report is cancelled, `rumorSilenced` with `how: 'cowed'`), stand
+    with their hands up for `cowerSecs`, a named one remembers `threatened` (−30, 30 days, revenge 0.3), and a
+    `threaten` deed (weight 1) goes in the book - which they will gossip about later, at a fraction of the original's
+    cost. On a pass they won't stop for a gun again and run 15% faster.
+  - **Pay them**: catch up (within `bribe.reach` m) and press **E**: `cost` (§4) buys their silence; a named one
+    remembers `bribed` (+6, 20 days).
+  The other witnesses of the same faction still tell it, late (at the runner's fallback): a runner stopped buys time,
+  not innocence, unless they were the only one.
+
 ### 3.4 Factions, standing, tiers
 Factions are data rows (built-ins in `data/society.js`, packs may add up to 16 in total). Each has a standing toward the
 player in [−100, 100], a tier derived from it, relations to every other faction (−100..100), and values that say how
@@ -172,6 +198,16 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 **Kill magnitude**: `m = 4 · (named ? 2 : 1) · (leader ? 3 : 1) · (selfDefense ? 0.25 : 1)`, range 1–24.
 `selfDefense` = the victim was targeting the player when they died.
 
+**Witness run** (WITNESS_RUN, `data/society.js`)
+`runs = weight(verb) ≥ minVerb ∧ unarmed ∧ hub ∧ arriveR + 4 < distToHub ≤ maxHub`; `arrive ≈ pathLength / speed`
+`cost = round((base + perVerb · weight(verb)) · (named ? namedMul : 1))`
+- `minVerb` 2, `maxHub` 700 m, `arriveR` 8 m, `speed` 5.2 m/s (a jog; you sprint faster), `fallback` 240 s.
+- `base` $20, `perVerb` $15, `namedMul` 2. Example: a robbery (weight 3) seen by a townsman: `20 + 45 = $65`; a killing
+  (4) seen by a named shopkeeper: `(20 + 60) · 2 = $160`.
+- Example run: a Rust Haven townsman 120 m from the square: ~25 s to tell it, against the old gossip delay of
+  `U(20,45) · 0.6` ≈ 12-27 s - the same window, but now you can see it closing.
+- `nerve` (chance to keep running at gunpoint): drifter 0.15, named 0.5, soldier 0.7, else 0.25.
+
 **Opinion** *(phase 2)*: `opinion = 0.3 · standing(fid) + Σ weight · base · 0.5^(ageDays / halfLifeDays)`, clamped ±100.
 
 ## 5. Edge Cases
@@ -191,6 +227,14 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
   add only chronicle `reported` flags.
 - **Rumor pool full (64 pending):** the new rumor is not queued; its record keeps `reported` unset (a deed too many to
   gossip about). Logged in `perf.society` so a test can see it.
+- **Runner gets in a car / is carried off:** the run ends; their report goes back to gossip, due in 30 s.
+- **Runner killed by someone else (the infected, a raider):** the report is silenced all the same - the word died with
+  them. A named runner only downed tells it when they're up (§3.3).
+- **Runner despawned** (out of sight clean-ups): silenced at once.
+- **Two witnesses of one faction:** one runs; the other's report waits for the runner (lands as an echo after the runner
+  tells it, or on its own at the fallback if the runner is stopped).
+- **Save/load mid-run:** runs are not saved; the report is (as a rumor with its remaining time), so it lands the slow way.
+- **A gun on a runner from a car:** doesn't count (on foot only). Not holding a gun: doesn't count.
 - **Chronicle ring full:** the oldest record is overwritten; tallies, legend and digests are unaffected.
 - **Save/load mid-rumor:** pending rumors save with their remaining delay and witness id; a witness missing after load
   (despawned) drops the rumor as silenced.
@@ -216,6 +260,7 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 | `systems/ai.js` (WEB_SURVIVAL, the sleeping town) | — | a sleeping person is skipped by the witness pass (asleep, they saw nothing); waking a sleeper by standing at the bed is a `trespass` deed |
 | `systems/trade.js` (WEB_TRADE) | a trader's people's tier sets the price multiplier (hostile/hunted: no deal); `memory.refuses` ends a deal like a conversation | a run of deals records `deeds.direct('trade', trader)`, one per 30 s |
 | `systems/roles.js` (**WEB_ROLES**) | every deed of yours (`roles.onDeed` from `record()`, with whether the target's people shot you on sight, asked before the witnesses raise stars), the chronicle's flags, the hourly tick, director outcomes; the `heal` verb | a bias on the standing each faction acts on (`factions.reading(i)`: tiers, the AI's bit, chips, `ifTier`, trade, opinion and the hunters all read it) and a shoot/hold override; the ghost's ID range; director weights, the role call, the digest's role clause and role news |
+| `systems/witnesses.js` (phase 5) | `deeds.queue` asks it whether a witness runs (`consider`); `deeds.cancel(r, how)` for a report given up | the runner slot (`r.runner`), the faction hub, `ai.move`/`g.footPath`, `memory.remember` (`threatened`, `bribed`), `ambient` cower (`cowerT`), `feedback` tags and the minimap |
 | `systems/inventory.js` (WEB_INVENTORY) | — | taking from an owned box to anywhere not the owner's records a `steal` deed (unless paid for over a counter) |
 
 ## 7. Tuning Knobs
@@ -235,6 +280,11 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 | ring / legend / digests | 512 / 96 / 30 | 256–4096 / 32–256 / 7–90 | memory size vs save size (~60 KB at defaults) |
 | rumor pool | 64 | 32–256 | simultaneous gossip |
 | witness cap | 8 | 4–16 | CPU per deed |
+| `WITNESS_RUN.minVerb` | 2 | 1–4 | which deeds send someone running (1: even a punch) |
+| `WITNESS_RUN.speed` / `fallback` | 5.2 m/s / 240 s | 3.5–6.5 / 120–600 | whether you can catch them on foot; how long a stuck runner sits on it |
+| `WITNESS_RUN.cowerR` / `aimFor` | 9 m / 1.2 s | 5–15 / 0.5–3 | how close and how long a gun has to be held |
+| `WITNESS_RUN.nerve` | 0.15–0.7 | 0–1 | how often a gun works (soldiers rarely fold) |
+| `WITNESS_RUN.bribe` | $20 + $15/weight, ×2 named | — | silence as an economy against killing |
 
 ## 8. Acceptance Criteria
 
@@ -257,3 +307,9 @@ All are selftest checks or `node tools/dl.mjs` sequences against the running gam
 9. **Performance:** `perf` reports `society.witnessMsMax < 0.5` during `scenario name=stress`; draw calls unchanged
    by phase 1 (no new meshes).
 10. **No purple, no IP:** registering a faction with colour `#8a2be2` is rejected; `node tools/ip-lint.mjs` reports 0 deny.
+11. **Witnesses run home:** a Rust Haven witness to a killing (hub 36 m away) emits `witnessRuns`, moves >10 m toward the
+    hub, emits `wordArrived` within 20 s and the `rumor` for the kill lands then; Rust Haven standing drops. Killing a
+    second runner 1 s into their run → `rumorSilenced`, a `silence` record, no kill rumor, standing unchanged (selftest).
+12. **Gun and cash:** aiming at a runner inside 9 m for 1.2 s with their nerve failing → `witnessCowed`, `rumorSilenced`
+    `how: 'cowed'`, hands up, a `threaten` record, no kill rumor. Catching a runner and pressing E with $500 → `witnessPaid`,
+    cash down by exactly `cost`, no kill rumor (selftest).

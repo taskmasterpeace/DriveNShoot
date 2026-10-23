@@ -6,7 +6,23 @@
 // stunt: a named jump cleared clean in front of people (stunts.js) - word of a driver who can fly.
 // trespass: you stayed inside a base's wire after the warning, or brought the post down on you (bases.js).
 // heal: you patched somebody up with what you carry (inventory.js treat; the medic's work, docs/design/WEB_ROLES.md).
-export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 4, silence: 6, rescue: 3, deliver: 2, trade: 0.5, pay: 2, defend: 3, betray: 5, stunt: 1, trespass: 1, heal: 2 };
+// threaten: you held a gun on a witness running home until they gave up what they saw (systems/witnesses.js).
+export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 4, silence: 6, rescue: 3, deliver: 2, trade: 0.5, pay: 2, defend: 3, betray: 5, stunt: 1, trespass: 1, heal: 2, threaten: 1 };
+
+// Witnesses who run home (systems/witnesses.js; WEB_WORLD_MEMORY.md phase 5). A witness who put a name to your face for a
+// deed weighing at least `minVerb` (a theft, a carjacking, a robbery, a killing), unarmed (the armed answer it
+// themselves), belonging to a faction with a hub and within `maxHub` m of it but not already there, runs to the hub at
+// `speed` m/s and tells it on arrival (inside `arriveR` m) - one runner a deed, the rest gossip as before. One who
+// can't get through tells it after `fallback` s anyway. You can stop a runner: kill them (a silence), hold a gun on
+// them inside `cowerR` m with your aim within `aimSlack` m of them for `aimFor` s (they give the report up and stand
+// with their hands up `cowerSecs` s, unless their `nerve` holds - then they won't stop for a gun again), or catch them
+// and pay them to forget (`bribe`: base + perVerb x the deed's weight, x namedMul for a named person).
+export const WITNESS_RUN = {
+  minVerb: 2, maxHub: 700, arriveR: 8, speed: 5.2, fallback: 240,
+  cowerR: 9, aimSlack: 1.6, aimFor: 1.2, cowerSecs: 3,
+  nerve: { drifter: 0.15, npc: 0.5, soldier: 0.7, default: 0.25 },
+  bribe: { base: 20, perVerb: 15, namedMul: 2, reach: 2.6 },
+};
 
 // Standing (-100..100) to tier. Behaviour changes at each line: hostile and hunted shoot on sight.
 export const TIERS = { hunted: -80, hostile: -40, wary: -10, neutral: 20, friendly: 60 };
@@ -39,6 +55,8 @@ export const MEMORY_KINDS = {
   paidDebt: { base: 15, days: 45, clears: 'owesMe', say: 'We are square.' },
   traded: { base: 2, days: 30, stack: 5, say: '' },
   gift: { base: 10, days: 30, say: 'Thanks for the gift.' },
+  threatened: { base: -30, days: 30, revenge: 0.3, say: 'You put a gun in my face. I remember.' },
+  bribed: { base: 6, days: 20, say: 'We never spoke. Keep it that way.' },
 };
 
 // The world without you (faction sim, phase 4). Per game hour: each place a faction holds brings in `income`
@@ -64,7 +82,7 @@ export const FACTIONS = {
       'kill:self': -9, 'hurt:self': -2, 'carjack:self': -4, 'steal:self': -3, 'destroy:self': -3, 'rob:self': -5, 'silence:self': -6, 'betray:self': -8,
       'kill:friend': -4, 'hurt:friend': -1, 'carjack:friend': -2,
       'kill:enemy': 1, 'rescue:self': 5, 'rescue:friend': 3, 'deliver:self': 4, 'trade:self': 0.5, 'defend:self': 4, 'pay:self': 2,
-      'heal:self': 3, 'heal:any': 1,
+      'heal:self': 3, 'heal:any': 1, 'threaten:self': -2,
       'stunt:any': 0.3, // folks still like a show
     },
   },
@@ -81,7 +99,7 @@ export const FACTIONS = {
     cohesion: 0.35, memoryDays: 10, rumorDelay: [30, 70], hub: null, leaders: [],
     // Drifters only run from raiders; they don't hunt them, so the relation stays above the -50 war line.
     relations: { rusthaven: 40, dustwolves: -45, infected: -100 },
-    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5, 'heal:self': 3, 'heal:any': 1 },
+    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5, 'heal:self': 3, 'heal:any': 1, 'threaten:self': -1.5 },
   },
   infected: {
     name: 'the infected', archetype: 'infected', color: '#7d8a6a', start: -100, memory: 'none',
@@ -102,7 +120,7 @@ export const FACTIONS = {
       'kill:self': -10, 'hurt:self': -3, 'carjack:self': -5, 'steal:self': -4, 'destroy:self': -4, 'rob:self': -5, 'silence:self': -8, 'betray:self': -9,
       'trespass:self': -6, // the wire is the law
       'kill:enemy': 0.8, 'kill:rusthaven': -1.5, 'kill:drifters': -2, 'hurt:drifters': -0.5, // order matters to them
-      'rescue:any': 2, 'deliver:self': 5, 'trade:self': 0.5, 'defend:self': 5, 'pay:self': 2, 'heal:any': 1.5,
+      'rescue:any': 2, 'deliver:self': 5, 'trade:self': 0.5, 'defend:self': 5, 'pay:self': 2, 'heal:any': 1.5, 'threaten:self': -2.5,
     },
   },
 };
