@@ -99,6 +99,7 @@ export class Streamer {
       props: P('props', box, std({ roughness: 0.88, metalness: 0.08 })),
       walls: P('walls', box, std({ roughness: 0.92, metalness: 0.04 })),
       roofs: P('roofs', box, std({ roughness: 0.85, metalness: 0.1 })),
+      floors: P('floors', box, std({ roughness: 0.95 }), { cast: false }), // the Phoenix ring's floors (world/ring.js)
       cacti: P('cacti', new THREE.CylinderGeometry(0.3, 0.38, 1, 7), std({ roughness: 0.9 })),
       trunks: P('trunks', new THREE.CylinderGeometry(0.16, 0.3, 1, 6), std({ roughness: 0.95 })),
       boulders: P('boulders', lumpyRock(), std({ roughness: 0.95, flatShading: true })),
@@ -203,7 +204,8 @@ export class Streamer {
   // ---- hot: on the GPU --------------------------------------------------------------------------------------------------
   // Apply a chunk in steps (3 surface uploads, then each pool's range): sliced mode spends at most the per-frame caps.
   applyStep(L, sync) {
-    const h = (L.hot ??= { slot: null, step: 0, ranges: {}, missing: [] });
+    if (!L.hot) { L.hot = { slot: null, step: 0, ranges: {}, missing: [] }; this.ringOn(L); }
+    const h = L.hot;
     const ox = L.cx * C, oz = L.cz * C;
     if (!h.slot) { h.slot = this.surfaces.acquire(); if (!h.slot) return false; h.slot.chunk = L.key; }
     const order = ['ground', 'road', 'rock'];
@@ -231,6 +233,7 @@ export class Streamer {
     if (!h) return;
     if (h.slot) this.surfaces.release(h.slot);
     for (const [name, [start, n]] of Object.entries(h.ranges)) this.pools[name].release(start, n);
+    this.ringOff(L);
     L.hot = null;
     this.hot.delete(L.key);
     this.released++;
@@ -239,6 +242,55 @@ export class Streamer {
       const miss = o.hot.missing; o.hot.missing = [];
       for (const name of miss) { const r = o.inst[name], start = this.pools[name].alloc(r.n); if (start < 0) o.hot.missing.push(name); else { this.pools[name].write(start, r.n, r.m, r.c, r.e); o.hot.ranges[name] = [start, r.n]; } }
     }
+  }
+
+  // ---- the Phoenix ring's live parts (world/ring.js) -------------------------------------------------------------------
+  // A chunk going hot registers its buildings' containers (crates, shelves, racks: rolled the first time anyone opens
+  // one, ids from their positions) and beds; going cold takes them back out. What was taken from a box is kept by the
+  // inventory (ringKept), so the same box comes back with the same contents. Only the hot chunks' boxes are ever
+  // registered: the ones you are nowhere near do not pile up.
+  ringOn(L) {
+    const R = L.ring;
+    if (!R) return;
+    this.g.inventory?.registerRing(R.boxes);
+    const beds = this.g.world?.spawns?.beds;
+    if (beds) for (const b of R.beds) beds.push({ ...b, ring: L.key });
+  }
+  ringOff(L) {
+    const R = L.ring;
+    if (!R) return;
+    this.g.inventory?.unregisterRing(R.boxes);
+    const beds = this.g.world?.spawns?.beds;
+    if (beds && R.beds.length) for (let i = beds.length - 1; i >= 0; i--) if (beds[i].ring === L.key) beds.splice(i, 1);
+  }
+  // Hide or show one ring building's roof (its instances in the owner chunk's range of the roofs pool).
+  setRingRoof(id, owner, visible) {
+    const L = this.layouts.get(owner), idx = L?.ring?.roofs[id], rg = L?.hot?.ranges?.roofs;
+    if (!idx || !rg) return false;
+    const pool = this.pools.roofs, arr = pool.mesh.instanceMatrix.array, src = L.inst.roofs.m, at = rg[0] + idx[0];
+    if (visible) arr.set(src.subarray(idx[0] * 16, (idx[0] + idx[1]) * 16), at * 16);
+    else arr.fill(0, at * 16, (at + idx[1]) * 16);
+    pool.mesh.instanceMatrix.addUpdateRange(at * 16, idx[1] * 16);
+    pool.mesh.instanceMatrix.needsUpdate = true;
+    return true;
+  }
+  // The ring building you are standing in (any chunk's), as a record main.updateInterior and the deed witnesses read:
+  // bounds, enterable, a roof that hides through setRoof. The same object while you stay in the same building.
+  ringBuildingAt(x, z) {
+    const L = this.byId.get(chunkId(chunkOf(x), chunkOf(z)));
+    const list = L?.ring?.bld;
+    if (!list) return null;
+    for (const b of list) {
+      if (!(x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1)) continue;
+      let rec = this.ringRec;
+      if (rec?.id !== b.id) {
+        const S = this;
+        rec = this.ringRec = { id: b.id, ring: true, enterable: true, roofIdx: b.roof ? [0] : [], doors: [], minX: b.x0, maxX: b.x1, minZ: b.z0, maxZ: b.z1, district: b.zone, kind: b.kind, ruined: b.ruined, owner: b.owner, shopName: null,
+          setRoof(v) { S.setRingRoof(b.id, b.owner, v); this.roofHidden = !v; } };
+      }
+      return rec;
+    }
+    return null;
   }
 
   // Distance from (x, z) to a chunk's content (an island chunk's content is only its band outside the island).
@@ -560,7 +612,9 @@ export class Streamer {
     const cx = chunkOf(x), cz = chunkOf(z), key = chunkKey(cx, cz), L = this.layouts.get(key);
     const tier = this.hot.get(key)?.hot?.done ? 'hot' : L ? 'layout' : 'none';
     if (!L) return { key, tier, cx, cz };
+    const R = L.ring;
     return { key, tier, cx, cz, hash: L.hash, buildMs: L.buildMs, workMs: L.workMs, biome: L.biome, state: L.state, boxes: L.boxCount, buildings: L.buildings,
-      instances: { ...L.counts }, surfaces: Object.fromEntries(Object.entries(L.surf).map(([k, s]) => [k, s ? s.nv : 0])), edges: { ...L.edges }, edgeRoads: { ...L.edgeRoads }, pinned: this.pinned.has(key), warnings: L.warnings };
+      instances: { ...L.counts }, surfaces: Object.fromEntries(Object.entries(L.surf).map(([k, s]) => [k, s ? s.nv : 0])), edges: { ...L.edges }, edgeRoads: { ...L.edgeRoads }, pinned: this.pinned.has(key), warnings: L.warnings,
+      ring: R ? { buildings: R.owned, reaching: R.near, containers: R.boxes.length, beds: R.beds.length, streets: R.streets, decor: R.decor, ms: R.ms, zones: [...new Set(R.bld.map((b) => b.zone))] } : null };
   }
 }

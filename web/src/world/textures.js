@@ -113,7 +113,10 @@ export function asphaltTexture() {
 //                  lane): wide white dashes on its left, a solid white edge, a rumble-stripped shoulder
 //   V 0.808-0.976  a one-way ramp lane (yellow left edge, white right edge, shoulder)
 //   V 0.985-0.997  plain white paint (stop lines)
-export const ROAD_BANDS = { hwy: [0.004, 0.42], county: [0.428, 0.62], aux: [0.628, 0.8], ramp: [0.808, 0.976], white: [0.985, 0.997] };
+// Bands of the streamed road atlas (V ranges): the interstate, a county road, an added lane, a ramp, and the Phoenix
+// ring's city surfaces (a 14 m street of plain asphalt like the island's, a 3 m sidewalk, a 6 m strip of a paved yard, a
+// 5.5 m row of parking stalls), then white paint.
+export const ROAD_BANDS = { hwy: [0.004, 0.33], county: [0.338, 0.49], aux: [0.498, 0.63], ramp: [0.638, 0.77], street: [0.778, 0.86], walk: [0.868, 0.91], yard: [0.918, 0.945], lot: [0.953, 0.978], white: [0.985, 0.997] };
 export function roadAtlasTexture() {
   const rng = makeRng(29), W = 512, H = 1024, B = ROAD_BANDS;
   const [c, g] = canvas(W, H);
@@ -167,6 +170,24 @@ export function roadAtlasTexture() {
   const ra = strip(B.ramp, 5.6);
   ra.line(0.12, 0.26, '#d6a83c', null, 0.75); ra.line(4.12, 4.28, '#e6e0d0', null, 0.62);
   ra.sand(0, 0.25, true); ra.sand(5.0, 5.6, false);
+  // The ring's city street: 14 m of the island's plain asphalt, dust drifted against both kerbs. U: 512 px / 14 m.
+  const st = strip(B.street, 14);
+  st.sand(0, 1.1, true); st.sand(12.9, 14, false);
+  // A patch of concrete (sidewalk slabs, a yard's pad): a base, grit, and a joint every `joint` metres along U.
+  const slab = (band, base, perU, joint, mid) => {
+    const y0 = vy(band[1]), y1 = vy(band[0]);
+    // The base runs 3 px past the band each way, so a strip sampled at its edge never picks up the asphalt between bands.
+    g.fillStyle = base; g.fillRect(0, y0 - 3, W, y1 - y0 + 6);
+    for (let i = 0; i < 2600; i++) { g.globalAlpha = rng.range(0.06, 0.24); g.fillStyle = rng.pick(['#5b554d', '#a49c90', '#6e675e', '#4a4440']); const s = rng.range(1, 2.4); g.fillRect(rng() * W, y0 + rng() * (y1 - y0 - s), s, s); }
+    g.globalAlpha = 0.5; g.fillStyle = '#3a3530';
+    for (let u = 0; u < W; u += (W / perU) * joint) g.fillRect(u, y0, 2, y1 - y0);
+    if (mid) g.fillRect(0, (y0 + y1) / 2 - 1, W, 2);
+    g.globalAlpha = 1;
+  };
+  slab(B.walk, '#8c8478', 6, 1.5, false);     // sidewalk: U 512 px / 6 m
+  slab(B.yard, '#7a746a', 12, 6, false);      // a paved yard: U 512 px / 12 m (the strips' own seams are the other joints)
+  // Parking: asphalt (the atlas's own) with faded stall lines every 2.7 m. U: 512 px / 10.8 m.
+  { const y0 = vy(B.lot[1]), y1 = vy(B.lot[0]); g.globalAlpha = 0.55; g.fillStyle = '#d8d2c2'; for (let u = 6; u < W; u += W / 4) g.fillRect(u, y0 + (y1 - y0) * 0.08, 3, (y1 - y0) * 0.84); g.globalAlpha = 1; }
   // White paint.
   g.fillStyle = '#e8e2d2'; g.fillRect(0, vy(B.white[1] + 0.001), W, vy(B.white[0] - 0.001) - vy(B.white[1] + 0.001));
   cracks(g, W, H, rng, 30, 'rgba(10,10,10,0.55)', 1.1);

@@ -492,6 +492,30 @@ export class Inventory {
       if (keeper) { box.owner = keeper.id; box.ownerName = keeper.npc.name; }
     }
   }
+  // The Phoenix ring's containers (world/ring.js) come and go with their chunk (streamer.ringOn / ringOff): only the hot
+  // chunks' boxes are registered. A box anyone has been through is remembered while it is away (ringKept: its id and
+  // what is left in it), so when its chunk comes back, or the chunk is rebuilt, or a save is loaded, the box with that
+  // id has the same contents. One never opened is rolled from its id's seed whenever it is first opened: same loot.
+  registerRing(list) {
+    this.ringKept ??= new Map();
+    for (const q of list) {
+      if (this.boxes.has(q.id)) continue;
+      const box = this.place(q.id, q.table, q.x, q.z, q.cap, q.label);
+      box.ring = true;
+      const kept = this.ringKept.get(q.id);
+      if (kept) { box.slots = kept; box.rolled = true; }
+    }
+  }
+  unregisterRing(list) {
+    this.ringKept ??= new Map();
+    for (const q of list) {
+      const box = this.boxes.get(q.id);
+      if (!box?.ring) continue;
+      if (box.rolled) this.ringKept.set(q.id, box.slots);
+      if (this.opened === box) this.opened = null;
+      this.boxes.delete(q.id);
+    }
+  }
   // Register a container (loot rolls the first time it's opened). kind names its LOOT table.
   place(id, kind, x, z, cap, label, seed) {
     // The dead are remembered as containers until there are too many; the oldest unsearched go first.
@@ -602,6 +626,8 @@ export class Inventory {
   save() {
     const touched = [];
     for (const b of this.boxes.values()) if (b.rolled) touched.push({ id: b.id, slots: b.slots });
+    // The ring's boxes that are away with their chunks (ringKept), too.
+    for (const [id, slots] of this.ringKept ?? []) if (!this.boxes.has(id)) touched.push({ id, slots });
     return { worn: this.worn, carried: this.carried.slots, boxes: touched, trunks: [...this.trunks].map(([id, t]) => ({ id, slots: t.slots })) };
   }
 
@@ -610,7 +636,14 @@ export class Inventory {
     this.worn = s.worn ?? null;
     this.carried.cap = BODY_LITRES + (this.worn ? ITEMS[this.worn]?.pack ?? 0 : 0);
     this.carried.slots = (s.carried ?? []).filter((x) => ITEMS[x.id]).map((x) => ({ ...x }));
-    for (const b of s.boxes ?? []) { const box = this.boxes.get(b.id); if (box) { box.slots = b.slots.map((x) => ({ ...x })); box.rolled = true; } }
+    // The ring's boxes: the save is the whole truth about them (one it does not name is as nobody left it).
+    this.ringKept = new Map();
+    for (const box of this.boxes.values()) if (box.ring) { box.slots = []; box.rolled = false; }
+    for (const b of s.boxes ?? []) {
+      const box = this.boxes.get(b.id);
+      if (box) { box.slots = b.slots.map((x) => ({ ...x })); box.rolled = true; }
+      else if (b.id.startsWith('ring:')) this.ringKept.set(b.id, b.slots.map((x) => ({ ...x })));
+    }
     for (const t of s.trunks ?? []) { const v = this.g.vehicles.find((x) => x.id === t.id); if (v) this.trunk(v).slots = t.slots.map((x) => ({ ...x })); }
     this.changed();
   }

@@ -7,6 +7,7 @@
 import USMAP from '../data/usmap.json';
 import { STREAM, KIT_OF } from '../data/streaming.js';
 import { toWorld, toWorldX, toWorldZ, toUsmap, C, ISLAND, inIsland, hash32, rngOf, chunkOf } from './geo.js';
+import { Ring } from './ring.js';
 
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -104,6 +105,8 @@ export class WorldIndex {
     this.buildTowns();
     this.buildSigns();
     this.bucketFeatures();
+    // The Phoenix ring (world/ring.js, data/ring.js): the dead metro round the island, laid out lazily by the chunks.
+    this.ring = new Ring(this);
     this.buildMs = +(performance.now() - t0).toFixed(1);
   }
 
@@ -624,6 +627,8 @@ export class WorldIndex {
   }
   nameAtNow(x, z) {
     const pr = this.project(x, z, 2048);
+    // In the Phoenix ring: the street you are on, else the part of the dead city (off the freeway itself).
+    if (pr.d >= 16) { const rn = this.ring?.nameAt(x, z); if (rn) return rn; }
     for (const X of this.exits) {
       if (Math.hypot(x - X.dest.x, z - X.dest.z) < 260 && !X.dead) return X.name;
       if (Math.abs(pr.s - X.s) < 700 && pr.d > 14 && pr.d < 340) return `EXIT ${X.number} · ${X.name}`;

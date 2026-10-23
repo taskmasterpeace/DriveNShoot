@@ -1011,6 +1011,8 @@ class Game {
         if (!b.enterable || !b.roofIdx.length) continue;
         if (p.x > b.minX && p.x < b.maxX && p.z > b.minZ && p.z < b.maxZ) { inside = b; break; }
       }
+      // Past the island: a building of the Phoenix ring (world/ring.js; its roof hides through the streamer's pool).
+      if (!inside && (Math.abs(p.x) > 464 || Math.abs(p.z) > 464)) inside = this.streamer.ringBuildingAt(p.x, p.z);
     }
     const S = inside?.storey ?? null;
     this.storeys.setView(S, p.gy ?? 0);

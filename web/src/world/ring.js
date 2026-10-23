@@ -1,0 +1,709 @@
+// THE PHOENIX RING, R1 (docs/design/WEB_STREAMING.md §9): the dead metro around the island, as a pure function of the
+// rows in data/ring.js, the world seed and the I-10 corridor. Chunks (world/chunkgen.js) ask it for what they hold:
+//   streets  - the island's own lattice carried outward (a line every 80 m; every 4th an arterial), from the first ring
+//              street that hugs the island out to a lobed edge near 1.5 km; local streets stop at I-10, arterials cross it
+//   blocks   - zoned by rules (ruins at the edge, the strip on the freeway and arterials, the yards along the rail and the
+//              old river's wash, houses everywhere else), each laid out as lots
+//   lots     - buildings: walk-in shells (walls with door gaps to the street, window holes sight and rounds pass, a floor, a
+//              roof that hides when you are inside, partitions with doorways), furniture, containers, beds, yard fences
+//   wrecks   - cars left at the kerb; the Iron Line's dead track running on through the yards, boxcars on its sidings
+// Ownership: a building belongs to the chunk holding its centre (that chunk draws it and holds its containers); its
+// collision is clipped into every chunk it overlaps. A chunk builds at most RING.budget.buildings of its own lots, in id
+// order, so any chunk can tell which of a neighbour's lots stand. Everything is cached, and every cache may be dropped:
+// the answer is the same when it is computed again.
+import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES } from '../data/ring.js';
+import { C, hash32, rngOf } from './geo.js';
+import { H_NAMES, V_NAMES } from './city.js';
+
+const G = RING.grid, T = RING.wall, TAU = Math.PI * 2;
+const AE = RING.arterialEvery;
+const mod = (a, n) => ((a % n) + n) % n;
+const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+const snap = (v) => Math.floor(v) + 0.5; // a doorway centred on a 1 m nav cell's centre (chunk origins are whole metres)
+const hw = (i) => (mod(i, AE) === 0 ? RING.arterial : RING.street) / 2;
+const isArt = (i) => mod(i, AE) === 0;
+const pickW = (rng, rows) => { let t = 0; for (const r of rows) t += r[1]; let p = rng() * t; for (const r of rows) if ((p -= r[1]) < 0) return r[0]; return rows[rows.length - 1][0]; };
+function segDist(px, pz, ax, az, bx, bz) {
+  const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+  const t = l2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / l2)) : 0;
+  return Math.hypot(px - ax - dx * t, pz - az - dz * t);
+}
+
+export class Ring {
+  // H_NAMES / V_NAMES: the island's own street names (world/city.js), index 0 = the line at -320.
+  constructor(W, names = { h: H_NAMES, v: V_NAMES }) {
+    this.W = W;
+    this.seed = hash32(W.seed, 0x52494e47);
+    this.names = names;
+    this.blockCache = new Map();
+    this.ownCache = new Map();
+    this.I = RING.island + RING.islandPad;
+    // How far the ring can reach (the lobed edge plus the freeway tail), for quick rejects.
+    let mx = RING.radius; for (const [, a] of RING.wobble) mx += Math.abs(a);
+    this.reach = mx + RING.freewayTail.reach + 40;
+    this.kMax = Math.ceil(this.reach / G) + 1;
+    this.built = 0; this.geoBuilt = 0;
+    // I-10 inside the ring's reach, bucketed in 64 m cells: W.project walks a kilometre bucket per call, too slow for a
+    // street sampled every 2 m.
+    const c = W.cl, R = this.reach + 400;
+    this.fwCells = new Map();
+    for (let i = 0; i < c.n - 1; i++) {
+      const ax = c.x[i], az = c.z[i], bx = c.x[i + 1], bz = c.z[i + 1];
+      if (Math.min(Math.abs(ax), Math.abs(bx)) > R || Math.min(Math.abs(az), Math.abs(bz)) > R) continue;
+      for (let gx = Math.floor(Math.min(ax, bx) / 64); gx <= Math.floor(Math.max(ax, bx) / 64); gx++) for (let gz = Math.floor(Math.min(az, bz) / 64); gz <= Math.floor(Math.max(az, bz) / 64); gz++) {
+        const k = gx * 8192 + gz; let l = this.fwCells.get(k); if (!l) this.fwCells.set(k, (l = [])); l.push(i);
+      }
+    }
+    this._fw = { d: Infinity, s: 0, x: 0, z: 0 };
+  }
+
+  // Nearest point of I-10 within maxD of (x, z): { d, s, x, z } (a shared record: read it before the next call). d is
+  // Infinity when the freeway is farther than maxD.
+  fwy(x, z, maxD = 64) {
+    const o = this._fw, c = this.W.cl, r = Math.ceil(maxD / 64), gx = Math.floor(x / 64), gz = Math.floor(z / 64);
+    o.d = Infinity;
+    let stamp = (this._fwStamp = (this._fwStamp ?? 0) + 1);
+    for (let ix = -r; ix <= r; ix++) for (let iz = -r; iz <= r; iz++) {
+      const l = this.fwCells.get((gx + ix) * 8192 + gz + iz);
+      if (!l) continue;
+      for (let q = 0; q < l.length; q++) {
+        const i = l[q], ax = c.x[i], az = c.z[i], dx = c.x[i + 1] - ax, dz = c.z[i + 1] - az, l2 = dx * dx + dz * dz;
+        let t = l2 > 0 ? ((x - ax) * dx + (z - az) * dz) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const px = ax + dx * t, pz = az + dz * t, d = Math.hypot(x - px, z - pz);
+        if (d < o.d) { o.d = d; o.s = c.s[i] + (c.s[i + 1] - c.s[i]) * t; o.x = px; o.z = pz; }
+      }
+    }
+    if (o.d > maxD) o.d = Infinity;
+    return o;
+  }
+
+  // ---- the footprint ------------------------------------------------------------------------------------------------
+  edgeAt(x, z) {
+    const th = Math.atan2(z, x);
+    let r = RING.radius;
+    for (const [k, a, p] of RING.wobble) r += a * Math.sin(k * th + p);
+    return r;
+  }
+  // How far inside the city (x, z) is (metres; negative outside). The strip runs on along I-10 past the edge.
+  depth(x, z) {
+    const r = Math.hypot(x, z);
+    if (r > this.reach) return -(r - this.reach) - 1;
+    const d = this.edgeAt(x, z) - r, F = RING.freewayTail;
+    if (d >= 0 || d <= -F.reach) return d;
+    // Past the edge but within the tail's reach: inside it as far as the nearer of its end and its side.
+    const fw = this.fwy(x, z, F.half);
+    return fw.d < F.half ? Math.min(F.reach + d, F.half - fw.d) : d;
+  }
+  inCity(x, z, m = 0) { return !(Math.abs(x) <= this.I && Math.abs(z) <= this.I) && this.depth(x, z) > -m; }
+  // 0 outside, 1 well inside (the ground tint and the desert scatter follow it).
+  cityK(x, z) {
+    if (Math.abs(x) < this.I - 60 && Math.abs(z) < this.I - 60) return 0;
+    const r = Math.hypot(x, z);
+    if (r > this.reach + 200) return 0;
+    const isl = Math.max(Math.abs(x), Math.abs(z)) - this.I;
+    return smooth((this.depth(x, z) + 60) / 160) * smooth((isl + 30) / 60);
+  }
+  // Does chunk (cx, cz) hold any of the ring?
+  touches(cx, cz) {
+    const x0 = cx * C, z0 = cz * C, x1 = x0 + C, z1 = z0 + C;
+    if (x0 > -this.I + 1 && x1 < this.I - 1 && z0 > -this.I + 1 && z1 < this.I - 1) return false;
+    const nx = Math.max(x0, Math.min(0, x1)), nz = Math.max(z0, Math.min(0, z1));
+    return Math.hypot(nx, nz) < this.reach + G;
+  }
+
+  // ---- blocks -------------------------------------------------------------------------------------------------------
+  // Block (k, j): between lines x = 80k and 80(k+1), z = 80j and 80(j+1). Its lot area is inside the streets and walks.
+  block(k, j) {
+    const key = k * 4096 + j;
+    let b = this.blockCache.get(key);
+    if (b) return b;
+    if (this.blockCache.size > 2400) { this.blockCache.clear(); this.ownCache.clear(); }
+    b = this.makeBlock(k, j);
+    this.blockCache.set(key, b);
+    return b;
+  }
+  makeBlock(k, j) {
+    const W = RING.walk;
+    const x0 = k * G + hw(k) + W, x1 = (k + 1) * G - hw(k + 1) - W, z0 = j * G + hw(j) + W, z1 = (j + 1) * G - hw(j + 1) - W;
+    const cx = (k + 0.5) * G, cz = (j + 0.5) * G, I = this.I;
+    const b = { k, j, x0, z0, x1, z1, cx, cz, city: false, zone: null, lots: [] };
+    if (Math.abs(k) > this.kMax || Math.abs(j) > this.kMax) return b;
+    if (x0 - W < I && x1 + W > -I && z0 - W < I && z1 + W > -I) return b; // touches the island (with its walks)
+    const depth = this.depth(cx, cz);
+    if (depth <= 0) return b;
+    b.city = true; b.depth = depth;
+    const rng = rngOf(hash32(this.seed, k + 5000, j + 5000, 11));
+    b.zone = this.zoneOf(b, rng);
+    b.Z = ZONES[b.zone];
+    this.layLots(b, rng);
+    this.built++;
+    return b;
+  }
+  zoneOf(b, rng) {
+    const W = this.W;
+    for (const R of ZONE_RULES) {
+      if (R.edge && b.depth >= RING.edgeBelt) continue;
+      if (R.freeway && !(this.fwy(b.cx, b.cz, R.freeway).d < R.freeway)) continue;
+      if (R.near && !R.near.some((s) => segDist(b.cx, b.cz, s[0], s[1], s[2], s[3]) < R.within)) continue;
+      if (R.arterial) { const on = isArt(b.k) || isArt(b.k + 1) || isArt(b.j) || isArt(b.j + 1); if (!on || rng() >= R.share) continue; }
+      return R.zone;
+    }
+    return 'residential';
+  }
+  // Which side of the block faces what: the freeway's side for a strip block on I-10, an arterial's side, else by hash.
+  frontOf(b, rng) {
+    if (b.zone === 'strip') {
+      const pr = this.fwy(b.cx, b.cz, 260);
+      if (pr.d < 260) { const dx = pr.x - b.cx, dz = pr.z - b.cz; return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'E' : 'W') : (dz > 0 ? 'S' : 'N'); }
+      if (isArt(b.j)) return 'N'; if (isArt(b.j + 1)) return 'S'; if (isArt(b.k)) return 'W'; if (isArt(b.k + 1)) return 'E';
+    }
+    return rng() < 0.5 ? 'N' : 'W';
+  }
+
+  // Lots: [{ id, kind, x0, z0, x1, z1 (the building), front, lot: {x0, z0, x1, z1} (its ground), ... }].
+  layLots(b, rng) {
+    const Z = b.Z, fr = this.frontOf(b, rng), W = b.x1 - b.x0, D = b.z1 - b.z0;
+    // The block in its own frame: u along the front street, v away from it (0 = the front walk). Lots are laid in that
+    // frame and turned into world rectangles; a building's `front` is the side its main door faces.
+    const ns = fr === 'N' || fr === 'S';
+    const U = ns ? W : D, V = ns ? D : W;
+    const toWorld = (u0, v0, u1, v1, front) => {
+      // front side of the block: N -> v from z0 down; S -> v from z1 up; W -> v from x0; E -> v from x1.
+      let x0, x1, z0, z1;
+      if (front === 'N') { x0 = b.x0 + u0; x1 = b.x0 + u1; z0 = b.z0 + v0; z1 = b.z0 + v1; }
+      else if (front === 'S') { x0 = b.x0 + u0; x1 = b.x0 + u1; z0 = b.z1 - v1; z1 = b.z1 - v0; }
+      else if (front === 'W') { z0 = b.z0 + u0; z1 = b.z0 + u1; x0 = b.x0 + v0; x1 = b.x0 + v1; }
+      else { z0 = b.z0 + u0; z1 = b.z0 + u1; x0 = b.x1 - v1; x1 = b.x1 - v0; }
+      return { x0, z0, x1, z1 };
+    };
+    const opp = { N: 'S', S: 'N', W: 'E', E: 'W' };
+    const dens = b.zone === 'ruins' ? Z.density * (0.3 + 0.7 * smooth(b.depth / RING.edgeBelt)) : Z.density;
+    const add = (kind, front, u0, u1, vSet, vDepthMax, lotV0, lotV1) => {
+      const K = KINDS[kind], n = b.lots.length;
+      const room = u1 - u0;
+      let w = rng.range(K.w[0], K.w[1]), d = rng.range(K.d[0], K.d[1]);
+      w = Math.min(w, room - 2.5); d = Math.min(d, vDepthMax);
+      if (w < K.w[0] * 0.8 || d < K.d[0] * 0.8) return null;
+      const off = (room - w) / 2, uc = u0 + off + rng.range(-1, 1) * Math.max(0, off - 1.5) * 0.6;
+      const r = toWorld(uc - w / 2 + 0, vSet, uc + w / 2, vSet + d, front);
+      const lot = toWorld(u0, lotV0, u1, lotV1, front);
+      const L = { id: `R${b.k}.${b.j}.${n}`, kind, zone: b.zone, front, ...r, lot, cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, seed: rng.int(0, 2147483647) };
+      b.lots.push(L);
+      return L;
+    };
+    const keep = (L) => {
+      if (!L) return;
+      // Off the freeway, off the Iron Line, out of the island.
+      const half = Math.hypot(L.x1 - L.x0, L.z1 - L.z0) / 2;
+      const pr = this.fwy(L.cx, L.cz, RING.freeway.lotClear + half + 8);
+      const lotTouch = L.lot.x0 < RING.rail.x + RING.rail.clear && L.lot.x1 > RING.rail.x - RING.rail.clear;
+      if (pr.d < RING.freeway.lotClear + half || lotTouch || (Math.abs(L.cx) < this.I + 10 && Math.abs(L.cz) < this.I + 10)) b.lots.splice(b.lots.indexOf(L), 1);
+      else L.ok = true;
+    };
+    if (Z.lots === 'houses') {
+      // Three lots along the front street and three along the back one, each house facing its own street.
+      const n = U > 52 ? 3 : 2, lw = U / n;
+      for (const side of [fr, opp[fr]]) for (let i = 0; i < n; i++) {
+        if (rng() >= dens) { b.lots.push({ empty: true, id: `R${b.k}.${b.j}.${b.lots.length}`, lot: toWorld(i * lw, 0, (i + 1) * lw, V / 2, side) }); continue; }
+        const kind = pickW(rng, Z.kinds);
+        keep(add(kind, side, i * lw, (i + 1) * lw, rng.range(2.5, 5.5), V / 2 - 7, 0, V / 2));
+      }
+    } else if (Z.lots === 'yards') {
+      if (rng() < 0.5 && V > 50) {
+        if (rng() < dens) keep(add('warehouse', fr, 0, U, rng.range(7, 12), V - 22, 0, V));
+      } else for (const side of [fr, opp[fr]]) if (rng() < dens) keep(add(rng() < 0.65 ? 'shop' : 'warehouse', side, 0, U, rng.range(5, 9), V / 2 - 8, 0, V / 2));
+    } else {
+      // The strip: a long front building over a parking lot on the busy side, smaller ones on the back street.
+      const mainKind = pickW(rng, Z.kinds);
+      if (rng() < dens) keep(add(mainKind, fr, 0, U, mainKind === 'gas' ? 13 : rng.range(11, 15), V / 2 - 4, 0, V / 2 + 4));
+      const nb = U > 52 ? 2 : 1;
+      for (let i = 0; i < nb; i++) if (rng() < dens * 0.85) keep(add(rng() < 0.5 ? 'diner' : rng() < 0.6 ? 'gas' : 'house', opp[fr], (i * U) / nb, ((i + 1) * U) / nb, rng.range(4, 7), V / 2 - 12, 0, V / 2 - 4));
+    }
+    b.lots = b.lots.filter((L) => L.ok || L.empty);
+    for (const L of b.lots) if (!L.empty) { L.ruined = rngOf(L.seed)() < Z.ruin * (b.zone === 'ruins' ? 1 : 1); L.blockKey = `${b.k},${b.j}`; }
+  }
+
+  // ---- ownership and the per-chunk budget ---------------------------------------------------------------------------
+  blocksOver(x0, z0, x1, z1, fn) {
+    for (let k = Math.floor(x0 / G); k <= Math.floor(x1 / G); k++) for (let j = Math.floor(z0 / G); j <= Math.floor(z1 / G); j++) fn(this.block(k, j));
+  }
+  // The lots a chunk owns (their centre is in it) and builds, in id order, at most budget.buildings of them.
+  owned(cx, cz) {
+    const key = cx * 65536 + cz;
+    let o = this.ownCache.get(key);
+    if (o) return o;
+    o = [];
+    if (this.touches(cx, cz)) {
+      const ox = cx * C, oz = cz * C;
+      this.blocksOver(ox - 40, oz - 40, ox + C + 40, oz + C + 40, (b) => { for (const L of b.lots) if (!L.empty && L.cx >= ox && L.cx < ox + C && L.cz >= oz && L.cz < oz + C) o.push(L); });
+      o.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      if (o.length > RING.budget.buildings) { for (const L of o.slice(RING.budget.buildings)) L.cut = true; o.length = RING.budget.buildings; }
+      for (const L of o) L.owner = `${cx},${cz}`;
+    }
+    if (this.ownCache.size > 400) this.ownCache.clear();
+    this.ownCache.set(key, o);
+    return o;
+  }
+  // Every standing building whose footprint or lot reaches within m of chunk (cx, cz): { mine: [...], near: [...] }.
+  around(cx, cz, m = 4) {
+    const ox = cx * C, oz = cz * C, X1 = ox + C, Z1 = oz + C, mine = this.owned(cx, cz), near = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      if (!dx && !dz) continue;
+      for (const L of this.owned(cx + dx, cz + dz)) if (L.lot.x1 > ox - m && L.lot.x0 < X1 + m && L.lot.z1 > oz - m && L.lot.z0 < Z1 + m) near.push(L);
+    }
+    return { mine, near };
+  }
+
+  // ---- streets ------------------------------------------------------------------------------------------------------
+  // Does the street segment exist? Vertical line i (x = 80i) between z = 80j and 80(j+1); horizontal: line j between x
+  // = 80i and 80(i+1). A segment runs where either block beside it is city.
+  vSeg(i, j) { return this.block(i - 1, j).city || this.block(i, j).city; }
+  hSeg(i, j) { return this.block(i, j - 1).city || this.block(i, j).city; }
+  // The paved rectangles of the street grid that reach into [x0, x1] x [z0, z1], cut where they meet I-10 (a local
+  // street stops short of it; an arterial crosses, skipping only the freeway's own pavement) and where they would enter
+  // the island. Each: { x0, z0, x1, z1, axis: 'x' | 'z', line, art }.
+  streets(x0, z0, x1, z1) {
+    const out = [], W = this.W;
+    const cut = (axis, line, a0, a1, art) => {
+      // Split [a0, a1] where the street meets the freeway (sampled every 2 m, only near it).
+      const c = line * G, stop = (art ? RING.freeway.arterialStop : RING.freeway.localStop) + hw(line);
+      const mid = (a0 + a1) / 2, half = (a1 - a0) / 2;
+      const near = this.fwy(axis === 'z' ? c : mid, axis === 'z' ? mid : c, half + 40);
+      if (near.d === Infinity) return [[a0, a1]];
+      const out2 = [];
+      let run = null;
+      for (let a = a0; ; a += 2) {
+        const aa = Math.min(a, a1), x = axis === 'z' ? c : aa, z = axis === 'z' ? aa : c;
+        const fw = this.fwy(x, z, 40), blocked = fw.d < W.section(fw.s).out + stop;
+        if (!blocked && run === null) run = aa;
+        if ((blocked || aa >= a1) && run !== null) { const e = blocked ? aa - 1 : aa; if (e - run > 1) out2.push([run, e]); run = null; }
+        if (aa >= a1) break;
+      }
+      return out2;
+    };
+    // Through a crossing to the far side of the cross street when the cross street is there (no notch at a T), never past
+    // a dead end.
+    const hAt = (i, j) => this.hSeg(i - 1, j) || this.hSeg(i, j), vAt = (i, j) => this.vSeg(i, j - 1) || this.vSeg(i, j);
+    for (let i = Math.floor((x0 - 12) / G); i <= Math.ceil((x1 + 12) / G); i++) {
+      const c = i * G, h = hw(i);
+      if (c + h < x0 || c - h > x1) continue;
+      for (let j = Math.floor((z0 - 12) / G); j <= Math.floor((z1 + 12) / G); j++) {
+        if (!this.vSeg(i, j)) continue;
+        let a0 = j * G, a1 = (j + 1) * G;
+        if (!this.vSeg(i, j - 1) && hAt(i, j)) a0 -= hw(j);
+        if (!this.vSeg(i, j + 1) && hAt(i, j + 1)) a1 += hw(j + 1);
+        const o0 = a0 < z0, o1 = a1 > z1;
+        a0 = Math.max(a0, z0); a1 = Math.min(a1, z1);
+        if (a1 - a0 < 0.5) continue;
+        for (const [s, e] of this.clipIsland('z', c, h, a0, a1)) for (const [p, q] of cut('z', i, s, e, isArt(i))) out.push({ x0: c - h, x1: c + h, z0: p, z1: q, axis: 'z', line: i, art: isArt(i), open0: o0 && p <= z0 + 1e-6, open1: o1 && q >= z1 - 1e-6 });
+      }
+    }
+    for (let j = Math.floor((z0 - 12) / G); j <= Math.ceil((z1 + 12) / G); j++) {
+      const c = j * G, h = hw(j);
+      if (c + h < z0 || c - h > z1) continue;
+      for (let i = Math.floor((x0 - 12) / G); i <= Math.floor((x1 + 12) / G); i++) {
+        if (!this.hSeg(i, j)) continue;
+        let a0 = i * G, a1 = (i + 1) * G;
+        if (!this.hSeg(i - 1, j) && vAt(i, j)) a0 -= hw(i);
+        if (!this.hSeg(i + 1, j) && vAt(i + 1, j)) a1 += hw(i + 1);
+        const o0 = a0 < x0, o1 = a1 > x1;
+        a0 = Math.max(a0, x0); a1 = Math.min(a1, x1);
+        if (a1 - a0 < 0.5) continue;
+        for (const [s, e] of this.clipIsland('x', c, h, a0, a1)) for (const [p, q] of cut('x', j, s, e, isArt(j))) out.push({ x0: p, x1: q, z0: c - h, z1: c + h, axis: 'x', line: j, art: isArt(j), open0: o0 && p <= x0 + 1e-6, open1: o1 && q >= x1 - 1e-6 });
+      }
+    }
+    return out;
+  }
+  // The part of a street run [a0, a1] (centre line c, half-width h, along `axis`) outside the island.
+  clipIsland(axis, c, h, a0, a1) {
+    const I = RING.island + 0.5;
+    if (Math.abs(c) - h >= I) return [[a0, a1]];
+    const out = [];
+    if (a0 < -I) out.push([a0, Math.min(a1, -I)]);
+    if (a1 > I) out.push([Math.max(a0, I), a1]);
+    return out;
+  }
+  // The walks around a city block and its ground pad (industrial yards are paved, a strip's front lot is asphalt).
+  pads(b) {
+    if (b.pads) return b.pads;
+    const w = RING.walk, out = (b.pads = []);
+    if (!b.city) return out;
+    // Nothing paved over the freeway: a strip that comes within its pavement (+3 m) is dropped.
+    const nearFw = this.fwy(b.cx, b.cz, 120).d < 120;
+    const clear = (r) => {
+      if (!nearFw) return true;
+      for (const [x, z] of [[r.x0, r.z0], [r.x1, r.z0], [r.x0, r.z1], [r.x1, r.z1], [(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2], [(r.x0 + r.x1) / 2, r.z0], [(r.x0 + r.x1) / 2, r.z1], [r.x0, (r.z0 + r.z1) / 2], [r.x1, (r.z0 + r.z1) / 2]]) {
+        const fw = this.fwy(x, z, 40);
+        if (fw.d < this.W.section(fw.s).out + 3) return false;
+      }
+      return true;
+    };
+    const keep = (r) => { if (clear(r)) out.push(r); };
+    keep({ x0: b.x0 - w, x1: b.x1 + w, z0: b.z0 - w, z1: b.z0, band: 'walk' }); keep({ x0: b.x0 - w, x1: b.x1 + w, z0: b.z1, z1: b.z1 + w, band: 'walk' });
+    keep({ x0: b.x0 - w, x1: b.x0, z0: b.z0, z1: b.z1, band: 'walk' }); keep({ x0: b.x1, x1: b.x1 + w, z0: b.z0, z1: b.z1, band: 'walk' });
+    if (b.zone === 'industrial') keep({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, band: 'yard' });
+    if (b.zone === 'strip') for (const L of b.lots) if (!L.empty && (L.kind === 'mall' || L.kind === 'gas' || L.kind === 'diner')) {
+      // The lot in front of it, between the walk and the building.
+      const f = L.front, l = L.lot;
+      const r = f === 'N' ? { x0: l.x0 + 1, x1: l.x1 - 1, z0: l.z0, z1: L.z0 - 0.5 } : f === 'S' ? { x0: l.x0 + 1, x1: l.x1 - 1, z0: L.z1 + 0.5, z1: l.z1 } : f === 'W' ? { x0: l.x0, x1: L.x0 - 0.5, z0: l.z0 + 1, z1: l.z1 - 1 } : { x0: L.x1 + 0.5, x1: l.x1, z0: l.z0 + 1, z1: l.z1 - 1 };
+      if (r.x1 - r.x0 > 2 && r.z1 - r.z0 > 2) keep({ ...r, band: 'lot' });
+    }
+    return out;
+  }
+  // Is (x, z) paved or built on (desert scatter keeps off): a street or its walks, a paved lot, a building and its
+  // margin. The yards of houses keep their weeds.
+  solid(x, z, r = 0) {
+    if (!this.inCity(x, z, 8)) return false;
+    const i = Math.round(x / G), j = Math.round(z / G);
+    if (Math.abs(x - i * G) < hw(i) + RING.walk + r || Math.abs(z - j * G) < hw(j) + RING.walk + r) return true;
+    const b = this.block(Math.floor(x / G), Math.floor(z / G));
+    if (!b.city) return false;
+    if (b.zone !== 'residential' && b.zone !== 'ruins') return true;
+    for (const L of b.lots) if (!L.empty && x > L.x0 - 2 - r && x < L.x1 + 2 + r && z > L.z0 - 2 - r && z < L.z1 + 2 + r) return true;
+    return false;
+  }
+
+  // What the HUD street sign says in the ring (null when not in it).
+  streetName(axis, line) {
+    const N = this.names;
+    if (Math.abs(line) <= 4 && N) return axis === 'z' ? N.v[line + 4] : N.h[line + 4];
+    const n = Math.abs(line) - 5;
+    const list = axis === 'z' ? (line > 0 ? STREET_NAMES.ns.east : STREET_NAMES.ns.west) : (line > 0 ? STREET_NAMES.ew.south : STREET_NAMES.ew.north);
+    return list[Math.min(list.length - 1, Math.max(0, n))];
+  }
+  nameAt(x, z) {
+    if (!this.inCity(x, z, 20)) return null;
+    const i = Math.round(x / G), j = Math.round(z / G);
+    const onV = Math.abs(x - i * G) < hw(i) && this.vSeg(i, Math.floor(z / G)), onH = Math.abs(z - j * G) < hw(j) && this.hSeg(Math.floor(x / G), j);
+    if (onV && onH) return `${this.streetName('z', i)} & ${this.streetName('x', j)}`;
+    if (onV) return this.streetName('z', i);
+    if (onH) return this.streetName('x', j);
+    const b = this.block(Math.floor(x / G), Math.floor(z / G));
+    return b.city ? `PHOENIX · ${b.Z.name}` : 'PHOENIX · THE EDGE';
+  }
+
+  // ---- a building's shell, inside and out (cached on the lot: computed once, the same every time) --------------------
+  geo(L) {
+    if (L.geo) return L.geo;
+    this.geoBuilt++;
+    const K = KINDS[L.kind], Z = ZONES[L.zone], rng = rngOf(L.seed ^ 0x5bd1e995);
+    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [] });
+    const { x0, z0, x1, z1 } = L, w = x1 - x0, d = z1 - z0;
+    const h = rng.range(K.h[0], K.h[1]);
+    const wall = rng.pick(Z.walls), roof = rng.pick(Z.roofs), floor = rng.pick(Z.floors);
+    L.h = h; L.color = wall;
+    const ruined = !!L.ruined;
+    const ns = L.front === 'N' || L.front === 'S';
+    // The front wall runs along u (x for N/S fronts, z for W/E); doors are positions along it.
+    const uA = ns ? x0 : z0, uB = ns ? x1 : z1;
+    const units = K.partition === 'units' ? rng.int(K.units[0], K.units[1]) : 1;
+    const doors = { N: [], S: [], W: [], E: [] }; // positions along the side, with their clear width
+    const inner = [];  // partition walls: { horizontal, fixed, a0, a1, gaps }
+    const keep = [];   // points to keep furniture away from (doorways, inside and out)
+    // Front doors: one per unit, near each unit's middle (a bay door for a workshop or a warehouse).
+    const uw = (uB - uA) / units;
+    for (let u = 0; u < units; u++) {
+      const dw = K.bay ?? RING.door, mid = uA + uw * (u + 0.5);
+      const at = snap(mid + rng.range(-1, 1) * Math.max(0, uw / 2 - dw / 2 - 1.2) * 0.5);
+      doors[L.front].push({ at, w: dw, kind: K.bay ? 'bay' : 'front' });
+    }
+    const opp = { N: 'S', S: 'N', W: 'E', E: 'W' }[L.front];
+    const backRoll = rng(), backAt = snap(uA + (uB - uA) * rng.range(0.25, 0.75));
+    // Partitions.
+    if (K.partition === 'units') {
+      for (let u = 1; u < units; u++) inner.push({ horizontal: !ns, fixed: uA + uw * u, a0: ns ? z0 : x0, a1: ns ? z1 : x1, gaps: [] });
+    } else if (K.partition === 'front' && (ns ? d : w) >= 8.5) {
+      // Front room / back room: a wall parallel to the front with a doorway away from the front door.
+      const vA = ns ? z0 : x0, vB = ns ? z1 : x1, depth = vB - vA;
+      const fixed = L.front === 'N' || L.front === 'W' ? vA + depth * rng.range(0.48, 0.58) : vB - depth * rng.range(0.48, 0.58);
+      const fd = doors[L.front][0].at;
+      let gat = snap(uA + (uB - uA) * (fd < (uA + uB) / 2 ? rng.range(0.6, 0.8) : rng.range(0.2, 0.4)));
+      inner.push({ horizontal: ns, fixed, a0: uA, a1: uB, gaps: [{ at: gat, w: RING.innerDoor }] });
+    }
+    if (K.office) {
+      // A small office in a back corner: a wall across the corner with a doorway, one along the back.
+      const back = L.front === 'N' ? z1 : L.front === 'S' ? z0 : L.front === 'W' ? x1 : x0, sgn = L.front === 'N' || L.front === 'W' ? -1 : 1;
+      const ow = Math.min(6, (uB - uA) * 0.3), od = Math.min(5, (ns ? d : w) * 0.35);
+      const corner = rng() < 0.5 ? uA : uB, cs = corner === uA ? 1 : -1;
+      const fixedV = back + sgn * od; // the office's front wall, parallel to the back
+      const ua = Math.min(corner, corner + cs * ow), ub = Math.max(corner, corner + cs * ow);
+      inner.push({ horizontal: ns, fixed: fixedV, a0: ua, a1: ub, gaps: [{ at: snap((ua + ub) / 2), w: RING.innerDoor }] });
+      inner.push({ horizontal: !ns, fixed: corner + cs * ow, a0: Math.min(back, fixedV), a1: Math.max(back, fixedV), gaps: [] });
+      L.office = { u0: ua, u1: ub, v0: Math.min(back, fixedV), v1: Math.max(back, fixedV) };
+    }
+    // A back door (single) on the opposite side, sometimes: never where a wall inside meets the back wall.
+    if (backRoll < (K.back ?? 0) && !inner.some((P) => P.horizontal !== ns && Math.abs(P.fixed - backAt) < RING.backDoor / 2 + T + 0.6)) doors[opp].push({ at: backAt, w: RING.backDoor, kind: 'back' });
+    // ---- the walls, side by side: spans between doors; an intact span gets window holes, a ruined one may be down.
+    const side = (S, horizontal, fixed, a0, a1) => {
+      const gaps = doors[S].slice().sort((p, q) => p.at - q.at);
+      let cur = a0;
+      const spans = [];
+      for (const gp of gaps) { spans.push([cur, gp.at - gp.w / 2]); cur = gp.at + gp.w / 2; }
+      spans.push([cur, a1]);
+      for (const gp of gaps) {
+        const nx = S === 'W' ? -1 : S === 'E' ? 1 : 0, nz = S === 'N' ? -1 : S === 'S' ? 1 : 0;
+        const x = horizontal ? gp.at : fixed, z = horizontal ? fixed : gp.at;
+        g.doors.push({ x, z, nx, nz, w: gp.w, kind: gp.kind });
+        keep.push([x - nx * 1.2, z - nz * 1.2]);
+      }
+      for (const [s, e] of spans) {
+        if (e - s < 0.2) continue;
+        if (ruined && rng() < RING.collapse) {
+          const hh = rng.range(0.5, 1.6);
+          this.piece(g.walls, horizontal, fixed, s, e, 0, hh, wall, 0.86);
+          if (hh > 1.1) g.boxes.push(this.wallBox(horizontal, fixed, s, e, hh, 'wall', null));
+          for (let r = 0; r < 2; r++) {
+            const m = s + (e - s) * rng(), off = rng.range(-1.2, 1.2);
+            g.decor.push([horizontal ? m : fixed + off, 0.22, horizontal ? fixed + off : m, rng.range(0.6, 1.3), rng.range(0.25, 0.5), rng.range(0.6, 1.3), wall, rng() * 3, 0.8]);
+          }
+          continue;
+        }
+        const len = e - s, n = len >= 4.5 ? Math.min(3, Math.floor(len / 4.6)) : 0, holes = [];
+        let c0 = s;
+        for (let q = 0; q < n; q++) {
+          const c = s + (q + 0.5) * (len / n);
+          if (rng() > (L.kind === 'warehouse' ? 0.45 : 0.78)) continue;
+          const W2 = RING.window / 2;
+          this.piece(g.walls, horizontal, fixed, c0, c - W2, 0, h, wall, 1);
+          this.piece(g.walls, horizontal, fixed, c - W2, c + W2, 0, RING.sill, wall, 1.18);
+          holes.push(c - W2, c + W2);
+          c0 = c + W2;
+        }
+        this.piece(g.walls, horizontal, fixed, c0, e, 0, h, wall, 1);
+        g.boxes.push(this.wallBox(horizontal, fixed, s, e, h, 'wall', holes.length ? holes : null));
+      }
+    };
+    side('N', true, z0, x0 - T / 2, x1 + T / 2);
+    side('S', true, z1, x0 - T / 2, x1 + T / 2);
+    side('W', false, x0, z0 + T / 2, z1 - T / 2);
+    side('E', false, x1, z0 + T / 2, z1 - T / 2);
+    // Partitions (no windows; a ruin's may be gone, but then its doorway goes with it and nothing is sealed).
+    for (const P of inner) {
+      if (ruined && rng() < 0.35) continue;
+      const gaps = P.gaps.slice().sort((p, q) => p.at - q.at);
+      let cur = P.a0 + T / 2;
+      const hh = h * 0.96;
+      for (const gp of gaps) {
+        const e = gp.at - gp.w / 2;
+        if (e - cur > 0.2) { this.piece(g.walls, P.horizontal, P.fixed, cur, e, 0, hh, wall, 0.94); g.boxes.push(this.wallBox(P.horizontal, P.fixed, cur, e, hh, 'wall', null)); }
+        cur = gp.at + gp.w / 2;
+        const x = P.horizontal ? gp.at : P.fixed, z = P.horizontal ? P.fixed : gp.at;
+        keep.push([x + (P.horizontal ? 0 : 1.1), z + (P.horizontal ? 1.1 : 0)], [x - (P.horizontal ? 0 : 1.1), z - (P.horizontal ? 1.1 : 0)]);
+      }
+      const end = P.a1 - T / 2;
+      if (end - cur > 0.2) { this.piece(g.walls, P.horizontal, P.fixed, cur, end, 0, hh, wall, 0.94); g.boxes.push(this.wallBox(P.horizontal, P.fixed, cur, end, hh, 'wall', null)); }
+    }
+    // Floor and roof (a ruin's roof is gone: open to the sky).
+    g.floor = [(x0 + x1) / 2, 0.07, (z0 + z1) / 2, w, 0.1, d, floor];
+    if (!ruined) {
+      g.roof.push([(x0 + x1) / 2, h + 0.2, (z0 + z1) / 2, w + 0.6, 0.4, d + 0.6, roof, 0, 1]);
+      for (let i = 0, n = rng.int(0, L.kind === 'warehouse' ? 3 : 2); i < n; i++) g.roof.push([(x0 + x1) / 2 + rng.range(-w / 3, w / 3), h + 0.75, (z0 + z1) / 2 + rng.range(-d / 3, d / 3), rng.range(1.2, 2.6), rng.range(0.7, 1.3), rng.range(1.2, 2.6), rng.pick(['#5e5a54', '#6e665a', '#3d4544']), 0, 1]);
+    } else {
+      for (let i = 0; i < 3; i++) g.decor.push([(x0 + x1) / 2 + rng.range(-w / 3, w / 3), 0.25, (z0 + z1) / 2 + rng.range(-d / 3, d / 3), rng.range(0.8, 2), rng.range(0.3, 0.6), rng.range(0.8, 2), wall, rng() * 3, 0.78]);
+    }
+    // ---- rooms and furniture: along the walls, never in a doorway's way, the middle of every room left open.
+    const rooms = this.rooms(L, inner, units, uA, uB, ns);
+    g.rooms = rooms;
+    const items = [];
+    for (const [type, lo, hi] of K.furniture) for (let n = rng.int(lo, hi), q = 0; q < n; q++) items.push(type);
+    // Units each get the kind's list; a house puts beds and dressers in the back room.
+    const unitRooms = rooms.filter((r) => !r.office);
+    const per = units > 1 ? unitRooms.map(() => items.slice()) : null;
+    const placed = [];
+    const tryPlace = (type, room) => {
+      const F = FURNITURE[type], [fw, fd, fh] = F.size;
+      const cands = this.slots(room, fw, fd, rng);
+      for (const c of cands) {
+        const r = c.r;
+        if (keep.some(([kx, kz]) => kx > r.x0 - 1.5 && kx < r.x1 + 1.5 && kz > r.z0 - 1.5 && kz < r.z1 + 1.5)) continue;
+        let bad = false;
+        for (const p of placed) {
+          const gx = Math.max(p.r.x0 - r.x1, r.x0 - p.r.x1), gz = Math.max(p.r.z0 - r.z1, r.z0 - p.r.z1), gap = Math.max(gx, gz);
+          if (gap < (p.wall === c.wall ? 0.3 : 1.7)) { bad = true; break; }
+        }
+        if (bad) continue;
+        placed.push({ r, wall: c.wall });
+        const x = (r.x0 + r.x1) / 2, z = (r.z0 + r.z1) / 2, sx = r.x1 - r.x0, sz = r.z1 - r.z0, col = rng.pick(F.colors);
+        g.props.push([x, fh / 2, z, sx, fh, sz, col, 0, 1]);
+        if (type === 'shelf' || type === 'rack') g.props.push([x, fh * 0.55, z, sx * 0.96, 0.06, sz * 1.04, '#2e2620', 0, 1]); // a shelf board that reads from above
+        if (F.solid) g.boxes.push({ x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, h: fh, tag: F.box ? (type === 'crate' ? 'crate' : 'shelf') : 'furniture', holes: null });
+        if (F.bed) g.beds.push({ x, z, face: sx > sz ? Math.PI / 2 : 0, bedY: 0.2 });
+        if (F.box) {
+          const id = `ring:${Math.round(x * 10)}:${Math.round(z * 10)}`;
+          const unit = room.unit;
+          const table = F.box.loot ?? unit?.loot ?? K.loot ?? pickW(rngOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), 3)), Z.loot);
+          const label = `${F.box.label}${unit ? ` · ${unit.label}` : K.label ? ` · ${K.label}` : ''}`;
+          g.boxesIn.push({ id, x, z, table, cap: F.box.cap, label });
+        }
+        return true;
+      }
+      return false;
+    };
+    if (per) per.forEach((list, ui) => { for (const t of list) tryPlace(t, unitRooms[ui]); });
+    else for (const t of items) {
+      const pref = (t === 'bed' || t === 'dresser') ? rooms.find((r) => r.back) : (t === 'couch' || t === 'counter' || t === 'table') ? rooms.find((r) => r.frontRoom) : null;
+      if (!(pref && tryPlace(t, pref))) for (const r of rng.chance(0.5) ? rooms : rooms.slice().reverse()) if (tryPlace(t, r)) break;
+    }
+    // A fuel stop's canopy and pumps out front, over the lot.
+    if (K.canopy) {
+      const f = L.front, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      const px = f === 'W' ? x0 - 7 : f === 'E' ? x1 + 7 : cx, pz = f === 'N' ? z0 - 7 : f === 'S' ? z1 + 7 : cz;
+      const along = ns; // the canopy runs along the front
+      g.canopy.push([px, 4.6, pz, along ? 10 : 7, 0.35, along ? 7 : 10, '#8a7a5a', 0, 1]);
+      for (const [a, b] of [[-4.4, -3], [4.4, -3], [-4.4, 3], [4.4, 3]]) {
+        const qx = px + (along ? a : b), qz = pz + (along ? b : a);
+        g.props.push([qx, 2.3, qz, 0.3, 4.6, 0.3, '#4a4642', 0, 1]); g.boxes.push({ x0: qx - 0.2, z0: qz - 0.2, x1: qx + 0.2, z1: qz + 0.2, h: 4.6, tag: 'post', holes: null });
+      }
+      for (const a of [-2, 2]) {
+        const qx = px + (along ? a : 0), qz = pz + (along ? 0 : a), sx = along ? 0.7 : 1.6, sz = along ? 1.6 : 0.7;
+        g.props.push([qx, 0.7, qz, sx, 1.4, sz, '#9a3a22', 0, 1]); g.boxes.push({ x0: qx - sx / 2, z0: qz - sz / 2, x1: qx + sx / 2, z1: qz + sz / 2, h: 1.4, tag: 'pump', holes: null });
+      }
+    }
+    // The yard: a fence round a house's back yard (solid: the front stays open), junk for looks.
+    const lot = L.lot;
+    if (Z.fence && rng() < Z.fence && (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex')) {
+      const fc = rng.pick(['#6e5a40', '#5a4a36', '#7a6a50', '#6a6660']);
+      const fence = (ax, az, bx, bz) => { const x = (ax + bx) / 2, z = (az + bz) / 2, sx = Math.max(0.12, Math.abs(bx - ax)), sz = Math.max(0.12, Math.abs(bz - az)); g.props.push([x, 0.6, z, sx, 1.2, sz, fc, 0, 1]); g.boxes.push({ x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2, h: 1.2, tag: 'fence', holes: null }); };
+      const m = 0.4;
+      if (L.front === 'N') { fence(lot.x0 + m, lot.z1 - m, lot.x1 - m, lot.z1 - m); fence(lot.x0 + m, z1 - 1, lot.x0 + m, lot.z1 - m); fence(lot.x1 - m, z1 - 1, lot.x1 - m, lot.z1 - m); }
+      else if (L.front === 'S') { fence(lot.x0 + m, lot.z0 + m, lot.x1 - m, lot.z0 + m); fence(lot.x0 + m, lot.z0 + m, lot.x0 + m, z0 + 1); fence(lot.x1 - m, lot.z0 + m, lot.x1 - m, z0 + 1); }
+      else if (L.front === 'W') { fence(lot.x1 - m, lot.z0 + m, lot.x1 - m, lot.z1 - m); fence(x1 - 1, lot.z0 + m, lot.x1 - m, lot.z0 + m); fence(x1 - 1, lot.z1 - m, lot.x1 - m, lot.z1 - m); }
+      else { fence(lot.x0 + m, lot.z0 + m, lot.x0 + m, lot.z1 - m); fence(lot.x0 + m, lot.z0 + m, x0 + 1, lot.z0 + m); fence(lot.x0 + m, lot.z1 - m, x0 + 1, lot.z1 - m); }
+    }
+    for (let i = 0, n = rng.int(0, Z.yard); i < n; i++) {
+      // Behind the building, in its own lot.
+      const bx0 = lot.x0 + 1.5, bx1 = lot.x1 - 1.5, bz0 = lot.z0 + 1.5, bz1 = lot.z1 - 1.5;
+      const x = rng.range(bx0, bx1), z = rng.range(bz0, bz1);
+      if (x > x0 - 2 && x < x1 + 2 && z > z0 - 2 && z < z1 + 2) continue;
+      const doorNear = g.doors.some((dd) => Math.hypot(dd.x - x, dd.z - z) < 5);
+      if (doorNear) continue;
+      const kind = rng();
+      if (kind < 0.4) g.decor.push([x, 0.35, z, rng.range(0.8, 1.8), rng.range(0.4, 0.8), rng.range(0.8, 1.8), rng.pick(['#5a4632', '#6b5a48', '#4a4440', '#7a5a34']), rng() * 3, 1]);
+      else if (kind < 0.7) g.decor.push([x, 0.5, z, 0.9, 1.0, 0.9, rng.pick(['#7a3a1c', '#3f5446', '#6d5a2a']), 0, 1]);
+      else g.decor.push([x, 0.15, z, rng.range(1.4, 3), 0.3, rng.range(1.4, 3), '#4f4b46', rng() * 3, 0.9]);
+    }
+    L.containers = g.boxesIn.length;
+    return g;
+  }
+  // A wall's visual piece (exact extents along its axis), into list as [cx, cy, cz, sx, sy, sz, hex, rot, shade].
+  piece(list, horizontal, fixed, a0, a1, y0, y1, hex, shade) {
+    if (a1 - a0 < 0.05) return;
+    const t = T / 2, minX = horizontal ? a0 : fixed - t, maxX = horizontal ? a1 : fixed + t, minZ = horizontal ? fixed - t : a0, maxZ = horizontal ? fixed + t : a1;
+    list.push([(minX + maxX) / 2, (y0 + y1) / 2, (minZ + maxZ) / 2, maxX - minX, y1 - y0, maxZ - minZ, hex, 0, shade]);
+  }
+  wallBox(horizontal, fixed, a0, a1, h, tag, holes) {
+    const t = T / 2;
+    return horizontal ? { x0: a0, z0: fixed - t, x1: a1, z1: fixed + t, h, tag, holes, holeX: true } : { x0: fixed - t, z0: a0, x1: fixed + t, z1: a1, h, tag, holes, holeX: false };
+  }
+  // The rooms inside a shell: [{ x0, z0, x1, z1 (inner faces), back, frontRoom, unit, office }].
+  rooms(L, inner, units, uA, uB, ns) {
+    const t = T / 2, { x0, z0, x1, z1 } = L;
+    const box = { x0: x0 + t, z0: z0 + t, x1: x1 - t, z1: z1 - t };
+    const out = [];
+    if (units > 1) {
+      const cuts = [uA, ...inner.filter((p) => p.horizontal !== ns).map((p) => p.fixed), uB].sort((a, b) => a - b);
+      const pick = rngOf(L.seed ^ 0x2545f491);
+      for (let u = 0; u < cuts.length - 1; u++) {
+        const a = cuts[u] + (u ? t : 0), b = cuts[u + 1] - (u < cuts.length - 2 ? t : 0);
+        const r = ns ? { x0: Math.max(box.x0, a), x1: Math.min(box.x1, b), z0: box.z0, z1: box.z1 } : { z0: Math.max(box.z0, a), z1: Math.min(box.z1, b), x0: box.x0, x1: box.x1 };
+        out.push({ ...r, unit: L.kind === 'mall' ? UNITS[pick.int(0, UNITS.length - 1)] : null });
+      }
+      return out;
+    }
+    const fp = inner.find((p) => p.horizontal === ns && p.gaps.length && !L.office);
+    if (fp && L.kind !== 'shop' && L.kind !== 'warehouse') {
+      const frontLow = L.front === 'N' || L.front === 'W';
+      const a = ns ? { ...box, z1: fp.fixed - t } : { ...box, x1: fp.fixed - t }, b = ns ? { ...box, z0: fp.fixed + t } : { ...box, x0: fp.fixed + t };
+      out.push({ ...(frontLow ? a : b), frontRoom: true }, { ...(frontLow ? b : a), back: true });
+      return out;
+    }
+    if (L.office) {
+      const o = L.office, r = ns ? { x0: o.u0 + t, x1: o.u1 - t, z0: o.v0 + t, z1: o.v1 - t } : { z0: o.u0 + t, z1: o.u1 - t, x0: o.v0 + t, x1: o.v1 - t };
+      out.push({ ...box, frontRoom: true, avoid: r }, { ...r, office: true, back: true });
+      return out;
+    }
+    out.push({ ...box, frontRoom: true });
+    return out;
+  }
+  // Candidate spots for a piece of furniture w x d against the walls of a room, in a seeded order.
+  slots(room, w, d, rng) {
+    const out = [], gap = 0.06, step = 0.9;
+    const RW = room.x1 - room.x0, RD = room.z1 - room.z0;
+    const push = (r, wall) => {
+      if (r.x0 < room.x0 - 0.001 || r.x1 > room.x1 + 0.001 || r.z0 < room.z0 - 0.001 || r.z1 > room.z1 + 0.001) return;
+      const A = room.avoid;
+      if (A && r.x0 < A.x1 + 1.2 && r.x1 > A.x0 - 1.2 && r.z0 < A.z1 + 1.2 && r.z1 > A.z0 - 1.2) return;
+      out.push({ r, wall });
+    };
+    // Along x walls (north and south faces): the piece runs along x.
+    if (RD >= d * 2 + 2.2 || RD >= d + 2.4) for (let x = room.x0 + 0.5 + w / 2; x <= room.x1 - 0.5 - w / 2; x += step) {
+      push({ x0: x - w / 2, x1: x + w / 2, z0: room.z0 + gap, z1: room.z0 + gap + d }, 'N');
+      push({ x0: x - w / 2, x1: x + w / 2, z0: room.z1 - gap - d, z1: room.z1 - gap }, 'S');
+    }
+    if (RW >= d * 2 + 2.2 || RW >= d + 2.4) for (let z = room.z0 + 0.5 + w / 2; z <= room.z1 - 0.5 - w / 2; z += step) {
+      push({ z0: z - w / 2, z1: z + w / 2, x0: room.x0 + gap, x1: room.x0 + gap + d }, 'W');
+      push({ z0: z - w / 2, z1: z + w / 2, x0: room.x1 - gap - d, x1: room.x1 - gap }, 'E');
+    }
+    for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = out[i]; out[i] = out[j]; out[j] = t; }
+    return out;
+  }
+
+  // ---- cars left at the kerb, the Iron Line running on ------------------------------------------------------------
+  // Wrecks owned by chunk (cx, cz): whole, never across its edge. [{ x, z, rot, color, along }].
+  wrecks(cx, cz) {
+    const ox = cx * C, oz = cz * C, out = [], WRK = ['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#704020', '#4f5a52', '#6a5a3a'];
+    for (const s of this.streets(ox, oz, ox + C, oz + C)) {
+      const len = s.axis === 'z' ? s.z1 - s.z0 : s.x1 - s.x0;
+      if (len < 30) continue;
+      const blk = this.block(s.axis === 'z' ? s.line : Math.floor((s.x0 + s.x1) / 2 / G), s.axis === 'z' ? Math.floor((s.z0 + s.z1) / 2 / G) : s.line);
+      const Z = blk.Z ?? this.block(s.axis === 'z' ? s.line - 1 : Math.floor((s.x0 + s.x1) / 2 / G), s.axis === 'z' ? Math.floor((s.z0 + s.z1) / 2 / G) : s.line - 1).Z;
+      if (!Z) continue;
+      const h = hash32(this.seed, Math.round(s.x0), Math.round(s.z0), 77), r = rngOf(h);
+      if (r() >= Z.wrecks * (len / 80)) continue;
+      const a = (s.axis === 'z' ? s.z0 : s.x0) + 14 + r() * (len - 28), side = r() < 0.5 ? -1 : 1;
+      const c = s.line * G, off = (hw(s.line) - 1.6) * side;
+      const x = s.axis === 'z' ? c + off : a, z = s.axis === 'z' ? a : c + off;
+      const along = s.axis === 'z', hx = along ? 0.95 : 2.1, hz = along ? 2.1 : 0.95;
+      if (x - hx < ox || x + hx > ox + C || z - hz < oz || z + hz > oz + C) continue;
+      out.push({ x, z, rot: (along ? 0 : Math.PI / 2) + (r() - 0.5) * 0.12, color: WRK[h % WRK.length], along });
+    }
+    return out;
+  }
+  // The rail through the ring (beyond the island's own track): the stretch [z0, z1] of x = RING.rail.x in this chunk.
+  railIn(cx, cz) {
+    const ox = cx * C, oz = cz * C, x = RING.rail.x;
+    if (x < ox || x >= ox + C) return null;
+    const a = Math.max(oz, -this.reach), b = Math.min(oz + C, this.reach), out = [];
+    for (const [s, e] of [[a, Math.min(b, -472)], [Math.max(a, 472), b]]) if (e - s > 1) {
+      // Only where the city is (the yards); the line fades out past the edge.
+      let s2 = s, e2 = e;
+      while (s2 < e2 && !this.inCity(x, s2, 40)) s2 += 4;
+      while (e2 > s2 && !this.inCity(x, e2, 40)) e2 -= 4;
+      if (e2 - s2 > 1) out.push([s2, e2]);
+    }
+    return out.length ? out : null;
+  }
+
+  // ---- reports ------------------------------------------------------------------------------------------------------
+  // The building around (x, z) (owned by any chunk), or null.
+  at(x, z) {
+    const b = this.block(Math.floor(x / G), Math.floor(z / G));
+    if (!b.city) return null;
+    for (const L of b.lots) if (!L.empty && !L.cut && x > L.x0 && x < L.x1 && z > L.z0 && z < L.z1) { this.owned(Math.floor(L.cx / C), Math.floor(L.cz / C)); return L.cut ? null : L; }
+    return null;
+  }
+  // The whole ring, counted (lots only: cheap). Used by the `ring` command and the metro map.
+  survey() {
+    if (this.surveyCache) return this.surveyCache;
+    const t0 = performance.now(), byZone = {}, byKind = {}, n = this.kMax;
+    let blocks = 0, buildings = 0, ruined = 0, cut = 0, empty = 0;
+    for (let cx = -Math.ceil(this.reach / C) - 1; cx <= Math.ceil(this.reach / C); cx++) for (let cz = -Math.ceil(this.reach / C) - 1; cz <= Math.ceil(this.reach / C); cz++) this.owned(cx, cz);
+    for (let k = -n; k <= n; k++) for (let j = -n; j <= n; j++) {
+      const b = this.block(k, j);
+      if (!b.city) continue;
+      blocks++; byZone[b.zone] = (byZone[b.zone] ?? 0) + 1;
+      for (const L of b.lots) { if (L.empty) { empty++; continue; } if (L.cut) { cut++; continue; } buildings++; byKind[L.kind] = (byKind[L.kind] ?? 0) + 1; if (L.ruined) ruined++; }
+    }
+    return (this.surveyCache = { blocks, buildings, ruined, emptyLots: empty, overBudget: cut, byZone, byKind, ms: +(performance.now() - t0).toFixed(1) });
+  }
+}

@@ -3,6 +3,7 @@ import { STREAM, BIOMES, FLORA } from '../data/streaming.js';
 import { C, ISLAND, inIsland, hash32, rngOf, vnoise, Hasher } from './geo.js';
 import { StaticWorld } from '../engine/collision.js';
 import { ROAD_BANDS } from './textures.js';
+import { RING } from '../data/ring.js';
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -19,7 +20,8 @@ const N_G = C / 8 + 1;          // ground vertices per side (33)
 const RAD_FOOT = 0.45, RAD_CAR = 1.9;
 const BAND = ROAD_BANDS;
 const UPER = { hwy: 24, county: 14, ramp: 18, aux: 18 };  // metres of road per texture repeat (lane dashes every 12 m)
-const POOL_NAMES = ['props', 'walls', 'roofs', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows'];
+const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows'];
+const URBAN = [0.9, 0.87, 0.82]; // the ring's ground: dust over old concrete and yards (data/ring.js zones tint their blocks)
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
 class InstBuf {
@@ -79,7 +81,7 @@ export const SURF_CAPS = { ground: [N_G * N_G, (N_G - 1) * (N_G - 1) * 6], road:
 export function makeScratch() {
   return {
     INST: {
-      props: new InstBuf(6000), walls: new InstBuf(1500), roofs: new InstBuf(1200), cacti: new InstBuf(1500), trunks: new InstBuf(800),
+      props: new InstBuf(6000), walls: new InstBuf(4000), roofs: new InstBuf(1200), floors: new InstBuf(400), cacti: new InstBuf(1500), trunks: new InstBuf(800),
       boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
     },
     SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true) },
@@ -114,6 +116,7 @@ export function mesasOf(W, cx, cz) {
     // Keep rock off the road and its interchanges, out of the towns and the island (by its lobed reach, not r).
     const R = r * MESA_REACH;
     if (inIsland(x, z, R + 40)) continue;
+    if (W.ring && W.ring.depth(x, z) > -(R + 160)) continue; // no mesa in the Phoenix ring or at its edge
     if (W.project(x, z, R + 120).d < R + 55) continue;
     if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + R || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + R || (X.access && W.ribbonDist(X.access, x, z) < R + 30))) continue;
     if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + R)) continue;
@@ -173,8 +176,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   // Collision: clip a box to the chunk square (and to the nav margin for the halo list).
   const addBox = (x0, z0, x1, z1, tag, height, base = 0) => {
     const ax0 = Math.max(x0, ox), az0 = Math.max(z0, oz), ax1 = Math.min(x1, X1), az1 = Math.min(z1, Z1);
-    if (ax1 > ax0 && az1 > az0) boxes.push(StaticWorld.box(ax0, az0, ax1, az1, tag, height, base));
+    let b = null;
+    if (ax1 > ax0 && az1 > az0) boxes.push((b = StaticWorld.box(ax0, az0, ax1, az1, tag, height, base)));
     else if (x1 > ox - 3 && x0 < X1 + 3 && z1 > oz - 3 && z0 < Z1 + 3 && !base) halo.push(StaticWorld.box(x0, z0, x1, z1, tag, height, base));
+    return b;
   };
   // An oriented box (centre, size along its axes, yaw) as AABB slices no thicker than a lane's edge.
   const addOriented = (x, z, sa, su, rot, tag, height, base = 0) => {
@@ -219,6 +224,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     for (const b of F.buildings) if (x > b.x0 - 4 - r && x < b.x1 + 4 + r && z > b.z0 - 4 - r && z < b.z1 + 4 + r) return true;
     for (const s of F.structs) if (Math.hypot(s.x - x, s.z - z) < Math.max(s.sa, s.su) / 2 + 3 + r) return true;
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
+    if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
     return false;
   };
   yield;
@@ -239,6 +245,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const rel = W.reliefAt(x, z), n1 = vnoise(x, z, 340, seed) - 0.5, n2 = vnoise(x, z, 70, seed + 1) - 0.5, n3 = vnoise(x, z, 1400, seed + 2) - 0.5;
       const bright = 1 + n1 * 0.16 + n2 * 0.08 + n3 * 0.1;
       r *= bright; g *= bright * (1 - rel * 0.07); b *= bright * (1 - rel * 0.15);
+      // The Phoenix ring: the desert goes grey-brown with the dust of a dead city.
+      const ck = W.ring ? W.ring.cityK(x, z) * 0.55 : 0;
+      if (ck > 0) { r += (URBAN[0] * bright - r) * ck; g += (URBAN[1] * bright - g) * ck; b += (URBAN[2] * bright - b) * ck; }
       // At the island edge the ground fades to the island's own plain sand (no seam).
       const de = Math.max(Math.abs(x), Math.abs(z)) - ISLAND;
       const k = de < 0 ? 0 : de > 220 ? 1 : de / 220;
@@ -507,7 +516,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const sA = cl.s[segs[0]], sB = cl.s[segs[segs.length - 1] + 1];
     for (let s = Math.ceil(sA / 70) * 70; s < sB; s += 70) {
       const f = W.at(s), u = W.section(s).out + 24, x = f.x + f.nx * u, z = f.z + f.nz * u;
-      if (!own(x, z) || inIsland(x, z, 30) || W.exits.some((X) => Math.abs(X.s - s) < 520)) continue;
+      if (!own(x, z) || inIsland(x, z, 30) || W.exits.some((X) => Math.abs(X.s - s) < 520) || W.ring?.inCity(x, z, 80)) continue;
       if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 700)) continue;
       const lean = (hash32(seed, Math.round(s)) % 100) / 100 - 0.5, rot = Math.atan2(f.tx, f.tz);
       INST.trunks.push(x, 4.6, z, rot, 0.62, 9.2, 0.62, POLE[0], POLE[1], POLE[2]);
@@ -560,13 +569,104 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   }
   pause(); yield; resume();
 
+  // ---- the Phoenix ring (world/ring.js, data/ring.js): streets, walks, walk-in shells, furniture, containers ------------
+  // A building is drawn by the chunk holding its centre (which also holds its containers, beds and roof slots); its
+  // collision is clipped into every chunk it reaches. Roof instances are recorded per building so the streamer can hide
+  // one when you walk in.
+  const RG = W.ring;
+  out.ring = null;
+  let ringStreets = null;
+  if (RG && RG.touches(cx, cz)) {
+    const rs = (out.ring = { owned: 0, near: 0, boxes: [], beds: [], roofs: {}, bld: [], decor: 0, streets: 0, ms: 0 });
+    pause(); const w0 = work; resume();
+    // A flat quad of the road layer clipped to this chunk; u along `axis` in metres / per, v across the band from the
+    // rect's own edge (so a strip clipped at a chunk seam carries on in the neighbour without a jump).
+    const quad = (x0, z0, x1, z1, y, band, axis, per) => {
+      const a0 = Math.max(x0, ox), a1 = Math.min(x1, X1), b0 = Math.max(z0, oz), b1 = Math.min(z1, Z1);
+      if (a1 - a0 < 0.05 || b1 - b0 < 0.05 || !R.room(4, 6)) return;
+      const v0 = BAND[band][0] + 0.002, v1 = BAND[band][1] - 0.002; // two texels in: no bleed from the next band
+      const vx = (x, z) => v0 + (v1 - v0) * (axis === 'z' ? (x - x0) / (x1 - x0) : (z - z0) / (z1 - z0));
+      const vtx = (x, z) => R.v(x - ox, y, z - oz, 0, 1, 0, (axis === 'z' ? z : x) / per, vx(x, z));
+      const p0 = vtx(a0, b0), p1 = vtx(a1, b0), p2 = vtx(a1, b1), p3 = vtx(a0, b1);
+      R.tri(p0, p3, p2); R.tri(p0, p2, p1); // wound to face up
+    };
+    // Strips of a band across a wide pad (a yard, a parking lot): `w` metres each, along its longer side.
+    const pad = (p, y, band, per, w) => {
+      const along = p.x1 - p.x0 >= p.z1 - p.z0 ? 'x' : 'z', span = along === 'x' ? p.z1 - p.z0 : p.x1 - p.x0, n = Math.max(1, Math.round(span / w));
+      for (let k = 0; k < n; k++) {
+        const s0 = (span / n) * k, s1 = (span / n) * (k + 1);
+        if (along === 'x') quad(p.x0, p.z0 + s0, p.x1, p.z0 + s1, y, band, 'x', per); else quad(p.x0 + s0, p.z0, p.x0 + s1, p.z1, y, band, 'z', per);
+      }
+    };
+    ringStreets = RG.streets(ox, oz, X1, Z1);
+    for (const s of ringStreets) {
+      quad(s.x0, s.z0, s.x1, s.z1, s.axis === 'z' ? 0.036 : 0.032, 'street', s.axis, 21); rs.streets++;
+      // Seams: a street that runs on over an edge (not one that starts there) is named on it.
+      if (s.axis === 'z') { if (s.open0) crossings.n.push(`ring:z${s.line}`); if (s.open1) crossings.s.push(`ring:z${s.line}`); }
+      else { if (s.open0) crossings.w.push(`ring:x${s.line}`); if (s.open1) crossings.e.push(`ring:x${s.line}`); }
+    }
+    RG.blocksOver(ox - 4, oz - 4, X1 + 4, Z1 + 4, (b) => {
+      for (const p of RG.pads(b)) {
+        if (p.band === 'walk') quad(p.x0, p.z0, p.x1, p.z1, 0.026, 'walk', p.x1 - p.x0 >= p.z1 - p.z0 ? 'x' : 'z', 6);
+        else if (p.band === 'yard') pad(p, 0.022, 'yard', 12, 6);
+        else pad(p, 0.024, 'lot', 10.8, 5.5);
+      }
+    });
+    pause(); yield; resume();
+    // Buildings: this chunk's own (drawn here) and its neighbours' that reach into it (collision only).
+    const { mine, near } = RG.around(cx, cz, 4);
+    const I = (pool, e, k = 1) => { const c = col(e[6]), s = (e[8] ?? 1) * k; return INST[pool].push(e[0], e[1], e[2], e[7] ?? 0, e[3], e[4], e[5], Math.min(1, c[0] * s), Math.min(1, c[1] * s), Math.min(1, c[2] * s)); };
+    let nb = 0;
+    for (const list of [mine, near]) for (const L of list) {
+      const geo = RG.geo(L), own2 = list === mine;
+      for (const q of geo.boxes) {
+        const b = addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h);
+        if (b && q.holes) { b.holes = q.holes; b.holeX = q.holeX; b.sill = RING.sill; }
+      }
+      if (L.lot.x1 > ox && L.lot.x0 < X1 && L.lot.z1 > oz && L.lot.z0 < Z1 || own2) rs.bld.push({ id: L.id, x0: L.x0, z0: L.z0, x1: L.x1, z1: L.z1, owner: L.owner, kind: L.kind, zone: L.zone, ruined: !!L.ruined, roof: !L.ruined });
+      if (!own2) { rs.near++; continue; }
+      rs.owned++;
+      for (const e of geo.walls) I('walls', e);
+      I('floors', geo.floor);
+      const r0 = INST.roofs.n;
+      for (const e of geo.roof) I('roofs', e);
+      if (INST.roofs.n > r0) rs.roofs[L.id] = [r0, INST.roofs.n - r0];
+      for (const e of geo.canopy) I('roofs', e);
+      for (const e of geo.props) I('props', e);
+      for (const e of geo.decor) { if (rs.decor >= RING.budget.decor) break; I('props', e); rs.decor++; }
+      for (const q of geo.boxesIn) rs.boxes.push(q);
+      for (const q of geo.beds) rs.beds.push(q);
+      if (++nb % 6 === 0) { pause(); yield; resume(); }
+    }
+    // Cars left at the kerb (whole inside this chunk), and the Iron Line running on through the yards.
+    for (const w of RG.wrecks(cx, cz)) wreck(w.x, w.z, w.rot, w.color);
+    for (const [s0, s1] of RG.railIn(cx, cz) ?? []) {
+      const x = RING.rail.x, len = s1 - s0, zc = (s0 + s1) / 2;
+      INST.props.push(x, 0.08, zc, 0, 3.6, 0.16, len, 0.36, 0.32, 0.28);                    // ballast
+      for (const g2 of [-0.8, 0.8]) INST.props.push(x + g2, 0.24, zc, 0, 0.12, 0.14, len, 0.42, 0.38, 0.34); // rails, gone to rust
+      for (let z = Math.ceil(s0 / 2.6) * 2.6; z < s1; z += 2.6) INST.props.push(x, 0.15, z, 0, 2.5, 0.1, 0.26, 0.3, 0.24, 0.18);
+      // Boxcars left on a siding, here and there (whole inside the chunk, solid).
+      for (let z = Math.ceil(s0 / 70) * 70; z < s1 - 8; z += 70) {
+        const h = hash32(seed, Math.round(z), 4141);
+        if (h % 100 > 38 || z - 8 < oz || z + 8 > Z1 || Math.abs(z) < 540) continue;
+        const sx = x + (h & 1 ? 5.5 : -5.5), bc = col(['#6a3a22', '#5a4a36', '#704a2a', '#4f5248'][h % 4]);
+        INST.props.push(sx, 2.1, z, 0, 3.0, 3.6, 13.5, bc[0], bc[1], bc[2]);
+        INST.props.push(sx, 3.95, z, 0, 2.8, 0.1, 13.2, bc[0] * 0.8, bc[1] * 0.8, bc[2] * 0.8);
+        addBox(sx - 1.5, z - 6.75, sx + 1.5, z + 6.75, 'boxcar', 3.9);
+      }
+    }
+    pause(); rs.ms = +(work - w0).toFixed(2); yield; resume();
+  }
+
   // ---- desert scatter: shrubs, cacti, boulders, trees by biome and state; a rare shack or camp ---------------------------
   const B = BIOMES[biomeKey] ?? BIOMES.d, ha = (C * C) / 10000;
   const rel = W.reliefAt(centre.x, centre.z);
   const shrubC = col(flora.shrub);
   const pois = (lam) => { let n = 0; const L = Math.exp(-Math.min(lam, 60)); for (let p = rng(); p > L; p *= rng()) n++; return lam > 60 ? Math.round(lam + (rng() - 0.5) * Math.sqrt(lam) * 2) : n; };
   const spot = (r) => { for (let t = 0; t < 4; t++) { const x = ox + rng.range(3, C - 3), z = oz + rng.range(3, C - 3); if (!blocked(x, z, r)) return [x, z]; } return null; };
-  const nShrub = pois(B.shrubs * ha), nCact = pois(B.cacti * ha), nBould = pois(B.boulders * ha * (0.6 + rel * 1.6)), nTree = pois(B.trees * ha);
+  // In the Phoenix ring the desert is mostly paved over: weeds in the yards and the lots, no more.
+  const cityF = W.ring ? W.ring.cityK(centre.x, centre.z) : 0, wild = 1 - 0.75 * cityF;
+  const nShrub = pois(B.shrubs * ha * wild), nCact = pois(B.cacti * ha * wild), nBould = pois(B.boulders * ha * (0.6 + rel * 1.6) * wild), nTree = pois(B.trees * ha * wild);
   for (let k = 0; k < nShrub; k++) {
     const p = spot(0.8); if (!p) continue;
     // Creosote and brittlebush: a low clump of two or three lumps, dusty olive, darker in the hollows.
@@ -631,7 +731,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
   }
   // A shack (5%) and a camp (2%): somebody tried to live out here.
-  if (!isl && rng() < 0.05) {
+  if (!isl && rng() < 0.05 && cityF < 0.2) {
     const p = spot(9);
     if (p) {
       const [x, z] = p, w = rng.range(6, 10), d = rng.range(5, 8), h = rng.range(2.6, 3.4), c = col(rng.pick(['#6e6a62', '#7c756a', '#857c6e', '#7a5a3a']));
@@ -642,7 +742,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       if (rng() < 0.5) wreck(x + w / 2 + 4, z + rng.range(-3, 3), rng.pick([0, Math.PI / 2]), rng.pick(WRECK));
     }
   }
-  if (!isl && rng() < 0.02) {
+  if (!isl && rng() < 0.02 && cityF < 0.2) {
     const p = spot(16);
     if (p) {
       const [x, z] = p, BARREL = col('#5a2e1a');
@@ -704,6 +804,14 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
     g.fillStyle = '#4c6a2c';
     for (const b of F.buildings) g.fillRect((b.x0 - ox) * k, (b.z0 - oz) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k);
+    // The Phoenix ring: its streets, the Iron Line through the yards, every building (a ruin paler, open to the sky).
+    if (out.ring) {
+      g.fillStyle = '#7d9150';
+      for (const s of ringStreets) g.fillRect((s.x0 - ox) * k, (s.z0 - oz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k);
+      g.fillStyle = '#6a5a40';
+      for (const [s0, s1] of RG.railIn(cx, cz) ?? []) g.fillRect((RING.rail.x - 1.5 - ox) * k, (s0 - oz) * k, 3 * k, (s1 - s0) * k);
+      for (const b of out.ring.bld) { g.fillStyle = b.ruined ? '#58703a' : '#38521f'; g.fillRect((b.x0 - ox) * k, (b.z0 - oz) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k); }
+    }
     if (isl) g.clearRect(Math.max(0, (-ISLAND - ox) * k), Math.max(0, (-ISLAND - oz) * k), Math.max(0, (Math.min(X1, ISLAND) - Math.max(ox, -ISLAND)) * k), Math.max(0, (Math.min(Z1, ISLAND) - Math.max(oz, -ISLAND)) * k));
   }
 
@@ -714,7 +822,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   for (const k of POOL_NAMES) { if (INST[k].n) out.inst[k] = INST[k].take(); out.counts[k] = INST[k].n; n += INST[k].n; if (INST[k].n >= INST[k].cap) out.warnings.push(`instance cap ${k}`); }
   for (const k of Object.keys(SURF)) if (SURF[k].over) out.warnings.push(`surface cap ${k}`);
   out.instances = n;
-  out.buildings = F.buildings.filter((b) => own(b.cx, b.cz)).length;
+  out.buildings = F.buildings.filter((b) => own(b.cx, b.cz)).length + (out.ring?.owned ?? 0);
   out.tiles = tiles; out.mm = mm;
   // Content bounds (what the hot ring measures distance to): owned instances and surfaces, never the island interior.
   let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;

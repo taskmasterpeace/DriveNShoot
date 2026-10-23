@@ -82,7 +82,7 @@ export class AI {
     let best = null, bd = R;
     for (const b of this.g.world.spawns.beds ?? NO_BEDS) {
       if (b.night === n && b.by && b.by !== c.id) continue; // somebody's tonight
-      if (b.upstairs) continue; // a mattress upstairs is a traveller's (world/storeys.js): the town walks to beds it can reach on its floor
+      if (b.upstairs || b.ring) continue; // a mattress upstairs is a traveller's (world/storeys.js), and the Phoenix ring's are out past the walls (world/ring.js)
       const d = Math.hypot(b.x - c.home.x, b.z - c.home.z);
       if (d < bd) { bd = d; best = b; }
     }

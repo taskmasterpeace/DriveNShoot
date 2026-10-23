@@ -23,8 +23,8 @@ export const ISLAND = 464;
 export const roadLines = [];
 for (let c = -GRID; c <= GRID; c += SPACING) roadLines.push(c);
 
-const H_NAMES = ['DEAD MAN RD', 'CINDER ST', 'ASH AVE', 'BONE ST', 'ROUTE 66', 'RUST ST', 'GALLOWS RD', 'SALT ST', 'LAST CHANCE RD'];
-const V_NAMES = ['VULTURE AVE', 'CACTUS ST', 'OLD MILL RD', 'HAVEN ST', 'CENTRAL AVE', 'IRON ST', 'MESA DR', 'COYOTE RD', 'END OF THE LINE'];
+export const H_NAMES = ['DEAD MAN RD', 'CINDER ST', 'ASH AVE', 'BONE ST', 'ROUTE 66', 'RUST ST', 'GALLOWS RD', 'SALT ST', 'LAST CHANCE RD'];
+export const V_NAMES = ['VULTURE AVE', 'CACTUS ST', 'OLD MILL RD', 'HAVEN ST', 'CENTRAL AVE', 'IRON ST', 'MESA DR', 'COYOTE RD', 'END OF THE LINE'];
 
 // Past the island the streamer names the place (the interstate and its mile, an exit, a dead town, the open desert)
 // and the state (WorldIndex.nameAt / regionAt). Null until the streamer exists.

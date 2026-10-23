@@ -132,6 +132,9 @@ export const LOOT = {
   military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1], ['ammo_rifle', 4, 15, 60], ['cleaning_kit', 1, 1, 1]] },
   wreck: { rolls: [0, 2], none: 5, rows: [['scrap', 5, 1, 3], ['fuel_can', 1, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 2], ['duct_tape', 1, 1, 1], ['photograph', 1, 1, 1]] },
   desert: { rolls: [1, 1], none: 1, rows: [['cactus_fruit', 6, 1, 3], ['water_bottle', 1, 1, 1], ['jerky', 1, 1, 2]] },
+  // The Phoenix ring's shops (data/ring.js): a corner store's shelves, a fuel stop's counter and back room.
+  storefront: { rolls: [1, 3], none: 4, rows: [['beans_tin', 4, 1, 3], ['peaches_tin', 3, 1, 2], ['water_bottle', 4, 1, 2], ['jerky', 3, 1, 2], ['painkillers', 1, 1, 1], ['duct_tape', 1, 1, 1], ['can_opener', 1, 1, 1], ['road_atlas', 1, 1, 1]] },
+  pumps: { rolls: [1, 3], none: 3, rows: [['fuel_can', 3, 1, 1], ['spare_tyre', 1, 1, 1], ['spark_plugs', 2, 1, 1], ['jerky', 2, 1, 2], ['water_bottle', 2, 1, 1], ['road_atlas', 2, 1, 1], ['duct_tape', 1, 1, 1]] },
   person: { rolls: [0, 2], none: 3, rows: [['water_bottle', 4, 1, 1], ['jerky', 3, 1, 2], ['rag', 3, 1, 2], ['photograph', 3, 1, 1], ['flatbread', 2, 1, 1], ['wristwatch', 1, 1, 1], ['gold_ring', 1, 1, 1], ['painkillers', 1, 1, 1], ['knife', 1, 1, 1]] },
   raider: { rolls: [1, 3], none: 2, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1], ['ammo_smg', 3, 8, 30], ['ammo_pistol', 2, 4, 14], ['ammo_shells', 1, 2, 6]] },
   // A Federal Remnant soldier's pockets and webbing (bases.js): issue kit, nothing personal left.
