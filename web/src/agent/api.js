@@ -19,6 +19,8 @@ import { toWorld } from '../world/geo.js';
 import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
 import { AMBIENT_RESERVE } from '../systems/zombies.js';
+import { KINDS as KINDS_RING } from '../data/ring.js';
+import { ROOMS as ROOMS_FP } from '../data/floorplans.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -304,7 +306,7 @@ function buildCommands(api) {
       },
     },
     ring: {
-      group: 'world', desc: 'The Phoenix ring (docs/design/WEB_STREAMING.md §1.3; rows in data/ring.js): the dead metro round the island out to a lobed edge near 1.5 km, streamed in chunks. No args: the footprint, the whole ring counted (blocks, buildings by zone and kind, ruins, lots left empty, lots over a chunk\'s budget), the densest chunk. x,z (default where you are): what is there - inside the city or not, the street or district name, the block and its zone, the building at that spot (id, kind, zone, ruined, its doors, rooms, containers with their loot tables and whether they have been opened, beds) and its chunk (buildings it owns, containers, layout ms). Walk into one (moveTo) and its roof hides; its crates and shelves open on the PACK screen (pack on=true).',
+      group: 'world', desc: 'The Phoenix ring (docs/design/WEB_STREAMING.md §1.3; rows in data/ring.js): the dead metro round the island out to a lobed edge near 1.5 km, streamed in chunks. No args: the footprint, the whole ring counted (blocks, buildings by zone and kind, ruins, lots left empty, lots over a chunk\'s budget), the densest chunk. x,z (default where you are): what is there - inside the city or not, the street or district name, the block and its zone, the building at that spot (id, kind, zone, ruined, its doors, its floor plan and rooms with their types and sizes - living room, kitchen, bedrooms, bathroom, hall; a shop floor, stock room, restroom, office - docs/design/WEB_FLOORPLANS.md, containers with their loot tables and whether they have been opened, beds) and its chunk (buildings it owns, containers, layout ms). Walk into one (moveTo) and its roof hides; its crates and shelves open on the PACK screen (pack on=true).',
       args: { x: { type: 'number' }, z: { type: 'number' } },
       run: async ({ x, z }) => {
         const RG = g.streamer.W.ring, px = x ?? P().x, pz = z ?? P().z;
@@ -319,7 +321,7 @@ function buildCommands(api) {
           here: { x: r1(px), z: r1(pz), inCity: RG.inCity(px, pz), depth: r1(RG.depth(px, pz)), name: locationName(px, pz), block: b.city ? { k: b.k, j: b.j, zone: b.zone, district: b.Z.name, lots: b.lots.length } : null,
             building: L ? { id: L.id, kind: L.kind, zone: L.zone, ruined: !!L.ruined, x0: r1(L.x0), z0: r1(L.z0), x1: r1(L.x1), z1: r1(L.z1), front: L.front, height: r1(L.h ?? 0), owner: L.owner,
               doors: geo.doors.map((d) => ({ x: r1(d.x), z: r1(d.z), faces: d.nx ? (d.nx > 0 ? 'E' : 'W') : (d.nz > 0 ? 'S' : 'N'), width: d.w, kind: d.kind, barricaded: d.barricade || undefined })),
-              rooms: geo.rooms.length, containers: geo.boxesIn.map((q) => ({ id: q.id, label: q.label, table: q.table, x: r1(q.x), z: r1(q.z), registered: inv.boxes.has(q.id), opened: !!inv.boxes.get(q.id)?.rolled || !!inv.ringKept?.has(q.id) })), beds: geo.beds.length } : null,
+              plan: geo.plan ?? undefined, rooms: geo.rooms.map((r) => `${r.type ?? (r.office ? 'office' : r.frontRoom ? 'front room' : 'back room')} ${r1(r.x1 - r.x0)} x ${r1(r.z1 - r.z0)} m`), containers: geo.boxesIn.map((q) => ({ id: q.id, label: q.label, table: q.table, x: r1(q.x), z: r1(q.z), registered: inv.boxes.has(q.id), opened: !!inv.boxes.get(q.id)?.rolled || !!inv.ringKept?.has(q.id) })), beds: geo.beds.length } : null,
             chunk: { key: ch.key, tier: ch.tier, ring: ch.ring ?? null, buildMs: ch.buildMs } },
           containersRegistered: [...inv.boxes.values()].filter((q) => q.ring).length, containersKept: inv.ringKept?.size ?? 0,
           household: L && RG.household(L) ? (({ members, ...h }) => ({ ...h, people: members.map((m) => `${m.name}${m.dead ? ' (dead)' : ''}`) }))(g.residents.view(g.residents.rec(L))) : null,
@@ -3618,6 +3620,100 @@ async function runSelfTest(api, only = null) {
     const a = await C('chunk', { x, z, build: true }), fs = (await C('chunk', { x, z, fresh: true, mode: 'sync' })).fresh, fl = (await C('chunk', { x, z, fresh: true, mode: 'sliced' })).fresh;
     const ok = sv.buildings > 2000 && zones.length === 4 && lobed && lattice && !inIsl && fs.matches && fl.matches && a.ring?.buildings > 20;
     return ok ? true : JSON.stringify({ buildings: sv.buildings, zones, edge: e.map(Math.round), lattice, inIsl, sync: fs.matches, sliced: fl.matches, ring: a.ring });
+  });
+  // ---- floor plans (docs/design/WEB_FLOORPLANS.md; world/floorplan.js, rows in data/floorplans.js) ------------------------
+  // A sample of ring chunks: the densest, and the busiest of the strip and the yards (malls, diners, fuel stops, workshops).
+  const fpChunks = (() => {
+    const n = Math.ceil(RG.reach / 256) + 1, best = {};
+    for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) {
+      const o = RG.owned(cx, cz), kinds = new Set(o.map((L) => L.kind));
+      const score = { strip: (kinds.has('mall') ? 2 : 0) + (kinds.has('diner') ? 1 : 0) + (kinds.has('gas') ? 1 : 0), yards: o.filter((L) => L.kind === 'shop').length };
+      for (const k of Object.keys(score)) if (score[k] > 0 && (!best[k] || score[k] > best[k].s || (score[k] === best[k].s && o.length > best[k].n))) best[k] = { cx, cz, s: score[k], n: o.length };
+    }
+    return [[dense.cx, dense.cz], ...Object.values(best).map((b) => [b.cx, b.cz])];
+  })();
+  const planned = (L) => !!KINDS_RING[L.kind]?.plan;
+  await check('floor plans: every room of every planned building in a sample of ring chunks (the densest, the strip\'s, the yards\') is reached on foot from the street in front of its front door - A* on the nav grid, through the doorways - and every bed has an open cell beside it', async () => {
+    await streamHome();
+    const bad = [], beds = [];
+    let rooms = 0, bldg = 0, nbeds = 0;
+    for (const [cx, cz] of fpChunks) {
+      await C('teleport', { x: (cx + 0.5) * 256, z: (cz + 0.5) * 256 }); await C('step', { seconds: 0.3 });
+      const n = g.nav.foot;
+      for (const L of RG.owned(cx, cz)) {
+        if (!planned(L)) continue;
+        bldg++;
+        const s = streetFront(L), geo = RG.geo(L);
+        for (const r of geo.rooms) {
+          // The room's first open cell (scanned on the 1 m lattice): the room has floor someone can stand on.
+          let at = null;
+          for (let z = Math.ceil(r.z0 - 0.5) + 0.5; z < r.z1 && !at; z += 1) for (let x = Math.ceil(r.x0 - 0.5) + 0.5; x < r.x1 && !at; x += 1) if (n.ensureCovers(s.x, s.z, x, z) && n.free(x, z)) at = [x, z];
+          rooms++;
+          if (!at) { bad.push(`${L.id} ${r.type}: no floor`); continue; }
+          if (!n.find(s.x, s.z, at[0], at[1])) bad.push(`${L.id} ${L.kind} ${r.type} (${at[0]},${at[1]})`);
+        }
+        for (const b of geo.beds) {
+          nbeds++;
+          let ok = false;
+          for (let z = Math.floor(b.z - 1.1) + 0.5; z <= b.z + 1.1 && !ok; z += 1) for (let x = Math.floor(b.x - 1.1) + 0.5; x <= b.x + 1.1 && !ok; x += 1) if (Math.hypot(x - b.x, z - b.z) <= 1.1 && n.free(x, z) && n.find(s.x, s.z, x, z)) ok = true;
+          if (!ok) beds.push(`${L.id} bed (${b.x.toFixed(1)},${b.z.toFixed(1)})`);
+        }
+      }
+    }
+    await streamHome();
+    return bldg >= 40 && rooms > bldg * 3 && nbeds > 30 && !bad.length && !beds.length ? true : JSON.stringify({ chunks: fpChunks, buildings: bldg, rooms, beds: nbeds, sealed: bad.slice(0, 8), more: bad.length, bedsCut: beds.slice(0, 6) });
+  });
+  await check('floor plans: every house, bungalow and duplex unit in the ring has a living room holding its front door, a kitchen, a bathroom and a bedroom with a bed in it (a strip shop or diner its sales floor or dining room, a restroom and a back room); every room at least its row\'s minimum', async () => {
+    const sv = RG.survey(), n = Math.ceil(RG.reach / 256) + 1, bad = [], count = {};
+    let units = 0;
+    for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) for (const L of RG.owned(cx, cz)) {
+      if (!planned(L)) continue;
+      const geo = RG.geo(L), us = new Set(geo.rooms.map((r) => r.ui));
+      for (const u of us) {
+        units++;
+        const rs = geo.rooms.filter((r) => r.ui === u), has = (t) => rs.filter((r) => r.type === t);
+        const entry = rs.find((r) => r.frontRoom);
+        const fd = geo.doors.find((d) => (d.kind === 'front' || d.kind === 'bay') && entry && d.x >= entry.x0 - 0.5 && d.x <= entry.x1 + 0.5 && d.z >= entry.z0 - 0.5 && d.z <= entry.z1 + 0.5);
+        if (!entry || !fd) bad.push(`${L.id}#${u} front door not in its entry room`);
+        for (const r of rs) { const R = ROOMS_FP[r.type], mn = Math.min(r.x1 - r.x0, r.z1 - r.z0), need = R.fix ? R.fix : Math.min(R.min, R.max ?? R.min); if (mn < need - 0.05) bad.push(`${L.id} ${r.type} ${mn.toFixed(2)} < ${need}`); }
+        if (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex') {
+          const bedIn = (r) => geo.beds.some((b) => b.x > r.x0 && b.x < r.x1 && b.z > r.z0 && b.z < r.z1 && !b.mattress);
+          if (entry?.type !== 'living' || !has('kitchen').length || !has('bath').length || !has('bedroom').some(bedIn)) bad.push(`${L.id}#${u} ${rs.map((r) => r.type).join('/')}`);
+          const k = `${L.kind} ${has('bedroom').length}bed`; count[k] = (count[k] ?? 0) + 1;
+        } else if (L.kind !== 'shop' && (!has('restroom').length || !rs.some((r) => r.type === 'stock' || r.type === 'dkitchen' || r.type === 'office'))) bad.push(`${L.id}#${u} ${rs.map((r) => r.type).join('/')}`);
+      }
+    }
+    return units > 1500 && !bad.length ? true : JSON.stringify({ buildings: sv.buildings, units, bad: bad.slice(0, 10), more: bad.length, count });
+  });
+  await check('floor plans: no furniture stands in a doorway\'s clearance (an outside door\'s or an inside doorway\'s, both sides) in any planned ring building', async () => {
+    const n = Math.ceil(RG.reach / 256) + 1, bad = [], T = 0.4;
+    let pieces = 0, gaps = 0;
+    for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) for (const L of RG.owned(cx, cz)) {
+      if (!planned(L)) continue;
+      const geo = RG.geo(L), zones = [];
+      for (const d of geo.doors) { const hw = d.w / 2 + 0.1, dep = 1.0; zones.push(d.nz ? [d.x - hw, d.z - dep, d.x + hw, d.z + dep] : [d.x - dep, d.z - hw, d.x + dep, d.z + hw]); }
+      for (const P of geo.inner) for (const gp of P.gaps) { gaps++; const hw = gp.w / 2 + 0.1, dep = T / 2 + 0.9; zones.push(P.horizontal ? [gp.at - hw, P.fixed - dep, gp.at + hw, P.fixed + dep] : [P.fixed - dep, gp.at - hw, P.fixed + dep, gp.at + hw]); }
+      for (const b of geo.boxes) {
+        if (b.tag !== 'furniture' && b.tag !== 'shelf' && b.tag !== 'crate' && b.tag !== 'wreck') continue;
+        pieces++;
+        if (zones.some((z) => b.x0 < z[2] && b.x1 > z[0] && b.z0 < z[3] && b.z1 > z[1])) bad.push(`${L.id} ${b.tag} (${((b.x0 + b.x1) / 2).toFixed(1)},${((b.z0 + b.z1) / 2).toFixed(1)})`);
+      }
+    }
+    return pieces > 10000 && gaps > 5000 && !bad.length ? true : JSON.stringify({ pieces, gaps, bad: bad.slice(0, 8), more: bad.length });
+  });
+  await check('floor plans: deterministic - the same lot gives the same plan (rooms, partitions, doors, furniture, beds, containers) from a fresh ring, every time', async () => {
+    const R2 = new RG.constructor(WI, RG.names), sample = [];
+    for (const [cx, cz] of fpChunks) for (const L of RG.owned(cx, cz)) if (planned(L)) sample.push(L.id);
+    const key = (geo) => JSON.stringify([geo.rooms, geo.inner, geo.doors, geo.props, geo.boxes, geo.beds, geo.boxesIn]);
+    const find = (R, id) => { const [k, j] = id.slice(1).split('.').map(Number); return R.block(k, j).lots.find((q) => q.id === id); };
+    const diff = [];
+    for (const id of sample) {
+      const A = find(RG, id), B = find(R2, id);
+      R2.owned(Math.floor(B.cx / 256), Math.floor(B.cz / 256));
+      const a = key(RG.geo(A)); B.geo = undefined; const b = key(R2.geo(B)); B.geo = undefined; const c = key(R2.geo(B));
+      if (a !== b || b !== c) diff.push(id);
+    }
+    return sample.length > 40 && !diff.length ? true : JSON.stringify({ sample: sample.length, differ: diff.slice(0, 8) });
   });
   // ---- the Phoenix ring, R2 (WEB_STREAMING §1.3 "R2 as built"): the people who live in it (systems/residents.js) ----
   // What these checks set off in the world's memory (a theft and a killing the family saw) is taken back after them, so
