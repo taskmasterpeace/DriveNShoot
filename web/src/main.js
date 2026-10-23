@@ -795,7 +795,7 @@ class Game {
       return;
     }
     // Water: wade slow, swim slower (no shooting), Ctrl dives under on a breath meter.
-    const wet = this.water.stateAt(p.x, p.z);
+    const wet = this.water.stateAt(p.x, p.z, p.gy); // gy: up on a river's bridge deck you are dry (world/rivers.js)
     p.swim = wet === 'swim';
     p.breath = p.breath ?? 1;
     p.underwater = p.swim && p.crouch;
@@ -804,7 +804,7 @@ class Game {
       if (p.breath <= 0) this.combat.damage(p, 9 * dt, null, 0, 0, 'drown');
     } else p.breath = Math.min(1, p.breath + dt / 4);
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
-    if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
+    if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
     const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {

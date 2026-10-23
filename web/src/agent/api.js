@@ -29,6 +29,8 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { waterCommands } from './water-api.js';
+import { waterChecks } from './water-selftest.js';
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
@@ -1941,6 +1943,9 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
+    // row above, same answers there), rivers, bridges.
+    ...waterCommands(api, need),
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
     ...cloneCommands(api, need),
@@ -4576,6 +4581,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await streamHome();
     return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
   });
+  await waterChecks(api, check, C); // L1 water and its L2 crossings, out on the corridor (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   // ---- the Phoenix ring, R1 (docs/design/WEB_STREAMING.md §1.3): the city itself, enterable and worth searching ----
   const RG = WI.ring;
   // The densest chunk of the ring (most buildings of its own), and one of its intact houses with a door to the street.
