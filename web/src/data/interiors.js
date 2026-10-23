@@ -63,7 +63,7 @@ export const WINDOW_LOOK = {
 // (`windows`, `doors`) so nothing allocates a mesh at runtime. What happened to them is kept by id (a shattered window
 // stays shattered when you come back, and in the save). Past `far` a ring opening is the gap it always was.
 //   innerOpen: the share of a ring building's inside doors left standing open (nobody shuts doors in a dead city)
-export const RING_OPENINGS = { near: 110, far: 150, every: 0.5, buildPerScan: 6, windows: 480, doors: 220, innerOpen: 0.6, ajar: 0.35, metal: 0.2 };
+export const RING_OPENINGS = { near: 110, far: 150, every: 0.5, buildPerScan: 6, wide: 1.75, windows: 480, doors: 220, innerOpen: 0.6, ajar: 0.35, metal: 0.2 };
 
 // Opening states at boot, per district: [intact, shattered, boarded] weights.
 export const WINDOW_MIX = {

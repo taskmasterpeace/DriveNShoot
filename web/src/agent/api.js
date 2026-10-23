@@ -2316,8 +2316,10 @@ async function runSelfTest(api, only = null) {
     await stageAt(ringWin, 6);
     const t = extra('drifter', ringWin.x - ringWin.nx * 3, ringWin.z - ringWin.nz * 3, { hold: true });
     await C('give', { pistol: 30 }); await C('equip', { weapon: 'pistol' });
-    for (let k = 0; k < 4 && ringWin.state === 'intact'; k++) await C('fire', { id: t.id, shots: 1 });
-    const shattered = ringWin.state === 'shattered';
+    const hp0 = t.hp, at0 = [r1(g.player.x), r1(g.player.z)], shots = [];
+    // At the pane itself (a shot at a person checks the line of sight first, and the house beyond can block it).
+    for (let k = 0; k < 4 && ringWin.state === 'intact'; k++) shots.push((await C('fire', { x: ringWin.x - ringWin.nx * 1.5, z: ringWin.z - ringWin.nz * 1.5, shots: 1 }))?.fired ?? null);
+    const shattered = ringWin.state === 'shattered', why = { hp: [hp0, t.hp], pane: Math.round(ringWin.hp), at: at0, win: [r1(ringWin.x), r1(ringWin.z)], shots, weapon: g.player.weapon };
     g.removeChar(t);
     // Out of range (it detaches, its state kept), then back (it attaches again as it was).
     await C('teleport', { x: 40, z: -600 + RING_OPENINGS.far + 260 }); await api._step(60);
@@ -2334,7 +2336,7 @@ async function runSelfTest(api, only = null) {
       through = outSide(d, g.player.x, g.player.z) < -1.2;
     }
     return shattered && detached && kept && d && widest > 0.6 && through ? true
-      : JSON.stringify({ id, shattered, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
+      : JSON.stringify({ id, shattered, why, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
   });
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,

@@ -871,7 +871,10 @@ export class Interiors {
     const g = this.g, st = g.statics, rec = { id, x0: lot.x0, z0: lot.z0, x1: lot.x1, z1: lot.z1, doors: [], windows: [], boxes: [] };
     const reg = (op, x0, z0, x1, z1, h) => { const b = st.addRingOp(op, x0, z0, x1, z1, h); rec.boxes.push(b); return b; };
     const h01 = (x, z, k) => frac(Math.sin(x * (12.9898 + k) + z * (78.233 - k)) * 43758.5453);
-    const ruined = !!lot.ruined;
+    const ruined = !!lot.ruined, RG = this.g.streamer.W.ring;
+    // A house somebody lives in (systems/residents.js) keeps its doors standing open against the wall: its people come
+    // and go all day (you can still shut them). The empty ones are as the dead city left them: shut, or ajar.
+    const lived = !!RG.household?.(lot);
     // Doors: the front and back doors in the outer walls (a bay's roll-up and a barricaded door stay as they are), and
     // the inside doorways between rooms.
     const rows = [];
@@ -885,12 +888,13 @@ export class Interiors {
     for (const r of rows) {
       if (this.freeLeaf.length < r.leaves) break; // the pool is full: these stay gaps
       if (ruined && h01(r.x, r.z, 1) < 0.4) continue; // a ruin lost some of its doors
+      if (lived && r.inner) continue; // a family's own rooms open into each other: no leaf to wedge against on the way to bed
       r.hinge = h01(r.x, r.z, 2) < 0.5 ? -1 : 1;
       r.material = h01(r.x, r.z, 3) < RO.metal && !r.inner ? 'metal' : 'wood';
       r.color = DOOR_MATERIALS[r.material].colors[Math.floor(h01(r.x, r.z, 4) * DOOR_MATERIALS[r.material].colors.length)];
       r.locked = false; r.b = -1;
       const swing = (h01(r.x, r.z, 5) < 0.5 ? 1 : -1) * (1.1 + 0.6 * h01(r.x, r.z, 6));
-      r.open = r.inner ? (h01(r.x, r.z, 7) < RO.innerOpen ? swing : 0) : (h01(r.x, r.z, 8) < (ruined ? 0.5 : RO.ajar) ? swing * 0.7 : 0);
+      r.open = lived ? Math.sign(swing) * RO.wide : r.inner ? (h01(r.x, r.z, 7) < RO.innerOpen ? swing : 0) : (h01(r.x, r.z, 8) < (ruined ? 0.5 : RO.ajar) ? swing * 0.7 : 0);
       const door = this.makeDoor(r, reg, () => this.freeLeaf.pop());
       door.ring = id;
       for (const L of door.leaves) this.leafMesh.setColorAt(L.slot, _c.set(door.color));
