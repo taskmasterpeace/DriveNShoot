@@ -5,10 +5,9 @@ description: Use for any design, build, review or content decision on DIVIDED ST
 
 # EM3: Deathlands-true, GTA2-tight, nothing borrowed
 
-**Status: v1 (2026-10-23): settled calls filled from Robert's answers.** Drafted the night Robert asked for it. To install it, copy this folder to
-`~/.claude/skills/em3/`. Finalize it from his answers in the EM3 Briefing artifact
-(https://claude.ai/artifact/LWi2uQbNt7n1KeYAw8je8A: read the `answers` collection with ArtifactData) and fold every
-decision into "Settled calls" below.
+**Status: v2 (2026-10-23 stopping point).** Settled calls from Robert's EM3 Briefing
+(https://claude.ai/artifact/LWi2uQbNt7n1KeYAw8je8A, `answers` collection). Companion skills: `dsoa-content` (where
+things live), `dsoa-lane` (briefing agents), `dsoa-land` (merging and the battery), `dsoa-look` (the critic).
 
 ## What DSOA is
 
@@ -39,7 +38,9 @@ The game should feel like the books to someone who loves them, and read as our o
 ## The lore base (keep it current)
 
 - `docs/design/WEB_ATLAS.md` + `web/src/data/atlas.js`: every real-world location the series used, reimagined as our sites; the whole cast as archetypes; the series' fights as buildable SITUATIONS; one military installation per state at real scale.
-- `docs/design/THE_INFECTED.md` + `web/src/data/infected.js`: our infected: the Shambler, the Sprinter, the Echo, the Choir. Robert mentioned "Greyborn" and three types; the briefing answer decides how they fit.
+- `docs/design/THE_INFECTED.md` + `web/src/data/infected.js`: the herd (Shambler, Sprinter, Echo, Choir-Touched);
+  `docs/design/WEB_GREYBORN_GRAPEVINE.md`: the ones who kept something (the Greyborn, the Grapevine).
+- `docs/design/WEB_WORLD_EDITOR_PLAN.md`: the layer stack, THE WORLD FORGE, the content ladder and what is built.
 - `docs/design/WEB_WORLD_MEMORY.md`: deeds, witnesses, rumours, factions that remember.
 - `docs/design/WEB_LOOK.md`: how a burnt and rebuilt Phoenix looks from above.
 
@@ -108,7 +109,8 @@ The game should feel like the books to someone who loves them, and read as our o
 - **The infected are three kinds of our own:**
   - **the Greyborn:** traps and societies;
   - **the Grapevine:** watch and learn, eat bodies, strike only when they can win, know only what they saw;
-  - plus "Wardens are zombies too": unresolved, ask him.
+  - **the Wardens stay human** (Robert, 2026-10-23: "no, I misspoke"): Rust Haven's guard.
+  - Built: both kinds, traps and hot ground (`docs/design/WEB_GREYBORN_GRAPEVINE.md`).
 - **The land:** mountains, valleys, underground, water, thick forests, radiation zones with strange creatures, dark underground facilities.
 - **Building:** house deeds plus claim and fortify plus free-build, customised in our creator (resize rooms, move stairs). Later, build from iPhone photos.
 - **Cars and shelter:**
