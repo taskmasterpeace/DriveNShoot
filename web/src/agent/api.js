@@ -1825,6 +1825,9 @@ async function runSelfTest(api, only = null) {
   await check('moveTo id reaches a vehicle and an NPC promptly', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
     await C('teleport', { x: -16, z: -16 });
+    // Staging: the sheriff may be down from the north gate's opening gunfight (see stage()); a walk to her is the test, not the fight.
+    for (const c of g.chars) if (c.npc && !c.alive && c.downedT > 0) c.downedT = 0.01;
+    await C('step', { seconds: 0.2 });
     const a = await C('moveTo', { id: 'okonkwo', run: true });
     const rig = g.vehicles.find((v) => v.type === 'rig' && !v.dead && !v.driver);
     const b = rig ? await C('moveTo', { id: rig.id, run: true }) : { arrived: true, secondsUsed: 0 };
@@ -2322,6 +2325,10 @@ async function runSelfTest(api, only = null) {
     g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
     for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
     await C('equip', { weapon: 'pistol' });
+    // Staging: a named person a stray fight downed before the battery got here (the north gate trades shots with
+    // Dustwolves in the first seconds of a game, and the sheriff stands at it) gets up on the real path (ai.js), so a
+    // check that talks to them is not failed by a gunfight it did not start (the deputy check failed 3 in 10 that way).
+    for (const c of g.chars) if (c.npc && !c.alive && c.downedT > 0) c.downedT = 0.01;
     await C('step', { seconds: 0.2 });
   };
   const person = (kind, dx, dz, extra = {}) => {
