@@ -24,6 +24,7 @@ import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { Roles } from './systems/roles.js';
+import { Witnesses } from './systems/witnesses.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
@@ -117,6 +118,7 @@ class Game {
     this.ai = new AI(this);
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
+    this.witnesses = new Witnesses(this); // the one who saw it runs home to tell it (catch them on the way)
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
@@ -820,12 +822,15 @@ class Game {
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? op ?? (box || bed ? this.boxRing : null));
-    if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
+    const runner = best?.runner && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
+    if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
+    else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
     else if (!op) this.hud.prompt(null);
-    if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
+    if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
+    else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
@@ -1063,6 +1068,7 @@ class Game {
     if (simDt) {
       this.ai.update(simDt); this.nanGuard('ai');
       this.bases.update(simDt); // sentries watch the wire, searchlights sweep
+      this.witnesses.update(simDt);
       this.society.update(simDt);
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);

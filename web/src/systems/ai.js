@@ -233,6 +233,8 @@ export class AI {
       // Bleeding out leaves a trail.
       if (c.bleed > 0.2 && Math.random() < dt * 4 * c.bleed) g.fx.decal(c.x, c.z, 0.25 + Math.random() * 0.3, '#5a0606');
 
+      // A witness running home to tell it (systems/witnesses.js): runs at any distance, deaf to the rest.
+      if (c.runner && g.witnesses.think(c, dt)) continue;
       const pd = Math.hypot(g.player.x - c.x, g.player.z - c.z);
       // Far-away NPCs sleep (simulation LOD).
       if (pd > 150 && !c.target) continue;

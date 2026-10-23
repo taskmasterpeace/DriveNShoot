@@ -540,6 +540,18 @@ export class HUD {
       else if (ch.faction === 'raider') this.blip(ch.x - px, ch.z - pz, scale, '#ff4a3a', 2.6);
       else if (ch.faction === 'warden') this.blip(ch.x - px, ch.z - pz, scale, '#9fd86a', 2.4);
     }
+    // A witness running home to tell it: a pulsing red ring, held at the rim when they're off the map (systems/witnesses.js).
+    const run = this.g.witnesses?.runners;
+    if (run?.length) {
+      const pulse = 4.5 + 2 * Math.sin(this.g.time * 9), m = R - 12;
+      c.strokeStyle = '#ff4a3a'; c.lineWidth = 2.2;
+      for (const ch of run) {
+        if (!ch.runner || !ch.alive) continue;
+        const bx = (ch.x - px) * scale, bz = (ch.z - pz) * scale, d = Math.hypot(bx, bz), k = d > m ? m / d : 1;
+        c.beginPath(); c.arc(R + bx * k, R + bz * k, pulse, 0, 6.3); c.stroke();
+        c.fillStyle = '#ff4a3a'; c.beginPath(); c.arc(R + bx * k, R + bz * k, 2.2, 0, 6.3); c.fill();
+      }
+    }
     for (const v of this.g.vehicles) if (!v.dead && v !== this.g.player.inVehicle) this.blip(v.x - px, v.z - pz, scale, v.driver?.faction === 'raider' ? '#ff4a3a' : '#e8e2d4', 2.8);
     c.fillStyle = '#ff4a3a'; c.font = 'bold 12px "Barlow Condensed"'; c.textAlign = 'center';
     for (const camp of this.g.world.spawns.camps) {

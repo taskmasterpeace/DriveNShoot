@@ -102,10 +102,26 @@ export class Deeds {
       live: true, echo: false, seq: rec.seq, due: this.g.time + (lo + Math.random() * (hi - lo)) * Math.max(0.5, Math.min(2, far / 200)),
       witness: c, wid: c.id, fid: c.fid, verb: rec.v, of: rec.of, o: rec.o, on: rec.on, p: rec.p, x: rec.x, z: rec.z, m: rec.m,
       onpc: target?.npc?.id ?? '', downed: (target?.downedT ?? 0) > 0,
-      learn: c === target ? 1 : row.cohesion ?? 0.5, sd: !!sd, stars: stars ?? 0,
+      learn: c === target ? 1 : row.cohesion ?? 0.5, sd: !!sd, stars: stars ?? 0, runner: null,
     });
     this.pending++;
+    // A witness who runs home carries their people's word (systems/witnesses.js); the others of the same people who saw
+    // it leave the telling to them, so it reaches home when the runner does - or late, if the runner is stopped.
+    const W = this.g.witnesses;
+    if (W) {
+      const run = this.rumors.find((o) => o !== slot && o.live && o.runner && o.seq === rec.seq && o.fid === slot.fid);
+      if (run) slot.due = Math.max(slot.due, run.due);
+      else if (W.consider(slot, c, rec)) for (const o of this.rumors) if (o !== slot && o.live && o.seq === rec.seq && o.fid === slot.fid) o.due = Math.max(o.due, slot.due);
+    }
     if (slot.due < this.nextDue) this.nextDue = slot.due;
+  }
+
+  // A report given up on the way (a witness held at gunpoint, or paid): it never lands, and the deed reads silenced.
+  cancel(r, how) {
+    if (!r.live) return;
+    r.live = false; r.runner = null; this.pending--; this.silenced++;
+    const rec = this.find(r.seq); if (rec) rec.k |= K.silenced;
+    this.g.emit('rumorSilenced', { record: r.seq, witness: r.wid, faction: r.fid, verb: r.verb, how });
   }
 
   update() {
@@ -208,11 +224,12 @@ export class Deeds {
 
   load(list) {
     for (const r of this.rumors) r.live = false;
+    this.g.witnesses?.clear(); // a saved runner tells it the slow way (their report is in the list, due as saved)
     this.pending = 0; this.nextDue = Infinity;
     for (const s of list ?? []) {
       const slot = this.rumors.find((r) => !r.live);
       if (!slot) break;
-      Object.assign(slot, s, { live: true, due: this.g.time + s.dueIn, witness: this.g.chars.find((c) => c.id === s.wid) ?? null });
+      Object.assign(slot, s, { live: true, runner: null, due: this.g.time + s.dueIn, witness: this.g.chars.find((c) => c.id === s.wid) ?? null });
       this.pending++;
       if (slot.due < this.nextDue) this.nextDue = slot.due;
     }
