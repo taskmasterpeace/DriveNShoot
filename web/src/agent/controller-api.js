@@ -345,7 +345,10 @@ export async function controllerChecks(x) {
       await cover(c2, 1.0); await cover(d2, 1.0);
       const again = !!g.gunpoint.standoff;
       mouseAt(p.x + 3, p.z - 12); await frames(1);
-      I.mouseButton(0, true); await frames(1); I.mouseButton(0, false); await frames(4);
+      // The trigger held until the round goes (a one-frame click could land in the gun's cooldown or a stance change).
+      I.mouseButton(0, true);
+      for (let f = 0; f < 30 && g.gunpoint.last?.outcome !== 'fired'; f++) await frames(1);
+      I.mouseButton(0, false); await frames(4);
       const fired = g.gunpoint.last?.outcome === 'fired' && c2.target === p && d2.target === p;
       const ok = both && held && down && again && fired;
       return ok ? true : JSON.stringify({ both, held, down, last: g.gunpoint.last, again, fired, targets: [c2?.target?.id ?? null, d2?.target?.id ?? null] });
@@ -427,7 +430,8 @@ export async function controllerChecks(x) {
       const zid = (await C('spawn', { kind: 'zombie', x: p.x + 1.1, z: p.z, hp: 60 })).ids[0], z = api.findChar(zid);
       z.hold = true; z.zSpeed = 0;
       const mag0 = g.inv.mag[g.inv.current], ammo0 = g.inv.ammo.pistol;
-      for (let k = 0; k < 14 && z.alive; k++) { p.stamina = 1; mouseAt(z.x, z.z); await rmb(0.03); await secs(0.45); }
+      // Each blow's knockback throws it back: stage it within reach again (this proves the rounds, not the reach).
+      for (let k = 0; k < 14 && z.alive; k++) { if (Math.hypot(z.x - p.x, z.z - p.z) > 1.3) { z.x = p.x + 1.1; z.z = p.z; z.vx = z.vz = 0; } p.stamina = 1; mouseAt(z.x, z.z); await rmb(0.03); await secs(0.45); }
       const saved = !z.alive && g.inv.mag[g.inv.current] === mag0 && g.inv.ammo.pistol === ammo0;
       cleanup([z]);
       const ok = struck && kicked && combo && shoved && saved;
