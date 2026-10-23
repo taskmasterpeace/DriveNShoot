@@ -60,8 +60,10 @@ export const STREAM = {
 
 // Pool capacities (§3.5, F8): 12 hot chunks x the measured per-chunk maximum, with headroom. A full pool skips that
 // chunk's instances for that pool and emits poolFull (collision is unaffected).
+// The Phoenix ring (world/ring.js) measured per chunk at most (all 212 of its chunks, laid out cold): 866 walls, 610 props,
+// 90 roofs, 54 floors; x 12 hot chunks, with headroom.
 export const POOLS = {
-  props: 24000, walls: 30000, roofs: 6000, floors: 2400, cacti: 6000, trunks: 3000, boulders: 3600, shrubs: 9000,
+  props: 24000, walls: 12000, roofs: 4000, floors: 1000, cacti: 6000, trunks: 3000, boulders: 3600, shrubs: 9000,
   signs: 256, rails: 9000, barrels: 600, glows: 800,
 };
 

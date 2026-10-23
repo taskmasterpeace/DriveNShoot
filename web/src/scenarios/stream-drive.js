@@ -106,7 +106,7 @@ export default async function (DL, game) {
     game.setZoom?.(4);
     const s0 = W.sIslE + 20, v = await put('interceptor', s0, 1), st0 = stalls(), x0 = v.x, z0 = v.z;
     S.pumpN = 0; S.pumpMax = 0;
-    const costs0 = S.buildCosts.length;
+    const built0 = S.built;
     const a = await S.runFrames(32, () => { const q = S.autopilot(v, 1, 0); game.driveOverride = { throttle: 1, steer: q.steer }; v.vx = Math.sin(v.h) * 46; v.vz = Math.cos(v.h) * 46; });
     clear();
     // Up the arterial: straight north along x = 640 from the freeway's edge.
@@ -114,7 +114,7 @@ export default async function (DL, game) {
     await DL.enterVehicle({ id: r.id, force: true }); await DL.teleport({ x: 640, z: -60 });
     const u = game.player.inVehicle; spawned.push(u);
     const b = await S.runFrames(25, () => { game.driveOverride = { throttle: 1, steer: 0 }; u.h = Math.PI; u.vx = 0; u.vz = -30; }); // held on the line (a probe, like the speed holds above)
-    const st = stalls(), pump = S.pumpStats(), costs = S.buildCosts.slice(costs0).sort((p, q) => p - q);
+    const nb = Math.min(S.built - built0, S.buildCosts.length), st = stalls(), pump = S.pumpStats(), costs = S.buildCosts.slice(S.buildCosts.length - nb).sort((p, q) => p - q);
     out.ring = { freeway: { metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), maxDrawCalls: a.maxDrawCalls, frameMs: a.frameMs }, arterial: { to: [Math.round(u.x), Math.round(u.z)], maxDrawCalls: b.maxDrawCalls, frameMs: b.frameMs },
       pumpMs: pump, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, layouts: costs.length, layoutMs: costs.length ? { p50: costs[Math.floor(costs.length / 2)], p95: costs[Math.floor(costs.length * 0.95)], max: costs[costs.length - 1] } : null,
       pools: Object.fromEntries(Object.entries(S.pools).map(([k, p]) => [k, { used: p.used, high: p.high, cap: p.cap, full: p.full }])),

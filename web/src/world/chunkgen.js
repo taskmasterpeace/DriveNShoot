@@ -615,6 +615,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     pause(); yield; resume();
     // Buildings: this chunk's own (drawn here) and its neighbours' that reach into it (collision only).
     const { mine, near } = RG.around(cx, cz, 4);
+    pause(); yield; resume();
     const I = (pool, e, k = 1) => { const c = col(e[6]), s = (e[8] ?? 1) * k; return INST[pool].push(e[0], e[1], e[2], e[7] ?? 0, e[3], e[4], e[5], Math.min(1, c[0] * s), Math.min(1, c[1] * s), Math.min(1, c[2] * s)); };
     let nb = 0;
     for (const list of [mine, near]) for (const L of list) {
@@ -636,7 +637,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (const e of geo.decor) { if (rs.decor >= RING.budget.decor) break; I('props', e); rs.decor++; }
       for (const q of geo.boxesIn) rs.boxes.push(q);
       for (const q of geo.beds) rs.beds.push(q);
-      if (++nb % 6 === 0) { pause(); yield; resume(); }
+      if (++nb % 3 === 0) { pause(); yield; resume(); }
     }
     // Cars left at the kerb (whole inside this chunk), and the Iron Line running on through the yards.
     for (const w of RG.wrecks(cx, cz)) wreck(w.x, w.z, w.rot, w.color);
