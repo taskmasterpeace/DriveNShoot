@@ -60,7 +60,8 @@ export const VATS = [
   { id: 'rust_haven', town: 'phoenix', name: "DOC REYES'S BRINE ROOM", short: 'RUST HAVEN', at: { x: -53.2, z: -56.6 }, wake: { x: -53.6, z: -54.4 }, keeper: 'reyes', priceMul: 1, upkeepMul: 1 },
   { id: 'los_angeles', town: 'losangeles', name: 'THE ANGEL STREET VATS', short: 'LOS ANGELES', port: 'la_knot', priceMul: 1.25, upkeepMul: 1.2 },
   { id: 'el_paso', town: 'elpaso', name: 'PASO BRINE WORKS', short: 'EL PASO', port: 'paso_knot', priceMul: 0.9, upkeepMul: 0.9 },
-  { id: 'meridian', town: 'meridian', name: 'MERIDIAN INFIRMARY TANKS', short: 'MERIDIAN', priceMul: 1, upkeepMul: 1 },
+  // Florida's start (WEB_FLORIDA.md): the clone bay behind Meridian's clinic (systems/regions.js clinic('meridian')).
+  { id: 'meridian', town: 'meridian', clinic: 'meridian', port: 'meridian_knot', name: 'MERIDIAN CLONE BAY', short: 'MERIDIAN', keeper: 'mer_doc', priceMul: 1, upkeepMul: 1 },
   { id: 'new_york', town: 'newyork', name: 'HARBOR BRINE HOUSE', short: 'NEW YORK', port: 'ny_field', priceMul: 1.6, upkeepMul: 1.5 },
   { id: 'chicago', town: 'chicago', name: 'LAKESHORE VAT HALL', short: 'CHICAGO', port: 'chi_field', priceMul: 1.4, upkeepMul: 1.3 },
   { id: 'new_orleans', town: 'neworleans', name: 'THE LEVEE TANKS', short: 'NEW ORLEANS', port: 'nola_field', priceMul: 1.2, upkeepMul: 1.1 },

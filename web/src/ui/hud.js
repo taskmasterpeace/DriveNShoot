@@ -377,6 +377,9 @@ export class HUD {
 
   // What's wrong with you, in words, beside the vitals: a fever, bleeding, and any need two pips down or worse.
   updateAilments(nd) {
+    // The dash telltales (ui/telltales.js, systems/survival.js) say all of this and more, in one row under the compass: the
+    // tags beside the vitals only speak when there is no telltale row (the same thing three times was clutter).
+    if (this.g.survival?.telltales) { if (this.s.ailments !== '') { this.s.ailments = ''; this.el.ailments.innerHTML = ''; } return; }
     const p = this.g.player, F = nd.fever, tags = [];
     if (F) tags.push(F.treated ? ['warn', 'FEVER · TREATED'] : ['hot', 'FEVER · DIRTY WOUND']);
     if (p?.bleed > 0.2) tags.push(['hot', 'BLEEDING']);

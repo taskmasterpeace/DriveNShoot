@@ -144,11 +144,13 @@ export async function controllerChecks(x) {
     await stage(); await reset();
     const p = g.player;
     try {
-      const x0 = p.x;
+      // A full tilt walks (east, or west if something an earlier check left stands east of the stage); a light one creeps.
+      let sx = 1, x0 = p.x;
       pad([1, 0, 0, 0]); await secs(1);
-      const full = p.x - x0;
-      pad([0.32, 0, 0, 0]); await secs(0.1); const x1 = p.x; await secs(1);
-      const light = p.x - x1;
+      let full = p.x - x0;
+      if (full < 3) { sx = -1; x0 = p.x; pad([-1, 0, 0, 0]); await secs(1); full = x0 - p.x; }
+      pad([0.32 * sx, 0, 0, 0]); await secs(0.1); const x1 = p.x; await secs(1);
+      const light = (p.x - x1) * sx;
       pad([0, 0, 0, 1]); await secs(0.5); // aim south
       const south = { face: +Math.cos(p.face).toFixed(2), aimZ: +(g.aim.z - p.z).toFixed(1), device: CT.device };
       pad([0, 0, -1, 0]); await secs(0.5); // aim west (the stick alone: walking west at the stage could run you into a window's vault, which holds your facing)
