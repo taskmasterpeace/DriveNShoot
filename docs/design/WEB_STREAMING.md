@@ -1,7 +1,8 @@
 # WEB_STREAMING — one country, one chunk at a time
 
 **Status:** **P1 Streamed Arizona SHIPPED 2026-10-22** (what was built, the gate numbers and what it taught: §1.2).
-P2 to P5 are still spec; P2 (render origin, K calibration, Florida) is next.
+P2 to P5 are still spec; P2 (render origin, K calibration, Florida) is next. **The Phoenix ring, R1 (the city itself)
+SHIPPED 2026-10-22** (decision 5 for Phoenix; §1.3); R2 residents and R3 traffic are designed there, not built.
 **Owner of the call:** Robert. **Engine:** the three.js web engine (`web/`, see `web/AGENTS.md`).
 **Sources:** a read-only research pass over `web/src` and `game/data/usmap.json` (2026-10-22). The numbers that come from the
 data or the code were re-derived from the repo for this document; real-world distances and chunk costs are planning
@@ -75,7 +76,8 @@ compresses). Still open: which vehicle defines "fastest" (1), the access-road ca
    alive (enterable buildings with loot, residents, traffic), not scenery. Then the same generator builds LA, El Paso
    and the 1.5 km cities. Order: storeys first (WEB_STOREYS), then the Phoenix ring. Why 3 km: the 1:14 law's own
    answer for Phoenix; 80 s flat out / ~3.5 min at town speed / ~11 min on foot across; 7% of the LA-Phoenix leg. Watch:
-   town chunks' prop budget (2,100 a chunk against the pool's 2,000) and layout cost (8-20 ms estimated).
+   town chunks' prop budget (2,100 a chunk against the pool's 2,000) and layout cost (8-20 ms estimated). **Phoenix's
+   ring, R1, is built: §1.3** (measured: a dense ring chunk lays out in 4-6 ms cold, at most 610 props and 866 walls).
 
 ### 1.2 P1 as built (2026-10-22)
 **What you can drive.** Route 66 leaves the island at both ends and becomes I-10: 87.8 km of interstate (54.5 game
@@ -147,6 +149,112 @@ selftest checks).
 RoadGraph, P3); people, traffic and pickups in streamed chunks (ghosts, P3); enterable buildings and loot out of town
 (P4); water outside the island (the rivers are dry, P4); persistence of anything out there (P5); El Paso's streets cross
 the interstate at grade; a dead exit gets its cross road and bridge but no road beyond.
+
+### 1.3 The Phoenix ring, R1 as built (2026-10-22)
+Decision 5 for Phoenix: the authored 920 m island stays the core (Rust Haven, the flats, the camps, the river, the mesas,
+the rail), and a generated ring of dead city surrounds it out to a lobed edge near 1.5 km, streamed in chunks like
+everything past the island. From the street the island reads as a walled holdout in the middle of a dead metro. The law for
+the whole arc is that **the ring must be alive, not scenery**. R1 (this section) is the city itself, which you can walk
+into and search. R2 (residents) and R3 (traffic) are designed below but not built.
+
+**What is there.** The ring has __BLOCKS__ blocks and __BUILDINGS__ buildings (__RUINED__ of them ruined shells open to
+the sky, __EMPTY__ lots left empty). By kind: __KINDS__. By zone: __ZONES__ blocks.
+- **Streets** follow the island's own lattice (`world/city.js`: a road every 80 m, 14 m wide), carried outward. Every
+  fourth line is a 20 m arterial (x or z = 0, ±320, ±640, ±960, ±1,280). A street exists wherever a city block lies
+  beside it, so the grid starts with a road that hugs the island 16 m off its edge and stops where the blocks stop.
+  Lines the island names keep their names out here (CENTRAL AVE runs on north and south of Rust Haven); the rest come
+  from `STREET_NAMES`. The HUD's street sign names the street you stand on, or the district (`PHOENIX · THE YARDS`).
+  Local streets stop 9 m short of I-10's pavement. Arterials cross it at grade and skip only its pavement. I-10 (Route
+  66 out of the island) runs through the ring as the city freeway, with nothing built within 32 m of its centreline.
+- **The edge** is `radius + Σ amp·sin(k·θ + phase)`, 1,440 m with three lobes (about 1,300 to 1,600 m), never a square.
+  The strip runs on along I-10 up to 240 m past it. The last 200 m are THE BURN: ruins whose density falls toward the
+  edge, then desert. No mesa stands within 160 m of the city. Power poles and desert scatter keep off the streets and lots,
+  and the ground takes on the grey-brown dust of a dead city.
+- **Zones are rows** (`src/data/ring.js` `ZONE_RULES`, first match wins). THE BURN is the edge belt. THE STRIP fronts
+  I-10 within 160 m and 40% of the arterial blocks, with strip malls of 3 or 4 units (corner store, pharmacy, hardware,
+  pawn shop and so on, each with its own door and shelves stocked to match), fuel stops with a canopy and pumps, and diners,
+  all over painted parking lots. THE YARDS lie along the Iron Line (x = -360, which runs on north and south through the
+  ring as dead track with boxcars on its sidings) and along the dry wash the river left in the north-east: warehouses and
+  workshops with roll-up bays and a back office, on paved yards. THE DEAD HOUSES fill everything else with houses,
+  bungalows and duplexes facing their streets, back-yard fences and junk. Each zone sets building kinds and weights,
+  density, the ruined share, loot tables, wall, roof and floor palettes, wrecks per street and yard junk. No purple, and
+  no brand names (`ip-lint` reports 0 deny).
+- **Walk-in shells.** Every ring building has walls with door gaps facing the street: a 2.4 m front door, a 4.2 to 5 m
+  bay, a 1.8 m back door. No door leaves yet; the gaps are centred on a 1 m nav cell. Window holes in every intact span
+  of 4.5 m or more use the island's `holes` mechanism in `engine/collision.js`, so sight and rounds pass over the 0.95 m
+  sill while walkers do not. Each building also has a floor, partitions with doorways (front room and back room,
+  side-by-side units, a warehouse's office), and a roof that hides when you are inside. Furniture stands against the walls,
+  never in a doorway's way, with the middle of every room left open: shelves, crates, racks, counters and dressers are
+  containers; beds, tables, couches and benches are not. Ruins lose about a third of their wall spans to stubs or knee-high
+  rubble and have no roof.
+- **Containers** are real PACK-screen containers (`systems/inventory.js` `registerRing`): ids from position
+  (`ring:<x·10>:<z·10>`), loot rolled from that id's seed the first time anyone opens the box (so a never-opened box holds
+  the same loot every time), and tables from the unit, the kind or the zone. There are two new tables, `storefront` and
+  `pumps`. Only the **hot** chunks' boxes are registered (`streamer.ringOn` / `ringOff`): a chunk going cold takes its boxes
+  out, and the inventory keeps what is left in any box someone went through (`ringKept`), so the same box comes back with
+  the same contents. Saves carry `ringKept` and a load restores it. Ring beds join `spawns.beds` the same way: you can
+  sleep in a dead house, and the town's walkers never claim one.
+- **Roofs.** A building's roof instances are recorded per building in its owner chunk (`L.ring.roofs`).
+  `streamer.setRingRoof` zeroes or restores those matrices inside the roofs pool's range, and `ringBuildingAt` hands
+  `main.updateInterior` a building record with `setRoof`, the same hook the military base uses. The indoor camera
+  height, footstep surface and witness room rule all follow it.
+- **Maps.** Chunk minimap tiles (the radar) paint the ring's streets, the Iron Line and every building, with ruins paler.
+  The big map shows a **metro view** anywhere in the ring and up to 300 m past it: 3.8 km across, the island's own map in
+  the middle, every block tinted by zone, every street and building, and the zone names. Click-to-waypoint works. The
+  regional 24 km view draws the ring's footprint.
+
+**How it is built** (`src/world/ring.js`, `Ring`, built by `WorldIndex`). Everything is a pure function of `data/ring.js`,
+the world seed and the I-10 centreline, and every cache can be dropped.
+- `block(k, j)` gives the block between lines 80k and 80(k+1): whether it is city (not touching the island, inside the
+  edge), its zone, and its lots. Lots are laid out in the block's own frame (`u` along the front street, `v` away from it)
+  and dropped on the freeway or the Iron Line.
+- `owned(cx, cz)`: a building belongs to the chunk holding its centre. That chunk builds at most `budget.buildings` (84)
+  of its lots, in id order, so any neighbour can tell which of its lots stand. `around(cx, cz)` returns the chunk's own
+  buildings and its neighbours' that reach into it.
+- `geo(L)` gives one building's shell (wall pieces, collision boxes with holes, floor, roof, partitions, rooms,
+  furniture, containers, beds, canopy, fences, junk), cached on the lot.
+- `streets(x0, z0, x1, z1)` returns the paved rectangles, split where they meet I-10 (sampled against a 64 m bucket index
+  of the corridor, because `W.project` scans about 1,000 segments a call) and clipped at the island.
+- `chunkgen.js` has one more stage. Streets go into the road layer: the atlas gained `street`, `walk`, `yard` and `lot`
+  bands. Sidewalks, yard pads and parking go into the same layer in strips 5.5 to 6 m wide. Walls, roofs, props and the
+  new `floors` pool (+1 draw call, no shadow) take the instances. Collision is clipped per chunk with holes kept. The stage
+  yields every 6 buildings. Kerb wrecks and the rail come last, and the minimap tile is painted as before. Ring street
+  crossings join the edge signatures.
+
+**The gates, measured** (__DATE__, RTX 4090, headless Chrome, a fresh page or a fresh browser per run).
+
+| Gate | Measured |
+|---|---|
+| island golden hash | __GOLDEN__ |
+| chunk layout cost | __LAYOUT__ |
+| pool fills | __POOLS__ |
+| draw calls, widest zoom over the densest chunk | __DRAWS__ |
+| stream-drive | __SD__ |
+| stress A/B (ABBA, a fresh Chrome per leg, against `feat/web-engine` a605cf45) | __AB__ |
+| selftest | __ST__ |
+
+**Not in R1** (deliberately): door leaves, locks and glass on ring buildings (the island's `interiors.js` stays
+island-only: thousands of door rows streamed in and out need the interiors system to take chunk-registered rows first),
+storeys in the ring, people and traffic (R2, R3), named places and signs on shop fronts (the unit labels live on the
+shelves), LA, El Paso and the 1.5 km cities from the same generator, and persistence beyond containers (destroyed
+things, bodies, piles dropped out there).
+
+**R2, residents (design note, not built).** The ring is lived in, thinly. Each zone row gains `residents: [[kind,
+weight]]` and an occupancy share. A house holds a scavenger family (2-4, a mattress each from the ring beds that already
+register), the strip holds squatters behind a barricaded unit, THE YARDS hold a Dustwolf chop shop in one warehouse per
+quarter, and THE BURN holds an infected nest that moves at night. People are ghost records keyed by building id
+(`R<k>.<j>.<n>`, §3.7): promoted when their chunk goes hot, demoted at 300 m, with hp, grudges and what they carry kept
+on the record. Their containers become theirs (taking from a lived-in house is a `steal` deed, as on the island), they
+sleep in their own beds on the game clock, they scavenge the street by day and come home, and they witness. Gates:
+the 160-character cap holds with the island full, promotion stalls stay 0, and a family killed is still dead (its house's
+record says so) after the chunk goes and comes back.
+
+**R3, traffic (design note, not built).** The ring's lattice is a road graph almost for free: nodes at the
+intersections, an edge per street segment (arterials faster), joined to I-10 at the arterial crossings and to Route 66 at
+the island. Traffic there means scavenger pickups working the strip, Dustwolf buggies patrolling the arterials at night,
+the odd convoy spur into THE YARDS, and parked wrecks (already rows) that can be promoted into drivable cars. It runs on
+the P3 ghost tier: lane offset, a choice at each node, 4-way stops at dead signals. Gates: about 20 full vehicles,
+stream-drive stalls stay 0, and a car you hit stays hit after a demote.
 
 ## 2. Player Fantasy
 

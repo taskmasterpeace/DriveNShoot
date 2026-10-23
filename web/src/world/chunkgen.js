@@ -811,7 +811,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (const s of ringStreets) g.fillRect((s.x0 - ox) * k, (s.z0 - oz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k);
       g.fillStyle = '#6a5a40';
       for (const [s0, s1] of RG.railIn(cx, cz) ?? []) g.fillRect((RING.rail.x - 1.5 - ox) * k, (s0 - oz) * k, 3 * k, (s1 - s0) * k);
-      for (const b of out.ring.bld) { g.fillStyle = b.ruined ? '#58703a' : '#38521f'; g.fillRect((b.x0 - ox) * k, (b.z0 - oz) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k); }
+      for (const b of out.ring.bld) { g.fillStyle = b.ruined ? '#4f6234' : '#6a8a3e'; g.fillRect((b.x0 - ox) * k, (b.z0 - oz) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k); }
     }
     if (isl) g.clearRect(Math.max(0, (-ISLAND - ox) * k), Math.max(0, (-ISLAND - oz) * k), Math.max(0, (Math.min(X1, ISLAND) - Math.max(ox, -ISLAND)) * k), Math.max(0, (Math.min(Z1, ISLAND) - Math.max(oz, -ISLAND)) * k));
   }

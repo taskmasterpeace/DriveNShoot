@@ -271,7 +271,8 @@ export class QOL {
       for (let i = 0; i < cl.n; i += 2) { const x = cl.x[i], z = cl.z[i]; if (Math.abs(x) > 2100 || Math.abs(z) > 2100) { on = false; continue; } const [a, c2] = T2(x, z); if (on) b2.lineTo(a, c2); else { b2.moveTo(a, c2); on = true; } }
       b2.stroke();
       // The Iron Line on through the yards.
-      b2.fillStyle = '#6a5a40'; { const [a, c2] = T2(-361.5, -RG.reach); b2.fillRect(a, c2, 3 * K2, RG.reach * 2 * K2); }
+      b2.fillStyle = '#6a5a40';
+      for (let z = -RG.reach; z < RG.reach; z += 8) if (Math.abs(z) > 472 && RG.inCity(-360, z, 40)) { const [a, c2] = T2(-361.5, z); b2.fillRect(a, c2, 3 * K2, 8 * K2 + 0.5); }
       // Every building (a ruin paler, open to the sky).
       const m = Math.ceil(RG.reach / 256) + 1;
       for (let cx = -m; cx <= m; cx++) for (let cz = -m; cz <= m; cz++) for (const L of RG.owned(cx, cz)) {
@@ -303,7 +304,8 @@ export class QOL {
     c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
     c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 4); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore();
     c.font = '700 13px Barlow Condensed'; c.fillStyle = '#f2e6d0'; c.textAlign = 'right';
-    c.fillText(`PHOENIX · ${locationName(px, pz)} · 3.8 KM ACROSS`, S - 10, S - 12);
+    const here = locationName(px, pz);
+    c.fillText(`${here.startsWith('PHOENIX') ? here : `PHOENIX · ${here}`} · 3.8 KM ACROSS`, S - 10, S - 12);
   }
   drawBigMap() {
     const g = this.g, pp = g.player, px = pp.inVehicle ? pp.inVehicle.x : pp.x, pz = pp.inVehicle ? pp.inVehicle.z : pp.z;
