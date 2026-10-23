@@ -29,4 +29,18 @@ export const HOLDOUT = {
     tarp: ['#3f6fa8', '#2f7f8a', '#c8452f', '#7a9a3a', '#e0a03a'],
     post: '#4a3a2a',
   },
+  // Living trees. Before this every tree in the game was dead. Phoenix plants palms round its civic squares and palo
+  // verde, citrus and mesquite in its yards; a holdout keeps the ones that bear fruit or shade alive with grey water.
+  trees: {
+    palm: { h: [8, 11.5], trunk: '#8a7258', fronds: ['#3f6a26', '#4a7a2c', '#56802f'], inset: 1.6 },
+    yard: [['paloverde', 4], ['citrus', 3], ['mesquite', 3]],
+    kinds: {
+      paloverde: { h: [3.2, 4.4], r: [2.2, 3.0], squash: 0.5, trunk: '#7a8a4a', canopy: ['#9ab052', '#8aa848', '#a8b860'] },
+      citrus: { h: [2.4, 3.0], r: [1.5, 1.9], squash: 0.8, trunk: '#5a4632', canopy: ['#3f6a2a', '#4a7a30', '#36602a'] },
+      mesquite: { h: [3.4, 4.6], r: [2.4, 3.2], squash: 0.45, trunk: '#4a3a2a', canopy: ['#5a7a3a', '#6a8a42', '#506e34'] },
+    },
+    perLot: [1, 2],
+    fromBuilding: 2.2,       // m clear of a building's walls (canopies may overhang, trunks may not crowd a wall)
+    inset: 2.4,              // m in from the lot edge (the sidewalk is outside it)
+  },
 };

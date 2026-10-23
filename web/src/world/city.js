@@ -110,7 +110,7 @@ export function buildWorld(scene, statics) {
   const buildings = [];
   const spawns = { drifters: [], raiders: [], camps: [], wardens: [], loot: [], parking: [], shops: [], beds: [] };
   const sidewalkGeos = [];
-  const townPlazas = [], townLots = []; // the holdout's open ground (data/holdout.js), filled after everything else
+  const townPlazas = [], townLots = [], liveTrees = []; // the holdout's open ground (data/holdout.js), filled after everything else
 
   // ---- ground --------------------------------------------------------------
   const sand = sandTexture();
@@ -616,9 +616,34 @@ export function buildWorld(scene, statics) {
         for (let k = 0; k < 3; k++) put(props, sx, sz, th, -1.05 + k * 1.05, 2.45, 0.15, 1.05, 0.08, 2.8, k % 2 ? M.canvas : awn); // striped canvas
         statics.addCentered(sx, sz, 2.2, 2.2, 'stall', 1.0);
       }
+      // Palms at the square's corners.
+      const P = H.trees.palm, e = M.square / 2 - P.inset;
+      for (const [dx, dz] of [[-e, -e], [e, -e], [-e, e], [e, e]]) {
+        const x = pz.x + dx, z = pz.z + dz;
+        if (!clearOf(x, z, 1.0)) continue;
+        const h = hr.range(P.h[0], P.h[1]);
+        liveTrees.push({ kind: 'palm', x, z, h, trunk: P.trunk, color: hr.pick(P.fronds), rot: hr() * 6.28 });
+        statics.addCentered(x, z, 0.5, 0.5, 'tree', h);
+      }
     }
     for (const L of townLots) {
-      const b = L.b, half = L.lot / 2;
+      const b = L.b, half = L.lot / 2, TR = H.trees;
+      // A tree or two in the yard corners, clear of the walls, the doors and anything solid.
+      const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+      for (let i = 3; i > 0; i--) { const j = Math.floor(hr() * (i + 1)); [corners[i], corners[j]] = [corners[j], corners[i]]; } // a fixed number of draws (a sort's would vary by engine)
+      let planted = 0, want = hr.int(TR.perLot[0], TR.perLot[1]);
+      for (const [sx2, sz2] of corners) {
+        if (planted >= want) break;
+        const x = L.x + sx2 * (half - TR.inset), z = L.z + sz2 * (half - TR.inset);
+        if (x > b.minX - TR.fromBuilding && x < b.maxX + TR.fromBuilding && z > b.minZ - TR.fromBuilding && z < b.maxZ + TR.fromBuilding) continue;
+        if (b.doors.some((d) => Math.hypot(d.x - x, d.z - z) < Y.doorClear) || !clearOf(x, z, 1.2)) continue;
+        let t = 0; for (const r of TR.yard) t += r[1];
+        let p = hr() * t, kind = TR.yard[0][0]; for (const r of TR.yard) if ((p -= r[1]) < 0) { kind = r[0]; break; }
+        const K = TR.kinds[kind], h = hr.range(K.h[0], K.h[1]), r = hr.range(K.r[0], K.r[1]);
+        liveTrees.push({ kind, x, z, h, r, squash: K.squash, trunk: K.trunk, color: hr.pick(K.canopy), rot: hr() * 6.28 });
+        statics.addCentered(x, z, 0.5, 0.5, 'tree', h);
+        planted++;
+      }
       const room = { W: b.minX - (L.x - half), E: L.x + half - b.maxX, N: b.minZ - (L.z - half), S: L.z + half - b.maxZ };
       for (const side of ['N', 'S', 'W', 'E']) {
         const m = room[side];
@@ -689,6 +714,19 @@ export function buildWorld(scene, statics) {
     return m;
   };
   cyl(barrels, new THREE.CylinderGeometry(0.45, 0.45, 1.1, 10), new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.3 }), (o, b) => { o.position.set(b.x, 0.55, b.z); o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); });
+  // Living trees (data/holdout.js): trunks, round canopies (palo verde, citrus, mesquite) and palm crowns, three draws.
+  {
+    const trunk = cyl(liveTrees.map((t) => ({ ...t, color: t.trunk })), new THREE.CylinderGeometry(0.14, 0.24, 1, 6), new THREE.MeshStandardMaterial({ roughness: 0.92 }), (o, t) => { o.position.set(t.x, t.h / 2, t.z); o.scale.set(t.kind === 'palm' ? 1.4 : 1, t.h, t.kind === 'palm' ? 1.4 : 1); o.rotation.set(0, 0, 0); });
+    trunk.name = 'liveTrunks';
+    const crowns = liveTrees.filter((t) => t.kind !== 'palm'), palms = liveTrees.filter((t) => t.kind === 'palm');
+    const canopy = cyl(crowns, new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true }), (o, t) => { o.position.set(t.x, t.h, t.z); o.scale.set(t.r, t.r * t.squash, t.r * 0.92); o.rotation.set(0, t.rot, 0); });
+    canopy.name = 'canopies';
+    const blades = [];
+    // Eleven fronds of two lengths drooping at two angles: a palm from above, not a star.
+    for (let k = 0; k < 11; k++) { const L = k % 2 ? 2.6 : 3.3, b = new THREE.BoxGeometry(L, 0.05, 0.36); b.translate(L / 2, 0, 0); b.rotateZ(k % 3 ? -0.5 : -0.75); b.rotateY((k / 11) * Math.PI * 2 + (k % 2) * 0.2); blades.push(b); }
+    const crown = cyl(palms, mergeGeometries(blades), new THREE.MeshStandardMaterial({ roughness: 0.9, side: THREE.DoubleSide }), (o, t) => { o.position.set(t.x, t.h, t.z); o.scale.set(1, 1, 1); o.rotation.set(0, t.rot, 0); });
+    crown.name = 'palmCrowns';
+  }
   cyl(cacti, new THREE.CylinderGeometry(0.3, 0.38, 1, 7), new THREE.MeshStandardMaterial({ color: '#56653a', roughness: 0.9 }), (o, c) => { o.position.set(c.x, c.h / 2, c.z); o.scale.set(1, c.h, 1); });
   cyl(trunks, new THREE.CylinderGeometry(0.16, 0.3, 1, 6), new THREE.MeshStandardMaterial({ color: '#3b2c20', roughness: 0.95 }), (o, t) => { o.position.set(t.x, t.h / 2, t.z); o.scale.set(1, t.h, 1); });
 

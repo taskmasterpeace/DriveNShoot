@@ -1,4 +1,4 @@
 {
   "note": "The Phoenix island golden hash (docs/design/WEB_STREAMING.md §3.4, §8 item 6): FNV-1a over every island static box (min/max x z, height, tag; mm) and every building (bounds, enterable, door count), in build order. It guards the RNG sequence in world/city.js: if a change moves anything in Phoenix, this no longer matches and the selftest says so. Re-pin it ONLY for a deliberate change to the island.",
-  "islandHash": "eb103eab"
+  "islandHash": "c3f0f6ca"
 }
