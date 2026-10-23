@@ -1,3 +1,5 @@
 node_modules
 dist
 .dream-loop/
+# the terrain bake's downloads (tools/terrain-bake.mjs): public data, re-fetched on demand, never committed
+.terrain-cache/
