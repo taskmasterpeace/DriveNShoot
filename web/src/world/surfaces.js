@@ -100,18 +100,21 @@ vec3 roofTop(vec3 tint) {
     vec2 cell = vec2(floor(aa / 0.9), row);
     float r = rh1(cell + seed * 31.0), s2 = rh1(vec2(seed * 7.3, 4.4));
     float rib = 0.5 + 0.5 * sin(a * 6.2832 / 0.22);
-    vec3 base = vec3(0.56, 0.55, 0.52);                                                       // weathered galvanised
-    if (r < 0.34) base = mix(vec3(0.48, 0.31, 0.20), vec3(0.60, 0.40, 0.26), rh1(cell + 3.1)); // rust, every shade of it
-    else if (r < 0.46) base = vec3(0.68, 0.70, 0.70);                                          // a fresher sheet
-    else if (r < 0.55) base = vec3(0.46, 0.44, 0.41);                                          // an older, darker one
-    else if (r < 0.61) { base = vec3(0.62, 0.52, 0.38); rib = 0.55; }                          // a plywood patch
+    // Mostly the same weathered sheet (a shade either way per sheet), so it reads as ONE roof from the camera; the
+    // replaced and rusted sheets are the exception, not a mosaic.
+    vec3 base = vec3(0.56, 0.55, 0.52) * (0.93 + 0.14 * rh1(cell + 7.7));                    // weathered galvanised
+    if (r < 0.16) base = mix(vec3(0.50, 0.33, 0.22), vec3(0.58, 0.39, 0.26), rh1(cell + 3.1)); // rusted through
+    else if (r < 0.22) base = vec3(0.66, 0.68, 0.68);                                          // a fresher sheet
+    else if (r < 0.26) base = vec3(0.47, 0.45, 0.42);                                          // an older, darker one
+    else if (r < 0.29) { base = vec3(0.60, 0.51, 0.38); rib = 0.55; }                          // a plywood patch
+    base = mix(base, vec3(0.52, 0.38, 0.27), 0.35 * smoothstep(0.55, 0.85, rn(vec2(u, v) * 0.35 + seed * 5.0))); // rust bleeding across sheets
     c = base * (0.80 + 0.28 * rib);
     float lap = max(smoothstep(0.05, 0.0, abs(fract(b / 2.4) - 0.5) - 0.45), smoothstep(0.04, 0.0, abs(fract(aa / 0.9) - 0.5) - 0.46));
     c *= 1.0 - 0.22 * lap;
     // One tarp lashed over a leak: a rough-edged patch, sun-faded, in folds.
     vec2 tq = vec2(u, v) - S * vec2(0.25 + 0.5 * rh1(vec2(seed, 1.7)), 0.25 + 0.5 * rh1(vec2(seed, 5.3)));
-    float trad = min(S.x, S.y) * (0.16 + 0.12 * rh1(vec2(seed, 9.1)));
-    float tarp = step(max(abs(tq.x), abs(tq.y) * 1.3) + 0.5 * rn(vec2(u, v) * 1.1 + seed * 13.0), trad) * step(0.3, s2);
+    float trad = min(S.x, S.y) * (0.09 + 0.08 * rh1(vec2(seed, 9.1)));
+    float tarp = step(max(abs(tq.x), abs(tq.y) * 1.3) + 0.4 * rn(vec2(u, v) * 1.1 + seed * 13.0), trad) * step(0.45, s2);
     vec3 tcol = s2 > 0.8 ? vec3(0.28, 0.42, 0.54) : s2 > 0.55 ? vec3(0.38, 0.46, 0.33) : vec3(0.64, 0.48, 0.30);
     c = mix(c, tcol * (0.86 + 0.16 * sin(u * 7.0 + v * 2.3)), tarp);
     // A bank of salvaged solar panels (two rows of three) on some.
@@ -152,7 +155,7 @@ export function roofSurface(mat) {
       .replace('#include <common>', `#include <common>\n${FRAG_HEAD}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${FRAG_BODY}`);
   };
-  mat.customProgramCacheKey = () => 'roofSurface7';
+  mat.customProgramCacheKey = () => 'roofSurface8';
   return mat;
 }
 
