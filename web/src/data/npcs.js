@@ -256,14 +256,27 @@ export const BARKS = {
   raider: ['You lost, meat?'],
 };
 
-const FIRST = ['Jesse', 'Marisol', 'Dwayne', 'Ana', 'Kofi', 'Liam', 'Rosa', 'Tariq', 'Hyun', 'Pedro', 'Nia', 'Gus', 'Ines', 'Bo', 'Esme', 'Ray', 'Yuki', 'Kwame', 'Lena', 'Mateo'];
-const LAST = ['Holt', 'Vega', 'Okafor', 'Price', 'Nguyen', 'Kowalski', 'Ramos', 'Diaz', 'Byrne', 'Silva', 'Park', 'Mensah', 'Rossi', 'Baptiste', 'Cruz'];
+// The first 20 / 15 are the old lists (randomName still makes exactly two draws, so nobody's position moves; the names do);
+// the rest widen the pool so a town of ninety stops repeating itself (a review counted nine duplicate full names).
+const FIRST = ['Jesse', 'Marisol', 'Dwayne', 'Ana', 'Kofi', 'Liam', 'Rosa', 'Tariq', 'Hyun', 'Pedro', 'Nia', 'Gus', 'Ines', 'Bo', 'Esme', 'Ray', 'Yuki', 'Kwame', 'Lena', 'Mateo',
+  'Aiyana', 'Bashir', 'Carmen', 'Dmitri', 'Efua', 'Farid', 'Greta', 'Hamza', 'Ilse', 'Jun', 'Keanu', 'Lucia', 'Malik', 'Noor', 'Oskar', 'Priya', 'Quinn', 'Rafael',
+  'Sione', 'Tomas', 'Ulla', 'Vikram', 'Wren', 'Ximena', 'Yusuf', 'Zora', 'Abel', 'Birgit', 'Cyrus', 'Dalia', 'Emeka', 'Fumiko', 'Goran', 'Hana', 'Ivo', 'Jalen',
+  'Kalani', 'Leif', 'Mireille', 'Nnamdi', 'Odette', 'Paulo', 'Rania', 'Soren', 'Tala', 'Uriel', 'Vera', 'Wiremu', 'Yara', 'Zeke'];
+const LAST = ['Holt', 'Vega', 'Okafor', 'Price', 'Nguyen', 'Kowalski', 'Ramos', 'Diaz', 'Byrne', 'Silva', 'Park', 'Mensah', 'Rossi', 'Baptiste', 'Cruz',
+  'Adeyemi', 'Bergstrom', 'Castillo', 'Duarte', 'Eriksen', 'Fontaine', 'Gallagher', 'Haddad', 'Ivanova', 'Jovanovic', 'Kaur', 'Lindqvist', 'Moreau', 'Nakamura', 'Oyelaran',
+  'Petrov', 'Quispe', 'Rahman', 'Santos', 'Takahashi', 'Ueda', 'Valdez', 'Whitfield', 'Yilmaz', 'Zielinski', 'Abara', 'Brennan', 'Chavez', 'Delacroix', 'Esposito',
+  'Fitzgerald', 'Gutierrez', 'Hollis', 'Ibarra', 'Kekona', 'Lachance', 'Mbeki', 'Novak', 'Ortega', 'Pham'];
+const USED = new Set(); // names already given in this world: a town never has two of the same person
 // Pairs that already belong to someone famous, real or fictional, are rolled again.
 const FAMOUS = new Set(['Rosa Diaz', 'Ray Holt', 'Rosa Park', 'Ray Park', 'Ray Price', 'Bo Diaz', 'Lena Park']);
 // Any rng will do: a seeded one (engine/rng.js, the same draws its pick() makes) or Math.random. Passing Math.random
 // once threw here (no .pick), which broke `spawn kind=soldier`.
+// Two draws, as always (the city's stream stays in step); a name already given walks the lists from there, never the rng.
 export function randomName(rng = Math.random) {
-  const pick = (a) => a[Math.floor(rng() * a.length)];
-  for (let k = 0; k < 6; k++) { const n = `${pick(FIRST)} ${pick(LAST)}`; if (!FAMOUS.has(n)) return n; }
-  return 'Jesse Okafor';
+  const f0 = Math.floor(rng() * FIRST.length), l0 = Math.floor(rng() * LAST.length);
+  for (let k = 0; k < FIRST.length * LAST.length; k++) {
+    const n = `${FIRST[(f0 + k) % FIRST.length]} ${LAST[(l0 + Math.floor(k / FIRST.length) + k * 7) % LAST.length]}`;
+    if (!FAMOUS.has(n) && !USED.has(n)) { USED.add(n); return n; }
+  }
+  return `${FIRST[f0]} ${LAST[l0]}`;
 }

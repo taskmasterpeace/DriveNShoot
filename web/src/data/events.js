@@ -47,6 +47,7 @@ export const EVENTS = {
     lines: {
       witnessed: {
         kill: 'Word from {place}: a stranger put {who} in the dirt. {faction} are not taking it well.',
+        downed: 'Word from {place}: a stranger laid {who} out in front of people. {who} will live, and {who} will remember.',
         silence: 'Word from {place}: {who} saw something and now {who} is dead. Draw your own conclusions.',
         hurt: 'Shots fired at {place}. {who} is walking around with somebody else\'s lead in them.',
         carjack: 'Somebody yanked {who} out of their own car at {place}. Lock it or lose it.',
@@ -55,10 +56,12 @@ export const EVENTS = {
       },
       unwitnessed: {
         kill: 'Somebody put {who} in the dirt out at {place}. Nobody saw a thing. Nobody ever does.',
+        downed: '{who} got laid out at {place}. Nobody saw who did it.',
         silence: '{who} turned up dead at {place}. Nobody saw a thing.',
       },
       world: {
         kill: '{who} is dead at {place}. The flats take another one.',
+        downed: '{who} went down at {place}. Somebody will patch them up. This time.', // a named person, downed, not dead (K.downed)
       },
       tier: '{faction} are calling a certain stranger {tier} now. Strange days.',
     },

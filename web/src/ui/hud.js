@@ -549,13 +549,13 @@ export class HUD {
       c.save(); c.beginPath(); c.arc(R, R, m, 0, 6.3); c.clip();
       c.setLineDash(DASH); c.lineWidth = 1.6; c.strokeStyle = 'rgba(255,90,58,0.85)';
       for (const ch of run) {
-        if (!ch.runner || !ch.alive) continue;
-        const hb = ch.runner.hub;
+        if (!ch.telling || !ch.alive) continue;
+        const hb = ch.telling.hub;
         c.beginPath(); c.moveTo(R + (ch.x - px) * scale, R + (ch.z - pz) * scale); c.lineTo(R + (hb.x - px) * scale, R + (hb.z - pz) * scale); c.stroke();
       }
       c.setLineDash(SOLID); c.restore();
       for (const ch of run) {
-        if (!ch.runner || !ch.alive) continue;
+        if (!ch.telling || !ch.alive) continue;
         const bx = (ch.x - px) * scale, bz = (ch.z - pz) * scale, d = Math.hypot(bx, bz), k = d > m ? m / d : 1, x = R + bx * k, y = R + bz * k;
         c.lineWidth = 4.5; c.strokeStyle = '#1b1410'; c.beginPath(); c.arc(x, y, pulse, 0, 6.3); c.stroke();
         c.lineWidth = 2.4; c.strokeStyle = '#ff5a3a'; c.stroke();

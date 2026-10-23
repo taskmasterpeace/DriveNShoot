@@ -106,6 +106,14 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
    wanted?
 
 ## Next blocks
+- **The critic's backlog** (a fresh-eyes playtest, 2026-10-22, 23 findings; the worst 9 fixed in the commit that adds
+  this line). Still open: Ike's dialogue sells guns his counter doesn't stock (one price source, dialogue opens the
+  counter); some Dustwolves read non-hostile while the faction is hostile (no repro yet); the HUD collides at phone width
+  (412 px: Orders over the compass, the dash over the vitals); the infected kinds need visual tells (an aura on the
+  ground for the Choir, the Echo's frozen/working state, its window); townsfolk give one line and [Leave] (topics from
+  the chronicle); a theft seen at 2 m gets no bark or pursuit until the word lands; Reyes has no treatment option;
+  `memory id=c3` should accept a char id; `harpoon` out of range should say why; raiders barely pressure a moving
+  shooter. A question for Robert: the game opens at 18:36 dusk - a dark first impression; start in late light?
 - Storeys v2: basements, shooting between floors through windows, noise and blasts through floors (WEB_STOREYS §0.4).
 - **The Phoenix ring, R2 and R3** (WEB_STREAMING §1.3 notes): residents (scavengers, squatters, raiders and infected by
   zone), then traffic. Then LA, El Paso and the 1.5 km cities from the same generator.
