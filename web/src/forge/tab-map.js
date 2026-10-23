@@ -446,7 +446,7 @@ export function mapTab() {
   // ---- the game on the map ------------------------------------------------------------------------------------------
   let lastGame = 0;
   async function pollGame(force) {
-    if (!F.game.alive || (!force && (F.tab !== 'map' || !S.layers.has('game') || Date.now() - lastGame < 2500))) return;
+    if (!F.game.alive || F.game.busy || (!force && (F.tab !== 'map' || !S.layers.has('game') || Date.now() - lastGame < 2500))) return; // never queue reads behind a long command
     lastGame = Date.now();
     const r = await cmd('state', {}, { timeoutMs: 3000 });
     if (r.ok && r.player) { S.game = { player: { x: r.player.x, z: r.player.z }, label: `YOU · ${r.location ?? r.player.location ?? ''}`.trim() }; mv.redraw(); }
