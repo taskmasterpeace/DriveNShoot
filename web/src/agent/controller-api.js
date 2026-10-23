@@ -546,6 +546,7 @@ export async function controllerChecks(x) {
       for (let k = 0; k < 8; k++) {
         const a = (k * Math.PI) / 4, rx = Math.sin(a), ry = Math.cos(a);
         g.inv.mag.pistol = 6; p.reloading = 0; dirs.length = 0;
+        g.arms.setStance('raised'); // up for each round: a slow frame must not let the calm drop the gun between them (the check is the direction)
         pad([0, 0, rx, ry]); await secs(0.5);
         pad([0, 0, rx, ry], { lb: 1 }); await frames(2); pad([0, 0, rx, ry]); await secs(0.3);
         const got = dirs[0], off = got === undefined ? null : Math.abs(Math.atan2(Math.sin(got - a), Math.cos(got - a)));
