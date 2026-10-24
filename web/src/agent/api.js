@@ -178,6 +178,16 @@ export class AgentAPI {
     }
     return g.chars.find((c) => c.id === id || c.npc?.id === id || (c.name && c.name.toLowerCase() === String(id).toLowerCase()) || (c.npc?.name ?? '').toLowerCase() === String(id).toLowerCase());
   }
+  // A named person's npc id from an npc id, a char id ("c3") or a name. gone=true also takes the id of
+  // someone no longer in the world whose memories are still kept. An unnamed char says why it has none.
+  namedId(id, gone = false) {
+    const g = this.g, M = g.society.memory;
+    if (gone && M.byNpc.has(id)) return id;
+    const c = this.findChar(id);
+    if (!c) throw new Error(`no character ${id} (try an npc id like "okonkwo", a char id like "c3", or a name)`);
+    if (!c.npc?.id) throw new Error(`${id} is ${c.name ?? 'someone'}, who has no name in the world; only named people keep memories`);
+    return c.npc.id;
+  }
   findVeh(id) { return this.g.vehicles.find((v) => v.id === id || v.type === id); }
 
   dialogueState() {
@@ -1369,15 +1379,15 @@ function buildCommands(api) {
       },
     },
     memory: {
-      group: 'society', desc: "What a named person remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead.",
+      group: 'society', desc: "What a named person (npc id like \"okonkwo\", char id like \"c3\", or name) remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead.",
       args: { id: { type: 'string', required: true } },
-      run: async ({ id }) => { need(g.chars.some((c) => c.npc?.id === id) || g.society.memory.byNpc.has(id), `no named person ${id}`); return g.society.memory.view(id); },
+      run: async ({ id }) => { const nid = api.namedId(id, true); return g.society.memory.view(nid); },
     },
     remember: {
-      group: 'society', desc: `Give a named person a memory of you (or forget=true to clear it; no kind clears all). kind: ${Object.keys(MEMORY_KINDS).join('|')}.`,
+      group: 'society', desc: `Give a named person (npc id, char id or name) a memory of you (or forget=true to clear it; no kind clears all). kind: ${Object.keys(MEMORY_KINDS).join('|')}.`,
       args: { id: { type: 'string', required: true }, kind: { type: 'string' }, weight: { type: 'number', default: 1 }, about: { type: 'string', default: '' }, heard: { type: 'boolean', default: false }, forget: { type: 'boolean', default: false } },
       run: async ({ id, kind, weight, about, heard, forget }) => {
-        need(g.chars.some((c) => c.npc?.id === id), `no named person ${id}`);
+        id = api.namedId(id);
         need(forget || MEMORY_KINDS[kind], `unknown kind; known: ${Object.keys(MEMORY_KINDS).join(',')}`);
         if (forget) g.society.memory.forget(id, kind); else g.society.memory.remember(id, kind, { weight, about, heard });
         return g.society.memory.view(id);
@@ -2876,6 +2886,20 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('remember', { id: 'vo', forget: true });
     const calm = !!vo && !g.ai.hostile(vo, g.player);
     return refused && shut.choices?.length === 1 && open.choices?.length > 1 && hunt && calm ? true : JSON.stringify({ refused, shut: shut.choices?.length, open: open.choices?.length, hunt, calm, vo: !!vo });
+  });
+  await check('world memory: memory and remember take a char id ("c3") or a name as well as the npc id, and an unnamed person says why they keep none', async () => {
+    const ike = g.chars.find((c) => c.npc?.id === 'ike'), nobody = g.chars.find((c) => c.alive && !c.npc && c !== g.player);
+    if (!ike) return 'no Ike in the world';
+    try {
+      const byChar = await C('remember', { id: ike.id, kind: 'killedKin', about: 'Mateo' });
+      const viaChar = await C('memory', { id: ike.id }), viaName = await C('memory', { id: ike.npc.name }), viaNpc = await C('memory', { id: 'ike' });
+      const has = (v) => v?.memories?.some((m) => m.kind === 'killedKin' && m.about === 'Mateo');
+      const anon = nobody ? await C('memory', { id: nobody.id }) : null, ghost = await C('memory', { id: 'c99999' });
+      const ok = has(byChar) && has(viaChar) && has(viaName) && has(viaNpc)
+        && (!nobody || (anon.ok === false && /no name in the world/.test(anon.error)))
+        && ghost.ok === false && /no character c99999/.test(ghost.error);
+      return ok ? true : JSON.stringify({ ike: ike.id, byChar: has(byChar), viaChar: has(viaChar), viaName: has(viaName), viaNpc: has(viaNpc), anon, ghost });
+    } finally { await C('remember', { id: 'ike', forget: true }); }
   });
   await check("world memory: Mateo remembers being shot, and the word reaches his sister Rosa", async () => quickRumors(async () => {
     await stage();
