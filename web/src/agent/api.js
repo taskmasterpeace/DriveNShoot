@@ -4209,6 +4209,51 @@ async function runSelfTest(api, only = null, skip = null) {
       inv.opened = null; inv.changed();
     }
   });
+  await check('trade: Ike\'s dialogue offers only what is on his counter, at the counter\'s own price; buying there takes it off the shelf; "let me see the counter" opens it on the PACK screen', async () => {
+    const inv = g.inventory, T = g.trade, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
+    const boxes = ike ? [...inv.boxes.values()].filter((b) => b.owner === ike.id) : [];
+    if (!ike || !boxes.length) return `ike: ${!!ike}, shelves of his: ${boxes.length}`;
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const F = g.society.factions, fi = ike.fi, day = g.society?.day ?? 0, box = boxes[0];
+    const keep = { s: F.standing[fi], l: F.lifetime[fi], cash: g.cash, ike: { x: ike.x, z: ike.z, sleeping: ike.sleeping }, p: { x: g.player.x, z: g.player.z }, pistol: g.inv.ammo.pistol, kept: ike.keptDay,
+      boxes: boxes.map((b) => ({ b, slots: b.slots.map((x) => ({ ...x })), rolled: b.rolled, stockDay: b.stockDay })) };
+    try {
+      F.set(ike.fid, 0); ike.sleeping = false;
+      g.player.x = box.x + 0.8; g.player.z = box.z; ike.x = box.x + 3; ike.z = box.z; // Ike behind his counter, you at it
+      // Today's counter: one worn Rust-9 and nothing else; his keeps (rounds, a kit) top it up on the first look.
+      for (const b of boxes) { b.slots = []; b.rolled = true; b.stockDay = day; }
+      inv.add(box, 'gun_smg', 1, { cond: 0.6 }); ike.keptDay = undefined;
+      g.cash = 500;
+      const t = await C('talk', { id: ike.id });
+      const D = T.at(box), stock = T.stock(ike);
+      const priced = new Map(stock.map((e) => [e.s.id, T.buyPrice(e.s, ITEMS[e.s.id].kind === 'gun' ? 1 : e.s.n, D)]));
+      const offers = (t.choices ?? []).map((c) => c.text).filter((x) => /\(\$\d+\)$/.test(x) && !/^fix my/i.test(x));
+      // every offer is a thing on his shelves at its counter price; nothing he does not stock (no Sawn-off today)
+      const named = (x) => stock.find((e) => x.startsWith(ITEMS[e.s.id].name));
+      const honest = offers.length > 0 && offers.every((x) => { const e = named(x); return e && x.endsWith(`($${priced.get(e.s.id)})`); });
+      const smg = offers.some((x) => x.startsWith('Rust-9 SMG, 60%')), noShotgun = !offers.some((x) => /sawn|shotgun \(/i.test(x)), kept = box.count('ammo_pistol') + boxes.slice(1).reduce((a, b) => a + b.count('ammo_pistol'), 0) === 24;
+      // buy the pistol rounds through the dialogue: the shelf's 24 come off it, the counter price comes off you
+      const pi = (t.choices ?? []).findIndex((c) => /^Pistol rounds/.test(c.text)), price = priced.get('ammo_pistol'), cash0 = g.cash, have0 = g.inv.ammo.pistol;
+      const r = pi >= 0 ? await C('choose', { index: pi }) : null;
+      const left = boxes.reduce((a, b) => a + b.count('ammo_pistol'), 0);
+      const bought = !!r && g.cash === cash0 - price && left === 0 && g.inv.ammo.pistol === have0 + 24;
+      const back = r && r.choices ? r.choices.findIndex((c) => /one more thing/i.test(c.text)) : -1;
+      const h = back >= 0 ? await C('choose', { index: back }) : null;
+      const gone = !!h && !(h.choices ?? []).some((c) => /^Pistol rounds/.test(c.text));
+      const ci = (h?.choices ?? []).findIndex((c) => /see the counter/i.test(c.text));
+      if (ci >= 0) await C('choose', { index: ci });
+      const opened = ci >= 0 && !g.dialogue.active && !!g.invUI?.open && inv.opened?.owner === ike.id && g.invUI.other === inv.opened;
+      return honest && smg && noShotgun && kept && bought && gone && opened ? true : JSON.stringify({ offers, honest, smg, noShotgun, kept, bought, price, spent: cash0 - g.cash, left, gone, opened, ui: !!g.invUI?.open, other: g.invUI?.other?.owner });
+    } finally {
+      if (g.dialogue.active) g.dialogue.close();
+      if (g.invUI?.open) g.invUI.toggle(false);
+      for (const k of keep.boxes) { k.b.slots = k.slots; k.b.rolled = k.rolled; k.b.stockDay = k.stockDay; }
+      ike.keptDay = keep.kept; g.cash = keep.cash; g.inv.ammo.pistol = keep.pistol;
+      ike.x = keep.ike.x; ike.z = keep.ike.z; ike.sleeping = keep.ike.sleeping; g.player.x = keep.p.x; g.player.z = keep.p.z;
+      F.standing[fi] = keep.s; F.lifetime[fi] = keep.l; F.retier(fi, false);
+      inv.opened = null; inv.changed();
+    }
+  });
   // ---- roles (data/roles.js, systems/roles.js; docs/design/WEB_ROLES.md §8). Staged at STAGE like world memory; every
   // check clears the roles again, so nothing after it is read through them. `roles renown=` stages a role the way
   // `standing set=` stages a faction - only where the check is about what the role DOES, never where it is about earning it.

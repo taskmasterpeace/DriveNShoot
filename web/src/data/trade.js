@@ -4,7 +4,9 @@
 // By named person (data/npcs.js id): what they will buy from you (item kinds or ids) and the name the PACK screen
 // calls them by. They sell whatever is on their shelves.
 export const TRADERS = {
-  ike: { name: 'Ike', deals: ['gun', 'ammo', 'tool'] },
+  // keeps: [item, n] he never lets run out - topped up to n across his shelves on the first look each day (his rounds of
+  // every common kind and a cleaning kit; the guns are whatever second-hand pieces came in: the counter is the stock).
+  ike: { name: 'Ike', deals: ['gun', 'ammo', 'tool'], keeps: [['ammo_pistol', 24], ['ammo_smg', 60], ['ammo_shells', 8], ['ammo_rifle', 30], ['cleaning_kit', 1]] },
   reyes: { name: 'Doc Reyes', deals: ['med'] },
   kenji: { name: 'Kenji', deals: ['part', 'tool', 'pack'] },
   mags: { name: 'Mags', deals: ['water', 'food', 'valuable', 'paper', 'hide'] }, // hides: the fauna layer's (data/fauna.js)

@@ -46,7 +46,12 @@ you could have walked off with the whole crate, and the town would have known.
 - **Restock:** on the first look at a trader's box on a new game day, a box holding fewer than `TRADE.restock` (3)
   things gets another roll of its table, seeded by the day (a save sees the same goods).
 - **Ike's shelves** use the `gunsmith` table: rounds of every kind, cleaning kits, the odd second-hand pistol or SMG
-  (45–95%, empty), a wrench, tape.
+  (45–95%, empty), a wrench, tape. **Keeps** (`TRADERS.ike.keeps`): on the first look each day his shelves are topped
+  up to 24 pistol, 60 SMG, 8 shells, 30 rifle rounds and a cleaning kit, so the gunsmith never runs dry of rounds.
+- **One stock, one price (his dialogue):** Ike's talk offers the first six things on his counter today (`trade.stock`:
+  guns first, then rounds), named, a gun with its condition, at the exact `buyPrice` the PACK screen shows, and buys
+  them through the same `trade.buy`. He never offers a gun his shelves do not hold. "Let me see the counter." opens his
+  counter on the PACK screen (`trade.openCounter`), and it stays open anywhere within his 9 m reach.
 - **The screen:** the other side's header reads "<SHELF> · <NAME>'S COUNTER · <TIER> PRICES" in green; their rows show
   the stack price in gold; your rows show what they would pay in green, or dim when they would not buy it; the move
   button reads BUY $n / SELL +$n / <NAME> WON'T BUY IT; the detail line reads "Ike sells all 42 for $17" or "Ike pays
@@ -116,3 +121,7 @@ you could have walked off with the whole crate, and the town would have known.
    his shelf.
 3. His people at −60 (hostile): he is there but `refuse` is set.
 4. Ike 30 m away: no counter (`trade.at` is null).
+5. Ike's dialogue with one worn Rust-9 on his counter: every priced offer is a thing on his shelves at its counter
+   `buyPrice`; the Rust-9 shows 60%; no Sawn-off is offered; his keeps put 24 pistol rounds out. Buying the rounds there
+   takes the price and leaves none on the shelf; "Let me see the counter." closes the talk and opens the PACK screen
+   on his box.

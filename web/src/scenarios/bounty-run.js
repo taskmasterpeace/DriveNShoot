@@ -229,6 +229,22 @@ export default async function (DL) { // public commands only: it never touches t
     return { ok: false, choices: [] };
   };
   const pick = async (d, re) => { const i = (d.choices ?? []).findIndex((c) => re.test(c.text ?? '')); return i >= 0 ? DL.choose({ index: i }) : null; };
+  // Ike's counter in his dialogue (data/npcs.js shelf choices): the rounds for every gun you carry, one stack each,
+  // back to his menu between buys. Returns what it spent and on what.
+  const ROUNDS = { pistol: /pistol rounds/i, smg: /smg rounds/i, shotgun: /shotgun shells/i, rifle: /rifle rounds/i };
+  const buyRounds = async (d) => {
+    const s0 = await st(), got = [];
+    for (const w of s0.inventory.weapons) {
+      const re = ROUNDS[w]; if (!re) continue;
+      d = await DL.dialogue();
+      const r = await pick(d, re);
+      if (!r) continue;
+      got.push(w);
+      await pick(await DL.dialogue(), /one more thing/i);
+    }
+    const s1 = await st();
+    return got.length ? { what: got.join(', '), spent: s0.cash - s1.cash, cash: s1.cash } : null;
+  };
   const leave = async () => { for (let i = 0; i < 4; i++) { const d = await DL.dialogue(); if (!d.open) return; const j = d.choices.findIndex((c) => c.ends); await DL.choose({ index: j >= 0 ? j : d.choices.length - 1 }); } };
 
   // ---- rides: the current one if it still runs, else the nearest empty one that does --------------------------------
@@ -369,8 +385,8 @@ export default async function (DL) { // public commands only: it never touches t
   // 2. Ammo from Ike (awake or woken, door locked or not).
   d = await errand('ike', 'Ike at the gunsmith');
   if (d.ok) {
-    const bought = await pick(d, /ammo crate/i);
-    note(bought ? `Bought Ike's ammo crate: $${bought.cash} left.` : `Ike had no ammo crate on offer (${(d.choices ?? []).map((c) => c.text).join(' / ')}).`);
+    const bought = await buyRounds(d);
+    note(bought ? `Bought rounds for ${bought.what} at Ike's counter ($${bought.spent}): $${bought.cash} left.` : `Ike's counter had no rounds for these guns (${(d.choices ?? []).map((c) => c.text).join(' / ')}).`);
     await leave();
   }
 
@@ -451,14 +467,14 @@ export default async function (DL) { // public commands only: it never touches t
       if (loot.length) note(`Picked up ${loot.length} drops (${loot.map((l) => l.kind).join(', ')}).`);
       if (ride) { const m = await DL.moveTo({ id: ride, run: true, maxSeconds: 20 }); if (m.arrived) await DL.enterVehicle({ id: ride }); }
     }
-    // Out of rounds and on foot: another crate at Ike's counter.
+    // Out of rounds and on foot: more rounds at Ike's counter.
     s = await st();
     const dry = s.inventory.weapons.every((w) => (s.inventory.mag[w] ?? 0) + (s.inventory.ammo[AMMO[w]] ?? 0) === 0);
-    if (dry && s.cash >= 50 && kills(s) < 6 && !(s.vehicle && usable(s.vehicle))) {
-      note('Out of rounds: back to Ike for another crate.');
+    if (dry && s.cash >= 20 && kills(s) < 6 && !(s.vehicle && usable(s.vehicle))) {
+      note('Out of rounds: back to Ike for more.');
       await travel(-60, -8, 'the gunsmith');
       const di = await errand('ike', 'Ike at the gunsmith');
-      if (di.ok && await pick(di, /ammo crate/i)) note(`Bought another crate: $${(await st()).cash} left.`);
+      if (di.ok) { const b = await buyRounds(di); if (b) note(`Bought more rounds (${b.what}, $${b.spent}): $${b.cash} left.`); }
       await leave();
     }
   }

@@ -6,6 +6,7 @@
 // (the `roles` command lists them); roleLines are what this person says about your best-known role, in their voice;
 // refuseRole: the roles they will not deal with, and what they say instead.
 import { WEAPONS } from '../systems/combat.js';
+import { ITEMS } from './items.js';
 
 const money = (n) => `$${n}`;
 // A ride Kenji can fix: dented, or a part gone. A dead engine at full hp used to hide his offer, and his fix only
@@ -26,6 +27,18 @@ const buyMount = (g, kind, price) => {
   const r = g.garage.mount(v, kind);
   if (!r.ok) { g.cash += price; g.hud.toast(r.why.toUpperCase(), 'warn'); } else g.hud.toast(`FITTED: ${kind.toUpperCase()}`, 'job');
 };
+// Ike's counter in his dialogue: shelf k is the k-th thing on his counter today (guns first, then rounds), named and
+// priced the way the PACK screen prices it (systems/trade.js entryPrice), bought whole through trade.buy.
+const ike = (g) => g.chars.find((c) => c.npc?.id === 'ike');
+const onShelf = (g, k) => { const c = ike(g); if (!c || !g.trade) return null; const e = g.trade.stock(c)[k]; return e && g.trade.entryPrice(e) != null ? { c, e } : null; };
+const shelfLine = (g, k) => {
+  const x = onShelf(g, k); if (!x) return '';
+  const { s } = x.e, it = ITEMS[s.id], price = g.trade.entryPrice(x.e);
+  if (it.kind === 'gun') return `${it.name}, ${Math.round((s.cond ?? 1) * 100)}% (${money(price)})`;
+  return `${it.name}${s.n > 1 ? ` x${s.n}` : ''} (${money(price)})`;
+};
+const shelf = (k) => ({ t: (g) => shelfLine(g, k), req: (g) => !!onShelf(g, k), next: 'sold',
+  do: (g) => { const x = onShelf(g, k); const r = x ? g.trade.buyEntry(x.c, x.e) : { ok: false, why: 'gone' }; if (!r.ok) g.hud.toast(r.why.toUpperCase(), 'warn'); } });
 const plateLine = (v) => { const p = v.plates ?? {}; const r = (x) => Math.round(x ?? 0); return `${v.name}: nose ${r(p.front)}, tail ${r(p.rear)}, sides ${r(p.left)}/${r(p.right)}${v.mounts?.front ? `, hood gun ${v.mounts.front.ammo} rounds` : ''}${v.mounts?.rear ? `, ${v.mounts.rear.kind} x${v.mounts.rear.charges}` : ''}.`; };
 
 export const NPCS = [
@@ -97,18 +110,16 @@ export const NPCS = [
     nodes: {
       hi: { text: 'Everything here shoots. Some of it even shoots straight. What do you need?',
         choices: [
-          { t: `Rust-9 SMG (${money(150)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('smg'), next: 'sold', do: (g) => { if (g.spend(150)) { g.inventory.gainGun('smg', { cond: 0.9 }); g.inv.ammo.smg += 64; g.hud.toast('ACQUIRED: RUST-9 SMG', 'job'); } } },
-          { t: `Sawn-off shotgun (${money(200)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('shotgun'), next: 'sold', do: (g) => { if (g.spend(200)) { g.inventory.gainGun('shotgun', { cond: 0.9 }); g.inv.ammo.shells += 16; g.hud.toast('ACQUIRED: SAWN-OFF', 'job'); } } },
-          { t: `Ammo crate (${money(50)})`, deed: { v: 'trade' }, next: 'sold', do: (g) => { if (g.spend(50)) { g.inv.ammo.pistol += 24; g.inv.ammo.smg += 64; g.inv.ammo.shells += 8; } } },
+          // His counter (systems/trade.js stock): what is on his shelves today at the PACK screen's own price, bought through
+          // the same trade.buy (its deal records the trade deed). Nothing here that his shelves do not hold.
+          ...[0, 1, 2, 3, 4, 5].map(shelf),
+          { t: 'Let me see the counter.', end: true, do: (g) => { const c = ike(g), r = c ? g.trade.openCounter(c) : { ok: false, why: 'no counter here' }; if (!r.ok) g.hud.toast(r.why.toUpperCase(), 'warn'); } },
           // His bench: the gun in your hands back to clean, priced by how worn it is and what it is worth.
           { t: (g) => `Fix my ${WEAPONS[g.inv.current]?.short.toLowerCase() ?? 'gun'} (${money(g.inventory.smithQuote(g.inv.current))})`, deed: { v: 'trade' }, req: (g) => g.inventory.cond(g.inv.current) < 0.995, next: 'fixed', do: (g) => { const r = g.inventory.smithFix(g.inv.current); if (r.ok) g.hud.toast(`${WEAPONS[g.inv.current].short} FIXED · 100%`, 'job'); } },
-          { t: `Gun cleaning kit (${money(40)})`, deed: { v: 'trade' }, next: 'sold', do: (g) => { if (g.spend(40)) g.inventory.stow('cleaning_kit', 1); } },
-          { t: `Rifle rounds, a box of 30 (${money(45)})`, deed: { v: 'trade' }, req: (g) => g.inv.weapons.includes('rifle'), next: 'rifle', do: (g) => { if (g.spend(45)) g.inv.ammo.rifle += 30; } },
           { t: '[Leave]', end: true },
         ] },
       sold: { text: 'Pleasure. Don\'t point it at my wall, the wall\'s load-bearing.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
       fixed: { text: 'Stripped it, scrubbed it, new spring, filed the catch. It\'ll feed now. Keep it out of the sand and it\'ll stay that way a while.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
-      rifle: { text: 'Government brass. Don\'t ask me where it came from and I won\'t ask you where you got the rifle.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
     },
   },
   {
