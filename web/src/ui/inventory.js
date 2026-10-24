@@ -82,7 +82,7 @@ export class InventoryUI {
   // else the ground.
   pickOther() {
     const g = this.g, inv = g.inventory, p = g.player;
-    if (inv.opened && (inv.opened.kind === 'trunk' || Math.hypot(inv.opened.x - p.x, inv.opened.z - p.z) < 3)) return inv.opened;
+    if (inv.opened && (inv.opened.kind === 'trunk' || Math.hypot(inv.opened.x - p.x, inv.opened.z - p.z) < 3 || g.trade?.keeperAt(inv.opened))) return inv.opened; // a counter opened from a talk: anywhere in the shop
     const near = !p.inVehicle && inv.nearest(p.x, p.z, 2.6, true); // a body is long: stand anywhere along it
     if (near) return inv.open(near);
     const v = p.inVehicle ?? g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - p.x, c.z - p.z) < Math.max(3.4, c.len * 0.65));
@@ -177,7 +177,7 @@ export class InventoryUI {
     if (this.sayT > 0 && (this.sayT -= dt) <= 0) this.el.say.textContent = '';
     // Walked away from the other side (or it drove off): fall back to what's here now.
     const o = this.other, p = this.g.player;
-    if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2)) { this.other = this.pickOther(); this.render(); }
+    if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2 && !this.g.trade?.keeperAt(o))) { this.other = this.pickOther(); this.render(); }
     else if (this.g.inventory.dirty) this.render();
     if (!p.alive) this.toggle(false);
   }

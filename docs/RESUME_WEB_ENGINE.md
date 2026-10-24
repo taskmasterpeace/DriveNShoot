@@ -108,8 +108,7 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
 
 ## Next blocks
 - **The critic's backlog** (a fresh-eyes playtest, 2026-10-22, 23 findings; the worst 9 fixed in the commit that adds
-  this line). Still open: Ike's dialogue sells guns his counter doesn't stock (one price source, dialogue opens the
-  counter); some Dustwolves read non-hostile while the faction is hostile (no repro yet); the HUD collides at phone width
+  this line). Still open (Ike's counter/dialogue fixed: one stock, one price, the dialogue opens the counter): some Dustwolves read non-hostile while the faction is hostile (no repro yet); the HUD collides at phone width
   (412 px: Orders over the compass, the dash over the vitals); the infected kinds need visual tells (an aura on the
   ground for the Choir, the Echo's frozen/working state, its window); a theft seen at 2 m gets no bark or pursuit until the word lands; Reyes has no treatment option;
   `memory id=c3` should accept a char id; `harpoon` out of range should say why; raiders barely pressure a moving

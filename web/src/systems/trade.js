@@ -24,6 +24,72 @@ export class Trade {
     return { c, id: c.npc.id, name: row.name, deals: row.deals, tier, refuse, buy: T ? T.buy * mul : 0, sell: T ? T.sell / mul : 0 };
   }
 
+  // Is this box's keeper at their counter (alive, awake, within reach)? The PACK screen keeps a counter opened from a
+  // talk while this holds, wherever in the shop you stand (no allocation: it runs every frame the screen is open).
+  keeperAt(box) {
+    if (!box?.owner) return false;
+    const g = this.g, c = g.chars.find((x) => x.id === box.owner);
+    return !!(c?.npc && TRADERS[c.npc.id] && c.alive && !(c.downedT > 0) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) <= TRADE.reach);
+  }
+
+  // A trader's whole counter today: every box they own, rolled, restocked and topped up (keeps), as [{ box, i, s }],
+  // guns first, then rounds, then the rest. The one list their dialogue offers from and the PACK screen shows.
+  stock(c) {
+    const inv = this.g.inventory, boxes = [], out = [];
+    for (const b of inv.boxes.values()) if (b.owner === c.id) boxes.push(b);
+    for (const b of boxes) { if (!b.rolled) { inv.roll(b); b.rolled = true; } this.restock(b); }
+    this.keep(c, boxes);
+    for (const b of boxes) b.slots.forEach((s, i) => out.push({ box: b, i, s }));
+    const rank = (s) => { const k = ITEMS[s.id]?.kind; return k === 'gun' ? 0 : k === 'ammo' ? 1 : 2; };
+    return out.sort((a, b) => rank(a.s) - rank(b.s));
+  }
+
+  // What a trader never lets run out (TRADERS[id].keeps): on the first look each day, each kept thing is topped up to
+  // its count across their shelves, into the first box with room.
+  keep(c, boxes) {
+    const row = TRADERS[c.npc?.id], day = this.g.society?.day ?? 0;
+    if (!row?.keeps || c.keptDay === day || !boxes.length) return;
+    c.keptDay = day;
+    for (const [id, n] of row.keeps) {
+      let have = 0;
+      for (const b of boxes) have += b.count(id);
+      for (const b of boxes) { if (have >= n) break; have += this.g.inventory.add(b, id, n - have); }
+    }
+  }
+
+  // The best (the nearest) of a trader's boxes to open as their counter, rolled and stocked: null with none.
+  counterOf(c) {
+    const p = this.g.player;
+    let best = null, bd = Infinity;
+    for (const e of this.stock(c)) { const d = Math.hypot(e.box.x - p.x, e.box.z - p.z); if (d < bd) { bd = d; best = e.box; } }
+    if (!best) for (const b of this.g.inventory.boxes.values()) if (b.owner === c.id) { const d = Math.hypot(b.x - p.x, b.z - p.z); if (d < bd) { bd = d; best = b; } }
+    return best;
+  }
+
+  // Open a trader's counter on the PACK screen (their dialogue's "let me see the counter"): ok false with why when
+  // there is no counter to open.
+  openCounter(c) {
+    const g = this.g, box = c && this.counterOf(c);
+    if (!box) return { ok: false, why: 'no counter here' };
+    const D = this.at(box);
+    if (!D) return { ok: false, why: `${TRADERS[c.npc?.id]?.name ?? 'they'} is not at the counter` };
+    if (g.invUI?.open) g.invUI.toggle(false); // closing it lets go of whatever it had open
+    g.inventory.open(box);
+    g.invUI?.toggle(true);
+    return { ok: true, box: box.id };
+  }
+
+  // Buy a counter entry ({ box, i, s } from stock()) whole: the whole stack of rounds, one gun.
+  buyEntry(c, e) {
+    const D = this.at(e.box);
+    if (!D || D.refuse) return { ok: false, why: 'no deal' };
+    const r = this.buy(e.box, e.i, e.s.n, D);
+    if (r.ok) this.g.hud?.toast?.(r.text, 'job');
+    return r;
+  }
+  // The price a counter entry is offered at in their dialogue: the same buyPrice the PACK screen shows.
+  entryPrice(e) { const D = this.at(e.box); return D && !D.refuse ? this.buyPrice(e.s, ITEMS[e.s.id]?.kind === 'gun' ? 1 : e.s.n, D) : null; }
+
   // What one of a slot is worth: its value, less for wear (a gun's condition), use (a part-empty bottle) and age.
   worth(s) {
     const it = ITEMS[s.id];
