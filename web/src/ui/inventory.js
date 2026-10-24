@@ -64,7 +64,7 @@ export class InventoryUI {
             </div>
           </div>
           <div class="inv-say"></div>
-          <div class="inv-keys"><kbd>W</kbd><kbd>S</kbd>pick <kbd>A</kbd><kbd>D</kbd>side <kbd>R</kbd>take all <kbd>I</kbd>close · tap a picked row to move it</div>
+          <div class="inv-keys"><kbd>W</kbd><kbd>S</kbd>pick <kbd>A</kbd><kbd>D</kbd>side <kbd>R</kbd>take all <kbd>I</kbd>close · click a picked row to move it</div>
         </div>
       </div>`);
     const q = (s) => root.querySelector(`.invmenu ${s}`);
@@ -75,13 +75,17 @@ export class InventoryUI {
     };
     this.open = false; this.side = 0; this.sel = [0, 0]; this.other = null; this.sayT = 0; this.tapped = null;
     // A tap picks a row; a tap on the row you just picked moves it. Only a row picked by a tap counts (the row lit when
-    // the screen opens is not), and the move uses the pick up, so a double-click moves one thing once, never twice.
-    // This replaces the old dblclick: a phone turns a double tap into zoom, and the list redraws between the taps.
+    // the screen opens or by the keys is not), and the pick is the thing itself, in that box: anything that acts (a
+    // button, a key, TAKE ALL, closing) uses the pick up, and if another thing has slid into that row or the other side
+    // is now another box, the next tap only picks. So a double-click moves one thing once, never twice, and one stray
+    // tap never moves (or buys) what you did not pick. This replaces the old dblclick: a phone turns a double tap into
+    // zoom, and the list redraws between the taps.
     this.el.lists.forEach((ol, side) => ol.addEventListener('click', (e) => {
       const li = e.target.closest('li[data-i]'); if (!li) return;
-      const key = `${side}:${li.dataset.i}`, again = this.tapped === key && this.side === side;
-      this.side = side; this.sel[side] = +li.dataset.i;
-      if (again) { this.tapped = null; this.act('move'); } else { this.tapped = key; this.render(); }
+      const i = +li.dataset.i, pick = { side, i, box: this.box(side), thing: this.thing(side, i) }, t = this.tapped;
+      const again = !!t && t.side === side && t.i === i && t.box === pick.box && t.thing === pick.thing && this.side === side;
+      this.side = side; this.sel[side] = i;
+      if (again) this.act('move'); else { this.tapped = pick; this.render(); }
     }));
     this.el.takeAll.addEventListener('click', () => this.takeAll());
     this.el.close.addEventListener('click', () => this.toggle(false));
@@ -104,9 +108,10 @@ export class InventoryUI {
 
   toggle(on = !this.open) {
     if (on && !this.g.player.alive) return;
-    this.open = on;
+    this.open = on; this.tapped = null;
     this.el.menu.classList.toggle('hidden', !on);
-    if (on) { this.other = this.pickOther(); this.side = 0; this.tapped = null; this.render(); }
+    document.body.classList.toggle('pack-open', on); // inventory.css hides the touch bar (PACK / MAP / pause) under it
+    if (on) { this.other = this.pickOther(); this.side = 0; this.render(); }
     else { const inv = this.g.inventory; inv.opened = null; inv.prune?.(); }
     this.g.emit('pack', { open: on, other: this.other?.id ?? null });
   }
@@ -114,6 +119,7 @@ export class InventoryUI {
   // Keyboard, while open (main.js stops the player moving).
   input(I) {
     if (I.hit('KeyI') || I.hit('Tab') || I.hit('Escape')) { this.toggle(false); return; }
+    if (['KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft', 'KeyD', 'ArrowRight'].some((k) => I.hit(k))) this.tapped = null; // the keys move the light, not the pick
     if (I.hit('KeyW') || I.hit('ArrowUp')) { this.sel[this.side] = Math.max(0, this.sel[this.side] - 1); this.render(); }
     if (I.hit('KeyS') || I.hit('ArrowDown')) { this.sel[this.side] = Math.min(Math.max(0, this.count(this.side) - 1), this.sel[this.side] + 1); this.render(); }
     if (I.hit('KeyA') || I.hit('ArrowLeft')) { this.side = 0; this.render(); }
@@ -135,11 +141,14 @@ export class InventoryUI {
     const j = i - G.length, s = this.box(side)?.slots[j];
     return s ? { s, i: j } : null;
   }
+  // What row i of a side holds (the gun or the slot itself), so a pick knows if something else slid into its row.
+  thing(side, i) { const e = this.entry(side, i); return e?.gun ?? e?.s ?? null; }
 
   // The deal on the other side: its trader at the counter and willing, else null (taking from an owned box is theft).
   deal() { const D = this.g.trade?.at(this.other); return D && !D.refuse ? D : null; }
 
   act(a) {
+    this.tapped = null; // any action uses the pick up
     const g = this.g, inv = g.inventory, box = this.box(this.side), e = this.entry(this.side, this.sel[this.side]);
     if (!e) return;
     const other = this.box(1 - this.side), ground = inv.groundAt(g.player.x, g.player.z), D = this.deal();
@@ -189,6 +198,7 @@ export class InventoryUI {
   canTakeAll() { const o = this.other; return !!o?.slots.length && o !== this.g.inventory.carried && !o.owner && !this.g.trade?.at(o); }
   takeAll() {
     const inv = this.g.inventory, o = this.other;
+    this.tapped = null;
     if (!o || o === inv.carried) return;
     if (this.g.trade?.at(o)) return this.tell('AT A COUNTER YOU PICK WHAT YOU BUY', true);
     if (o.owner) return this.tell(`THAT'S ${(o.ownerName ?? 'somebody').toUpperCase()}'S · PICK WHAT YOU TAKE`, true);
@@ -197,7 +207,6 @@ export class InventoryUI {
     for (let j = 0; j < o.slots.length;) { const s = o.slots[j]; took += inv.move(o, j, inv.carried, s.n); if (o.slots[j] === s) j++; } // a slot that came across whole is gone: the next one is at j now
     const left = o.slots.reduce((a, s) => a + s.n, 0);
     this.tell(!took ? 'NO ROOM ON YOU' : left ? `TOOK ${took} · NO ROOM FOR ${left} MORE` : `TOOK ${took} · ALL OF IT`, left > 0);
-    this.tapped = null;
     for (const side of [0, 1]) this.sel[side] = Math.min(this.sel[side], Math.max(0, this.count(side) - 1));
     this.render();
     return { took, left };
