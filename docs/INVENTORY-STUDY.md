@@ -7,7 +7,7 @@ at six games that are known for their inventories. For each it says what is easy
 The last part is the build list for the one-thumb PACK rework (its own PR).
 
 Sources: how each game plays on its current public builds (7 Days to Die 1.x, SCUM 1.0, DayZ 1.2x, Escape from Tarkov
-0.15, Project Zomboid B41/B42, GTA V). This note describes the designs in our own words; it copies no text or art.
+1.0 (out of beta since November 2025), Project Zomboid B41/B42, GTA V). This note describes the designs in our own words; it copies no text or art.
 
 ---
 
@@ -64,7 +64,7 @@ rest goes across. That is our E: it already slings guns and wears armor. **Leave
 grid. The shortcuts are the real interface:
 - **Ctrl-click** quick-moves an item to the other open container (or into your gear).
 - **Alt-click** equips it.
-- **Shift-click** splits a stack.
+- **Shift-drag** splits a stack.
 - **Double-click** opens a container's own grid.
 
 Searching a body takes time and reveals its items one at a time.
@@ -82,14 +82,14 @@ as phase-2 work in WEB_INVENTORY. **Leave.** Modifier keys, and rotating items.
 ## 5. Project Zomboid: weight, the loot-all button, and transfer times
 
 **How it works.** A list, not a grid: each row is an item (or a collapsed stack) with its weight. Containers you're
-near are **tabs down the right edge**: the floor, the shelf, the corpse, the car's seats and trunk. Your bags are tabs
-on the left. Every transfer takes in-game time, so you watch a little progress bar. There are **Loot All** and
+near are **buttons down the right edge of the loot window**: the floor, the shelf, the corpse, the car's seats and
+trunk. Your own bags are the same kind of buttons down the right edge of the inventory window. Every transfer takes in-game time, so you watch a little progress bar. There are **Loot All** and
 **Transfer All** buttons. Right-click gives the actions an item can do (eat, read, equip, put in a bag).
 
-**Easy.** It is a **list**, which reads well and scales to hundreds of items. Container tabs make it clear what is
-nearby. Loot All is used all the time. Weight is the only number that matters, and the screen always shows it.
+**Easy.** It is a **list**, which reads well and scales to hundreds of items. The container buttons make it clear what
+is nearby. Loot All is used all the time. Weight is the only number that matters, and the screen always shows it.
 
-**Hurts.** The tabs get tiny and many, and the right-click menu is long. Timed transfers can feel slow when you're
+**Hurts.** The container buttons get tiny and many, and the right-click menu is long. Timed transfers can feel slow when you're
 safe.
 
 **Take.** **List rows, not a grid** (we already use lists). **Loot All.** The weight and room bars on screen at all
@@ -97,7 +97,7 @@ times (we have WEIGHT and ROOM meters). **Leave.** Right-click menus; a phone ha
 
 ## 6. GTA V: the weapon wheel
 
-**How it works.** Hold a button and the world slows down. A **radial wheel** of eight sectors (pistols, SMGs,
+**How it works.** Hold a button and, in single player, the world slows down (online it keeps full speed). A **radial wheel** of eight sectors (pistols, SMGs,
 rifles, throwables and so on) comes up. Point the stick (or the mouse) at a sector and let go. Each sector cycles
 within its kind. It doesn't count weight or space; it's a quick choice and nothing else.
 
@@ -117,7 +117,7 @@ is for choosing, not for managing.
 
 | Lesson | 7DTD | SCUM | DayZ | Tarkov | PZ | GTA | Our PACK today |
 |---|---|---|---|---|---|---|---|
-| Nearby things always on screen as "the other side" | box | vicinity | vicinity | open box | tabs | - | yes: box, body, trunk, else the ground |
+| Nearby things always on screen as "the other side" | box | vicinity | vicinity | open box | container buttons | - | yes: box, body, trunk, else the ground |
 | A one-action quick move (no drag) | shift-click | - | double-click | ctrl-click | double-click | - | double-click only, which a phone breaks |
 | Take everything at once | Take All | - | - | - | Loot All | - | **no** |
 | One "does the right thing" use action | - | - | double-click | alt-click | right-click | - | yes: E slings, wears, eats |
@@ -138,7 +138,8 @@ room on screen, a smart E, and the world still running. **It is weak** in three 
 ## 8. The one-thumb PACK rework (build list, its own PR)
 
 Rules for the build: no new keys that clash with play (the PACK owns the keyboard while it is open, `main.js` 701); no
-theft or buying made one-tap; and none of DSA2's files touched (hud.css, hud.js, the touch controls).
+theft or buying in bulk (TAKE ALL refuses at a counter and on an owned shelf), and no move, take or buy from a single
+stray tap (one tap only picks; the pick is used up by any action, key, close or change of the other side); and none of DSA2's files touched (hud.css, hud.js, the touch controls).
 
 1. **Tap again to move.** A tap on the row that is already picked does that row's MOVE: TAKE, PUT IN, BUY or SELL,
    whatever the MOVE button says. The first tap picks it. That replaces the double-click (a desktop double-click is
@@ -147,14 +148,19 @@ theft or buying made one-tap; and none of DSA2's files touched (hud.css, hud.js,
    until it is full, then says how many came across and what was left. The button is **hidden** at a trader's counter
    (buying all is not a tap) and on an **owned shelf** (stealing all is not a tap). There you pick each thing, and
    theft stays a choice. It never slings a gun or wears a pack; those stay E.
-3. **Thumb-sized targets.** On a touch screen (`pointer: coarse`): rows at least 44 px tall, the action bar at the
-   bottom of the card with 48 px buttons, and no keyboard hints. New styles go in `web/src/ui/inventory.css`, which
+3. **A full-screen phone card with CLOSE.** On a touch screen (`pointer: coarse`) only: the card fills the screen
+   with one scrolling body, the item rows first and the doll below them; rows, doll chips, TAKE ALL and **CLOSE** at
+   least 44 px; the action bar at the bottom with 48 px buttons; no keyboard hints. CLOSE is the way out on a phone,
+   and the touch bar (PACK / MAP / pause) hides while the card is open. With a mouse the PACK looks exactly as
+   before, with no CLOSE or TAKE ALL button drawn (R and I / Esc still work). New styles go in `web/src/ui/inventory.css`, which
    `inventory.js` imports, so `hud.css` is left alone.
 4. **Proof:** a scenario `pack-thumb` that taps (DOM clicks, the way a thumb arrives) and asserts:
    - a second tap on a picked row moves it;
    - TAKE ALL empties a body into the pack;
    - TAKE ALL is hidden and refuses on an owned shelf;
-   - a double-click moves one row once, not twice.
+   - a double-click moves one row once, not twice;
+   - one tap after MOVE, USE, TAKE ALL, BUY, closing or a new other side moves and buys nothing;
+   - the exact count in "NO ROOM FOR N MORE", and the 44 / 48 px sizes on touch.
 
    It fails on main.
 
