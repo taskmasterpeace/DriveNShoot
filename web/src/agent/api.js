@@ -33,6 +33,7 @@ import { devtoolsChecks } from './devtools-selftest.js';
 import { waterCommands } from './water-api.js';
 import { waterChecks } from './water-selftest.js';
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
+import { touchCommands, touchChecks } from './touch-api.js'; // the phone's on-screen thumbs (ui/touch.js)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
@@ -1933,6 +1934,7 @@ function buildCommands(api) {
       args: { save: { type: 'object', required: true } },
       run: async ({ save }) => restore(g, save),
     },
+    ...touchCommands(api), // touch
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     ...creatorCommands(api), // creator, sheet
     selftest: {
@@ -5434,6 +5436,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  await touchChecks({ api, g, C, check, stage, hush }); // the touch controls
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
   // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----
   const freeNear = (x, z, r = 3) => { for (let dx = -r; dx <= r; dx += 1.5) for (let dz = -r; dz <= r; dz += 1.5) if (!g.nav.foot.free(x + dx, z + dz)) return false; return true; };
