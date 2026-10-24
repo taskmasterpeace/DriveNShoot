@@ -1,6 +1,6 @@
 import { knowing as knowingFor } from '../data/creator.js'; // where you start decides where you are a local
 import { WEAPONS } from '../systems/combat.js';
-import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
+import { VEHICLES, reverseOf, DRIVING, HARPOON_RANGE } from '../systems/vehicles.js';
 import { DECK_RULES, CAMP } from '../data/decks.js';
 import { WEATHER, NIGHT_I } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
@@ -1168,17 +1168,26 @@ function buildCommands(api) {
       run: async ({ id }) => { const v = id ? api.findVeh(id) : P().inVehicle ?? g.lastVehicle; need(v && !v.dead, 'no live vehicle'); g.vehDamage.repair(v); return vehView(g, v); },
     },
     harpoon: {
-      group: 'vehicle', desc: 'Fire the Whaler\'s harpoon at x,z or entity id. Call again while hooked to YANK.',
+      group: 'vehicle', desc: `Fire the Whaler\'s harpoon at x,z or entity id (it reaches ${HARPOON_RANGE} m). Call again while hooked to YANK. A miss says why: why=range (target past the hook\'s reach, with its distance), wall (a wall or building took the hook, and where), or busy (the hook is still out).`,
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
       run: async ({ x, z, id }) => {
-        const v = P().inVehicle;
+        const v = P().inVehicle, V = g.vehiclesSys;
         need(v?.harpoon, 'must be driving a vehicle with a harpoon (type "rig")');
         if (id) { const t = api.findVeh(id) ?? api.findChar(id); need(t, `no entity ${id}`); x = t.x; z = t.z; }
-        const was = g.vehiclesSys.harpoon?.state;
-        g.vehiclesSys.fireHarpoon(v, ang((x ?? v.x) - v.x, (z ?? v.z + 10) - v.z));
-        await api._step(30);
-        const h = g.vehiclesSys.harpoon;
-        return { action: was === 'attached' ? 'yank' : 'fire', state: h?.state ?? 'idle', hooked: h?.target?.id ?? null };
+        const was = V.harpoon?.state;
+        if (was === 'flying' || was === 'retract') return { action: 'none', state: was, hooked: null, why: 'busy', reason: `the hook is still ${was === 'flying' ? 'flying' : 'reeling back in'}; step a moment and fire again` };
+        const tx = x ?? v.x, tz = z ?? v.z + 10;
+        // Distance from the hook's launch point (the rig's tail), the same place the shot starts from.
+        const ox = v.x - Math.sin(v.h) * 1.4, oz = v.z - Math.cos(v.h) * 1.4, dist = Math.hypot(tx - ox, tz - oz);
+        V.fireHarpoon(v, ang(tx - v.x, tz - v.z));
+        if (was === 'attached') { await api._step(30); return { action: 'yank', state: V.harpoon?.state ?? 'idle', hooked: null }; }
+        // Let the hook finish its flight (95 m/s, so 48 m is about half a second) before saying what happened.
+        for (let i = 0; i < 6 && V.harpoon?.state === 'flying'; i++) await api._step(10);
+        const h = V.harpoon, L = V.lastHarpoon, out = { action: 'fire', state: h?.state ?? 'idle', hooked: h?.state === 'attached' ? h.target?.id ?? null : null, distance: Math.round(dist), range: HARPOON_RANGE };
+        if (out.hooked) return out;
+        if (L?.result === 'wall') return { ...out, why: 'wall', reason: `a wall took the hook ${L.at} m out${dist > L.at + 1 ? `, short of the target ${Math.round(dist)} m away` : ''}` };
+        if (L?.result === 'range' || dist > HARPOON_RANGE) return { ...out, why: 'range', reason: `the target is ${Math.round(dist)} m away; the hook reaches ${HARPOON_RANGE} m. Close ${Math.ceil(dist - HARPOON_RANGE)} m and fire again` };
+        return { ...out, why: 'missed', reason: 'the hook flew past; nothing was on its line when it got there (a moving target slips the shot)' };
       },
     },
 
@@ -2127,6 +2136,44 @@ async function runSelfTest(api, only = null, skip = null) {
     const hooked = g.vehiclesSys.harpoon?.state === 'attached';
     if (hooked) await C('harpoon', { id: tgt.id }); // yank
     return hooked ? true : `state=${r.state}`;
+  });
+  await check('harpoon: a miss says why (out of range with the distance, a wall in the way and where, the hook still out)', async () => {
+    const rig = g.player.inVehicle, V = g.vehiclesSys, S = g.statics, ray = S.raycast;
+    if (rig?.type !== 'rig') return 'not in the Whaler';
+    rig.vx = rig.vz = 0; V.releaseHarpoon();
+    // Aim along a line nobody stands on; walls are switched off for the range shot so the street layout can't decide it.
+    // A crowded street with no clear line anywhere: park the rig 150 m on and look again (staging, as teleport is).
+    let ox = 0, oz = 0;
+    const clear = (a) => [...V.list.filter((o) => o !== rig), ...g.chars.filter((c) => c !== g.player && c.alive && !c.inVehicle)].every((o) => {
+      const rx = o.x - ox, rz = o.z - oz, t = rx * Math.sin(a) + rz * Math.cos(a);
+      return t < -2 || t > 80 || Math.abs(rx * Math.cos(a) - rz * Math.sin(a)) > 4 + (o.len ?? 0);
+    });
+    let a = null;
+    for (let k = 0; k < 4 && a === null; k++) {
+      if (k) { rig.x += 150; rig.vx = rig.vz = 0; }
+      ox = rig.x - Math.sin(rig.h) * 1.4; oz = rig.z - Math.cos(rig.h) * 1.4;
+      for (let i = 0; i < 32 && a === null; i++) if (clear(i * Math.PI / 16)) a = i * Math.PI / 16;
+    }
+    if (a === null) return `no clear line to shoot along from ${rig.x.toFixed(0)},${rig.z.toFixed(0)}: ${V.list.filter((o) => o !== rig && Math.hypot(o.x - ox, o.z - oz) < 84).length} vehicles, ${g.chars.filter((c) => c !== g.player && c.alive && !c.inVehicle && Math.hypot(c.x - ox, c.z - oz) < 84).length} people within 84 m`;
+    const far = { x: ox + Math.sin(a) * 70, z: oz + Math.cos(a) * 70 }, near = { x: ox + Math.sin(a) * 30, z: oz + Math.cos(a) * 30 };
+    const toasts = [], toast = g.hud.toast;
+    g.hud.toast = (m, ...r) => { toasts.push(m); return toast.call(g.hud, m, ...r); };
+    try {
+      S.raycast = (x, z, dx, dz, max) => max;
+      const range = await C('harpoon', far);
+      const busy = await C('harpoon', far);
+      await C('step', { seconds: 1.5 });
+      const told = { last: V.lastHarpoon?.result, toast: toasts.find((m) => /OUT OF RANGE/.test(m)) ?? null }; // what the driver sees: the hook gave up at 48 m
+      V.releaseHarpoon();
+      S.raycast = (x, z, dx, dz, max) => { const left = 12 - (V.harpoon?.dist ?? 0); return left < max ? Math.max(0, left) : max; };
+      const wall = await C('harpoon', near);
+      await C('step', { seconds: 1 }); V.releaseHarpoon();
+      const ok = range.ok && range.why === 'range' && Math.abs(range.distance - 70) <= 3 && range.range === 48 && /70 m away; the hook reaches 48 m/.test(range.reason)
+        && told.last === 'range' && /REACHES 48M/.test(told.toast ?? '')
+        && busy.why === 'busy' && busy.action === 'none'
+        && wall.ok && wall.why === 'wall' && /wall took the hook 1[0-4] m out, short of the target/.test(wall.reason);
+      return ok ? true : JSON.stringify({ range, told, busy, wall });
+    } finally { S.raycast = ray; g.hud.toast = toast; V.releaseHarpoon(); }
   });
   await check('exit vehicle', async () => (await C('exitVehicle')).ok);
   await check('interior roof hides', async () => {
