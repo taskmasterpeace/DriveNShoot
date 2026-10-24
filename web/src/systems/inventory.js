@@ -133,6 +133,7 @@ export class Inventory {
     const P = g.player; // witnesses see the thief, not the inside of the shelf
     const rec = g.society?.deeds?.record('steal', { target: owner ?? null, x: P.x, z: P.z, m: Math.min(4, 1 + worth / 40), label: box.ownerName, tf: owner?.fid ?? box.ownerFid ?? 'rusthaven', stars: 1, owner: true });
     if (box.ownerFid) g.residents?.onSteal(box, rec);
+    g.witnesses?.caught(rec, owner, owner?.fid ?? box.ownerFid ?? null, box.ownerFid ? box.owner : null); // seen up close: called out now, not when the word lands
     g.emit('stole', { box: box.id, owner: box.owner, item: t.id, n: t.n, worth, witnesses: rec?.ws ?? 0 });
   }
 
