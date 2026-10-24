@@ -16,6 +16,9 @@ const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'righ
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
 // `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed,
 // the van's cargo box, the RV's coach; systems/decks.js carries the people on it) - a walkable vehicle is a row.
+// How far the Whaler's hook flies before it gives up and reels back in (metres).
+export const HARPOON_RANGE = 48;
+
 export const VEHICLES = {
   rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, reverse: 11, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
   interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, reverse: 15, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
@@ -572,6 +575,7 @@ export class Vehicles {
     }
     const ox = v.x - Math.sin(v.h) * 1.4, oz = v.z - Math.cos(v.h) * 1.4;
     this.harpoon = { from: v, x: ox, z: oz, dx: Math.sin(ang), dz: Math.cos(ang), dist: 0, target: null, kind: null, state: 'flying', len: 0 };
+    this.lastHarpoon = null;
     this.g.audio.harpoon();
     this.g.hud.shake(0.3);
   }
@@ -635,6 +639,7 @@ export class Vehicles {
       }
       if (hit) {
         h.state = 'attached'; h.target = hit; h.kind = kind;
+        this.lastHarpoon = { result: 'hooked', at: Math.round(h.dist) };
         h.len = Math.max(6, Math.hypot(hit.x - ax, hit.z - az));
         if (kind === 'char') {
           hit.dragged = h; g.combat.damage(hit, 55, g.player, h.dx, h.dz, 'bullet');
@@ -651,9 +656,14 @@ export class Vehicles {
         g.fx.sparks(h.x, 1.2, h.z, -h.dx, -h.dz, 8);
         g.audio.clank();
         h.state = 'retract';
+        this.lastHarpoon = { result: 'wall', at: Math.round(h.dist + wallT) };
       } else {
         h.x += h.dx * step; h.z += h.dz * step; h.dist += step;
-        if (h.dist > 48) h.state = 'retract';
+        if (h.dist > HARPOON_RANGE) {
+          h.state = 'retract';
+          this.lastHarpoon = { result: 'range', at: HARPOON_RANGE };
+          g.hud.toast(`OUT OF RANGE — THE HOOK REACHES ${HARPOON_RANGE}M`, 'warn');
+        }
       }
       bx = h.x; bz = h.z;
     } else if (h.state === 'retract') {
