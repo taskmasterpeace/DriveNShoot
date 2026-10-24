@@ -1,0 +1,49 @@
+/* The PACK screen's one-thumb layer (docs/INVENTORY-STUDY.md §8). The base PACK look is in hud.css; this file adds
+   TAKE ALL and CLOSE, and on a touch screen turns the card into a phone layout: one scrolling body, rows a thumb can
+   hit, and the action buttons in a bar along the bottom edge where the thumb rests. */
+
+/* With a mouse the body is no box at all: the doll, dogs and columns sit in the card's grid as before. */
+.inv-body { display: contents; }
+
+.inv-colhead { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; min-width: 0; }
+.inv-col .inv-colhead h4 { flex: 1; min-width: 0; margin: 0; }
+
+.inv-takeall, .inv-close {
+  all: unset; cursor: pointer; flex: none; font: 700 12px var(--display); letter-spacing: 0.08em; color: var(--bone);
+  padding: 4px 10px; background: linear-gradient(oklch(0.33 0.008 70), oklch(0.24 0.008 70)); border: 1px solid oklch(0.1 0.01 60);
+  box-shadow: inset 0 1px 0 rgba(255,250,235,0.1), 2px 3px 0 rgba(0,0,0,0.5); transition: background 0.2s, transform 0.2s; white-space: nowrap;
+}
+.inv-takeall:hover, .inv-close:hover { background: linear-gradient(oklch(0.42 0.04 75), oklch(0.3 0.03 70)); transform: translateY(-1px); }
+.inv-takeall kbd { margin-right: 6px; }
+.inv-close { align-self: flex-start; }
+
+/* A touch screen: a phone held sideways is about 390 px tall, so the card fills the screen, the middle scrolls, and the
+   picked thing and its buttons stay pinned at the bottom. */
+@media (pointer: coarse) {
+  .invmenu { place-items: stretch; }
+  .inv-card { width: 100vw; height: 100dvh; max-height: 100dvh; box-sizing: border-box; padding: 8px 12px 0; gap: 6px;
+    display: flex; flex-direction: column; border-radius: 0; }
+  .inv-head { gap: 10px; padding-bottom: 6px; flex: none; }
+  .inv-title { font-size: 26px; }
+  .inv-meters { min-width: 0; flex: 1; max-width: 330px; }
+  .inv-meter { grid-template-columns: 52px 1fr 92px; }
+  .inv-close { min-height: 44px; min-width: 64px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+  .inv-body { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .inv-cols { gap: 8px; }
+  .inv-col { min-height: 0; }
+  .inv-list { max-height: none; overflow: visible; }
+  .inv-list li { min-height: 44px; box-sizing: border-box; }
+  .inv-takeall { min-height: 40px; box-sizing: border-box; display: flex; align-items: center; font-size: 14px; padding: 0 14px; }
+
+  .inv-detail { flex: none; display: grid; grid-template-columns: 1fr; gap: 2px; min-height: 0; padding: 6px 0 0;
+    border-top: 1px solid oklch(0.1 0.01 60); box-shadow: 0 -1px 0 oklch(0.4 0.012 70 / 0.5); }
+  .inv-dname { font-size: 17px; }
+  .inv-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; }
+  .inv-acts { grid-column: 1; grid-row: auto; display: flex; gap: 8px; padding: 6px 0 calc(8px + env(safe-area-inset-bottom)); }
+  .inv-acts button { flex: 1; min-height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .inv-say { flex: none; min-height: 0; }
+
+  /* No keyboard on a phone: drop the key hints. */
+  .invmenu kbd, .inv-keys { display: none; }
+}
