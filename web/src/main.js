@@ -71,6 +71,7 @@ import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
 import { Creator } from './systems/creator.js';
 import { CreatorUI } from './ui/creator.js';
+import { TouchControls } from './ui/touch.js';
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -177,6 +178,7 @@ class Game {
     this.qol = new QOL(this, ui);
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
+    this.touch = new TouchControls(this, ui); // a phone's thumbs: sticks and buttons as a virtual pad (touch devices only)
 
     this.cash = 120;
     this.wanted = 0;
@@ -1172,6 +1174,7 @@ class Game {
 
   frame(dt) {
     const I = this.input;
+    this.touch.update(); // the thumbs feed the virtual pad the poll reads
     this.controls.poll(dt); // the pad's buttons become the codes below; its sticks the analog move, aim and drive
     this.qol.input(I);
     if (I.hit('F3')) { this.showStats = !this.showStats; this.hud.el.stats.classList.toggle('hidden', !this.showStats); }

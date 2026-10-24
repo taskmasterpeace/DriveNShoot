@@ -1,0 +1,38 @@
+/* THE TOUCH CONTROLS (ui/touch.js): two floating thumb sticks and big labelled buttons, shown on touch devices only.
+   The zones sit under the HUD's top band (compass, orders) so those stay tappable; the button cluster sits bottom right
+   where a right thumb rests, the aim stick takes the rest of the right half, the move stick the left half. */
+.touch { position: fixed; inset: 0; pointer-events: none; z-index: 40; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.touch.t-off .t-zone, .touch.t-off .t-btns { display: none; }
+.t-zone { position: absolute; top: 22%; bottom: 0; pointer-events: auto; touch-action: none; }
+.t-left { left: 0; width: 44%; }
+.t-right { right: 0; width: 56%; }
+.t-base { position: absolute; width: 116px; height: 116px; margin: -58px 0 0 -58px; border-radius: 50%;
+  border: 2px solid oklch(0.93 0.02 80 / 0.28); background: oklch(0.17 0.012 60 / 0.28); opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.t-base.live { opacity: 1; }
+/* Where a thumb lands the first time: a faint hint of each stick at rest. */
+.t-left .t-base:not(.live) { left: 22%; top: 68%; opacity: 0.35; }
+.t-right .t-base:not(.live) { left: 34%; top: 62%; opacity: 0.35; }
+.t-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, oklch(0.93 0.02 80 / 0.85), oklch(0.74 0.11 80 / 0.7)); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+/* The ring past which the aim stick fires (TOUCH.fireAt of the stick's reach). */
+.t-ring { position: absolute; inset: 22px; border-radius: 50%; border: 1px dashed oklch(0.8 0.16 75 / 0.5); }
+.t-base.fire { border-color: oklch(0.55 0.21 27 / 0.9); background: oklch(0.55 0.21 27 / 0.22); }
+.t-base.fire .t-knob { background: radial-gradient(circle at 40% 35%, oklch(0.8 0.16 40), oklch(0.55 0.21 27)); }
+
+/* The verbs: the small ones in a grid of three, the big ones in a row under the thumb. */
+.t-btns { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); width: 216px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+.t-small { display: grid; grid-template-columns: repeat(3, 66px); gap: 8px; direction: rtl; }
+.t-small .t-btn { direction: ltr; }
+.t-big { display: flex; gap: 8px; }
+.t-btn { pointer-events: auto; touch-action: none; min-width: 56px; height: 44px; padding: 0 8px; border-radius: 10px;
+  font: 700 13px/1 var(--display); letter-spacing: 0.06em; color: var(--bone);
+  background: oklch(0.17 0.012 60 / 0.62); border: 1.5px solid oklch(0.74 0.11 80 / 0.55); box-shadow: 0 2px 4px rgba(0,0,0,0.45);
+  transition: background 0.1s, transform 0.1s; }
+.t-btn.big { min-width: 104px; height: 60px; font-size: 16px; border-color: oklch(0.8 0.16 75 / 0.8); }
+.t-btn.down { background: oklch(0.74 0.11 80 / 0.55); color: var(--ink); transform: scale(0.95); }
+/* PACK, MAP, pause: always there, above the verbs. */
+.t-bar { position: absolute; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 176px); right: max(12px, env(safe-area-inset-right)); display: flex; gap: 6px; pointer-events: none; }
+.t-bar .t-btn { height: 40px; min-width: 48px; font-size: 12px; }
+/* The mouse cursor art means nothing under a thumb. */
+body:has(#ui.touch-on) #game { cursor: default; }
