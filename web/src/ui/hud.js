@@ -31,6 +31,11 @@ const STATUS_W = { needs: 670, bare: 432 }; // three dials (food, water, rest) o
 const segs = (cls, n) => `<div class="seg ${cls}">${'<i></i>'.repeat(n)}</div>`;
 const gauge = (cls, label) => `<div class="gauge ${cls}"><span class="g-label">${label}</span><div class="g-dial"><canvas></canvas><i class="g-needle"></i><b class="g-hub"></b></div></div>`;
 
+// The clusters' widths at scale 1 (hud.css .hud-tl/.hud-tr/.hud-bl/.hud-br and .fb-compass): when the compass would run
+// into ORDERS or the weather plate (tl: its 14 px margin plus the 336 px column, scaled; the 284 px tr column is narrower,
+// so tl decides), or the vitals plate into the gun panel, the HUD goes narrow.
+const HUD_LAYOUT = { tlEdge: 14, tl: 336, gap: 8, compass: 540, bl: 940, br: 316, edges: 8 + 8 + 10, blEdge: 16, trEdge: 12, tr: 284 };
+
 export class HUD {
   constructor(game, root) {
     this.g = game;
@@ -150,10 +155,18 @@ export class HUD {
   }
 
   // One scale for the whole HUD: 1.0 at 1600x900, clamped so 1280x720 and 4K both read.
-  rescale() {
-    const k = Math.max(0.62, Math.min(1.35, Math.min(innerWidth / 1600, innerHeight / 900)));
+  // Narrow (a phone, about 800 px and under): the clusters no longer fit side by side, so the compass takes the top row
+  // and ORDERS / the weather plate sit under it, the vitals plate shrinks to the screen's width (--sb), and the gun
+  // panel / dash stack above it with the E prompt over them (hud.css .hud-narrow). w,h: a size to lay out for (tests).
+  rescale(w = innerWidth, h = innerHeight) {
+    const k = Math.max(0.62, Math.min(1.35, Math.min(w / 1600, h / 900)));
+    const L = HUD_LAYOUT, narrow = w / 2 - L.compass / 2 * k < L.tlEdge + L.tl * k + L.gap || w < L.edges + (L.bl + L.br) * k;
+    const kb = narrow ? Math.min(k, (w - L.blEdge) / L.bl) : k;
     this.root.style.setProperty('--s', k.toFixed(3));
-    this.scaleK = k;
+    const kt = narrow ? Math.min(k, (w - L.tlEdge - L.trEdge - L.gap) / (L.tl + L.tr)) : k; // ORDERS beside the weather column
+    this.root.style.setProperty('--sb', kb.toFixed(3)); this.root.style.setProperty('--st', kt.toFixed(3));
+    this.root.classList.toggle('hud-narrow', narrow);
+    this.scaleK = k; this.narrow = narrow;
   }
 
   // Static art. Text-bearing faces (bezel numbers, gauge labels) repaint once the webfonts land.

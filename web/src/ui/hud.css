@@ -33,8 +33,16 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
    ===================================================================================================== */
 .hud-tl { position: absolute; left: 14px; top: 0; width: 336px; transform: scale(var(--s)); transform-origin: 0 0; display: flex; flex-direction: column; align-items: flex-start; }
 .hud-tr { position: absolute; right: 12px; top: 10px; width: 284px; transform: scale(var(--s)); transform-origin: 100% 0; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
-.hud-bl { position: absolute; left: 8px; bottom: 6px; width: 940px; height: 280px; transform: scale(var(--s)); transform-origin: 0 100%; }
+.hud-bl { position: absolute; left: 8px; bottom: 6px; width: 940px; height: 280px; transform: scale(var(--sb, var(--s))); transform-origin: 0 100%; }
 .hud-br { position: absolute; right: 10px; bottom: 10px; transform: scale(var(--s)); transform-origin: 100% 100%; }
+/* Phone width (hud.js rescale sets .hud-narrow, --st and --sb): the compass keeps the top row (top 9px, 36px tall at --s);
+   ORDERS and the weather/cash column drop below it and shrink to --st so the two fit side by side; the vitals plate fits
+   the width (--sb); the gun panel / dash and the weapon bar stack above it, and the E prompt above them. */
+.hud-narrow .hud-tl { top: calc(14px + 36px * var(--s)); transform: scale(var(--st, var(--s))); }
+.hud-narrow .hud-tr { top: calc(14px + 36px * var(--s)); transform: scale(var(--st, var(--s))); }
+.hud-narrow .hud-br { bottom: calc(14px + 280px * var(--sb)); }
+.hud-narrow .wbar { bottom: calc(14px + 280px * var(--sb) + 10px * var(--s)); } /* the weapon bar (weaponbar.css) rides up beside the gun panel */
+.hud-narrow .prompt { bottom: calc(22px + 280px * var(--sb) + 330px * var(--s)); }
 
 /* ---- ORDERS: a torn, pinned paper tag (markup from qol.js) ---- */
 .objective { position: relative; width: 316px; min-height: 256px; margin-top: 8px; padding: 92px 34px 40px 32px; transform: rotate(-1.4deg); transform-origin: 50% 0; text-align: center; filter: drop-shadow(3px 6px 5px rgba(0,0,0,0.55)); }
