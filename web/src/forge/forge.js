@@ -11,6 +11,7 @@ import { stubTab } from './tab-stub.js';
 import { HELP } from './help.js';
 
 const FORGE = (window.FORGE = { ready: false, error: null });
+async function boot() {
 try {
   const tabs = [mapTab(), terrainTab(), brushTab(), stubTab('town'), buildingTab(), stubTab('site'), stubTab('life'), stubTab('voice'), observeTab()];
   const nav = $('#tabs'), deck = $('#deck');
@@ -81,3 +82,5 @@ try {
   console.error(e);
   document.body.append(el('pre', { style: { position: 'fixed', inset: '80px 20px auto', color: '#f08a6a', background: '#1a120a', padding: '12px', zIndex: 99, whiteSpace: 'pre-wrap' } }, FORGE.error));
 }
+}
+boot();
