@@ -141,8 +141,8 @@ export class AgentAPI {
   // Deterministic fixed-step simulation. Works when the tab is hidden (rAF paused).
   async _step(frames, dt = 1 / 60) {
     const g = this.g;
-    const wasPaused = g.paused;
-    g.paused = false;
+    const wasPaused = g.paused, wasHeld = g.holdLoop;
+    g.paused = false; g.holdLoop = true;
     // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
     const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
@@ -158,8 +158,10 @@ export class AgentAPI {
           if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
         }
       }
-    } finally { if (S) S.sync = wasSync; }
-    g.paused = wasPaused;
+    } finally {
+      if (S) S.sync = wasSync;
+      g.paused = wasPaused; g.holdLoop = wasHeld;
+    }
     g.render(dt);
   }
 
@@ -177,6 +179,16 @@ export class AgentAPI {
       return best;
     }
     return g.chars.find((c) => c.id === id || c.npc?.id === id || (c.name && c.name.toLowerCase() === String(id).toLowerCase()) || (c.npc?.name ?? '').toLowerCase() === String(id).toLowerCase());
+  }
+  // A named person's npc id from an npc id, a char id ("c3") or a name. gone=true also takes the id of
+  // someone no longer in the world whose memories are still kept. An unnamed char says why it has none.
+  namedId(id, gone = false) {
+    const g = this.g, M = g.society.memory;
+    if (gone && M.byNpc.has(id)) return id;
+    const c = this.findChar(id);
+    if (!c) throw new Error(`no character ${id} (try an npc id like "okonkwo", a char id like "c3", or a name)`);
+    if (!c.npc?.id) throw new Error(`${id} is ${c.name ?? 'someone'}, who has no name in the world; only named people keep memories`);
+    return c.npc.id;
   }
   findVeh(id) { return this.g.vehicles.find((v) => v.id === id || v.type === id); }
 
@@ -1369,15 +1381,15 @@ function buildCommands(api) {
       },
     },
     memory: {
-      group: 'society', desc: "What a named person remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead.",
+      group: 'society', desc: "What a named person (npc id like \"okonkwo\", char id like \"c3\", or name) remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead.",
       args: { id: { type: 'string', required: true } },
-      run: async ({ id }) => { need(g.chars.some((c) => c.npc?.id === id) || g.society.memory.byNpc.has(id), `no named person ${id}`); return g.society.memory.view(id); },
+      run: async ({ id }) => { const nid = api.namedId(id, true); return g.society.memory.view(nid); },
     },
     remember: {
-      group: 'society', desc: `Give a named person a memory of you (or forget=true to clear it; no kind clears all). kind: ${Object.keys(MEMORY_KINDS).join('|')}.`,
+      group: 'society', desc: `Give a named person (npc id, char id or name) a memory of you (or forget=true to clear it; no kind clears all). kind: ${Object.keys(MEMORY_KINDS).join('|')}.`,
       args: { id: { type: 'string', required: true }, kind: { type: 'string' }, weight: { type: 'number', default: 1 }, about: { type: 'string', default: '' }, heard: { type: 'boolean', default: false }, forget: { type: 'boolean', default: false } },
       run: async ({ id, kind, weight, about, heard, forget }) => {
-        need(g.chars.some((c) => c.npc?.id === id), `no named person ${id}`);
+        id = api.namedId(id);
         need(forget || MEMORY_KINDS[kind], `unknown kind; known: ${Object.keys(MEMORY_KINDS).join(',')}`);
         if (forget) g.society.memory.forget(id, kind); else g.society.memory.remember(id, kind, { weight, about, heard });
         return g.society.memory.view(id);
@@ -1940,7 +1952,12 @@ function buildCommands(api) {
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
       group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one).',
       args: { only: { type: 'string' }, skip: { type: 'string' } },
-      run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
+      run: async ({ only, skip } = {}) => {
+        const held = g.holdLoop;
+        g.holdLoop = true;
+        try { return await runSelfTest(api, only, skip); }
+        finally { g.holdLoop = held; }
+      },
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
@@ -2069,6 +2086,23 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
+    const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
+    const frames = [], renders = [];
+    let next;
+    try {
+      // Capture the real loop's callbacks without scheduling a second live loop. A slow startup can receive a frame
+      // timestamp from before start() sampled performance.now(); the simulation must still get a nonnegative step.
+      window.requestAnimationFrame = (fn) => { next = fn; return 0; };
+      g.frame = (dt) => { frames.push(dt); }; g.render = (dt) => { renders.push(dt); }; g.holdLoop = false;
+      const now = performance.now();
+      g.start(); next(now - 2000); next(now + 2000); next(now + 2016);
+      const valid = (a) => a.length === 3 && a[0] === 0 && a[1] === 0.05 && Math.abs(a[2] - 0.016) < 1e-9;
+      return valid(frames) && valid(renders) ? true : JSON.stringify({ frames, renders });
+    } finally {
+      window.requestAnimationFrame = raf; g.frame = frame; g.render = render; g.fps = fps; g.holdLoop = held;
+    }
+  });
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -2712,6 +2746,9 @@ async function runSelfTest(api, only = null, skip = null) {
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0; g.witnesses.clear();
+    // Long earlier checks can leave hours of hunger, thirst and exhaustion. Input and aim fixtures start awake;
+    // survival checks set their own needs after staging, so their deprivation still runs through the real body.
+    await C('needs', { water: 1, food: 1, rest: 1 }); g.needs.blackout = 0;
     g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
     for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
     await C('equip', { weapon: 'pistol' });
@@ -2876,6 +2913,20 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('remember', { id: 'vo', forget: true });
     const calm = !!vo && !g.ai.hostile(vo, g.player);
     return refused && shut.choices?.length === 1 && open.choices?.length > 1 && hunt && calm ? true : JSON.stringify({ refused, shut: shut.choices?.length, open: open.choices?.length, hunt, calm, vo: !!vo });
+  });
+  await check('world memory: memory and remember take a char id ("c3") or a name as well as the npc id, and an unnamed person says why they keep none', async () => {
+    const ike = g.chars.find((c) => c.npc?.id === 'ike'), nobody = g.chars.find((c) => c.alive && !c.npc && c !== g.player);
+    if (!ike) return 'no Ike in the world';
+    try {
+      const byChar = await C('remember', { id: ike.id, kind: 'killedKin', about: 'Mateo' });
+      const viaChar = await C('memory', { id: ike.id }), viaName = await C('memory', { id: ike.npc.name }), viaNpc = await C('memory', { id: 'ike' });
+      const has = (v) => v?.memories?.some((m) => m.kind === 'killedKin' && m.about === 'Mateo');
+      const anon = nobody ? await C('memory', { id: nobody.id }) : null, ghost = await C('memory', { id: 'c99999' });
+      const ok = has(byChar) && has(viaChar) && has(viaName) && has(viaNpc)
+        && (!nobody || (anon.ok === false && /no name in the world/.test(anon.error)))
+        && ghost.ok === false && /no character c99999/.test(ghost.error);
+      return ok ? true : JSON.stringify({ ike: ike.id, byChar: has(byChar), viaChar: has(viaChar), viaName: has(viaName), viaNpc: has(viaNpc), anon, ghost });
+    } finally { await C('remember', { id: 'ike', forget: true }); }
   });
   await check("world memory: Mateo remembers being shot, and the word reaches his sister Rosa", async () => quickRumors(async () => {
     await stage();
@@ -5735,7 +5786,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
-  return { passed, total: results.length, results };
+  return { ok: passed === results.length, passed, total: results.length, results };
 }
 
 // ---- save / load ------------------------------------------------------------------
