@@ -3,10 +3,13 @@ import { slotKg } from '../systems/inventory.js';
 import { WEAPONS } from '../systems/combat.js';
 import { SLOTS, SLOT_LABEL, ARMOR_SLOTS, PARTS, GEAR } from '../data/gear.js';
 import { BREEDS, BOND_TIERS } from '../data/dogs.js';
+import './inventory.css'; // the one-thumb layer: TAKE ALL, CLOSE, thumb-sized rows and buttons on a touch screen
 
 // The PACK screen (I or Tab): what's on you beside the other side - the trunk of the car you're at, a box or a
 // body you opened, or the ground at your feet. The world keeps running while you rummage (you stand still), so a
-// pack opened in a fight costs you. Keyboard: W/S pick, A/D side, E use, Space move across, X drop, F wear a pack.
+// pack opened in a fight costs you. Keyboard: W/S pick, A/D side, E use, Space move across, X drop, F wear a pack,
+// R takes all. One thumb (docs/INVENTORY-STUDY.md): a tap picks a row and a tap on the picked row moves it (TAKE, PUT,
+// BUY or SELL, as the MOVE button says); TAKE ALL over their side; CLOSE in the corner.
 // The ON YOU side starts with the guns slung on you (the loadout): E takes one in hand, Space puts it in the other
 // side, X puts it down. A gun item anywhere is slung with E (swapped for yours, if you carry one of its kind).
 // A trader's own shelf with the trader at the counter is a counter (systems/trade.js): Space on their side buys, on
@@ -41,12 +44,15 @@ export class InventoryUI {
               <div class="inv-meter"><span>WEIGHT</span><i><em class="inv-kg"></em></i><b class="inv-kg-t"></b></div>
               <div class="inv-meter"><span>ROOM</span><i><em class="inv-l"></em></i><b class="inv-l-t"></b></div>
             </div>
+            <button class="inv-close" aria-label="Close the pack">CLOSE</button>
           </div>
+          <div class="inv-body">
           <div class="inv-doll"></div>
           <div class="inv-dogs"></div>
           <div class="inv-cols">
             <section class="inv-col" data-side="0"><h4>ON YOU</h4><ol class="inv-list"></ol></section>
-            <section class="inv-col" data-side="1"><h4 class="inv-other"></h4><ol class="inv-list"></ol></section>
+            <section class="inv-col" data-side="1"><div class="inv-colhead"><h4 class="inv-other"></h4><button class="inv-takeall"><kbd>R</kbd>TAKE ALL</button></div><ol class="inv-list"></ol></section>
+          </div>
           </div>
           <div class="inv-detail">
             <div class="inv-dname"></div>
@@ -58,24 +64,34 @@ export class InventoryUI {
             </div>
           </div>
           <div class="inv-say"></div>
-          <div class="inv-keys"><kbd>W</kbd><kbd>S</kbd>pick <kbd>A</kbd><kbd>D</kbd>side <kbd>I</kbd>close</div>
+          <div class="inv-keys"><kbd>W</kbd><kbd>S</kbd>pick <kbd>A</kbd><kbd>D</kbd>side <kbd>R</kbd>take all <kbd>I</kbd>close · click a picked row to move it</div>
         </div>
       </div>`);
     const q = (s) => root.querySelector(`.invmenu ${s}`);
     this.el = {
       menu: root.querySelector('.invmenu'), worn: q('.inv-worn'), roles: q('.inv-roles'), kg: q('.inv-kg'), kgT: q('.inv-kg-t'), l: q('.inv-l'), lT: q('.inv-l-t'),
       lists: [...root.querySelectorAll('.invmenu .inv-list')], cols: [...root.querySelectorAll('.invmenu .inv-col')], other: q('.inv-other'),
-      doll: q('.inv-doll'), dogs: q('.inv-dogs'), dname: q('.inv-dname'), desc: q('.inv-desc'), stats: q('.inv-stats'), acts: q('.inv-acts'), useT: q('.inv-use-t'), moveT: q('.inv-move-t'), say: q('.inv-say'),
+      doll: q('.inv-doll'), dogs: q('.inv-dogs'), dname: q('.inv-dname'), desc: q('.inv-desc'), stats: q('.inv-stats'), acts: q('.inv-acts'), useT: q('.inv-use-t'), moveT: q('.inv-move-t'), say: q('.inv-say'), takeAll: q('.inv-takeall'), close: q('.inv-close'),
     };
-    this.open = false; this.side = 0; this.sel = [0, 0]; this.other = null; this.sayT = 0;
+    this.open = false; this.side = 0; this.sel = [0, 0]; this.other = null; this.sayT = 0; this.tapped = null;
+    // A tap picks a row; a tap on the row you just picked moves it. Only a row picked by a tap counts (the row lit when
+    // the screen opens or by the keys is not), and the pick is the thing itself, in that box: anything that acts (a
+    // button, a key, TAKE ALL, closing) uses the pick up, and if another thing has slid into that row or the other side
+    // is now another box, the next tap only picks. So a double-click moves one thing once, never twice, and one stray
+    // tap never moves (or buys) what you did not pick. This replaces the old dblclick: a phone turns a double tap into
+    // zoom, and the list redraws between the taps.
     this.el.lists.forEach((ol, side) => ol.addEventListener('click', (e) => {
       const li = e.target.closest('li[data-i]'); if (!li) return;
-      this.side = side; this.sel[side] = +li.dataset.i; this.render();
+      const i = +li.dataset.i, pick = { side, i, box: this.box(side), thing: this.thing(side, i) }, t = this.tapped;
+      const again = !!t && t.side === side && t.i === i && t.box === pick.box && t.thing === pick.thing && this.side === side;
+      this.side = side; this.sel[side] = i;
+      if (again) this.act('move'); else { this.tapped = pick; this.render(); }
     }));
-    this.el.lists.forEach((ol, side) => ol.addEventListener('dblclick', (e) => { const li = e.target.closest('li[data-i]'); if (!li) return; this.side = side; this.sel[side] = +li.dataset.i; this.act('move'); }));
+    this.el.takeAll.addEventListener('click', () => this.takeAll());
+    this.el.close.addEventListener('click', () => this.toggle(false));
     this.el.acts.addEventListener('click', (e) => { const b = e.target.closest('button[data-a]'); if (b) this.act(b.dataset.a); });
     // A worn slot's chip: click takes it off (into the pack; at your feet with no room).
-    this.el.doll.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (!b || !this.g.gear.worn[b.dataset.slot]) return; const r = this.g.gear.takeOff(b.dataset.slot); this.tell(r.ok ? r.text : r.why.toUpperCase(), !r.ok); this.render(); });
+    this.el.doll.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (!b || !this.g.gear.worn[b.dataset.slot]) return; this.tapped = null; const r = this.g.gear.takeOff(b.dataset.slot); this.tell(r.ok ? r.text : r.why.toUpperCase(), !r.ok); this.render(); });
   }
 
   // The other side: whatever is opened, else a box or body at your feet, else the car you're in or standing at,
@@ -92,8 +108,9 @@ export class InventoryUI {
 
   toggle(on = !this.open) {
     if (on && !this.g.player.alive) return;
-    this.open = on;
+    this.open = on; this.tapped = null;
     this.el.menu.classList.toggle('hidden', !on);
+    document.body.classList.toggle('pack-open', on); // inventory.css hides the touch bar (PACK / MAP / pause) under it
     if (on) { this.other = this.pickOther(); this.side = 0; this.render(); }
     else { const inv = this.g.inventory; inv.opened = null; inv.prune?.(); }
     this.g.emit('pack', { open: on, other: this.other?.id ?? null });
@@ -102,6 +119,7 @@ export class InventoryUI {
   // Keyboard, while open (main.js stops the player moving).
   input(I) {
     if (I.hit('KeyI') || I.hit('Tab') || I.hit('Escape')) { this.toggle(false); return; }
+    if (['KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyA', 'ArrowLeft', 'KeyD', 'ArrowRight'].some((k) => I.hit(k))) this.tapped = null; // the keys move the light, not the pick
     if (I.hit('KeyW') || I.hit('ArrowUp')) { this.sel[this.side] = Math.max(0, this.sel[this.side] - 1); this.render(); }
     if (I.hit('KeyS') || I.hit('ArrowDown')) { this.sel[this.side] = Math.min(Math.max(0, this.count(this.side) - 1), this.sel[this.side] + 1); this.render(); }
     if (I.hit('KeyA') || I.hit('ArrowLeft')) { this.side = 0; this.render(); }
@@ -110,6 +128,7 @@ export class InventoryUI {
     if (I.hit('Space')) this.act('move');
     if (I.hit('KeyX')) this.act('drop');
     if (I.hit('KeyF')) this.act('wear');
+    if (I.hit('KeyR')) this.takeAll();
   }
 
   box(side) { return side === 0 ? this.g.inventory.carried : this.other; }
@@ -122,11 +141,14 @@ export class InventoryUI {
     const j = i - G.length, s = this.box(side)?.slots[j];
     return s ? { s, i: j } : null;
   }
+  // What row i of a side holds (the gun or the slot itself), so a pick knows if something else slid into its row.
+  thing(side, i) { const e = this.entry(side, i); return e?.gun ?? e?.s ?? null; }
 
   // The deal on the other side: its trader at the counter and willing, else null (taking from an owned box is theft).
   deal() { const D = this.g.trade?.at(this.other); return D && !D.refuse ? D : null; }
 
   act(a) {
+    this.tapped = null; // any action uses the pick up
     const g = this.g, inv = g.inventory, box = this.box(this.side), e = this.entry(this.side, this.sel[this.side]);
     if (!e) return;
     const other = this.box(1 - this.side), ground = inv.groundAt(g.player.x, g.player.z), D = this.deal();
@@ -170,6 +192,26 @@ export class InventoryUI {
     this.render();
   }
 
+  // TAKE ALL (R, or the button over their side): everything on the other side into your pack until it is full. Never at
+  // a counter (that would be buying it all) or from somebody's shelf (stealing it all): there you pick each thing, so
+  // theft stays a choice. Guns come across as things in your pack; slinging one and wearing a pack stay E and F.
+  canTakeAll() { const o = this.other; return !!o?.slots.length && o !== this.g.inventory.carried && !o.owner && !this.g.trade?.at(o); }
+  takeAll() {
+    const inv = this.g.inventory, o = this.other;
+    this.tapped = null;
+    if (!o || o === inv.carried) return;
+    if (this.g.trade?.at(o)) return this.tell('AT A COUNTER YOU PICK WHAT YOU BUY', true);
+    if (o.owner) return this.tell(`THAT'S ${(o.ownerName ?? 'somebody').toUpperCase()}'S · PICK WHAT YOU TAKE`, true);
+    if (!o.slots.length) return this.tell('NOTHING TO TAKE', true);
+    let took = 0;
+    for (let j = 0; j < o.slots.length;) { const s = o.slots[j]; took += inv.move(o, j, inv.carried, s.n); if (o.slots[j] === s) j++; } // a slot that came across whole is gone: the next one is at j now
+    const left = o.slots.reduce((a, s) => a + s.n, 0);
+    this.tell(!took ? 'NO ROOM ON YOU' : left ? `TOOK ${took} · NO ROOM FOR ${left} MORE` : `TOOK ${took} · ALL OF IT`, left > 0);
+    for (const side of [0, 1]) this.sel[side] = Math.min(this.sel[side], Math.max(0, this.count(side) - 1));
+    this.render();
+    return { took, left };
+  }
+
   tell(text, bad = false) { this.el.say.textContent = text; this.el.say.classList.toggle('bad', bad); this.sayT = 2.5; }
 
   update(dt) {
@@ -177,7 +219,11 @@ export class InventoryUI {
     if (this.sayT > 0 && (this.sayT -= dt) <= 0) this.el.say.textContent = '';
     // Walked away from the other side (or it drove off): fall back to what's here now.
     const o = this.other, p = this.g.player;
-    if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2)) { this.other = this.pickOther(); this.render(); }
+    if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2)) {
+      this.other = this.pickOther();
+      if (this.other !== o) this.tapped = null;
+      this.render();
+    }
     else if (this.g.inventory.dirty) this.render();
     if (!p.alive) this.toggle(false);
   }
@@ -289,5 +335,6 @@ export class InventoryUI {
       : gunPay > 0 || slotPay > 0 ? `SELL +$${gunPay || slotPay}` : `${D.name.toUpperCase()} WON'T BUY IT`;
     this.el.acts.querySelector('[data-a="wear"]').classList.toggle('hidden', !isPack);
     this.el.acts.querySelector('[data-a="use"]').classList.toggle('hidden', !canUse);
+    this.el.takeAll.classList.toggle('hidden', !this.canTakeAll());
   }
 }
