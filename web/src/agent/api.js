@@ -3042,14 +3042,16 @@ async function runSelfTest(api, only = null, skip = null) {
       // The revolver, loaded, with rounds in the pocket: earlier checks can leave another gun in hand or an empty cylinder.
       g.switchWeapon('pistol'); g.inv.mag.pistol = 6; g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 36); g.player.reloading = 0; g.player.cool = 0;
       // The gun up first (systems/arms.js: a click on a lowered gun raises it), then the rounds: this proves the bed, not the stance.
-      // Up to 16 rounds: shooting from anything moving adds spread with speed (vehicles.js DRIVING.shootSpread) - measured 1-6
-      // rounds to the first hit at 13 m/s, so 8 sometimes all missed.
+      // This checks the deck's firing path; separate checks cover spread and aim. A precise player row avoids random
+      // misses using up the drive-by window until the truck has carried the target beyond the gun's reach.
       g.sky.time = 12; g.sky.update?.(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); // noon: an earlier check's night makes the aim wilder
-      let fired = 0; const hs = g.combat.hitscan; g.combat.hitscan = function (s, ...a) { if (s === g.player) fired++; return hs.call(this, s, ...a); };
+      let fired = 0, hitSpeed = 0; const hs = g.combat.hitscan, fire = g.combat.fire;
+      g.combat.fire = function (s, k, a, row) { return fire.call(this, s, k, a, s === g.player && k === 'pistol' ? { ...(row ?? WEAPONS[k]), spread: 0 } : row); };
+      g.combat.hitscan = function (s, ...a) { const hp = t.hp; if (s === g.player) fired++; const out = hs.call(this, s, ...a); if (s === g.player && t.hp < hp) hitSpeed = g.vehiclesSys.speed(v); return out; };
       try {
       for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
-      } finally { g.combat.hitscan = hs; }
-      return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck, fired, gun: g.inv.current, mag: g.inv.mag[g.inv.current], dist: +Math.hypot(t.x - g.player.x, t.z - g.player.z).toFixed(1), tAlive: t.alive, inChars: g.chars.includes(t), spread: +(g.skills.spreadMul ?? 1).toFixed(2), stance: g.arms?.stance });
+      } finally { g.combat.hitscan = hs; g.combat.fire = fire; }
+      return climbed && sp > 3 && hitSpeed > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hitSpeed: +hitSpeed.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck, fired, gun: g.inv.current, mag: g.inv.mag[g.inv.current], dist: +Math.hypot(t.x - g.player.x, t.z - g.player.z).toFixed(1), tAlive: t.alive, inChars: g.chars.includes(t), spread: +(g.skills.spreadMul ?? 1).toFixed(2), stance: g.arms?.stance });
     } finally { wvClean([v, d, t]); }
   }));
   await check('walk vehicles: a crash throws you out of the bed (standing), hurt and on your back', async () => hush(async () => {
