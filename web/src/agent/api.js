@@ -5799,7 +5799,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
-  return { passed, total: results.length, results };
+  return { ok: passed === results.length, passed, total: results.length, results };
 }
 
 // ---- save / load ------------------------------------------------------------------
