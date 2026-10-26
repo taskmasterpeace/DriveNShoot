@@ -44,6 +44,7 @@ export class QOL {
       <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
       <div class="pausemenu hidden"><div class="pm-card">
         <div class="pm-title">PAUSED</div>
+        <p>Divided States of America</p>
         <div class="pm-buttons">
           <button data-a="resume">Resume</button>
           <button data-a="save">Quick save <kbd>F5</kbd></button>

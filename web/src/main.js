@@ -1141,8 +1141,8 @@ class Game {
     t.className = 'title';
     t.innerHTML = `
       <div class="title-inner">
-        <h1>DIVIDED <span>STATES</span></h1>
-        <div class="tag">${this.regions?.intro()?.tag ?? 'OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.'}</div>
+        <h1>Divided <span>States</span> <small>of America</small></h1>
+        <div class="tag">${this.regions?.intro()?.tag ?? 'PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.'}</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>

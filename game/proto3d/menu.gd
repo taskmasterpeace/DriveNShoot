@@ -44,16 +44,17 @@ func _build() -> void:
 
 	var title := Label.new()
 	title.add_theme_font_override("font", ProtoHUD.mixed_font())
-	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_font_size_override("font_size", 36)
 	title.add_theme_color_override("font_color", Color(0.96, 0.72, 0.2))
-	title.text = "DRIVN"
+	title.text = "Divided States of America"
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(title)
 	var sub := Label.new()
 	sub.add_theme_font_override("font", ProtoHUD.mixed_font())
 	sub.add_theme_font_size_override("font_size", 16)
 	sub.add_theme_color_override("font_color", Color(0.6, 0.55, 0.45))
-	sub.text = "THE DIVIDED STATES OF AMERICA"
+	sub.text = "THE UNION IS GONE. THE ROADS REMAIN."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(sub)
 	_root.add_child(Control.new()) # spacer

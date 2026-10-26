@@ -14,7 +14,11 @@ tile_bit_tools/output/show_user_messages=false
 
 [application]
 
-config/name="DRIVN"
+config/name="Divided States of America"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="godot/app_userdata/DRIVN"
+config/custom_user_dir_name.windows="Godot/app_userdata/DRIVN"
+config/custom_user_dir_name.macos="Godot/app_userdata/DRIVN"
 config/version="0.14.0"
 config/tags=PackedStringArray("template")
 run/main_scene="res://proto3d/proto3d.tscn"
