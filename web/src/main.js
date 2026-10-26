@@ -1268,7 +1268,8 @@ class Game {
   start() {
     let last = performance.now();
     const loop = (now) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
+      // The first animation timestamp can predate start() after a slow startup. Never advance timers backward.
+      const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
       last = now;
       this.fps += (1 / Math.max(dt, 0.001) - this.fps) * 0.05;
       // A bug in one system must never freeze the game: log it, keep the loop alive. (holdLoop: a scenario is driving
