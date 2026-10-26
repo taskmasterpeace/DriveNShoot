@@ -210,7 +210,7 @@ export class Regions {
   // The title's line and the first toasts for where the game starts.
   intro() {
     if (this.start !== 'florida') return null;
-    return { tag: 'OF AMERICA · MERIDIAN, FLORIDA · THE UNION IS GONE. THE ROADS REMAIN.', toast: 'You wake up in Meridian, Florida. Sheriff Duarte keeps the peace from the office on Main Street.', sub: 'The garage has a pickup in its yard. Lucien says bring it back with gas in it.' };
+    return { tag: 'MERIDIAN, FLORIDA · THE UNION IS GONE. THE ROADS REMAIN.', toast: 'You wake up in Meridian, Florida. Sheriff Duarte keeps the peace from the office on Main Street.', sub: 'The garage has a pickup in its yard. Lucien says bring it back with gas in it.' };
   }
 
   // ---- per frame ------------------------------------------------------------------------------------------------------

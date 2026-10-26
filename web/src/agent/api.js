@@ -141,8 +141,8 @@ export class AgentAPI {
   // Deterministic fixed-step simulation. Works when the tab is hidden (rAF paused).
   async _step(frames, dt = 1 / 60) {
     const g = this.g;
-    const wasPaused = g.paused;
-    g.paused = false;
+    const wasPaused = g.paused, wasHeld = g.holdLoop;
+    g.paused = false; g.holdLoop = true;
     // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
     const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
@@ -158,8 +158,10 @@ export class AgentAPI {
           if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
         }
       }
-    } finally { if (S) S.sync = wasSync; }
-    g.paused = wasPaused;
+    } finally {
+      if (S) S.sync = wasSync;
+      g.paused = wasPaused; g.holdLoop = wasHeld;
+    }
     g.render(dt);
   }
 
@@ -1940,7 +1942,12 @@ function buildCommands(api) {
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
       group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one).',
       args: { only: { type: 'string' }, skip: { type: 'string' } },
-      run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
+      run: async ({ only, skip } = {}) => {
+        const held = g.holdLoop;
+        g.holdLoop = true;
+        try { return await runSelfTest(api, only, skip); }
+        finally { g.holdLoop = held; }
+      },
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
@@ -2069,6 +2076,23 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
+    const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
+    const frames = [], renders = [];
+    let next;
+    try {
+      // Capture the real loop's callbacks without scheduling a second live loop. A slow startup can receive a frame
+      // timestamp from before start() sampled performance.now(); the simulation must still get a nonnegative step.
+      window.requestAnimationFrame = (fn) => { next = fn; return 0; };
+      g.frame = (dt) => { frames.push(dt); }; g.render = (dt) => { renders.push(dt); }; g.holdLoop = false;
+      const now = performance.now();
+      g.start(); next(now - 2000); next(now + 2000); next(now + 2016);
+      const valid = (a) => a.length === 3 && a[0] === 0 && a[1] === 0.05 && Math.abs(a[2] - 0.016) < 1e-9;
+      return valid(frames) && valid(renders) ? true : JSON.stringify({ frames, renders });
+    } finally {
+      window.requestAnimationFrame = raf; g.frame = frame; g.render = render; g.fps = fps; g.holdLoop = held;
+    }
+  });
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -5735,7 +5759,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
-  return { passed, total: results.length, results };
+  return { ok: passed === results.length, passed, total: results.length, results };
 }
 
 // ---- save / load ------------------------------------------------------------------
