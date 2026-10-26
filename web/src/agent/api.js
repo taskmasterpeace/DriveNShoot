@@ -2069,6 +2069,23 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
+    const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
+    const frames = [], renders = [];
+    let next;
+    try {
+      // Capture the real loop's callbacks without scheduling a second live loop. A slow startup can receive a frame
+      // timestamp from before start() sampled performance.now(); the simulation must still get a nonnegative step.
+      window.requestAnimationFrame = (fn) => { next = fn; return 0; };
+      g.frame = (dt) => { frames.push(dt); }; g.render = (dt) => { renders.push(dt); }; g.holdLoop = false;
+      const now = performance.now();
+      g.start(); next(now - 2000); next(now + 2000); next(now + 2016);
+      const valid = (a) => a.length === 3 && a[0] === 0 && a[1] === 0.05 && Math.abs(a[2] - 0.016) < 1e-9;
+      return valid(frames) && valid(renders) ? true : JSON.stringify({ frames, renders });
+    } finally {
+      window.requestAnimationFrame = raf; g.frame = frame; g.render = render; g.fps = fps; g.holdLoop = held;
+    }
+  });
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
