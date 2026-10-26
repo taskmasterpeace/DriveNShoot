@@ -141,8 +141,8 @@ export class AgentAPI {
   // Deterministic fixed-step simulation. Works when the tab is hidden (rAF paused).
   async _step(frames, dt = 1 / 60) {
     const g = this.g;
-    const wasPaused = g.paused;
-    g.paused = false;
+    const wasPaused = g.paused, wasHeld = g.holdLoop;
+    g.paused = false; g.holdLoop = true;
     // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
     const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
@@ -158,8 +158,10 @@ export class AgentAPI {
           if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
         }
       }
-    } finally { if (S) S.sync = wasSync; }
-    g.paused = wasPaused;
+    } finally {
+      if (S) S.sync = wasSync;
+      g.paused = wasPaused; g.holdLoop = wasHeld;
+    }
     g.render(dt);
   }
 
@@ -1949,7 +1951,12 @@ function buildCommands(api) {
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
       group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one).',
       args: { only: { type: 'string' }, skip: { type: 'string' } },
-      run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
+      run: async ({ only, skip } = {}) => {
+        const held = g.holdLoop;
+        g.holdLoop = true;
+        try { return await runSelfTest(api, only, skip); }
+        finally { g.holdLoop = held; }
+      },
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
