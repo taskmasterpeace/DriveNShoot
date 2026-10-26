@@ -5359,7 +5359,10 @@ async function runSelfTest(api, only = null, skip = null) {
         if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
         if (g.storeys.sameFloor(r, p) && g.sees(r, p)) break; // up where it can see you and shoot: it may fight from the top steps
       }
-      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
+      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target,
+        state: r.state, hold: r.hold, cower: r.cowerT, knock: r.knockT, blind: r.blind, flee: r.flee, route: r.stairWay?.path,
+        flight: { bottom: f.bottomOut, top: f.topOut, entry: f.entry, minX: f.minX, maxX: f.maxX, minZ: f.minZ, maxZ: f.maxZ },
+        doors: g.interiors.doors.filter((d) => Math.hypot(d.x - r.x, d.z - r.z) < 14).map((d) => ({ id: d.id, x: d.x, z: d.z, locked: d.locked, broken: d.broken, angles: d.leaves.map((l) => l.th) })) });
     } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
   });
   await check('storeys: inside, you see your floor and the ones below, not the ones above (nor who is up there); outside, every floor shows', async () => {
