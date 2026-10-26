@@ -49,3 +49,27 @@ test('selftest holds its clock between steps and restores the previous clock sta
   const state = (await harness.call('exec', { code: '({ during: game.commandClockHeld, after: game.holdLoop })' })).value;
   assert.deepEqual(state, { during: true, after: false });
 });
+
+test('staging a later input check feeds and wakes an exhausted survivor before the real Y exit press', async () => {
+  await harness.call('needs', { rest: 0, food: 0, water: 0 });
+  await harness.call('exec', { code: `
+    game.holdLoop = true; game.needs.blackout = 0; game.survival.microT = 6.3;
+    game.stageUpdate = game.updatePlayer;
+    game.updatePlayer = function (...args) {
+      if (game.controls.virtual?.buttons?.y) game.stageExitProbe = {
+        rest: game.needs.rest, food: game.needs.food, water: game.needs.water, blackout: game.needs.blackout,
+      };
+      return game.stageUpdate.apply(this, args);
+    };
+    true;
+  ` });
+  try {
+    const result = await harness.call('selftest', { only: 'controller: the pad moves' });
+    assert.equal(result.passed, 1, JSON.stringify(result.results));
+    const probe = (await harness.call('exec', { code: 'game.stageExitProbe' })).value;
+    assert.ok(probe.rest > 0.9 && probe.food > 0.9 && probe.water > 0.9, JSON.stringify(probe));
+    assert.equal(probe.blackout, 0);
+  } finally {
+    await harness.call('exec', { code: 'game.updatePlayer = game.stageUpdate; delete game.stageUpdate; game.holdLoop = false; true' });
+  }
+});
