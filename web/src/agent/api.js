@@ -5611,6 +5611,9 @@ async function runSelfTest(api, only = null, skip = null) {
     unpin(pk);
     let bx = p.x + 125, bz = p.z;
     for (const [dx, dz] of [[125, 0], [-125, 0], [0, 125], [0, -125]]) if (freeNear(p.x + dx, p.z + dz)) { bx = p.x + dx; bz = p.z + dz; break; }
+    // The body is beyond stage()'s quiet radius around the player. Clear that same radius here too: a living bystander
+    // left near this remote spot correctly prevents the pack from feeding.
+    for (const c of [...g.chars]) if (c !== p && !c.npc && Math.hypot(c.x - bx, c.z - bz) < 90) g.removeChar(c);
     const w = g.addChar({ x: bx, z: bz, faction: 'drifter', colors: outfit('drifter'), name: 'drifter (selftest)', flag: 'US', hp: 50 });
     try {
       g.combat.damage(w, 999, null, 0, 0, 'bullet');

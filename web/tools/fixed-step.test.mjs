@@ -73,3 +73,17 @@ test('staging a later input check feeds and wakes an exhausted survivor before t
     await harness.call('exec', { code: 'game.updatePlayer = game.stageUpdate; delete game.stageUpdate; game.holdLoop = false; true' });
   }
 });
+
+test('the grapevine feeding stage clears living bystanders left near its remote body', async () => {
+  const ids = [];
+  try {
+    for (const [dx, dz] of [[125, 0], [-125, 0], [0, 125], [0, -125]]) {
+      const spawned = await harness.call('spawn', { kind: 'drifter', x: 280 + dx, z: -120 + dz, hold: true });
+      ids.push(...spawned.ids);
+    }
+    const result = await harness.call('selftest', { only: 'grapevine: it eats a body' });
+    assert.equal(result.passed, 1, JSON.stringify(result.results));
+  } finally {
+    await harness.call('exec', { code: `for (const id of ${JSON.stringify(ids)}) { const c = game.chars.find((q) => q.id === id); if (c) game.removeChar(c); } true;` });
+  }
+});
