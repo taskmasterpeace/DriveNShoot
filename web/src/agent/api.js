@@ -2736,6 +2736,9 @@ async function runSelfTest(api, only = null, skip = null) {
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0; g.witnesses.clear();
+    // Long earlier checks can leave hours of hunger, thirst and exhaustion. Input and aim fixtures start awake;
+    // survival checks set their own needs after staging, so their deprivation still runs through the real body.
+    await C('needs', { water: 1, food: 1, rest: 1 }); g.needs.blackout = 0;
     g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
     for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
     await C('equip', { weapon: 'pistol' });
