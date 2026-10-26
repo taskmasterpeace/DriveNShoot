@@ -141,8 +141,8 @@ export class AgentAPI {
   // Deterministic fixed-step simulation. Works when the tab is hidden (rAF paused).
   async _step(frames, dt = 1 / 60) {
     const g = this.g;
-    const wasPaused = g.paused;
-    g.paused = false;
+    const wasPaused = g.paused, wasHeld = g.holdLoop;
+    g.paused = false; g.holdLoop = true;
     // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
     const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
@@ -158,8 +158,10 @@ export class AgentAPI {
           if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
         }
       }
-    } finally { if (S) S.sync = wasSync; }
-    g.paused = wasPaused;
+    } finally {
+      if (S) S.sync = wasSync;
+      g.paused = wasPaused; g.holdLoop = wasHeld;
+    }
     g.render(dt);
   }
 
@@ -1940,7 +1942,12 @@ function buildCommands(api) {
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
       group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one).',
       args: { only: { type: 'string' }, skip: { type: 'string' } },
-      run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
+      run: async ({ only, skip } = {}) => {
+        const held = g.holdLoop;
+        g.holdLoop = true;
+        try { return await runSelfTest(api, only, skip); }
+        finally { g.holdLoop = held; }
+      },
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
@@ -2069,6 +2076,23 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
+    const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
+    const frames = [], renders = [];
+    let next;
+    try {
+      // Capture the real loop's callbacks without scheduling a second live loop. A slow startup can receive a frame
+      // timestamp from before start() sampled performance.now(); the simulation must still get a nonnegative step.
+      window.requestAnimationFrame = (fn) => { next = fn; return 0; };
+      g.frame = (dt) => { frames.push(dt); }; g.render = (dt) => { renders.push(dt); }; g.holdLoop = false;
+      const now = performance.now();
+      g.start(); next(now - 2000); next(now + 2000); next(now + 2016);
+      const valid = (a) => a.length === 3 && a[0] === 0 && a[1] === 0.05 && Math.abs(a[2] - 0.016) < 1e-9;
+      return valid(frames) && valid(renders) ? true : JSON.stringify({ frames, renders });
+    } finally {
+      window.requestAnimationFrame = raf; g.frame = frame; g.render = render; g.fps = fps; g.holdLoop = held;
+    }
+  });
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -2373,6 +2397,50 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('teleport', { x: 0, z: 200 });
     g.player.hp = g.player.maxHp;
     return rolled && ordered && engaged && looted ? true : JSON.stringify({ rolled, x0, x1: v1.members[0].x, ordered, engaged, looted });
+  });
+  await check('hud: at phone width (412 and 390 px) nothing overlaps - ORDERS, weather, compass, vitals, gun or dash, weapon bar, E prompt, subtitles and warning lamps - and all of it is on screen; desktop sizes keep the wide layout', async () => {
+    const ui = g.hud.root, was = ui.getAttribute('style') ?? '', H = g.hud;
+    const pr = H.el.prompt, prWas = { hidden: pr.classList.contains('hidden'), text: pr.textContent };
+    const sub = H.el.subtitle, subWas = { hidden: sub.classList.contains('hidden'), text: sub.textContent, time: H.subT };
+    const pipsWas = { ...g.needs.pips };
+    const wp = ui.querySelector('.weapon-panel'), sp = ui.querySelector('.speedo'), wpH = wp.classList.contains('hidden'), spH = sp.classList.contains('hidden');
+    const box = (e) => { if (!e || !e.offsetParent) return null; const o = ui.getBoundingClientRect(), r = e.getBoundingClientRect(); return r.width && r.height ? { l: r.left - o.left, t: r.top - o.top, r: r.right - o.left, b: r.bottom - o.top } : null; };
+    const hit = (a, b) => a && b && a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
+    const bad = [];
+    try {
+      pr.classList.remove('hidden'); if (!pr.textContent) pr.textContent = 'E  TALK TO IKE "TWO-HANDS" MERCER';
+      sub.classList.remove('hidden'); sub.textContent = 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.';
+      Object.assign(g.needs.pips, { water: 3, food: 2, rest: 2, cold: 2, wet: 2, fear: 3, gloom: 2, boredom: 2 });
+      g.survival.ui.update(0.25); // Real warning lamps, enough to need a second row on a phone.
+      for (const [w, h] of [[412, 915], [390, 844], [1280, 720], [1600, 900], [1920, 1080]]) {
+        ui.style.right = 'auto'; ui.style.bottom = 'auto'; ui.style.width = `${w}px`; ui.style.height = `${h}px`;
+        H.rescale(w, h);
+        if ((w < 800) !== !!H.narrow) bad.push(`${w}x${h}: narrow ${H.narrow}`);
+        for (const dash of [false, true]) {
+          wp.classList.toggle('hidden', dash); sp.classList.toggle('hidden', !dash);
+          const parts = { orders: box(ui.querySelector('.hud-tl .objective') ?? ui.querySelector('.hud-tl .obj-slot')), weather: box(ui.querySelector('.wx-plate')), cash: box(ui.querySelector('.cash-plate')),
+            compass: box(ui.querySelector('.fb-compass')), vitals: box(ui.querySelector('.hud-bl .status')), sign: box(ui.querySelector('.hud-bl .sign')), map: box(ui.querySelector('.hud-bl .mm')),
+            [dash ? 'dash' : 'gun']: box(dash ? sp : wp), wbar: box(ui.querySelector('.wbar')), prompt: box(pr),
+            ...(H.narrow ? { respect: box(H.el.respect), subtitle: box(sub), warnings: box(g.survival.ui.rail) } : {}) };
+          const names = Object.keys(parts).filter((n) => parts[n]);
+          for (const n of names) { const a = parts[n]; if (a.l < -0.5 || a.r > w + 0.5 || a.t < -0.5 || a.b > h + 0.5) bad.push(`${w}x${h} ${n} off screen [${a.l | 0},${a.t | 0},${a.r | 0},${a.b | 0}]`); }
+          for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
+            const A = names[i], B = names[j];
+            if (A === 'vitals' && B === 'map') continue; // by design: the vitals strip tucks under the map's bezel (one cluster)
+            if (hit(parts[A], parts[B])) bad.push(`${w}x${h} ${A} over ${B}`);
+          }
+          const required = ['vitals', 'compass', dash ? 'dash' : 'gun', ...(H.narrow ? ['subtitle', 'warnings'] : [])];
+          if (required.some((n) => !parts[n])) bad.push(`${w}x${h} missing ${required.filter((n) => !parts[n]).join(',')}`);
+        }
+      }
+      return bad.length ? [...new Set(bad)].slice(0, 12).join('; ') : true;
+    } finally {
+      ui.setAttribute('style', was); H.rescale();
+      wp.classList.toggle('hidden', wpH); sp.classList.toggle('hidden', spH);
+      pr.classList.toggle('hidden', prWas.hidden); pr.textContent = prWas.text;
+      sub.classList.toggle('hidden', subWas.hidden); sub.textContent = subWas.text; H.subT = subWas.time;
+      Object.assign(g.needs.pips, pipsWas); g.survival.ui.update(0.25);
+    }
   });
   await check('feedback layer: damage arc points at the shooter, kill feed, loot floater, flag tags, compass markers', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -2712,6 +2780,9 @@ async function runSelfTest(api, only = null, skip = null) {
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0; g.witnesses.clear();
+    // Long earlier checks can leave hours of hunger, thirst and exhaustion. Input and aim fixtures start awake;
+    // survival checks set their own needs after staging, so their deprivation still runs through the real body.
+    await C('needs', { water: 1, food: 1, rest: 1 }); g.needs.blackout = 0;
     g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
     for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
     await C('equip', { weapon: 'pistol' });
@@ -5735,7 +5806,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
-  return { passed, total: results.length, results };
+  return { ok: passed === results.length, passed, total: results.length, results };
 }
 
 // ---- save / load ------------------------------------------------------------------
