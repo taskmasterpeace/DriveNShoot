@@ -53,6 +53,20 @@ export function touchCommands(api) {
 export async function touchChecks(x) {
   const { api, g, C, check, stage, hush } = x;
   const secs = (s) => api._step(Math.max(1, Math.round(s * 60)));
+  await check('touch controls: hiding them releases their virtual pad and preserves another controller', async () => {
+    const T = g.touch, CT = g.controls, was = T.on, previous = CT.virtual;
+    try {
+      T.show(true); T.feed();
+      const owned = CT.virtual === T.pad;
+      T.show(false);
+      const released = CT.virtual === null;
+      const other = { id: 'another controller', axes: [0, 0, 0, 0], buttons: {} };
+      CT.virtual = other;
+      T.release(); T.show(false);
+      const preserved = CT.virtual === other;
+      return owned && released && preserved ? true : JSON.stringify({ owned, released, preserved });
+    } finally { T.show(was); CT.virtual = previous; }
+  });
   await check('touch controls: a thumb on the left half walks you, the right stick past its ring fires, GAS at the wheel drives, USE reads DRIVE by a car, and they hide while the PACK is open', async () => hush(async () => {
     await stage();
     const T = g.touch, CT = g.controls, p = g.player, was = T.on;

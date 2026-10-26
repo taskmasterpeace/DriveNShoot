@@ -69,7 +69,10 @@ export class TouchControls {
     this.on = on;
     this.el.root.classList.toggle('hidden', !on);
     document.getElementById('ui')?.classList.toggle('touch-on', on);
-    if (!on) this.release();
+    if (!on) {
+      this.release();
+      if (this.g.controls?.virtual === this.pad) this.g.controls.virtual = null;
+    }
   }
 
   // ---- the thumbs -----------------------------------------------------------------------------------------------
@@ -125,7 +128,7 @@ export class TouchControls {
     if (this.firing) b.rt = 1;
     this.el.base.aim.classList.toggle('fire', this.firing);
     P.buttons = b;
-    if (this.g.controls) this.g.controls.virtual = P;
+    if (this.on && this.g.controls) this.g.controls.virtual = P;
   }
 
   // ---- per frame: which buttons (only when where you are changes, or USE becomes DRIVE) ------------------------------
