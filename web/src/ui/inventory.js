@@ -91,7 +91,7 @@ export class InventoryUI {
     this.el.close.addEventListener('click', () => this.toggle(false));
     this.el.acts.addEventListener('click', (e) => { const b = e.target.closest('button[data-a]'); if (b) this.act(b.dataset.a); });
     // A worn slot's chip: click takes it off (into the pack; at your feet with no room).
-    this.el.doll.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (!b || !this.g.gear.worn[b.dataset.slot]) return; const r = this.g.gear.takeOff(b.dataset.slot); this.tell(r.ok ? r.text : r.why.toUpperCase(), !r.ok); this.render(); });
+    this.el.doll.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (!b || !this.g.gear.worn[b.dataset.slot]) return; this.tapped = null; const r = this.g.gear.takeOff(b.dataset.slot); this.tell(r.ok ? r.text : r.why.toUpperCase(), !r.ok); this.render(); });
   }
 
   // The other side: whatever is opened, else a box or body at your feet, else the car you're in or standing at,
@@ -219,7 +219,11 @@ export class InventoryUI {
     if (this.sayT > 0 && (this.sayT -= dt) <= 0) this.el.say.textContent = '';
     // Walked away from the other side (or it drove off): fall back to what's here now.
     const o = this.other, p = this.g.player;
-    if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2)) { this.other = this.pickOther(); this.render(); }
+    if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2)) {
+      this.other = this.pickOther();
+      if (this.other !== o) this.tapped = null;
+      this.render();
+    }
     else if (this.g.inventory.dirty) this.render();
     if (!p.alive) this.toggle(false);
   }

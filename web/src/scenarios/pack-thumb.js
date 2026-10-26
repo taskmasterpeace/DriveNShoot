@@ -7,7 +7,8 @@
 //   3. A desktop double-click (click, click, dblclick) moves one row once, never twice.
 //   4. The pick is used up by an action: after the MOVE button (and after E), one tap on the thing that slid into
 //      that row moves nothing; at a counter, that one tap buys nothing. After CLOSE and reopening, and after the other
-//      side switches to another box (walking off), one tap moves nothing.
+//      side switches to another box (walking off), one tap moves nothing, on either side. Taking gear off also spends
+//      a pick on the item list.
 //   5. TAKE ALL empties a body, and an unowned crate, into your pack (and uses the pick up: one tap after it moves nothing).
 //   6. With your pack nearly full, TAKE ALL stops at full and says exactly what is left ("NO ROOM FOR N MORE").
 //   7. At a trader's counter and on a shelf nobody minds, TAKE ALL is hidden and R refuses: nothing moves, nothing is
@@ -90,6 +91,15 @@ export default async function packThumb(DL, g) {
   inv.add(inv.carried, 'scrap', 1); ui.render(); tap(rowOf(0, 'scrap')); tap(ui.el.close); reopen(); tap(rowOf(0, 'scrap')); // and on yours
   checks.oneTapAfterCloseAndReopenMovesNothing = ui.open && snap(body) === s0 && n(inv.carried, 'scrap') === 1 && things(inv.carried) === 1;
 
+  // Taking gear off is an action too: it must use up a pick on the item list.
+  empty(); fill(); reopen();
+  await C('gear', { give: 'soft_vest' }); await C('gear', { wear: 'soft_vest' }); ui.render();
+  tap(rowOf(1, 'bandage'));
+  tap(ui.el.doll.querySelector('[data-slot="chest"]'));
+  const vestOff = !g.gear.worn.chest;
+  s0 = snap(body); tap(rowOf(1, 'bandage'));
+  checks.oneTapAfterTakingGearOffMovesNothing = vestOff && n(inv.carried, 'soft_vest') === 1 && snap(body) === s0 && n(body, 'bandage') === 2;
+
   // 5. TAKE ALL empties the body ...
   empty(); fill(); reopen();
   const shown = !ui.el.takeAll.classList.contains('hidden'), before = things(inv.carried);
@@ -127,7 +137,17 @@ export default async function packThumb(DL, g) {
     tap(ui.el.takeAll);
     checks.takeAllEmptiesAnUnownedCrate = crateShown && crate.slots.length === 0 && n(inv.carried, 'bandage') === 2 && n(inv.carried, 'jerky') === 1
       && ui.el.say.textContent === 'TOOK 3 · ALL OF IT' && !g.events.some((e) => e.seq > seq0 && e.type === 'stole');
-  } else { checks.oneTapAfterTheOtherSideChangesMovesNothing = false; checks.takeAllEmptiesAnUnownedCrate = false; }
+
+    // A pick on your side is also spent when the destination changes. The item itself stays on you, so checking only
+    // its box and identity cannot notice that the next tap would now put it somewhere else.
+    await C('teleport', { x: body.x, z: body.z });
+    empty(); fill(); reopen(); inv.add(inv.carried, 'scrap', 1); ui.render();
+    tap(rowOf(0, 'scrap'));
+    await C('teleport', { x: crate.x + 0.6, z: crate.z });
+    inv.opened = null; ui.update(0.016);
+    s0 = snap(inv.carried); tap(rowOf(0, 'scrap'));
+    checks.oneTapOnYourSideAfterTheOtherSideChangesMovesNothing = ui.other === crate && snap(inv.carried) === s0 && n(inv.carried, 'scrap') === 1;
+  } else { checks.oneTapAfterTheOtherSideChangesMovesNothing = false; checks.takeAllEmptiesAnUnownedCrate = false; checks.oneTapOnYourSideAfterTheOtherSideChangesMovesNothing = false; }
 
   // 7. somebody's shelf, two ways: a trader's counter (that would be buying it all) and a shelf with nobody minding it
   // (stealing it all). Both: TAKE ALL hidden, R refuses, nothing moves, nothing stolen. And at the counter, one tap
