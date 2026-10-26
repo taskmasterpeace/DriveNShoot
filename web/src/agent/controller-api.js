@@ -200,12 +200,16 @@ export async function controllerChecks(x) {
     await C('give', { weapon: 'smg', smg: 200 });
     const W = g.inv.weapons, slot = `Digit${W.indexOf('smg') + 1}`;
     const p = g.player;
+    const pulls = [];
+    const pullState = () => ({ current: g.inv.current, mode: g.arms.modeOf('smg').id, stance: g.arms.stance, drawT: g.arms.drawT, cool: p.cool, reloading: p.reloading, cond: g.inventory.cond('smg'), jam: !!g.inv.jam.smg, knockT: p.knockT, dive: p.dive, vault: !!p.vault, blackout: g.needs.blackout, alive: p.alive, down: [...I.down], phys: [...I.phys], bar: g.arms.barT - g.time, pack: g.invUI.open, controls: g.weaponBar.open, radial: g.arms.radialOpen });
     mouseAt(p.x - 12, p.z - 6); // at empty ground
     const pull = async (hold) => {
       g.inv.mag.smg = 32; p.reloading = 0; await secs(0.6); // the burst's pause gone
       const m0 = g.inv.mag.smg;
+      const before = pullState();
       mouseAt(p.x - 12, p.z - 6);
       I.mouseButton(0, true); await secs(hold); I.mouseButton(0, false); await secs(0.6);
+      pulls.push({ hold, before, after: pullState() });
       return m0 - g.inv.mag.smg;
     };
     try {
@@ -225,7 +229,7 @@ export async function controllerChecks(x) {
       const auto = await pull(0.6);
       const onlyLive = document.querySelectorAll('.wb-modes.up').length === 1;
       const ok = sel && semiMode === 'semi' && bar.boxesUp && semi === 1 && burstMode === 'burst' && burstBox === 'BURST' && burst === 3 && burstHeld === 3 && auto > 5 && onlyLive;
-      return ok ? true : JSON.stringify({ sel, semiMode, boxesUp: bar.boxesUp, semi, burstMode, burstBox, burst, burstHeld, auto, onlyLive });
+      return ok ? true : JSON.stringify({ sel, semiMode, boxesUp: bar.boxesUp, semi, burstMode, burstBox, burst, burstHeld, auto, onlyLive, pulls });
     } finally { g.arms.setMode('smg', 'auto'); await C('equip', { weapon: 'pistol' }); }
   }));
 

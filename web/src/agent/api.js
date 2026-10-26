@@ -1,6 +1,6 @@
 import { knowing as knowingFor } from '../data/creator.js'; // where you start decides where you are a local
 import { WEAPONS } from '../systems/combat.js';
-import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
+import { VEHICLES, reverseOf, DRIVING, HARPOON_RANGE } from '../systems/vehicles.js';
 import { DECK_RULES, CAMP } from '../data/decks.js';
 import { WEATHER, NIGHT_I } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
@@ -141,8 +141,8 @@ export class AgentAPI {
   // Deterministic fixed-step simulation. Works when the tab is hidden (rAF paused).
   async _step(frames, dt = 1 / 60) {
     const g = this.g;
-    const wasPaused = g.paused;
-    g.paused = false;
+    const wasPaused = g.paused, wasHeld = g.holdLoop;
+    g.paused = false; g.holdLoop = true;
     // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
     const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
@@ -158,8 +158,10 @@ export class AgentAPI {
           if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
         }
       }
-    } finally { if (S) S.sync = wasSync; }
-    g.paused = wasPaused;
+    } finally {
+      if (S) S.sync = wasSync;
+      g.paused = wasPaused; g.holdLoop = wasHeld;
+    }
     g.render(dt);
   }
 
@@ -1168,17 +1170,26 @@ function buildCommands(api) {
       run: async ({ id }) => { const v = id ? api.findVeh(id) : P().inVehicle ?? g.lastVehicle; need(v && !v.dead, 'no live vehicle'); g.vehDamage.repair(v); return vehView(g, v); },
     },
     harpoon: {
-      group: 'vehicle', desc: 'Fire the Whaler\'s harpoon at x,z or entity id. Call again while hooked to YANK.',
+      group: 'vehicle', desc: `Fire the Whaler\'s harpoon at x,z or entity id (it reaches ${HARPOON_RANGE} m). Call again while hooked to YANK. A miss says why: why=range (target past the hook\'s reach, with its distance), wall (a wall or building took the hook, and where), or busy (the hook is still out).`,
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
       run: async ({ x, z, id }) => {
-        const v = P().inVehicle;
+        const v = P().inVehicle, V = g.vehiclesSys;
         need(v?.harpoon, 'must be driving a vehicle with a harpoon (type "rig")');
         if (id) { const t = api.findVeh(id) ?? api.findChar(id); need(t, `no entity ${id}`); x = t.x; z = t.z; }
-        const was = g.vehiclesSys.harpoon?.state;
-        g.vehiclesSys.fireHarpoon(v, ang((x ?? v.x) - v.x, (z ?? v.z + 10) - v.z));
-        await api._step(30);
-        const h = g.vehiclesSys.harpoon;
-        return { action: was === 'attached' ? 'yank' : 'fire', state: h?.state ?? 'idle', hooked: h?.target?.id ?? null };
+        const was = V.harpoon?.state;
+        if (was === 'flying' || was === 'retract') return { action: 'none', state: was, hooked: null, why: 'busy', reason: `the hook is still ${was === 'flying' ? 'flying' : 'reeling back in'}; step a moment and fire again` };
+        const tx = x ?? v.x, tz = z ?? v.z + 10;
+        // Distance from the hook's launch point (the rig's tail), the same place the shot starts from.
+        const ox = v.x - Math.sin(v.h) * 1.4, oz = v.z - Math.cos(v.h) * 1.4, dist = Math.hypot(tx - ox, tz - oz);
+        V.fireHarpoon(v, ang(tx - v.x, tz - v.z));
+        if (was === 'attached') { await api._step(30); return { action: 'yank', state: V.harpoon?.state ?? 'idle', hooked: null }; }
+        // Let the hook finish its flight (95 m/s, so 48 m is about half a second) before saying what happened.
+        for (let i = 0; i < 6 && V.harpoon?.state === 'flying'; i++) await api._step(10);
+        const h = V.harpoon, L = V.lastHarpoon, out = { action: 'fire', state: h?.state ?? 'idle', hooked: h?.state === 'attached' ? h.target?.id ?? null : null, distance: Math.round(dist), range: HARPOON_RANGE };
+        if (out.hooked) return out;
+        if (L?.result === 'wall') return { ...out, why: 'wall', reason: `a wall took the hook ${L.at} m out${dist > L.at + 1 ? `, short of the target ${Math.round(dist)} m away` : ''}` };
+        if (dist > HARPOON_RANGE) return { ...out, why: 'range', reason: `the target is ${Math.round(dist)} m away; the hook reaches ${HARPOON_RANGE} m. Close ${Math.ceil(dist - HARPOON_RANGE)} m and fire again` };
+        return { ...out, why: 'missed', reason: 'the hook flew past; nothing was on its line when it got there (a moving target slips the shot)' };
       },
     },
 
@@ -1940,7 +1951,12 @@ function buildCommands(api) {
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
       group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one).',
       args: { only: { type: 'string' }, skip: { type: 'string' } },
-      run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
+      run: async ({ only, skip } = {}) => {
+        const held = g.holdLoop;
+        g.holdLoop = true;
+        try { return await runSelfTest(api, only, skip); }
+        finally { g.holdLoop = held; }
+      },
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
@@ -2069,6 +2085,23 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
+    const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
+    const frames = [], renders = [];
+    let next;
+    try {
+      // Capture the real loop's callbacks without scheduling a second live loop. A slow startup can receive a frame
+      // timestamp from before start() sampled performance.now(); the simulation must still get a nonnegative step.
+      window.requestAnimationFrame = (fn) => { next = fn; return 0; };
+      g.frame = (dt) => { frames.push(dt); }; g.render = (dt) => { renders.push(dt); }; g.holdLoop = false;
+      const now = performance.now();
+      g.start(); next(now - 2000); next(now + 2000); next(now + 2016);
+      const valid = (a) => a.length === 3 && a[0] === 0 && a[1] === 0.05 && Math.abs(a[2] - 0.016) < 1e-9;
+      return valid(frames) && valid(renders) ? true : JSON.stringify({ frames, renders });
+    } finally {
+      window.requestAnimationFrame = raf; g.frame = frame; g.render = render; g.fps = fps; g.holdLoop = held;
+    }
+  });
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -2127,6 +2160,52 @@ async function runSelfTest(api, only = null, skip = null) {
     const hooked = g.vehiclesSys.harpoon?.state === 'attached';
     if (hooked) await C('harpoon', { id: tgt.id }); // yank
     return hooked ? true : `state=${r.state}`;
+  });
+  await check('harpoon: a miss says why (out of range with the distance, an empty line within reach, a wall in the way and where, the hook still out)', async () => {
+    const rig = g.player.inVehicle, V = g.vehiclesSys, S = g.statics, ray = S.raycast;
+    if (rig?.type !== 'rig') return 'not in the Whaler';
+    rig.vx = rig.vz = 0; V.releaseHarpoon();
+    // Aim along a line nobody stands on; walls are switched off for the range shot so the street layout can't decide it.
+    // A crowded street with no clear line anywhere: park the rig 150 m on and look again (staging, as teleport is).
+    let ox = 0, oz = 0;
+    const clear = (a) => [...V.list.filter((o) => o !== rig), ...g.chars.filter((c) => c !== g.player && c.alive && !c.inVehicle)].every((o) => {
+      const rx = o.x - ox, rz = o.z - oz, t = rx * Math.sin(a) + rz * Math.cos(a);
+      return t < -2 || t > 80 || Math.abs(rx * Math.cos(a) - rz * Math.sin(a)) > 4 + (o.len ?? 0);
+    });
+    let a = null;
+    for (let k = 0; k < 4 && a === null; k++) {
+      if (k) { rig.x += 150; rig.vx = rig.vz = 0; }
+      ox = rig.x - Math.sin(rig.h) * 1.4; oz = rig.z - Math.cos(rig.h) * 1.4;
+      for (let i = 0; i < 32 && a === null; i++) if (clear(i * Math.PI / 16)) a = i * Math.PI / 16;
+    }
+    if (a === null) return `no clear line to shoot along from ${rig.x.toFixed(0)},${rig.z.toFixed(0)}: ${V.list.filter((o) => o !== rig && Math.hypot(o.x - ox, o.z - oz) < 84).length} vehicles, ${g.chars.filter((c) => c !== g.player && c.alive && !c.inVehicle && Math.hypot(c.x - ox, c.z - oz) < 84).length} people within 84 m`;
+    const far = { x: ox + Math.sin(a) * 70, z: oz + Math.cos(a) * 70 }, near = { x: ox + Math.sin(a) * 30, z: oz + Math.cos(a) * 30 };
+    const toasts = [], toast = g.hud.toast;
+    g.hud.toast = (m, ...r) => { toasts.push(m); return toast.call(g.hud, m, ...r); };
+    try {
+      S.raycast = (x, z, dx, dz, max) => max;
+      const range = await C('harpoon', far);
+      const busy = await C('harpoon', far);
+      await C('step', { seconds: 1.5 });
+      const told = { last: V.lastHarpoon?.result, toast: toasts.find((m) => /OUT OF RANGE/.test(m)) ?? null }; // what the driver sees: the hook gave up at 48 m
+      V.releaseHarpoon();
+      // People keep moving during the first shot: choose a clear line again for the in-range miss.
+      ox = rig.x - Math.sin(rig.h) * 1.4; oz = rig.z - Math.cos(rig.h) * 1.4;
+      let empty = null;
+      for (let i = 0; i < 32 && empty === null; i++) if (clear(i * Math.PI / 16)) empty = i * Math.PI / 16;
+      if (empty === null) return 'no clear line for the in-range miss';
+      const missed = await C('harpoon', { x: ox + Math.sin(empty) * 30, z: oz + Math.cos(empty) * 30 });
+      await C('step', { seconds: 1.5 }); V.releaseHarpoon();
+      S.raycast = (x, z, dx, dz, max) => { const left = 12 - (V.harpoon?.dist ?? 0); return left < max ? Math.max(0, left) : max; };
+      const wall = await C('harpoon', near);
+      await C('step', { seconds: 1 }); V.releaseHarpoon();
+      const ok = range.ok && range.why === 'range' && Math.abs(range.distance - 70) <= 3 && range.range === 48 && /70 m away; the hook reaches 48 m/.test(range.reason)
+        && told.last === 'range' && /REACHES 48M/.test(told.toast ?? '')
+        && busy.why === 'busy' && busy.action === 'none'
+        && missed.ok && missed.why === 'missed' && missed.distance > 0 && missed.distance < 48
+        && wall.ok && wall.why === 'wall' && /wall took the hook 1[0-4] m out, short of the target/.test(wall.reason);
+      return ok ? true : JSON.stringify({ range, told, busy, missed, wall });
+    } finally { S.raycast = ray; g.hud.toast = toast; V.releaseHarpoon(); }
   });
   await check('exit vehicle', async () => (await C('exitVehicle')).ok);
   await check('interior roof hides', async () => {
@@ -2712,6 +2791,9 @@ async function runSelfTest(api, only = null, skip = null) {
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0; g.witnesses.clear();
+    // Long earlier checks can leave hours of hunger, thirst and exhaustion. Input and aim fixtures start awake;
+    // survival checks set their own needs after staging, so their deprivation still runs through the real body.
+    await C('needs', { water: 1, food: 1, rest: 1 }); g.needs.blackout = 0;
     g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
     for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
     await C('equip', { weapon: 'pistol' });
@@ -5277,7 +5359,10 @@ async function runSelfTest(api, only = null, skip = null) {
         if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
         if (g.storeys.sameFloor(r, p) && g.sees(r, p)) break; // up where it can see you and shoot: it may fight from the top steps
       }
-      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
+      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target,
+        state: r.state, hold: r.hold, cower: r.cowerT, knock: r.knockT, blind: r.blind, flee: r.flee, route: r.stairWay?.path,
+        flight: { bottom: f.bottomOut, top: f.topOut, entry: f.entry, minX: f.minX, maxX: f.maxX, minZ: f.minZ, maxZ: f.maxZ },
+        doors: g.interiors.doors.filter((d) => Math.hypot(d.x - r.x, d.z - r.z) < 14).map((d) => ({ id: d.id, x: d.x, z: d.z, locked: d.locked, broken: d.broken, angles: d.leaves.map((l) => l.th) })) });
     } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
   });
   await check('storeys: inside, you see your floor and the ones below, not the ones above (nor who is up there); outside, every floor shows', async () => {
@@ -5735,7 +5820,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
-  return { passed, total: results.length, results };
+  return { ok: passed === results.length, passed, total: results.length, results };
 }
 
 // ---- save / load ------------------------------------------------------------------
