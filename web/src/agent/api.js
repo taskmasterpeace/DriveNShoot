@@ -2391,15 +2391,20 @@ async function runSelfTest(api, only = null, skip = null) {
     g.player.hp = g.player.maxHp;
     return rolled && ordered && engaged && looted ? true : JSON.stringify({ rolled, x0, x1: v1.members[0].x, ordered, engaged, looted });
   });
-  await check('hud: at phone width (412 and 390 px) nothing overlaps - ORDERS, the weather plate, the compass, the vitals, the gun panel and the dash, the weapon bar, the E prompt - and all of it is on screen; desktop sizes keep the wide layout', async () => {
+  await check('hud: at phone width (412 and 390 px) nothing overlaps - ORDERS, weather, compass, vitals, gun or dash, weapon bar, E prompt, subtitles and warning lamps - and all of it is on screen; desktop sizes keep the wide layout', async () => {
     const ui = g.hud.root, was = ui.getAttribute('style') ?? '', H = g.hud;
     const pr = H.el.prompt, prWas = { hidden: pr.classList.contains('hidden'), text: pr.textContent };
+    const sub = H.el.subtitle, subWas = { hidden: sub.classList.contains('hidden'), text: sub.textContent, time: H.subT };
+    const pipsWas = { ...g.needs.pips };
     const wp = ui.querySelector('.weapon-panel'), sp = ui.querySelector('.speedo'), wpH = wp.classList.contains('hidden'), spH = sp.classList.contains('hidden');
     const box = (e) => { if (!e || !e.offsetParent) return null; const o = ui.getBoundingClientRect(), r = e.getBoundingClientRect(); return r.width && r.height ? { l: r.left - o.left, t: r.top - o.top, r: r.right - o.left, b: r.bottom - o.top } : null; };
     const hit = (a, b) => a && b && a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
     const bad = [];
     try {
       pr.classList.remove('hidden'); if (!pr.textContent) pr.textContent = 'E  TALK TO IKE "TWO-HANDS" MERCER';
+      sub.classList.remove('hidden'); sub.textContent = 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.';
+      Object.assign(g.needs.pips, { water: 3, food: 2, rest: 2, cold: 2, wet: 2, fear: 3, gloom: 2, boredom: 2 });
+      g.survival.ui.update(0.25); // Real warning lamps, enough to need a second row on a phone.
       for (const [w, h] of [[412, 915], [390, 844], [1280, 720], [1600, 900], [1920, 1080]]) {
         ui.style.right = 'auto'; ui.style.bottom = 'auto'; ui.style.width = `${w}px`; ui.style.height = `${h}px`;
         H.rescale(w, h);
@@ -2408,7 +2413,8 @@ async function runSelfTest(api, only = null, skip = null) {
           wp.classList.toggle('hidden', dash); sp.classList.toggle('hidden', !dash);
           const parts = { orders: box(ui.querySelector('.hud-tl .objective') ?? ui.querySelector('.hud-tl .obj-slot')), weather: box(ui.querySelector('.wx-plate')), cash: box(ui.querySelector('.cash-plate')),
             compass: box(ui.querySelector('.fb-compass')), vitals: box(ui.querySelector('.hud-bl .status')), sign: box(ui.querySelector('.hud-bl .sign')), map: box(ui.querySelector('.hud-bl .mm')),
-            [dash ? 'dash' : 'gun']: box(dash ? sp : wp), wbar: box(ui.querySelector('.wbar')), prompt: box(pr) };
+            [dash ? 'dash' : 'gun']: box(dash ? sp : wp), wbar: box(ui.querySelector('.wbar')), prompt: box(pr),
+            ...(H.narrow ? { respect: box(H.el.respect), subtitle: box(sub), warnings: box(g.survival.ui.rail) } : {}) };
           const names = Object.keys(parts).filter((n) => parts[n]);
           for (const n of names) { const a = parts[n]; if (a.l < -0.5 || a.r > w + 0.5 || a.t < -0.5 || a.b > h + 0.5) bad.push(`${w}x${h} ${n} off screen [${a.l | 0},${a.t | 0},${a.r | 0},${a.b | 0}]`); }
           for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
@@ -2416,7 +2422,8 @@ async function runSelfTest(api, only = null, skip = null) {
             if (A === 'vitals' && B === 'map') continue; // by design: the vitals strip tucks under the map's bezel (one cluster)
             if (hit(parts[A], parts[B])) bad.push(`${w}x${h} ${A} over ${B}`);
           }
-          if (!parts[dash ? 'dash' : 'gun'] || !parts.vitals || !parts.compass) bad.push(`${w}x${h} missing ${['vitals', 'compass', dash ? 'dash' : 'gun'].filter((n) => !parts[n]).join(',')}`);
+          const required = ['vitals', 'compass', dash ? 'dash' : 'gun', ...(H.narrow ? ['subtitle', 'warnings'] : [])];
+          if (required.some((n) => !parts[n])) bad.push(`${w}x${h} missing ${required.filter((n) => !parts[n]).join(',')}`);
         }
       }
       return bad.length ? [...new Set(bad)].slice(0, 12).join('; ') : true;
@@ -2424,6 +2431,8 @@ async function runSelfTest(api, only = null, skip = null) {
       ui.setAttribute('style', was); H.rescale();
       wp.classList.toggle('hidden', wpH); sp.classList.toggle('hidden', spH);
       pr.classList.toggle('hidden', prWas.hidden); pr.textContent = prWas.text;
+      sub.classList.toggle('hidden', subWas.hidden); sub.textContent = subWas.text; H.subT = subWas.time;
+      Object.assign(g.needs.pips, pipsWas); g.survival.ui.update(0.25);
     }
   });
   await check('feedback layer: damage arc points at the shooter, kill feed, loot floater, flag tags, compass markers', async () => {

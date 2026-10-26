@@ -43,6 +43,9 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .hud-narrow .hud-br { bottom: calc(14px + 280px * var(--sb)); }
 .hud-narrow .wbar { bottom: calc(14px + 280px * var(--sb) + 10px * var(--s)); } /* the weapon bar (weaponbar.css) rides up beside the gun panel */
 .hud-narrow .prompt { bottom: calc(22px + 280px * var(--sb) + 330px * var(--s)); }
+.hud-narrow .subtitle { top: var(--hud-overlay-top); width: max-content; max-width: calc(100% - 24px); }
+.hud-narrow .tt-rail { top: var(--hud-warning-top); width: max-content; max-width: var(--hud-overlay-width); flex-wrap: wrap; justify-content: center; }
+.hud-narrow .tt-rail > * { flex-shrink: 0; }
 
 /* ---- ORDERS: a torn, pinned paper tag (markup from qol.js) ---- */
 .objective { position: relative; width: 316px; min-height: 256px; margin-top: 8px; padding: 92px 34px 40px 32px; transform: rotate(-1.4deg); transform-origin: 50% 0; text-align: center; filter: drop-shadow(3px 6px 5px rgba(0,0,0,0.55)); }

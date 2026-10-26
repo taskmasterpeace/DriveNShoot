@@ -107,7 +107,7 @@ export class HUD {
     const q = (s) => root.querySelector(s);
     const qa = (s) => [...root.querySelectorAll(s)];
     this.el = {
-      hud: q('.hud'), objSlot: q('.obj-slot'), feed: q('.feed'), killSlot: q('.kill-slot'),
+      hud: q('.hud'), topLeft: q('.hud-tl'), topRight: q('.hud-tr'), objSlot: q('.obj-slot'), feed: q('.feed'), killSlot: q('.kill-slot'),
       wxPlate: q('.wx-plate canvas'), time: q('.clock-time'), sub: q('.clock-sub'), wx: q('.wx-icon'), wanted: q('.wanted'), stars: qa('.wanted i'),
       respect: q('.respect'), cashPlate: q('.cash-plate canvas'), cash: q('.cash'),
       status: q('.status'), statusTex: q('.status canvas'), hpNum: q('.hp-num'), hpSegs: qa('.seg-hp i'), stamSegs: qa('.seg-stam i'),
@@ -152,6 +152,9 @@ export class HUD {
     });
     this.rescale();
     addEventListener('resize', () => this.rescale());
+    // Subtitles and warnings follow the real top columns as faction chips, toasts and wrapped text change size.
+    this.overlayObserver = new ResizeObserver(() => this.layoutOverlays());
+    for (const el of [this.el.topLeft, this.el.topRight, this.el.subtitle]) this.overlayObserver.observe(el);
   }
 
   // One scale for the whole HUD: 1.0 at 1600x900, clamped so 1280x720 and 4K both read.
@@ -167,6 +170,17 @@ export class HUD {
     this.root.style.setProperty('--sb', kb.toFixed(3)); this.root.style.setProperty('--st', kt.toFixed(3));
     this.root.classList.toggle('hud-narrow', narrow);
     this.scaleK = k; this.narrow = narrow;
+    this.root.style.setProperty('--hud-overlay-width', `${(w - 24) / k}px`);
+    this.layoutOverlays();
+  }
+
+  // Read layout only on resize or content-size changes, never in the frame loop.
+  layoutOverlays() {
+    if (!this.narrow) return;
+    const top = Math.ceil(Math.max(this.el.topLeft.getBoundingClientRect().bottom, this.el.topRight.getBoundingClientRect().bottom) - this.root.getBoundingClientRect().top + 8);
+    this.root.style.setProperty('--hud-overlay-top', `${top}px`);
+    const subH = this.el.subtitle.classList.contains('hidden') ? 0 : this.el.subtitle.offsetHeight;
+    this.root.style.setProperty('--hud-warning-top', `${top + subH + (subH ? 8 : 0)}px`);
   }
 
   // Static art. Text-bearing faces (bezel numbers, gauge labels) repaint once the webfonts land.
