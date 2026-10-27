@@ -59,6 +59,8 @@ export class QOL {
       <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
       <div class="pausemenu hidden"><div class="pm-card">
         <div class="pm-title">PAUSED</div>
+        <div class="pm-tabs" role="tablist"><button data-tab="game" class="on">GAME</button><button data-tab="you">YOU</button><button data-tab="log">LOG</button><button data-tab="settings">SETTINGS</button><button data-tab="controls">CONTROLS</button></div>
+        <div class="pm-pane" data-pane="game">
         <div class="pm-buttons">
           <button data-a="resume">Resume</button>
           <button data-a="save">Quick save <kbd>F5</kbd></button>
@@ -70,11 +72,12 @@ export class QOL {
         </div>
         <div class="pm-section">THIS RUN</div>
         <div class="pm-run"></div>
-        <div class="pm-section">WHAT THEY CALL YOU</div>
-        <div class="pm-roles"></div>
-        <div class="pm-section">RECENT</div>
-        <div class="pm-log"></div>
+        </div>
+        <div class="pm-pane hidden" data-pane="you"><div class="pm-section">WHAT THEY CALL YOU</div><div class="pm-roles"></div></div>
+        <div class="pm-pane hidden" data-pane="log"><div class="pm-section">RECENT</div><div class="pm-log"></div></div>
+        <div class="pm-pane hidden" data-pane="settings">
         <div class="pm-section">SETTINGS <button class="pm-reset" data-a="reset">Reset to defaults</button></div>
+        <div class="pm-settings">
         <label>Difficulty <select data-s="difficulty"><option value="story">Story (35% damage taken)</option><option value="normal">Normal (70%)</option><option value="hard">Hard (100%)</option></select></label>
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
@@ -91,9 +94,10 @@ export class QOL {
         <label>Autosave <select data-s="autosaveMin"><option value="0">Off</option><option value="2">Every 2 min</option><option value="3">Every 3 min</option><option value="5">Every 5 min</option><option value="10">Every 10 min</option></select></label>
         <label><input type="checkbox" data-s="pauseOnBlur"> Pause when the window loses focus</label>
         <label><input type="checkbox" data-s="muteOnBlur"> Mute when the window loses focus</label>
-        <div class="pm-section">CONTROLS</div>
+        </div></div>
+        <div class="pm-pane hidden" data-pane="controls"><div class="pm-section">CONTROLS</div>
         <div class="pm-keys">F1 hide HUD · click the ORDERS tag for the map (right-click clears the waypoint) · WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · N sleep (a bed, a bedroll, a parked car) · B drop oil/caltrops · M map · Z zoom out (Shift+Z or = in, - out) · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
-      </div></div>`);
+      </div></div></div>`);
     const q = (s) => root.querySelector(s);
     this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu'), roles: q('.pm-roles'), run: q('.pm-run'), log: q('.pm-log'), mapHead: q('.bigmap-head span') };
     this.ui = root;
@@ -101,7 +105,11 @@ export class QOL {
       const c = q(sel); c.width = art.width; c.height = art.height; c.getContext('2d').drawImage(art, 0, 0);
     }
 
+    this.tabs = ['game', 'you', 'log', 'settings', 'controls'];
+    this.tabRender = {};
     this.el.menu.addEventListener('click', (e) => {
+      const tb = e.target.closest('.pm-tabs button')?.dataset.tab;
+      if (tb) { this.showTab(tb); return; }
       const a = e.target.closest('button')?.dataset.a;
       if (a === 'resume') this.toggleMenu(false);
       if (a === 'save') this.quickSave();
@@ -155,6 +163,25 @@ export class QOL {
   }
 
   damageTaken() { return DIFFICULTY[this.settings.difficulty] ?? 0.7; }
+
+  // The pause menu is tabs, never one long scroll (Robert, 2026-10-27: "just use tabs"). Other systems add their own:
+  // qol.addTab('insurance', 'INSURANCE', (el) => { el.innerHTML = ... }) — the render runs each time the tab is shown.
+  addTab(id, label, render) {
+    if (this.tabs.includes(id)) { this.tabRender[id] = render; return; }
+    this.tabs.push(id); this.tabRender[id] = render;
+    const b = document.createElement('button'); b.dataset.tab = id; b.textContent = label;
+    this.el.menu.querySelector('.pm-tabs').appendChild(b);
+    const pane = document.createElement('div'); pane.className = 'pm-pane hidden'; pane.dataset.pane = id;
+    this.el.menu.querySelector('.pm-card').appendChild(pane);
+  }
+  showTab(id) {
+    if (!this.tabs.includes(id)) return;
+    this.tab = id;
+    for (const b of this.el.menu.querySelectorAll('.pm-tabs button')) b.classList.toggle('on', b.dataset.tab === id);
+    for (const p of this.el.menu.querySelectorAll('.pm-pane')) p.classList.toggle('hidden', p.dataset.pane !== id);
+    const pane = this.el.menu.querySelector(`.pm-pane[data-pane="${id}"]`);
+    try { this.tabRender[id]?.(pane, this.g); } catch (e) { pane.textContent = `This tab failed to draw: ${e.message}`; }
+  }
 
   syncInputs() {
     for (const inp of this.el.menu.querySelectorAll('[data-s]')) {
@@ -465,7 +492,7 @@ export class QOL {
   toggleMenu(on = !this.menuOpen) {
     if (document.querySelector('.title')) return;
     this.menuOpen = on;
-    if (on) { this.toggleMap(false); this.renderRoles(); this.renderRun(); this.renderLog(); this.renderAgo(); }
+    if (on) { this.toggleMap(false); this.renderRoles(); this.renderRun(); this.renderLog(); this.renderAgo(); this.showTab(this.tab ?? 'game'); }
     this.el.menu.classList.toggle('hidden', !on);
     this.g.paused = on || this.mapOpen;
   }
@@ -538,6 +565,7 @@ export class QOL {
   input(I) {
     if (I.hit('Escape') && !this.g.dialogue.active && !this.photo && !this.g.invUI?.open) { if (this.mapOpen) this.toggleMap(false); else this.toggleMenu(); }
     if (I.hit('KeyP')) this.toggleMenu();
+    if (this.menuOpen && (I.hit('KeyQ') || I.hit('KeyE'))) { const i = this.tabs.indexOf(this.tab ?? 'game'), n = this.tabs.length; this.showTab(this.tabs[(i + (I.hit('KeyE') ? 1 : n - 1)) % n]); }
     if (I.hit('KeyM')) this.toggleMap();
     if (I.hit('F5')) this.quickSave();
     if (I.hit('F9')) this.quickLoad();

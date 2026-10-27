@@ -68,6 +68,9 @@ through `g.camera`).
 | CAR marker min distance | 14 m | 8–30 | when the compass starts marking your car |
 | low-HP threshold | 30% | 20–40% | vignette + heartbeat |
 
+## 7b. Item 21: the pause menu is TABS
+GAME · YOU · LOG · SETTINGS · CONTROLS, one pane at a time (Q/E cycle while paused), settings in two columns; no scrolling at 1080p. Other systems add tabs with `g.qol.addTab(id, label, render)` (insurance, crew, journal).
+
 ## 8. Acceptance Criteria
 The 14 `qol:` checks in `web/src/agent/qol-selftest.js` (run with `selftest only=qol:`), each named after what it proves,
 plus a full battery green twice on fresh pages. Renders: `docs/renders/web/qol/`.

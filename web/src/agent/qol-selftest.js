@@ -60,7 +60,7 @@ export async function qolChecks(api, check, C) {
     const ok = Q.log[0].text === 'qol-check two' && Q.log[1].text === 'qol-check one' && /\d\d:\d\d/.test(Q.log[0].at) && Q.log.length <= 14;
     for (let i = 0; i < 20; i++) g.hud.toast(`qol flood ${i}`);
     // Regression: the menu card is a flex column and once squeezed the log box to 0 px (flex-shrink).
-    Q.toggleMenu(true); const h = Q.el.log.getBoundingClientRect().height; Q.toggleMenu(false);
+    Q.toggleMenu(true); Q.showTab('log'); const h = Q.el.log.getBoundingClientRect().height; Q.showTab('game'); Q.toggleMenu(false);
     return ok && Q.log.length === 14 && h > 20 ? true : JSON.stringify({ top: Q.log.slice(0, 2), h });
   });
 
@@ -124,6 +124,19 @@ export async function qolChecks(api, check, C) {
     const still = Q.menuOpen === was; if (Q.menuOpen && !was) Q.toggleMenu(false);
     dispatchEvent(new Event('focus'));
     return still ? true : 'blur paused an agent tab';
+  });
+
+  await check('qol: the pause menu is TABS (one pane at a time, Q/E cycle) and fits the screen without scrolling at 1080p', async () => {
+    Q.toggleMenu(true); Q.showTab('game');
+    const panes = () => [...Q.el.menu.querySelectorAll('.pm-pane')].filter((p) => !p.classList.contains('hidden')).map((p) => p.dataset.pane);
+    const a = panes().join();
+    Q.showTab('settings'); const b = panes().join();
+    const card = Q.el.menu.querySelector('.pm-card'), fits = innerHeight < 800 || card.scrollHeight <= card.clientHeight + 2;
+    const n0 = Q.tabs.length; Q.addTab('qoltest', 'TEST', (el) => { el.textContent = 'drawn'; }); Q.showTab('qoltest');
+    const added = Q.tabs.length === n0 + 1 && Q.el.menu.querySelector('.pm-pane[data-pane="qoltest"]').textContent === 'drawn';
+    Q.tabs.pop(); Q.el.menu.querySelector('.pm-tabs [data-tab="qoltest"]').remove(); Q.el.menu.querySelector('.pm-pane[data-pane="qoltest"]').remove();
+    Q.showTab('game'); Q.toggleMenu(false);
+    return a === 'game' && b === 'settings' && fits && added ? true : JSON.stringify({ a, b, fits, sh: card.scrollHeight, ch: card.clientHeight, ih: innerHeight, added });
   });
 
   Q.settings = saved; Q.saveSettings(); Q.syncInputs(); Q.apply(); g.cash = cashWas;
