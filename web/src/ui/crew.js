@@ -44,6 +44,20 @@ const CSS = `
 .crewc .down{color:#ff6a4a;font-weight:700}
 .crewp-empty{padding:40px;text-align:center;color:oklch(0.68 0.03 60)}
 .crewp-empty .ic{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;background:oklch(0.3 0.08 60);display:flex;align-items:center;justify-content:center}
+.crewp-tabs{display:flex;gap:4px;margin-right:8px}
+.crewp-tabs button{border-radius:999px}
+.crewp-list{display:flex;flex-direction:column;gap:6px}
+.crewp-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid oklch(0.32 0.02 60);border-radius:8px;background:oklch(0.2 0.012 60);font-size:.8rem;flex-wrap:wrap}
+.crewp-row:hover{border-color:oklch(0.5 0.1 70)}
+.crewp-row .sp,.crewp-head .sp{flex:1}
+.crewp-row .sub,.crewp-sec .sub{color:oklch(0.68 0.03 60);font-size:.75rem}
+.crewp-row select{background:oklch(0.22 0.015 60);color:#efe3cf;border:1px solid oklch(0.38 0.03 60);border-radius:6px;font:600 .7rem Inter,system-ui;padding:3px}
+.crewp-sec{margin:6px 0 10px}
+.crewp-sec h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.06em;color:oklch(0.78 0.15 75)}
+.crewp-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.dogic{width:52px;height:52px;border-radius:50%;background:oklch(0.3 0.06 60);display:flex;align-items:center;justify-content:center}
+.crewp-card{display:flex;flex-direction:column;max-height:88vh}
+.crewp-grid,.crewp-list{overflow:hidden}
 .crewp-foot{margin-top:12px;font-size:.75rem;color:oklch(0.68 0.03 60);display:flex;gap:18px;flex-wrap:wrap}
 .crewr{position:fixed;inset:0;z-index:61;pointer-events:none;display:flex;align-items:center;justify-content:center}
 .crewr svg{width:440px;height:440px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}
@@ -67,11 +81,23 @@ export class CrewUI {
     this.rd = document.createElement('div'); this.rd.className = 'crewr hidden';
     root.appendChild(this.rd);
     this.buildRadial();
+    // The pause menu's tabs (feat/web-qol): a CREW tab, when that build has addTab.
+    try { this.g.qol?.addTab?.('crew', 'CREW', (el) => this.pauseTab(el)); } catch { /* an older pause menu: no tabs */ }
+    // Tabs by key while the panel is open: TAB cycles, 1-6 jump.
+    addEventListener('keydown', (e) => {
+      if (!this.open) return;
+      const T = ['roster', 'orders', 'jobs', 'gear', 'bonds', 'wall'];
+      if (e.code === 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); this.setTab(T[(T.indexOf(this.tab ?? 'roster') + (e.shiftKey ? T.length - 1 : 1)) % T.length]); }
+      else if (/^Digit[1-6]$/.test(e.code)) { e.stopImmediatePropagation(); this.setTab(T[Number(e.code.slice(5)) - 1]); }
+    }, true);
   }
+
 
   // ---- input (per frame; DOM writes only when something changes) -----------------------------------------------------
   update(dt) {
     const g = this.g, C = g.controls;
+    // A member speaks up when you start talking to someone (the sim is still while a dialogue is open, so it is asked here).
+    if (g.crew.members.length && (g.dialogue?.active ? g.dialogue.npc : null) !== g.crew.talkingTo) g.crew.interject();
     if (!C?.st?.crew) return;
     const s = C.st.crew, busy = g.invUI?.open || g.dialogue?.active || g.paused;
     if (busy && !this.open) { if (this.radial) this.closeRadial(false); return; }
@@ -155,44 +181,99 @@ export class CrewUI {
     return this.faceCache.get(k);
   }
 
+  // ---- the panel: tabs, never one long scroll (Robert, 2026-10-27) ------------------------------------------------------
   render() {
-    const g = this.g, crew = g.crew, list = crew.members.map((m) => crew.view(m));
-    const F = crew.formation;
-    this.head.innerHTML = `<b>THE CREW</b><span class="sub">${crew.size()}/${CREW_RULES.cap} with you · ${crew.archetypes()}/${CREW_RULES.archetypeCap} cards</span><span class="sp"></span>
-      ${['wedge', 'file', 'spread'].map((f) => `<button data-order="${f}" class="${F === f ? 'on' : ''}">${f.toUpperCase()}</button>`).join('')}
-      <button data-act="camp">MAKE CAMP</button><button data-act="base">${crew.base ? 'MOVE BASE HERE' : 'CLAIM BASE HERE'}</button><button data-act="close">CLOSE · U</button>`;
-    if (!list.length) {
-      this.grid.innerHTML = `<div class="crewp-empty" style="grid-column:1/-1"><div class="ic"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.15 75)" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 15c3 0 6 1.5 6 4"/></svg></div>You ride alone. Talk to people: some will come, some you hire, some you cut loose.</div>`;
-    } else this.grid.innerHTML = list.map((m) => this.card(m)).join('');
-    const mem = crew.memorial.slice(-4).map((x) => `${x.name} (${x.card}, day ${x.day})`).join(' · ');
-    this.foot.innerHTML = `<span>CAMP: ${crew.camp ? `${Math.round(crew.camp.x)}, ${Math.round(crew.camp.z)}` : 'none'}</span><span>BASE: ${crew.base ? crew.base.name : 'none'}</span><span>PINS: ${crew.pins.length}</span>${mem ? `<span>ON THE WALL: ${mem}</span>` : ''}`;
+    const g = this.g, crew = g.crew, list = crew.members.map((m) => crew.view(m)), dogs = g.dogs?.mine?.() ?? [];
+    const tab = this.tab ??= 'roster';
+    const TABS = [['roster', 'ROSTER'], ['orders', 'ORDERS'], ['jobs', 'JOBS'], ['gear', 'GEAR'], ['bonds', 'BONDS'], ['wall', 'WALL']];
+    this.head.innerHTML = `<b>THE CREW</b><span class="sub">${crew.size()}/${CREW_RULES.cap} with you · ${crew.archetypes()}/${CREW_RULES.archetypeCap} cards${dogs.length ? ` · ${dogs.length} dog${dogs.length > 1 ? 's' : ''}` : ''}</span><span class="sp"></span>
+      <span class="crewp-tabs">${TABS.map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${n}</button>`).join('')}</span><button data-act="close">CLOSE · U</button>`;
+    this.grid.className = tab === 'roster' ? 'crewp-grid' : 'crewp-list';
+    this.grid.dataset.tab = tab;
+    const empty = `<div class="crewp-empty" style="grid-column:1/-1"><div class="ic"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.15 75)" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 15c3 0 6 1.5 6 4"/></svg></div>You ride alone. Talk to people: some will come, some you hire, some you cut loose.</div>`;
+    if (tab === 'roster') this.grid.innerHTML = list.length || dogs.length ? list.map((m) => this.card(m)).join('') + dogs.map((d) => this.dogCard(g.dogs.view(d))).join('') : empty;
+    else if (!list.length && tab !== 'wall') this.grid.innerHTML = empty;
+    else this.grid.innerHTML = this[`tab_${tab}`](list, crew);
+    const mem = crew.memorial.length;
+    this.foot.innerHTML = `<span>CAMP: ${crew.camp ? `${Math.round(crew.camp.x)}, ${Math.round(crew.camp.z)}` : 'none'}</span><span>BASE: ${crew.base ? crew.base.name : 'none'}</span><span>PINS: ${crew.pins.length}</span><span>ON THE WALL: ${mem}</span><span>TAB / 1-6 switch tabs</span>`;
   }
+
+  setTab(k) { this.tab = k; this.render(); this.g.emit('crewPanelTab', { tab: k }); }
 
   card(m) {
     const w = WEAPONS[m.gun], hpPct = Math.round((m.hp / m.maxHp) * 100), trustW = Math.abs(m.trust) / 2;
     const trustCol = m.trust >= 0 ? 'oklch(0.7 0.14 140)' : 'oklch(0.6 0.19 30)';
     const bar = (lbl, v, col) => `<div class="row"><span class="lbl">${lbl}</span><span class="bar"><i style="width:${Math.round(v * 100)}%;background:${col}"></i></span></div>`;
     const status = m.down ? `<span class="down">DOWN · ${Math.ceil(m.bleed)}s TO BLEED OUT</span>` : m.away ? `ON A RUN · BACK AT ${Math.floor(m.away.back % 24)}:00` : `${m.order.toUpperCase()}${m.fire === 'hold' ? ' · HOLD FIRE' : ''}`;
-    const jobs = CREW_JOBS.map((j) => `<option value="${j.id}" ${m.job?.id === j.id ? 'selected' : ''}>${j.where.toUpperCase()} · ${j.name}</option>`).join('');
-    return `<div class="crewc"><img class="flag" src="${this.flagImg(m.flag)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6"><div class="shade"></div>
+    return `<div class="crewc" data-flag="${m.flag}"><img class="flag" src="${this.flagImg(m.flag)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6"><div class="shade"></div>
       <div class="in"><img class="face" src="${this.faceImg(m)}" style="width:76px;height:96px;border-radius:6px;object-fit:cover;border:1px solid oklch(0.4 0.03 60)">
         <div><div class="nm">${m.name}</div><div class="cd">${m.card} · ${FLAGS[m.flag]?.name ?? m.flag}</div>
           ${bar('HEALTH', m.down ? 0 : hpPct / 100, 'oklch(0.62 0.17 35)')}
           ${bar('FOOD', m.needs.food, 'oklch(0.72 0.13 85)')}${bar('WATER', m.needs.water, 'oklch(0.66 0.1 210)')}${bar('REST', m.needs.rest, 'oklch(0.7 0.06 100)')}
           <div class="row"><span class="lbl">TRUST</span><span class="bar trust"><i style="width:${trustW}%;background:${trustCol};${m.trust < 0 ? `left:${50 - trustW}%` : ''}"></i></span><span>${Math.round(m.trust)}</span></div>
           <div class="row"><span class="lbl">GUN</span><span>${w ? `${w.short} ${Math.max(0, m.mag)}/${w.mag} · ${m.rounds} spare` : 'unarmed'}</span></div>
-          <div class="fl">FLAW: ${m.flaw}</div><div class="fl">${status}${m.job ? ` · JOB: ${m.job.name}${m.job.live ? '' : ' (waiting)'}` : ''}</div>
-        </div></div>
-      <div class="acts"><select data-job="${m.rec}"><option value="none">NO JOB</option>${jobs}</select>
-        <button data-act="rounds" data-m="${m.rec}">GIVE ROUNDS</button>${m.gun ? `<button data-act="takegun" data-m="${m.rec}">TAKE GUN</button>` : `<button data-act="givegun" data-m="${m.rec}">GIVE GUN</button>`}
-        <button data-act="dismiss" data-m="${m.rec}">DISMISS</button></div></div>`;
+          <div class="fl">FLAW: ${m.flaw}</div><div class="fl">${status}${m.job ? ` · ${m.job.name}${m.job.live ? '' : ' (waiting)'}` : ''}</div>
+        </div></div></div>`;
+  }
+
+  // Your dogs ride with the crew too (systems/dogs.js): bond tier, order, health.
+  dogCard(d) {
+    return `<div class="crewc dogc"><div class="shade" style="background:linear-gradient(100deg,rgba(18,13,8,.95),rgba(40,28,16,.85))"></div>
+      <div class="in" style="grid-template-columns:52px 1fr"><div class="dogic"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.15 75)" stroke-width="2"><path d="M10 5.2C10 3.7 8.9 2.6 7.5 3 5 3.7 4 7 4 9c0 1.5 1 2 2 2M14 5.2c0-1.5 1.1-2.6 2.5-2.2C19 3.7 20 7 20 9c0 1.5-1 2-2 2"/><path d="M8 14v.5M16 14v.5M11.3 19.4c.5.4 1 .4 1.4 0"/><path d="M6 11c0 5 2.7 9 6 9s6-4 6-9c0-2-1.5-4-6-4s-6 2-6 4z"/></svg></div>
+        <div><div class="nm">${d.name}</div><div class="cd">${d.breedName} · ${d.tier}</div>
+          <div class="row"><span class="lbl">HEALTH</span><span class="bar"><i style="width:${Math.round((d.hp / d.maxHp) * 100)}%;background:oklch(0.62 0.17 35)"></i></span></div>
+          <div class="row"><span class="lbl">BOND</span><span class="bar"><i style="width:${Math.min(100, Math.round(d.bond))}%;background:oklch(0.72 0.13 85)"></i></span></div>
+          <div class="fl">${d.state === 'downed' ? '<span class="down">DOWN</span>' : (d.cmd ?? '').toUpperCase()} · C whistles</div></div></div></div>`;
+  }
+
+  tab_orders(list) {
+    const btn = (o) => `<button data-order="${o}">${ORDER_NAMES[o]}</button>`;
+    const F = this.g.crew.formation;
+    return `<div class="crewp-sec"><h4>EVERYONE</h4><div class="crewp-btns">${ORDERS.map(btn).join('')}</div>
+      <div class="sub">Formation now: ${F.toUpperCase()}. Hold U (pad: hold LB) for the radial in the field.</div></div>
+      ${list.map((m) => `<div class="crewp-row"><b>${m.name}</b><span class="sub">${m.card}</span><span class="sp"></span><span class="sub">${m.order.toUpperCase()}${m.fire === 'hold' ? ' · HOLD FIRE' : ''}</span>
+        ${['follow', 'holdpos', 'cover', 'fallback', 'mangun'].map((o) => `<button data-order="${o}" data-m="${m.rec}">${ORDER_NAMES[o]}</button>`).join('')}</div>`).join('')}`;
+  }
+
+  tab_jobs(list, crew) {
+    const jobs = (m) => CREW_JOBS.map((j) => `<option value="${j.id}" ${m.job?.id === j.id ? 'selected' : ''}>${j.where.toUpperCase()} · ${j.name}</option>`).join('');
+    return `<div class="crewp-sec"><div class="crewp-btns"><button data-act="camp">MAKE CAMP HERE</button><button data-act="base">${crew.base ? 'MOVE BASE HERE' : 'CLAIM BASE HERE'}</button></div>
+      <div class="sub">Road jobs work while you drive and they ride; camp jobs by the camp; base jobs at the base.</div></div>
+      ${list.map((m) => `<div class="crewp-row"><b>${m.name}</b><span class="sub">${m.card}</span><span class="sp"></span>
+        <span class="sub">${m.job ? `${m.job.live ? 'WORKING' : 'WAITING'} · ${Math.round(m.job.progress * 100)}%` : m.away ? 'ON A RUN' : 'NO JOB'}</span>
+        <select data-job="${m.rec}"><option value="none">NO JOB</option>${jobs(m)}</select></div>`).join('')}
+      ${crew.pins.length ? `<div class="crewp-sec"><h4>PINS</h4>${crew.pins.slice(-5).map((p) => `<div class="sub">${p.label} · ${p.x}, ${p.z} · ${p.by}</div>`).join('')}</div>` : ''}`;
+  }
+
+  tab_gear(list) {
+    return list.map((m) => { const w = WEAPONS[m.gun]; return `<div class="crewp-row"><b>${m.name}</b><span class="sub">${w ? `${w.short} ${Math.max(0, m.mag)}/${w.mag} · ${m.rounds} spare` : 'unarmed'}</span><span class="sp"></span>
+      <button data-act="rounds" data-m="${m.rec}">GIVE ROUNDS</button>${m.gun ? `<button data-act="takegun" data-m="${m.rec}">TAKE GUN</button>` : `<button data-act="givegun" data-m="${m.rec}">GIVE GUN</button>`}
+      <button data-act="dismiss" data-m="${m.rec}">DISMISS</button></div>`; }).join('');
+  }
+
+  tab_bonds(list, crew) {
+    const M = crew.members, pairs = [];
+    for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++) pairs.push([M[i], M[j], crew.bond(M[i], M[j])]);
+    const word = (v) => v >= 50 ? 'FRIENDS' : v >= 10 ? 'GET ALONG' : v > -10 ? 'NEUTRAL' : v > -40 ? 'FRICTION' : 'RIVALS';
+    const col = (v) => v >= 0 ? 'oklch(0.7 0.14 140)' : 'oklch(0.6 0.19 30)';
+    return `<div class="crewp-sec"><h4>WHAT THEY THINK OF YOU</h4>${list.map((m) => `<div class="crewp-row"><b>${m.name}</b><span class="sp"></span><span class="sub">TRUST ${Math.round(m.trust)}</span></div>`).join('')}</div>
+      <div class="crewp-sec"><h4>WHAT THEY THINK OF EACH OTHER</h4>${pairs.length ? pairs.map(([a, b, v]) => `<div class="crewp-row"><b>${a.name}</b><span class="sub">&amp;</span><b>${b.name}</b><span class="sp"></span><span style="color:${col(v)}">${word(v)} ${Math.round(v)}</span></div>`).join('') : '<div class="sub">One rider: nobody to get along with yet.</div>'}</div>
+      <div class="crewp-sec"><h4>HEARD LATELY</h4>${crew.heard.slice(-5).reverse().map((h) => `<div class="sub">${h.name}: ${h.line}</div>`).join('') || '<div class="sub">Quiet.</div>'}</div>`;
+  }
+
+  tab_wall(list, crew) {
+    const W = crew.memorial, D = this.g.dogs?.fallen ?? [];
+    if (!W.length && !D.length) return '<div class="crewp-empty">Nobody on the wall. Keep it that way.</div>';
+    return `<div class="crewp-sec"><h4>THE WALL</h4>${W.slice(-8).reverse().map((x) => `<div class="crewp-row"><b>${x.name}</b><span class="sub">${x.card} · ${FLAGS[x.flag]?.name ?? x.flag}</span><span class="sp"></span><span class="sub">day ${x.day} · ${x.days} days riding · ${x.why}</span></div>`).join('')}
+      ${D.slice(-4).map((x) => `<div class="crewp-row"><b>${x.name}</b><span class="sub">${x.breed} · ${x.tier}</span><span class="sp"></span><span class="sub">day ${x.day}</span></div>`).join('')}</div>`;
   }
 
   click(e) {
     const g = this.g, crew = g.crew, b = e.target.closest('button');
     if (!b) { if (e.target === this.el) this.toggle(false); return; }
-    if (b.dataset.order) { crew.order(b.dataset.order); this.render(); return; }
+    if (b.dataset.tab) { this.setTab(b.dataset.tab); return; }
     const m = b.dataset.m ? crew.byAny(b.dataset.m) : null;
+    if (b.dataset.order) { crew.order(b.dataset.order, m); this.render(); return; }
     switch (b.dataset.act) {
       case 'close': this.toggle(false); return;
       case 'camp': crew.camp = { x: g.player.x, z: g.player.z, day: g.society?.day ?? 0 }; g.hud.toast('CAMP MADE HERE', 'job'); break;
@@ -203,5 +284,12 @@ export class CrewUI {
       case 'dismiss': if (m && confirm(`Let ${m.name} go? They take their share.`)) crew.dismiss(m); break;
     }
     this.render();
+  }
+
+  // The pause menu's CREW tab (ui/qol.js addTab, when that build has it): the roster, read-only.
+  pauseTab(el) {
+    const crew = this.g.crew, list = crew.members.map((m) => crew.view(m));
+    el.innerHTML = list.length ? list.map((m) => `<div style="display:flex;gap:10px;align-items:center;margin:6px 0"><img src="${this.flagImg(m.flag)}" style="width:36px;height:24px;border-radius:3px"><b>${m.name}</b><span style="opacity:.7">${m.card}</span><span style="margin-left:auto">TRUST ${Math.round(m.trust)} · ${m.down ? 'DOWN' : m.order.toUpperCase()}</span></div>`).join('') + '<div style="opacity:.7;margin-top:8px">Tap U in the field for the CREW panel; hold U for orders.</div>'
+      : '<div style="opacity:.7">You ride alone. Tap U in the field for the CREW panel.</div>';
   }
 }

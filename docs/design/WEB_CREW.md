@@ -89,7 +89,18 @@ puts the grip back when a hold opened it.
 - **Refusals:** under −25 trust, members refuse the risky orders (focus, man the gun, loot, hold here).
 - **The Prospect's flaw:** he only falls back when told twice inside 6 s.
 
-### 3.4 The CREW panel (tap U)
+### 3.4 The CREW panel (tap U): tabs, never one long scroll
+Robert (2026-10-27): "Just use tabs." The panel has six tabs. TAB cycles them and 1-6 jump to one while the panel is
+open; the pause menu also gets a CREW tab through `qol.addTab`, when that build has it.
+- **ROSTER:** the member cards described below, plus **your dogs** (`dogs.mine()`: breed, bond tier, health, order).
+  Dogs are part of the crew but do not count against the six.
+- **ORDERS:** every order for everyone, and the common ones per member.
+- **JOBS:** a job picker per member with its live/waiting state and progress; MAKE CAMP and CLAIM BASE; the last pins.
+- **GEAR:** gun, mag and spare rounds; GIVE ROUNDS, TAKE GUN or GIVE GUN, DISMISS.
+- **BONDS:** trust toward you, what each pair thinks of each other (FRIENDS … RIVALS), and the lines heard lately.
+- **WALL:** the fallen crew and dogs.
+
+The roster card (the rest of this section is the card):
 - One card per member. The member's **flag is the card's backdrop**, under a dark gradient.
 - **On each card:**
   - the portrait, name, card name and country;
@@ -103,6 +114,26 @@ puts the grip back when a hold opened it.
 - **The header:** WEDGE, FILE and SPREAD; MAKE CAMP; CLAIM BASE HERE.
 - **The footer:** camp, base, pins, and the last names on the memorial wall.
 - **With no crew:** a large icon in a circle and "You ride alone...".
+
+### 3.8 Talk: barks, camp talk, bonds, interjections (`data/crewtalk.js`)
+- **Every line goes through one place** (`crew.say`): the subtitle, `g.voice.speak`, and the `crewSay` event
+  `{ rec, name, kind, line, to, ctx }`. kind is bark | camp | interject | one of the BARKS kinds. The voice/LLM lane can
+  voice any line, or replace it with a generated one built from `crew.context(member)`: card, flaw, signature, style,
+  values, trust, needs, order, job, the last 8 deeds they remember (kind, sign, place, target, day), their bonds with
+  the others, and the last lines heard.
+- **Barks** (rows by kind and card style): down, saved, kill, dry, order ack, refuse, approve, disapprove, last stand,
+  callout, a won fight.
+- **Memories:** every deed that moved a member's trust is remembered (8 deep, in the save).
+- **Bonds between members** (pairwise −100..100, in the save): they start from how alike their values are
+  (`Σ va·vb·2`, clamped ±40) plus flaws that rub or fit (`FLAW_CLASH`, e.g. the talker and the town-hater −20). Two who
+  both saw a deed and took it the same way +1.5; opposite ways −3 (the seed of a quarrel).
+- **Camp talk:** at the camp, at night or while you sleep, a line every 35-70 s, in this order:
+  1. the strongest deed a member remembers and has not told ("You put down an empty-handed man at {place}. Tell me why.");
+  2. else the pair with the strongest feeling: friends, rivals, or a quarrel under −60 that pulls you in (the bond moves
+     ±2 toward its sign);
+  3. else a flaw's small talk.
+- **Interjections:** as you open a conversation, a member within 14 m whose value for the row's verb is high enough
+  speaks up. Rows: a hurt person (heal ≥ 3: the Sleeper), a trader (trade), a warden, a Dustwolf.
 
 ### 3.5 Jobs (`data/crewjobs.js`)
 A job = **skill + inputs + outputs + duration + risk**, run on the game clock:
@@ -303,6 +334,12 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
 15. **Tactics suppression:** it rises past 0.5, aim × 1.5 or worse, and it decays.
 16. **Tactics cover:** a pinned raider picks a point hidden from you crouched, behind the sandbags.
 17. **Tactics doctrine:** the Remnant take both BOUND and OVERWATCH; drifters break when half the squad falls.
+18a. **Bonds:** the talker and the town-hater start at least 20 under the values' bond; a robbery one cheers and one
+    hates drives them apart (a `crewBond` event, same: false).
+18b. **Camp talk:** at camp at 23:00 the Sleeper brings up the unarmed man you killed; the `crewSay` event carries kind
+    camp and the memory as its context.
+18c. **Interjection:** opening a talk with a hurt stranger with the Sleeper beside you gives a `crewInterject` event.
+18d. **The panel's tabs:** all six draw for five members without a scroll, and your dog is on the roster.
 18. **Tactics cost:** the average plan is under 0.3 ms, the worst under 3 ms, a nav path under 8 ms.
 
 **Not yet (next lanes):**

@@ -17,6 +17,7 @@
 import { CREW_RULES as R, CREW_BY_ID, CREW_ROWS, CREW_SEEDS, CREW_EVENTS, JOIN_TRUST } from '../data/crew.js';
 import { CREW_JOBS, CREW_JOB_BY_ID, CREW_RUN_LOOT } from '../data/crewjobs.js';
 import { VERBS } from '../data/society.js';
+import { BARKS, CAMP_DEED, CAMP_PAIR, CAMP_FLAW, INTERJECT, BOND_RULES as BR, FLAW_CLASH } from '../data/crewtalk.js';
 import { WEAPONS } from './combat.js';
 import { ITEMS, AMMO_ITEM, GUN_ITEM } from '../data/items.js';
 
@@ -48,6 +49,10 @@ export class Crew {
     this.fight = { t0: -1e9, kills: 0, foes: 0, won: -1e9 };
     this.stats = { joined: 0, left: 0, died: 0, saved: 0, refused: 0, trustEvents: 0, jobsDone: 0, runs: 0 };
     this.seeded = false;
+    this.bonds = new Map();   // 'a|b' (record ids) -> -100..100: how two members feel about each other
+    this.heard = [];          // the last lines the crew said (the LLM context's short memory)
+    this.campAt = 0;          // game time of the next camp line
+    this.took = [];           // scratch: who took a deed which way
   }
 
   // ---- candidates ---------------------------------------------------------------------------------------------------
@@ -202,6 +207,7 @@ export class Crew {
       holdAt: null, lootAt: null, colors: c.colors,
     };
     if (s) { s.state = 'joined'; c.crewCand = null; }
+    for (const o of this.members) this.startBond(rec, o);
     this.members.push(rec);
     this.attach(rec, c);
     c.mag = row.weapon ? WEAPONS[row.weapon].mag : 0;
@@ -269,7 +275,7 @@ export class Crew {
     if (order === 'watch') this.camp = { x: p.x, z: p.z, day: g.society?.day ?? 0 };
     for (const m of list) {
       if (m.away || m.down) continue;
-      if (RISKY.has(order) && m.trust < R.refuseBelow) { refused.push(m.name); this.say(m, 'Not for you. Not today.'); this.stats.refused++; continue; }
+      if (RISKY.has(order) && m.trust < R.refuseBelow) { refused.push(m.name); this.bark(m, 'refuse'); this.stats.refused++; continue; }
       // The Prospect's flaw: FALL BACK only sticks when you say it twice.
       if (order === 'fallback' && m.row.flaw.id === 'brave' && g.time - m.fallbackAsked > 6) { m.fallbackAsked = g.time; refused.push(m.name); this.say(m, 'I can take them!'); continue; }
       took.push(m.name);
@@ -640,7 +646,7 @@ export class Crew {
       const w = WEAPONS[c.weapon];
       if (c.reloading > 0 && !m.reloadPaid) { m.reloadPaid = true; const need = w.mag - Math.max(0, c.mag); if (m.rounds < need) { c.mag = Math.max(0, c.mag) - need + m.rounds; m.rounds = 0; } else m.rounds -= need; }
       if (!(c.reloading > 0)) m.reloadPaid = false;
-      if (m.rounds <= 0 && c.mag <= 0 && !m.dry) { m.dry = true; this.say(m, 'I am dry! Rounds!'); this.g.emit('crewDry', { rec: m.id, name: m.name }); }
+      if (m.rounds <= 0 && c.mag <= 0 && !m.dry) { m.dry = true; this.bark(m, 'dry', null, true); this.g.emit('crewDry', { rec: m.id, name: m.name }); }
       if (m.rounds > 0) m.dry = false;
       if (m.dry && c.mag <= 0) { c.reloading = 0; c.target = null; }
     }
@@ -654,7 +660,7 @@ export class Crew {
     const d = weight * v * (seen ? 1 : R.heardMul);
     m.trust = clamp(m.trust + d, R.trustMin, R.trustMax);
     this.stats.trustEvents++;
-    if (Math.abs(d) >= 6) this.say(m, d > 0 ? 'That was well done.' : kind === 'killUnarmed' ? 'They had nothing in their hands.' : 'I saw that. I will not forget it.');
+    if (Math.abs(d) >= 6) this.bark(m, d > 0 ? 'approve' : 'disapprove', null, true);
     return d;
   }
 
@@ -693,10 +699,18 @@ export class Crew {
       if (target?.crewRec && (rec.v === 'hurt' || rec.v === 'kill')) kinds.length = 0, kinds.push('shotCrew');
       if (rec.v === 'kill' && target && !target.weapon && target.faction !== 'zombie') kinds.push('killUnarmed');
       if (rec.v === 'kill' && (rec.of === 'dustwolves' || target?.faction === 'raider')) kinds.push('killRaider');
+      const took = this.took; took.length = 0;
       for (const m of this.members) {
         if (m.away) continue;
         const seen = this.sawIt(m, rec.x, rec.z);
-        for (const k of kinds) { const d = this.applyTrust(m, k, k in CREW_EVENTS ? CREW_EVENTS[k].weight : w, seen); if (d) g.emit('crewTrust', { kind: k, verb: rec.v, record: rec.seq, rec: m.id, d: +d.toFixed(2), trust: +m.trust.toFixed(2), seen }); }
+        let sum = 0;
+        for (const k of kinds) { const d = this.applyTrust(m, k, k in CREW_EVENTS ? CREW_EVENTS[k].weight : w, seen); if (d) { sum += d; this.remember(m, k, rec.v, d, rec); g.emit('crewTrust', { kind: k, verb: rec.v, record: rec.seq, rec: m.id, d: +d.toFixed(2), trust: +m.trust.toFixed(2), seen }); } }
+        if (sum && seen) took.push([m, sum]);
+      }
+      // Two who saw it and took it the same way grow closer; opposite ways, apart (the seed of a quarrel).
+      for (let i = 0; i < took.length; i++) for (let j = i + 1; j < took.length; j++) {
+        const same = (took[i][1] > 0) === (took[j][1] > 0), v = this.moveBond(took[i][0], took[j][0], same ? BR.agree : -BR.disagree);
+        g.emit('crewBond', { a: took[i][0].id, b: took[j][0].id, why: rec.v, same, bond: +v.toFixed(1) });
       }
     }
   }
@@ -720,7 +734,7 @@ export class Crew {
     c.target = null; if (c.inVehicle) g.seats.leave(c, true);
     g.hud.toast(`${m.name.toUpperCase()} IS DOWN · ${R.bleedOut}s TO PATCH THEM UP (E) OR DRAG THEM CLEAR (HOLD E)`, 'hot');
     g.emit('crewDown', { rec: m.id, id: c.id, name: m.name, bleed: R.bleedOut });
-    this.say(m, "I'm hit... I'm hit bad.", true);
+    this.bark(m, 'down', null, true);
   }
 
   stabilize(m, item = null) {
@@ -829,6 +843,11 @@ export class Crew {
         }
       }
       if (g.survival?.sleep && !this.camp) this.camp = { x: p.x, z: p.z, day: g.society?.day ?? 0 };
+      // Camp talk: at the camp, at night or while you sleep, a line every 35-70 s.
+      if (this.members.length && this.campLive() && ((g.sky.night ?? 0) > 0.5 || g.survival?.sleep) && g.time >= this.campAt) {
+        this.campAt = g.time + BR.campEvery[0] + Math.random() * (BR.campEvery[1] - BR.campEvery[0]);
+        this.campTalk();
+      }
     }
   }
 
@@ -864,7 +883,7 @@ export class Crew {
       const c = m.c, t = 0.4;
       c.x += ((p.x + (shooter.x - p.x) * 0.12) - c.x) * t; c.z += ((p.z + (shooter.z - p.z) * 0.12) - c.z) * t;
       c.target = shooter;
-      if (!m.lastStand) { m.lastStand = true; this.say(m, 'Get behind me!', true); g.emit('crewLastStand', { rec: m.id, name: m.name }); }
+      if (!m.lastStand) { m.lastStand = true; this.bark(m, 'lastStand', null, true); g.emit('crewLastStand', { rec: m.id, name: m.name }); }
       return;
     }
   }
@@ -884,7 +903,7 @@ export class Crew {
       best.called = m.id;
       const dir = ['NORTH', 'NORTH-EAST', 'EAST', 'SOUTH-EAST', 'SOUTH', 'SOUTH-WEST', 'WEST', 'NORTH-WEST'][((Math.round(Math.atan2(best.x - p.x, -(best.z - p.z)) / (Math.PI / 4)) % 8) + 8) % 8];
       const what = best.faction === 'zombie' ? 'INFECTED' : best.faction === 'raider' ? 'DUSTWOLVES' : 'TROUBLE';
-      this.say(m, `${what}, ${dir}, ${Math.round(bd)} metres!`, true);
+      this.bark(m, 'callout', { what, dir, d: Math.round(bd) }, true);
       if (J.effect === 'watch' && g.survival?.sleep) g.survival.wake('your watch woke you');
       g.emit('crewCallout', { rec: m.id, job: J.id, what, dir, d: Math.round(bd), target: best.id });
     }
@@ -904,13 +923,115 @@ export class Crew {
     }
   }
 
-  say(m, line, force = false) {
+  // Every crew line goes out here: the subtitle, the voice layer, and the `crewSay` event the voice/LLM lane reads (kind,
+  // who it is to, the context it came from) to voice it or swap in a generated line.
+  say(m, line, force = false, kind = 'bark', to = null, ctx = null) {
     const g = this.g;
-    if (!force && g.time - (m.sayAt ?? -1e9) < SAY_GAP) return;
+    if (!force && g.time - (m.sayAt ?? -1e9) < SAY_GAP) return false;
     m.sayAt = g.time;
     g.hud?.subtitle?.(`${m.name}: ${line}`, 3);
-    if (m.c) g.voice?.speak?.(m.c, line, { kind: 'bark' });
-    g.emit('crewSay', { rec: m.id, line });
+    if (m.c) g.voice?.speak?.(m.c, line, { kind: kind === 'camp' ? 'talk' : 'bark', after: kind === 'camp' });
+    g.emit('crewSay', { rec: m.id, name: m.name, kind, line, to: to?.id ?? to ?? null, ctx });
+    this.heard.push({ t: +g.time.toFixed(1), rec: m.id, name: m.name, kind, line });
+    if (this.heard.length > 12) this.heard.shift();
+    return true;
+  }
+
+  // A bark row (data/crewtalk.js BARKS): the card's style first, else any; turned round so it is not the same line twice.
+  bark(m, kind, vars = null, force = false) {
+    const B = BARKS[kind]; if (!B) return false;
+    const list = B[m.row.ai.style] ?? B.any;
+    m.barkN = (m.barkN ?? 0) + 1;
+    return this.say(m, this.fill(list[(m.barkN + m.id) % list.length], m, vars), force, kind, null, vars);
+  }
+
+  fill(line, m, v = null, other = null) {
+    return line.replace(/\{(\w+)\}/g, (_, k) => k === 'name' ? m.name : k === 'other' ? other?.name ?? 'you' : k === 'you' ? 'boss' : v?.[k] ?? (k === 'place' ? 'back there' : k === 'target' ? 'them' : ''));
+  }
+
+  // ---- bonds between members (pairwise -100..100) ------------------------------------------------------------------
+  bondKey(a, b) { return a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`; }
+  bond(a, b) { return this.bonds.get(this.bondKey(a, b)) ?? 0; }
+  moveBond(a, b, d) { const k = this.bondKey(a, b), v = clamp((this.bonds.get(k) ?? 0) + d, -100, 100); this.bonds.set(k, v); return v; }
+  // Two new to each other: how alike their values are, and whether their flaws rub.
+  startBond(a, b) {
+    let s = 0;
+    for (const [k, v] of Object.entries(a.row.values)) if (b.row.values[k]) s += v * b.row.values[k] * BR.like;
+    s = clamp(s, -BR.startClamp, BR.startClamp);
+    const fa = a.row.flaw.id, fb = b.row.flaw.id;
+    s += FLAW_CLASH[`${fa}|${fb}`] ?? FLAW_CLASH[`${fb}|${fa}`] ?? 0;
+    this.bonds.set(this.bondKey(a, b), clamp(s, -100, 100));
+  }
+
+  remember(m, kind, verb, d, rec) {
+    (m.memory ??= []).push({ kind, verb, sign: d > 0 ? '+' : '-', d: +d.toFixed(1), place: rec?.p || '', target: rec?.on || '', day: this.g.society?.day ?? 0 });
+    if (m.memory.length > BR.memory) m.memory.shift();
+  }
+
+  // ---- camp talk ------------------------------------------------------------------------------------------------------
+  campLive() {
+    const g = this.g, p = g.player, cp = this.camp;
+    if (!cp || Math.hypot(p.x - cp.x, p.z - cp.z) > 45) return false;
+    const v = p.inVehicle; return !v || g.vehiclesSys.speed(v) < 2;
+  }
+
+  // One camp exchange: a memory of your deeds, else two members by their bond, else a flaw's small talk. Returns the lines.
+  campTalk() {
+    const g = this.g, here = this.members.filter((m) => m.c?.alive && !m.down && !m.away);
+    if (!here.length) return [];
+    const n = this.campN = (this.campN ?? 0) + 1, out = [];
+    const say = (m, line, to = null, ctx = null) => { if (this.say(m, line, true, 'camp', to, ctx)) out.push({ rec: m.id, name: m.name, line }); };
+    // A deed one of them still turns over (the strongest they remember and have not told).
+    let best = null, bm = null;
+    for (const m of here) for (const x of m.memory ?? []) if (CAMP_DEED[x.kind]?.[x.sign] && !x.told && (!best || Math.abs(x.d) > Math.abs(best.d))) { best = x; bm = m; }
+    if (best && (n % 2 === 1 || here.length < 2)) {
+      const L = CAMP_DEED[best.kind][best.sign]; best.told = true;
+      say(bm, this.fill(L[n % L.length], bm, best), null, { memory: best });
+    } else if (here.length >= 2) {
+      // The pair with the strongest feeling either way.
+      let pa = null, pb = null, pv = 0;
+      for (let i = 0; i < here.length; i++) for (let j = i + 1; j < here.length; j++) { const v = this.bond(here[i], here[j]); if (!pa || Math.abs(v) > Math.abs(pv)) { pa = here[i]; pb = here[j]; pv = v; } }
+      const kind = pv <= BR.quarrelBelow ? 'quarrel' : pv < 0 ? 'rivals' : 'friends';
+      const L = CAMP_PAIR[kind][n % CAMP_PAIR[kind].length];
+      L.forEach((line, i) => { const sp = i % 2 ? pb : pa, other = i % 2 ? pa : pb; say(sp, this.fill(line, sp, null, other), other, { bond: +pv.toFixed(1), kind }); });
+      this.moveBond(pa, pb, pv >= 0 ? BR.campNudge : -BR.campNudge);
+      g.emit('crewBondTalk', { a: pa.id, b: pb.id, kind, bond: +this.bond(pa, pb).toFixed(1) });
+    } else {
+      const m = here[n % here.length], L = CAMP_FLAW[m.row.flaw.id] ?? CAMP_FLAW.none;
+      say(m, L[n % L.length]);
+    }
+    if (out.length) g.emit('crewCampTalk', { lines: out });
+    return out;
+  }
+
+  // ---- interjections: someone speaks up while you talk to a person --------------------------------------------------
+  interject() {
+    const g = this.g, D = g.dialogue, c = D?.active ? D.npc : null;
+    if (c === this.talkingTo) return null;
+    this.talkingTo = c;
+    if (!c || c.crewRec || c.crewCand || g.time - (this.interAt ?? -1e9) < BR.interjectGap) return null;
+    const hurt = c.hp < (c.maxHp ?? 100) * 0.6, trader = !!c.npc?.trades || /trad|smith|store|counter|garage/i.test(c.npc?.title ?? '');
+    for (const row of INTERJECT) {
+      const when = row.when === 'hurt' ? hurt : row.when === 'trader' ? trader : row.when === 'warden' ? c.faction === 'warden' : c.faction === row.when;
+      if (!when) continue;
+      for (const m of this.members) {
+        if (!m.c?.alive || m.down || (m.row.values[row.verb] ?? 0) < row.need || Math.hypot(m.c.x - c.x, m.c.z - c.z) > 14) continue;
+        this.interAt = g.time;
+        const line = row.lines[(m.id + Math.floor(g.time)) % row.lines.length];
+        this.say(m, line, true, 'interject', c, { when: row.when });
+        g.emit('crewInterject', { rec: m.id, to: c.id, when: row.when, line });
+        return line;
+      }
+    }
+    return null;
+  }
+
+  // Everything a voice or LLM layer needs to write this member's next line.
+  context(m) {
+    return { name: m.name, card: m.row.name, flag: m.flag, flaw: m.row.flaw.text, signature: m.row.signature.text, style: m.row.ai.style, values: m.row.values,
+      trust: +m.trust.toFixed(1), needs: { ...m.needs }, order: m.order, job: m.job, memories: (m.memory ?? []).map((x) => ({ ...x })),
+      bonds: this.members.filter((o) => o !== m).map((o) => ({ rec: o.id, name: o.name, card: o.row.name, bond: +this.bond(m, o).toFixed(1) })),
+      heard: this.heard.slice(-6) };
   }
 
   claimBase(x, z, name = null) {
@@ -941,11 +1062,12 @@ export class Crew {
   // again round you at load.
   save({ portable = false } = {}) {
     const plain = (m) => ({ id: m.id, cid: portable ? null : m.cid, row: m.rowId, name: m.name, flag: m.flag, how: m.how, trust: m.trust, day: m.day, needs: { ...m.needs }, order: m.order, fire: m.fire ?? 'free', job: m.job, jobP: m.jobP,
-      away: m.away ? { ...m.away } : null, down: m.down, bleed: m.bleed, saves: m.saves, kills: m.kills, pay: m.pay, hp: m.c ? m.c.hp : m.hp, rounds: m.rounds, holdAt: m.holdAt, colors: m.colors });
+      memory: (m.memory ?? []).map((x) => ({ ...x })), away: m.away ? { ...m.away } : null, down: m.down, bleed: m.bleed, saves: m.saves, kills: m.kills, pay: m.pay, hp: m.c ? m.c.hp : m.hp, rounds: m.rounds, holdAt: m.holdAt, colors: m.colors });
     return {
       v: 1, members: this.members.map(plain), formation: this.formation, camp: this.camp, base: this.base, nextRec: this.nextRec,
       cands: [...this.cands.values()].map((s) => ({ key: s.key, row: s.row, how: s.how, where: s.where, line: s.line, state: s.state, cid: portable ? null : s.c?.id ?? null, name: s.name, flag: s.flag })),
       graves: this.graves.map((x) => ({ ...x })), memorial: this.memorial.map((x) => ({ ...x })), pins: this.pins.map((x) => ({ ...x })),
+      bonds: [...this.bonds],
     };
   }
 
@@ -970,7 +1092,9 @@ export class Crew {
       if (m.fire === 'hold') g.tactics.unit(c).holdFire = true;
     }
     this.formation = s.formation ?? 'wedge'; this.camp = s.camp ?? null; this.base = s.base ?? null; this.nextRec = Math.max(this.nextRec, s.nextRec ?? 1);
-    this.graves = (s.graves ?? []).map((x) => ({ ...x })); this.memorial = (s.memorial ?? []).map((x) => ({ ...x })); this.pins = (s.pins ?? []).map((x) => ({ ...x }));
+    this.bonds = new Map(s.bonds ?? []);
+    this.graves = (s.graves ?? []).map((x) => ({ ...x })); this.memorial
+ = (s.memorial ?? []).map((x) => ({ ...x })); this.pins = (s.pins ?? []).map((x) => ({ ...x }));
     // Candidates: their people again (the restore brought the bodies back without a talk tree).
     // Candidate bodies the save does not know by id (a shard login: this page's own seeds) go; the save's stand again.
     const keepIds = new Set((s.cands ?? []).map((x) => x.cid).filter(Boolean));

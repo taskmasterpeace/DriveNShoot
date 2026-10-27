@@ -15,6 +15,7 @@ import { VERBS } from '../data/society.js';
 import { ITEMS } from '../data/items.js';
 import { FLAG_KEYS } from '../ui/portrait.js';
 import { outfit } from '../systems/characters.js';
+import { BREEDS } from '../data/dogs.js';
 
 export function crewCommands(api, need) {
   const g = api.g, P = () => g.player, K = () => g.crew;
@@ -31,8 +32,11 @@ export function crewCommands(api, need) {
   return {
     crew: {
       group: 'player', desc: 'THE CREW (systems/crew.js, data/crew.js, docs/design/WEB_CREW.md): 1-6 counting you, a new game starts solo. No args: size and caps (6; 4 of the 8 CREW CARDS), formation, camp, base, every member (card, flag, hp, needs, gun + mag + spare rounds, trust, flaw, order, fire, job + whether its place is live, skills, saves, kills, down + bleed clock, away on a run), the candidates you can still meet (key, row, how: talk|hire|rescue|earn, state, where), graves, the memorial wall, map pins, counters, the last obituary. id=<member rec|name|row> for one. validate=true runs the row validators (crew rows, jobs, doctrine). Debug verbs on a member (id=): trust=<deed verb or crew event> seen=true|false applies the §4.4 formula once; down=true knocks them down (the bleed-out clock starts); patch=true patches them up; dawn=true runs a dawn (drift, wages, the hungry, who walks).',
-      args: { id: { type: 'string' }, validate: { type: 'boolean' }, trust: { type: 'string' }, seen: { type: 'boolean', default: true }, down: { type: 'boolean' }, patch: { type: 'boolean' }, dawn: { type: 'boolean' } },
-      run: async ({ id, validate, trust, seen, down, patch, dawn }) => {
+      args: { id: { type: 'string' }, validate: { type: 'boolean' }, trust: { type: 'string' }, seen: { type: 'boolean', default: true }, down: { type: 'boolean' }, patch: { type: 'boolean' }, dawn: { type: 'boolean' }, camptalk: { type: 'boolean' }, context: { type: 'boolean' }, bonds: { type: 'boolean' } },
+      run: async ({ id, validate, trust, seen, down, patch, dawn, camptalk, context, bonds }) => {
+        if (camptalk) return { lines: K().campTalk() };
+        if (bonds) { const M = K().members, out = []; for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++) out.push({ a: M[i].name, b: M[j].name, bond: +K().bond(M[i], M[j]).toFixed(1) }); return { bonds: out, heard: K().heard }; }
+        if (context) { const m = member(id); return { context: K().context(m) }; }
         if (validate) return { crew: validateCrew(CREW_ROWS, { flags: FLAG_KEYS, weapons: Object.keys(WEAPONS), verbs: VERBS }), jobs: validateCrewJobs(CREW_JOBS, { skills: CREW_SKILLS, items: ITEMS }), doctrine: validateDoctrine(DOCTRINE, BANDS, ['pistol', 'smg', 'shotgun', 'rifle', 'auto', 'pump'].filter((k) => WEAPONS[k])) };
         if (dawn) K().dawn();
         if (!id) return summary();
@@ -508,6 +512,61 @@ export async function crewChecks(api, check, C) {
     await steps(2);
     const broke = since(seq, 'tacBreak', (e) => e.faction === 'drifter').length;
     return broke && dr.slice(2).some((c) => c.tac?.role === 'retreat') ? true : `drifter breaks ${broke}, roles ${dr.map((c) => c.tac?.role).join(',')}`;
+  }));
+
+  // ---- talk: bonds, camp talk, interjections, the voice hooks -------------------------------------------------------
+  await check('crew bonds: two new members start from how alike their values and flaws are; a deed they take opposite ways pulls them apart', () => stage(async (at) => {
+    const a = await join('scrapsmith'), b = await join('marshkid');
+    const b0 = K.bond(a, b); // the talker and the town-hater rub (FLAW_CLASH -20)
+    const x = await join('ex_raider'), y = await join('drifter_gun');
+    await steps(1);
+    const xy0 = K.bond(x, y), victim = g.addChar({ x: at.x + 4, z: at.z + 2, faction: 'drifter', weapon: null, hp: 80, colors: outfit('drifter'), name: 'Mark (selftest)', flag: 'US' });
+    const seq = g.eventSeq;
+    g.society.deeds.record('rob', { target: victim, x: victim.x, z: victim.z });
+    await steps(1);
+    const ev = since(seq, 'crewBond', (e) => (e.a === x.id && e.b === y.id) || (e.a === y.id && e.b === x.id))[0];
+    return b0 <= 40 - 20 && ev && !ev.same && K.bond(x, y) < xy0 ? true : `talker/town-hater ${b0}; rob bond ${xy0} -> ${K.bond(x, y)} event ${JSON.stringify(ev)}`;
+  }));
+
+  await check('crew camp talk: at camp at night a member brings up a deed they saw (place and all); a voice hook event carries kind and context', () => stage(async (at) => {
+    const s = await join('sleeper'); await steps(1);
+    const victim = g.addChar({ x: at.x + 5, z: at.z, faction: 'drifter', weapon: null, hp: 50, colors: outfit('drifter'), name: 'Unarmed Camp (selftest)', flag: 'US' });
+    g.combat.damage(victim, 9999, g.player, 1, 0); await steps(1);
+    await C('crewJob', { camp: true }); await C('setTime', { hour: 23 });
+    const seq = g.eventSeq;
+    await steps(2.5);
+    const say = since(seq, 'crewSay', (e) => e.kind === 'camp')[0];
+    return say && /hands|empty-handed/.test(say.line) && say.ctx?.memory?.kind === 'killUnarmed' ? true : `camp line ${JSON.stringify(say)} memories ${JSON.stringify(s.memory)}`;
+  }, { hour: 23 }));
+
+  await check('crew interjection: talk to someone hurt with the Sleeper beside you and she speaks up', () => stage(async (at) => {
+    const s = await join('sleeper'); await steps(1);
+    const hurt = g.addChar({ x: at.x + 3, z: at.z, faction: 'drifter', weapon: null, hp: 100, colors: outfit('drifter'), name: 'Bleeding (selftest)', flag: 'MX' });
+    hurt.hp = 30; hurt.hold = true;
+    const seq = g.eventSeq;
+    await C('talk', { id: hurt.id, force: true }); await steps(1.2);
+    if (g.dialogue.active) g.dialogue.close();
+    const ev = since(seq, 'crewInterject')[0];
+    return ev && ev.rec === s.id && ev.when === 'hurt' ? true : `interjection ${JSON.stringify(ev)}`;
+  }));
+
+  await check('crew panel tabs: ROSTER / ORDERS / JOBS / GEAR / BONDS / WALL each draw without a scroll; your dogs are on the roster', () => stage(async (at) => {
+    for (const r of ['wheelboss', 'sleeper', 'quartermaster', 'drifter_gun', 'tracker']) await join(r);
+    const stray = g.dogs.make(Object.keys(BREEDS)[0], at.x + 2, at.z + 2);
+    if (!stray) return 'no dog could be made (the dog cap)';
+    g.dogs.adopt(stray);
+    g.crewUI.toggle(true);
+    const bad = [];
+    for (const t of ['roster', 'orders', 'jobs', 'gear', 'bonds', 'wall']) {
+      g.crewUI.setTab(t);
+      const card = g.crewUI.el.querySelector('.crewp-card'), n = g.crewUI.grid.children.length;
+      if (!n || card.scrollHeight > card.clientHeight + 2) bad.push(`${t}: ${n} items, ${card.scrollHeight}>${card.clientHeight}`);
+    }
+    g.crewUI.setTab('roster');
+    const dog = !!g.crewUI.grid.querySelector('.dogc');
+    g.crewUI.toggle(false);
+    g.dogs.dogs.splice(g.dogs.dogs.indexOf(stray), 1);
+    return !bad.length && dog ? true : `${bad.join('; ')} dog card ${dog}`;
   }));
 
   await check('tactics cost: a plan averages under 0.3 ms (worst under 3 ms, a nav path under 8 ms); plans are staggered, perFrame at most', async () => {
