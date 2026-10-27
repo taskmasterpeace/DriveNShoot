@@ -679,6 +679,7 @@ class Game {
     _ray.setFromCamera(_ndc, this.camera);
     if (this.aimOverride) { this.aim.x = this.aimOverride.x; this.aim.z = this.aimOverride.z; }
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
+    if (this.aimOverride) this.aim.y = this.aimOverride.y ?? 0; else this.fauna?.skyAim(_ray.ray, this.aim); // a bird under the cursor: aim at it, at its height (systems/fauna.js)
     if (!this.aimOverride) this.controls.aimAt(p, dt, p.inVehicle ?? p); // the pad in hand: the right stick aims
 
     if (this.dialogue.active) { p.speed = 0; return; }

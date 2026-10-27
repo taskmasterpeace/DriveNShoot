@@ -3,6 +3,7 @@ import { Traps } from './traps.js';
 import { Greyborn } from './greyborn.js';
 import { Grapevine } from './grapevine.js';
 import { HotGround } from './hotground.js';
+import { Outdoors } from './outdoors.js';
 
 // The wilds facade (docs/design/WEB_GREYBORN_GRAPEVINE.md): traps, the Greyborn's settlements, the Grapevine's packs and
 // the hot ground, made and stepped together, saved as one block. Owned by systems/zombies.js (so main.js needs no
@@ -19,6 +20,7 @@ export class Wilds {
     game.greyborn = this.greyborn = new Greyborn(game);
     game.grapevine = this.grapevine = new Grapevine(game);
     game.hotground = this.hotground = new HotGround(game);
+    game.outdoors = this.outdoors = new Outdoors(game); // living off the land: tracks, fishing, foraging, trapping, camp (docs/design/WEB_WILDS.md)
     this.glints = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, fog: false }), MAX_GLINTS);
     this.glints.count = 0; this.glints.frustumCulled = false; this.glints.renderOrder = 4;
     game.scene.add(this.glints);
@@ -55,6 +57,7 @@ export class Wilds {
     this.grapevine.update(dt);
     this.hotground.update(dt);
     this.traps.update(dt); // last: holds clamp whoever a trap has after everyone moved
+    this.outdoors.update(dt); // its own clock; a line in the water adds its float to the glints
     this.glints.count = this.nGlint;
     if (this.nGlint) { this.glints.instanceMatrix.needsUpdate = true; if (this.glints.instanceColor) this.glints.instanceColor.needsUpdate = true; }
     this.nGlint = 0;
@@ -67,13 +70,14 @@ export class Wilds {
     return false;
   }
 
-  save() { return { traps: this.traps.save(), greyborn: this.greyborn.save(), grapevine: this.grapevine.save(), hotground: this.hotground.save() }; }
+  save() { return { traps: this.traps.save(), greyborn: this.greyborn.save(), grapevine: this.grapevine.save(), hotground: this.hotground.save(), outdoors: this.outdoors.save() }; }
   // A load: everyone promoted goes (the records are the truth), then the records come back from the save.
   load(s) {
     this.greyborn.load(s?.greyborn);
     this.grapevine.load(s?.grapevine);
     this.hotground.load(s?.hotground);
     if (s?.traps) this.traps.load(s.traps);
+    this.outdoors.load(s?.outdoors);
     for (const c of [...this.g.chars]) if (c.wild) this.g.removeChar(c);
   }
 }

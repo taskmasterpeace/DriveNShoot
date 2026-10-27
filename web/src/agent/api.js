@@ -44,6 +44,8 @@ import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATO
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
+import { outdoorsCommands } from './outdoors-api.js';
+import { outdoorsChecks } from './outdoors-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1961,6 +1963,7 @@ function buildCommands(api) {
     ...cloneCommands(api, need),
     // L5 LIFE: the regional animals (src/agent/faunatools.js, docs/design/WEB_FAUNA.md).
     ...faunaCommands(api, need),
+    ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
   };
 }
 
@@ -5800,6 +5803,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await floridaChecks({ api, g, check, C });
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
+  await outdoorsChecks(api, check, C); // THE WILDS: birds out of the sky, tracks, fishing, foraging, traps, the camp (src/agent/outdoors-selftest.js)
   g.fauna.enabled = faunaWas;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));

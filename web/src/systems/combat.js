@@ -54,9 +54,11 @@ export class Combat {
     g.ambient?.eject(ch, ang);
     g.ambient?.onShot(ch.x, ch.z);
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)
+    const lift = ch === g.player ? g.fauna?.aimLift(ch) ?? 0 : 0; // the mouse on a bird in the sky: the shot rises to it (systems/fauna.js skyAim)
     for (let p = 0; p < w.pellets; p++) {
-      const a = ang + (Math.random() - 0.5) * 2 * w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
-      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg, w.ammo);
+      const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
+      const a = ang + (Math.random() - 0.5) * 2 * sp;
+      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg, w.ammo, lift ? lift + (Math.random() - 0.5) * 2 * sp : 0);
     }
     return true;
   }
@@ -64,8 +66,9 @@ export class Combat {
   // ammo: what the round is (data/materials.js PUNCH: how hard it carries through things). A round that meets a wall goes
   // on through it, glances off it or stops in it by what the wall is made of (systems/materials.js); whatever it reaches
   // after that it reaches with what is left. People, cars, dogs and the train stop it.
-  hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null) {
-    const g = this.g, M = g.materials;
+  // slope: a round aimed up into the sky (m up a m out): it passes over people, cars and dogs once above head height.
+  hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null, slope = 0) {
+    const g = this.g, M = g.materials, over = slope > 0 ? 1.15 / slope : Infinity;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
     const fy = shooter.storey ? shooter.gy ?? 0 : 0, up = fy > 0.5; // upstairs: the round stays on that floor
     let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
@@ -79,7 +82,7 @@ export class Combat {
         if (c.underwater) continue;                          // bullets don't reach under water
         if (!g.storeys.sameFloor(shooter, c)) continue;      // through a floor: no (world/storeys.js)
         const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-        if (t >= 0 && t < best) { best = t; target = c; kind = 'char'; }
+        if (t >= 0 && t < best && t < over) { best = t; target = c; kind = 'char'; }
       }
       for (const v of g.vehicles) {
         if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
@@ -87,13 +90,13 @@ export class Combat {
         for (const s of [-1, 1]) {
           const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
           const t = rayCircle(ox, oz, dx, dz, cx, cz, v.wid * 0.62, best);
-          if (t >= 0 && t < best) { best = t; target = v; kind = 'veh'; }
+          if (t >= 0 && t < best && t < over) { best = t; target = v; kind = 'veh'; }
         }
       }
       // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
-      const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, best) : null;
+      const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, Math.min(best, over)) : null;
       if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
-      const fh = !up && g.fauna ? g.fauna.raycast(ox, oz, dx, dz, best) : null; // an animal (systems/fauna.js)
+      const fh = !up && g.fauna ? g.fauna.raycast(ox, oz, dx, dz, best, slope) : null; // an animal (systems/fauna.js); a bird in the sky at its height
       if (fh) { best = fh.t; target = fh.animal; kind = 'fauna'; }
       if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
         const th = g.train.raycast(ox, oz, dx, dz, best);
