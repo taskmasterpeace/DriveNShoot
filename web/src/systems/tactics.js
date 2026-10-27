@@ -142,7 +142,7 @@ export class Tactics {
     U.path = null; U.pi = 0;
     if (gd > 1.5 && (gd > T.pathR || !g.statics.lineOfSight(c.x, c.z, U.gx, U.gz, RAY_SOLID)) && g.time - U.pathAt > T.repathS && g.nav?.foot) {
       U.pathAt = g.time;
-      const t1 = performance.now(), p = g.nav.foot.find(c.x, c.z, U.gx, U.gz, 3000);
+      const t1 = performance.now(), p = g.nav.foot.find(c.x, c.z, U.gx, U.gz, 1500); // a tactical move is short: a small search budget
       this.stats.paths++;
       const pm = performance.now() - t1; if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm;
       if (p && p.length) { U.path = p; U.pi = 0; }

@@ -148,6 +148,8 @@ export async function crewChecks(api, check, C) {
       for (const id of o.pieces ?? []) try { g.materials.unbuild(id); } catch {}
     }
   };
+  // A pack emptied for a check that needs room (the battery before has filled it), put back after.
+  const roomy = async (fn) => { const inv = g.inventory, keep = inv.carried.slots.splice(0); try { return await fn(); } finally { inv.carried.slots.length = 0; inv.carried.slots.push(...keep); inv.dirty = true; } };
   const join = async (row) => { const r = await C('crewJoin', { spawn: row }); return r.ok ? K.byAny(String(r.rec)) : null; };
   const raider = (x, z, weapon = 'smg') => { const c = g.spawnRaider(x, z, Math.random, weapon); c.grudge = g.player; c.target = g.player; c.state = 'fight'; c.hp = c.maxHp = 400; return c; };
 
@@ -301,7 +303,7 @@ export async function crewChecks(api, check, C) {
     return boarded && r.hp < hp0 ? true : `boarded ${a.c.inVehicle?.id}/${b.c.inVehicle?.id} (rig ${v.id}) gunner hit ${r.hp < hp0}`;
   }));
 
-  await check('crew order LOOT THIS: a member walks to the box nearest your aim and brings its contents into your pack', () => stage(async (at) => {
+  await check('crew order LOOT THIS: a member walks to the box nearest your aim and brings its contents into your pack', () => stage((at) => roomy(async () => {
     const a = await join('drifter_scav');
     const box = g.inventory.place('crewtest:box', 'crate', at.x + 8, at.z + 3, 40, 'TEST CRATE'); box.rolled = true;
     g.inventory.add(box, 'bandage', 3); g.inventory.add(box, 'scrap', 2);
@@ -309,7 +311,7 @@ export async function crewChecks(api, check, C) {
     await C('crewOrder', { order: 'loot', x: box.x, z: box.z }); await steps(5);
     g.inventory.boxes.delete('crewtest:box');
     return g.inventory.carried.count('bandage') === before + 3 && !box.slots.length ? true : `bandages ${before} -> ${g.inventory.carried.count('bandage')}, box left ${box.slots.length}`;
-  }));
+  })));
 
   await check('crew order STAND WATCH: makes camp; the watch names a raider coming before it opens up', () => stage(async (at) => {
     const a = await join('tracker');
@@ -401,14 +403,15 @@ export async function crewChecks(api, check, C) {
   }, { keepCrew: false }));
 
   // ---- jobs ---------------------------------------------------------------------------------------------------------
-  await check('crew jobs: TEND WOUNDS heals you and CLEAN GUNS cleans yours over a game hour at camp; COOK eats a food item', () => stage(async () => {
+  await check('crew jobs: TEND WOUNDS heals you and CLEAN GUNS cleans yours over a game hour at camp; COOK eats a food item', () => stage(() => roomy(async () => {
     const a = await join('field_medic'), b = await join('gun_tinker'), c = await join('drifter_cook');
     await C('crewJob', { camp: true }); await C('crewJob', { id: String(a.id), job: 'tend' }); await C('crewJob', { id: String(b.id), job: 'clean' }); await C('crewJob', { id: String(c.id), job: 'cook' });
     g.player.hp = 40; const k = g.inv.current; g.inv.cond[k] = 0.5; g.inventory.add(g.inventory.carried, 'jerky', 2);
     const food0 = g.inventory.carried.count('jerky'); c.needs.food = 0.3;
     await C('crewJob', { advance: 1.2 });
     return g.player.hp > 40 && g.inv.cond[k] > 0.5 && g.inventory.carried.count('jerky') < food0 && c.needs.food > 0.3 ? true : `hp ${g.player.hp} cond ${g.inv.cond[k]} jerky ${food0}->${g.inventory.carried.count('jerky')} food ${c.needs.food}`;
-  }));
+  })));
+
 
   await check('crew jobs: a SCAVENGE RUN takes the member off the map and brings back loot (or wounds) when the clock is up; base jobs need a base', () => stage(async (at) => {
     const a = await join('drifter_scav');
