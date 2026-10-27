@@ -235,6 +235,8 @@ of 5.1 m over 191 m has curvature 6 · 5.1 / 191² = 8.4e-4 per metre, v² κ = 
 | Materials / destruction (another agent) | each deck's `hp`, `hpMax`, `state` and the `bridge` event | what a blown deck does |
 | `agent/api.js` | `water` (replaces the island-only row, same answers there), `rivers`, `bridges`; the checks run before devtools' | `C`, `check`, `need` |
 
+- **WEB_WILDS** (`systems/outdoors.js waterKind`) asks this authority what water is where to fish it (depth >= 0.45 m to cast; the body's kind picks the fish) and where a fish trap or net may sink.
+
 ## 7. Tuning Knobs
 
 All in `web/src/data/water.js` (WATER).

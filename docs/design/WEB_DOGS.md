@@ -164,6 +164,8 @@ dead). The tail reads morale: wide and quick near you and well, stiff and up whe
 - `ui/feedback.js` floaters (`!`, `WOOF`, `grrr`, `DUG UP`); `ui/hud.js` toasts and prompts; `ui/inventory.js`.
 - `agent/api.js`: the commands, the save (`dogs` key) and the selftest checks.
 
+- **WEB_WILDS** (`systems/outdoors.js`): SEEK also takes `kind: track` (a scent trail, print by print) and `kind: fetch` (a shot bird); the three-whistle SEEK with nothing buried near puts the dogs on the freshest trail; breeds carry `traits` (tracker, bird_dog) from `data/outdoors.js`.
+
 ## 7. Tuning knobs
 
 | Knob | Where | Value | Safe range | Affects |
