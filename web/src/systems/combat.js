@@ -68,6 +68,7 @@ export class Combat {
     const g = this.g, M = g.materials;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
     const fy = shooter.storey || shooter.ug ? shooter.gy ?? 0 : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
+    const down = up && fy > 0.5 && !shooter.ug; // up a building: its walls stop the round unless it leaves by a window hole or over the parapet
     let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
     for (let seg = 0; seg < 4; seg++) {
       let best = g.statics.raycast(ox, oz, dx, dz, left, RAY_BULLET, up ? fy + 1.3 : -1);
@@ -77,7 +78,9 @@ export class Combat {
         if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
         if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
         if (c.underwater) continue;                          // bullets don't reach under water
-        if (!g.storeys.sameFloor(shooter, c)) continue;      // through a floor: no (world/storeys.js)
+        // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
+        // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
+        if (!g.storeys.sameFloor(shooter, c) && !(down && (c.gy ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== shooter.storey)) continue;
         const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
         if (t >= 0 && t < best) { best = t; target = c; kind = 'char'; }
       }

@@ -183,7 +183,7 @@ export function layoutTown(opts) {
     if (n > B.n) Object.assign(B, makeBuilding(makeRng(opts.seed ^ 0x7a11), B.kind, B.x0, B.z0, B.x1, B.z1, B.front, { ...B, storeys: n, ruined: false }));
   }
 
-  clearBays(T.buildings);
+  clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null);
 
   // ---- bridges between roofs ----
   T.bridges = roofBridges(rng, T.buildings, T.id);
@@ -215,7 +215,7 @@ export function layoutTown(opts) {
 
 // A roll-up bay needs room to drive up to it: 6 m clear outside it (no other building, no fence). A blocked back bay is
 // walled up; a blocked front bay too (its building keeps a man door).
-export function clearBays(list) {
+export function clearBays(list, bounds = null) {
   for (const B of list) {
     if (!B.doors.some((d) => d.kind === 'bay')) continue;
     const keep = [];
@@ -224,6 +224,7 @@ export function clearBays(list) {
       const hw = d.w / 2 + 1.3, D = 6.5;
       const r = d.side === 'N' ? [d.at - hw, B.z0 - D, d.at + hw, B.z0] : d.side === 'S' ? [d.at - hw, B.z1, d.at + hw, B.z1 + D] : d.side === 'W' ? [B.x0 - D, d.at - hw, B.x0, d.at + hw] : [B.x1, d.at - hw, B.x1 + D, d.at + hw];
       if (list.some((o) => o !== B && r[2] > o.x0 - 0.3 && r[0] < o.x1 + 0.3 && r[3] > o.z0 - 0.3 && r[1] < o.z1 + 0.3)) continue;
+      if (bounds && (r[0] < bounds.x0 + 1 || r[2] > bounds.x1 - 1 || r[1] < bounds.z0 + 1 || r[3] > bounds.z1 - 1)) continue; // the fence or the town wall
       keep.push(d);
     }
     // a through-bay whose partner went is still a bay (drive in, back out); a building that lost every bay keeps a door
@@ -299,6 +300,7 @@ export function layoutRural(opts) {
     }
   }
   if (R.fence !== 'none') {
+    clearBays(T.buildings, T);
     const Wr = WALLS[R.fence];
     T.wall = { type: R.fence, h: Wr.h * 0.5, t: Wr.t, x0: T.x0, z0: T.z0, x1: T.x1, z1: T.z1, gates: [{ side: front, at: front === 'N' || front === 'S' ? cx : cz, w: 8 }], towers: false, look: Wr.look, gateW: 8, fence: true };
     T.gates = T.wall.gates.map((g) => ({ ...g, x: g.side === 'W' ? T.x0 : g.side === 'E' ? T.x1 : g.at, z: g.side === 'N' ? T.z0 : g.side === 'S' ? T.z1 : g.at, open: true }));

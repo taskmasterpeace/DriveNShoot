@@ -76,12 +76,24 @@ function stairCore(c, Y, pitches) {
     flights.push(f);
   }
   const depth = m > 1 ? FW * 2 : FW;
+  // The way onto each flight from the room (world/storeys.js steer, for generated records): a point in the room beside
+  // its foot landing, and the landing's column (from there the foot is a straight walk across the landing).
+  for (const f of flights) {
+    const rf = f.rBottom === 0 && f.i === 0 ? -LAND / 2 : f.rBottom + Math.sign(f.rBottom - f.rTop) * (LAND / 2);
+    if (c.outside && f.i > 0) continue; // a fire escape's upper landings: the room side is thin air
+    f.approach = fr.point(rf, depth + 0.9);
+    f.footBox = fr.rect(rf - LAND / 2 - 0.1, rf + LAND / 2 + 0.1, -0.2, depth + 1.4);
+  }
   return { flights, frame: fr, L0, depth, area: fr.rect(-LAND, L0 + LAND, 0, depth) };
 }
 // the colliders and visuals of a core's flights (world/storeys.js raise(), the flights part). outerOpen: the core stands
 // outside (a fire escape): band 1's far side and the band-0 flank are open air, so both get flanks and rails.
 function coreSolids(core, add, vis, lvBase, outerOpen) {
   const fr = core.frame;
+  // Under the street flight's top landing, band 0 is a cupboard (solid to just under the floor above): nobody walks into
+  // the dead-end pocket behind the flight's top end on the street floor.
+  const f0 = core.flights[0];
+  if (f0 && !outerOpen) { const cb = fr.rect(core.L0 + RAIL_T / 2, core.L0 + LAND, 0, FW); add(cb.minX, cb.minZ, cb.maxX, cb.maxZ, 'cg-flank', f0.to - 0.3, 0); vis((cb.minX + cb.maxX) / 2, (f0.to - 0.3) / 2, (cb.minZ + cb.maxZ) / 2, cb.maxX - cb.minX, f0.to - 0.3, cb.maxZ - cb.minZ, '#4a4038', lvBase); }
   for (const f of core.flights) {
     const steps = Math.max(6, Math.round(f.len / 0.3)), rise = f.to - f.from, q0 = f.band * FW, q1 = q0 + FW;
     const ladder = f.pitch > 1.2;
@@ -167,7 +179,7 @@ export function buildBuilding(B, out, T, rng) {
     const lo = alongX ? ox0 : oz0, hi = alongX ? ox1 : oz1;
     if (hi - lo >= need + 1) {
       const wall = side === 'N' ? oz0 : side === 'S' ? oz1 : side === 'W' ? ox0 : ox1, inward = side === 'N' || side === 'W' ? -1 : 1; // outward
-      const c = { side, alongX, wall, inward, o: lo + 0.5 + LAND, dir: 1 };
+      const c = { side, alongX, wall, inward, o: lo + 0.5 + LAND, dir: 1, outside: true };
       const k = stairCore(c, Ye, pit);
       const fp = k.frame.rect(-LAND, k.L0 + LAND, 0, FW * 2);
       // keep it off the other buildings, the town wall and the streets (the plan leaves side yards; a tight row may not)

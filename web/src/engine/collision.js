@@ -49,6 +49,9 @@ export class StaticWorld {
     // `extra` boxes round an open entrance (its collar) that the street's movers meet but its hash and nav grids never see.
     this.under = null;
     this.extra = [];
+    // GENERATED SETTLEMENTS (systems/citygen.js): the live towns' boxes in their own 8 m hash (cg.cell(gx, gz) -> list;
+    // cg.n boxes; cg.x0..z1 their bounds), met by every query below wherever a town stands.
+    this.cg = null;
   }
 
   // An opening's entry: bucketed over the area it can ever occupy (a door's whole swing).
@@ -164,6 +167,15 @@ export class StaticWorld {
           for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
         }
     }
+    const cg = this.cg;
+    if (cg !== null && cg.n > 0 && bx1 > cg.x0 && bx0 < cg.x1 && bz1 > cg.z0 && bz0 < cg.z1) {
+      const c = this.cell, gx0 = Math.floor(bx0 / c), gx1 = Math.floor(bx1 / c), gz0 = Math.floor(bz0 / c), gz1 = Math.floor(bz1 / c);
+      for (let gx = gx0; gx <= gx1; gx++)
+        for (let gz = gz0; gz <= gz1; gz++) {
+          const list = cg.cell(gx, gz);
+          for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
+        }
+    }
     for (let i = 0; i < this.extra.length; i++) pushed += this.circleBox(this.extra[i], stamp, p, r, mover, minY, skip, topY);
     return pushed;
   }
@@ -219,8 +231,8 @@ export class StaticWorld {
     this.best = maxDist;
     this.hit.box = null;
     const invX = dx !== 0 ? 1 / dx : 1e9, invZ = dz !== 0 ? 1 / dz : 1e9;
-    let lastCell = -1, lastG = 0x7fffffff, lastGz = 0x7fffffff;
-    const chunks = this.chunkBoxes > 0;
+    let lastCell = -1, lastG = 0x7fffffff, lastGz = 0x7fffffff, lastCx = 0x7fffffff, lastCz = 0x7fffffff;
+    const chunks = this.chunkBoxes > 0, cg = this.cg !== null && this.cg.n > 0 ? this.cg : null;
     for (let s = 0; s <= maxDist + step; s += step) {
       if (s > this.best + this.cell) break;
       const px = x0 + dx * Math.min(s, maxDist), pz = z0 + dz * Math.min(s, maxDist);
@@ -243,6 +255,13 @@ export class StaticWorld {
         if (gx !== lastG || gz !== lastGz) {
           lastG = gx; lastGz = gz;
           for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) this.rayList(this.chunkCell(gx + ox, gz + oz), stamp, x0, z0, dx, dz, invX, invZ, mode, y);
+        }
+      }
+      if (cg !== null && px > cg.x0 - this.cell && px < cg.x1 + this.cell && pz > cg.z0 - this.cell && pz < cg.z1 + this.cell) {
+        const gx = Math.floor(px / this.cell), gz = Math.floor(pz / this.cell);
+        if (gx !== lastCx || gz !== lastCz) {
+          lastCx = gx; lastCz = gz;
+          for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) this.rayList(cg.cell(gx + ox, gz + oz), stamp, x0, z0, dx, dz, invX, invZ, mode, y);
         }
       }
     }

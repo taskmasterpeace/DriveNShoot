@@ -95,11 +95,11 @@ export const KINDS = {
   // military (the base's own)
   barracks: K({ name: 'barracks', w: [24, 32], d: [10, 12], storeys: [2, 3], h0: 3.6, zone: ['military'], loot: 'military', escape: 0.7 }),
   hq: K({ name: 'headquarters', w: [24, 30], d: [18, 22], storeys: [2, 3], h0: 4.2, zone: ['military'], loot: 'military' }),
-  guardhouse: K({ name: 'guardhouse', w: [5, 6], d: [5, 6], h0: 3, zone: ['military'], loot: 'military', roof: 'ladder', parapet: 1.1 }),
+  guardhouse: K({ name: 'guardhouse', w: [5, 6], d: [5, 6], h0: 3.6, zone: ['military'], loot: 'military', roof: 'ladder', parapet: 1.1 }),
   // the country's other homes and stops
   farmhouse: K({ name: 'farmhouse', w: [10, 13], d: [9, 12], storeys: [2, 2], zone: ['farm', 'res'], loot: 'farm', roof: 'none', parapet: 0, claimable: true }),
   ranch_house: K({ name: 'ranch house', w: [14, 18], d: [9, 11], zone: ['farm', 'res'], loot: 'farm', roof: 'none', parapet: 0, claimable: true }),
-  truck_stop: K({ name: 'truck stop', w: [20, 26], d: [14, 18], h0: 4.6, zone: ['road'], bays: [2, 5.0, 4.6], through: true, loot: 'garage' }),
+  truck_stop: K({ name: 'truck stop', w: [20, 26], d: [14, 18], h0: 4.6, zone: ['road'], bays: [2, 5.0, 4.6], through: true, loot: 'garage', claimable: true }),
 };
 
 // Per-floor loot (the container's table, data/items.js LOOT names the street storey uses already; upper floors richer and
@@ -287,12 +287,14 @@ export const MILITARY = {
 //   horde         a migrating horde is a RECORD (strength = bodies) walking roads at `speed` m/s toward the loudest/nearest
 //                 settlement within `seek` m; within `bodyR` of the player it puts up to `bodies` characters in the street
 //                 (the rest stay strength: the 160-character cap is never broken); at a town it fights the defense:
-//                 every `tick` s it loses defense*kill bodies and adds strength*press to infestation
+//                 every s it loses defense*kill bodies, and the bodies past what it holds back (defense*hold) press in:
+//                 infestation += (strength - defense*hold) * press. Example: 200 vs defense 0.3 -> held 90, falls in ~15 s;
+//                 vs defense 1.5 (a walled stronghold) -> held 450, never presses, the horde is spent in ~15 s
 //   noise         a gunshot/blast in a settlement draws hordes within `draw` m toward it
 //   dusk          the hour hordes wake and start to walk (game hours); dawn: they stop and dig in
 export const OVERRUN = {
   start: [0.0, 0.25], overrun: 0.75, retake: 0.2, perKill: 0.004, decay: 0.002,
-  horde: { speed: 1.4, seek: 6000, bodyR: 160, bodies: 40, tick: 2, kill: 9, press: 0.0006, arrive: 60 },
+  horde: { speed: 1.4, seek: 6000, bodyR: 160, bodies: 40, tick: 2, kill: 9, press: 0.0006, arrive: 60, hold: 300 },
   noise: { draw: 900 },
   dusk: 19, dawn: 6,
   fleeShare: 0.6, // of the residents when it falls: the rest turn

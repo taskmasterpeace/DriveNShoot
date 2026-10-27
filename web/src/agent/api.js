@@ -42,6 +42,7 @@ import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -994,9 +995,17 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 } },
-      run: async ({ x, z, count, runners, radius }) => ({ ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) }),
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected). size=<n> (with at="x,z" or x,z, toward=<settlement id>, force=true to walk by day) instead raises a MIGRATING HORDE record (systems/overrun.js, docs/design/WEB_CITYGEN.md §3.6): it walks to that settlement (the nearest by default) at dusk, stands up to 40 bodies in the street near you (the rest stay strength), besieges it and may overrun it.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 }, size: { type: 'number' }, at: { type: 'string' }, toward: { type: 'string' }, force: { type: 'boolean', default: false } },
+      run: async ({ x, z, count, runners, radius, size, at, toward, force }) => {
+        if (at) [x, z] = at.split(',').map(Number);
+        if (size !== undefined || toward !== undefined) {
+          need(!toward || g.citygen.byId.has(toward), `no settlement "${toward}" (citygen lists them)`);
+          const H = g.citygen.overrun.spawnHorde({ x: x ?? P().x + 300, z: z ?? P().z, size: size ?? 60, toward, force });
+          return { horde: H.id, x: Math.round(H.x), z: Math.round(H.z), strength: H.strength, toward: H.target };
+        }
+        return { ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) };
+      },
     },
     infected: {
       group: 'world', desc: "The infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md). With no args: every sprinter (dormant / burst / overheat), Echo (frozen while you watch it, what it is at) and Choir-Touched (its aura) alive, the choir sites, the counters. kind=sprinter|echo|choir|shambler spawns one at x,z (an Echo works at the boarded window or locked door nearest it); site=<id> wakes a choir site now; burst=<id> breaks a sprinter.",
@@ -1939,6 +1948,7 @@ function buildCommands(api) {
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     ...creatorCommands(api), // creator, sheet
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
+    ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -2078,6 +2088,10 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  // Generated settlements (systems/citygen.js) would build themselves round unrelated checks out on I-10: they stay
+  // unbuilt for the battery; their own checks stamp what they need.
+  const citygenWas = g.citygen.enabled;
+  g.citygen.enabled = false; g.citygen.overrun.auto = false;
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5805,6 +5819,9 @@ async function runSelfTest(api, only = null, skip = null) {
   g.fauna.enabled = faunaWas;
   // The underground (docs/design/WEB_UNDERGROUND.md §8): agent/underground-api.js.
   await undergroundChecks({ api, g, check, C, snapshot, restore });
+  // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
+  await citygenChecks({ api, g, check, C });
+  g.citygen.enabled = citygenWas;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;

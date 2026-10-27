@@ -114,6 +114,24 @@ export const KINDS = {
     infected: [[3, 6], [3, 6]], runners: 0.3,
     logs: ['tunnel_chalk', 'tunnel_pump'],
   },
+  // A military base's VAST sealed bunker (docs/design/WEB_CITYGEN.md §3.5; placed by systems/citygen.js under a base's
+  // HQ, far apart): entry vault, security, barracks, labs, storage, power, and the sealed ring-platform room the Carousel
+  // will use (THE CAROUSEL, docs/design/WEB_DEATHLANDS_GAP.md G6: the room is here now, the machine is a later lane).
+  vault: {
+    name: 'sealed vault', built: true, size: [54, 58], levels: [5, 8], corridor: 3,
+    programme: [
+      ['vestibule', 'guard', 'guard', 'lockers', 'stores'],
+      ['guard', 'armory', 'comms', 'lockers', 'latrine'],
+      ['bunks', 'bunks', 'mess', 'latrine', 'medbay', 'stores'],
+      ['lab', 'lab', 'office', 'cold', 'stores'],
+      ['generator', 'pump', 'stores', 'vault', 'stores'],
+      ['ringroom', 'command', 'guard', 'stores'],
+      ['stores', 'cold', 'lab', 'stores'],
+      ['ringroom', 'stores'],
+    ],
+    infected: [[1, 2], [1, 3], [2, 4], [2, 4], [1, 3], [2, 3], [2, 5], [3, 6]], runners: 0.25,
+    logs: ['bunker_last', 'bunker_fuel', 'bunker_vault'],
+  },
   cave: {
     name: 'cave', built: false, size: [46, 58], levels: [1, 2], chambers: [6, 9], radius: [3.2, 6.6], tunnel: [2, 3],
     squeeze: 0.22, pools: [1, 3], collapse: [1, 2], nest: 0.75,
@@ -145,6 +163,8 @@ export const ROOMS = {
   lab: { label: 'LAB', w: [6, 9], d: [5, 7], floor: '#6a6f6c', props: [['labbench', 3], ['cabinet', 1], ['table', 1, 'mid']], loot: 'ug_lab', door: 'metal', locked: 0.4, log: true },
   office: { label: 'OFFICE', w: [4, 6], d: [4, 5], floor: '#5f5a50', props: [['desk', 2], ['cabinet', 2]], loot: 'ug_office', door: 'wood', locked: 0.3, log: true },
   pump: { label: 'PUMP ROOM', w: [4, 6], d: [4, 6], floor: '#4c4f4a', props: [['pump', 1, 'mid'], ['drum', 2]], loot: 'ug_gen', door: 'metal', locked: 0.2 },
+  // The vault's deepest room: a raised round platform under a ring of pylons, behind a blast door (the Carousel's room).
+  ringroom: { label: 'RING PLATFORM', w: [10, 13], d: [9, 12], floor: '#4a4a46', props: [['pylon', 1, 'mid'], ['console', 2]], loot: 'ug_lab', door: 'blast', locked: 0.9, log: true },
   // A project's own rooms (PROJECTS rows put them in a facility's programme).
   ward: { label: 'WARD', w: [7, 10], d: [6, 8], floor: '#6c6e68', props: [['cot', 6], ['cabinet', 1]], loot: 'ug_med', door: 'metal', locked: 0.2, beds: true },
   cold: { label: 'COLD ROOM', w: [6, 9], d: [5, 7], floor: '#5d6a6c', props: [['shelf', 4], ['crate', 2]], loot: 'ug_seeds', door: 'metal', locked: 0.6, keypad: 'cold' },

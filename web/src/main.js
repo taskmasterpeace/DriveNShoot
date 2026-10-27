@@ -49,6 +49,7 @@ import { Fauna } from './systems/fauna.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
+import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
@@ -171,6 +172,7 @@ class Game {
     this.stunts.under = this.under;
     this.materials = new Materials(this); // what everything is made of: rounds through it, blasts, fire, rams, breaking; blood on walls (this.blood)
     this.zombies = new Zombies(this);
+    this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
@@ -440,7 +442,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -1103,6 +1105,7 @@ class Game {
       }
       // Past the island: a building of the Phoenix ring (world/ring.js; its roof hides through the streamer's pool).
       if (!inside && (Math.abs(p.x) > 464 || Math.abs(p.z) > 464)) inside = this.streamer.ringBuildingAt(p.x, p.z);
+      if (!inside) inside = this.citygen?.buildingAt(p.x, p.z) ?? null; // a generated settlement's (systems/citygen.js)
     }
     const S = inside?.storey ?? null;
     this.storeys.setView(S, p.gy ?? 0);
@@ -1239,6 +1242,7 @@ class Game {
     this.updateFootprints();
     this.updateInterior();
     this.updateCamera(dt);
+    this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
