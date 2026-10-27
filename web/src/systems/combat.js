@@ -49,7 +49,7 @@ export class Combat {
     if (ch === g.player) g.arms?.onShot(); // a shot raises the gun, whatever path fired it
     g.fx.flash(ox, 1.5 + fy, oz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
-    g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x));
+    g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
     g.noise(ch.x, ch.z, 45, ch);
     g.ambient?.eject(ch, ang);
     g.ambient?.onShot(ch.x, ch.z);
@@ -156,7 +156,7 @@ export class Combat {
     // Continuous damage (burning, drowning) is "quiet": no blood, no hit sound, no event spam.
     const quiet = cause === 'fire' || cause === 'drown';
     if (quiet) {
-      if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.hud.hurt(dmg * 0.5); }
+      if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.hud.hurt(dmg * 0.5); }
       c.hp -= dmg; c.lastAttacker = attacker ?? c.lastAttacker;
       if (cause === 'fire') { c.charred = Math.min(1, (c.charred ?? 0) + dmg / 90); if (Math.random() < 0.05) g.charR.paint(c); }
       if (c.hp <= 0) this.kill(c, attacker, dx, dz, cause);
@@ -164,7 +164,7 @@ export class Combat {
     }
     // Worn armor eats its share first (systems/gear.js): the one place a hit is cut, for anyone wearing anything.
     if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
-    if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
+    if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
     c.lastAttacker = attacker;
     c.bleed = Math.min(1, c.bleed + dmg / 120);

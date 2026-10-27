@@ -595,7 +595,7 @@ export class Interiors {
       // a tap still kicks. Without either, E kicks on the press as before.
       const inv = g.inventory, tool = !t.locked || !inv ? null : inv.carried.slots.some((s) => s.id === 'lockpicks' && s.left > 0) ? 'pick' : inv.hasTag('pry') ? 'pry' : null;
       if (tool) {
-        const need = tool === 'pick' ? 2.6 : 1.3, verb = tool === 'pick' ? 'Picking the lock' : 'Prying it';
+        const need = (tool === 'pick' ? 2.6 : 1.3) * (g.deep?.fx.lockMul ?? 1), verb = tool === 'pick' ? 'Picking the lock' : 'Prying it';
         if (down && this.hold >= 0) {
           this.hold += dt;
           const k = (this.hold - WINDOW.holdTap) / need;

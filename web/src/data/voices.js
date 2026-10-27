@@ -113,13 +113,18 @@ export const TEMPLATES = {
     m: [{ seed: 3200, gemini: 'Orus', flite: 'rms', d: 'Masculine adult. A raider who rides with a gang. Rough, gravelly baritone. Menacing, sneering, impatient, enjoys the fear' },
       { seed: 3250, gemini: 'Sadaltager', flite: 'kal16', d: 'Masculine young adult. A raider. Loud, cracked tenor, wired and twitchy, laughs too much' }],
   },
+  // Meridian's militia (data/holdouts.js): a planned town's wall, as many women on it as men.
+  meridian: {
+    f: [{ seed: 5100, gemini: 'Leda', flite: 'slt', d: 'Feminine adult. A militia guard on a swamp town wall. Even, alert mezzo, proud of her town, brisk' }],
+    m: [{ seed: 5200, gemini: 'Charon', flite: 'rms', d: 'Masculine adult. A militia guard on a swamp town wall. Warm, steady baritone, watchful, quick to command' }],
+  },
   soldier: {
     f: [{ seed: 4100, gemini: 'Vindemiatrix', flite: 'slt', d: 'Feminine adult. A soldier at a guard post. Crisp, controlled mid-range voice, radio discipline, flat affect' }],
     m: [{ seed: 4200, gemini: 'Zubenelgenubi', flite: 'rms', d: 'Masculine adult. A soldier at a guard post. Crisp, controlled baritone, radio discipline, flat affect' }],
   },
 };
 // Which archetype a faction speaks as. The infected and the player have no voice (castVoice returns null).
-export const ARCHETYPE_OF = { drifter: 'drifter', drifters: 'drifter', rusthaven: 'warden', warden: 'warden', raider: 'raider', dustwolves: 'raider', soldier: 'soldier', remnant: 'soldier' };
+export const ARCHETYPE_OF = { drifter: 'drifter', drifters: 'drifter', rusthaven: 'warden', warden: 'warden', raider: 'raider', dustwolves: 'raider', soldier: 'soldier', remnant: 'soldier', meridian: 'meridian' };
 
 // First names that read as women's in data/npcs.js FIRST (a cast is believable only if the voice fits the name); the
 // rest read as men's, and a name that could go either way is decided by its hash.

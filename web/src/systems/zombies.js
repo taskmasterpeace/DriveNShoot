@@ -240,7 +240,7 @@ export class Zombies {
       if (!o.alive || o.faction === 'zombie' || o.hidden || o.underwater || o === c) continue; // no scent under water
       const ox = o.inVehicle ? o.inVehicle.x : o.x, oz = o.inVehicle ? o.inVehicle.z : o.z;
       let d = Math.abs(ox - c.x) + Math.abs(oz - c.z);
-      if (o === this.g.player) d *= 0.8; // the living hero smells best
+      if (o === this.g.player) d *= 0.8 * (this.g.deep?.fx.scentMul ?? 1); // the living hero smells best (unwashed: worse; fieldcraft: better)
       if (d < bd) { bd = d; best = o; }
     }
     return best;

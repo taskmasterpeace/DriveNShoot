@@ -81,7 +81,9 @@ export class Dialogue {
       const k = c.slot * 7 + Math.floor(this.g.sky.time), lines = BARKS[c.faction] ?? BARKS.drifter;
       const known = k % 2 === 0 ? roles?.lineFor(c) : null;
       // ...then three things they'll talk about, from the live world (systems/talk.js), and [Leave].
-      this.say(known?.line ?? lines[k % lines.length], [...(this.g.talk?.topics(c) ?? []), { t: '[Leave]', end: true }]);
+      // ...and, while the local model is up (systems/llmtalk.js), a fourth: talk a while, in their own words.
+      const llm = this.g.llmtalk?.available() ? [{ t: 'Talk a while.', ask: (g) => this.talkAWhile(c) }] : [];
+      this.say(known?.line ?? lines[k % lines.length], [...(this.g.talk?.topics(c) ?? []), ...llm, { t: '[Leave]', end: true }]);
     }
   }
 
@@ -91,10 +93,30 @@ export class Dialogue {
     return { t: `Let me patch you up (${(ITEMS[s.id]?.name ?? 'bandage').toLowerCase()})`, treat: true };
   }
 
+  // The local model's answer as a screen: its line, its choices, and the other topics still there. Offline, slow or
+  // refused: the authored small talk (talk.js), and the player never knows the model was asked.
+  async talkAWhile(c) {
+    const ans = await this.g.llmtalk.ask(c, 'small talk');
+    const rest = (this.g.talk?.topics(c) ?? []);
+    if (!ans) return { text: this.g.talk?.road(c) ?? '...', choices: [...rest, { t: '[Leave]', end: true }] };
+    return { text: ans.line, choices: [...this.g.llmtalk.choicesFor(ans), ...rest, { t: '[Leave]', end: true }] };
+  }
+
+  // A choice's gate (G5): `req` as a function (the old way: hidden when false) or as data, `check` / a `req` object:
+  // { skill, stat, trait, item, trust, crew } read by the deep sheet (systems/stats.js check). A failed check stays on
+  // screen, greyed, with the reason - you see what a better you could have said.
+  gate(ch) {
+    if (typeof ch.req === 'function') return ch.req(this.g) ? ch : null;
+    const req = ch.check ?? (ch.req && typeof ch.req === 'object' ? ch.req : null);
+    if (!req) return ch;
+    const r = this.g.deep?.check(req) ?? { ok: true };
+    return r.ok ? { ...ch, passed: req } : { ...ch, locked: r.why };
+  }
+
   show(id) {
     const node = this.npc.npc.nodes[id];
     const text = typeof node.text === 'function' ? node.text(this.g) : node.text;
-    this.say(text, node.choices.filter((ch) => !ch.req || ch.req(this.g)));
+    this.say(text, node.choices.map((ch) => this.gate(ch)).filter(Boolean));
   }
 
   say(text, choices) {
@@ -109,18 +131,29 @@ export class Dialogue {
     choices.forEach((ch, i) => {
       const b = document.createElement('button');
       b.className = 'dlg-choice';
-      b.innerHTML = `<kbd>${i + 1}</kbd><span>${typeof ch.t === 'function' ? ch.t(this.g) : ch.t}</span>`;
+      const tag = ch.passed ? `<b style="color:#d9a441">[${this.checkLabel(ch.passed)}]</b> ` : '';
+      b.innerHTML = `<kbd>${i + 1}</kbd><span>${tag}${typeof ch.t === 'function' ? ch.t(this.g) : ch.t}${ch.locked ? ` <i style="color:#b06a4f">(${ch.locked})</i>` : ''}</span>`;
+      if (ch.locked) { b.style.opacity = '0.45'; b.style.cursor = 'not-allowed'; b.dataset.locked = '1'; }
       b.onclick = () => this.pick(i);
       this.choicesEl.appendChild(b);
     });
     this.choicesEl.style.opacity = 0;
   }
 
+  checkLabel(req) {
+    const first = (v) => (typeof v === 'string' ? v : Object.keys(v ?? {})[0]);
+    const k = req.skill ? first(req.skill) : req.stat ? first(req.stat) : req.trait ? [].concat(req.trait)[0] : req.item ? first(req.item) : req.crew ? 'CREW' : req.trust !== undefined ? 'TRUST' : '';
+    return String(k).replace(/^!/, 'not ').replace(/_/g, ' ').toUpperCase();
+  }
+
   pick(i) {
     const ch = this.choices?.[i];
     if (!ch) return;
     if (this.shown < this.full.length) { this.shown = this.full.length; return; }
+    if (ch.locked) { this.g.audio.empty?.(); this.g.emit('dialogueLocked', { npc: this.npc?.id, choice: ch.t, why: ch.locked }); return; }
     this.g.audio.blip();
+    // A check you passed teaches what it tested (persuade, intimidate...).
+    if (ch.passed?.skill) for (const id of typeof ch.passed.skill === 'string' ? [ch.passed.skill.split(/>=|:/)[0]] : Object.keys(ch.passed.skill)) this.g.deep?.gain(id, 4, 'dialogueCheck');
     if (this.npc) this.g.voice?.hush(this.npc); // you spoke: they stop mid-line to listen
     this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: typeof ch.t === 'function' ? ch.t(this.g) : ch.t });
     if (ch.treat) {
@@ -131,7 +164,14 @@ export class Dialogue {
       return;
     }
     // A topic (systems/talk.js): its reply, with the other topics still on offer.
-    if (ch.reply) { const text = ch.reply(this.g); this.say(text, this.choices.filter((x) => x !== ch)); return; }
+    if (ch.ask) {
+      const c = this.npc;
+      this.say('...', []); this.shown = this.full.length; this.textEl.textContent = '...';
+      ch.ask(this.g).then((r) => { if (!this.active || this.npc !== c || !r) return; this.say(r.text, r.choices); });
+      return;
+    }
+    if (ch.llm) ch.do?.(this.g); // the model's choice: its (validated) effect, then its acknowledgement
+    if (ch.reply) { const text = ch.reply(this.g); this.say(text, this.choices.filter((x) => x !== ch && !x.llm)); return; }
     ch.do?.(this.g);
     // A job paid or a deal struck counts with their people (deliver, trade, pay...).
     if (ch.deed && this.npc) this.g.society?.deeds.direct(ch.deed.v, this.npc, ch.deed.m);

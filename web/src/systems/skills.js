@@ -19,7 +19,7 @@ export class Skills {
 
   gain(skill, amount) {
     if (!(skill in this.lv) || !(amount > 0) || this.lv[skill] >= MAX_LEVEL) return;
-    this.xp[skill] += amount;
+    this.xp[skill] += amount * (this.g.deep?.fx.xpMul ?? 1); // Wits, Fast Learner, a good mood (systems/stats.js)
     while (this.lv[skill] < MAX_LEVEL && this.xp[skill] >= this.need(this.lv[skill])) {
       this.xp[skill] -= this.need(this.lv[skill]);
       this.lv[skill]++;
@@ -30,7 +30,7 @@ export class Skills {
   }
 
   // A bullet of the player's landed on someone: steadier hands next time.
-  onHit() { this.gain('dexterity', XP.dexterity.hit); }
+  onHit() { this.gain('dexterity', XP.dexterity.hit); this.g.deep?.onHit(); }
 
   // Everything the player is carrying, in kilograms.
   weigh() {
@@ -45,15 +45,16 @@ export class Skills {
   recompute() {
     const S = this.g.skills, L = this.lv;
     const F = this.g.sheet?.fx; // the traits you were made with (data/creator.js): none, no change
-    S.spreadMul = (1 - PER_LEVEL.spread * L.dexterity) * (F ? F.spreadMul * ((this.g.sky?.night ?? 0) > 0.5 ? F.nightSpreadMul : 1) : 1);
+    const X = this.g.deep?.fx; // the deep sheet (systems/stats.js): attributes, skills, perks, traits, conditions, injuries - 1 / 0 when neutral
+    S.spreadMul = (1 - PER_LEVEL.spread * L.dexterity) * (F ? F.spreadMul * ((this.g.sky?.night ?? 0) > 0.5 ? F.nightSpreadMul : 1) : 1) * (X?.spreadMul ?? 1);
     const G = this.g.gear; // what you wear (systems/gear.js): a sash's loops, a belt's pouches, boots
-    S.reloadMul = (1 - PER_LEVEL.reload * L.dexterity) * (G?.reloadMul() ?? 1) * (F?.reloadMul ?? 1);
-    S.sprintDrainMul = (1 - PER_LEVEL.sprintDrain * L.endurance) * (F?.sprintDrainMul ?? 1);
-    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0) + (G?.carryKg() ?? 0) + (F?.carryKg ?? 0); // a known scavenger packs smarter; a belt carries
+    S.reloadMul = (1 - PER_LEVEL.reload * L.dexterity) * (G?.reloadMul() ?? 1) * (F?.reloadMul ?? 1) * (X?.reloadMul ?? 1);
+    S.sprintDrainMul = (1 - PER_LEVEL.sprintDrain * L.endurance) * (F?.sprintDrainMul ?? 1) * (X?.sprintDrainMul ?? 1);
+    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0) + (G?.carryKg() ?? 0) + (F?.carryKg ?? 0) + (X?.carryKg ?? 0); // a known scavenger packs smarter; a belt carries
     S.kg = this.g.inv ? this.weigh() : 0;
     S.load = S.kg / S.carryKg;
     S.overloaded = S.load > 1;
-    S.speedMul = (S.overloaded ? CARRY.overSpeed : S.load > CARRY.slowAt ? CARRY.slowSpeed : 1) * (G?.speedMul() ?? 1) * (F?.speedMul ?? 1);
+    S.speedMul = (S.overloaded ? CARRY.overSpeed : S.load > CARRY.slowAt ? CARRY.slowSpeed : 1) * (G?.speedMul() ?? 1) * (F?.speedMul ?? 1) * (X?.speedMul ?? 1);
     S.drainMul = S.load > CARRY.slowAt ? CARRY.slowDrain : 1;
   }
 

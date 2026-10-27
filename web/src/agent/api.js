@@ -44,6 +44,8 @@ import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATO
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
+import { voiceStatsCommands } from './voicestats.js';
+import { voiceStatsChecks } from './voicestats-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1961,6 +1963,8 @@ function buildCommands(api) {
     ...cloneCommands(api, need),
     // L5 LIFE: the regional animals (src/agent/faunatools.js, docs/design/WEB_FAUNA.md).
     ...faunaCommands(api, need),
+    // Sound sets, barks, the local model's talk, the deep sheet, the journal (src/agent/voicestats.js, docs/design/WEB_VOICE_STATS.md).
+    ...voiceStatsCommands(api, need),
   };
 }
 
@@ -2018,6 +2022,7 @@ function compileNpc(def) {
       text: n.text,
       choices: (n.choices ?? [{ t: '[Leave]', end: true }]).map((c) => ({
         t: c.t, next: c.next, end: c.end ?? !c.next, deed: c.deed,
+        check: c.check, // a gate as data: { skill, stat, trait, item, trust, crew } (systems/stats.js check; greyed with its reason when it fails)
         role: c.ifRole?.role, from: c.ifRole ? c.ifRole.atLeast ?? 'known' : undefined, // read by the roles command (what a role opens)
         req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier || c.ifRole || c.ifNotRole || c.ifJob || c.ifOffice
           ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c) && roleMatch(g, c)
@@ -2076,6 +2081,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  // The deep sheet (systems/stats.js) holds still through the battery: its stress, conditions and wounds never shake
+  // another system's numbers. Its own checks (voicestats-selftest.js) turn it on in a stage of their own.
+  const deepLive = g.deep.live; g.deep.reset(); g.deep.live = false; g.deep.recompute();
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5800,6 +5808,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await floridaChecks({ api, g, check, C });
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
+  await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
+  g.deep.live = deepLive;
   g.fauna.enabled = faunaWas;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
@@ -5832,6 +5842,7 @@ export function snapshot(g) {
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
     gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
+    deep: g.deep?.save(), // the deep sheet: attributes, skills, perks, traits, stress, morale, reputation, wounds by zone
     fauna: g.fauna?.save(), // the animals' chunk records (who lives where, hurt, dead, butchered) and the gunfire heat
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
@@ -5904,6 +5915,7 @@ export function restore(g, s) {
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
+  if (s.deep) g.deep?.load(s.deep);
   if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
