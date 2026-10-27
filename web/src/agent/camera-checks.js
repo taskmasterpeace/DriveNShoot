@@ -7,6 +7,15 @@ import * as THREE from 'three';
 import { CAMERA, ZOOM } from '../data/camera.js';
 
 export async function cameraChecks({ api, g, check, C, hush }) {
+  // What the guns were before (the checks fire and switch): put back at the end, so the next check finds its rounds.
+  const inv0 = { current: g.inv.current, weapons: [...g.inv.weapons], mag: { ...g.inv.mag }, ammo: { ...g.inv.ammo } };
+  try { await cameraChecksBody({ api, g, check, C, hush }); } finally {
+    Object.assign(g.inv.mag, inv0.mag); Object.assign(g.inv.ammo, inv0.ammo);
+    if (g.inv.weapons.includes(inv0.current) && g.inv.current !== inv0.current) g.switchWeapon(inv0.current);
+  }
+}
+
+async function cameraChecksBody({ api, g, check, C, hush }) {
   const R = g.cam, I = g.input, deg = Math.PI / 180, r2 = (n) => Math.round(n * 100) / 100;
   const SPOT = { x: 250, z: 430 }; // the south-east flats (the walkable-vehicle checks' open desert)
   const step = (n) => api._step(n);
@@ -103,6 +112,7 @@ export async function cameraChecks({ api, g, check, C, hush }) {
   await check('camera: aim is not the walk - walking north while aiming east turns the body east, the legs strafe, and the shot goes east (a target east is hit, one north is not)', async () => hush(async () => {
     await home(); R.setView('ANGLED', true);
     const p = g.player;
+    await C('give', { weapon: 'pistol', pistol: 24 }); g.switchWeapon('pistol'); g.inv.mag.pistol = 6; g.arms.raise?.('test');
     const e = (await C('spawn', { kind: 'drifter', x: p.x + 9, z: p.z - 2, hp: 400 })).ids?.[0];
     const n = (await C('spawn', { kind: 'drifter', x: p.x, z: p.z - 11, hp: 400 })).ids?.[0];
     const E = api.findChar(e), N = api.findChar(n);
@@ -128,10 +138,11 @@ export async function cameraChecks({ api, g, check, C, hush }) {
   }));
 
   await check('camera: the cutaway - a six-storey tower (19.2 m) between the camera and you, ANGLED close: >= 90% of your screen circle shows you (pixel test against the tower removed; with the cutaway off it does not); the storeys above your floor hide', async () => {
-    await home(); R.setView('ANGLED', true); R.mem.ANGLED.foot = 20; g.updateCamera(10);
+    await home(); R.setView('ANGLED', true); R.mem.ANGLED.foot = 20;
     const p = g.player;
-    // The tower: 12 x 6 m, six storeys, its north face 2 m south of you: between you and the camera (13 m south, 15 m up).
-    const tower = new THREE.Mesh(new THREE.BoxGeometry(12, 19.2, 6), new THREE.MeshStandardMaterial({ color: '#7a6a58' }));
+    g.aimOverride = { x: p.x, z: p.z }; await step(2); g.updateCamera(10); // no lean: the camera sits square south of you
+    // The tower: 24 x 6 m, six storeys, its north face 2 m south of you: between you and the camera (13 m south, 15 m up).
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(24, 19.2, 6), new THREE.MeshStandardMaterial({ color: '#7a6a58' }));
     tower.position.set(p.x, 9.6 + (p.gy ?? 0), p.z + 5); tower.castShadow = false; tower.receiveShadow = false;
     g.scene.add(tower); g.cutaway.scan(); g.cutaway.scanT = 1;
     const W = 320, H = Math.round(320 / g.camera.aspect), rt = new THREE.WebGLRenderTarget(W, H), buf = new Uint8Array(W * H * 4);
@@ -155,7 +166,7 @@ export async function cameraChecks({ api, g, check, C, hush }) {
         n++; if (d(cutOn) < 24) same++; if (d(cutOff) < 24) sameOff++;
       }
       out = { px: n, shows: r2(same / Math.max(1, n)), showsWithoutCut: r2(sameOff / Math.max(1, n)) };
-    } finally { g.paused = false; g.scene.remove(tower); tower.geometry.dispose(); tower.material.dispose(); rt.dispose(); g.cutaway.on = true; }
+    } finally { g.paused = false; g.aimOverride = null; g.scene.remove(tower); tower.geometry.dispose(); tower.material.dispose(); rt.dispose(); g.cutaway.on = true; }
     // The storeys: on the top floor of the tallest storeyed building, nothing above that floor is drawn (world/storeys.js setView).
     const S = g.storeys.list.slice().sort((x, y) => y.n - x.n)[0];
     let floors = null;
