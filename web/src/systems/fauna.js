@@ -31,7 +31,7 @@ function hash3(a, b, c) { let h = 0x9e3779b1 ^ Math.imul(a | 0, 0x85ebca6b); h =
 const phaseIndex = (hour) => { const h = ((hour % 24) + 24) % 24; for (let i = 0; i < PHASES.length; i++) { const P = PHASES[i]; if (P.from < P.to ? h >= P.from && h < P.to : h >= P.from || h < P.to) return i; } return 2; };
 // Where an animal wants to be this frame, in its own object (no garbage).
 function W(a, x, z, v, face = undefined) { const w = a.w; w.x = x; w.z = z; w.v = v; w.face = face; return w; }
-const _p = { x: 0, z: 0 }, HIT = { t: 0, animal: null }, _pick = { t: null, d: 0, k: null };
+const _p = { x: 0, z: 0 }, HIT = { t: 0, animal: null }, _pick = { t: null, d: 0, k: null }, SKY = { ang: 0, slope: 0 };
 
 export class Fauna {
   constructor(game) {
@@ -1066,11 +1066,19 @@ export class Fauna {
     if (best) { out.x = best.x; out.z = best.z; out.y = best.alt; } else out.y = 0;
     return best;
   }
-  // The rise a shot from ch needs to meet the aim point's height (combat.fire): 0 when the aim is on the ground.
-  aimLift(ch) {
+  // A shot from ch at the aim point in the sky (combat.fire): the rise it needs to meet the aim's height, and its heading.
+  // A bird on the wing has moved on by the time the shot goes: the shot lands `lag` seconds of its flight behind it
+  // (less with the HUNTING skill), so a single bullet misses a fast bird and a shotgun's spread is what catches it.
+  // Returns null when the aim is on the ground. One result object, reused.
+  skyShot(ch) {
     const aim = this.g.aim, y = aim?.y ?? 0;
-    if (!(y > 2.2)) return 0;
-    return (y - 1.45 - (ch.gy ?? 0)) / Math.max(1, Math.hypot(aim.x - ch.x, aim.z - ch.z));
+    if (!(y > 2.2)) return null;
+    let b = null, bd = 2.5;
+    for (const a of this.live) { if (a.dead || !a.air || a.form !== 'bird') continue; const k = Math.hypot(a.x - aim.x, a.z - aim.z) + Math.abs(a.alt - y); if (k < bd) { bd = k; b = a; } }
+    const lag = R.wingLag * Math.max(0.3, 1 - 0.06 * (this.g.outdoors?.lv('hunting') ?? 0));
+    const tx = aim.x - (b ? b.vx * lag : 0), tz = aim.z - (b ? b.vz * lag : 0), d = Math.max(1, Math.hypot(tx - ch.x, tz - ch.z));
+    SKY.ang = Math.atan2(tx - ch.x, tz - ch.z); SKY.slope = (y - 1.45 - (ch.gy ?? 0)) / d;
+    return SKY;
   }
 
   // An animal near an aim point (the dogs' SIC: systems/dogs.js sicTarget).

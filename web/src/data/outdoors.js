@@ -4,7 +4,7 @@
 // is the one consumer; fauna.js, dogs.js and the inventory read a few of these numbers through it.
 // Adding a bird / fish / plant / talent is adding a row. Our own words; real animals and plants are ours to use; no purple.
 import { ITEMS, LOOT } from './items.js';
-import { SPECIES, HABITATS } from './fauna.js';
+import { SPECIES, HABITATS, FAUNA_RULES } from './fauna.js';
 import { SKILLS } from './skills.js';
 import { BREEDS } from './dogs.js';
 
@@ -53,6 +53,9 @@ export const BIRD_HABITATS = [
   { region: 'florida', biomes: 'pafF', species: 'dove', perKm2: 4 },
   { region: 'florida', biomes: 'sw.Ffp', species: 'duck', perKm2: 12, near: 'water' },
 ];
+// Wing shooting (systems/fauna.js skyShot): a shot at a bird on the wing lands this many seconds of its flight behind it
+// (x (1 - 0.06 x HUNTING level), at least 0.3 of it). A duck at full speed is ~0.8 m on: a bullet misses, buckshot does not.
+FAUNA_RULES.wingLag ??= 0.06;
 for (const h of BIRD_HABITATS) if (!HABITATS.some((x) => x.species === h.species && x.region === h.region)) HABITATS.push(h);
 
 // What else comes off an animal now (added to the fauna rows' yields): sinew off the big four-legged game, feathers

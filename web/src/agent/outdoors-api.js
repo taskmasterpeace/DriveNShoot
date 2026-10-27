@@ -83,7 +83,7 @@ export function outdoorsCommands(api, need) {
             for (let i = 0; i < shots && !a.dead; i++) {
               g.aimOverride = { x: a.x, z: a.z, y: a.air ? a.alt : 0 }; g.arms?.setStance?.('raised');
               await api._step(8);
-              g.aimOverride = { x: a.x, z: a.z, y: a.air ? a.alt : 0 };
+              g.aimOverride = { x: a.x, z: a.z, y: a.air ? a.alt : 0 }; g.aim.x = a.x; g.aim.z = a.z; g.aim.y = g.aimOverride.y; // the cursor on it this frame
               const r = await api.call('fire', { x: a.x, z: a.z, shots: 1 });
               if (r && r.ok === false) need(false, r.error);
               await api._step(4);
@@ -119,8 +119,12 @@ export function outdoorsCommands(api, need) {
       run: async ({ times, spread }) => {
         const S = O(), out = [];
         for (let i = 0; i < times; i++) {
-          if (spread && i) { const p = P(); p.x += 30; p.vx = p.vz = 0; await api._step(2); }
+          if (spread && i) { // 30 m on to fresh ground, the first way that is dry
+            const p = P(), dirs = [[30, 0], [0, 30], [-30, 0], [0, -30]], dry = dirs.find(([dx, dz]) => !((g.water?.depthAt?.(p.x + dx, p.z + dz) ?? 0) > 0)) ?? [0, 0];
+            p.x += dry[0]; p.z += dry[1]; p.vx = p.vz = 0; await api._step(2);
+          }
           const seq = g.eventSeq, r = S.startForage();
+          if (!r.ok && out.length) break;
           need(r.ok, r.why);
           await until(() => !S.job, r.seconds + 2);
           const e = g.events.find((x) => x.seq > seq && x.type === 'foraged');

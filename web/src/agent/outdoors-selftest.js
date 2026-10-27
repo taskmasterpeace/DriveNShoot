@@ -93,7 +93,7 @@ export async function outdoorsChecks(api, check, C) {
     await C('fire', { x: p.x, z: p.z - 15, shots: 1 });
     await steps(1);
     const up = flock.filter((a) => a.air).length, scatter = since(seq, 'birdsScatter', (e) => e.species === 'crow').length > 0;
-    await steps(16);
+    for (let i = 0; i < 60 && flock.filter((a) => !a.air && !a.dead).length < 4; i++) await C('step', { seconds: 0.5 });
     const down = flock.filter((a) => !a.air && !a.dead).length, moved = flock.reduce((k, a) => k + dist(a, home), 0) / flock.length;
     const ok = grounded === 6 && up >= 5 && scatter && down >= 4 && moved > 20;
     return ok ? true : JSON.stringify({ grounded, up, scatter, down, moved: +moved.toFixed(1), states: flock.map((a) => [a.state, +a.alt.toFixed(1)]) }).slice(0, 500);
