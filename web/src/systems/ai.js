@@ -38,6 +38,8 @@ export class AI {
 
   hostile(a, b) {
     if (!a.alive || !b.alive || a === b) return false;
+    if (b.captive || a.captive) return false; // tied up at a camp (systems/crew.js): nobody's fight until cut loose
+
     // The dead hunt every living thing; anyone armed (and the player) fights them.
     if (a.faction === 'zombie') return b.faction !== 'zombie';
     if (b.faction === 'zombie' || b.faction === 'grapevine') return !!a.weapon || a === this.g.player; // the Grapevine too (systems/grapevine.js)
@@ -79,6 +81,7 @@ export class AI {
 
   // Gunfire is heard: civilians scatter, fighters investigate.
   onNoise(x, z, r, src) {
+    if (src?.weapon) this.g.tactics?.onShot(src); // rounds passing close pin people down (systems/tactics.js suppression)
     for (const c of this.g.chars) {
       if (!c.alive || c === this.g.player || c === src || c.inVehicle) continue;
       const d = Math.hypot(c.x - x, c.z - z);
@@ -210,6 +213,7 @@ export class AI {
   update(dt) {
     const g = this.g;
     const chars = g.chars;
+    g.tactics?.beginFrame(); // the tactical plans this frame may run (systems/tactics.js: staggered, perFrame at most)
     // Stagger hostility scans: ~12 per frame.
     for (let k = 0; k < 12 && chars.length; k++) {
       this.scanIdx = (this.scanIdx + 1) % chars.length;
@@ -248,6 +252,7 @@ export class AI {
       if (c.fauna) { g.regions?.think(c, dt); continue; } // an animal (systems/regions.js: FAUNA rows)
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.gv) { g.grapevine.think(c, dt); continue; } // a Grapevine pack's own mind (systems/grapevine.js)
+      if (c.crewRec && g.crew.think(c, dt)) continue; // your crew: orders, jobs, downed, drift (systems/crew.js)
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
       if (c.grabbing) { c.cool -= dt; continue; } // riding on a car: CarCombat drives them
@@ -305,15 +310,18 @@ export class AI {
           // Strafe a little so firefights move.
           c.strafeT = (c.strafeT || 0) - dt;
           if (c.strafeT <= 0) { c.strafeT = 0.8 + Math.random() * 1.4; c.strafeDir = Math.random() < 0.5 ? -1 : 1; if (Math.random() < 0.3) c.strafeDir = 0; }
-          if (c.strafeDir) this.move(c, Math.cos(want) * c.strafeDir, -Math.sin(want) * c.strafeDir, 2.2, dt);
+          // Where to stand is the tactics brain's (cover, band, flank: systems/tactics.js); the old strafe is the fallback.
+          if (g.tactics?.fight(c, t, tx, tz, d, true, dt)) { /* moved by tactics */ }
+          else if (c.strafeDir) this.move(c, Math.cos(want) * c.strafeDir, -Math.sin(want) * c.strafeDir, 2.2, dt);
           else c.speed = 0;
           c.aiming = true;
           if (c.mag <= 0 && c.reloading <= 0) { c.reloading = w.reload * 1.3; }
+          else if (c.tac?.holdFire) { /* HOLD FIRE (a crew order) */ }
           else if ((c.react = (c.react ?? 0) - dt) <= 0 && c.cool <= 0 && c.reloading <= 0 && Math.abs(angleLerp(c.face, want, 1) - c.face) < 0.3 && (this.clearShot(c, t, want, d) || (c.strafeT = 0, false))) {
             // AI is deliberately worse than the player: reaction delay, burst discipline,
             // spread that grows with range and with a moving target.
             const tMoving = (t.inVehicle ? g.vehiclesSys.speed(t.inVehicle) : t.speed) > 2;
-            const sloppy = 0.1 + d * 0.006 + (tMoving ? 0.1 : 0);
+            const sloppy = (0.1 + d * 0.006 + (tMoving ? 0.1 : 0)) * (c.tac ? g.tactics.aimMul(c) : 1); // suppressed: worse aim
             if (g.combat.fire(c, c.weapon, c.face + (Math.random() - 0.5) * sloppy)) {
               c.mag--;
               if (w.auto) {
@@ -322,8 +330,18 @@ export class AI {
               } else c.cool = w.rate * 2.6 + Math.random() * 0.4;
             }
           }
+        } else if (!(t.storey || c.storey) && g.tactics?.fight(c, t, tx, tz, d, los, dt)) {
+          // Out of sight or out of range: the tactics brain moves them (flank, bound, cover in band). The pinning element
+          // keeps the target's head down: rounds at the cover they went behind (suppressive fire).
+          const U = c.tac;
+          if (!los && U && !U.holdFire && d < w.range * 0.9 && c.mag > 0 && c.cool <= 0 && c.reloading <= 0 && U.lastX && g.tactics.suppressive(c)) {
+            const ang = Math.atan2(U.lastX - c.x, U.lastZ - c.z);
+            c.aiming = true; c.face = angleLerp(c.face, ang, Math.min(1, dt * 7));
+            if (Math.abs(angleLerp(c.face, ang, 1) - c.face) < 0.3 && g.combat.fire(c, c.weapon, c.face + (Math.random() - 0.5) * 0.18)) { c.mag--; c.cool = w.rate * 3 * 1.6 + Math.random() * 0.5; }
+          }
         } else {
           const wp = t.inVehicle ? null : g.storeys.steer(c, tx, tz, t.gy ?? 0); // upstairs (or down): by the stairs
+
           if (wp) this.move(c, wp.x - c.x, wp.z - c.z, 4.6, dt);
           else this.move(c, tx - c.x, tz - c.z, 4.6, dt);
         }

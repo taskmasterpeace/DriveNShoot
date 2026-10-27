@@ -264,6 +264,7 @@ export class Shard {
       sheet: g.creator?.save() ?? null, gear: g.gear?.save(), // who you were made as (data/creator.js) and what you wear (additive: an older record has neither)
       ...(g.creator?.pending ? { sheetPending: true } : {}), // made on the shard, the creator not finished yet: it opens again at the next login
       clone: g.clone?.save() ?? null, // your pressing, the brine book, your husks; flat: the shard lets this character in no more (WEB_CLONE_TRAVEL.md)
+      crew: g.crew?.save({ portable: true }) ?? null, // your crew is yours (per player): records only, their bodies made again round you at login (systems/crew.js)
     };
   }
 
@@ -289,6 +290,8 @@ export class Shard {
     if (d.society?.factions) { g.society.factions.load(d.society.factions); for (const c of g.chars) g.society.factions.assign(c); }
     if (d.society?.memory) g.society.memory.load(d.society.memory);
     if (d.clone) g.clone?.load(d.clone);
+    if (d.crew) g.crew?.load(d.crew); // after you stand where you logged out: the crew come back round you
+
     g.camLook.x = p.x; g.camLook.z = p.z;
     g.streamer?.ensureHot(p.x, p.z, 'load');
     // Your car, where you left it.

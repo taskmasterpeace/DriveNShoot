@@ -67,6 +67,10 @@ export const BINDINGS = [
   { id: 'save', label: 'Quick save', group: 'WORLD', code: 'F5', keys: ['F5'], pad: { foot: 'back+start' } },
   { id: 'load', label: 'Quick load', group: 'WORLD', code: 'F9', keys: ['F9'], pad: {} },
   { id: 'controls', label: 'Controls: every binding, press to rebind', group: 'WORLD', code: null, keys: ['F2'], pad: { foot: 'back+left' } },
+  // The crew (docs/design/WEB_CREW.md): tap for the CREW panel, hold for the orders radial (the pad: hold LB, the right
+  // stick picks; LB's tap is still the grip, and a hold that opens the radial puts the grip back).
+  { id: 'crew', label: 'Crew: tap the CREW panel, hold for orders', group: 'WORLD', code: null, keys: ['KeyU'], pad: { foot: 'lb', ride: 'lb' } },
+
   // The PACK screen on a pad: the D-pad walks the list, A uses, Y moves, X drops, B closes (above).
   { id: 'menuWear', label: 'PACK: wear or take off', group: 'MENUS', code: 'KeyF', keys: [], pad: { menu: 'rb' } },
 ];
