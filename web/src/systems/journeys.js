@@ -162,8 +162,9 @@ export class Journeys {
       rows: inc.choices.map((c, k) => ({ key: String(k + 1), cols: ['', c.t, this.costLabel(c)], hot: k === 0 })),
       foot: [['1-' + inc.choices.length, 'Choose']],
       hall: false,
-      onKey: (code) => { const k = /^Digit([1-9])$/.exec(code)?.[1]; const c = k && inc.choices[+k - 1]; if (!c) return false; T.ui.close(); this.choose(c.id); return 'close'; },
-      onClose: () => { if (this.pending?.inc === inc) this.choose(null); }, // Esc: the default
+      // The choice is made as the card closes (after the world is let go), so whatever it opens next (an arrivals hall) stays up.
+      onKey: (code) => { const k = /^Digit([1-9])$/.exec(code)?.[1]; const c = k && inc.choices[+k - 1]; if (!c) return false; this.picked = c.id; return 'close'; },
+      onClose: () => { const id = this.picked ?? null; this.picked = null; if (this.pending?.inc === inc) this.choose(id); }, // Esc: the default
     });
     T.ui.show({ ...build(), build });
     return { pending: true };

@@ -181,6 +181,24 @@ export async function journeyChecks(api, check, C) {
       const ok = r.ok && r.nearestPole?.node === 'sand_trap' && r.getOff === 'sand_trap' && Math.abs(r.lastWalkKm - walk) < 0.35 && r.legs.some((l) => l.kind === 'bus' && l.to === 'sand_trap') && r.fare > 0;
       return ok ? true : JSON.stringify({ r, walk: r1(walk) });
     });
+    await check('journeys: thumb out at the interstate and a car stops (the odds go with your standing), drives you up the road and lets you out when you ask', async () => {
+      await out();
+      await C('travel', { action: 'goto', node: 'sand_trap', dir: 'east' }); quiet();
+      const F = g.society.factions, s0 = F.standing[F.index.drifters];
+      F.set('drifters', -80); const refused = J.hitchOdds().p;
+      F.set('drifters', 90); const odds = J.hitchOdds().p;
+      const f = g.streamer.W.at(TR.node('sand_trap').s); g.player.face = Math.atan2(f.tx, f.tz); // facing east, up the road
+      let h = null, v = null, c = null, sp = 0;
+      try {
+        h = await C('travel', { action: 'hitch', seed: 3, board: true, seconds: 200 });
+        v = J.liftVehicle();
+        for (let t = 0; t < 40 && !(v && g.vehiclesSys.speed(v) > 8); t += 0.5) await C('step', { seconds: 0.5 });
+        sp = v ? g.vehiclesSys.speed(v) : 0;
+        c = await C('travel', { action: 'cord' });
+      } finally { F.set('drifters', s0); J.endLift('check'); }
+      const ok = refused === 0 && odds > 0.8 && h?.ok && h.aboard && sp > 8 && c?.ok && c.dropped && c.dist < JOURNEY_RULES.cord.dropR && !g.player.inVehicle;
+      return ok ? true : JSON.stringify({ refused, odds, h, sp: r1(sp), c });
+    });
   } finally {
     if (TR.ui.open) TR.ui.close();
     TR.leaveHall(); TR.despawnBus(); J.endLift?.('check');

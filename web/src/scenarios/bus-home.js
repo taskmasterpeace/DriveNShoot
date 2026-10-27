@@ -57,16 +57,23 @@ export default async function (DL, game) {
   for (let t = 0; t < 30 && v && g.vehiclesSys.speed(v) < 9; t += 0.5) await DL.call('step', { seconds: 0.5 });
 
   // 6. Ride on toward the pole and pull the cord short of it, the side nearest camp; walk the rest.
-  const target = T.node(plan.getOff ?? 'sand_trap');
-  for (let t = 0; t < 200 && T.ride; t += 0.5) {
-    const s = g.streamer.W.project(v.x, v.z, 600).s;
-    if (target.s - s < 900) break;
+  // The cord: where the road passes nearest the camp (less a stopping distance), not at the pole.
+  const W = g.streamer.W, sCamp = W.project(camp.x, camp.z, 4096).s, dir = T.bus?.dir ?? 1;
+  for (let t = 0; t < 1000 && T.ride; t += 0.5) {
+    const s = W.project(v.x, v.z, 600).s;
+    if ((sCamp - s) * dir < 140) break;
     await DL.call('step', { seconds: 0.5 });
   }
   const cord = T.ride ? await DL.call('travel', { action: 'cord' }) : { ok: false, why: 'the ride ended early' };
   note(`Pulled the cord: off at the roadside ${JSON.stringify(at())}, ${cord.dist ?? '?'} m from the coach; ${Math.round(Math.hypot(g.player.x - camp.x, g.player.z - camp.z))} m from camp.`);
-  const walk = await DL.call('moveTo', { x: camp.x, z: camp.z, run: true, timeout: 240 }).catch((e) => ({ ok: false, error: String(e) }));
+  // On foot the rest of the way, a nav window at a time.
+  let hops = 0, why = '';
+  for (; hops < 10 && Math.hypot(g.player.x - camp.x, g.player.z - camp.z) > 30; hops++) {
+    const dx = camp.x - g.player.x, dz = camp.z - g.player.z, d = Math.hypot(dx, dz), k = Math.min(1, 380 / d);
+    const r = await DL.call('moveTo', { x: g.player.x + dx * k, z: g.player.z + dz * k, run: true, maxSeconds: 200 });
+    if (r.ok === false) { why = r.error ?? r.why ?? ''; break; }
+  }
   const left = Math.hypot(g.player.x - camp.x, g.player.z - camp.z);
-  note(`Walked toward camp: ${Math.round(left)} m left.${walk.ok === false ? ` (${walk.error ?? walk.why ?? 'stopped'})` : ''}`);
+  note(`Walked to camp in ${hops} legs: ${Math.round(left)} m left.${why ? ` (${why})` : ''}`);
   return { ok: !!(d.alive && bd.aboard && inc.result && cord.ok && left < 400), home: left < 60, metersFromCamp: Math.round(left), log };
 }

@@ -208,6 +208,8 @@ Used by: the lead's pause-menu INSURANCE tab (`g.clone.policyView()`), the citie
 7. **Pulling the cord drops you within 30 m of the coach's position**, not at a pole (> 60 m from every pole), the ride over.
 8. **The planner picks the pole nearest a staged base:** a base 1.8 km off the Sand Trap pole; the plan from Rust Haven rides
    the trundle to the Sand Trap and says the walk.
+9. **Hitching:** below -40 with the drifters no car stops (odds 0); at +90 the odds are over 0.8; thumbed out at the Sand Trap a
+   car pulls up, you get in, it drives off up the road, and asking out (the cord) sets you down within 30 m of it.
 Updated in `src/agent/clone-api.js` with a reason: the Florida check (Meridian is an office now: a Florida start comes up in
 Miami's centre); the sleep-through check (the roll is an incident with a context and a default choice).
 Plus: scenario `bus-home` (die far from home, wake in a major city, ride toward your base, survive one incident, get off near

@@ -10,6 +10,7 @@ import { TravelPanel } from '../ui/travelpanel.js';
 import { VATS, CLONE_KEEPS } from '../data/clones.js';
 import { Journeys, hash as jhash, rngOf as jrng } from './journeys.js';
 import { JOURNEY_RULES } from '../data/journeys.js';
+import { POLICIES } from '../data/insurance.js';
 
 // THE TRAVEL NETWORK (docs/design/WEB_CLONE_TRAVEL.md, rows in data/travel.js): how you get back to your husk.
 //   - the TRUNDLE (bus) runs I-10 pole to pole on a timetable on the game clock. Near you it is a real vehicle on the road
@@ -266,7 +267,7 @@ export class Travel {
         onKey: (code) => {
           const k = /^Digit([1-9])$/.exec(code)?.[1];
           if (k) { const r = shown[+k - 1]; if (r) this.buy(r.line, r.to, { flight: r.flight ?? null }); return true; }
-          if (code === 'KeyN') { const p = this.punches.find((q) => q.from === nodeId); if (!p) { this.g.hud?.toast?.('BUY A PUNCH FIRST', 'warn'); return true; } this.ui.close(); this.skip({ punch: p.id }); return 'close'; }
+          if (code === 'KeyN') { const p = this.punches.find((q) => q.from === nodeId); if (!p) { this.g.hud?.toast?.('BUY A PUNCH FIRST', 'warn'); return true; } this.ui.close(); const r = this.skip({ punch: p.id }); return r?.pending ? true : 'close'; } // an incident card up: leave it up
           return false;
         },
       };
@@ -277,25 +278,30 @@ export class Travel {
   // vatId: opened by the vat's keeper (Doc Reyes takes you through to her back room from her counter).
   openVat(vatId = null) {
     const C = this.g.clone, ui = this.ui, force = !!vatId;
+    // LIFE INSURANCE at the counter (WEB_INSURANCE_JOURNEYS.md): the three policies to sign (a pressing with terms), the brine
+    // book that pays the premiums. A small town's office scans and sells, but its bodies grow at the home centre.
     const build = () => {
-      const row = vatId ? C.vat(vatId) : C.vatHere(4), P = C.pressingView(), price = C.price(row);
+      const row = vatId ? C.vat(vatId) : C.vatHere(4), P = C.pressingView(), I = C.ins, home = row ? C.vat(I.homeFor(row.id)) : null;
+      const pols = Object.values(POLICIES);
       return {
-        kind: 'THE BRINE ROOM', title: row?.name ?? 'THE BRINE ROOM', showBank: true,
-        sub: P ? `PRESSED AT ${VATS.find((v) => v.id === P.vat)?.short} · ${r1(P.staleHours)} H AGO · BRINE MONEY $${C.due()}/DAY${C.owed ? ` · ${C.owed} DAY(S) OWED` : ''}` : 'NO PRESSING IN THE BRINE: DIE NOW AND YOU DIE FLAT',
-        note: `A RERUN KEEPS: ${CLONE_KEEPS.keeps.slice(0, 3).join(', ')}. IT LOSES: ${CLONE_KEEPS.loses.slice(0, 3).join(', ')}.`,
-        head: ['', 'WHAT', 'COST'],
+        kind: row?.major ? 'CLONING CENTRE · LIFE INSURANCE' : 'PRESSING OFFICE · LIFE INSURANCE', title: row?.name ?? 'THE BRINE ROOM', showBank: true,
+        sub: P ? `${POLICIES[P.policy]?.name ?? 'COVERED'} · PRESSED AT ${VATS.find((v) => v.id === P.vat)?.short} ${r1(P.staleHours)} H AGO${P.cold ? ' · COLD' : ''} · $${C.due()}/DAY${C.owed ? ` · ${C.owed} DAY(S) BEHIND` : ''}` : 'UNINSURED: DIE NOW AND YOU DIE FLAT',
+        note: row?.major ? `PREMIUMS COME OUT OF THE BRINE BOOK EACH DAY. FALL BEHIND PAST THE GRACE AND IT LAPSES. A RERUN LOSES: ${CLONE_KEEPS.loses.slice(0, 2).join(', ')}.`
+          : `THIS OFFICE GROWS NO BODIES: YOUR PRESSING IS FILED WITH ${home?.name ?? 'THE NEAREST CITY'} (${home?.short ?? ''}). YOU WOULD COME UP THERE.`,
+        head: ['', 'POLICY', 'COST'],
         rows: [
-          { key: '1', cols: ['GET PRESSED', `A scan in the chair (an hour). Skills as they are now${P ? '; replaces the one you hold' : ''}`, `$${price}`], hot: !P },
-          { key: '2', cols: ['BRINE BOOK: PUT IN $100', 'Scrip in the book outlives you; brine money comes out of it', '$100'] },
-          { key: '3', cols: ['BRINE BOOK: TAKE OUT $100', '', '+$100'] },
+          ...pols.map((pol, k) => ({ key: String(k + 1), cols: [`${pol.name} · $${Math.round(pol.premium * (row?.upkeepMul ?? 1))}/DAY`, `${pol.blurb} Grace ${pol.graceDays} d.`, `$${row ? I.signPrice(pol.id, row) : '-'}`], hot: P?.policy === pol.id, mark: P?.policy === pol.id ? 'YOURS' : '' })),
+          { key: '4', cols: ['BRINE BOOK: PUT IN $100', 'Scrip in the book outlives you; the premiums come out of it', '$100'] },
+          { key: '5', cols: ['BRINE BOOK: TAKE OUT $100', '', '+$100'] },
         ],
-        foot: [['1', 'Press'], ['2', 'Deposit'], ['3', 'Withdraw'], ['ESC', 'Leave']],
+        foot: [['1-3', 'Sign (an hour in the chair)'], ['4', 'Deposit'], ['5', 'Withdraw'], ['ESC', 'Leave']],
         onKey: (code) => {
           let r = null;
-          if (code === 'Digit1') r = C.press(row?.id ?? null, { force });
-          else if (code === 'Digit2') r = C.deposit(100, { force });
-          else if (code === 'Digit3') r = C.withdraw(100, { force });
-          else return false;
+          const k = /^Digit([1-5])$/.exec(code)?.[1];
+          if (!k) return false;
+          if (+k <= pols.length) r = C.press(row?.id ?? null, { force, policy: pols[+k - 1].id });
+          else if (k === '4') r = C.deposit(100, { force });
+          else r = C.withdraw(100, { force });
           if (r && !r.ok) this.g.hud?.toast?.(r.why.toUpperCase(), 'warn');
           return true;
         },
