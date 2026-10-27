@@ -239,6 +239,7 @@ export class Controls {
     for (const k of r.keys) {
       if (k === 'mouse:left') { if (r.id !== 'fire' && I.mouse.physLeft) return true; continue; }
       if (k === 'mouse:right') { if (I.mouse.physRight) return true; continue; }
+      if (k === 'mouse:middle') { if (I.mouse.middle) return true; continue; }
       if (k === 'wheel') continue;
       if (I.phys.has(k)) return true;
     }
@@ -249,6 +250,7 @@ export class Controls {
     for (const k of r.keys) {
       if (k === 'mouse:left') { if (r.id !== 'fire' && I.mouse.leftPressed && I.mouse.physLeft) return true; continue; }
       if (k === 'mouse:right') { if (I.mouse.rightPressed) return true; continue; }
+      if (k === 'mouse:middle') continue;
       if (k === 'wheel') continue;
       if (I.physHit.has(k)) return true;
     }
@@ -281,12 +283,12 @@ export class Controls {
     if (this.device !== 'pad' || this.g.arms?.radialOpen) { this.assisted = null; return false; } // the wheel has the stick
     const A = PAD.aim, s = this.aimStick;
     if (s.mag > 0) {
-      const want = Math.atan2(s.x, s.z);
+      const want = Math.atan2(s.x, s.z) + (this.g.cam?.yaw ?? 0); // the stick is screen-true: a turned camera turns it
       const diff = Math.abs(angleLerp(this.aimAng, want, 1) - this.aimAng);
       this.aimAng = diff > 1.4 ? want : angleLerp(this.aimAng, want, 1 - Math.exp(-dt * A.turn)); // a flick snaps
       this.aimReach = A.reach[0] + (A.reach[1] - A.reach[0]) * s.mag;
     } else if (this.move.mag > 0.3) {
-      this.aimAng = angleLerp(this.aimAng, Math.atan2(this.move.x, this.move.z), 1 - Math.exp(-dt * A.turn * 0.5));
+      this.aimAng = angleLerp(this.aimAng, Math.atan2(this.move.x, this.move.z) + (this.g.cam?.yaw ?? 0), 1 - Math.exp(-dt * A.turn * 0.5));
       this.aimReach += (A.rest - this.aimReach) * Math.min(1, dt * 4);
     } else this.aimReach += (A.rest - this.aimReach) * Math.min(1, dt * 2);
     let ang = this.aimAng;

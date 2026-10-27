@@ -149,7 +149,7 @@ export class Vehicles {
   // screen-right, so the sign flips. drive() already turns the tail the car's way in reverse, so the same rule makes
   // a reversing car's tail swing to screen-left. Latched while held: hold A and the car keeps turning, full circle.
   screenSteer(v, s) {
-    if (!s || !DRIVING.screenSteer) { v.steerLatch = 0; return s; }
+    if (!s || !DRIVING.screenSteer || this.g.cam?.eff() === 'CHASE') { v.steerLatch = 0; return s; } // CHASE: the car's own left (systems/camrig.js)
     const dir = Math.sign(s);
     if (!v.steerLatch || v.steerDir !== dir) { v.steerDir = dir; v.steerLatch = this.noseUp(v) ? 1 : -1; }
     return s * v.steerLatch;

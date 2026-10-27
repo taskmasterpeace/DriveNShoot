@@ -17,7 +17,8 @@ export class Input {
     this.physMap = new Map();   // physical code -> the canonical codes it emitted when it went down
     this.remap = null;          // (physical code) -> array of canonical codes; null: identity
     this.mouse = { x: 0, y: 0, nx: 0, ny: 0, left: false, right: false, leftPressed: false, rightPressed: false, physLeft: false, physRight: false, padLeft: false };
-    this.wheel = 0;
+    this.wheel = 0;             // plain wheel notches this frame (+ = toward you = zoom out): the camera's
+    this.wheelAlt = 0;          // Alt+wheel notches: the weapon cycle
     this.lastKbT = 0;           // performance.now() of the last key or mouse use (which device has the hands)
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
@@ -27,10 +28,15 @@ export class Input {
     addEventListener('keyup', (e) => this.keyUp(e.code));
     addEventListener('blur', () => { for (const k of [...this.phys]) this.keyUp(k); this.down.clear(); this.holders.clear(); this.mouseButton(0, false); this.mouseButton(2, false); });
     addEventListener('mousemove', (e) => this.mouseMove(e.clientX, e.clientY));
-    canvas.addEventListener('mousedown', (e) => this.mouseButton(e.button, true));
+    canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); this.mouseButton(e.button, true); }); // middle: no autoscroll
     addEventListener('mouseup', (e) => this.mouseButton(e.button, false));
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); this.lastKbT = performance.now(); }, { passive: true });
+    // Only a wheel over the game itself counts: a panel under the pointer (the pack, the map, a menu) keeps its wheel.
+    addEventListener('wheel', (e) => {
+      if (e.target !== canvas && e.target !== document.body && e.target !== document.documentElement) return;
+      if (e.altKey) this.wheelAlt += Math.sign(e.deltaY); else this.wheel += Math.sign(e.deltaY);
+      this.lastKbT = performance.now();
+    }, { passive: true });
   }
 
   // ---- the physical layer (DOM events and the selftest's hands both come through here) ---------------------------
@@ -59,6 +65,7 @@ export class Input {
     const m = this.mouse;
     if (button === 0) { if (on && !m.physLeft) m.leftPressed = true; m.physLeft = on; m.left = on || m.padLeft; }
     if (button === 2) { if (on && !m.physRight) m.rightPressed = true; m.physRight = on; m.right = on; }
+    if (button === 1) m.middle = on; // held: look far (data/controls.js 'look')
     if (on) this.lastKbT = performance.now();
   }
 
@@ -82,5 +89,6 @@ export class Input {
     this.mouse.leftPressed = false;
     this.mouse.rightPressed = false;
     this.wheel = 0;
+    this.wheelAlt = 0;
   }
 }

@@ -1,5 +1,6 @@
 import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision.js';
-import { muzzleForward } from './characters.js';
+import { muzzleForward, carryLateral } from './characters.js';
+import { CARRY } from '../data/arms.js';
 
 // Data-driven weapons. Add a row, get a gun.
 // modes (docs/design/WEB_CONTROLLER.md §3.4): the fire modes or alternate uses the weapon bar raises above the slot.
@@ -36,8 +37,15 @@ export class Combat {
     const g = this.g;
     if (ch.onDeck && !g.decks.muzzleClear(ch, ang)) return false; // inside a van or an RV: out of a window or a door only
     const fx = Math.sin(ang), fz = Math.cos(ang);
-    // The shot leaves the muzzle, on the body's centre line (the aim pose in characters.js).
+    // The round flies the body's centre line to the aim (so where you hit is what it always was); the gun you SEE sits
+    // at the side (characters.js aim pose, data/arms.js CARRY), toed in to the same point, and the flash leaves its
+    // muzzle: off the centre on the dominant hand, toward the aim point (or the target, or CARRY.toeInDefault m out).
     const mf = muzzleForward(w), ox = ch.x + fx * mf, oz = ch.z + fz * mf;
+    const lat = carryLateral(ch, w), hs = ch.hand === 'L' ? -1 : 1;
+    const dAim = ch.aimD ?? (ch.target ? Math.hypot(ch.target.x - ch.x, ch.target.z - ch.z) : CARRY.toeInDefault);
+    const toe = ang + hs * Math.min(CARRY.toeInMax * Math.PI / 180, Math.atan2(lat, Math.max(0.5, dAim)));
+    const mx = ch.x - hs * lat * Math.cos(ang) + Math.sin(toe) * mf, mz = ch.z + hs * lat * Math.sin(ang) + Math.cos(toe) * mf; // -x of the body: its right
+    ch._mx = mx; ch._mz = mz; ch._shotAng = toe; // the gun's muzzle and line (the selftest's gun-at-the-side check)
     // Upstairs (world/storeys.js) the shot flies at that floor's height: its walls stop it, the floors' walls below and
     // above do not. On the street, ry = -1 and everything is as it was.
     const fy = ch.storey ? ch.gy ?? 0 : 0, ry = fy > 0.5 ? fy + 1.3 : -1;
@@ -47,7 +55,7 @@ export class Combat {
     // starts at the hand, so it still meets them.
     const hug = !g.statics.lineOfSight(ch.x, ch.z, ox, oz, RAY_SOLID, ry);
     if (ch === g.player) g.arms?.onShot(); // a shot raises the gun, whatever path fired it
-    g.fx.flash(ox, 1.5 + fy, oz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
+    g.fx.flash(hug ? ox : mx, 1.5 + fy, hug ? oz : mz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x));
     g.noise(ch.x, ch.z, 45, ch);

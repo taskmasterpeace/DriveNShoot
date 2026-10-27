@@ -12,7 +12,7 @@ import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
 import { ITEMS, LOOT, GUN_ITEM, GUN_CARE } from '../data/items.js';
-import { ZOOM } from '../data/camera.js';
+import { ZOOM, CAMERA } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS, RING_OPENINGS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
@@ -40,6 +40,7 @@ import { castVoice, clipKey } from '../data/voices.js';
 import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
+import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
@@ -239,6 +240,7 @@ function buildCommands(api) {
           cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(), needs: g.survival.view(), body: g.skillsSys.view(),
           world: { time: g.sky.clock, hour: r1(g.sky.time), phase: g.sky.phase, weather: g.sky.weatherKey, night: r1(g.sky.night) },
           dialogue: api.dialogueState(),
+          camera: g.cam.status(),
           nearby: { hostiles: near.filter((c) => g.ai.hostile(c, p)).length, npcs: near.filter((c) => c.npc).map((c) => c.id), total: near.length },
           paused: g.paused, lastEvent: g.eventSeq,
         };
@@ -1733,6 +1735,20 @@ function buildCommands(api) {
         }
         const L = ZOOM.levels[g.zoomLevel];
         return { level: g.zoomLevel, name: L.name, target: P().inVehicle ? L.drive : L.foot, camHeight: r1(g.camHeight), viewR: r1(g.viewR), shadowHalf: r1(g.sky.sun.shadow.camera.right) };
+      },
+    },
+    camera: {
+      group: 'player', desc: 'The play camera (data/camera.js, systems/camrig.js, docs/design/WEB_CAMERA.md): view=TOPDOWN|ANGLED|ISO|CHASE (CHASE only at the wheel; on foot it reads as ANGLED), d= the boom length in m for that view and mode (mode=foot|drive picks which memory; default the current one), theta= pin the pitch off vertical in degrees (theta=-1 lets the view choose again), yaw= the ISO turn in degrees (snaps of 90 on [ and ]), cut= the cutaway on/off, settle=true jumps the camera to its target at once. Returns the view, D, theta, yaw, camera height, viewR (the farthest frustum corner on the ground), the nearest named stop, the remembered D of every view, and the cutaway (line height, screen circle). Keyboard: O cycles the view, the wheel zooms (Alt+wheel: weapons), Z / Shift+Z / - / = step the five stops. Pad: VIEW+R3 cycles, VIEW + right stick zooms.',
+      args: { view: { type: 'string' }, d: { type: 'number' }, theta: { type: 'number' }, mode: { type: 'string', enum: ['foot', 'drive'] }, yaw: { type: 'number' }, cut: { type: 'boolean' }, settle: { type: 'boolean', default: false } },
+      run: async ({ view, d, theta, mode, yaw, cut, settle }) => {
+        const R = g.cam;
+        if (view !== undefined) need(R.setView(view, true), `unknown view "${view}"; known: ${CAMERA.views.join(', ')}`);
+        if (d !== undefined) { const m = mode ?? R.mode(), ev = R.eff(m), L = R.limits(ev, m); R.mem[ev][m] = Math.max(L.dMin, Math.min(L.dMax, d)); R.override = null; }
+        if (theta !== undefined) R.override = theta < 0 ? null : { theta };
+        if (yaw !== undefined) R.isoYaw = Math.atan2(Math.sin((yaw * Math.PI) / 180), Math.cos((yaw * Math.PI) / 180));
+        if (cut !== undefined) g.cutaway.on = cut;
+        if (settle) g.updateCamera(10);
+        return { ...R.status(), cutaway: g.cutaway.status(), views: CAMERA.views };
       },
     },
     stunts: {
@@ -5798,6 +5814,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
   // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
   await floridaChecks({ api, g, check, C });
+  await cameraChecks({ api, g, check, C, hush }); // the boom, the views, the cutaway, the gun at the side (src/agent/camera-checks.js)
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   g.fauna.enabled = faunaWas;

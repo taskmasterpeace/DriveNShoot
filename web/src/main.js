@@ -20,6 +20,8 @@ import { Combat, WEAPONS } from './systems/combat.js';
 import { Arms } from './systems/arms.js';
 import { Gunpoint } from './systems/gunpoint.js';
 import { Melee } from './systems/melee.js';
+import { CamRig } from './systems/camrig.js';
+import { Cutaway } from './systems/cutaway.js';
 import { WeaponBar } from './ui/weaponbar.js';
 import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
@@ -37,7 +39,7 @@ import { LEVEL } from './data/storeys.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
-import { ZOOM } from './data/camera.js';
+import { ZOOM, CAMERA } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
@@ -204,7 +206,8 @@ class Game {
     this.camPos = new THREE.Vector3(0, 40, 0);
     this.camLook = new THREE.Vector3();
     this.camHeight = 34;
-    this.zoomLevel = ZOOM.start; // index into ZOOM.levels (data/camera.js)
+    this.cam = new CamRig(this);  // the boom, the views, the zoom (systems/camrig.js); g.zoomLevel = the nearest named stop
+    this.cutaway = new Cutaway(this); // what stands between the camera and you fades (systems/cutaway.js)
     this.viewR = 30;             // radius of ground the camera shows (m): what 'out of sight' means right now
     this.aim = { x: 0, z: 0 };
     this.boxRing = { x: 0, z: 0, len: 1.6 }; // the highlight ring on a container in reach
@@ -677,9 +680,14 @@ class Game {
     // Mouse -> ground.
     _ndc.set(I.mouse.nx, I.mouse.ny);
     _ray.setFromCamera(_ndc, this.camera);
+    _plane.constant = -((p.gy ?? 0) + 1.2); // upstairs, the cursor meets your floor (a tilted camera shows the offset)
     if (this.aimOverride) { this.aim.x = this.aimOverride.x; this.aim.z = this.aimOverride.z; }
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
     if (!this.aimOverride) this.controls.aimAt(p, dt, p.inVehicle ?? p); // the pad in hand: the right stick aims
+    // Something on the wing under the cursor (the wilds lane's hook: fauna.pickAir(ray) -> { x, z, y } or null): aim at it.
+    this.aimAir = this.aimOverride ? null : this.fauna?.pickAir?.(_ray.ray) ?? null;
+    if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
+    p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
     if (this.dialogue.active) { p.speed = 0; return; }
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
@@ -774,6 +782,7 @@ class Game {
     if (I.key('KeyD') || I.key('ArrowRight')) mx += 1;
     const pm = this.controls.move, tilt = !mx && !mz && pm.mag ? Math.max(PAD.walkMin, pm.mag) : 1; // the left stick: a light tilt creeps
     if (pm.mag) { mx += pm.x; mz += pm.z; }
+    if (this.cam.yaw) { const w = this.cam.toWorld(mx, mz); mx = w.x; mz = w.z; } // ISO/CHASE: W is up the screen
     p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
     p.stamina = p.stamina ?? 1;
     const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
@@ -782,7 +791,7 @@ class Game {
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
     p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul * this.arms.sprintDrain() : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
-    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I) + pm.x, mz0(I) + pm.z);
+    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); this.startDive(p, w.x, w.z); }
     p.diveCool = (p.diveCool ?? 0) - dt;
     if (p.dive > 0) {
       p.dive -= dt;
@@ -872,9 +881,9 @@ class Game {
 
     // Weapon select.
     this.arms.slotKeys(I, dt); // a new number selects the slot; the same number again (or held) steps its fire modes
-    if (I.wheel) {
+    if (I.wheelAlt) { // the plain wheel zooms (systems/camrig.js); Alt+wheel cycles the guns
       const i = this.inv.weapons.indexOf(this.inv.current);
-      this.switchWeapon(this.inv.weapons[(i + I.wheel + this.inv.weapons.length) % this.inv.weapons.length]);
+      this.switchWeapon(this.inv.weapons[(i + I.wheelAlt + this.inv.weapons.length) % this.inv.weapons.length]);
     }
     if (I.hit('KeyR')) this.reload();
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
@@ -1040,31 +1049,21 @@ class Game {
   // ---- camera ----------------------------------------------------------------------------
   // Step the zoom (Z out, Shift+Z in; - and =). Clamped at both ends rather than wrapping: a jump from the widest
   // view back to the closest mid-fight is disorienting.
-  setZoom(i) {
-    const n = Math.max(0, Math.min(ZOOM.levels.length - 1, i));
-    if (n === this.zoomLevel) return this.zoomLevel;
-    this.zoomLevel = n;
-    this.hud.toast(`ZOOM · ${ZOOM.levels[n].name}`);
-    this.emit('zoom', { level: n, name: ZOOM.levels[n].name });
-    return n;
-  }
+  setZoom(i) { return this.cam.setStop(i); }
 
   updateCamera(dt) {
-    const p = this.player, v = p.inVehicle, L = ZOOM.levels[this.zoomLevel];
-    let tx = p.x, tz = p.z, h = L.foot;
+    const p = this.player, v = p.inVehicle, C = this.cam;
+    let tx = p.x, tz = p.z;
     if (v) {
-      const sp = this.vehiclesSys.speed(v);
-      h = Math.min(ZOOM.maxHeight, L.drive + sp * ZOOM.speedLift);
       tx = v.x + v.vx * 0.55; tz = v.z + v.vz * 0.55;
+      if (C.eff() === 'CHASE') { const a = CAMERA.view.CHASE.ahead; tx = v.x + Math.sin(v.h) * a + v.vx * 0.3; tz = v.z + Math.cos(v.h) * a + v.vz * 0.3; }
     } else {
       // Lean the view toward the cursor so you can see what you shoot (further out at a wider zoom).
-      const lean = 8 * Math.max(1, L.foot / 33);
-      tx += clamp((this.aim.x - p.x) * 0.25, -lean, lean);
-      tz += clamp((this.aim.z - p.z) * 0.25, -lean, lean);
-      if (this.insideBuilding) h = Math.min(h, ZOOM.indoor);
+      // Look far (held): all the way to the cursor, out to most of the screen (systems/camrig.js leanMax).
+      const lean = C.leanMax(), share = C.looking ? 1 : CAMERA.lean;
+      tx += clamp((this.aim.x - p.x) * share, -lean, lean);
+      tz += clamp((this.aim.z - p.z) * share, -lean, lean);
     }
-    // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
-    this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
     // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
     // On real terrain (flag, world/realterrain.js) it keeps its height above the ground it looks at.
     const T = this.streamer?.W?.terrain;
@@ -1074,13 +1073,8 @@ class Game {
     const k = 1 - Math.exp(-dt * ZOOM.follow);
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - this.camLook.z) * k;
-    // How much ground is on screen: the half-diagonal of the footprint, with room for the camera's tilt.
-    const halfZ = this.camHeight * Math.tan((this.camera.fov * Math.PI) / 360), halfX = halfZ * this.camera.aspect;
-    this.viewR = Math.hypot(halfX, halfZ) * 1.15;
-    const s = this.hud.shakeV;
-    const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
-    this.camera.position.set(this.camLook.x + sx, this.camHeight + this.camFloor, this.camLook.z + this.camHeight * 0.14 + sz);
-    this.camera.lookAt(this.camLook.x + sx, this.camFloor, this.camLook.z + sz);
+    C.update(dt, this.camLook, this.camFloor, this.insideBuilding); // places the camera; sets camHeight and viewR
+    this.cutaway.update(dt);
   }
 
   updateInterior() {
@@ -1178,9 +1172,7 @@ class Game {
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
     if (I.hit('KeyT') && !this.survival.sleep) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
-    if (I.hit('KeyZ')) this.setZoom(this.zoomLevel + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
-    if (I.hit('Minus')) this.setZoom(this.zoomLevel + 1);
-    if (I.hit('Equal')) this.setZoom(this.zoomLevel - 1);
+    if (!this.paused && !this.invUI.open && !this.dialogue.active) this.cam.input(I, dt); // wheel, Z / - / =, O, [ ]; a panel keeps the wheel
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
       this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
