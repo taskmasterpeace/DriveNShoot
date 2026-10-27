@@ -15,7 +15,7 @@ export function cloneCommands(api, need) {
   const stepUntil = async (pred, maxS, dt = 0.25) => { for (let t = 0; t < maxS; t += dt) { if (pred()) return true; await api._step(Math.round(dt * 60)); } return pred(); };
   return {
     clone: {
-      group: 'player', desc: 'Cloning: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md, rows in src/data/clones.js). action: status (your pressing: where, when, the skills it holds, how cold; the brine book; brine money owed; your husks: where, what is still on them, what the pickers took, your car and its trunk; the lineage of characters who died flat; every vat) | press (get pressed at the vat you stand at; vat=<id> with force=true to stage one anywhere; free=true costs nothing) | deposit / withdraw amount= (the brine book, at a vat counter; force=true anywhere) | die (an honest death right here: god off, a lethal hit, then the black and the waking; wait=false returns at the moment of death) | wake (cut the black short) | reclaim (take everything on your husk back: within 3.5 m, id=<husk> force=true from anywhere) | pick hours= (run the clock N game hours: the pickers work every husk) | upkeep (charge a day of brine money now).',
+      group: 'player', desc: 'Cloning: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md, rows in src/data/clones.js). action: status (your pressing: where, when, the skills it holds, how cold; the brine book; brine money owed; your husks: where, what is still on them, what the pickers took, your car and its trunk; the lineage of characters who died flat; every vat) | press (get pressed at the vat you stand at; vat=<id> with force=true to stage one anywhere; free=true costs nothing) | deposit / withdraw amount= (the brine book, at a vat counter; force=true anywhere) | die (an honest death right here: god off, a lethal hit, then the black and the waking; vat=<major centre> picks where you come up, as the city picker would (docs/design/WEB_INSURANCE_JOURNEYS.md); wait=false returns at the moment of death) | wake (cut the black short) | reclaim (take everything on your husk back: within 3.5 m, id=<husk> force=true from anywhere) | pick hours= (run the clock N game hours: the pickers work every husk) | upkeep (charge a day of brine money now).',
       args: { action: { type: 'string', default: 'status', enum: ['status', 'press', 'deposit', 'withdraw', 'die', 'wake', 'reclaim', 'pick', 'upkeep'] }, vat: { type: 'string' }, amount: { type: 'number' }, id: { type: 'string' }, hours: { type: 'number', default: 24 }, force: { type: 'boolean', default: false }, free: { type: 'boolean', default: false }, wait: { type: 'boolean', default: true } },
       run: async ({ action, vat, amount, id, hours, force, free, wait }) => {
         const C = g.clone;
@@ -24,6 +24,7 @@ export function cloneCommands(api, need) {
         if (action === 'die') {
           const p = P();
           need(p.alive, 'already dead (step to wake, or clone action=wake)');
+          if (vat) { need(C.ins.isMajor(vat), `vat= a major cloning centre: ${C.ins.centres().map((c) => c.id).join(', ')} (the others are pressing offices: they grow no bodies)`); C.ins.pick = vat; }
           const god = g.godMode; g.godMode = false; p.graceT = 0;
           g.combat.damage(p, 99999, null, 0, 0, 'bullet');
           g.godMode = god;
@@ -41,9 +42,9 @@ export function cloneCommands(api, need) {
       },
     },
     travel: {
-      group: 'world', desc: 'The travel network back to your husk (docs/design/WEB_CLONE_TRAVEL.md, rows in src/data/travel.js): the SUN LINE trundle (bus) pole to pole on I-10 and the SALT LINE on Florida I-95 (the Meridian knot), the IRON LINE (the freight from Dust Bowl Station through the yards), FIVE CITY AIR (Los Angeles and four cities past the dust). action: status (where you stand, its board, your punches, the trundle if one is real, the arrivals hall, the last trips) | lines | nodes | buy line= to= (a punch at the board you stand at; flight=<i> for an air row; from= force=true to stage) | wait (run the clock until the next trundle or iron is nearly due here, and make it real) | board (climb aboard the trundle standing at your pole, as a passenger; force=true skips the reach check) | ride seconds= (step the sim while you ride, until you step off) | skip (sleep through it: the wait and the whole trip go by on the clock, the road rolls once; punch= seed= force=) | leave (get off the trundle) | goto node= dir=east|west (stand at a node\'s pole or counter, for staging) | panel node= (open its board on screen; close closes it) | hall (the arrivals hall you are held in) | leaveHall (staging: out of the hall, where you stand).',
-      args: { action: { type: 'string', default: 'status', enum: ['status', 'lines', 'nodes', 'buy', 'wait', 'board', 'ride', 'skip', 'leave', 'goto', 'panel', 'close', 'hall', 'leaveHall'] }, line: { type: 'string' }, to: { type: 'string' }, from: { type: 'string' }, flight: { type: 'number' }, node: { type: 'string' }, dir: { type: 'string', enum: ['east', 'west'] }, punch: { type: 'string' }, seed: { type: 'number' }, seconds: { type: 'number', default: 120 }, force: { type: 'boolean', default: false } },
-      run: async ({ action, line, to, from, flight, node, dir, punch, seed, seconds, force }) => {
+      group: 'world', desc: 'The travel network back to your husk (docs/design/WEB_CLONE_TRAVEL.md, rows in src/data/travel.js): the SUN LINE trundle (bus) pole to pole on I-10 and the SALT LINE on Florida I-95 (the Meridian knot), the IRON LINE (the freight from Dust Bowl Station through the yards), FIVE CITY AIR (Los Angeles and four cities past the dust). action: status (where you stand, its board, your punches, the trundle if one is real, the arrivals hall, the last trips) | lines | nodes | buy line= to= (a punch at the board you stand at; flight=<i> for an air row; from= force=true to stage) | wait (run the clock until the next trundle or iron is nearly due here, and make it real) | board (climb aboard the trundle standing at your pole, as a passenger; force=true skips the reach check) | ride seconds= (step the sim while you ride, until you step off) | skip (sleep through it: the wait and the whole trip go by on the clock, the road rolls once; punch= seed= force=) | leave (get off the trundle) | goto node= dir=east|west (stand at a node\'s pole or counter, for staging) | panel node= (open its board on screen; close closes it) | hall (the arrivals hall you are held in) | leaveHall (staging: out of the hall, where you stand) | cord (pull the cord aboard a moving coach or a stranger\'s car: it stops where it is and you step down at the roadside; steps until you are off) | incident (seed= with line= from= to= hour= rolls a leg\'s incident, deterministic; kind=<id> stages one on the coach you ride (choose= what you do); choose=<choice id> settles the card that is up) | plan to=base|husk|<node>|x,z (the cheapest way there on the real timetables: the legs, the fare, the hours, the pole to get off at and the walk from it) | hitch (thumb out at an interstate\'s roadside: steps until a car stops or it gives up; board=true gets in). skip and ride take choice= (what you do if the road turns something up).',
+      args: { action: { type: 'string', default: 'status', enum: ['status', 'lines', 'nodes', 'buy', 'wait', 'board', 'ride', 'skip', 'leave', 'goto', 'panel', 'close', 'hall', 'leaveHall', 'cord', 'incident', 'plan', 'hitch'] }, choice: { type: 'string' }, choose: { type: 'string' }, kind: { type: 'string', enum: ['breakdown', 'roadblock', 'infected', 'checkpoint', 'thief', 'detour', 'crash'] }, hour: { type: 'number' }, board: { type: 'boolean', default: false }, x: { type: 'number' }, z: { type: 'number' }, line: { type: 'string' }, to: { type: 'string' }, from: { type: 'string' }, flight: { type: 'number' }, node: { type: 'string' }, dir: { type: 'string', enum: ['east', 'west'] }, punch: { type: 'string' }, seed: { type: 'number' }, seconds: { type: 'number', default: 120 }, force: { type: 'boolean', default: false } },
+      run: async ({ action, line, to, from, flight, node, dir, punch, seed, seconds, force, choice, choose, kind, hour, board, x, z }) => {
         const T = g.travel, p = P();
         if (action === 'lines') return { lines: T.linesView() };
         if (action === 'nodes') return { nodes: T.nodesView() };
@@ -61,10 +62,56 @@ export function cloneCommands(api, need) {
         if (action === 'ride') {
           need(T.ride, 'not riding (buy a punch, wait, board)');
           const n0 = T.log.length;
+          T.j.agentChoice = choice ?? null;
           await stepUntil(() => !T.ride || T.log.length > n0, Math.min(600, seconds), 0.5);
           return { arrived: T.log.length > n0, trip: T.log[T.log.length - 1] ?? null, at: { x: r1(p.x), z: r1(p.z) }, here: T.view().here, riding: !!T.ride };
         }
-        if (action === 'skip') { const r = T.skip({ punch: punch ?? null, seed: seed ?? null, force }); need(r.ok, r.why); return { ...r, at: { x: r1(p.x), z: r1(p.z) }, away: T.away, cash: g.cash }; }
+        if (action === 'skip') { const r = T.skip({ punch: punch ?? null, seed: seed ?? null, force, choice: choice ?? null }); need(r?.ok, r?.why ?? 'the trip did not finish'); return { ...r, at: { x: r1(p.x), z: r1(p.z) }, away: T.away, cash: g.cash }; }
+        if (action === 'cord') {
+          need(T.cord(), 'nothing to pull: ride a moving coach (or a stranger\'s car); at a pole, leave is the way off');
+          const n0 = T.lastDrop;
+          await stepUntil(() => T.lastDrop !== n0, 40, 0.25);
+          need(T.lastDrop !== n0, 'the driver never stopped');
+          return { ok: true, dropped: true, ...T.lastDrop, riding: !!T.ride, aboard: !!p.inVehicle };
+        }
+        if (action === 'incident') {
+          const J = T.j;
+          if (choose && !kind) { need(J.pending, 'no incident waiting for a choice'); const r = J.choose(choose); return { ok: true, result: r }; }
+          if (kind) {
+            const v = T.busVehicle(), L = T.line(T.bus?.line);
+            need(T.ride && v && p.inVehicle === v, 'kind= stages an incident on the coach you ride: board one first');
+            need(T.ride.event == null, 'this ride already had its incident');
+            const inc = J.roll(J.ctxFor(L, T.ride.punch.from, T.ride.punch.to, T.hours()), seed ?? 1, { force: kind });
+            J.agentChoice = choose ?? null;
+            T.stageIncident(inc, L, v);
+            await stepUntil(() => !T.bus?.halt && !J.pending, 40, 0.25);
+            if (J.pending) J.choose(null);
+            return { ok: true, incident: inc, result: J.last, bus: T.view().bus };
+          }
+          const L = T.line(line ?? 'sun');
+          need(L && (L.kind === 'bus' || L.kind === 'haul'), 'line= a bus line or haul');
+          const ctx = T.j.ctxFor(L, from ?? L.stops[0], to ?? L.stops[L.stops.length - 1], hour ?? T.hours());
+          return { ok: true, ctx, odds: T.j.odds(ctx), incident: T.j.roll(ctx, seed ?? 1) };
+        }
+        if (action === 'plan') {
+          const C = g.clone; let tgt = null, label = to ?? 'base';
+          if (!to || to === 'base' || to === 'home') tgt = C.ins.baseXZ();
+          else if (to === 'husk') { const h = C.husks.filter((q) => !q.gone).pop(); need(h, 'no husk of yours on the map'); tgt = { x: h.x, z: h.z, name: 'YOUR HUSK' }; }
+          else if (T.node(to)?.onMap) { const n = T.node(to); tgt = { x: n.counter.x, z: n.counter.z, name: n.name }; }
+          else if (/^-?[\d.]+,-?[\d.]+$/.test(to)) { const [a, b] = to.split(',').map(Number); tgt = { x: a, z: b, name: to }; }
+          else if (x !== undefined && z !== undefined) tgt = { x, z, name: 'THERE' };
+          need(tgt, 'to= base | husk | <node on the map> | x,z');
+          const fromHere = T.away ? T.away.node : { x: p.x, z: p.z };
+          const r = T.j.plan(fromHere, tgt);
+          return { ...r, to: label, target: tgt };
+        }
+        if (action === 'hitch') {
+          const J = T.j;
+          if (!J.lift) { const r = J.thumbOut({ seed: seed ?? null }); need(r.ok, r.why); }
+          await stepUntil(() => J.lift?.state === 'waiting' || (!J.thumb && !J.lift) || (J.thumb?.tries ?? 0) >= 6, Math.min(240, seconds), 0.5);
+          if (board && J.lift?.state === 'waiting') { const v = J.liftVehicle(); await api.call('teleport', { x: v.x - Math.cos(v.h) * 2.2, z: v.z + Math.sin(v.h) * 2.2 }); g.enterVehicle(v, 'passenger'); await api._step(4); }
+          return { ok: true, ...J.view(), aboard: !!p.inVehicle };
+        }
         if (action === 'leave') { need(p.inVehicle, 'not aboard'); g.exitVehicle(); await api._step(2); return { aboard: !!p.inVehicle, ride: T.view().ride }; }
         if (action === 'goto') {
           const n = T.node(node);
@@ -231,7 +278,9 @@ export async function cloneChecks(api, check, C) {
         && g.events.some((e) => e.type === 'diedFlat');
       return ok ? true : JSON.stringify({ shardOk, alive: p.alive, lineage: CL.lineage, last: CL.lastWake, name: [name0, p.name], skills: g.skillsSys.lv, cash: g.cash, pressing: CL.pressingView() });
     });
-    await check("clone: a Florida start is pressed at Meridian's clone bay and, dying in Florida, comes up in Meridian's vat; the SALT LINE runs the husk run from its knot", async () => {
+    // Updated 2026-10-27 (WEB_INSURANCE_JOURNEYS.md): Meridian's clinic is a PRESSING OFFICE now (only the major cities grow
+    // bodies); a Florida start is pressed there and comes up in Miami's centre (its home), still in Florida.
+    await check("clone: a Florida start is pressed at Meridian's pressing office and, dying in Florida, comes up in Miami's cloning centre; the SALT LINE runs the husk run from Meridian's knot", async () => {
       const R = g.regions, was = { start: R.start, at: R.startedAt };
       try {
         R.start = 'florida';
@@ -240,18 +289,19 @@ export async function cloneChecks(api, check, C) {
         const vat = CL.pressing?.vat;
         await C('step', { seconds: 0.5 }); quiet();
         const d = await C('clone', { action: 'die' });
-        const pl = CL.vatPlace(CL.vat('meridian')), p = g.player;
-        const near = Math.hypot(p.x - pl.wake.x, p.z - pl.wake.z);
+        const pl = CL.ins.place(CL.vat('miami')), p = g.player;
+        const near = pl?.onMap ? Math.hypot(p.x - pl.wake.x, p.z - pl.wake.z) : 99;
+        const home = CL.ins.homeFor('meridian');
         const inFlorida = g.streamer.W.regionOf(d.husk?.x ?? 0, d.husk?.z ?? 0)?.id === 'florida' && g.streamer.W.regionOf(p.x, p.z)?.id === 'florida';
-        const drawn = CL.vatMeshes.some((m) => Math.hypot(m.position.x - pl.x, m.position.z - pl.z) < 0.5);
+        const mpl = CL.vatPlace(CL.vat('meridian')), drawn = CL.vatMeshes.some((m) => Math.hypot(m.position.x - mpl.x, m.position.z - mpl.z) < 0.5); // the office's scanner still stands in the bay
         // The husk run in Florida: Meridian's knot is a real pole on I-95, and a punch north sleeps you to Daytona.
         await C('travel', { action: 'goto', node: 'meridian_knot', dir: 'east' });
         g.cash = 200;
         const b = await C('travel', { action: 'buy', line: 'salt', to: 'daytona' });
         const r = await C('travel', { action: 'skip', seed: 1 });
         const day = TR.node('daytona'), atDaytona = r.ok && r.trip?.to === 'daytona' && Math.hypot(p.x - day.poles[1].x, p.z - day.poles[1].z) < 4;
-        const ok = placed && vat === 'meridian' && d.alive && near < 2.5 && CL.lastWake?.vat === 'meridian' && inFlorida && drawn && b.ok && atDaytona;
-        return ok ? true : JSON.stringify({ placed, vat, alive: d.alive, near: r1(near), wake: CL.lastWake, inFlorida, drawn, buy: b.ok ?? b.error, trip: r.trip ?? r.error });
+        const ok = placed && vat === 'meridian' && home === 'miami' && d.alive && near < 2.5 && CL.lastWake?.vat === 'miami' && inFlorida && drawn && b.ok && atDaytona;
+        return ok ? true : JSON.stringify({ placed, vat, home, alive: d.alive, near: r1(near), wake: CL.lastWake, inFlorida, drawn, buy: b.ok ?? b.error, trip: r.trip ?? r.error });
       } finally { R.start = was.start; R.startedAt = was.at; }
     });
     await check('travel: a punch takes you pole to pole on the trundle in real time, on the game clock, the fare paid', async () => {
@@ -280,15 +330,18 @@ export async function cloneChecks(api, check, C) {
       const now = CL.hours(), nb = TR.nextBus(L, i, -1, now), expect = (nb.at - now) + TR.busHours(L, i, j, -1);
       const miles = TR.milesBetween(L, 'haven', 'la_knot');
       // A seed that rolls something on this road (the roll is seeded: the same seed, the same night, the same thing).
+      // Updated 2026-10-27 (WEB_INSURANCE_JOURNEYS.md): the trundle rolls an INCIDENT with the leg's context (its stretch's
+      // danger, who holds it); the seed sought is one whose default choice keeps you aboard (the walk is the cord check's).
+      const ctx = TR.j.ctxFor(L, 'haven', 'la_knot', nb.at, { miles });
       let seed = null, ev = null;
-      for (let s = 1; s < 600 && !ev; s++) { const e = TR.roll(L, miles, nb.at, s); if (e && e.id !== 'toll') { seed = s; ev = e; } }
-      let quietSeed = null; for (let s = 1; s < 600 && quietSeed === null; s++) if (!TR.roll(L, miles, nb.at, s)) quietSeed = s;
+      for (let s = 1; s < 600 && !ev; s++) { const e = TR.roll(L, miles, nb.at, s, ctx); if (e && !e.putOff) { seed = s; ev = e; } }
+      let quietSeed = null; for (let s = 1; s < 600 && quietSeed === null; s++) if (!TR.roll(L, miles, nb.at, s, ctx)) quietSeed = s;
       await C('travel', { action: 'buy', line: 'sun', to: 'la_knot' });
       const cash0 = g.cash, h0 = CL.hours();
       const r = await C('travel', { action: 'skip', seed });
       const took = CL.hours() - h0, T = r.trip, la = TR.node('la_knot').poles[-1];
       const evOk = T.event?.id === ev.id && Math.abs(took - (expect + (ev.delay ?? 0))) < 0.05 && (!ev.cashShare || g.cash < cash0) && (!ev.hurt || g.player.hp < g.player.maxHp);
-      const ok = r.ok && evOk && Math.hypot(g.player.x - la.x, g.player.z - la.z) < 4 && quietSeed !== null && !TR.roll(L, miles, nb.at, quietSeed) && T.waitHours >= 0 && T.rideHours > 30;
+      const ok = r.ok && evOk && Math.hypot(g.player.x - la.x, g.player.z - la.z) < 4 && quietSeed !== null && !TR.roll(L, miles, nb.at, quietSeed, ctx) && T.waitHours >= 0 && T.rideHours > 30;
       return ok ? true : JSON.stringify({ ev, seed, trip: T, took: r1(took), expect: r1(expect), cash: [cash0, g.cash], at: [r1(g.player.x), r1(g.player.z)], la });
     });
     await check('travel: Five City Air flies two of its cities for the fare its row says; past the dust you wait in the arrivals hall and fly back onto the map', async () => {

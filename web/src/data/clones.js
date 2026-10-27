@@ -56,16 +56,22 @@ export const CLONE_KEEPS = {
 // scale the rules. A vat in a town the map has not built yet is still a row: you can be pressed there and come up there
 // (you arrive at that node off the map: systems/travel.js holds you in its arrivals hall).
 export const VATS = [
-  // The clinic's middle room (between Reyes's front room and the ward): the vat against its north wall, you come up in front of it.
-  { id: 'rust_haven', town: 'phoenix', name: "DOC REYES'S BRINE ROOM", short: 'RUST HAVEN', at: { x: -53.2, z: -56.6 }, wake: { x: -53.6, z: -54.4 }, keeper: 'reyes', priceMul: 1, upkeepMul: 1 },
-  { id: 'los_angeles', town: 'losangeles', name: 'THE ANGEL STREET VATS', short: 'LOS ANGELES', port: 'la_knot', priceMul: 1.25, upkeepMul: 1.2 },
-  { id: 'el_paso', town: 'elpaso', name: 'PASO BRINE WORKS', short: 'EL PASO', port: 'paso_knot', priceMul: 0.9, upkeepMul: 0.9 },
-  // Florida's start (WEB_FLORIDA.md): the clone bay behind Meridian's clinic (systems/regions.js clinic('meridian')).
-  { id: 'meridian', town: 'meridian', clinic: 'meridian', port: 'meridian_knot', name: 'MERIDIAN CLONE BAY', short: 'MERIDIAN', keeper: 'mer_doc', priceMul: 1, upkeepMul: 1 },
-  { id: 'new_york', town: 'newyork', name: 'HARBOR BRINE HOUSE', short: 'NEW YORK', port: 'ny_field', priceMul: 1.6, upkeepMul: 1.5 },
-  { id: 'chicago', town: 'chicago', name: 'LAKESHORE VAT HALL', short: 'CHICAGO', port: 'chi_field', priceMul: 1.4, upkeepMul: 1.3 },
-  { id: 'new_orleans', town: 'neworleans', name: 'THE LEVEE TANKS', short: 'NEW ORLEANS', port: 'nola_field', priceMul: 1.2, upkeepMul: 1.1 },
-  { id: 'ohio', town: 'cincinnati', name: 'RIVER BEND PRESSING HOUSE', short: 'OHIO', port: 'ohio_field', priceMul: 1.1, upkeepMul: 1 },
+  // CLONING CENTRES (major: true): only the biggest cities grow bodies (Robert, 2026-10-27; docs/design/WEB_INSURANCE_JOURNEYS.md).
+  // Phoenix's is Rust Haven's brine room. The clinic's middle room (between Reyes's front room and the ward): the vat against its
+  // north wall, you come up in front of it.
+  { id: 'rust_haven', town: 'phoenix', name: "DOC REYES'S BRINE ROOM", short: 'PHOENIX', at: { x: -53.2, z: -56.6 }, wake: { x: -53.6, z: -54.4 }, keeper: 'reyes', priceMul: 1, upkeepMul: 1, major: true },
+  { id: 'los_angeles', town: 'losangeles', name: 'THE ANGEL STREET VATS', short: 'LOS ANGELES', port: 'la_knot', priceMul: 1.25, upkeepMul: 1.2, major: true },
+  { id: 'miami', town: 'miami', name: 'BISCAYNE BRINE CENTRE', short: 'MIAMI', port: 'miami_knot', priceMul: 1.15, upkeepMul: 1.1, major: true },
+  { id: 'houston', town: 'houston', name: 'BAYOU CITY CLONING CENTRE', short: 'HOUSTON', port: 'houston_depot', priceMul: 0.95, upkeepMul: 0.95, major: true },
+  { id: 'new_york', town: 'newyork', name: 'HARBOR BRINE HOUSE', short: 'NEW YORK', port: 'ny_field', priceMul: 1.6, upkeepMul: 1.5, major: true },
+  { id: 'chicago', town: 'chicago', name: 'LAKESHORE VAT HALL', short: 'CHICAGO', port: 'chi_field', priceMul: 1.4, upkeepMul: 1.3, major: true },
+  // PRESSING OFFICES (office: true): a small town's clinic scans you, sells the policy and keeps the brine book, but grows no body:
+  // the pressing is filed with its home centre (the nearest major city, systems/insurance.js homeFor).
+  { id: 'el_paso', town: 'elpaso', name: 'PASO PRESSING OFFICE', short: 'EL PASO', port: 'paso_knot', priceMul: 0.9, upkeepMul: 0.9, office: true },
+  // Florida's start (WEB_FLORIDA.md): the scanning bay behind Meridian's clinic (systems/regions.js clinic('meridian')).
+  { id: 'meridian', town: 'meridian', clinic: 'meridian', port: 'meridian_knot', name: 'MERIDIAN PRESSING OFFICE', short: 'MERIDIAN', keeper: 'mer_doc', priceMul: 1, upkeepMul: 1, office: true },
+  { id: 'new_orleans', town: 'neworleans', name: 'THE LEVEE PRESSING OFFICE', short: 'NEW ORLEANS', port: 'nola_field', priceMul: 1.2, upkeepMul: 1.1, office: true },
+  { id: 'ohio', town: 'cincinnati', name: 'RIVER BEND PRESSING HOUSE', short: 'OHIO', port: 'ohio_field', priceMul: 1.1, upkeepMul: 1, office: true },
 ];
 
 // ---- our words (the glossary is in docs/design/WEB_CLONE_TRAVEL.md; tools/ip-lint.mjs checks none are the novels') ----
