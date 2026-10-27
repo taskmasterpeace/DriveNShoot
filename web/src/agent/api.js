@@ -44,6 +44,7 @@ import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATO
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
+import { qolChecks } from './qol-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -857,6 +858,15 @@ function buildCommands(api) {
     objective: {
       group: 'player', desc: 'Current objective text, its target position, and GPS route length (what the HUD tracker shows).',
       run: async () => { const o = g.qol.objective(); g.qol.routeT = 0; g.qol.updateRoute(0); return { text: o.text, target: o.target ? { x: r1(o.target.x), z: r1(o.target.z) } : null, routeLength: g.qol.routeLength() && Math.round(g.qol.routeLength()), waypoint: g.qol.waypoint }; },
+    },
+    qol: {
+      group: 'meta', desc: 'The quality-of-life layer: settings, THIS RUN totals, the RECENT log, save times. set=<setting> value=<v> changes one setting for this session (hudScale, nameTags aim|near|off, killFeed, dmgNumbers, autosaveMin, pauseOnBlur, muteOnBlur, ...); hud=true|false hides/shows the HUD (F1).',
+      args: { set: { type: 'string' }, value: { type: 'string' }, hud: { type: 'boolean' } },
+      run: async ({ set, value, hud }) => {
+        if (set) { const cur = g.qol.settings[set], v = typeof cur === 'boolean' ? value === 'true' : typeof cur === 'number' ? Number(value) : value; g.qol.settings[set] = v; g.qol.syncInputs(); g.qol.apply(); }
+        if (hud !== undefined) g.qol.toggleHud(!hud);
+        return g.qol.view();
+      },
     },
     waypoint: {
       group: 'player', desc: 'Set (x,z) or clear (no args) the GPS waypoint shown on the minimap/big map.',
@@ -5801,6 +5811,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   g.fauna.enabled = faunaWas;
+  await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;

@@ -4,7 +4,7 @@ import { snapshot, restore } from '../agent/api.js';
 import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
 import { ROLE_TIERS, ROLE_RULES } from '../data/roles.js';
-import { DRIVING } from '../systems/vehicles.js';
+import { DRIVING, VEHICLES } from '../systems/vehicles.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
@@ -16,10 +16,19 @@ const AUTO_KEY = 'dsoa.autosave';
 for (const k of ['settings', 'quicksave', 'autosave']) {
   try { const old = localStorage.getItem(`deathlands.${k}`); if (old !== null && localStorage.getItem(`dsoa.${k}`) === null) localStorage.setItem(`dsoa.${k}`, old); } catch { /* storage blocked */ }
 }
-const AUTOSAVE_EVERY = 180; // seconds of play
+const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were last written (the pause menu's "3 min ago")
 // steer: 'screen' = A turns toward the left of the SCREEN whichever way the car points (Robert: "left is left"); 'car' = A
 // turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
-const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12 };
+// The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
+// killFeed, dmgNumbers.
+const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
+  autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true };
+const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
+const FOOT_MPS = 4.2;   // the ORDERS tag's on-foot ETA: a walk with some running
+const AGENT_TAB = (() => { try { return new URLSearchParams(location.search).has('agent'); } catch { return false; } })();
+const ago = (ms) => { const s = (Date.now() - ms) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 
 const load = (k, d) => { try { return { ...d, ...JSON.parse(localStorage.getItem(k) ?? '{}') }; } catch { return { ...d }; } };
@@ -36,6 +45,12 @@ export class QOL {
     this.routeKey = '';
     this.menuOpen = false;
     this.mapOpen = false;
+    this.log = [];  // the last LOG_MAX toasts, with the game clock they arrived at
+    this.run = { t: 0, foot: 0, drive: 0, earned: 0, spent: 0, px: null, pz: null, cash: null, kills0: game.stats?.kills ?? 0, deaths0: game.stats?.deaths ?? 0 };
+    this.hudHidden = false;
+    // Every toast also lands in the RECENT log (one wrap of the HUD's toast; the HUD is built before this layer).
+    const toast = game.hud?.toast?.bind(game.hud);
+    if (toast) game.hud.toast = (text, kind = 'info') => { this.log.unshift({ text: String(text), kind, at: game.sky?.clock ?? '' }); if (this.log.length > LOG_MAX) this.log.length = LOG_MAX; toast(text, kind); };
 
     // The objective is a pinned paper ORDERS tag at the top of the HUD's left column (or loose in the root).
     (game.hud?.el?.objSlot ?? root).insertAdjacentHTML('beforeend', `
@@ -47,14 +62,19 @@ export class QOL {
         <div class="pm-buttons">
           <button data-a="resume">Resume</button>
           <button data-a="save">Quick save <kbd>F5</kbd></button>
-          <button data-a="load">Quick load <kbd>F9</kbd></button>
-          <button data-a="autoload">Load autosave</button>
+          <button data-a="load">Quick load <kbd>F9</kbd><small class="pm-ago" data-k="quick"></small></button>
+          <button data-a="autoload">Load autosave<small class="pm-ago" data-k="auto"></small></button>
           <button data-a="photo">Photo mode <kbd>K</kbd></button>
           <button data-a="map">Map <kbd>M</kbd></button>
+          <button data-a="hud">Hide HUD <kbd>F1</kbd></button>
         </div>
+        <div class="pm-section">THIS RUN</div>
+        <div class="pm-run"></div>
         <div class="pm-section">WHAT THEY CALL YOU</div>
         <div class="pm-roles"></div>
-        <div class="pm-section">SETTINGS</div>
+        <div class="pm-section">RECENT</div>
+        <div class="pm-log"></div>
+        <div class="pm-section">SETTINGS <button class="pm-reset" data-a="reset">Reset to defaults</button></div>
         <label>Difficulty <select data-s="difficulty"><option value="story">Story (35% damage taken)</option><option value="normal">Normal (70%)</option><option value="hard">Hard (100%)</option></select></label>
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
@@ -64,11 +84,19 @@ export class QOL {
         <label><input type="checkbox" data-s="autoReload"> Auto-reload when empty</label>
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
         <label><input type="checkbox" data-s="showFps"> Performance overlay</label>
+        <label>HUD size <select data-s="hudScale"><option value="0.8">Small</option><option value="0.9">Compact</option><option value="1">Normal</option><option value="1.12">Large</option><option value="1.25">Huge</option></select></label>
+        <label>Name tags <select data-s="nameTags"><option value="aim">Near your aim</option><option value="near">Everyone close by</option><option value="off">Off</option></select></label>
+        <label><input type="checkbox" data-s="dmgNumbers"> Damage numbers on hits</label>
+        <label><input type="checkbox" data-s="killFeed"> Kill feed</label>
+        <label>Autosave <select data-s="autosaveMin"><option value="0">Off</option><option value="2">Every 2 min</option><option value="3">Every 3 min</option><option value="5">Every 5 min</option><option value="10">Every 10 min</option></select></label>
+        <label><input type="checkbox" data-s="pauseOnBlur"> Pause when the window loses focus</label>
+        <label><input type="checkbox" data-s="muteOnBlur"> Mute when the window loses focus</label>
         <div class="pm-section">CONTROLS</div>
-        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · N sleep (a bed, a bedroll, a parked car) · B drop oil/caltrops · M map · Z zoom out (Shift+Z or = in, - out) · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
+        <div class="pm-keys">F1 hide HUD · click the ORDERS tag for the map (right-click clears the waypoint) · WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · N sleep (a bed, a bedroll, a parked car) · B drop oil/caltrops · M map · Z zoom out (Shift+Z or = in, - out) · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
       </div></div>`);
     const q = (s) => root.querySelector(s);
-    this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu'), roles: q('.pm-roles') };
+    this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu'), roles: q('.pm-roles'), run: q('.pm-run'), log: q('.pm-log'), mapHead: q('.bigmap-head span') };
+    this.ui = root;
     for (const [sel, art] of [['.obj-paper', paintPaper(316, 252)], ['.obj-pin', paintPin()]]) {
       const c = q(sel); c.width = art.width; c.height = art.height; c.getContext('2d').drawImage(art, 0, 0);
     }
@@ -81,10 +109,12 @@ export class QOL {
       if (a === 'map') { this.toggleMenu(false); this.toggleMap(true); }
       if (a === 'autoload') { this.quickLoad(AUTO_KEY); this.toggleMenu(false); }
       if (a === 'photo') { this.toggleMenu(false); this.togglePhoto(true); }
+      if (a === 'hud') { this.toggleMenu(false); this.toggleHud(true); }
+      if (a === 'reset') { this.settings = { ...DEFAULTS }; this.saveSettings(); this.syncInputs(); this.apply(); game.hud.toast('Settings reset to defaults'); }
     });
+    this.syncInputs();
     for (const inp of this.el.menu.querySelectorAll('[data-s]')) {
       const k = inp.dataset.s;
-      if (inp.type === 'checkbox') inp.checked = !!this.settings[k]; else inp.value = this.settings[k];
       inp.addEventListener('input', () => {
         this.settings[k] = inp.type === 'checkbox' ? inp.checked : inp.tagName === 'SELECT' && Number.isNaN(Number(inp.value)) ? inp.value : Number(inp.value);
         this.saveSettings();
@@ -101,6 +131,19 @@ export class QOL {
       this.drawBigMap();
     });
     this.el.mapCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.el.mapHead.textContent = 'Click: waypoint · right-click: clear · M closes  —  ◆ waypoint  ✕ raider camp  ★ base  ● people  ▪ empty car';
+    // The ORDERS tag is a button: click opens the map, right-click clears a waypoint you set.
+    this.el.obj.addEventListener('mousedown', (e) => { if (e.button === 2) { if (this.waypoint) this.setWaypoint(null); } else this.toggleMap(true); });
+    this.el.obj.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Focus: pause (and/or mute) when the window loses it. Never on an agent's tab; never over the title.
+    addEventListener('blur', () => {
+      if (AGENT_TAB || !this.titleGone) return;
+      if (this.settings.muteOnBlur && game.audio.master) game.audio.master.gain.value = 0;
+      if (this.settings.pauseOnBlur && !this.menuOpen && !this.photo && !game.dialogue?.active) this.toggleMenu(true);
+    });
+    addEventListener('focus', () => { if (game.audio.master) game.audio.master.gain.value = this.settings.volume; });
+    // F1 is the browser's help key: the HUD toggle takes it.
+    addEventListener('keydown', (e) => { if (e.code === 'F1') e.preventDefault(); });
 
     // Interaction ring under whatever E/F would act on.
     const ring = new THREE.RingGeometry(0.75, 0.95, 40); ring.rotateX(-Math.PI / 2);
@@ -113,6 +156,50 @@ export class QOL {
 
   damageTaken() { return DIFFICULTY[this.settings.difficulty] ?? 0.7; }
 
+  syncInputs() {
+    for (const inp of this.el.menu.querySelectorAll('[data-s]')) {
+      const k = inp.dataset.s;
+      if (inp.type === 'checkbox') inp.checked = !!this.settings[k]; else inp.value = String(this.settings[k]);
+    }
+  }
+
+  toggleHud(on = !this.hudHidden) {
+    this.hudHidden = on;
+    this.ui.classList.toggle('hud-hidden', on);
+    if (on) this.g.hud.toast('HUD hidden - F1 brings it back');
+  }
+
+  // Save times live beside the saves, so "3 min ago" survives a reload.
+  saveTimes() { try { return JSON.parse(localStorage.getItem(TIMES_KEY) ?? '{}'); } catch { return {}; } }
+  stampSave(k) { try { localStorage.setItem(TIMES_KEY, JSON.stringify({ ...this.saveTimes(), [k]: Date.now() })); } catch { /* storage blocked */ } }
+
+  // The pause menu's THIS RUN block: what this sitting has added up to.
+  runView() {
+    const g = this.g, R = this.run;
+    return { minutes: Math.round(R.t / 6) / 10, footKm: +(R.foot / 1000).toFixed(2), driveKm: +(R.drive / 1000).toFixed(2), earned: Math.round(R.earned), spent: Math.round(R.spent),
+      kills: (g.stats?.kills ?? 0) - R.kills0, deaths: (g.stats?.deaths ?? 0) - R.deaths0 };
+  }
+  renderRun() {
+    const v = this.runView();
+    this.el.run.innerHTML = [['Played', `${v.minutes} min`], ['On foot', `${v.footKm} km`], ['Driven', `${v.driveKm} km`], ['Earned', `$${v.earned}`], ['Spent', `$${v.spent}`], ['Kills', v.kills], ['Deaths', v.deaths]]
+      .map(([k, x]) => `<span><em>${k}</em><b>${x}</b></span>`).join('');
+  }
+  renderLog() {
+    this.el.log.innerHTML = this.log.length ? this.log.map((m) => `<div class="pm-log-row k-${esc(m.kind)}"><em>${esc(m.at)}</em>${esc(m.text)}</div>`).join('') : '<div class="pm-role-none">Nothing yet.</div>';
+  }
+  renderAgo() {
+    const T = this.saveTimes();
+    for (const el of this.el.menu.querySelectorAll('.pm-ago')) { const t = T[el.dataset.k]; el.textContent = t ? ` · ${ago(t)}` : ' · none yet'; }
+  }
+  // Rough time to the target: road speed in a car (70% of the rig's top speed), a walk-run on foot.
+  eta(len) {
+    const v = this.g.player.inVehicle, mps = v ? Math.max(8, (VEHICLES[v.type]?.maxSpeed ?? 30) * 0.7) : FOOT_MPS;
+    return len / mps;
+  }
+  view() {
+    return { settings: { ...this.settings }, run: this.runView(), log: this.log.slice(0, 5), hudHidden: this.hudHidden, saveTimes: this.saveTimes(), menuOpen: this.menuOpen };
+  }
+
   apply() {
     const g = this.g, s = this.settings;
     g.sky.sun.castShadow = !!s.shadows;
@@ -124,6 +211,8 @@ export class QOL {
     DRIVING.screenSteer = s.steer !== 'car';
     g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? 0.12)));
     g.hud.el.stats.classList.toggle('hidden', !g.showStats);
+    g.hud.rescale?.(); // the HUD size setting multiplies the screen-fit scale (ui/hud.js)
+    this.ui?.classList.toggle('no-killfeed', !s.killFeed);
   }
 
   // ---- objectives -------------------------------------------------------------------
@@ -152,10 +241,10 @@ export class QOL {
     return { text: 'The wasteland is yours. Mags has rumors; Ike has guns.', target: null };
   }
 
-  setWaypoint(p) {
+  setWaypoint(p, arrived = false) {
     this.waypoint = p;
     this.routeKey = '';
-    this.g.hud.toast(p ? `Waypoint set (${Math.round(p.x)}, ${Math.round(p.z)})` : 'Waypoint cleared');
+    this.g.hud.toast(p ? `Waypoint set (${Math.round(p.x)}, ${Math.round(p.z)})` : arrived ? 'ARRIVED' : 'Waypoint cleared', arrived ? 'job' : 'info');
     this.g.emit('waypoint', p ?? { cleared: true });
   }
 
@@ -253,7 +342,7 @@ export class QOL {
       c.font = '700 14px Barlow Condensed'; c.strokeText(t.name, x + 9, y + 5); c.fillStyle = '#f5c542'; c.fillText(t.name, x + 9, y + 5);
     }
     this.drawLayers(c, T); // your husk and car, the poles and knots (systems/clone.js, systems/travel.js)
-    if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
+    this.drawWaypoint(c, T, px, pz);
     const p = g.player, [ax, ay] = T(px, pz);
     c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
     c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
@@ -317,7 +406,7 @@ export class QOL {
     for (const camp of g.world.spawns.camps) { const [x, y] = T(camp.x, camp.z); c.fillStyle = '#ff4a3a'; c.font = 'bold 14px Barlow Condensed'; c.textAlign = 'center'; c.fillText('✕', x, y + 5); }
     this.drawRoute(c, T, 2);
     this.drawLayers(c, T); // your husk and car, the poles and knots (systems/clone.js, systems/travel.js)
-    if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
+    this.drawWaypoint(c, T, px, pz);
     const p = g.player, [ax, ay] = T(px, pz);
     c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
     c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
@@ -364,7 +453,7 @@ export class QOL {
     for (const v of g.vehicles) if (!v.dead && !v.driver) { const [x, y] = T(v.x, v.z); c.fillStyle = '#e8e2d4'; c.fillRect(x - 2, y - 2, 4, 4); }
     this.drawRoute(c, T, 3);
     this.drawLayers(c, T); // your husk and car, the poles and knots (systems/clone.js, systems/travel.js)
-    if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
+    this.drawWaypoint(c, T, px, pz);
     const p = g.player;
     const [x, y] = T(px, pz);
     c.save(); c.translate(x, y); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
@@ -376,7 +465,7 @@ export class QOL {
   toggleMenu(on = !this.menuOpen) {
     if (document.querySelector('.title')) return;
     this.menuOpen = on;
-    if (on) { this.toggleMap(false); this.renderRoles(); }
+    if (on) { this.toggleMap(false); this.renderRoles(); this.renderRun(); this.renderLog(); this.renderAgo(); }
     this.el.menu.classList.toggle('hidden', !on);
     this.g.paused = on || this.mapOpen;
   }
@@ -416,11 +505,11 @@ export class QOL {
   }
 
   quickSave() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot(this.g))); this.g.hud.toast('GAME SAVED', 'job'); this.g.emit('saved'); }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot(this.g))); this.stampSave('quick'); this.g.hud.toast('GAME SAVED', 'job'); this.g.emit('saved'); }
     catch (e) { this.g.hud.toast(`Save failed: ${e.message}`, 'warn'); }
   }
   autoSave() {
-    try { localStorage.setItem(AUTO_KEY, JSON.stringify(snapshot(this.g))); this.g.hud.toast('AUTOSAVED', 'info'); this.g.emit('autosaved'); }
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(snapshot(this.g))); this.stampSave('auto'); this.g.hud.toast('AUTOSAVED', 'info'); this.g.emit('autosaved'); }
     catch { /* storage full or blocked: skip silently, quick save still works */ }
   }
   quickLoad(key = SAVE_KEY) {
@@ -452,7 +541,43 @@ export class QOL {
     if (I.hit('KeyM')) this.toggleMap();
     if (I.hit('F5')) this.quickSave();
     if (I.hit('F9')) this.quickLoad();
+    if (I.hit('F1') && !this.photo) this.toggleHud();
     if (I.hit('KeyK') && !document.querySelector('.title') && !this.menuOpen && !this.mapOpen) this.togglePhoto();
+  }
+
+  // THIS RUN: distance on foot and driven (teleports > 40 m in a frame don't count), money in and out, time played.
+  // The cash plate shows each change as a small +$/−$ that rises off it.
+  trackRun(dt) {
+    const g = this.g, R = this.run, p = g.player, x = p.inVehicle?.x ?? p.x, z = p.inVehicle?.z ?? p.z;
+    R.t += dt;
+    if (R.px !== null) { const d = Math.hypot(x - R.px, z - R.pz); if (d < 40) { if (p.inVehicle) R.drive += d; else R.foot += d; } }
+    R.px = x; R.pz = z;
+    if (R.cash !== null && g.cash !== R.cash) {
+      const dc = g.cash - R.cash;
+      if (dc > 0) R.earned += dc; else R.spent -= dc;
+      this.cashDelta(dc);
+    }
+    R.cash = g.cash;
+  }
+  cashDelta(dc) {
+    const plate = this.g.hud?.el?.cash?.parentElement;
+    if (!plate || AGENT_TAB && this.g.paused) return;
+    const el = document.createElement('div');
+    el.className = `cash-delta ${dc > 0 ? 'up' : 'down'}`;
+    el.textContent = `${dc > 0 ? '+' : '−'}$${Math.abs(dc).toLocaleString('en-US')}`;
+    plate.appendChild(el);
+    while (plate.querySelectorAll('.cash-delta').length > 3) plate.querySelector('.cash-delta').remove();
+    setTimeout(() => el.remove(), 1500);
+  }
+
+  // The waypoint on the big map: the ring, and how far it is in a straight line.
+  drawWaypoint(c, T, px, pz) {
+    if (!this.waypoint) return;
+    const [x, y] = T(this.waypoint.x, this.waypoint.z), d = Math.hypot(this.waypoint.x - px, this.waypoint.z - pz);
+    c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke();
+    c.font = '700 13px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeStyle = '#1b1410'; c.fillStyle = '#f5b21a';
+    const t = d > 1000 ? `${(d / 1000).toFixed(1)} KM` : `${Math.round(d)} M`;
+    c.strokeText(t, x + 12, y + 4); c.fillText(t, x + 12, y + 4);
   }
 
   // Photo mode: freeze the world, hide every HUD layer, fly a free camera.
@@ -490,7 +615,9 @@ export class QOL {
     if (!g.paused && !document.querySelector('.title')) {
       this.autoT = (this.autoT ?? 0) + dt;
       const calm = g.player.alive && !g.chars.some((c) => c.alive && c.target === g.player) && !g.dialogue.active;
-      if (this.autoT > AUTOSAVE_EVERY && calm) { this.autoT = 0; this.autoSave(); }
+      const every = Number(this.settings.autosaveMin) * 60; // 0 = autosave off
+      if (every > 0 && this.autoT > every && calm) { this.autoT = 0; this.autoSave(); }
+      this.trackRun(dt);
     }
     const obj = this.updateRoute(dt);
     const p = this.g.player;
@@ -512,9 +639,10 @@ export class QOL {
       const fig = len === null ? (obj.target || this.waypoint ? -1 : -2) : len > 1000 ? Math.round(len / 100) * 100 : Math.round(len), mode = p.inVehicle ? 1 : 0;
       if (fig !== this.objFig || mode !== this.objMode) {
         this.objFig = fig; this.objMode = mode;
-        this.el.objDist.textContent = len !== null ? `${len > 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'} - ${p.inVehicle ? 'road route' : 'on foot'}` : (obj.target || this.waypoint ? 'no route' : '');
+        const eta = len !== null && len > 40 ? ` · ~${mmss(this.eta(len))}` : '';
+        this.el.objDist.textContent = len !== null ? `${len > 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'} - ${p.inVehicle ? 'road route' : 'on foot'}${eta}` : (obj.target || this.waypoint ? 'no route' : '');
       }
-      if (this.waypoint && len !== null && len < 6) this.setWaypoint(null);
+      if (this.waypoint && len !== null && len < 6) this.setWaypoint(null, true);
     }
     if (this.mapOpen) this.drawBigMap();
   }
