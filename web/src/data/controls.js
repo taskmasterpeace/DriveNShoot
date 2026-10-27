@@ -50,6 +50,7 @@ export const BINDINGS = [
   { id: 'ride', label: 'Ride along / change seat', group: 'WORLD', code: 'KeyC', keys: ['KeyC'], pad: { foot: 'back+a', drive: 'left', ride: 'left' } },
   { id: 'hang', label: 'Hang onto a car / jump on the train', group: 'WORLD', code: 'KeyG', keys: ['KeyG'], pad: { foot: 'back+b', drive: 'back+b', ride: 'back+b' } },
   { id: 'harpoon', label: 'Harpoon / yank (the Whaler)', group: 'DRIVING', code: 'KeyH', keys: ['KeyH'], pad: { drive: 'rb' } },
+  { id: 'detonate', label: 'Set off your remote charges / drop a drone bomb', group: 'WEAPONS', code: 'KeyU', keys: ['KeyU'], pad: { foot: 'back+right', drive: 'back+right' } },
   { id: 'dropTail', label: 'Drop oil, caltrops or smoke off the tail', group: 'DRIVING', code: 'KeyB', keys: ['KeyB'], pad: { drive: 'b' } },
   { id: 'pack', label: 'Pack', group: 'WORLD', code: 'Tab', keys: ['Tab', 'KeyI'], pad: { foot: 'down', drive: 'down', ride: 'down', menu: 'b' } },
   { id: 'use', label: 'Patch up, drink or eat (what you need most)', group: 'WORLD', code: 'KeyV', keys: ['KeyV'], pad: { foot: 'right', drive: 'right', ride: 'right' } },

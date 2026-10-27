@@ -1,4 +1,5 @@
 import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
+import { GADGETS, DRONES, DOOR_KIT } from './gadgets.js';
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
@@ -218,3 +219,8 @@ for (const [id, r] of Object.entries(GEAR)) {
 }
 for (const [table, row] of Object.entries(GEAR_LOOT)) LOOT[table] ??= row;
 for (const [table, rows] of Object.entries(GEAR_LOOT_ADD)) if (LOOT[table]) LOOT[table].rows.push(...rows);
+// ---- gadgets, drones and the door kit (data/gadgets.js, docs/design/WEB_GADGETS.md): placed, thrown or launched through
+// use act 'gadget' / 'drone' (systems/gadgets.js). A drone leaves the pack when it flies and comes back when it lands.
+for (const [id, r] of Object.entries(GADGETS)) ITEMS[id] ??= { name: r.name, kind: 'gadget', ...r.item, use: { act: 'gadget' }, tags: ['gadget'] };
+for (const [id, r] of Object.entries(DRONES)) ITEMS[`drone_${id}`] ??= { name: r.name, kind: 'drone', ...r.item, use: { act: 'drone' }, tags: ['drone'] };
+for (const [id, r] of Object.entries(DOOR_KIT)) ITEMS[id] ??= r;

@@ -56,6 +56,7 @@ const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
+import { Gadgets } from './systems/gadgets.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -196,6 +197,7 @@ class Game {
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
+    this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.insideBuilding = null;
     this.paused = true;
@@ -700,6 +702,8 @@ class Game {
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
+    // Flying a drone (systems/drones.js): the keys fly it, your body stays put (a car you sit in is held parked).
+    if (this.drones?.piloting) { p.speed = 0; const dv = p.inVehicle; if (dv?.driver === p) { dv.throttle = 0; dv.steer = 0; dv.handbrake = true; } this.drones.input(I); return; }
     if (I.hit('KeyN')) { if (!this.travel.napRide()) this.trySleep(); return; } // on the trundle with a punch: sleep through the trip
     if (I.hit('KeyV')) this.quickUse();
 
@@ -1063,6 +1067,7 @@ class Game {
       tz += clamp((this.aim.z - p.z) * 0.25, -lean, lean);
       if (this.insideBuilding) h = Math.min(h, ZOOM.indoor);
     }
+    if (this.droneCam?.active) { tx = this.droneCam.x; tz = this.droneCam.z; h = Math.max(h, this.droneCam.h); } // the drone's eye (systems/drones.js) while you fly it
     // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
     this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
     // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
@@ -1212,6 +1217,7 @@ class Game {
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
+      this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
       this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);

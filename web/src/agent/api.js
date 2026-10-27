@@ -44,6 +44,7 @@ import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATO
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
+import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js'; // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -1961,6 +1962,8 @@ function buildCommands(api) {
     ...cloneCommands(api, need),
     // L5 LIFE: the regional animals (src/agent/faunatools.js, docs/design/WEB_FAUNA.md).
     ...faunaCommands(api, need),
+    // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
+    ...gadgetsCommands(api, need),
   };
 }
 
@@ -2076,6 +2079,10 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  // Town security (systems/security.js) would send bulls after every star an unrelated check raises, and its patrol car
+  // would drive through them: off for the battery; its own checks turn it on.
+  const secWas = { auto: g.security.auto, ambient: g.security.ambient };
+  g.security.auto = false; g.security.ambient = false;
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5801,6 +5808,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   g.fauna.enabled = faunaWas;
+  await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
+  g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;

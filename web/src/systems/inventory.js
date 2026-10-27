@@ -218,6 +218,7 @@ export class Inventory {
       d[part] = Math.min(1, d[part] + amt);
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
+    if (verb === 'gadget' || verb === 'drone' || verb === 'barricade' || verb === 'wedge' || verb === 'keys') return g.gadgets?.useItem(verb, s.id) ?? { ok: false, why: 'not here' }; // set, thrown or flown (systems/gadgets.js)
     if (verb === 'sleep') return g.survival?.sleepAt('bedroll') ?? { ok: false, why: 'not now' }; // where you stand
     if (verb === 'snare') return g.fauna?.setSnare() ?? { ok: false, why: 'not here' }; // a snare a stride ahead (systems/fauna.js)
     if (verb === 'flare') { // struck and put down: a small fire at your feet for a minute (dogs keep off it, systems/dogs.js)
