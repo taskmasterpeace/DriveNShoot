@@ -224,7 +224,7 @@ export class Zombies {
   // Noise draws every infected in range toward it.
   onNoise(x, z, r) {
     for (const c of this.g.chars) {
-      if (c.faction !== 'zombie' || !c.alive) continue;
+      if (c.faction !== 'zombie' || !c.alive || c.ug) continue; // below the street a noise travels its own corridors (systems/underground.js)
       // A sprinter breaks at a noise inside its ear.
       if (c.zkind === 'sprinter' && Math.abs(c.x - x) < SP.ear && Math.abs(c.z - z) < SP.ear && Math.hypot(c.x - x, c.z - z) <= Math.min(r, SP.ear)) this.burst(c, 'noise');
       if (c.ztarget || c.zkind === 'echo' || c.zkind === 'choir' || c.wild) continue;
@@ -238,6 +238,7 @@ export class Zombies {
     let best = null, bd = SMELL;
     for (const o of this.g.chars) {
       if (!o.alive || o.faction === 'zombie' || o.hidden || o.underwater || o === c) continue; // no scent under water
+      if ((o.ug ?? null) !== (c.ug ?? null)) continue; // nor through the earth over a level below
       const ox = o.inVehicle ? o.inVehicle.x : o.x, oz = o.inVehicle ? o.inVehicle.z : o.z;
       let d = Math.abs(ox - c.x) + Math.abs(oz - c.z);
       if (o === this.g.player) d *= 0.8; // the living hero smells best

@@ -45,6 +45,10 @@ export class StaticWorld {
       this.ring.push({ cx: 0x7fffffff, cz: 0x7fffffff, cells, boxes: EMPTY, used: false, gen: 0 });
     }
     this.chunkBoxes = 0; // boxes registered across the ring (for perf/world reports)
+    // THE UNDERGROUND (systems/underground.js): a second StaticWorld for whoever is below the surface (c.ug), and the few
+    // `extra` boxes round an open entrance (its collar) that the street's movers meet but its hash and nav grids never see.
+    this.under = null;
+    this.extra = [];
   }
 
   // An opening's entry: bucketed over the area it can ever occupy (a door's whole swing).
@@ -160,6 +164,7 @@ export class StaticWorld {
           for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
         }
     }
+    for (let i = 0; i < this.extra.length; i++) pushed += this.circleBox(this.extra[i], stamp, p, r, mover, minY, skip, topY);
     return pushed;
   }
 
@@ -168,6 +173,7 @@ export class StaticWorld {
   // the floor above's over their head. Everywhere else, the old flat rule (dunes, ramps and bridges as they were).
   // mover: who pushes doors (the person by default; null for a shove in a crowd, where a door is as solid as a wall).
   resolveBody(p, r, c, mover = c) {
+    if (c?.ug && this.under) { const u = c.gy ?? 0; return this.under.resolveCircle(p, r, mover, u + 0.25, null, u + 2.4); } // underground: the level's own walls at its own height
     const y = c?.storey ? c.gy ?? 0 : 0;
     return y > 0.5 ? this.resolveCircle(p, r, mover, y + 0.25, null, y + 2.4) : this.resolveCircle(p, r, mover);
   }
@@ -203,6 +209,11 @@ export class StaticWorld {
   // mode: RAY_SOLID | RAY_SIGHT | RAY_BULLET (see the top of the file). y >= 0: the ray's height (a
   // thrown thing): anything lower than it is flown over, so a sill can't hide the glass behind it.
   raycast(x0, z0, dx, dz, maxDist, mode = RAY_SOLID, y = -1) {
+    if (y < -1.5 && this.under) { // a ray at an underground height is the UnderWorld's (systems/underground.js)
+      const t = this.under.raycast(x0, z0, dx, dz, maxDist, mode, y), h = this.under.hit;
+      this.hit.t = t; this.hit.nx = h.nx; this.hit.nz = h.nz; this.hit.box = h.box;
+      return t;
+    }
     const stamp = ++this.stamp;
     const step = this.cell * 0.5;
     this.best = maxDist;

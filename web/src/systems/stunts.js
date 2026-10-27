@@ -117,6 +117,7 @@ export class Stunts {
   // Ground height at (x, z), and which ramp made it (hitRamp, hitS, hitU) - or 0 and null on the open ground.
   heightAt(x, z, y = 0) {
     this.hitRamp = null;
+    if (this.under) { const u = this.under.heightAt(x, z, y); if (u !== null) return u; } // a level below the street, its flights (systems/underground.js)
     if (this.storeys) { const s = this.storeys.heightAt(x, z, y); if (s !== null) return s; } // a floor, a stair (world/storeys.js)
     if (this.ext && this.outside(x, z)) return this.ext.heightAt(x, z, y);
     const list = this.cells[this.ci(z) * N + this.ci(x)];

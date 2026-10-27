@@ -433,6 +433,11 @@ export class Storeys {
 
   // Two people share a floor: outside these buildings, always (the old flat rule: dunes, ramps and bridges unchanged).
   sameFloor(a, b) {
+    // Under the street (systems/underground.js): the street and a level below never share a floor; two people below do
+    // when their feet are at one height.
+    const ua = a.ug ?? null, ub = b.ug ?? null;
+    if (ua !== ub) return false;
+    if (ua) return Math.abs((a.gy ?? 0) - (b.gy ?? 0)) <= LEVEL.same;
     if (!this.list.length) return true;
     const ay = a.gy ?? 0, by = b.gy ?? 0;
     if (Math.abs(ay - by) <= LEVEL.same) return true;
@@ -442,6 +447,8 @@ export class Storeys {
   // The point to head for to reach (tx, tz) at height ty, when the stairs are the way: on a flight, its far end; on a
   // floor, the end of the flight that leads toward the target's floor (its near landing first, then through it).
   steer(c, tx, tz, ty = 0) {
+    const u = this.g.under?.steer(c, tx, tz, ty); // down a hatch, along a level, up a flight (systems/underground.js)
+    if (u !== undefined) return u;
     if (!this.list.length) return null;
     const S = this.at(c.x, c.z), cy = c.gy ?? 0;
     if (!S) return null;

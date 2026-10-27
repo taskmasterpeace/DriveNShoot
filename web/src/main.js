@@ -48,6 +48,7 @@ import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
+import { Underground } from './systems/underground.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
@@ -164,6 +165,10 @@ class Game {
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
+    // Caves, bunker levels, the secret facilities (docs/design/WEB_UNDERGROUND.md): levels below the street on their own
+    // StaticWorld, promoted near you; after the interiors (their doors hang its leaves).
+    this.under = new Underground(this);
+    this.stunts.under = this.under;
     this.materials = new Materials(this); // what everything is made of: rounds through it, blasts, fire, rams, breaking; blood on walls (this.blood)
     this.zombies = new Zombies(this);
     this.train = new Train(this);
@@ -416,25 +421,26 @@ class Game {
   los(ax, az, bx, bz) { return this.statics.lineOfSight(ax, az, bx, bz) && !this.throwables.blocksSight(ax, az, bx, bz); }
   // The same at a floor's height (world/storeys.js): y = the floor (0 on the street, where it is exactly los()).
   losAt(ax, az, bx, bz, y = 0) {
-    if (y < 0.5) return this.los(ax, az, bx, bz);
+    if (y < 0.5 && y > -0.5) return this.los(ax, az, bx, bz);
     return this.statics.lineOfSight(ax, az, bx, bz, RAY_SIGHT, y + LEVEL.eye) && !this.throwables.blocksSight(ax, az, bx, bz);
   }
   // Can person a see person b: on their floor, and nothing in the way at its height. Outside the storeyed buildings,
   // exactly the old flat line of sight.
   sees(a, b) {
     if (!this.storeys.sameFloor(a, b)) return false;
-    return this.losAt(a.x, a.z, b.x, b.z, a.storey || b.storey ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0);
+    return this.losAt(a.x, a.z, b.x, b.z, a.storey || b.storey || a.ug ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0); // below the street: that level's walls
   }
 
   // Throw the selected throwable at the aim point (cooked = seconds already held).
   throwSelected(cooked = 0) {
     const k = this.inv.throwable, n = this.inv.throwables[k] ?? 0;
+    if (this.player.ug) { this.hud.toast('NO ROOM TO LOB ONE DOWN HERE · SET IT ON A DOOR (HOLD E)', 'warn'); return null; } // v1: throws are the street's (WEB_UNDERGROUND §5)
     if (n <= 0) { this.hud.toast(`No ${THROWABLES[k].name.toLowerCase()} left`, 'warn'); return null; }
     this.inv.throwables[k] = n - 1;
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -454,6 +460,7 @@ class Game {
     if (c.perchY) { c.gy = c.perchY; return; }
     c.gy = this.stunts.heightAt(c.x, c.z, c.gy ?? 0);
     c.storey = this.storeys.at(c.x, c.z);
+    c.ug = this.under?.siteOf(c) ?? null; // below the street: which site's level (systems/underground.js)
   }
 
   // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
@@ -562,7 +569,7 @@ class Game {
     // held and its spare rounds in it (a soldier's rifle is the prize).
     if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
       const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
-      if ((c.gy ?? 0) > 0.5 && c.storey) body.y = c.gy; // the dead lie on their own floor
+      if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
     }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); this.clone.onDeath(c); } // the husk lies where you fell
@@ -678,7 +685,8 @@ class Game {
     _ndc.set(I.mouse.nx, I.mouse.ny);
     _ray.setFromCamera(_ndc, this.camera);
     if (this.aimOverride) { this.aim.x = this.aimOverride.x; this.aim.z = this.aimOverride.z; }
-    else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
+    _plane.constant = -((p.ug ? p.gy ?? 0 : 0) + 1.2); // below the street the aim plane is at your chest there
+    if (!this.aimOverride && _ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
     if (!this.aimOverride) this.controls.aimAt(p, dt, p.inVehicle ?? p); // the pad in hand: the right stick aims
 
     if (this.dialogue.active) { p.speed = 0; return; }
@@ -808,7 +816,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -848,7 +856,7 @@ class Game {
     p.walk += stridePhase(p.speed, dt);
     if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
       const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
-      this.audio.step(this.insideBuilding ? 'floor' : onRoad ? 'road' : 'sand', 0);
+      this.audio.step(this.insideBuilding || p.ug ? 'floor' : onRoad ? 'road' : 'sand', 0);
     }
     if (this.qol.settings.aimAssist && !this.aimOverride) {
       // Aim assist: snap to the closest living character within 2.2m of the cursor.
@@ -886,14 +894,14 @@ class Game {
     if (this.gunpoint.playerInteract(p, I, dt)) return;
     let best = null, bd = 2.8;
     for (const c of this.chars) {
-      if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.target === p) continue;
+      if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.faction === 'zombie' || c.target === p) continue; // nobody talks to the dead
       if (!this.storeys.sameFloor(p, c)) continue; // the floor between you
       const d = Math.hypot(c.x - p.x, c.z - p.z);
       if (d < bd) { bd = d; best = c; }
     }
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same)) continue; // the street's cars, from upstairs: no
+      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v) continue; // the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
@@ -905,18 +913,19 @@ class Game {
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
-    const op = !best && !bestV && !dog && !dk && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
+    const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
+    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
-    const game = !best && !bestV && !op && !dog && !dk ? this.fauna.nearFor(p) : null;
+    const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
-    const spot = !best && !bestV && !op && !dog && !dk && !game ? this.travel.spotNear(p) : null;
-    const box = !best && !bestV && !op && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    const spot = !best && !bestV && !op && !ugI && !dog && !dk && !game ? this.travel.spotNear(p) : null;
+    const box = !best && !bestV && !op && !ugI && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !ugI && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
-    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? (box || bed ? this.boxRing : null));
+    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed ? this.boxRing : null));
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
@@ -927,7 +936,7 @@ class Game {
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op) this.hud.prompt(null);
+    else if (!op && !ugI) this.hud.prompt(null);
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
@@ -1061,14 +1070,14 @@ class Game {
       const lean = 8 * Math.max(1, L.foot / 33);
       tx += clamp((this.aim.x - p.x) * 0.25, -lean, lean);
       tz += clamp((this.aim.z - p.z) * 0.25, -lean, lean);
-      if (this.insideBuilding) h = Math.min(h, ZOOM.indoor);
+      if (this.insideBuilding || p.ug) h = Math.min(h, ZOOM.indoor); // below the street: the indoor height
     }
     // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
     this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
     // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
     // On real terrain (flag, world/realterrain.js) it keeps its height above the ground it looks at.
     const T = this.streamer?.W?.terrain;
-    const floorY = this.insideBuilding?.storey && !v ? p.gy ?? 0 : T ? T.at(this.camLook.x, this.camLook.z) : 0;
+    const floorY = (this.insideBuilding?.storey || p.ug) && !v ? p.gy ?? 0 : T ? T.at(this.camLook.x, this.camLook.z) : 0;
     this.camFloor = (this.camFloor ?? 0) + (floorY - (this.camFloor ?? 0)) * (1 - Math.exp(-dt * ZOOM.heightRate));
     if (T) this.camLook.y = this.camFloor; // the sun's shadow box follows it up and down (sky.js)
     const k = 1 - Math.exp(-dt * ZOOM.follow);
@@ -1081,6 +1090,7 @@ class Game {
     const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
     this.camera.position.set(this.camLook.x + sx, this.camHeight + this.camFloor, this.camLook.z + this.camHeight * 0.14 + sz);
     this.camera.lookAt(this.camLook.x + sx, this.camFloor, this.camLook.z + sz);
+    this.under?.view(this.camera); // below the street: the clipping plane, the level shown, the light (systems/underground.js)
   }
 
   updateInterior() {
@@ -1229,25 +1239,27 @@ class Game {
     this.updateFootprints();
     this.updateInterior();
     this.updateCamera(dt);
+    this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
     this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat, this.viewR);
     this.streamer.postSky(); // the dust wall thickens the fog; streamed surfaces follow the sky's wet/dry tint
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
-    const flashOn = this.flashOverride ?? this.sky.night > 0.55;
+    const flashOn = this.flashOverride ?? (this.sky.night > 0.55 || !!p.ug); // below the street it comes on by itself (L still switches it)
     // The darker the night (the Night setting, systems/sky.js nightLight), the more your light carries: brighter and longer
-    // (an additive cone, no light of its own: the fixed light count holds).
-    const dark = this.sky.night * (1 - this.sky.nightLight);
-    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 + 0.35 * dark : 0;
+    // (an additive cone, no light of its own: the fixed light count holds). Below the street: the underground's cone.
+    const dark = p.ug ? 0 : this.sky.night * (1 - this.sky.nightLight);
+    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? (p.ug ? this.under.coneOpacity : 0.55 + 0.35 * dark) : 0;
     this.flashlight.scale.set(1, 1, 1 + 0.45 * dark);
-    this.flashlight.position.set(p.x, 0, p.z);
+    this.flashlight.position.set(p.x, p.ug ? p.gy ?? 0 : 0, p.z);
     this.flashlight.rotation.y = p.face;
     this.charR.sync(this.chars, dt);
     this.dogs.draw(dt);
     this.fauna.draw(dt);
     const pv = p.inVehicle;
-    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
+    const amb = p.ug ? 0 : 1; // below the street no wind, no rain on the roof
+    this.audio.ambience(this.sky.cur.rain * amb, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5) * amb, pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.weaponBar.update(dt);
     this.qol.update(dt);
