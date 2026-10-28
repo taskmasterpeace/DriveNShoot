@@ -244,11 +244,12 @@ export async function pullsChecks(api, check, C) {
       const row = tr.stock.find((x) => x[1] > 0), it = row?.[0], n0 = row?.[1], have0 = g.inventory.carried.count(it), purse0 = tr.people[0].purse;
       g.cash = 500;
       const r = S.buy(tr.id, it);
+      S.tick(0); // the sighting is the pulls tick's (twice a second): one now, before reading the board
       const seen = S.board().find((x) => x.subject === tr.id);
       g.pullsUI.refresh();
       const chip = g.pullsUI.chipEl?.querySelector('b')?.textContent;
       const ok = r.ok && row[1] === n0 - 1 && g.inventory.carried.count(it) === have0 + 1 && tr.people[0].purse === purse0 + r.cost && g.cash === 500 - r.cost && seen?.channel === 'saw' && Number(chip) >= 1;
-      return ok ? true : JSON.stringify({ r, it, n: [n0, row?.[1]], purse: [purse0, tr.people[0].purse], seen, chip });
+      return ok ? true : JSON.stringify({ r, it, n: [n0, row?.[1]], purse: [purse0, tr.people[0].purse], seen, chip, d: r1(Math.hypot(c.x - p.x, c.z - p.z)), sees: g.sees(p, c), night: g.sky.night, live: tr.live, alive: c.alive, inCar: !!p.inVehicle, holds: K.holds('player', tr.fact) });
     });
   } finally {
     forget(madeBy);
