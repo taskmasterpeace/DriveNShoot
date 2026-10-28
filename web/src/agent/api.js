@@ -49,6 +49,8 @@ import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
 import { voiceStatsCommands } from './voicestats.js';
 import { voiceStatsChecks } from './voicestats-selftest.js';
+import { outdoorsCommands } from './outdoors-api.js';
+import { outdoorsChecks } from './outdoors-selftest.js';
 import { qolChecks } from './qol-selftest.js';
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
@@ -2006,6 +2008,7 @@ function buildCommands(api) {
     ...faunaCommands(api, need),
     // Sound sets, barks, the local model's talk, the deep sheet, the journal (src/agent/voicestats.js, docs/design/WEB_VOICE_STATS.md).
     ...voiceStatsCommands(api, need),
+    ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
   };
 }
 
@@ -5858,6 +5861,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
   g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
+  await outdoorsChecks(api, check, C); // THE WILDS: birds out of the sky, tracks, fishing, foraging, traps, the camp (src/agent/outdoors-selftest.js)
   g.fauna.enabled = faunaWas;
   // The underground (docs/design/WEB_UNDERGROUND.md §8): agent/underground-api.js.
   await undergroundChecks({ api, g, check, C, snapshot, restore });

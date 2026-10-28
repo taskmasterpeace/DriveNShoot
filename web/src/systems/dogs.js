@@ -393,7 +393,11 @@ export class Dogs {
     }
     if (cmd === 'seek') {
       const s = d.seek;
-      if (!s || (s.kind === 'cache' && s.ref.dug) || (s.kind === 'box' && s.ref.rolled)) { d.seek = null; d.cmd = 'heel'; }
+      if (s?.kind === 'track' || s?.kind === 'fetch') { // a scent trail, or a bird you shot (systems/outdoors.js dogSeek)
+        const w = g.outdoors?.dogSeek(d, s, dt);
+        if (w) { d.state = w.state; if (w.state === 'track') A.head = Math.max(A.head - dt * 2, -0.5); return W(d, w.x, w.z, w.v, w.face, w.v > 0 && Math.hypot(w.x - d.x, w.z - d.z) > 6); }
+        d.seek = null; d.cmd = 'heel';
+      } else if (!s || (s.kind === 'cache' && s.ref.dug) || (s.kind === 'box' && s.ref.rolled)) { d.seek = null; d.cmd = 'heel'; }
       else {
         const k = Math.hypot(s.x - d.x, s.z - d.z);
         if (k > 1.1) { d.state = 'seek'; A.head = Math.max(A.head - dt * 2, -0.45); d.digT = 0; return W(d, s.x, s.z, k > 6 ? p.speed * 0.9 : 2.2, undefined, k > 6); }
@@ -787,6 +791,8 @@ export class Dogs {
     else if (call === 'seek') {
       const s = this.seekTarget();
       if (s) for (const d of mine) { d.seek = { ...s }; this.order(d, 'seek'); }
+      const tr = !s && mine.length ? g.outdoors?.trackOrder() : null; // nothing buried or unsearched near: the freshest trail (systems/outdoors.js)
+      if (tr?.ok) { out.trail = { who: tr.who, species: tr.species }; g.emit('whistle', out); return out; }
       toast = s ? '*WHISTLE ×3* · GO FIND IT' : '*WHISTLE ×3* · NOTHING TO SNIFF OUT';
       out.found = s ? { kind: s.kind, id: s.ref.id, x: +s.x.toFixed(1), z: +s.z.toFixed(1) } : null;
     } else if (call === 'sic') {

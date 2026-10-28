@@ -345,6 +345,8 @@ export class AI {
       if (c.bed && !this.night()) { if (c.bed.by === c.id) c.bed.by = null; c.bed = null; } // the claim ends with the night
       // A base's soldiers keep their posts, walk their patrols, close on a trespasser (systems/bases.js).
       if (c.baseId && g.bases?.think(c, dt)) continue;
+      // A hunter or a skip tracer on somebody's trail works their sign (systems/outdoors.js trailStep).
+      if (c.trailing && g.outdoors?.trailStep(c, dt)) continue;
       // Idle wander.
       c.timer -= dt;
       const dh = Math.hypot(c.wx - c.x, c.wz - c.z);
