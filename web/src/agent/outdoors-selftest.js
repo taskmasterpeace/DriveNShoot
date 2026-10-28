@@ -66,7 +66,7 @@ export async function outdoorsChecks(api, check, C) {
     const cam = g.camera.position, ray = new THREE.Ray(cam.clone(), new THREE.Vector3(v.x - cam.x, v.alt - cam.y, v.z - cam.z).normalize());
     const aim = { x: 0, z: 0, y: 0 }, picked = F.skyAim(ray, aim) === v && Math.abs(aim.y - v.alt) < 0.01 && aim.x === v.x;
     // Flat (the aim on the ground under it): the pellets go under the bird.
-    const hp0 = v.hp;
+    const hp0 = v.hp, seqU = g.eventSeq;
     g.aimOverride = { x: v.x, z: v.z }; await C('step', { seconds: 0.2 });
     await C('fire', { x: v.x, z: v.z, shots: 2 });
     const under = !v.dead && v.hp === hp0;
@@ -79,7 +79,7 @@ export async function outdoorsChecks(api, check, C) {
     const b = down ? await C('butcher', { id: v.id, force: true }) : { ok: false };
     const feathers = g.inventory.carried.count('feathers');
     const ok = alt > 6 && picked && under && down && landed && b.ok !== false && feathers >= 2;
-    return ok ? true : JSON.stringify({ alt, picked, aim, under, hp: v.hp, hunt: r, butcher: b.error ?? b.items, feathers }).slice(0, 500);
+    return ok ? true : JSON.stringify({ hitBy: since(seqU, 'faunaHit', (e) => e.id === v.id).map((e) => [e.cause, e.dmg]).concat(since(seqU, 'faunaKilled', (e) => e.id === v.id).map((e) => [e.by, e.cause])), alt, picked, aim, under, hp: v.hp, hunt: r, butcher: b.error ?? b.items, feathers }).slice(0, 500);
   }));
 
   // ---- 2. THE QUIET --------------------------------------------------------------------------------------------------------
