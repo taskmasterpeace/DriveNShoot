@@ -47,6 +47,8 @@ import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
+import { zfightCommands, zfightChecks } from './zfight.js';
+import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-fight detector (WEB_DEPTH_LAYERS.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
@@ -483,7 +485,7 @@ function buildCommands(api) {
       run: async ({ quality, width, height, x, z, zoom, tilt }) => {
         // Render at a fixed size so it works even when the tab is hidden / 0x0.
         const r = g.renderer, cam = g.camera;
-        const prevPR = r.getPixelRatio(), prevW = r.domElement.width, prevH = r.domElement.height, prevAspect = cam.aspect;
+        const prevPR = r.getPixelRatio(), prevW = r.domElement.width, prevH = r.domElement.height, prevAspect = cam.aspect, prevNear = cam.near;
         r.setPixelRatio(1); r.setSize(width, height, false);
         cam.aspect = width / height; cam.updateProjectionMatrix();
         if (g.qol.photo) g.qol.placePhotoCamera(); else g.updateCamera(0.016);
@@ -494,14 +496,14 @@ function buildCommands(api) {
           // Camera override for close-ups / inspecting a spot: zoom = camera height in metres.
           const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight, t = Math.max(-1.6, Math.min(1.6, tilt ?? 0.14));
           const by = g.streamer.W.terrain ? g.streamer.W.groundAt(cx, cz) : 0; // real terrain (flag): above the ground there
-          cam.position.set(cx, by + h, cz + h * t); cam.lookAt(cx, by, cz);
+          cam.position.set(cx, by + h, cz + h * t); cam.lookAt(cx, by, cz); cam.near = nearFor(h * Math.hypot(1, t)); cam.updateProjectionMatrix(); // the near plane follows the boom (depthlayers.js)
           if (far) { const vr = Math.hypot(h * 0.3839, h * 0.3839 * cam.aspect) * 1.15; g.sky.update(0, by ? { x: cx, y: by, z: cz } : { x: cx, z: cz }, g.world.groundMat, g.world.roadMat, vr); g.streamer.postSky(); } // the sun's shadow box and the haze go with the shot
         }
         r.render(g.scene, cam);
         if (far) { const f = g.streamer.focus(); g.streamer.ensureHot(f.x, f.z, 'screenshot'); g.sky.update(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); g.streamer.postSky(); }
         const image = r.domElement.toDataURL('image/jpeg', quality);
         r.setPixelRatio(prevPR); r.setSize(Math.max(1, prevW / prevPR), Math.max(1, prevH / prevPR), false);
-        cam.aspect = prevAspect; cam.updateProjectionMatrix();
+        cam.aspect = prevAspect; cam.near = prevNear; cam.updateProjectionMatrix();
         return { image, width, height, note: 'world render only; DOM HUD not included' };
       },
     },
@@ -2027,6 +2029,7 @@ function buildCommands(api) {
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
+    ...zfightCommands(api), // zfight (WEB_DEPTH_LAYERS.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.

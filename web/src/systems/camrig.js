@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ZOOM, CAMERA } from '../data/camera.js';
+import { nearFor } from '../engine/depthlayers.js';
 
 // The play camera: one boom, four views, a continuous zoom that remembers itself per view and per mode
 // (data/camera.js; docs/design/WEB_CAMERA.md).
@@ -135,7 +136,10 @@ export class CamRig {
     cam.position.set(look.x + sx + hz * Math.sin(this.yaw), g.camHeight + floorY, look.z + sz + hz * Math.cos(this.yaw));
     cam.lookAt(look.x + sx, floorY, look.z + sz);
     const far = ev === 'TOPDOWN' ? CAMERA.far : CAMERA.farTilted;
-    if (cam.far !== far) { cam.far = far; cam.updateProjectionMatrix(); }
+    // The near plane follows the boom (engine/depthlayers.js nearFor): depth precision on the ground goes as near / D², so a
+    // 1 m near plane at the widest zoom made 2 mm layers flicker. Re-projected only when it moves more than 5%.
+    const near = nearFor(this.D);
+    if (cam.far !== far || Math.abs(cam.near - near) > cam.near * 0.05) { cam.far = far; cam.near = near; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();
     g.viewR = this.viewRadius(cam, look, floorY);
     this.baseR = g.viewR;
