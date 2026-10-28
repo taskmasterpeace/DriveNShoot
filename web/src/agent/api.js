@@ -47,6 +47,7 @@ import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
+import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md)
 import { zfightCommands, zfightChecks } from './zfight.js';
 import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-fight detector (WEB_DEPTH_LAYERS.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
@@ -2042,6 +2043,7 @@ function buildCommands(api) {
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
+    ...hudCommands(api, need), // hud (WEB_UI_EDITOR.md)
     ...zfightCommands(api), // zfight (WEB_DEPTH_LAYERS.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
@@ -5969,6 +5971,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
+  await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
