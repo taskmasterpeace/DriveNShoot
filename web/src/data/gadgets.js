@@ -69,7 +69,7 @@ export const GADGETS = {
     item: { kg: 0.3, bulk: 0.25, value: 10, stack: 6, desc: 'A long-burning red flare. Lights a street at night; every eye and every dead thing turns to it.' },
     source: { craft: [['flare', 2]], buy: 10, loot: 'cars, the security station' },
   },
-  smoke_can: {
+  smoke_canister: {
     name: 'Smoke canister', verb: 'throw', arm: 0, trigger: 'timer', fuse: 1.2,
     effect: { smoke: { r: 8.5, dur: 26 } }, hurts: 'none', notice: { spot: 40, tell: 'a hissing can' },
     item: { kg: 0.6, bulk: 0.5, value: 25, stack: 3, desc: 'A fat grey can. A street of smoke for half a minute: nobody sees through it, you included.' },

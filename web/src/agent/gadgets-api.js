@@ -197,11 +197,13 @@ export async function gadgetsChecks(api, check, C) {
 
     await check('gadgets: a crawler mine set down walks to a staged raider 15 m off and kills it inside 8 s', async () => {
       clean(); await home(S.x - S.fx * 6, S.z - S.fz * 6);
+      // Staging: nothing else it could rightly go for inside its reach (an earlier check's infected or wolves).
+      for (const c of [...g.chars]) if (c.alive && c !== P() && !c.npc && GX.enemyOf(P(), c) && Math.hypot(c.x - S.x, c.z - S.z) < 40) g.removeChar(c);
       const r = g.spawnRaider(S.x + S.fx * 15, S.z + S.fz * 15, Math.random, 'pistol'); r.gadgetTest = true; r.hold = true; r.weapon = null;
-      const t = GX.place('crawler_mine', S.x, S.z, S.h, P(), { state: 'armed', armAt: 0 });
+      let hunted = null; const t = GX.place('crawler_mine', S.x, S.z, S.h, P(), { state: 'armed', armAt: 0 });
       let at = null;
-      for (let k = 0; k < 16 && r.alive; k++) { await C('step', { seconds: 0.5 }); if (!r.alive) at = (k + 1) * 0.5; }
-      return !r.alive && at <= 8 ? true : `raider ${r.alive ? `alive hp ${Math.round(r.hp)}` : 'dead late'}; crawler ${GX.list.includes(t) ? `${t.state} at ${r1(t.x)},${r1(t.z)} hunting ${t.hunt?.id}` : 'gone'}`;
+      for (let k = 0; k < 16 && r.alive; k++) { await C('step', { seconds: 0.5 }); if (t.hunt) hunted = `${t.hunt.id}/${t.hunt.faction ?? t.hunt.type}`; if (!r.alive) at = (k + 1) * 0.5; }
+      return !r.alive && at <= 8 ? true : `raider ${r.alive ? `alive hp ${Math.round(r.hp)}` : 'dead late'}; crawler ${GX.list.includes(t) ? `${t.state} at ${r1(t.x)},${r1(t.z)} hunting ${t.hunt?.id}` : 'gone'}; it went for ${hunted} (raider ${r.id})`;
     });
 
     await check('gadgets: a pressure mine buried in the road kills the car that drives over it (it burns, its tyres go)', async () => {

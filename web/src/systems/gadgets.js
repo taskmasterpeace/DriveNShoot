@@ -653,7 +653,7 @@ export class Gadgets {
           this.put(p.x, gy, p.z, a, 0, 0.05, 0, 0.05, 0.05, 0.32, '#b0301e');
           if (p.lit > 0) { this.shine(p.x, p.z, 14 + Math.sin(t * 23) * 1.2, '#ff4a26'); this.shine(p.x, p.z, 3.2, '#ffd08a', 0.14); }
           break;
-        case 'smoke_can': case 'gas_can': this.put(p.x, gy, p.z, a, 0, 0.12, 0, 0.14, 0.24, 0.14, p.kind === 'gas_can' ? '#c9a24a' : '#8a8a86'); break;
+        case 'smoke_canister': case 'gas_can': this.put(p.x, gy, p.z, a, 0, 0.12, 0, 0.14, 0.24, 0.14, p.kind === 'gas_can' ? '#c9a24a' : '#8a8a86'); break;
         case 'remote_charge':
           this.put(p.x, gy, p.z, p.rot, 0, 0.09, 0, 0.32, 0.16, 0.2, '#7a5a3a'); this.put(p.x, gy, p.z, p.rot, 0, 0.19, 0, 0.06, 0.04, 0.06, blink && p.state === 'armed' ? '#ff3b2a' : '#3a2020');
           if (blink && p.state === 'armed') this.shine(p.x, p.z, 0.9, '#ff3b2a', gy + 0.2);
