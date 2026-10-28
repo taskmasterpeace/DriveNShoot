@@ -151,7 +151,7 @@ export class HUD {
 
   // One scale for the whole HUD: 1.0 at 1600x900, clamped so 1280x720 and 4K both read.
   rescale() {
-    const k = Math.max(0.62, Math.min(1.35, Math.min(innerWidth / 1600, innerHeight / 900)));
+    const k = Math.max(0.62, Math.min(1.35, Math.min(innerWidth / 1600, innerHeight / 900))) * (Number(this.g.qol?.settings?.hudScale) || 1); // x the HUD size setting (ui/qol.js)
     this.root.style.setProperty('--s', k.toFixed(3));
     this.scaleK = k;
   }

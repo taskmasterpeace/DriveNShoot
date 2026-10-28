@@ -99,7 +99,9 @@ export class CrewUI {
     // A member speaks up when you start talking to someone (the sim is still while a dialogue is open, so it is asked here).
     if (g.crew.members.length && (g.dialogue?.active ? g.dialogue.npc : null) !== g.crew.talkingTo) g.crew.interject();
     if (!C?.st?.crew) return;
-    const s = C.st.crew, busy = g.invUI?.open || g.dialogue?.active || g.paused;
+    // At a garage U is the workshop's (main.js); the pad's LB hold is still the crew's there.
+    const atGarage = !!g.workshop?.siteAt?.(g.player.x, g.player.z) && !C.st.crew.pad;
+    const s = C.st.crew, busy = g.invUI?.open || g.dialogue?.active || g.paused || g.workshopUI?.open || (atGarage && !this.open);
     if (busy && !this.open) { if (this.radial) this.closeRadial(false); return; }
     if (s.held && !this.radial && C.heldFor('crew') >= PAD.holdTime && !this.open) this.openRadial(!!s.pad);
     if (this.radial) {

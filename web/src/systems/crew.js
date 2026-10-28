@@ -408,7 +408,9 @@ export class Crew {
     for (const o of g.chars) { if (!o.alive || o.inVehicle || !g.ai.hostile(c, o)) continue; const d = Math.hypot(o.x - v.x, o.z - v.z); if (d < bd && g.statics.lineOfSight(v.x, v.z, o.x, o.z)) { bd = d; best = o; } }
     if (!best) return;
     const ang = Math.atan2(best.x - v.x, best.z - v.z), spread = 0.16 - 0.025 * m.row.skills.shooting;
-    if (v.mounts?.front && Math.abs(((ang - v.h + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.6 && g.garage.fireFront(v, c, ang + (Math.random() - 0.5) * spread)) { m.gunCool = 0.12; return; }
+    // The workshop's mounted weapons (systems/workshop.js: groups by arc) first, then the old hood gun, then their own gun.
+    if (v.mounts && g.workshop?.fireMount) { const r = g.workshop.fireMount(v, 1, ang + (Math.random() - 0.5) * spread, c); if (r?.fired) { m.gunCool = 0.12; return; } }
+    if (v.mounts?.front && Math.abs(((ang - v.h + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.6 && g.garage.fireFront?.(v, c, ang + (Math.random() - 0.5) * spread)) { m.gunCool = 0.12; return; }
     if (!c.weapon || c.tac?.holdFire) return;
     const w = WEAPONS[c.weapon];
     // A rider's own gun: the magazine, then a reload out of their spare rounds (ai.js reloads only those on their feet).
