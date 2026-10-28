@@ -1,0 +1,1301 @@
+{
+ "version": 1,
+ "source": {
+  "bank": "D:/lsw/src/data/hero-body-bank.json",
+  "bankSha256": "0c2499e003538f9930ef222e591b6d4dfe09a2d104ed9f98cb7410dc58179913"
+ },
+ "bodies": {
+  "superhero-male": {
+   "file": "superhero-male.bin",
+   "bytes": 467644,
+   "sha256": "9e269086de4f8046e0131cb0ccf7d30c2ce3c03ac072960ad6998a42fa71e76f",
+   "vertices": 8483,
+   "triangles": 14318,
+   "layout": {
+    "position": {
+     "offset": 0,
+     "length": 25449,
+     "type": "Float32Array"
+    },
+    "normal": {
+     "offset": 101796,
+     "length": 25449,
+     "type": "Float32Array"
+    },
+    "weight": {
+     "offset": 203592,
+     "length": 33932,
+     "type": "Float32Array"
+    },
+    "bone": {
+     "offset": 339320,
+     "length": 33932,
+     "type": "Uint8Array"
+    },
+    "part": {
+     "offset": 373252,
+     "length": 8483,
+     "type": "Uint8Array"
+    },
+    "index": {
+     "offset": 381736,
+     "length": 42954,
+     "type": "Uint16Array"
+    }
+   },
+   "joints": [
+    {
+     "name": "root",
+     "parent": -1,
+     "p": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "pelvis",
+     "parent": 0,
+     "p": [
+      0,
+      0.9491,
+      -0.043
+     ]
+    },
+    {
+     "name": "spine_01",
+     "parent": 1,
+     "p": [
+      0,
+      1.072,
+      -0.0069
+     ]
+    },
+    {
+     "name": "spine_02",
+     "parent": 2,
+     "p": [
+      0,
+      1.1778,
+      0.0039
+     ]
+    },
+    {
+     "name": "spine_03",
+     "parent": 3,
+     "p": [
+      0,
+      1.3109,
+      0.0069
+     ]
+    },
+    {
+     "name": "neck_01",
+     "parent": 4,
+     "p": [
+      0,
+      1.5205,
+      -0.0414
+     ]
+    },
+    {
+     "name": "Head",
+     "parent": 5,
+     "p": [
+      0,
+      1.5998,
+      -0.0174
+     ]
+    },
+    {
+     "name": "clavicle_l",
+     "parent": 4,
+     "p": [
+      0.0314,
+      1.4953,
+      0.0335
+     ]
+    },
+    {
+     "name": "upperarm_l",
+     "parent": 7,
+     "p": [
+      0.21201,
+      1.4555,
+      -0.0654
+     ]
+    },
+    {
+     "name": "lowerarm_l",
+     "parent": 8,
+     "p": [
+      0.46301,
+      1.4555,
+      -0.073
+     ]
+    },
+    {
+     "name": "hand_l",
+     "parent": 9,
+     "p": [
+      0.70649,
+      1.4555,
+      -0.0654
+     ]
+    },
+    {
+     "name": "index_01_l",
+     "parent": 10,
+     "p": [
+      0.82389,
+      1.44834,
+      -0.02476
+     ]
+    },
+    {
+     "name": "index_02_l",
+     "parent": 11,
+     "p": [
+      0.85647,
+      1.44709,
+      -0.02522
+     ]
+    },
+    {
+     "name": "index_03_l",
+     "parent": 12,
+     "p": [
+      0.88436,
+      1.44603,
+      -0.02564
+     ]
+    },
+    {
+     "name": "index_04_leaf_l",
+     "parent": 13,
+     "p": [
+      0.90845,
+      1.44511,
+      -0.02602
+     ]
+    },
+    {
+     "name": "middle_01_l",
+     "parent": 10,
+     "p": [
+      0.82193,
+      1.45082,
+      -0.05029
+     ]
+    },
+    {
+     "name": "middle_02_l",
+     "parent": 15,
+     "p": [
+      0.85941,
+      1.44938,
+      -0.05118
+     ]
+    },
+    {
+     "name": "middle_03_l",
+     "parent": 16,
+     "p": [
+      0.8895,
+      1.44823,
+      -0.05178
+     ]
+    },
+    {
+     "name": "middle_04_leaf_l",
+     "parent": 17,
+     "p": [
+      0.91999,
+      1.44707,
+      -0.05247
+     ]
+    },
+    {
+     "name": "pinky_01_l",
+     "parent": 10,
+     "p": [
+      0.80503,
+      1.44946,
+      -0.10002
+     ]
+    },
+    {
+     "name": "pinky_02_l",
+     "parent": 19,
+     "p": [
+      0.83662,
+      1.44825,
+      -0.10099
+     ]
+    },
+    {
+     "name": "pinky_03_l",
+     "parent": 20,
+     "p": [
+      0.86402,
+      1.44721,
+      -0.10192
+     ]
+    },
+    {
+     "name": "pinky_04_leaf_l",
+     "parent": 21,
+     "p": [
+      0.88551,
+      1.44638,
+      -0.10264
+     ]
+    },
+    {
+     "name": "ring_01_l",
+     "parent": 10,
+     "p": [
+      0.81589,
+      1.45075,
+      -0.07777
+     ]
+    },
+    {
+     "name": "ring_02_l",
+     "parent": 23,
+     "p": [
+      0.85186,
+      1.44937,
+      -0.07759
+     ]
+    },
+    {
+     "name": "ring_03_l",
+     "parent": 24,
+     "p": [
+      0.88014,
+      1.44829,
+      -0.07731
+     ]
+    },
+    {
+     "name": "ring_04_leaf_l",
+     "parent": 25,
+     "p": [
+      0.90922,
+      1.44718,
+      -0.07721
+     ]
+    },
+    {
+     "name": "thumb_01_l",
+     "parent": 10,
+     "p": [
+      0.7403,
+      1.42802,
+      -0.02434
+     ]
+    },
+    {
+     "name": "thumb_02_l",
+     "parent": 27,
+     "p": [
+      0.77141,
+      1.40882,
+      -0.00932
+     ]
+    },
+    {
+     "name": "thumb_03_l",
+     "parent": 28,
+     "p": [
+      0.79934,
+      1.39157,
+      0.00416
+     ]
+    },
+    {
+     "name": "thumb_04_leaf_l",
+     "parent": 29,
+     "p": [
+      0.82654,
+      1.37478,
+      0.01729
+     ]
+    },
+    {
+     "name": "clavicle_r",
+     "parent": 4,
+     "p": [
+      -0.0314,
+      1.4953,
+      0.0335
+     ]
+    },
+    {
+     "name": "upperarm_r",
+     "parent": 31,
+     "p": [
+      -0.21201,
+      1.4555,
+      -0.0654
+     ]
+    },
+    {
+     "name": "lowerarm_r",
+     "parent": 32,
+     "p": [
+      -0.46301,
+      1.4555,
+      -0.073
+     ]
+    },
+    {
+     "name": "hand_r",
+     "parent": 33,
+     "p": [
+      -0.70649,
+      1.4555,
+      -0.0654
+     ]
+    },
+    {
+     "name": "index_01_r",
+     "parent": 34,
+     "p": [
+      -0.82389,
+      1.44834,
+      -0.02476
+     ]
+    },
+    {
+     "name": "index_02_r",
+     "parent": 35,
+     "p": [
+      -0.85647,
+      1.44709,
+      -0.02522
+     ]
+    },
+    {
+     "name": "index_03_r",
+     "parent": 36,
+     "p": [
+      -0.88436,
+      1.44603,
+      -0.02564
+     ]
+    },
+    {
+     "name": "index_04_leaf_r",
+     "parent": 37,
+     "p": [
+      -0.90845,
+      1.44511,
+      -0.02602
+     ]
+    },
+    {
+     "name": "middle_01_r",
+     "parent": 34,
+     "p": [
+      -0.82193,
+      1.45082,
+      -0.05029
+     ]
+    },
+    {
+     "name": "middle_02_r",
+     "parent": 39,
+     "p": [
+      -0.85941,
+      1.44938,
+      -0.05118
+     ]
+    },
+    {
+     "name": "middle_03_r",
+     "parent": 40,
+     "p": [
+      -0.8895,
+      1.44823,
+      -0.05178
+     ]
+    },
+    {
+     "name": "middle_04_leaf_r",
+     "parent": 41,
+     "p": [
+      -0.91999,
+      1.44707,
+      -0.05247
+     ]
+    },
+    {
+     "name": "pinky_01_r",
+     "parent": 34,
+     "p": [
+      -0.80503,
+      1.44946,
+      -0.10002
+     ]
+    },
+    {
+     "name": "pinky_02_r",
+     "parent": 43,
+     "p": [
+      -0.83662,
+      1.44825,
+      -0.10099
+     ]
+    },
+    {
+     "name": "pinky_03_r",
+     "parent": 44,
+     "p": [
+      -0.86402,
+      1.44721,
+      -0.10192
+     ]
+    },
+    {
+     "name": "pinky_04_leaf_r",
+     "parent": 45,
+     "p": [
+      -0.88551,
+      1.44638,
+      -0.10264
+     ]
+    },
+    {
+     "name": "ring_01_r",
+     "parent": 34,
+     "p": [
+      -0.81589,
+      1.45075,
+      -0.07777
+     ]
+    },
+    {
+     "name": "ring_02_r",
+     "parent": 47,
+     "p": [
+      -0.85186,
+      1.44937,
+      -0.07759
+     ]
+    },
+    {
+     "name": "ring_03_r",
+     "parent": 48,
+     "p": [
+      -0.88014,
+      1.44829,
+      -0.07731
+     ]
+    },
+    {
+     "name": "ring_04_leaf_r",
+     "parent": 49,
+     "p": [
+      -0.90922,
+      1.44718,
+      -0.07721
+     ]
+    },
+    {
+     "name": "thumb_01_r",
+     "parent": 34,
+     "p": [
+      -0.7403,
+      1.42802,
+      -0.02434
+     ]
+    },
+    {
+     "name": "thumb_02_r",
+     "parent": 51,
+     "p": [
+      -0.77141,
+      1.40882,
+      -0.00932
+     ]
+    },
+    {
+     "name": "thumb_03_r",
+     "parent": 52,
+     "p": [
+      -0.79934,
+      1.39157,
+      0.00416
+     ]
+    },
+    {
+     "name": "thumb_04_leaf_r",
+     "parent": 53,
+     "p": [
+      -0.82654,
+      1.37478,
+      0.01729
+     ]
+    },
+    {
+     "name": "thigh_l",
+     "parent": 1,
+     "p": [
+      0.11431,
+      0.9712,
+      -0.036
+     ]
+    },
+    {
+     "name": "calf_l",
+     "parent": 55,
+     "p": [
+      0.11431,
+      0.5424,
+      -0.0361
+     ]
+    },
+    {
+     "name": "foot_l",
+     "parent": 56,
+     "p": [
+      0.11431,
+      0.0865,
+      -0.0875
+     ]
+    },
+    {
+     "name": "ball_l",
+     "parent": 57,
+     "p": [
+      0.11431,
+      0.0152,
+      0.0547
+     ]
+    },
+    {
+     "name": "ball_leaf_l",
+     "parent": 58,
+     "p": [
+      0.11431,
+      0.0152,
+      0.1336
+     ]
+    },
+    {
+     "name": "thigh_r",
+     "parent": 1,
+     "p": [
+      -0.11431,
+      0.9712,
+      -0.036
+     ]
+    },
+    {
+     "name": "calf_r",
+     "parent": 60,
+     "p": [
+      -0.11431,
+      0.5424,
+      -0.0361
+     ]
+    },
+    {
+     "name": "foot_r",
+     "parent": 61,
+     "p": [
+      -0.11431,
+      0.0865,
+      -0.0875
+     ]
+    },
+    {
+     "name": "ball_r",
+     "parent": 62,
+     "p": [
+      -0.11431,
+      0.0152,
+      0.0547
+     ]
+    },
+    {
+     "name": "ball_leaf_r",
+     "parent": 63,
+     "p": [
+      -0.11431,
+      0.0152,
+      0.1336
+     ]
+    }
+   ],
+   "source": {
+    "author": "Quaternius",
+    "pack": "Universal Base Characters",
+    "license": "CC0-1.0",
+    "url": "https://quaternius.com/packs/universalbasecharacters.html",
+    "mirror": "https://codeberg.org/jamesonBradfield/Quaternius_IK_Rigged_with_animations",
+    "revision": "0cc5dc351f4fffbe13a25381e73cb0a1aea67f47",
+    "kind": "superhero-male",
+    "files": {
+     "gltf": "Superhero_Male_FullBody.gltf",
+     "bin": "Superhero_Male_FullBody.bin",
+     "eye": "T_Eye_Brown.png"
+    },
+    "sha256": {
+     "gltf": "e7fcea214ecf8855afbf910b50de6f9c7d1decfb71ca28bad8a4481452dafeb4",
+     "bin": "459003f9745853ae562a85506a2b94dd56515c1f37728f9fa3d2ce1a3e4cd92f",
+     "eye": "d08e3356a83211bc6ca21fe3a8e39f4b5c1a3b8f85457fc2c0fb57be09935025"
+    },
+    "basis": "Y-up source scene world space"
+   }
+  },
+  "superhero-female": {
+   "file": "superhero-female.bin",
+   "bytes": 488340,
+   "sha256": "2d39cd59687025b29a6eece2580153571602456ca320776a92ac937cf84fd534",
+   "vertices": 8844,
+   "triangles": 15060,
+   "layout": {
+    "position": {
+     "offset": 0,
+     "length": 26532,
+     "type": "Float32Array"
+    },
+    "normal": {
+     "offset": 106128,
+     "length": 26532,
+     "type": "Float32Array"
+    },
+    "weight": {
+     "offset": 212256,
+     "length": 35376,
+     "type": "Float32Array"
+    },
+    "bone": {
+     "offset": 353760,
+     "length": 35376,
+     "type": "Uint8Array"
+    },
+    "part": {
+     "offset": 389136,
+     "length": 8844,
+     "type": "Uint8Array"
+    },
+    "index": {
+     "offset": 397980,
+     "length": 45180,
+     "type": "Uint16Array"
+    }
+   },
+   "joints": [
+    {
+     "name": "root",
+     "parent": -1,
+     "p": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "pelvis",
+     "parent": 0,
+     "p": [
+      0,
+      0.9318,
+      -0.0457
+     ]
+    },
+    {
+     "name": "spine_01",
+     "parent": 1,
+     "p": [
+      0,
+      1.0546,
+      -0.0151
+     ]
+    },
+    {
+     "name": "spine_02",
+     "parent": 2,
+     "p": [
+      0,
+      1.1642,
+      -0.0023
+     ]
+    },
+    {
+     "name": "spine_03",
+     "parent": 3,
+     "p": [
+      0,
+      1.2906,
+      -0.0017
+     ]
+    },
+    {
+     "name": "neck_01",
+     "parent": 4,
+     "p": [
+      0,
+      1.4849,
+      -0.0406
+     ]
+    },
+    {
+     "name": "Head",
+     "parent": 5,
+     "p": [
+      0,
+      1.5496,
+      -0.0109
+     ]
+    },
+    {
+     "name": "clavicle_l",
+     "parent": 4,
+     "p": [
+      0.0293,
+      1.4305,
+      0.016
+     ]
+    },
+    {
+     "name": "upperarm_l",
+     "parent": 7,
+     "p": [
+      0.1516,
+      1.4181,
+      -0.0543
+     ]
+    },
+    {
+     "name": "lowerarm_l",
+     "parent": 8,
+     "p": [
+      0.3919,
+      1.4181,
+      -0.0588
+     ]
+    },
+    {
+     "name": "hand_l",
+     "parent": 9,
+     "p": [
+      0.6411,
+      1.4181,
+      -0.0516
+     ]
+    },
+    {
+     "name": "index_01_l",
+     "parent": 10,
+     "p": [
+      0.7299,
+      1.4139,
+      -0.0168
+     ]
+    },
+    {
+     "name": "index_02_l",
+     "parent": 11,
+     "p": [
+      0.7616,
+      1.4139,
+      -0.0176
+     ]
+    },
+    {
+     "name": "index_03_l",
+     "parent": 12,
+     "p": [
+      0.7887,
+      1.4139,
+      -0.0184
+     ]
+    },
+    {
+     "name": "index_04_leaf_l",
+     "parent": 13,
+     "p": [
+      0.8122,
+      1.4139,
+      -0.0191
+     ]
+    },
+    {
+     "name": "middle_01_l",
+     "parent": 10,
+     "p": [
+      0.7276,
+      1.4162,
+      -0.0423
+     ]
+    },
+    {
+     "name": "middle_02_l",
+     "parent": 15,
+     "p": [
+      0.764,
+      1.4162,
+      -0.0437
+     ]
+    },
+    {
+     "name": "middle_03_l",
+     "parent": 16,
+     "p": [
+      0.7933,
+      1.4162,
+      -0.0446
+     ]
+    },
+    {
+     "name": "middle_04_leaf_l",
+     "parent": 17,
+     "p": [
+      0.8229,
+      1.4162,
+      -0.0457
+     ]
+    },
+    {
+     "name": "pinky_01_l",
+     "parent": 10,
+     "p": [
+      0.7105,
+      1.4143,
+      -0.0867
+     ]
+    },
+    {
+     "name": "pinky_02_l",
+     "parent": 19,
+     "p": [
+      0.7413,
+      1.4143,
+      -0.0881
+     ]
+    },
+    {
+     "name": "pinky_03_l",
+     "parent": 20,
+     "p": [
+      0.7679,
+      1.4143,
+      -0.0894
+     ]
+    },
+    {
+     "name": "pinky_04_leaf_l",
+     "parent": 21,
+     "p": [
+      0.7888,
+      1.4143,
+      -0.0903
+     ]
+    },
+    {
+     "name": "ring_01_l",
+     "parent": 10,
+     "p": [
+      0.7213,
+      1.4159,
+      -0.0667
+     ]
+    },
+    {
+     "name": "ring_02_l",
+     "parent": 23,
+     "p": [
+      0.7563,
+      1.4159,
+      -0.067
+     ]
+    },
+    {
+     "name": "ring_03_l",
+     "parent": 24,
+     "p": [
+      0.7839,
+      1.4159,
+      -0.0671
+     ]
+    },
+    {
+     "name": "ring_04_leaf_l",
+     "parent": 25,
+     "p": [
+      0.8122,
+      1.4159,
+      -0.0674
+     ]
+    },
+    {
+     "name": "thumb_01_l",
+     "parent": 10,
+     "p": [
+      0.6387,
+      1.4081,
+      -0.0216
+     ]
+    },
+    {
+     "name": "thumb_02_l",
+     "parent": 27,
+     "p": [
+      0.6672,
+      1.3908,
+      -0.0085
+     ]
+    },
+    {
+     "name": "thumb_03_l",
+     "parent": 28,
+     "p": [
+      0.6956,
+      1.3736,
+      0.0044
+     ]
+    },
+    {
+     "name": "thumb_04_leaf_l",
+     "parent": 29,
+     "p": [
+      0.7205,
+      1.3585,
+      0.0158
+     ]
+    },
+    {
+     "name": "clavicle_r",
+     "parent": 4,
+     "p": [
+      -0.0293,
+      1.4305,
+      0.016
+     ]
+    },
+    {
+     "name": "upperarm_r",
+     "parent": 31,
+     "p": [
+      -0.1516,
+      1.4181,
+      -0.0543
+     ]
+    },
+    {
+     "name": "lowerarm_r",
+     "parent": 32,
+     "p": [
+      -0.3919,
+      1.4181,
+      -0.0588
+     ]
+    },
+    {
+     "name": "hand_r",
+     "parent": 33,
+     "p": [
+      -0.6411,
+      1.4181,
+      -0.0516
+     ]
+    },
+    {
+     "name": "index_01_r",
+     "parent": 34,
+     "p": [
+      -0.7299,
+      1.4139,
+      -0.0168
+     ]
+    },
+    {
+     "name": "index_02_r",
+     "parent": 35,
+     "p": [
+      -0.7616,
+      1.4139,
+      -0.0176
+     ]
+    },
+    {
+     "name": "index_03_r",
+     "parent": 36,
+     "p": [
+      -0.7887,
+      1.4139,
+      -0.0184
+     ]
+    },
+    {
+     "name": "index_04_leaf_r",
+     "parent": 37,
+     "p": [
+      -0.8122,
+      1.4139,
+      -0.0191
+     ]
+    },
+    {
+     "name": "middle_01_r",
+     "parent": 34,
+     "p": [
+      -0.7276,
+      1.4162,
+      -0.0423
+     ]
+    },
+    {
+     "name": "middle_02_r",
+     "parent": 39,
+     "p": [
+      -0.764,
+      1.4162,
+      -0.0437
+     ]
+    },
+    {
+     "name": "middle_03_r",
+     "parent": 40,
+     "p": [
+      -0.7933,
+      1.4162,
+      -0.0446
+     ]
+    },
+    {
+     "name": "middle_04_leaf_r",
+     "parent": 41,
+     "p": [
+      -0.8229,
+      1.4162,
+      -0.0457
+     ]
+    },
+    {
+     "name": "pinky_01_r",
+     "parent": 34,
+     "p": [
+      -0.7105,
+      1.4143,
+      -0.0867
+     ]
+    },
+    {
+     "name": "pinky_02_r",
+     "parent": 43,
+     "p": [
+      -0.7413,
+      1.4143,
+      -0.0881
+     ]
+    },
+    {
+     "name": "pinky_03_r",
+     "parent": 44,
+     "p": [
+      -0.7679,
+      1.4143,
+      -0.0894
+     ]
+    },
+    {
+     "name": "pinky_04_leaf_r",
+     "parent": 45,
+     "p": [
+      -0.7888,
+      1.4143,
+      -0.0903
+     ]
+    },
+    {
+     "name": "ring_01_r",
+     "parent": 34,
+     "p": [
+      -0.7213,
+      1.4159,
+      -0.0667
+     ]
+    },
+    {
+     "name": "ring_02_r",
+     "parent": 47,
+     "p": [
+      -0.7563,
+      1.4159,
+      -0.067
+     ]
+    },
+    {
+     "name": "ring_03_r",
+     "parent": 48,
+     "p": [
+      -0.7839,
+      1.4159,
+      -0.0671
+     ]
+    },
+    {
+     "name": "ring_04_leaf_r",
+     "parent": 49,
+     "p": [
+      -0.8122,
+      1.4159,
+      -0.0674
+     ]
+    },
+    {
+     "name": "thumb_01_r",
+     "parent": 34,
+     "p": [
+      -0.6387,
+      1.4081,
+      -0.0216
+     ]
+    },
+    {
+     "name": "thumb_02_r",
+     "parent": 51,
+     "p": [
+      -0.6672,
+      1.3908,
+      -0.0085
+     ]
+    },
+    {
+     "name": "thumb_03_r",
+     "parent": 52,
+     "p": [
+      -0.6956,
+      1.3736,
+      0.0044
+     ]
+    },
+    {
+     "name": "thumb_04_leaf_r",
+     "parent": 53,
+     "p": [
+      -0.7205,
+      1.3585,
+      0.0158
+     ]
+    },
+    {
+     "name": "thigh_l",
+     "parent": 1,
+     "p": [
+      0.1114,
+      0.9441,
+      -0.0518
+     ]
+    },
+    {
+     "name": "calf_l",
+     "parent": 55,
+     "p": [
+      0.1114,
+      0.5347,
+      -0.0323
+     ]
+    },
+    {
+     "name": "foot_l",
+     "parent": 56,
+     "p": [
+      0.1114,
+      0.0707,
+      -0.0765
+     ]
+    },
+    {
+     "name": "ball_l",
+     "parent": 57,
+     "p": [
+      0.1114,
+      0.0148,
+      0.0618
+     ]
+    },
+    {
+     "name": "ball_leaf_l",
+     "parent": 58,
+     "p": [
+      0.1114,
+      0.0148,
+      0.1299
+     ]
+    },
+    {
+     "name": "thigh_r",
+     "parent": 1,
+     "p": [
+      -0.1114,
+      0.9441,
+      -0.0518
+     ]
+    },
+    {
+     "name": "calf_r",
+     "parent": 60,
+     "p": [
+      -0.1114,
+      0.5347,
+      -0.0323
+     ]
+    },
+    {
+     "name": "foot_r",
+     "parent": 61,
+     "p": [
+      -0.1114,
+      0.0707,
+      -0.0765
+     ]
+    },
+    {
+     "name": "ball_r",
+     "parent": 62,
+     "p": [
+      -0.1114,
+      0.0148,
+      0.0618
+     ]
+    },
+    {
+     "name": "ball_leaf_r",
+     "parent": 63,
+     "p": [
+      -0.1114,
+      0.0148,
+      0.1299
+     ]
+    }
+   ],
+   "source": {
+    "author": "Quaternius",
+    "pack": "Universal Base Characters",
+    "license": "CC0-1.0",
+    "url": "https://quaternius.com/packs/universalbasecharacters.html",
+    "mirror": "https://codeberg.org/jamesonBradfield/Quaternius_IK_Rigged_with_animations",
+    "revision": "0cc5dc351f4fffbe13a25381e73cb0a1aea67f47",
+    "kind": "superhero-female",
+    "files": {
+     "gltf": "Superhero_Female_FullBody.gltf",
+     "bin": "Superhero_Female_FullBody.bin",
+     "eye": "T_Eye_Brown.png"
+    },
+    "sha256": {
+     "gltf": "adedf28000a0716f689b009a70314506fc62f827498f77ba852acb5610f3f3f4",
+     "bin": "3a8220a485b33d05d879115a50697728b45a151781106033afb8b8c243fca208",
+     "eye": "d08e3356a83211bc6ca21fe3a8e39f4b5c1a3b8f85457fc2c0fb57be09935025"
+    },
+    "basis": "Y-up source scene world space"
+   }
+  }
+ }
+}

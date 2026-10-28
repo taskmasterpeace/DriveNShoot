@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CARRY } from '../data/arms.js';
+import { LswBodies } from './lswbodies.js';
 
 // People: one articulated low-poly body for everyone, drawn by InstancedMeshes shared by all 160
 // characters (left+right limbs pack into one mesh; hat, gear, accessory and gun variants pack only
@@ -266,6 +267,7 @@ const _root = new THREE.Matrix4(), _U = new THREE.Matrix4(), _LF = new THREE.Mat
 const PAIRS = new Set(['thigh', 'shin', 'boot', 'upper', 'fore', 'hand']);
 const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = V(), _w = V(), _dir = V(), _n = V(), _pole = V(), _one = new THREE.Vector3(1, 1, 1);
 const _DOWN = new THREE.Vector3(0, -1, 0), _X = V(), _Y = V(), _Z = V();
+const _GS = new THREE.Matrix4(), _grip = [0, 0]; // LSW-BODIES: the gear frame on a near body, which hands are closed
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _c = new THREE.Color(), _blood = new THREE.Color('#4a0606'), _soot = new THREE.Color('#141110');
 // Joints, index 0 = left (+x), 1 = right (-x). Legs live in the leg frame, arms in the root frame.
@@ -334,6 +336,8 @@ export class CharacterRenderer {
     for (const k of ['face', 'hand', 'boot', 'fore', 'hips', 'hat_short', 'hat_mohawk', 'hat_cap', 'hat_bandana', 'gear_pads', 'gear_vest', 'gear_bandolier', 'acc_goggles', 'acc_mask', 'acc_eyepatch', ...SCARS.map((s) => `scar_${s}`), ...GUN_KEYS.map((k) => `gun_${k}`)]) this.meshes[k].castShadow = false;
     for (const k in this.meshes) for (const m of [this.meshes[k].material].flat()) m.userData.noCut = true; // people are never cut away (systems/cutaway.js)
     this.packed = {};
+    // LSW-BODIES (systems/lswbodies.js): the nearest people wear Robert's LSW bodies, driven by this same pose solution.
+    this.lsw = new LswBodies(scene, MAX_CHARS); this.lsw.charMeshes = this.meshes;
   }
 
   // Colours: clothes darken toward dried blood as the character gets hurt, and char black in fire.
@@ -380,6 +384,7 @@ export class CharacterRenderer {
     let maxSlot = 0;
     for (const k of this.variant) this.packed[k] = 0;
     const cu = this.cullAbove; // inside a storeyed building: who is on a floor above yours there is not drawn (main.js)
+    this.lsw.choose(chars, cu); // who is near enough to wear an LSW body this frame
     for (const ch of chars) {
       const i = ch.slot;
       maxSlot = Math.max(maxSlot, i + 1);
@@ -389,6 +394,7 @@ export class CharacterRenderer {
       if (cu && (ch.gy ?? 0) > cu.y && ch.x > cu.b.minX && ch.x < cu.b.maxX && ch.z > cu.b.minZ && ch.z < cu.b.maxZ) { this.hideSlot(i); ch._rx = undefined; continue; }
       this.pose(ch, sp, dt);
     }
+    this.lsw.finish(dt);
     for (const key in M) {
       const n = key in this.packed ? this.packed[key] : PAIRS.has(key) ? maxSlot * 2 : maxSlot;
       M[key].count = n;
@@ -402,6 +408,7 @@ export class CharacterRenderer {
     const M = this.meshes, i = ch.slot, alive = ch.alive;
     const w = ch.weapon && !ch.holstered && !ch.work ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null; // holstered: hands empty (systems/arms.js)
     const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
+    const L = this.lsw, near = L.near[i] === 1; // an LSW body: the same solution, a different skin (systems/lswbodies.js)
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false, knocked = false;
@@ -541,8 +548,9 @@ export class CharacterRenderer {
     M.torso.setMatrixAt(i, _g);
     const headless = ch.headless;
     // The head stays level when the body leans (eyes on the road), and lolls on the infected.
-    _t.makeTranslation(0, HEAD_UP, 0).multiply(_r.makeRotationX(-lean * 0.6));
+    _t.makeTranslation(0, near ? L.headUp : HEAD_UP, 0).multiply(_r.makeRotationX(-lean * 0.6));
     if (headTilt) _t.multiply(_r.makeRotationZ(headTilt));
+    if (near) _t.multiply(L.hatScale); // hats, hair, scars and accessories sized to the LSW head
     const headFrame = _H.multiplyMatrices(_g, _t);
     if (headless) { M.head.setMatrixAt(i, ZERO); M.face.setMatrixAt(i, ZERO); }
     else { M.head.setMatrixAt(i, headFrame); M.face.setMatrixAt(i, headFrame); }
@@ -555,7 +563,7 @@ export class CharacterRenderer {
       if (c.scar && M[`scar_${c.scar}`]) this.put(`scar_${c.scar}`, headFrame, 0, 0, 0, 0, c.scarColor ?? '#d9a58a');
     }
     const gear = c.gearStyle ?? 'none';
-    if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');
+    if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, near ? _GS.multiplyMatrices(_g, L.gearScale) : _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');
 
     // ---- arms ----------------------------------------------------------------------------------
     // Targets are set in the upper-body frame, then everything is solved in the root frame.
@@ -693,6 +701,12 @@ export class CharacterRenderer {
         const key = `gun_${gunKey}`, k2 = this.packed[key]++;
         M[key].setMatrixAt(k2, _m.multiplyMatrices(_g, _t));
       }
+    }
+    if (near) {
+      // Which hands are closed on something: the gun hand (and the support hand on a two-hand hold), bars, a tool, fists.
+      const both = mode === 'low' || mode === 'bars' || mode === 'work' || mode === 'melee' || (mode === 'aim' && !ch.oneHand);
+      _grip[0] = both || ((mode === 'aim' || gunHand) && fh === 0) ? 1 : 0; _grip[1] = both || ((mode === 'aim' || gunHand) && fh === 1) ? 1 : 0;
+      if (L.drive(ch, _LF, hipY, hip, knee, ankle, footPitch, _g, headFrame, el, hand, useIK, gunHand ? fh : -1, _grip)) this.hideSlot(i); // the classic body steps aside; hats, gear and guns stay
     }
   }
 

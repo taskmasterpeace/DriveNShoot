@@ -274,6 +274,12 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `llm` | `on?:boolean check?:boolean test?:boolean npc?:string topic?:string mock?:string validate?:string fresh?:boolean` | The local model for strangers' talk (systems/llmtalk.js; vite /llm proxy to Ollama qwen3.5 on the studio Mac Mini, think:false, num_ctx 8192, 7 s timeout). No args: status (enabled, reachable, the stats: asked/ok/cached/rejected/timeout/offline/fallback, recent answers). on=true\|false: the settings toggle (persists). check=true: ask the server if the model is up now. test=true: talk a while with npc=<id \| nearest> and return the grounded facts, the validated answer (line, mood, choices with effects) or why it fell back. mock=<good\|bad\|refuse\|slow\|off>: point the asking at the dev server's canned answers (the offline proof) or back at the model. validate=<json string>: run the validator alone. |
 | `check` | `skill?:string stat?:string trait?:string item?:string trust?:number crew?:string` | Test a dialogue gate against you now (G5; ui/dialogue.js greys a failed one with this reason): skill=<id>:<min> stat=<attr\|derived\|mercy\|fame\|law\|fear\|stress\|morale>:<min> trait=<id \| !id> item=<id> trust=<n> crew=<id \| true>. Returns ok and why. |
 
+## render
+
+| command | args | what it does |
+|---|---|---|
+| `bodies` | `action?:stats\|mode\|near value?:lsw\|classic n?:number reset?:boolean` | LSW-BODIES (docs/design/WEB_LSW_BODIES.md): the people nearest you wear Robert's Living Superweapon bodies (Quaternius CC0 skinned meshes, standard / female / lean / heavy by voice and build), posed by the same joint solver as the classic rig; the rest stay classic. action=stats (default): mode, how many are near, who wears which body and flag, the GPU draw calls it adds, CPU ms per frame. action=mode value=lsw\|classic: switch (saved with the settings; the pause menu has it too). action=near n=0..32: how many wear LSW bodies. reset=true zeroes the cost counters. |
+
 ## shard
 
 | command | args | what it does |
