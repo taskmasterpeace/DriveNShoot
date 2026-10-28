@@ -193,7 +193,10 @@ export class Sealife {
   update(dt) {
     if (!this.enabled) { this.r?.sync(this, dt, true); return; }
     this.t += dt;
-    this.scanPeople(dt);
+    // Who is in the water: every frame while something lives in it, four times a second when nothing does (a wound's
+    // hp drop is kept between scans, so no blood is lost; the player's own swell height is set by world/waves.js).
+    this.scanT = (this.scanT ?? 0) - dt;
+    if (this.live.length || this.scanT <= 0) { this.scanPeople(this.live.length ? dt : 0.25); this.scanT = 0.25; }
     this.tickT -= dt;
     if (this.tickT <= 0) { this.tickT = SR.tick; this.direct(); this.g.waterplace?.leviathans(this); }
     for (const a of [...this.live]) {
