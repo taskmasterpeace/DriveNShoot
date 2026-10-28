@@ -97,7 +97,7 @@ Learn the *behaviour* and re-write it as DSOA rows and systems. Never copy third
   - Data rows per state in `web/src/data/milbases.js`, stamped by citygen, built on the existing `BASES` rows (`data/bases.js`) and the 100-plus military site rows already in `data/sites/`.
 
 ### WAVE 3
-- **LSW-BODIES** (§4), **SIM-CORE / persistent shard** (law 3; `WEB_PERSISTENT_WORLD_PLAN.md` M3), the room-scan base (`D:/git/little-big-home`).
+- **LSW-BODIES** (§4), **SIM-CORE / persistent shard** (law 3; `WEB_PERSISTENT_WORLD_PLAN.md` M3).
 
 ## 3. Decisions to confirm (the lanes go ahead on the default)
 - **D1, the 3 breeds.** Default: **Shambler** (slow, a horde body), **Sprinter** (fast bursts that tire), **Echo** (the one that works doors and windows and calls the others). **Choir-Touched** stays as a rare site special, not a breed.
@@ -138,3 +138,11 @@ Port the LSW layout editor (`docs/reference/lsw/touch-layout.js`) to DSOA's HUD:
 3. **Presets** (Default, Compact, Streamer, Controller) plus a per-element scale. The layout saves per player, and the default layout is a data file Robert can commit.
 4. A **screenshot sheet**: one capture per element with its name, so the standard layout is documented.
 5. The default is **smaller** than today (Robert: "too big on the screen").
+
+## 9. PARKED: the room-scan base (do NOT start without Robert)
+Robert, 2026-10-28: "save that for wave 3... put that all the way to the backside and don't start on that without permission. Because I want to work on that."
+He is upgrading the scan technology himself, so this waits for his go-ahead even after Waves 1–3 and everything else in this doc are done.
+- **The idea:** your real house becomes your base. Photos, a LiDAR scan or a floor plan become DSOA floor-plan rows: walls, doors and windows you can lock, board and kick in, a working garage, and furniture that serves as beds, cover, storage and benches. It goes on a lot as your homestead. The proven pipeline is in `D:/git/little-big-home` and the `room-to-level` skill.
+- **Privacy (settled):** opt-in only. Never your real address or town. In-game textures, never your photos.
+- **Control (Robert):** owners manage home and defense from a mobile app, with engineering of defenses.
+- **Robert also has houses he wants built** in the world. Ask him for them when this opens.
