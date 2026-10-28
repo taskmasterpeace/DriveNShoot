@@ -65,6 +65,7 @@ import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
 import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
+import { BackLots } from './systems/backlots.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
@@ -201,6 +202,7 @@ class Game {
     this.zombies = new Zombies(this);
     this.population = new Population(this); // the far fold: ambient people left far behind hand their slots back (systems/population.js)
     this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
+    this.backlots = new BackLots(this); // their alleys, yard fences and gates, back-door locks, town pathing (docs/design/WEB_BACK_LOTS.md)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
@@ -994,7 +996,7 @@ class Game {
     this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
+    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
     const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
@@ -1319,6 +1321,7 @@ class Game {
     this.updateInterior();
     this.updateCamera(dt);
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
+    this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
