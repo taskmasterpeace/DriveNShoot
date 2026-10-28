@@ -58,8 +58,10 @@ import { voiceStatsChecks } from './voicestats-selftest.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
-import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js'; // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
+import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
+import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { qolChecks } from './qol-selftest.js';
+import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
@@ -597,7 +599,7 @@ function buildCommands(api) {
     aim: { group: 'player', desc: 'Lock the aim point to x,z (null x to release back to the mouse).', args: { x: { type: 'number' }, z: { type: 'number' } },
       run: async ({ x, z }) => { g.aimOverride = x === undefined ? null : { x, z }; return { aim: g.aimOverride }; } },
     fire: {
-      group: 'player', desc: 'Fire the current weapon at x,z or entity id (id="hostile" = nearest enemy, re-acquired every shot). Auto-reloads. shots=N fires N rounds, stepping the sim between them.',
+      group: 'player', desc: 'Fire the current weapon at x,z or entity id (id="hostile" = nearest enemy, re-acquired every shot; a moving one is led by the flight time of its round, see WEB_BALLISTICS.md). Auto-reloads. shots=N fires N rounds, stepping the sim between them.',
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' }, shots: { type: 'number', default: 1 } },
       run: async ({ x, z, id, shots }) => {
         const p = P();
@@ -610,6 +612,16 @@ function buildCommands(api) {
             const t = api.findChar(id) ?? api.findVeh(id);
             if (!t && id === 'hostile') return { fired: i, killed: g.stats.kills - before, note: 'no hostiles left' };
             need(t, `no entity ${id}`); tx = t.x; tz = t.z;
+            // A round takes time to get there (WEB_BALLISTICS.md): lead a moving target by its velocity (a car's own; a
+            // person's from one frame of watching) times the flight, less the shooter's own car's.
+            if (g.ballistics?.on) {
+              let vx = t.vx ?? 0, vz = t.vz ?? 0;
+              if (!t.len) { const x0 = t.x, z0 = t.z; await api._step(1); vx = (t.x - x0) * 60; vz = (t.z - z0) * 60; tx = t.x; tz = t.z; }
+              const pv = g.ballistics.platformV(p), rvx = vx - (pv?.vx ?? 0), rvz = vz - (pv?.vz ?? 0), key = g.ballistics.rowKey(WEAPONS[g.inv.current]);
+              let d = Math.hypot(tx - p.x, tz - p.z), lx = 0, lz = 0;
+              for (let k = 0; k < 2; k++) { const tf = g.ballistics.flightTime(key, d) ?? 0; lx = rvx * tf; lz = rvz * tf; d = Math.hypot(tx + lx - p.x, tz + lz - p.z); }
+              tx += lx; tz += lz;
+            }
           }
           need(p.alive, 'player died');
           need(tx !== undefined && tz !== undefined, 'give x,z or id');
@@ -627,6 +639,7 @@ function buildCommands(api) {
           if (car ? g.carCombat.fireFromVehicle(p, car, k, p.face) : g.combat.fire(p, k, p.face)) { g.inv.mag[k]--; g.inventory.shot(k); }
           await api._step(Math.max(1, Math.round(w.rate * 60)));
         }
+        for (let k = 0; k < 120 && g.ballistics?.inFlight(p); k++) await api._step(1); // the last rounds land (WEB_BALLISTICS.md)
         killed = g.stats.kills - before;
         return { killed, mag: g.inv.mag[g.inv.current], reserve: g.inv.ammo[WEAPONS[g.inv.current].ammo], cond: +g.inventory.cond(g.inv.current).toFixed(3), jammed: !!g.inv.jam[g.inv.current] };
       },
@@ -2062,6 +2075,8 @@ function buildCommands(api) {
     ...crewCommands(api, need),
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
+    ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
+    ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
   };
@@ -2829,6 +2844,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // ---- what things are made of: rounds through wood and not block, ricochets, a breached door, blood on a wall,
   // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
+  await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
@@ -3152,7 +3168,7 @@ async function runSelfTest(api, only = null, skip = null) {
     wvClean([]); wvReady();
     const { v, d } = crewed('pickup', -330, 3.5, Math.PI / 2);
     const t = person('raider', 0, 0, { hp: 600 });
-    t.x = -300; t.z = -10; t.home = { x: t.x, z: t.z };
+    t.x = -288; t.z = -10; t.home = { x: t.x, z: t.z }; // far enough down the road that the bed is still in reach after a reload (rounds now fly: WEB_BALLISTICS.md)
     try {
       await C('teleport', { x: -331.5, z: 5.1 }); await api._step(5);
       await tk('KeyE');
@@ -3168,7 +3184,9 @@ async function runSelfTest(api, only = null, skip = null) {
       g.sky.time = 12; g.sky.update?.(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); // noon: an earlier check's night makes the aim wilder
       let fired = 0; const hs = g.combat.hitscan; g.combat.hitscan = function (s, ...a) { if (s === g.player) fired++; return hs.call(this, s, ...a); };
       try {
-      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
+      // The round carries the pickup's speed (WEB_BALLISTICS.md: a moving shooter's round inherits it): aim behind him by that much, as a player learns to.
+      const lead = () => { const tf = g.ballistics.flightTime('pistol', Math.hypot(t.x - g.player.x, t.z - g.player.z)) ?? 0; return { x: t.x - v.vx * tf, z: t.z - v.vz * tf }; };
+      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = lead(); g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
       } finally { g.combat.hitscan = hs; }
       return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck, fired, gun: g.inv.current, mag: g.inv.mag[g.inv.current], dist: +Math.hypot(t.x - g.player.x, t.z - g.player.z).toFixed(1), tAlive: t.alive, inChars: g.chars.includes(t), spread: +(g.skills.spreadMul ?? 1).toFixed(2), stance: g.arms?.stance });
     } finally { wvClean([v, d, t]); }
@@ -5758,10 +5776,21 @@ async function runSelfTest(api, only = null, skip = null) {
       g.aimOverride = { x: p.x - 20, z: p.z };
       await C('step', { seconds: 3 });
       const live = G.alive(pk), mean = () => live.filter((c) => c.alive).reduce((s, c) => s + Math.hypot(c.x - p.x, c.z - p.z), 0) / Math.max(1, live.filter((c) => c.alive).length);
-      const stalking = pk.state === 'stalk', d0 = mean(), t0 = live.find((c) => g.los(p.x, p.z, c.x, c.z)) ?? live[0];
+      // One of them in sight to shoot at (they circle: give it up to 3 s rather than shoot at a wall - the battery's clock moves where they stalk).
+      // A round flies now (WEB_BALLISTICS.md): the one shot at must stay in sight while it gets there, not be stepping round a corner.
+      const seenNow = () => live.filter((c) => c.alive && g.los(p.x, p.z, c.x, c.z));
+      let steady = [];
+      for (let k = 0; k < 15 && !steady.length; k++) { const a0 = seenNow(); await C('step', { seconds: 0.2 }); steady = seenNow().filter((c) => a0.includes(c)); }
+      const stalking = pk.state === 'stalk', d0 = mean(), t0 = steady[0] ?? live.find((c) => c.alive && g.los(p.x, p.z, c.x, c.z)) ?? live[0];
       g.aimOverride = { x: t0.x, z: t0.z };
-      for (let i = 0; i < 8 && !((t0.hitAt ?? -99) > g.time - 1); i++) await C('fire', { id: t0.id, shots: 1 });
-      const hit = (t0.hitAt ?? -99) > g.time - 1;
+      // Any member hit counts, as the pack itself counts it (systems/grapevine.js): each try at one in sight right now.
+      const struck = () => live.some((c) => (c.hitAt ?? -99) > g.time - 1);
+      for (let i = 0; i < 12 && !struck(); i++) {
+        const tgt = seenNow()[0] ?? t0;
+        const r = await C('fire', { id: tgt.id, shots: 1 });
+        if (r.blocked) await C('step', { seconds: 0.25 });
+      }
+      const hit = struck();
       g.aimOverride = { x: p.x - 20, z: p.z };
       let ran = false;
       for (let t = 0; t < 1.5 && !ran; t += 0.25) { await C('step', { seconds: 0.25 }); ran = pk.state === 'retreat'; }
@@ -5945,6 +5974,7 @@ async function runSelfTest(api, only = null, skip = null) {
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
@@ -5987,6 +6017,7 @@ export function snapshot(g) {
     materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
     clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
+    rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
     roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
@@ -6068,6 +6099,7 @@ export function restore(g, s) {
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
   g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
+  if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
 
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
