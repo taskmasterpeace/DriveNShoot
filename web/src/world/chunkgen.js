@@ -8,6 +8,7 @@ import { SPECIES, FLORA_KINDS, P1_FLORA, poolName, floraVariant, floraHash, crow
 import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted density rows (docs/design/WEB_FORGE.md §3.4)
 import { regionWater, WK } from './regions.js';
 import { WATER } from '../data/water.js';
+import { clearEdge, roadsideStage } from './roadside.js'; // ROADSIDE: per-class clear zones and the roadside scenes (docs/design/WEB_ROADSIDE.md)
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -36,6 +37,9 @@ const HILLSHADE = 0.24;            // real terrain (flag): how much a slope at t
 // Real terrain past the strip (docs/design/WEB_SITES_TERRAIN.md §7): canyon strata on steep ground (bands of STRATA_M
 // metres of height, STRATA_K of the colour), a conifer stand in forest (pines a chunk), rock outcrops on slopes past
 // OUTCROP_SLOPE (tries a chunk).
+// ROADSIDE (data/roadside.js ROAD_CLASSES): scatter keeps out of each road's clear zone. An interstate's is measured from
+// its paved edge (the mainline cross-section), a county road's from its ribbon's edge.
+const EDGE_I = clearEdge('interstate', STREAM.median / 2 + STREAM.shoulderIn + 2 * STREAM.lane + STREAM.shoulderOut), CLEAR_COUNTY = clearEdge('two-lane', 0);
 const STRATA_M = 7, STRATA_K = 0.24, FOREST_PINES = 220, OUTCROP_TRIES = 36, OUTCROP_SLOPE = 0.11;
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
@@ -422,8 +426,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) for (const m of mesasOf(W, cx + ix, cz + iz)) { const R = m.r * MESA_REACH; if (m.x + R > ox - 2 && m.x - R < X1 + 2 && m.z + R > oz - 2 && m.z - R < Z1 + 2) mesas.push(m); }
   const blocked = (x, z, r) => {
     if (inIsland(x, z, r + 3)) return true;
-    if (anySegs && roadD(x, z) < 22 + r) return true;
-    for (const rb of F.ribbons) if (!rb.mainline && x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && W.ribbonDist(rb, x, z) < Math.max(rb.wl[0], rb.wr[0]) + 4 + rb.ymax * 2 + r) return true;
+    if (anySegs && roadD(x, z) < EDGE_I + r) return true;
+    for (const rb of F.ribbons) if (!rb.mainline && x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && W.ribbonDist(rb, x, z) < Math.max(rb.wl[0], rb.wr[0]) + (rb.kind === 'county' ? CLEAR_COUNTY : 4) + rb.ymax * 2 + r) return true;
     for (const b of F.buildings) if (x > b.x0 - 4 - r && x < b.x1 + 4 + r && z > b.z0 - 4 - r && z < b.z1 + 4 + r) return true;
     for (const s of F.structs) if (Math.hypot(s.x - x, s.z - z) < Math.max(s.sa, s.su) / 2 + 3 + r) return true;
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
@@ -1246,7 +1250,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (const off of wash ? [0.3, 0.75, 1.0, 1.15] : [1.1, 1.3, 1.6, 2.0]) {
         if (br() > (wash ? (off < 0.9 ? 0.22 : 0.7) : 0.55)) continue; // a wash: brush lines its banks, a little grows in the bed
         const d = (wash ? hw * off : hw + (off - 1) * 22) + br.range(-1.6, 1.6), px = x + nx * d, pz = z + nz * d;
-        if (!own(px, pz) || inIsland(px, pz, 4) || (anySegs && roadD(px, pz) < 26) || onFill(px, pz, 2) || depthNear(px, pz) > 1 || WT.nearFord(px, pz, 45)) continue; // a ford's banks are kept clear (the way across)
+        if (!own(px, pz) || inIsland(px, pz, 4) || (anySegs && roadD(px, pz) < EDGE_I + 4) || onFill(px, pz, 2) || depthNear(px, pz) > 1 || WT.nearFord(px, pz, 45)) continue; // a ford's banks are kept clear (the way across)
         if (F.buildings.some((bd) => px > bd.x0 - 4 && px < bd.x1 + 4 && pz > bd.z0 - 4 && pz < bd.z1 + 4)) continue;
         const sq = WT.sample(px, pz);
         if (sq.depth > 0) continue;
@@ -1289,6 +1293,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
   }
   } // (the desert)
+  // ROADSIDE (world/roadside.js, data/roadside.js): tree walls, fences, poles, billboards, sound walls, farms and the rest
+  // beside every corridor and county road, by road class and road biome (position-hashed: no draws on rng).
+  out.roadside = yield* roadsideStage({ W, cx, cz, C, INST, addBox, addOriented, blocked, wet: (x, z) => depthNear(x, z) > 0, featuresOf: (a, b) => W.featuresOf(a, b), pause, resume,
+    specH: (k) => SPECIES[k].h, plant: (k, x, z, sc, rot, sh) => { const b = INST[poolName(k)], i = b.push(x, 0, z, rot, sc, sc, sc, sh, sh, sh); if (i >= 0) b.e[i] = floraVariant(x, z); return i; } });
   // THE BRUSH (world/brush.js): woods, undergrowth and hot zones where strokes reach (its own random stream).
   if (BR) out.brush = yield* brushStage(BR, { INST, addBox, blocked, boxes, ox, oz, cx, cz, seed, state, pause, resume });
   pause(); yield; resume();

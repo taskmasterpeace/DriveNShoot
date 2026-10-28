@@ -19,6 +19,9 @@
 import { TERRAIN, BIOME_CODES } from '../data/terrain.js';
 import { BIOMES } from '../data/streaming.js';
 import { C, chunkId } from './geo.js';
+import { ROAD_CLASSES, ROAD_BIOMES, CLASS_OF } from '../data/roadside.js';
+import { roadBiomeOf } from './roadside.js';
+const DITCH = ROAD_CLASSES[CLASS_OF.corridor].ditch; // ROADSIDE: the ditch beside an interstate's bed (docs/design/WEB_ROADSIDE.md)
 
 const STEP = 8, N_G = C / STEP + 1, PB = 2048; // pad buckets (m)
 const sm = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -277,6 +280,21 @@ export class RealTerrain {
       for (const X of exits) k = Math.max(k, sm((T.formationXs + 100 - Math.abs(cl.s[i] - X.s)) / 100));
       wf[i] = T.formation + (T.formationX - T.formation) * k;
     }
+    // ROADSIDE (data/roadside.js): the road biome's raised bed (relief.js BED) and the weight of the ditch beside it, both
+    // eased to nothing through an interchange, a pinned pad and wherever water is near (a crossing keeps its own levels).
+    const dkR = new Float64Array(n), bedR = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = cl.x[i], z = cl.z[i], s = cl.s[i];
+      let f = 1 - sm((wf[i] - T.formation) / 4);
+      for (const p of pinned) { const ds = s < p.s0 ? p.s0 - s : s > p.s1 ? s - p.s1 : 0; f = Math.min(f, sm((ds - 120) / 280)); }
+      if (this.W.water?.near(x, z)) f = 0;
+      dkR[i] = f;
+      const L = this.biomeAt(x, z) ?? this.W.biomeAt(x, z);
+      bedR[i] = ROAD_BIOMES[roadBiomeOf(L, this.W.regionOf?.(x, z, 3000)?.id ?? null, this.W.stateAt(x, z))]?.bed ?? 0;
+    }
+    const dkS = box(box(dkR)), bedS = box(box(bedR));
+    const dk = (R.dk = new Float32Array(n));
+    for (let i = 0; i < n; i++) { dk[i] = dkR[i] > 0 ? Math.min(dkR[i], dkS[i]) : 0; R.yr[i] += bedS[i] * dk[i]; }
     let dmax = 0, gmax = 0, cut = 0, fill = 0;
     for (let i = 0; i < n; i++) {
       const d = R.yr[i] - y[i];
@@ -338,8 +356,10 @@ export class RealTerrain {
     const d = Math.sqrt(q.d2), yr = R.yr[bi] + (R.yr[bi + 1] - R.yr[bi]) * bt, wf = R.wf[bi] + (R.wf[bi + 1] - R.wf[bi]) * bt;
     const dd = d - wf;
     if (dd <= 0) return yr;
-    const lim = this.m * dd, df = h - yr;
-    return df > lim ? yr + lim : df < -lim ? yr - lim : h;
+    const lim = this.m * dd, df = h - yr, g = df > lim ? yr + lim : df < -lim ? yr - lim : h;
+    // ROADSIDE: the ditch just past the bed (a cut's foot, a fill's toe), where the survey left it its weight
+    const t = (dd - DITCH.at) / DITCH.width, k = R.dk ? R.dk[bi] : 0;
+    return t > 0 && t < 1 && k > 0 ? g - DITCH.depth * Math.sin(Math.PI * t) * k : g;
   }
 
   // The ground at (x, z), exactly (no grid): the land, cut and filled to each road bed, then to every pad that reaches.

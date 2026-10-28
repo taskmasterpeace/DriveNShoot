@@ -95,6 +95,7 @@ export const MATERIAL_RULES = {
     sandbags: 'sandbags',
     barrier: 'concrete', pool: 'concrete', storey: 'concrete', building: { finish: true }, // a solid block: by its finish
     tree: 'timber', cactus: 'timber',
+    soundwall: 'concrete', billboard: 'steel', windmill: 'steel', homestead: 'wood', barn: 'wood', // the roadside (world/roadside.js)
     husk: 'timber', drum: 'sheet_metal', hut: 'wood', // the hot ground's dead trunks and rusted drums, a Greyborn settlement's huts (they stand up at runtime)
     rock: 'rock', boulder: 'rock',
     // below the street (systems/underground.js): a bunker's poured walls, a cave's living rock, a fallen roof, the stairs'
