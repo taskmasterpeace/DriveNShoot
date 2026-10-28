@@ -19,6 +19,8 @@ const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: '
 export const VEHICLES = {
   rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, reverse: 11, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
   interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, reverse: 15, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
+  // A town's patrol car (systems/security.js): a LAWMAN gone to seed - primer, mismatched panels, a dead lightbar, a welded ram bar (vehiclebodies.js look: 'rundown').
+  bullcar: { name: 'BULL CAR', base: 'interceptor', look: 'rundown', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 41, reverse: 14, accel: 19, turn: 2.3, grip: 6.2, mass: 1.55, hp: 210, armor: 0.36, fuelCap: 60, seats: S2 },
   buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, tall: 1.6, maxSpeed: 40, reverse: 14, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
   // The pickup's bed is a deck now (data/decks.js pickupBed): stand in it, crouch behind its sides, shoot any way, fall
   // out. Its old standing seats (bedL, bedR) are gone: the bed is somewhere you are, not a seat.
@@ -565,6 +567,7 @@ export class Vehicles {
         }
       }
     }
+    g.gadgets?.steer(v, dt); // a chain or a strip in the road: brake, or go round it (systems/gadgets.js)
   }
 
   // ---- harpoon -------------------------------------------------------------------------

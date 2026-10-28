@@ -113,6 +113,7 @@ export class CamRig {
     let dT = this.mem[ev][m];
     if (v) dT = Math.min(L.dMax, dT + g.vehiclesSys.speed(v) * CAMERA.drive.speedLift * (ev === 'CHASE' ? 0.35 : 1));
     if (insideBuilding && !v) dT = Math.min(dT, CAMERA.indoor.dMax);
+    if (g.droneCam?.active) dT = Math.max(dT, g.droneCam.h / Math.cos(this.theta || 0)); // flying the drone: at least its eye height (systems/drones.js)
     if (this.override?.d) dT = this.override.d;
     const k = 1 - Math.exp(-dt * ZOOM.heightRate);
     this.D += (dT - this.D) * k;

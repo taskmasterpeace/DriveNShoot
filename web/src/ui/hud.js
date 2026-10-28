@@ -578,6 +578,7 @@ export class HUD {
       const bx = (h.x - px) * scale, bz = (h.z - pz) * scale, d = Math.hypot(bx, bz), m = R - 12;
       c.fillText('✕', R + (d > m ? (bx / d) * m : bx), R + (d > m ? (bz / d) * m : bz) + 4);
     }
+    this.g.gadgets?.drawMinimap(c, px, pz, scale, R); // your gadgets, the drone, what it marked (systems/gadgets.js)
     // you
     c.save();
     c.translate(R, R);
