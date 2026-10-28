@@ -1,5 +1,6 @@
 import { OVERRUN } from '../data/citygen.js';
 import { AMBIENT_RESERVE } from './zombies.js';
+import { DRIFT } from '../data/infected.js';
 import { outfit } from './characters.js';
 
 // OVERRUN (docs/design/WEB_CITYGEN.md §3.6): the dead against the living, settlement by settlement.
@@ -86,6 +87,16 @@ export class Overrun {
   }
   onNoise(x, z, r) {
     if (r < 6) return;
+    // A big noise turns every walking horde that hears it (r x DRIFT.perR), day or night: it walks there (update).
+    if (r >= DRIFT.minR) for (const H of this.hordes) {
+      if (H.pinned || H.state === 'siege' || H.state === 'feed') continue;
+      if (Math.hypot(H.x - x, H.z - z) > r * DRIFT.perR) continue;
+      // A horde already drawn turns to a new noise only if it is as loud, or nearer than the one it is walking to.
+      if (H.drift && r < H.drift.r * 0.8 && Math.hypot(H.x - x, H.z - z) > Math.hypot(H.x - H.drift.x, H.z - H.drift.z)) continue;
+      if (!H.drift) { H.drift = { x, z, r, t: 0, at: null }; this.counts.drifts = (this.counts.drifts ?? 0) + 1; this.g.emit?.('hordeHeard', { id: H.id, x: Math.round(x), z: Math.round(z), dist: Math.round(Math.hypot(H.x - x, H.z - z)) }); }
+      if (Math.hypot(H.drift.x - x, H.drift.z - z) > DRIFT.arrive) H.drift.at = null; // somewhere new: walk again (another shot where it already stands changes nothing)
+      H.drift.x = x; H.drift.z = z; H.drift.r = r; H.drift.t = this.g.time ?? 0;
+    }
     const rec = this.cg.recAt(x, z, 20);
     if (!rec) return;
     rec.heat = Math.min(OVERRUN.heat.cap, (rec.heat ?? 0) + r * OVERRUN.heat.per); // Layer A: the settlement's heat
@@ -161,6 +172,20 @@ export class Overrun {
       const dP = Math.hypot(H.x - P.x, H.z - P.z);
       if (dP < HO.bodyR && H.bodies.length < Math.min(HO.bodies, H.strength)) this.materialize(H);
       else if (dP > HO.bodyR * 1.6 && H.bodies.length) this.dematerialize(H);
+      // Drawn by a noise it heard (onNoise): it walks there on the world clock (the record at HO.speed, the bodies on their
+      // own feet), stays DRIFT.linger s, then goes back to its road.
+      if (H.drift) {
+        const D = H.drift, dd = Math.hypot(D.x - H.x, D.z - H.z);
+        H.state = 'drift';
+        if (dd > DRIFT.arrive && D.at === null) {
+          if (!live.length) { const k = Math.min(1, (HO.speed * tick) / dd); H.x += (D.x - H.x) * k; H.z += (D.z - H.z) * k; }
+          for (const c of live) if (!c.zsee && !(c.zm?.src === 'sound' && Math.abs(c.zm.x - D.x) < 12 && Math.abs(c.zm.z - D.z) < 12)) g.zombies?.remember(c, D.x + (Math.random() - 0.5) * 16, D.z + (Math.random() - 0.5) * 16, 'sound');
+          continue;
+        }
+        if (D.at === null) { D.at = g.time ?? 0; g.emit?.('hordeArrived', { id: H.id, x: Math.round(H.x), z: Math.round(H.z) }); }
+        if ((g.time ?? 0) - D.at < DRIFT.linger) continue;
+        H.drift = null; H.state = 'walk';
+      }
       if (!rec) { H.target = this.nearestTown(H.x, H.z)?.id ?? null; continue; }
       const dT = Math.hypot(rec.x - H.x, rec.z - H.z), edge = rec.half + HO.arrive;
       if (dT > edge) {
@@ -276,5 +301,5 @@ export class Overrun {
     H.bodies.length = 0;
   }
   clear() { for (const H of this.hordes) this.dematerialize(H); this.hordes.length = 0; }
-  view() { return this.hordes.map((H) => ({ pinned: !!H.pinned, id: H.id, x: Math.round(H.x), z: Math.round(H.z), strength: Math.round(H.strength), size0: H.size0, target: H.target, state: H.state, bodies: H.bodies.filter((c) => c.alive).length })); }
+  view() { return this.hordes.map((H) => ({ pinned: !!H.pinned, id: H.id, x: Math.round(H.x), z: Math.round(H.z), strength: Math.round(H.strength), size0: H.size0, target: H.target, state: H.state, drift: H.drift ? { x: Math.round(H.drift.x), z: Math.round(H.drift.z), arrived: H.drift.at !== null } : null, bodies: H.bodies.filter((c) => c.alive).length })); }
 }

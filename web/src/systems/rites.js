@@ -657,7 +657,8 @@ export class Rites {
     const K = CEMETERY_KINDS[cem.kind], g = this.g, rec = cem.rec;
     const live = rec ? g.citygen?.live?.get(rec.id) : null;
     if (rec && !live && !cem.fixed) { cem.y = rec.y ?? this.ground(cem.x, cem.z); return; } // not built yet: provisional
-    const roads = live?.T?.roads ?? [], WL = live?.T?.wall ?? null, W = g.streamer?.W, CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
+    const roads = live?.T?.alleys?.length ? [...live.T.roads, ...live.T.alleys] : live?.T?.roads ?? [], WL = live?.T?.wall ?? null, W = g.streamer?.W, // (a town's service alleys are streets too: BACK LOTS)
+      CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
     // the rock the chunk generator stands up near here (mesas, buttes, ridges: pure, world/chunkgen.js mesasOf)
     const rock = [], reach = (rec ? rec.half : 200) + Math.hypot(cem.w, cem.d) + 40, ox = rec?.x ?? cem.x, oz = rec?.z ?? cem.z;
     if (W?.reliefAt) for (let cx = Math.floor((ox - reach) / CHUNK) - 1; cx <= Math.floor((ox + reach) / CHUNK) + 1; cx++) for (let cz = Math.floor((oz - reach) / CHUNK) - 1; cz <= Math.floor((oz + reach) / CHUNK) + 1; cz++) for (const m of mesasOf(W, cx, cz)) if (Math.abs(m.x - ox) < reach + m.r * MESA_REACH && Math.abs(m.z - oz) < reach + m.r * MESA_REACH) rock.push(m);
