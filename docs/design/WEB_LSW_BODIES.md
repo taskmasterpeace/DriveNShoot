@@ -85,7 +85,7 @@ In the pause menu (SETTINGS → People), Robert can flip between LSW bodies and 
 - **Hidden in a cabin, culled above your storey, an animal's own mesh:** never near, never drawn.
 - **Dead:** the sprawl pose, which `ik` solves, so the hands are exact. **Knocked down, asleep, swimming, diving:** the
   classic root frame carries the whole body.
-- **Lefties:** the grip side follows `ch.hand`. **Zombies** wear LSW bodies too: their infected skin and torn clothes
+- **Lefties:** the grip side follows `ch.hand`. **The infected** wear LSW bodies too: their infected skin and torn clothes
   come through the same colours. The ZOMBIES lane's poses all ride existing solver flags, so they carry over with no
   extra code: the crawler is `prone`, the fall and get-up is `knockT`, overheating is `crouch`, and the lunge is a speed
   burst on the walk cycle.

@@ -178,7 +178,7 @@ export async function lswBodiesChecks(api, check, C) {
     return bad.length ? bad.slice(0, 5).join('; ') : true;
   }));
 
-  await check('lsw-bodies: the infected keep LSW bodies through their own poses (systems/zombies.js) - a crawler (prone), one fallen and getting up (knockT), one overheated (crouch), one shambling: hips, knees and ankles on the solver within 3 cm', () => stage(async () => {
+  await check('lsw-bodies: the infected keep LSW bodies through their own poses (the infected AI) - a crawler (prone), one fallen and getting up (knockT), one overheated (crouch), one shambling: hips, knees and ankles on the solver within 3 cm', () => stage(async () => {
     const out = [], Z = [];
     for (let k = 0; k < 4; k++) { const z = g.zombies.spawn(STAGE.x - 1.5 + k * 1.2, STAGE.z + 1.5, false); if (z) { z.hold = true; staged.push(z); Z.push(z); } }
     if (Z.length < 4) return `spawned ${Z.length} infected`;
