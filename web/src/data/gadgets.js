@@ -31,11 +31,13 @@ export const GADGETS = {
     item: { kg: 4.2, bulk: 2.5, value: 60, stack: 1, desc: 'An accordion of hollow teeth on a plastic spine. Unfolds across a lane in one throw.' },
     source: { craft: [['scrap', 2], ['knife', 1]], buy: 60, loot: 'the security station, patrol cars' },
   },
-  landmine: {
-    name: 'Pressure mine', verb: 'place', arm: 3, trigger: 'pressure', r: 0.85, buried: true,
+  // The same object the workshop's MINE DROPPER loads (data/workshop.js AMMO_ITEMS car_mine): one item id, one row in the
+  // pack. Here it is buried by hand; there it drops off a car's tail. Its item fields match the workshop's row.
+  car_mine: {
+    name: 'Car mine', verb: 'place', arm: 3, trigger: 'pressure', r: 0.85, buried: true,
     effect: { blast: { r: 5.5, dmg: 230, car: 420 } }, hurts: 'all', notice: { spot: 3.2, tell: 'a fist of disturbed earth, a prong' },
-    item: { kg: 2.8, bulk: 1.4, value: 120, stack: 2, desc: 'A steel can of old powder with a pressure plate. Bury it where the wheels go. Remember where.' },
-    source: { craft: [['scrap', 2], ['fuel_can', 1], ['spark_plugs', 1]], buy: 120, loot: 'military caches' },
+    item: { kind: 'ammo', kg: 6, bulk: 3, stack: 4, value: 55, tags: ['car_ammo', 'gadget'], desc: 'A pressure plate on a cake tin of explosive. Bury it where the wheels go, or load it in a mine dropper. Do not step on it either.' },
+    source: { craft: [['scrap', 2], ['fuel_can', 1], ['spark_plugs', 1]], buy: 55, loot: 'military caches, the workshop counter' },
   },
   fan_mine: {
     name: 'Fan mine', verb: 'place', arm: 4, trigger: 'wire', wire: 3.2, r: 0.5,

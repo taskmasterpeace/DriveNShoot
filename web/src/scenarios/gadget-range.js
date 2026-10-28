@@ -34,7 +34,7 @@ export default async function (DL, game) {
   out.crawler = r.alive ? `raider alive (${Math.round(r.hp)} hp)` : 'raider killed';
   // 3. A buried mine in the road; a pickup driven over it.
   for (const p of [...GX.list]) GX.remove(p);
-  GX.place('landmine', X, Z - 20, 0, null, { state: 'armed', armAt: 0 });
+  GX.place('car_mine', X, Z - 20, 0, null, { state: 'armed', armAt: 0 });
   const c2 = await DL.spawnVehicle({ type: 'pickup', x: X, z: Z - 48, heading: 0 });
   await DL.teleport({ x: X + 3, z: Z - 48 });
   await DL.enterVehicle({ id: c2.id, force: true });
@@ -52,7 +52,7 @@ export default async function (DL, game) {
   GX.place('crawler_mine', X + 2, Z - 30, 0, g.player);
   GX.place('signal_flare', X - 2, Z - 30, 0, g.player, { state: 'armed', armAt: 0 });
   GX.place('noise_maker', X + 2, Z - 27, 0, g.player, { state: 'armed', armAt: 0 });
-  GX.place('landmine', X - 2, Z - 27, 0, g.player);
+  GX.place('car_mine', X - 2, Z - 27, 0, g.player);
   await DL.step({ seconds: 2 });
   await DL.drone({ action: 'launch', kind: 'scout', give: true });
   await DL.drone({ action: 'fly', x: X + 1, z: Z - 38 });

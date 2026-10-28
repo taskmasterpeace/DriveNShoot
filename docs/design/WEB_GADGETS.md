@@ -10,7 +10,7 @@ Robert (2026-10-27): *"Gadgets, like drones, the chains that they throw in the s
 
 Three things that were missing between the throwables (7 grenades) and the Greyborn's traps (5 kinds, owned by settlements):
 
-1. **Gadgets you carry and set.** 14 rows: a road chain and a spike strip you throw across a lane, a buried pressure mine, a fan mine on a tripwire, a crawler mine that walks to the nearest enemy, a noise box and a bottle (lures), a signal flare (light + lure), smoke and choke gas, a remote charge (U detonates), a breach charge (on a door), a car alarm (on a car) and tripwire bells (an alert).
+1. **Gadgets you carry and set.** 14 rows: a road chain and a spike strip you throw across a lane, a buried car mine (the same `car_mine` item the workshop's mine dropper loads), a fan mine on a tripwire, a crawler mine that walks to the nearest enemy, a noise box and a bottle (lures), a signal flare (light + lure), smoke and choke gas, a remote charge (` detonates), a breach charge (on a door), a car alarm (on a car) and tripwire bells (an alert).
 2. **Drones.** A scout drone and a drop drone launched from the pack and flown with WASD while your body stands where you left it.
 3. **Town security — THE PAPER LADDER** (fan-service bible §3.2). A station, a run-down patrol car on a loop, officers on the beat, and answers to the wanted stars: town bulls who offer the cuffs, a county posse with a roadblock, skip tracers who ram and follow.
 
@@ -33,7 +33,7 @@ EM3 checks: **cost** (every gadget is weight, scrip or a recipe; drones have bat
 | `pressure` | a foot (not mid-leap) or a wheel inside `r` |
 | `wire` | a body or a car crossing the wire (fan mine: 1.1 m in front of it, across its facing) |
 | `hunt` | the crawler walks (5.2 m/s, `statics.resolveCircle` round walls) to the nearest enemy of its owner with a line of sight inside 22 m and blows inside 0.9 m; after 45 s with nothing, it goes where it sits |
-| `timer` / `impact` / `remote` | the fuse / landing / **U** (`gadget detonate=true`) |
+| `timer` / `impact` / `remote` | the fuse / landing / **`** (backquote; `gadget detonate=true`) |
 | `touch` | the car alarm: anyone but the owner at the car, a stranger at the wheel, or the car hit |
 
 **Friendly fire is on** (`hurts: 'all'`): a mine doesn't know whose foot it is. Lures and flares hurt nobody.
@@ -46,7 +46,7 @@ Blasts go through `throwables.explode` (people with line of sight, glass, doors,
 - **People on foot**: inside `spot` (less at night) with a line of sight, a chance per second; on a sighting their **whole faction** knows it (`p.seen` bitmask) and steps around it from then on. Event `gadgetSpotted`. The infected never notice anything.
 
 ### 3.4 Drones
-Launch from the pack (the item leaves it; it lands back in it). **WASD** fly (`d.ix/iz`, smoothed velocity), **Shift** boost (2× drain), **E** home, **U** drop (the drop drone's 3 pipe charges, 0.6 s fall). Battery by the second; signal weak past 80% of range (a wobble, the HUD says so), **lost past range: it flies itself home** and lands. Low battery (12%) does the same; flat, it falls. Every 0.5 s it **marks** enemies under it for 8 s (minimap rings). It buzzes (`onNoise` 22 m every 2 s: THE PULL). Armed hostiles who see it inside 35 m shoot at it (hit odds fall with range); 0 hp, it falls and breaks to a piece of scrap on the ground. Your body is frozen where you stood, still shootable.
+Launch from the pack (the item leaves it; it lands back in it). **WASD** fly (`d.ix/iz`, smoothed velocity), **Shift** boost (2× drain), **E** home, **`** drop (the drop drone's 3 pipe charges, 0.6 s fall). Battery by the second; signal weak past 80% of range (a wobble, the HUD says so), **lost past range: it flies itself home** and lands. Low battery (12%) does the same; flat, it falls. Every 0.5 s it **marks** enemies under it for 8 s (minimap rings). It buzzes (`onNoise` 22 m every 2 s: THE PULL). Armed hostiles who see it inside 35 m shoot at it (hit odds fall with range); 0 hp, it falls and breaks to a piece of scrap on the ground. Your body is frozen where you stood, still shootable.
 
 ### 3.5 Town security (THE PAPER LADDER)
 `SECURITY` rows (one per town: Rust Haven today): station (`security_station` building from the cities lane when present, else a stub placement — a signpost, a lamp, painted garage lines), patrol loop, beat size, fine and jail rates, the car row. Officers are the town's wardens (faction `warden`), so hostility, stars and standing are the existing rules.
@@ -97,7 +97,7 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `systems/vehiclebodies.js` | `s.look === 'rundown'`: primer hood, swapped door panels, a rust trunk, a busted lightbar, a welded ram plate |
 | `systems/inventory.js` | `act` routes `gadget`, `drone`, `barricade`, `wedge`, `keys` to `g.gadgets.useItem` |
 | `data/items.js` | folds `GADGETS`, `DRONES` (`drone_<kind>`), `DOOR_KIT` into `ITEMS` |
-| `data/controls.js` | the `detonate` row (U; pad VIEW+right) |
+| `data/controls.js` | the `detonate` row (` backquote; pad VIEW+RT). The workshop's row holds U |
 | `ui/hud.js` | `g.gadgets?.drawMinimap(...)` before it draws you |
 | `agent/api.js` | import, spread the commands, the checks before the perf gate, security off for the battery |
 
@@ -107,7 +107,7 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `road_chain.len` / `spike_strip.len` | 7 / 4.6 m | 3-9 | how much of a road one covers; the strip is short enough to drive round |
 | `effect.tyres` (chain / strip) | 2 / 4 | 1-4 | how crippled a car is after one pass |
 | `notice.spot` (strip / chain / mine) | 16 / 24 / 3.2 m | 5-40 / 0-8 | how often AI drivers dodge, how often people see a mine |
-| `landmine.effect.blast.car` | 420 | 200-600 | whether one mine kills a car (rigs have more hp) |
+| `car_mine.effect.blast.car` | 420 | 200-600 | whether one mine kills a car (rigs have more hp) |
 | `crawler_mine.hunt / speed / life` | 22 m / 5.2 m/s / 45 s | 10-35 / 3-8 / 20-90 | reach and how hard it is to outrun |
 | `DRONES.scout.range / battery` | 160 m / 150 s | 80-300 / 60-300 | how far you can scout, how long |
 | `DRONES.*.weak` | 0.8 | 0.6-0.95 | warning margin before the signal goes |
@@ -126,7 +126,7 @@ Not done: placed gadgets and barricades are not saved (a hook into `snapshot` is
 | `gadgets: a crawler mine ... kills it inside 8 s` | the crawler finds, walks to and kills a raider 15 m off |
 | `gadgets: a pressure mine buried in the road kills the car` | a car driven over it burns |
 | `gadgets: a fan mine fires down its own facing...` | the one in front dies, the one behind lives |
-| `gadgets: a remote charge waits for the detonate... flare ... pooled lights` | U-only detonation; the flare lights one of fx's pooled lights; scene light count unchanged |
+| `gadgets: a remote charge waits for the detonate... flare ... pooled lights` | detonate-key-only detonation; the flare lights one of fx's pooled lights; scene light count unchanged |
 | `drones: a scout drone flown past its range loses the signal...` | piloting moves the camera target, it marks a raider, signal lost before range + 20 m, it comes home and is back in the pack |
 | `security: a theft a town bull saw ... brings the run-down patrol car` | a witnessed `steal` deed raises a star and a `bullcar` drives from the station to within 22 m |
 | `security: hands up beside the bulls ... a fine` | holstered and still: fined, 0 stars |

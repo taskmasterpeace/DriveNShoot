@@ -14,7 +14,7 @@ const FACTION_COL = { raider: 'var(--blood)', ally: 'var(--green)', zombie: 'okl
 const BEARINGS = [['N', 0], ['NE', 45], ['E', 90], ['SE', 135], ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]];
 // The brass ribbon: 540 px of plate, a 488 px window, 3 px per degree (about ±80° in view).
 const RIBBON_W = 540, CW = 488, PXD = 3, EDGE = 71;
-const MARKS = 3;
+const MARKS = 4; // waypoint, train, convoy, and your parked car while you're on foot
 const rel = (b, head) => ((b - head + 540) % 360) - 180; // signed degrees from the heading
 
 export class Feedback {
@@ -23,6 +23,8 @@ export class Feedback {
     root.insertAdjacentHTML('beforeend', `
       <div class="fb">
         <div class="fb-lens"></div>
+        <div class="fb-vig"></div>
+        <div class="fb-reload hidden"><kbd>R</kbd> RELOAD</div>
         <div class="fb-dirs"></div>
         <div class="fb-tags"></div>
         <div class="fb-float"></div>
@@ -30,7 +32,7 @@ export class Feedback {
         <div class="fb-compass"><canvas class="fb-ctex"></canvas><div class="fb-cwin"><div class="fb-cticks"></div>${BEARINGS.map(([n]) => `<span class="fb-cb${n.length === 1 ? ' major' : ''}">${n}</span>`).join('')}${'<span class="fb-cm"><b></b><small></small></span>'.repeat(MARKS)}</div><div class="fb-cnotch"></div><div class="fb-cread"></div></div>
       </div>`);
     const q = (s) => root.querySelector(s);
-    this.el = { lens: q('.fb-lens'), dirs: q('.fb-dirs'), tags: q('.fb-tags'), float: q('.fb-float'), kills: q('.fb-kills'), ticks: q('.fb-cticks'), read: q('.fb-cread') };
+    this.el = { vig: q('.fb-vig'), reload: q('.fb-reload'), lens: q('.fb-lens'), dirs: q('.fb-dirs'), tags: q('.fb-tags'), float: q('.fb-float'), kills: q('.fb-kills'), ticks: q('.fb-cticks'), read: q('.fb-cread') };
     // The kill feed hangs under the cash plate in the HUD's right column when the HUD offers a slot.
     game.hud?.el?.killSlot?.appendChild(this.el.kills);
     const tex = q('.fb-ctex'), rib = paintRibbon(RIBBON_W, 36);
@@ -100,8 +102,15 @@ export class Feedback {
     this.floats.push({ el, x, z, t: 0 });
   }
 
+  // A number off whoever you hit (gold for a head shot), when the setting is on. combat.js calls it after the hit lands.
+  damage(c, dmg, part) {
+    if (!this.g.qol?.settings?.dmgNumbers || dmg < 0.5) return;
+    this.floater(c.x + (Math.random() - 0.5) * 0.6, c.z + (Math.random() - 0.5) * 0.6, String(Math.round(dmg)), part === 'head' ? 'dmg head' : 'dmg');
+  }
+
   killRow(e) {
     const g = this.g, p = g.player;
+    if (g.qol?.settings?.killFeed === false) return;
     const killer = e.by ? g.api.findChar(e.by) : null, victim = g.api.findChar(e.victim);
     const near = victim && Math.hypot(victim.x - p.x, victim.z - p.z) < 70;
     if (!(e.by === p.id || e.victim === p.id || near)) return;
@@ -162,6 +171,11 @@ export class Feedback {
     const w = g.inv?.current, mag = g.inv?.mag?.[w];
     const size = { pistol: 6, smg: 32, shotgun: 2 }[w] ?? 6;
     g.hud.el.wmag.classList.toggle('low', mag !== undefined && mag <= Math.max(1, Math.floor(size * 0.25)));
+    // An empty gun with auto-reload off says how to fix it; under 30% health the screen edge pulses red.
+    const dry = !p.inVehicle && mag === 0 && g.qol?.settings?.autoReload === false && p.alive;
+    if (dry !== this.dry) { this.dry = dry; this.el.reload.classList.toggle('hidden', !dry); }
+    const low = p.alive && p.hp < p.maxHp * 0.3;
+    if (low !== this.lowHp) { this.lowHp = low; this.el.vig.classList.toggle('on', low); }
     if (p.alive && p.hp < p.maxHp * 0.3) {
       this.heartT -= dt;
       if (this.heartT <= 0) { g.audio.heartbeat?.(1 - p.hp / (p.maxHp * 0.3)); this.heartT = 0.55 + (p.hp / (p.maxHp * 0.3)) * 0.5; }
@@ -170,15 +184,15 @@ export class Feedback {
 
   updateTags() {
     const g = this.g, p = g.player, aim = g.aim;
-    const cand = [];
+    const cand = [], mode = g.qol?.settings?.nameTags ?? 'aim'; // aim | near | off (the pause menu's Name tags)
     for (const c of g.chars) {
       if (c === p || !c.alive || c.hidden || c.underwater) continue;
       const dp = Math.hypot(c.x - p.x, c.z - p.z);
       if (c.telling && dp < 60) { cand.push({ c, s: -10 }); continue; } // a witness running home: always tagged, first
-      if (dp > 34) continue;
+      if (mode === 'off' || dp > 34) continue;
       const da = Math.hypot(c.x - aim.x, c.z - aim.z);
       const named = !!c.npc;
-      if (da < 7 || (named && dp < 12)) cand.push({ c, s: da - (named ? 4 : 0) });
+      if (mode === 'near' ? dp < 20 : da < 7 || (named && dp < 12)) cand.push({ c, s: (mode === 'near' ? dp / 3 : da) - (named ? 4 : 0) });
     }
     cand.sort((a, b) => a.s - b.s);
     this.lastTags = [];
@@ -215,6 +229,8 @@ export class Feedback {
     if (g.train?.present) this.addMark(ox, oz, RAIL.x, Math.max(g.train.head - g.train.length, Math.min(g.train.head, oz)), 'TRAIN', 'train');
     const cv = g.convoy?.active;
     if (cv) { const l = cv.members.find((m) => !m.v.dead); if (l) this.addMark(ox, oz, l.v.x, l.v.z, 'CONVOY', 'convoy'); }
+    const car = !p.inVehicle && g.lastVehicle;
+    if (car && !car.dead && Math.hypot(car.x - ox, car.z - oz) > 14) this.addMark(ox, oz, car.x, car.z, 'CAR', 'car');
     // Tick marks are two repeating gradients slid under the window: one style write while you turn.
     const off = Math.round((CW / 2 - head * PXD) * 10) / 10;
     if (off !== this.cOff) { this.cOff = off; this.el.ticks.style.backgroundPositionX = `${off}px, ${off}px`; }

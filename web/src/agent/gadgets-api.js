@@ -27,7 +27,7 @@ export function gadgetsCommands(api, need) {
 
   return {
     gadget: {
-      group: 'world', desc: `Gadgets (data/gadgets.js, docs/design/WEB_GADGETS.md): ${KINDS.join(', ')}. No args: every gadget in the world near you (radius, default 120 m) with its state (flying, arming, armed, tripped, burning), trigger, what it sits on, who it is hunting, the factions that have spotted it, and the counts. place=<kind> at=x,z|aim|feet heading= (radians; a chain, strip or wire lies ACROSS the heading) sets one as yours (owner=none: nobody's); throw=<kind> x= z= throws one in an arc from where you stand (or out of the car window); attach=<kind> target=<vehicle id | door id> fixes a car alarm or a breach charge; detonate=true sets off your remote charges (id= just one; the U key); pickup=<id> takes one back; give=<kind> n= puts them in your pack; craft=<kind> makes one from what you carry (its row's recipe); id=<gadget id> views one; clear=true takes every gadget away. armed=true skips the arm time (staging).`,
+      group: 'world', desc: `Gadgets (data/gadgets.js, docs/design/WEB_GADGETS.md): ${KINDS.join(', ')}. No args: every gadget in the world near you (radius, default 120 m) with its state (flying, arming, armed, tripped, burning), trigger, what it sits on, who it is hunting, the factions that have spotted it, and the counts. place=<kind> at=x,z|aim|feet heading= (radians; a chain, strip or wire lies ACROSS the heading) sets one as yours (owner=none: nobody's); throw=<kind> x= z= throws one in an arc from where you stand (or out of the car window); attach=<kind> target=<vehicle id | door id> fixes a car alarm or a breach charge; detonate=true sets off your remote charges (id= just one; the \` key); pickup=<id> takes one back; give=<kind> n= puts them in your pack; craft=<kind> makes one from what you carry (its row's recipe); id=<gadget id> views one; clear=true takes every gadget away. armed=true skips the arm time (staging).`,
       args: { place: { type: 'string', enum: KINDS }, throw: { type: 'string', enum: KINDS }, attach: { type: 'string', enum: ['car_alarm', 'breach_charge'] }, at: { type: 'string' }, heading: { type: 'number' }, x: { type: 'number' }, z: { type: 'number' }, target: { type: 'string' },
         owner: { type: 'string', enum: ['player', 'none'], default: 'player' }, armed: { type: 'boolean', default: false }, detonate: { type: 'boolean' }, id: { type: 'string' }, pickup: { type: 'string' }, give: { type: 'string' }, n: { type: 'number', default: 1 }, craft: { type: 'string' }, clear: { type: 'boolean' }, radius: { type: 'number', default: 120 } },
       run: async (a) => {
@@ -63,7 +63,7 @@ export function gadgetsCommands(api, need) {
       },
     },
     drone: {
-      group: 'world', desc: `Drones (data/gadgets.js DRONES: ${Object.keys(DRONES).join(', ')}; systems/drones.js). No args: the one in the air (state fly|home|down, where, distance from you, signal 0..1, battery s, hp, bombs) and the counts. action=launch kind= (give=true puts one in your pack first; it leaves the pack and flies, your body stays put, the camera follows it); action=fly x= z= flies it to a point (or dx= dz= -1..1 holds a direction like WASD; boost=true); action=land calls it home (it lands beside you and goes back in the pack); action=bomb drops one (the drop drone). Past its range the signal goes and it flies itself home. In the game: launch it from the PACK screen; WASD fly, Shift boost, E home, U drop.`,
+      group: 'world', desc: `Drones (data/gadgets.js DRONES: ${Object.keys(DRONES).join(', ')}; systems/drones.js). No args: the one in the air (state fly|home|down, where, distance from you, signal 0..1, battery s, hp, bombs) and the counts. action=launch kind= (give=true puts one in your pack first; it leaves the pack and flies, your body stays put, the camera follows it); action=fly x= z= flies it to a point (or dx= dz= -1..1 holds a direction like WASD; boost=true); action=land calls it home (it lands beside you and goes back in the pack); action=bomb drops one (the drop drone). Past its range the signal goes and it flies itself home. In the game: launch it from the PACK screen; WASD fly, Shift boost, E home, \` drop.`,
       args: { action: { type: 'string', enum: ['launch', 'fly', 'land', 'bomb', 'view'], default: 'view' }, kind: { type: 'string', default: 'scout', enum: Object.keys(DRONES) }, give: { type: 'boolean', default: false }, x: { type: 'number' }, z: { type: 'number' }, dx: { type: 'number' }, dz: { type: 'number' }, boost: { type: 'boolean', default: false } },
       run: async ({ action, kind, give, x, z, dx, dz, boost }) => {
         const D = g.drones;
@@ -150,7 +150,7 @@ export async function gadgetsChecks(api, check, C) {
       const bad = [];
       for (const [k, r] of Object.entries(GADGETS)) {
         if (!['throw', 'place', 'attach'].includes(r.verb) || !r.trigger || !r.effect || !r.hurts || !r.notice?.tell || !(r.item?.kg > 0) || !(r.source?.craft || r.source?.buy)) bad.push(`${k}: row`);
-        if (ITEMS[k]?.kind !== 'gadget' || ITEMS[k].use?.act !== 'gadget') bad.push(`${k}: item`);
+        if (!ITEMS[k] || ITEMS[k].use?.act !== 'gadget' || (ITEMS[k].kind !== 'gadget' && !ITEMS[k].tags?.includes('gadget'))) bad.push(`${k}: item`);
         for (const [id] of r.source?.craft ?? []) if (!ITEMS[id]) bad.push(`${k}: recipe ${id}`);
       }
       for (const k of Object.keys(DRONES)) if (ITEMS[`drone_${k}`]?.kind !== 'drone') bad.push(`drone_${k}`);
@@ -206,7 +206,7 @@ export async function gadgetsChecks(api, check, C) {
 
     await check('gadgets: a pressure mine buried in the road kills the car that drives over it (it burns, its tyres go)', async () => {
       clean(); await home(S.x + S.ax * 10, S.z + S.az * 10);
-      const t = GX.place('landmine', S.x, S.z, S.h, null, { state: 'armed', armAt: 0 });
+      const t = GX.place('car_mine', S.x, S.z, S.h, null, { state: 'armed', armAt: 0 });
       const sx = S.x - S.fx * 25, sz = S.z - S.fz * 25;
       const r = await C('spawnVehicle', { type: 'interceptor', x: sx, z: sz, heading: S.h });
       const v = g.vehicles.find((c) => c.id === r.id); v.gadgetTest = true;
@@ -229,7 +229,7 @@ export async function gadgetsChecks(api, check, C) {
       return !GX.list.includes(t) && !r.alive && behind.alive ? true : `mine ${GX.list.includes(t) ? t.state : 'fired'}; in front ${r.alive ? 'alive' : 'dead'}; behind ${behind.alive ? 'alive' : 'dead'}`;
     });
 
-    await check('gadgets: a remote charge waits for the detonate (U) and a flare burns on the pooled lights (the light count never changes)', async () => {
+    await check('gadgets: a remote charge waits for the detonate key (`) and a flare burns on the pooled lights (the light count never changes)', async () => {
       clean(); await home(S.x - S.fx * 14, S.z - S.fz * 14);
       let lights = 0; g.scene.traverse((o) => { if (o.isLight) lights++; });
       const t = GX.place('remote_charge', S.x, S.z, S.h, P(), { state: 'armed', armAt: 0 });

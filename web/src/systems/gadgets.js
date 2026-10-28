@@ -137,7 +137,7 @@ export class Gadgets {
   // Back into the pack: a chain, a strip, bells (and anything not yet armed) - not a spent one.
   pickUp(p, who = this.g.player) {
     if (!p || p.state === 'spent' || p.state === 'flying') return { ok: false, why: 'nothing to take back' };
-    if (!(p.def.pickup || p.state === 'arming' || p.kind === 'remote_charge' || p.kind === 'landmine')) return { ok: false, why: `a set ${p.def.name.toLowerCase()} does not come back` };
+    if (!(p.def.pickup || p.state === 'arming' || p.kind === 'remote_charge' || p.kind === 'car_mine')) return { ok: false, why: `a set ${p.def.name.toLowerCase()} does not come back` };
     if (who === this.g.player) this.g.inventory?.stow(p.kind, 1);
     this.remove(p);
     this.g.emit('gadgetPicked', { id: p.id, kind: p.kind });
@@ -456,8 +456,8 @@ export class Gadgets {
     this.dt = dt;
     this.security.update(dt);
     this.drones.update(dt);
-    // U: every remote charge you set goes up (a drone in the air drops its bomb instead).
-    if (g.input.hit('KeyU') && !g.dialogue?.active) { if (this.drones.piloting) this.drones.dropBomb(); else this.detonate(P); }
+    // ` (the detonate row; the workshop has U): every remote charge you set goes up (a drone in the air drops its bomb).
+    if (g.input.hit('Backquote') && !g.dialogue?.active) { if (this.drones.piloting) this.drones.dropBomb(); else this.detonate(P); }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i], def = p.def;
       p.t += dt;
@@ -632,7 +632,7 @@ export class Gadgets {
           for (let k = 0; k < 8; k++) { const s = (k / 7 - 0.5) * (L - 0.3); this.put(p.x + p.ux * s, gy, p.z + p.uz * s, p.rot, 0, 0.09, 0, 0.05, 0.1, 0.05, '#a7a39b'); }
           break;
         }
-        case 'landmine': this.put(p.x, gy, p.z, p.rot, 0, 0.02, 0, 0.42, 0.05, 0.42, '#4a4a3a', p.state === 'armed' ? 0.75 : 0); this.put(p.x, gy, p.z, p.rot, 0, 0.07, 0, 0.04, 0.08, 0.04, '#7a7a68', p.state === 'armed' ? 0.4 : 0); break;
+        case 'car_mine': this.put(p.x, gy, p.z, p.rot, 0, 0.02, 0, 0.42, 0.05, 0.42, '#4a4a3a', p.state === 'armed' ? 0.75 : 0); this.put(p.x, gy, p.z, p.rot, 0, 0.07, 0, 0.04, 0.08, 0.04, '#7a7a68', p.state === 'armed' ? 0.4 : 0); break;
         case 'fan_mine': {
           this.put(p.x, gy, p.z, p.rot, 0, 0.32, 0, 0.42, 0.24, 0.09, '#4a5a3a');
           this.put(p.x, gy, p.z, p.rot, -0.14, 0.12, 0, 0.03, 0.22, 0.03, '#2a2a24'); this.put(p.x, gy, p.z, p.rot, 0.14, 0.12, 0, 0.03, 0.22, 0.03, '#2a2a24');

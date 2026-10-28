@@ -1,7 +1,7 @@
 import { DRONES } from '../data/gadgets.js';
 
 // DRONES (docs/design/WEB_GADGETS.md §4; rows in data/gadgets.js DRONES). Launched from the pack: the item leaves it and
-// a drone lifts off where you stand. While it flies YOU fly it (WASD, Shift boosts, E brings it home, U drops a bomb)
+// a drone lifts off where you stand. While it flies YOU fly it (WASD, Shift boosts, E brings it home, ` drops a bomb)
 // and your body stays put, frozen where you left it (main.js updatePlayer hands the keys here). Battery drains by the
 // second (twice as fast boosting); the signal weakens past `weak` of its range and is lost past the range itself: then
 // it flies itself home and lands, and so it does on a low battery. Landed beside you it goes back in the pack (charged
@@ -37,7 +37,7 @@ export class Drones {
     this.piloting = pilot === g.player;
     this.counts.launched++;
     g.emit('droneLaunched', { kind, x: r1(x), z: r1(z) });
-    return { ok: true, text: `${def.name.toUpperCase()} UP · WASD FLY · E HOME${def.bombs ? ' · U DROP' : ''}` };
+    return { ok: true, text: `${def.name.toUpperCase()} UP · WASD FLY · E HOME${def.bombs ? ' · ` DROP' : ''}` };
   }
 
   // The keys while flying (main.js updatePlayer calls this instead of moving you).
@@ -140,7 +140,7 @@ export class Drones {
     if (Math.hypot(d.vx, d.vz) > 0.5) d.h = Math.atan2(d.vx, d.vz);
     // Weak signal: a warning, a wobble.
     if (this.piloting) {
-      g.hud?.prompt(`<b>DRONE</b> · battery ${Math.round((d.battery / def.battery) * 100)}% · signal ${d.signal < 1 ? `<b class="warn">${Math.round(d.signal * 100)}%</b>` : 'good'}${def.bombs ? ` · bombs ${d.bombs} <kbd>U</kbd>` : ''} · <kbd>E</kbd> home`);
+      g.hud?.prompt(`<b>DRONE</b> · battery ${Math.round((d.battery / def.battery) * 100)}% · signal ${d.signal < 1 ? `<b class="warn">${Math.round(d.signal * 100)}%</b>` : 'good'}${def.bombs ? ` · bombs ${d.bombs} <kbd>\`</kbd>` : ''} · <kbd>E</kbd> home`);
       if (d.signal < 1) { d.vx += (Math.random() - 0.5) * (1 - d.signal) * 4; d.vz += (Math.random() - 0.5) * (1 - d.signal) * 4; }
     }
     // The buzz the dead hear (THE PULL: drone flyovers drag them).
