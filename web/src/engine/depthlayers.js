@@ -17,17 +17,17 @@ export const DEPTH = {
   near: { share: 0.1, min: 1, max: 6 },   // camera near = clamp(boom D x share, min, max)
 };
 
-// The rows. Heights are metres above the surface named in `on`.
+// The rows. Heights are metres above the surface named in `on`. The opaque rows record where each layer stands (the
+// generators lay them: chunkgen's TOWN/ribbon lifts below, ring.js floors, storeys.js slabs); the decal rows are applied
+// by decalMaterial / layerMesh. The full table, with files: docs/design/WEB_DEPTH_LAYERS.md §3.
 export const LAYERS = {
   // ---- opaque, depth-writing (separated by lift) ----
-  ground:      { on: 'datum',   lift: 0,     order: 0, write: true },   // the land mesh (realterrain / chunk ground)
-  road:        { on: 'ground',  lift: 0.03,  order: 0, write: true },   // a road ribbon, shoulders, gravel
-  paint:       { on: 'road',    lift: 0.03,  order: 0, write: true },   // lane lines, crossings (opaque strips)
-  pad:         { on: 'ground',  lift: 0.05,  order: 0, write: true },   // a building's foundation slab / yard pad
-  floor:       { on: 'pad',     lift: 0.04,  order: 0, write: true },   // an interior floor over its pad
-  rug:         { on: 'floor',   lift: 0.025, order: 0, write: true },   // rugs, mats, tile patches inside
-  roofCap:     { on: 'wallTop', lift: 0.04,  order: 0, write: true },   // a roof slab's top over the walls' tops
-  water:       { on: 'bed',     lift: 0,     order: 1, write: true },   // water sheets: drawn after the ground they sit in
+  ground:      { on: 'datum',   lift: 0,     order: 0, write: true },   // the land mesh (realterrain / chunk ground, the island plane)
+  road:        { on: 'ground',  lift: 0.03,  order: 0, write: true },   // a ribbon: RIBBON_BASE + RIBBON_STEP x rank (below)
+  town:        { on: 'ground',  lift: 0.012, order: 0, write: true },   // ring / holdout yard ... street z: TOWN (below), STEP apart
+  floor:       { on: 'pad',     lift: 0.12,  order: 0, write: true },   // a ring building's slab top; finishes 0.132, rugs to 0.15
+  slab:        { on: 'storey',  lift: 0.006, order: 0, write: true },   // a storey's slab over the wall tops it overlaps (STEP / 2)
+  water:       { on: 'bed',     lift: 0.015, order: 1, write: true },   // water sheets: drawn after the ground they sit in
   // ---- decals: depthWrite off, polygonOffset, fixed order (separated by offset + order) ----
   groundDecal: { on: 'surface', lift: 0.03, factor: -2, units: -4, order: 2, write: false }, // tyre tracks, skid marks, ground patches
   blood:       { on: 'surface', lift: 0.03, factor: -4, units: -8, order: 3, write: false }, // blood pools, splats, scorch (fx + blood.js)
