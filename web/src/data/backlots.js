@@ -99,8 +99,35 @@ export const ALLEY_PROPS = {
   bin:      { name: 'trash bin', w: 0.7, d: 0.7, h: 1.1, tag: 'bl-bin', col: '#3a4a3e' },
 };
 
+// DRESS (BACK-LOTS 2, Robert's review 2026-10-28: "the alley reads as a plain empty sand strip"): what makes an alley
+// and a yard look lived in and left. Placed at build time from the town's seed (world/citygen/backdress.js), never in a
+// lane, a bay's drive lane, a door's step or a gate; colliders only where named (a burned-out car, junk, tires, wood).
+//   per100: how many along 100 m of alley; chance: per alley / pole / yard; col / cols: colours (no purple: validated)
+export const DRESS = {
+  rut: { col: '#4a3e2e', w: 0.5 },
+  oil: { per100: 5, cols: ['#262422', '#2e2b28', '#1f1e1c'], rows: ['paved'] },
+  crack: { per100: 4, col: '#34322f', rows: ['paved'] },
+  puddle: { per100: 1.6, wet: 2.5, wetBiomes: ['gulf_coast', 'deep_south_swamp', 'river_delta', 'pacific_rain', 'atlantic_coast', 'temperate_forest', 'great_lakes_rust', 'appalachian'], cols: ['#56646c', '#4e5c64', '#5e6a6e'] },
+  wires: { n: 2, sag: 1.1, drop: 0.6, segs: 4, col: '#1c1b1a', maxSpan: 42, transformerEvery: 3, transformer: '#6a6e66' },
+  bags: { atBin: [2, 4], per100: 3, cols: ['#1e2420', '#2a2e2a', '#3a4a3a', '#4a4440', '#2c3440'] },
+  weeds: { every: 3.6, dry: ['#8a8250', '#7e7646', '#958b5a'], green: ['#5e6a34', '#6a7a3a', '#56622e'], dryBiomes: ['desert_sonoran', 'desert_mojave', 'high_plateau', 'badlands', 'salt_flat', 'great_plains'] },
+  pallets: { per100: 2.2, col: '#8a6a44', dark: '#6a4e30' },
+  burnt: { perAlleys: 3, max: 6, w: 4.4, d: 1.9, h: 1.25, tag: 'bl-burnt', body: '#1f1d1b', top: '#2c2622', rust: '#6a3a1e', wallGap: 1.7 },
+  stoop: { col: '#8e8a80', step: '#a29e94', d: 0.6, h: 0.16 },
+  across: { every: 38, chance: 0.45, h: 3.4, rows: ['gravel', 'dirt'], cols: ['#c8c2b4', '#7a8a9a', '#a07a5a', '#8a3a2a', '#5a6a4a', '#c4a24a'] },
+  strays: { chance: 0.7, max: 2, breeds: ['mutt', 'mutt', 'shepherd', 'rottweiler'] },
+};
+// Yard life (on top of YARD_PROPS): what piles up in a yard nobody tends. chance x (1 - the town's wealth) where poor.
+export const YARD_DRESS = {
+  junk:     { chance: 0.4, poor: true, w: 1.8, d: 1.3, h: 0.8, tag: 'bl-junk', cols: ['#6a5a4a', '#5a4a3e', '#7a6a52', '#4a4844'] },
+  tires:    { chance: 0.35, poor: true, w: 0.85, d: 0.85, h: 0.95, tag: 'bl-tires', col: '#1c1b1a' },
+  woodpile: { chance: 0.3, poor: false, w: 2.2, d: 0.8, h: 1.0, tag: 'bl-woodpile', col: '#7a5a3a' },
+  wild:     { chance: 0.55, poor: true, patches: [2, 4], h: [0.35, 0.7] },
+  chair:    { chance: 0.25, poor: false, col: '#b8a070' },
+};
+
 // Every collision tag the back lots stand up (data/materials.js MATERIAL_RULES.tags must name each one).
-export const BACKLOT_TAGS = [...new Set([...Object.values(FENCES).map((f) => f.tag), ...Object.values(YARD_PROPS).map((p) => p.tag).filter(Boolean), ...Object.values(ALLEY_PROPS).map((p) => p.tag), 'bl-dock', 'bl-gatepost'])];
+export const BACKLOT_TAGS = [...new Set([...Object.values(FENCES).map((f) => f.tag), ...Object.values(YARD_PROPS).map((p) => p.tag).filter(Boolean), ...Object.values(ALLEY_PROPS).map((p) => p.tag), 'bl-dock', 'bl-gatepost', 'bl-burnt', ...Object.values(YARD_DRESS).map((p) => p.tag).filter(Boolean)])];
 
 const hueOf = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 0.04) return -1; const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
 const purple = (hex) => { const h = hueOf(hex); return h >= 270 && h <= 320; };
@@ -141,6 +168,10 @@ export function validateBacklots(rows = { ALLEYS, ALLEY_PLAN, FENCES, FENCE_PICK
   }
   if (!(R.DOCKS.dock[2] > 0.95)) bad.push('DOCKS.dock: a platform you can step onto is not a dock');
   if (!(R.NOISE.gateKick > R.NOISE.gatePry && R.NOISE.gatePry > R.NOISE.gatePick)) bad.push('NOISE: kick > pry > pick');
+  const walk = (o) => { if (typeof o === 'string') { if (/^#[0-9a-f]{6}$/i.test(o)) cols.push(o); } else if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === 'object') Object.values(o).forEach(walk); };
+  walk(R.DRESS ?? DRESS); walk(R.YARD_DRESS ?? YARD_DRESS);
+  for (const [k, v] of Object.entries(R.YARD_DRESS ?? YARD_DRESS)) if (!(v.chance >= 0 && v.chance <= 1)) bad.push(`yard dress ${k}: chance`);
+  if (!((R.DRESS ?? DRESS).across.h > 3)) bad.push('DRESS.across: a line across the alley must clear a truck (> 3 m)');
   for (const c of cols) if (purple(c)) bad.push(`purple ${c}`);
   if (rules) for (const t of BACKLOT_TAGS) if (!rules[t]) bad.push(`tag ${t}: no MATERIAL_RULES rule`);
   return { ok: !bad.length, bad, alleys: Object.keys(R.ALLEYS).length, fences: Object.keys(R.FENCES).length, props: Object.keys(R.YARD_PROPS).length, tags: BACKLOT_TAGS.length };

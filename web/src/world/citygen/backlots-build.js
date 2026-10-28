@@ -6,7 +6,8 @@
 //   docks    the raised platform (a box you climb onto from the bay, cover), bumpers, pallets on it, the apron
 //   verges   utility poles, dumpsters, bins
 // out.fences: [{ id, yard, fence, box, items: [i...], kicks, broken }] for systems/backlots.js.
-import { ALLEYS, FENCES, YARD_PROPS, ALLEY_PROPS } from '../../data/backlots.js';
+import { ALLEYS, FENCES, YARD_PROPS, ALLEY_PROPS, DRESS } from '../../data/backlots.js';
+import { dressTown } from './backdress.js';
 
 export function buildBacklots(T, out, box) {
   const vis = (cx, cy, cz, sx, sy, sz, col) => { out.items.push({ cx, cy, cz, sx, sy, sz, col, lv: 0, R: null }); return out.items.length - 1; };
@@ -20,7 +21,7 @@ export function buildBacklots(T, out, box) {
     vis((L.x0 + L.x1) / 2, 0.06, (L.z0 + L.z1) / 2, L.x1 - L.x0, 0.05, L.z1 - L.z0, R.color);
     if (A.row !== 'paved') for (const o of [-0.85, 0.85]) { // two wheel ruts down an unpaved lane (it reads as a lane from above)
       const ax = A.axis === 'x', c = ax ? (L.z0 + L.z1) / 2 + o : (L.x0 + L.x1) / 2 + o;
-      vis(ax ? (L.x0 + L.x1) / 2 : c, 0.07, ax ? c : (L.z0 + L.z1) / 2, ax ? L.x1 - L.x0 : 0.45, 0.05, ax ? 0.45 : L.z1 - L.z0, '#6a5a44');
+      vis(ax ? (L.x0 + L.x1) / 2 : c, 0.07, ax ? c : (L.z0 + L.z1) / 2, ax ? L.x1 - L.x0 : DRESS.rut.w, 0.05, ax ? DRESS.rut.w : L.z1 - L.z0, DRESS.rut.col);
     }
   }
   // ---- docks: apron, platform, bumpers, pallets ----
@@ -96,4 +97,6 @@ export function buildBacklots(T, out, box) {
     if (q.kind === 'pole') vis(q.x, P.h - 0.6, q.z, al ? 0.12 : 2.0, 0.12, al ? 2.0 : 0.12, P.cross);
     if (q.kind === 'dumpster') { vis(q.x, P.h + 0.05, q.z, w + 0.05, 0.1, d + 0.05, '#2e4a38'); cover(q.x + (al ? 0 : 1.2), q.z + (al ? 1.2 : 0), al ? 0 : 1, al ? 1 : 0, 0.5, 6); cover(q.x - (al ? 0 : 1.2), q.z - (al ? 1.2 : 0), al ? 0 : -1, al ? -1 : 0, 0.5, 6); }
   }
+  // the dressing (BACK-LOTS 2: world/citygen/backdress.js): litter, wires, weeds, wrecks, stoops, washing, yards let go
+  out.dress = dressTown(T, out, box);
 }

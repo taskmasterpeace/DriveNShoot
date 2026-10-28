@@ -110,6 +110,7 @@ export const MATERIAL_RULES = {
     'bl-picket': 'wood', 'bl-privacy': 'wood', 'bl-rail': 'wood', 'bl-chain': 'chainlink', 'bl-adobe': 'adobe', 'bl-gatepost': 'wood',
     'bl-shed': 'sheet_metal', 'bl-barrel': 'sheet_metal', 'bl-carblocks': 'carbody', 'bl-dumpster': 'sheet_metal', 'bl-bin': 'sheet_metal',
     'bl-pole': 'timber', 'bl-dock': 'concrete',
+    'bl-burnt': 'carbody', 'bl-junk': 'sheet_metal', 'bl-tires': 'rubber', 'bl-woodpile': 'wood', // BACK-LOTS 2: alley wrecks, yard junk
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },

@@ -33,7 +33,7 @@ import { ALLEYS } from '../data/backlots.js';
 //   tactics: coverNear(x, z, r, y, out) -> out filled with { x, z, y, nx, nz, h (1 full / 0.5 half), kind } (kind: 1 wall,
 //            2 ruin half-wall, 3 window frame, 4 pump, 5 parapet, 6 crate, 7 town wall, 8 wreck); COVER_KINDS names them
 export const COVER_KINDS = ['', 'wall', 'half_wall', 'window_frame', 'pump', 'parapet', 'crate', 'town_wall', 'wreck'];
-const CELL = 8, CAP = 90000, EMPTY = [];
+const CELL = 8, CAP = 120000, EMPTY = []; // CAP: three of the largest dressed towns live at once (BACK-LOTS 2: ~30k items each)
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 
 // The live towns' boxes, bucketed for engine/collision.js (statics.cg): cell(gx, gz) is the list in global 8 m cell.
