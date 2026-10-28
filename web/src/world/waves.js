@@ -40,14 +40,18 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Eule
 const GLSL_COMMON = /* glsl */`
 uniform float uWT, uWhite, uCrest, uShoreFoam, uShoreBands, uOceanAmp;
 uniform vec4 uWC[${N}];   // kx, kz, omega, phase
+uniform vec2 uWO;          // the phase origin (near the camera, snapped): positions are taken relative to it
+uniform float uWP[${N}];   // each component's phase at uWO now, mod 2pi (worked out in double precision on the CPU)
 uniform vec4 uWS[${N}];   // share, steep, carried by the sheet (1/0), short (1/0)
 uniform float uKA[6], uKC[6], uKS[6], uKF[6];
 uniform vec3 uWFoam;
 uniform vec3 uIsleLake;   // the island lake: x, z, r (its depth is analytic)
 uniform vec4 uCalm[4];    // still water round a key: x, z, r, ramp (systems/waterplace.js)
 float wwCalm(vec2 p) { float k = 1.0; for (int i = 0; i < 4; i++) { if (uCalm[i].z <= 0.0) continue; k *= smoothstep(uCalm[i].z, uCalm[i].z + uCalm[i].w, length(p - uCalm[i].xy)); } return k; }
-float wwH(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }
-float wwN(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f); return mix(mix(wwH(i), wwH(i + vec2(1.0, 0.0)), f.x), mix(wwH(i + vec2(0.0, 1.0)), wwH(i + 1.0), f.x), f.y); }
+// A sine-free hash on a lattice wrapped every 289 cells (exact in fp32 at any world coordinate: Florida is 225 km out,
+// where sin() of a big argument falls apart on the GPU). After Dave Hoskins' "hash without sine" (MIT).
+float wwH(vec2 q) { q = mod(q, 289.0); vec3 p3 = fract(vec3(q.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float wwN(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0); return mix(mix(wwH(i), wwH(i + vec2(1.0, 0.0)), f.x), mix(wwH(i + vec2(0.0, 1.0)), wwH(i + 1.0), f.x), f.y); }
 float wwF(vec2 q) { return wwN(q) * 0.55 + wwN(q * 2.13 + 7.1) * 0.3 + wwN(q * 4.7 - 3.3) * 0.15; }
 `;
 // Which kind a sheet's vertex is (world/chunkgen.js vertex colours: blue 1 wash bed, 0.4 + k/100 a region's water,
@@ -76,6 +80,7 @@ export class Waves {
       uWT: { value: 0 }, uWhite: { value: WAVES.whitecap }, uCrest: { value: WAVES.crestLift }, uShoreFoam: { value: WAVES.shoreFoam },
       uShoreBands: { value: WAVES.shoreBands }, uOceanAmp: { value: OCEAN_AMP },
       uWC: { value: COMP.map((c) => new THREE.Vector4(c.kx, c.kz, c.om, c.ph)) },
+      uWO: { value: new THREE.Vector2() }, uWP: { value: new Array(N).fill(0) },
       uWS: { value: COMP.map((c) => new THREE.Vector4(c.a, c.st, c.vert ? 1 : 0, c.short ? 1 : 0)) },
       uKA: { value: arr(6) }, uKC: { value: KINDS.map((k) => WAVES.kind[k].chop) }, uKS: { value: KINDS.map((k) => WAVES.kind[k].shoal) },
       uKF: { value: KINDS.map((k) => WAVES.kind[k].foam) }, uWFoam: { value: new THREE.Color('#e9f1ee') },
@@ -88,6 +93,9 @@ export class Waves {
     const W = game.water;
     if (W?.streamMat) this.install(W.streamMat, 'stream');
     if (W?.mat) this.install(W.mat, 'island');
+    // The cutaway (systems/cutaway.js) dithers away what stands above knee height round the player: a swell lifted over
+    // that line is still the floor a swimmer is in, so the water opts out (as characters and effects do).
+    for (const m of [W?.streamMat, W?.mat]) if (m) m.userData.noCut = true;
     this.buildWake(game.scene);
   }
 
@@ -222,7 +230,8 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
     for (int i = 0; i < ${N}; i++) {
       if (uWS[i].z < 0.5) continue;
       vec4 C = uWC[i]; vec4 S = uWS[i];
-      float A = wa * S.x * (S.w > 0.5 ? ch : 1.0), th = C.x * wxz.x + C.y * wxz.y - C.z * uWT + C.w;
+      vec2 wl = wxz - uWO;
+      float A = wa * S.x * (S.w > 0.5 ? ch : 1.0), th = C.x * wl.x + C.y * wl.y + uWP[i];
       float kk = length(C.xy), H = S.y * an / kk * (S.w > 0.5 ? ch : 1.0);
       transformed.y += A * sin(th);
       transformed.xz -= (C.xy / kk) * H * cos(th);
@@ -243,16 +252,22 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
     float an = min(2.0, vWA / uOceanAmp), ch = uKC[wk], h = 0.0, sx = 0.0, sz = 0.0, J = 1.0;
     for (int i = 0; i < ${N}; i++) {
       vec4 C = uWC[i]; vec4 S = uWS[i];
-      float m = S.w > 0.5 ? ch : 1.0, A = vWA * S.x * m, th = C.x * vWXZ.x + C.y * vWXZ.y - C.z * uWT + C.w;
+      vec2 wl = vWXZ - uWO;
+      float m = S.w > 0.5 ? ch : 1.0, A = vWA * S.x * m, th = C.x * wl.x + C.y * wl.y + uWP[i];
       float s = sin(th), c = cos(th);
       h += A * s; sx += A * C.x * c; sz += A * C.y * c; J -= S.y * an * m * s;
     }
     // The surface's own slope bends the light (the ripple map rides on top of it).
-    // Fine chop that never tiles: the slope of drifting noise, half a metre to a few metres across.
-    vec2 rq = vWXZ * 0.9 + vec2(uWT * 0.35, -uWT * 0.22), e = vec2(0.13, 0.0);
-    float r0 = wwF(rq), rgx = wwF(rq + e.xy) - r0, rgz = wwF(rq + e.yx) - r0;
-    float rk = 0.55 * min(1.0, an * 1.5 + 0.2) * (1.0 - smoothstep(0.0, 0.6, float(wk) - 1.5));
-    sx += rgx * rk * 4.0; sz += rgz * rk * 4.0;
+    // Fine chop (light only, never lifts the sheet): eight short ripples, 0.9-3.4 m, from spread directions, each
+    // running at its own dispersion speed; analytic, so no lattice shows however close the camera is.
+    float rk = 0.05 * min(1.0, an * 1.5 + 0.25) * (1.0 - smoothstep(0.0, 0.6, float(wk) - 1.5)) + 0.012;
+    vec2 rl = vWXZ - uWO;
+    for (int r = 0; r < 8; r++) {
+      float fr = float(r), ang = fr * 2.39996 + 0.6, L = 0.9 + mod(fr * 0.618, 1.0) * 2.5, kr = 6.2832 / L;
+      vec2 dr = vec2(sin(ang), cos(ang)) * kr;
+      float ph = dot(dr, rl) - sqrt(9.81 * kr) * uWT + fr * 1.7, ar = rk / kr * (0.6 + 0.4 * wwN(rl * 0.05 + fr * 3.1));
+      sx += ar * dr.x * cos(ph); sz += ar * dr.y * cos(ph);
+    }
     vec3 nW = normalize(vec3(-sx, 1.0, -sz));
     vec3 vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
     vec3 nV = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
@@ -263,10 +278,11 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
     diffuseColor.rgb += vec3(0.0, 0.025, 0.02) * max(0.0, hn) * an;
     // Whitecaps: where the surface pinches (the Jacobian under uWhite), broken into lace by drifting noise, streaked
     // along the swell.
-    vec2 fq = vWXZ * 0.33 + vec2(uWT * 0.21, uWT * 0.05);
-    float lace = wwF(vec2(fq.x * 0.6, fq.y * 1.7)) * 0.65 + wwF(vWXZ * 1.1 - uWT * 0.3) * 0.35;
-    float cap = (1.0 - smoothstep(uWhite - 0.22, uWhite, J)) * smoothstep(0.34, 0.62, lace) * uKF[wk];
-    cap = max(cap, (1.0 - smoothstep(uWhite - 0.05, uWhite + 0.18, J)) * smoothstep(0.62, 0.8, lace) * 0.45 * uKF[wk]); // the film a crest leaves
+    // Lace streaked across the swell (along its crests): sample the noise in the swell's own frame, stretched along it.
+    vec2 sd = normalize(uWC[0].xy), sp = vec2(dot(vWXZ, sd), dot(vWXZ, vec2(-sd.y, sd.x)));
+    float lace = wwF(vec2(sp.x * 1.4, sp.y * 0.35) + vec2(uWT * 0.4, 0.0)) * 0.6 + wwF(vWXZ * 2.3 - uWT * 0.5) * 0.4;
+    float cap = (1.0 - smoothstep(uWhite - 0.1, uWhite, J)) * smoothstep(0.42, 0.66, lace) * uKF[wk];
+    cap = max(cap, (1.0 - smoothstep(uWhite, uWhite + 0.16, J)) * smoothstep(0.6, 0.74, lace) * 0.4 * uKF[wk]); // the thin film a breaking crest leaves
     // Surf: bands running up the shallows toward the sand, a solid line where it meets it.
     float sf = 0.0;
     if (wk <= 1) {
@@ -275,8 +291,9 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
       sf = max(sf, 1.0 - smoothstep(0.03, 0.16, vWD));
     }
     float foam = clamp(max(cap, sf), 0.0, 1.0);
-    diffuseColor.rgb = mix(diffuseColor.rgb, uWFoam, foam * 0.92);
-    roughnessFactor = mix(roughnessFactor, 0.85, foam);
+    if (wk == 0) roughnessFactor = max(roughnessFactor, 0.58); // the open sea: a broad sheen, not a mirror's glare
+    diffuseColor.rgb = mix(diffuseColor.rgb, uWFoam, foam);
+    roughnessFactor = mix(roughnessFactor, 0.9, foam);
   }
 }
 #include <emissivemap_fragment>`);
@@ -298,7 +315,7 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
     for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
       const dx = i / S - 0.5, dy = j / S - 0.5, r = Math.sqrt(dx * dx + dy * dy) * 2;
       const n = vn(i / 9, j / 9) * 0.6 + vn(i / 4, j / 4) * 0.4;
-      const a = Math.max(0, 1 - r) ** 1.2 * Math.min(1, Math.max(0, (n - 0.28) * 2.4));
+      const a = Math.max(0, 1 - r) ** 1.5 * (0.35 + 0.65 * Math.min(1, Math.max(0, (n - 0.3) * 2.2))); // soft body, lace in it
       const k = (j * S + i) * 4; im.data[k] = im.data[k + 1] = im.data[k + 2] = 255; im.data[k + 3] = Math.round(a * 255);
     }
     x.putImageData(im, 0, 0);
@@ -333,16 +350,16 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
     this.wake = m;
     // The puffs as typed arrays (no objects per puff).
     this.pf = { x: new Float32Array(P), z: new Float32Array(P), vx: new Float32Array(P), vz: new Float32Array(P), r: new Float32Array(P),
-      grow: new Float32Array(P), age: new Float32Array(P), life: new Float32Array(P), a: new Float32Array(P), rot: new Float32Array(P), y: new Float32Array(P), red: new Float32Array(P) };
+      grow: new Float32Array(P), age: new Float32Array(P), life: new Float32Array(P), a: new Float32Array(P), rot: new Float32Array(P), y: new Float32Array(P), red: new Float32Array(P), st: new Float32Array(P) };
     this.pNext = 0; this.pAlive = 0;
     this.emitT = new Map(); // mover -> seconds to its next puff (a WeakMap would do; the key set is small and pruned)
   }
   // One puff: at (x, z) on the water at height y0 (the surface's rest level), drifting (vx, vz), r metres, growing,
   // living `life` seconds, `a` opaque.
-  puff(x, z, y0, vx, vz, r, grow, life, a, red = 0) {
+  puff(x, z, y0, vx, vz, r, grow, life, a, red = 0, h = NaN, stretch = 1) {
     const P = this.pf; if (!P) return;
     const i = this.pNext; this.pNext = (i + 1) % WAVES.wake.pool;
-    P.x[i] = x; P.z[i] = z; P.y[i] = y0; P.vx[i] = vx; P.vz[i] = vz; P.r[i] = r; P.grow[i] = grow; P.age[i] = 0; P.life[i] = life; P.a[i] = a; P.red[i] = red; P.rot[i] = Math.random() * TAU;
+    P.x[i] = x; P.z[i] = z; P.y[i] = y0; P.vx[i] = vx; P.vz[i] = vz; P.r[i] = r; P.grow[i] = grow; P.age[i] = 0; P.life[i] = life; P.a[i] = a; P.red[i] = red; P.rot[i] = Number.isFinite(h) ? h : Math.random() * TAU; P.st[i] = stretch;
     this.stats.puffs++;
   }
   // A splash: something went in (a body, a diver, a hull that landed). A ring of foam and a burst of spray.
@@ -366,10 +383,11 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
     if (kind === 'swim') { this.puff(x - fx * 0.5, z - fz * 0.5, y0, -vx * 0.1, -vz * 0.1, 0.45, 0.5, 1.8, 0.55); return; }
     const sx = x - fx * len * 0.5, sz = z - fz * len * 0.5, k = Math.min(1.4, sp / 18);
     // The stern's churn: wide and white, left behind (it barely moves).
-    this.puff(sx, sz, y0, vx * 0.05, vz * 0.05, wid * (0.7 + k * 0.6), Wk.grow * (0.4 + k * 0.3), Wk.life * (0.6 + k * 0.5), 0.9);
+    const st = 1 + Math.min(2.5, sp * Wk.every * 0.9); // stretched to cover the run between two puffs: a streak
+    this.puff(sx, sz, y0, vx * 0.05, vz * 0.05, wid * (0.7 + k * 0.6), Wk.grow * (0.4 + k * 0.3), Wk.life * (0.6 + k * 0.5), 0.9, 0, h, st);
     // The V's two arms, running out to the sides.
     const out = Wk.vee * (sp / 10);
-    for (const s of [-1, 1]) this.puff(sx + rx * s * wid * 0.45, sz + rz * s * wid * 0.45, y0, rx * s * out + vx * 0.08, rz * s * out + vz * 0.08, wid * (0.5 + k * 0.4), Wk.grow * 0.45, Wk.life * (0.8 + k * 0.4), 0.75);
+    for (const s of [-1, 1]) this.puff(sx + rx * s * wid * 0.45, sz + rz * s * wid * 0.45, y0, rx * s * out + vx * 0.08, rz * s * out + vz * 0.08, wid * (0.5 + k * 0.4), Wk.grow * 0.45, Wk.life * (0.8 + k * 0.4), 0.75, 0, h + s * 0.35, st * 0.8);
   }
   stepWake(dt) {
     const m = this.wake, P = this.pf;
@@ -385,13 +403,13 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
       P.r[i] += P.grow[i] * dt;
       const dx = P.x[i] - (cam?.x ?? 0), dz = P.z[i] - (cam?.z ?? 0);
       if (dx * dx + dz * dz > R2) continue;
-      const u = P.age[i] / P.life[i], a = P.a[i] * (u < 0.08 ? u / 0.08 : 1 - smooth((u - 0.08) / 0.92));
+      const u = P.age[i] / P.life[i], a = P.a[i] * Math.min(1, P.age[i] / 0.06) * (1 - smooth(u)); // in at once (no gap behind a fast hull), out slowly
       // On the moving surface: the wave under it, plus a hair above it (the z-fight law: a layer on top of the water).
       const pa = this._puffAmp(P.x[i], P.z[i]);
       this.sum(P.x[i], P.z[i], this.t, pa, 1, _w, true);
       _p.set(P.x[i], P.y[i] + _w.h + pa * 0.12 + 0.06, P.z[i]);
-      _q.setFromEuler(_e.set(0, P.rot[i] + u * 0.6, 0));
-      _s.set(P.r[i] * 2, 1, P.r[i] * 2);
+      _q.setFromEuler(_e.set(0, P.rot[i] + (P.st[i] > 1 ? 0 : u * 0.6), 0));
+      _s.set(P.r[i] * 2, 1, P.r[i] * 2 * (1 + (P.st[i] - 1) * (1 - u * 0.5)));
       _m.compose(_p, _q, _s);
       m.setMatrixAt(c, _m);
       m.instanceColor.setXYZ(c, a, P.red[i], 0);
@@ -435,7 +453,7 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
         this.splash(v.x, v.z, Math.min(1.6, 0.5 + hit * 0.25), base);
         v.waveLand = hit; g.emit?.('waveLand', { id: v.id, vy: +hit.toFixed(2) });
       }
-    } else if (bike && sp > R.airSpeed && v.prevTVy > 0.6 && tVy < v.prevTVy - 0.2 && c.j < 1) {
+    } else if (bike && sp > R.airSpeed && v.prevTVy > R.airVy && tVy < v.prevTVy - 0.25) {
       // Cresting: the water falls away under a hull still rising at the speed it climbed the face.
       v.waveAir = true; vy = v.prevTVy * R.airLift * Math.min(1.6, sp / R.airSpeed); y = target + 0.02;
       this.stats.airs++; this.lastAir = { id: v.id, speed: +sp.toFixed(1), vy: +vy.toFixed(2), t: +this.t.toFixed(2) };
@@ -479,6 +497,11 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
   update(dt) {
     this.t += dt;
     this.U.uWT.value = this.t;
+    // The phase origin: snapped near what the camera looks at; each component's phase there worked out in doubles, so the
+    // GPU only ever multiplies small local offsets (no lost precision 225 km from Phoenix).
+    const f = this.g.camLook ?? this.g.player, O = this.U.uWO.value, P = this.U.uWP.value;
+    if (f) { O.set(Math.round(f.x / 256) * 256, Math.round(f.z / 256) * 256); }
+    for (let i = 0; i < N; i++) { const c = COMP[i]; P[i] = (((c.kx * O.x + c.kz * O.y + c.ph - c.om * this.t) % TAU) + TAU) % TAU; }
     const c = this.g.sky?.cur, S = WAVES.sea;
     const k = c ? 1 + (c.storm ?? 0) * S.storm + Math.min(1, c.rain ?? 0) * S.rain + (c.clouds ?? 0) * S.clouds : 1;
     if (Math.abs(k - this.sea) > 0.002) this.setSea(k);

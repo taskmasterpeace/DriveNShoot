@@ -24,8 +24,8 @@ export class Diving {
         uniform float uDark, uR, uAsp; uniform vec3 uTint; varying vec2 vP;
         void main() {
           vec2 q = vec2(vP.x * uAsp, vP.y);
-          float e = smoothstep(uR * 0.55, uR * 1.35, length(q));
-          float a = clamp(uDark * (0.55 + 0.45 * e) + e * uDark * 0.6, 0.0, 0.97);
+          float e = smoothstep(uR * 0.15, uR * 1.9, length(q));
+          float a = clamp(uDark * (0.6 + 0.4 * e) + e * e * uDark * 0.35, 0.0, 0.94);
           gl_FragColor = vec4(uTint * (1.0 - e * 0.85), a);
         }`,
     });

@@ -620,6 +620,7 @@ class SeaRenderer {
     this.gull = mk(new THREE.BoxGeometry(1, 0.08, 0.32), new THREE.MeshStandardMaterial({ color: SEALIFE.gulls.colour.body, roughness: 0.8 }), MAXGULL * 3, 5, true);
     this.gull.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAXGULL * 3 * 3), 3);
     this.gull.name = 'sealife:gulls';
+    for (const m of [this.fin, this.arm, this.gull]) m.material.userData.noCut = true; // the cutaway never opens a hole in a fin or an arm round the swimmer
     this.cWing = new THREE.Color(SEALIFE.gulls.colour.wing); this.cBody = new THREE.Color(SEALIFE.gulls.colour.body);
     this.counts = { sil: 0, fin: 0, arm: 0, gull: 0 };
   }

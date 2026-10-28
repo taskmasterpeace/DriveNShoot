@@ -117,9 +117,9 @@ export class WaterPlace {
     } else if (p.kind === 'ruins') {
       // A sand key: a low mound, wet sand round its foot, the shell of a bait shack, a fallen mast, wreck boards.
       const r = p.r;
-      const mound = new THREE.CylinderGeometry(r * 0.92, r * 1.12, 2.2, 28, 1).toNonIndexed(); mound.translate(p.x, -0.98, p.z);
+      const mound = new THREE.CylinderGeometry(r * 0.92, r * 1.12, 2.2, 56, 1).toNonIndexed(); mound.translate(p.x, -0.98, p.z);
       const n = mound.attributes.position.count, c = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) { const y = mound.attributes.position.getY(i); _c.set(y > 0 ? '#c9b48a' : '#8c7a5a'); c[i * 3] = _c.r; c[i * 3 + 1] = _c.g; c[i * 3 + 2] = _c.b; }
+      for (let i = 0; i < n; i++) { const y = mound.attributes.position.getY(i); _c.set(y > 0 ? '#8c7a5a' : '#5e523d'); c[i * 3] = _c.r; c[i * 3 + 1] = _c.g; c[i * 3 + 2] = _c.b; }
       mound.setAttribute('color', new THREE.BufferAttribute(c, 3)); mound.deleteAttribute('uv'); parts.push(mound);
       for (let k = 0; k < 9; k++) { const a = R() * Math.PI * 2, d = R() * r * 0.75; parts.push(box(1 + R() * 2.5, 0.25 + R() * 0.4, 0.8 + R() * 1.2, p.x + Math.sin(a) * d, 0.3, p.z + Math.cos(a) * d, R() < 0.5 ? '#9b8f78' : '#6f6455', R() * 3)); }
       const sx = p.x + r * 0.15, sz = p.z - r * 0.1, W = 8, D = 6, H = 2.8;

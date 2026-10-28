@@ -75,7 +75,7 @@ export const WATER_PLACES = [
     note: 'nine metres of dark water two kilometres south of Meridian: fishermen say not to cross it in anything small' },
   { id: 'drowned-blocks', kind: 'flooded', name: 'THE DROWNED BLOCKS', near: 'meridian', dz: 1900, off: 150, w: 210, d: 170, seed: 11,
     note: 'a beach town the sea took: its roofs and its water tower stand out of the swell, boats thread the old streets' },
-  { id: 'gull-key', kind: 'ruins', name: 'GULL KEY', near: 'meridian', dz: -900, off: 560, r: 38, seed: 5,
+  { id: 'gull-key', kind: 'ruins', name: 'GULL KEY', near: 'meridian', dz: -900, off: 560, r: 24, seed: 5,
     note: 'a sand key with the shell of a pre-war bait shop and a fallen radio mast; dry ground in open water' },
 ];
 // Flooded-town kit: footprint and height ranges (metres) for the drowned buildings.

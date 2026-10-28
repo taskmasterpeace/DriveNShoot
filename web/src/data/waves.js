@@ -35,7 +35,7 @@ export const WAVES = {
   speedK: 1.0,              // x the deep-water dispersion speed (0.6-1.4): how fast the crests march
 
   // ---- what the surface shows (world/waves.js shader) ----
-  whitecap: 0.74,           // Jacobian under this foams (0.2-0.7): lower = only the sharpest crests break white
+  whitecap: 0.55,           // Jacobian under this foams (0.2-0.7): lower = only the sharpest crests break white
   crestLift: 0.22,          // crests brighter / troughs darker by this share of the colour (0-0.4): how swell reads from above
   shoreFoam: 0.9,           // depth (m) inside which surf bands run up the sand (0.4-1.5)
   shoreBands: 7,            // bands per metre of depth (4-12)
@@ -49,6 +49,7 @@ export const WAVES = {
     sample: 0.42,           // the hull samples bow, stern, port and starboard this far in from its ends (share of len/wid)
     follow: 9,              // 1/s: how fast a hull settles onto the wave under it (4-16)
     airSpeed: 11,           // m/s: a waterbike faster than this, cresting a swell, leaves the water (8-18)
+    airVy: 1.4,             // m/s: the face must lift the hull this fast for it to fly off the crest (0.8-2.5)
     airLift: 1.5,           // x the wave's own vertical speed at the crest it launches off (1-2.5)
     feltK: 1.6,             // m/s^2 felt by a deck rider per m/s^2 of heave + roll (data/decks.js chop adds on top) (0.5-3)
   },
@@ -101,9 +102,9 @@ export const DIVE = {
   maxDive: 8,               // m: the deepest a held breath takes you (4-15); never past the bottom
   floor: 0.35,              // m kept off the bottom
   drainPerM: 0.09,          // breath drains this much faster per metre down (0-0.2): deep costs more
-  dark: [0.32, 0.105, 0.93],// the view's darkness under water: [at the surface, per metre, most] (0-1)
+  dark: [0.26, 0.075, 0.72],// the view's darkness under water: [at the surface, per metre, most] (0-1)
   narrow: [0.78, 0.05, 0.3],// the clear circle's radius (share of the screen): [at the surface, lost per metre, least]
-  tint: '#04201f',          // the water's colour over your eyes (dark teal: never purple)
+  tint: '#06302d',          // the water's colour over your eyes (dark teal: never purple)
   muffle: [2400, 380],      // Hz: the world's sound through the water [just under, at maxDive]
   gaspBelow: 0.7,           // breath under this when you surface: you gasp (0.3-0.9)
 };
