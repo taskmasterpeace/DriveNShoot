@@ -66,6 +66,9 @@ export const ITEMS = {
     desc: 'A roll of picks and a tension wrench. Quiet. Each lock costs you a pick or two.' },
   crowbar: { name: 'Crowbar', kind: 'tool', kg: 2.4, bulk: 1.2, stack: 1, value: 18, use: { act: 'pry' }, tags: ['pry', 'steel'],
     desc: 'Forged steel, the paint worn off the end that does the work. Opens what keys don\'t. Loudly.' },
+  // The portable radio (systems/radio.js): the stations anywhere, not only in a car. Not in any loot table yet (a content call).
+  radio_portable: { name: 'Portable radio', kind: 'tool', kg: 0.7, bulk: 0.6, stack: 1, value: 40, tags: ['radio'],
+    desc: 'A battered transistor set with a bent aerial. Comma and period walk the dial.' },
   wrench: { name: 'Wrench', kind: 'tool', kg: 0.6, bulk: 0.3, stack: 1, value: 14, tags: ['wrench', 'steel'],
     desc: 'An adjustable wrench. Any repair goes faster with one.' },
   // The original's blades and the axe: no bare-hands or melee mode in this engine yet, so they are tools first.

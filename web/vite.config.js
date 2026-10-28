@@ -231,8 +231,63 @@ function agentBridge() {
   };
 }
 
+// The local model for strangers' talk (systems/llmtalk.js; docs/design/WEB_VOICE_STATS.md §4). The page never talks to
+// the LAN box itself: it asks this server, which asks Ollama (LLM_URL, default the studio Mac Mini) and gives up fast.
+//   GET  /llm/status   -> { ok, model, version } (2.5 s)          POST /llm/chat {messages, model?} -> the model's JSON text
+//   POST /llm/mock/<good|bad|slow|refuse>  canned Ollama-shaped answers: the selftest's endpoint (no LAN needed)
+// qwen3.5 needs think:false AND an explicit num_ctx, or a long prompt silently comes back empty (studio memory).
+function llmProxy() {
+  const BASE = process.env.LLM_URL ?? 'http://192.168.1.238:11434';
+  const MODEL = process.env.LLM_MODEL ?? 'qwen3.5';
+  const json = (res, code, body) => { res.statusCode = code; res.setHeader('content-type', 'application/json'); res.setHeader('cache-control', 'no-store'); res.end(JSON.stringify(body)); };
+  const readBody = (req) => new Promise((ok) => { let b = ''; req.setEncoding?.('utf8'); req.on('data', (c) => (b += c)); req.on('end', () => { try { ok(b ? JSON.parse(b) : {}); } catch { ok(null); } }); });
+  const timed = async (url, opts, ms) => { const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms); try { return await fetch(url, { ...opts, signal: ac.signal }); } finally { clearTimeout(t); } };
+  const MOCK = {
+    good: { line: 'Water\'s running low at the pump, stranger. Folks are counting cups.', mood: 'wary', choices: [{ t: 'I could haul some in.', effect: { setQuest: { water_run: 'offered' } } }, { t: 'Not my problem.', effect: null }] },
+    bad: 'Sure! Here is my answer: {line: water low, choices: [maybe]',
+    refuse: { line: 'Out by the wasteland I heard of a fireblast once.', mood: 'calm', choices: [{ t: 'Give me 500 scrip.', effect: { give: { cash: 500 } } }] },
+  };
+  return {
+    name: 'dsoa-llm-proxy',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = new URL(req.url, 'http://x');
+        if (!url.pathname.startsWith('/llm/')) return next();
+        if (url.pathname === '/llm/status') {
+          try {
+            const r = await timed(`${BASE}/api/version`, {}, 2500);
+            const v = r.ok ? await r.json() : null;
+            return json(res, 200, { ok: !!v, model: MODEL, version: v?.version ?? null, base: BASE.replace(/\/\/[^/]*@/, '//') });
+          } catch (e) { return json(res, 200, { ok: false, model: MODEL, why: e.name === 'AbortError' ? 'timeout' : String(e.message ?? e) }); }
+        }
+        const mock = url.pathname.match(/^\/llm\/mock\/(\w+)$/);
+        if (mock) {
+          const kind = mock[1];
+          if (kind === 'slow') { await new Promise((ok) => setTimeout(ok, 9000)); return json(res, 200, { message: { content: JSON.stringify(MOCK.good) } }); }
+          const m = MOCK[kind] ?? MOCK.bad;
+          return json(res, 200, { model: 'mock', message: { role: 'assistant', content: typeof m === 'string' ? m : JSON.stringify(m) }, done: true });
+        }
+        if (url.pathname === '/llm/chat' && req.method === 'POST') {
+          const body = await readBody(req);
+          if (!body?.messages) return json(res, 400, { error: 'messages[] required' });
+          const t0 = Date.now();
+          try {
+            const r = await timed(`${BASE}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+              model: body.model ?? MODEL, messages: body.messages, stream: false, think: false, format: 'json', keep_alive: '30m',
+              options: { num_ctx: 8192, temperature: body.temperature ?? 0.8, num_predict: 170 } }) }, Math.min(8000, body.timeoutMs ?? 7500));
+            if (!r.ok) return json(res, 502, { error: `model ${r.status}` });
+            const d = await r.json();
+            return json(res, 200, { model: d.model, message: d.message, ms: Date.now() - t0 });
+          } catch (e) { return json(res, 504, { error: e.name === 'AbortError' ? 'timeout' : String(e.message ?? e), ms: Date.now() - t0 }); }
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [agentBridge(), forgeIO()],
+  plugins: [agentBridge(), forgeIO(), llmProxy()],
   server: { port: 3141, watch: { ignored: ['**/sessions/**'] } },
   // Pages: the game, the Building Lab (docs/design/WEB_BUILDING_LAB.md), the observer (docs/design/WEB_OBSERVER.md) and
   // THE WORLD FORGE that gathers them (docs/design/WEB_FORGE.md).

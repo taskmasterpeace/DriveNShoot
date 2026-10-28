@@ -27,6 +27,11 @@ import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
+import { Stats } from './systems/stats.js';
+import { Soundscape } from './systems/soundscape.js';
+import { LlmTalk } from './systems/llmtalk.js';
+import { CharSheet } from './ui/charsheet.js';
+import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
 import { WorkshopUI } from './ui/workshop.js';
@@ -193,6 +198,11 @@ class Game {
     this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6 }, cond: { pistol: 0.82 }, jam: {}, ammo: { pistol: 36, smg: 0, shells: 0, rifle: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
+    this.deep = new Stats(this); // the deep sheet: attributes, 36 skills, perks, traits, conditions, injuries, stress, reputation (g.deep.fx)
+    this.soundscape = new Soundscape(this); // the sound sets heard: beds, the engine you drive, the fight's barks
+    this.llmtalk = new LlmTalk(this); // strangers' small talk through the local model, grounded in the live world (offline: authored)
+    this.charSheet = new CharSheet(this); // ` the character sheet
+    this.radio = new Radio(this); // the stations: in a car or with a portable radio, , and . walk the dial
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
@@ -441,7 +451,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -1200,6 +1210,7 @@ class Game {
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
+      this.deep.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
       this.garage.update(simDt);
       this.workshop.update(simDt); // rockets in flight, seeker locks, power, nitrous, the fire bottles
@@ -1247,6 +1258,8 @@ class Game {
     this.dogs.draw(dt);
     this.fauna.draw(dt);
     const pv = p.inVehicle;
+    this.soundscape.update(dt);
+    this.radio.update(dt);
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.weaponBar.update(dt);

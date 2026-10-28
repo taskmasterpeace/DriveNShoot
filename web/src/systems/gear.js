@@ -106,9 +106,9 @@ export class Gear {
   speedMul() { return 1 + this.mods.speed; }
   reloadMul() { return 1 - this.mods.reload; }
   // ...and the traits you were made with (data/creator.js, g.sheet.fx) fold into the same three numbers.
-  seenMul() { return (1 - this.mods.stealth) * (this.g.sheet?.fx.seenMul ?? 1); }     // how close a hostile must be to spot you
-  repairMul() { return 1 + this.mods.repair + (this.g.sheet?.fx.repair ?? 0); }
-  luckRolls() { return Math.round(this.mods.luck + (this.g.sheet?.fx.luck ?? 0)); }
+  seenMul() { return (1 - this.mods.stealth) * (this.g.sheet?.fx.seenMul ?? 1) * (this.g.deep?.fx.seenMul ?? 1); }     // how close a hostile must be to spot you
+  repairMul() { return 1 + this.mods.repair + (this.g.sheet?.fx.repair ?? 0) + (this.g.deep?.fx.repair ?? 0); }
+  luckRolls() { return Math.round(this.mods.luck + (this.g.sheet?.fx.luck ?? 0) + (this.g.deep?.fx.luck ?? 0)); } // + the deep sheet (systems/stats.js)
 
   // What the player's body shows: a vest, a helmet, a poncho, a bandolier while one is worn (characters.js styles).
   dress() {

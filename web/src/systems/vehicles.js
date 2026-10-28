@@ -306,7 +306,7 @@ export class Vehicles {
       }
       if (fwd < -rev) fwd = -rev;
       // Steering bites with speed, softens at top speed.
-      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
+      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a
       // crash, a shove) settled on the target + 2πk instead and spun at ~28 rad/s for good, in place, at 16 m/s,
       // flattening anyone near it (a traffic LAWMAN spinning by the sheriff's corner ran bounty-run's player down).

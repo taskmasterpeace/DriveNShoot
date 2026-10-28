@@ -1,5 +1,6 @@
 import { LINES, DIRECTION, fillLine } from '../data/dialogue.js';
 import { castVoice, clipKey, hash32, RADIO_VOICE } from '../data/voices.js';
+import { BARK_SAMPLE } from '../data/barks.js';
 
 // Voices (docs/design/WEB_VOICE.md). The one place a person's words become sound:
 //   say(c, key, vars, opts)  pick a variation of a situation row for c (data/dialogue.js), fill it from the live world,
@@ -144,15 +145,20 @@ export class Voice {
     const near = Math.hypot(c.x - this.g.player.x, c.z - this.g.player.z) < SUB_RANGE;
     const sub = opts.subtitle ?? (near && !this.g.dialogue?.active && (kind !== 'bark' || this.g.time - this.subAt > 1.5));
     if (sub) { this.subAt = this.g.time; this.g.hud?.subtitle?.(`${c.npc?.name ?? c.name}: ${l.text}`, opts.secs ?? 3.5); }
-    const s = this.speak(c, l.text, { ...opts, kind });
+    const s = this.speak(c, l.text, { ...opts, kind, key });
     this.g.emit?.('voice', { id: c.id, key, line: l.text, row: l.row.id, played: s.played, why: s.why ?? null });
     return { key, row: l.row.id, text: l.text, voice: s.voice, played: s.played, why: s.why ?? null };
   }
 
   // ---- making sound -----------------------------------------------------------------------------------------------
-  clipFor(voice, text) {
-    const e = voice && this.manifest?.clips?.[clipKey(voice, text)];
-    return e && (e.provider !== 'flite' || this.allowDev) ? e : null;
+  clipFor(voice, text, bark = false) {
+    const ok = (e) => e && (e.provider !== 'flite' || this.allowDev) ? e : null;
+    const e = voice && ok(this.manifest?.clips?.[clipKey(voice, text)]);
+    if (e || !bark || !voice) return e ?? null;
+    // A bark is short and shouted: a stranger may borrow the same voice's US-flag take (the forge renders barks once per
+    // template voice, data/barks.js), so every warden.m0 shouts it whatever flag is on their chest.
+    const us = voice.replace(/.[A-Z]{2}$/, '.US');
+    return us !== voice ? ok(this.manifest?.clips?.[clipKey(us, text)]) : null;
   }
 
   buffer(file) {
@@ -178,8 +184,13 @@ export class Voice {
     const kind = opts.kind ?? 'talk', prio = PRIO[kind] ?? 1;
     this.stats.said++;
     const rec = { t: +this.g.time.toFixed(2), who: this.speakerId(c), voice, text, kind, played: false };
-    const clip = this.clipFor(voice, text);
-    if (!clip) { this.stats.textOnly++; this.stats.missing++; rec.why = voice ? 'no clip' : 'no voice'; this.note(rec); return { played: false, voice, why: rec.why }; }
+    const clip = this.clipFor(voice, text, kind === 'bark' || kind === 'death' || opts.key === 'under_fire');
+    if (!clip) {
+      this.stats.textOnly++; this.stats.missing++; rec.why = voice ? 'no clip' : 'no voice'; this.note(rec);
+      // No rendered words: the faction's wordless bark carries it (data/audiosets.js bark.*, systems/soundscape.js).
+      if (c !== 'radio' && BARK_SAMPLE[opts.key]) rec.wordless = !!this.g.soundscape?.wordless(c, opts.key);
+      return { played: false, voice, why: rec.why, wordless: rec.wordless ?? false };
+    }
     const A = this.g.audio;
     if (!A?.ctx) { this.stats.textOnly++; rec.why = 'audio off'; this.note(rec); return { played: false, voice, why: 'audio off' }; }
     const cur = this.lines.find((l) => l.c === c && !l.done);

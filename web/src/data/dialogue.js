@@ -18,6 +18,7 @@ import { NEWS, ROAD, YOU } from './talk.js';
 import { BARKS, NPCS } from './npcs.js';
 import { MEMORY_KINDS } from './society.js';
 import { EVENTS } from './events.js';
+import { BARK_LINES, BARK_DIRECTION, COMBAT_KEYS } from './barks.js';
 
 // The situations the game (and the controller's gunpoint state) asks for: voice.say(c, key, vars).
 export const SITUATIONS = {
@@ -43,6 +44,7 @@ export const SITUATIONS = {
   'road.warning': 'a warning about the road',
   death: 'the last thing they say',
   thanks: 'thanks for a kindness',
+  ...Object.fromEntries(COMBAT_KEYS.map((k) => [k, `a fighter's bark: ${k.slice(7).replace('_', ' ')}`])),
 };
 
 // How each situation is performed when nobody says otherwise, and who may cut whom (systems/voice.js).
@@ -66,6 +68,8 @@ export const DIRECTION = {
   rumour: { kind: 'talk', direction: 'Low and confiding, leaning in, half believing it.' },
   'road.warning': { kind: 'talk', direction: 'Serious and protective, a quiet warning between strangers.' },
   thanks: { kind: 'talk', direction: 'Shaky relief, grateful.' },
+  // The fight turning (data/barks.js; systems/soundscape.js asks for these).
+  ...Object.fromEntries(Object.entries(BARK_DIRECTION).map(([k, d]) => [k, { kind: 'bark', direction: d }])),
 };
 
 const CIV = ['drifter', 'warden'];
@@ -151,7 +155,7 @@ function ported() {
   return rows;
 }
 
-export const LINES = [...AUTHORED, ...ported()];
+export const LINES = [...AUTHORED, ...BARK_LINES, ...ported()];
 
 // Fill the {tokens} of a line. vars: a plain object of strings or numbers; anything missing is left for the caller.
 export const fillLine = (t, vars = {}) => t.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m));
