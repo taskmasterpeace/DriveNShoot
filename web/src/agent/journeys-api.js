@@ -45,7 +45,8 @@ export async function journeyChecks(api, check, C) {
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.trundle && !c.husk && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 90) g.removeChar(c);
   };
   const sv = (await C('save')).save;
-  const was = { zombies: g.zombies.enabled, raiders: g.raiderTimer, convoyNext: g.convoy.next, base: I.base };
+  const was = { zombies: g.zombies.enabled, raiders: g.raiderTimer, convoyNext: g.convoy.next, base: I.base, grapevine: g.grapevine?.enabled };
+  if (g.grapevine) g.grapevine.enabled = false; // the stalkers would walk into the coach's lane (it stops for anyone on foot)
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy.despawn?.(); g.convoy.next = 1e9;
   const out = async () => { if (g.player.inVehicle) g.exitVehicle(true); if (!g.player.alive) { g.respawnT = 0; await C('step', { seconds: 0.3 }); } };
   let car = null;
@@ -204,6 +205,14 @@ export async function journeyChecks(api, check, C) {
       const L = LINES.find((l) => l.id === 'sun'), Tr = g.train, near0 = Tr.near, RX = -360;
       if (TR.bus) TR.despawnBus();
       await C('teleport', { x: RX - 40, z: -14 }); await C('step', { seconds: 0.2 }); quiet(); // watch from the verge, nobody on the road
+      // Staged: nobody on foot in the eastbound lanes between the coach and the tracks (quiet() spares named people, and the
+      // coach stops dead and leans on the horn for anyone in its path).
+      const moved = [];
+      for (const c of [...g.chars]) {
+        if (c === g.player || !c.alive || c.inVehicle || c.x < -1150 || c.x > RX + 20 || Math.abs(c.z) > 40) continue;
+        if (c.faction === 'grapevine' || c.faction === 'zombie') { g.removeChar(c); moved.push(`${c.faction} (removed)`); continue; }
+        if (Math.abs(c.z) < 12) { moved.push(c.name ?? c.id); c.x = RX - 60; c.z = -30; c.wx = c.x; c.wz = c.z; }
+      }
       const v = TR.spawnBus(L, L.stops.indexOf('iron_crossing'), 1); // 700 m up the road, westbound side of the tracks, heading east
       let held = false, minAhead = 1e9, crossed = false;
       try {
@@ -214,14 +223,18 @@ export async function journeyChecks(api, check, C) {
         Tr.near = near0;
         for (let t = 0; t < 60 && !crossed; t += 0.5) { await C('step', { seconds: 0.5 }); crossed = v.x > RX + 8; }
         const waited = g.events.some((e) => e.type === 'trundleWaitsForTrain' && e.vehicle === v.id);
+        const near = g.chars.filter((c) => c.alive && c !== g.player && Math.hypot(c.x - v.x, c.z - v.z) < 25).map((c) => [c.name, c.faction, r1(c.x), r1(c.z), !!c.inVehicle]);
+        const nearV = g.vehicles.filter((o) => o !== v && Math.hypot(o.x - v.x, o.z - v.z) < 40).map((o) => [o.type, r1(o.x), r1(o.z)]);
+        const bus = { state: TR.bus?.state, broke: TR.bus?.broke, lane: TR.bus?.lane, blk: TR.bus?.blk, thr: v.throttle };
         TR.despawnBus();
-        return held && stillShort && crossed && waited ? true : JSON.stringify({ held, stillShort, crossed, waited, minAhead: r1(minAhead), x: r1(v.x) });
+        return held && stillShort && crossed && waited ? true : JSON.stringify({ held, stillShort, crossed, waited, minAhead: r1(minAhead), x: r1(v.x), bus, near, nearV, moved });
       } finally { Tr.near = near0; }
     });
   } finally {
     if (TR.ui.open) TR.ui.close();
     TR.leaveHall(); TR.despawnBus(); J.endLift?.('check');
     if (car && g.vehicles.includes(car)) { g.vehiclesSys.remove(car); g.inventory.trunks.delete(car.id); }
+    if (g.grapevine) g.grapevine.enabled = was.grapevine;
     g.zombies.enabled = was.zombies; g.raiderTimer = was.raiders; g.convoy.next = was.convoyNext;
     await C('load', { save: sv });
     I.base = was.base;
