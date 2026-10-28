@@ -82,6 +82,9 @@ import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
 import { Creator } from './systems/creator.js';
 import { CreatorUI } from './ui/creator.js';
+import { Crew } from './systems/crew.js';       // the crew: records, orders, jobs, trust, the fallen (docs/design/WEB_CREW.md)
+import { Tactics } from './systems/tactics.js'; // cover, bands, flanking, suppression for the crew and every hostile side
+import { CrewUI } from './ui/crew.js';          // U: the CREW panel (tap) and the orders radial (hold)
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -161,6 +164,7 @@ class Game {
     this.gunpoint = new Gunpoint(this); // a raised gun held on a person is a state (§3.5)
     this.melee = new Melee(this);       // shove, strike, kick (§3.6)
     this.ai = new AI(this);
+    this.tactics = new Tactics(this); // where a fighter stands (data/doctrine.js); ai.js still decides when they shoot
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
     this.witnesses = new Witnesses(this);
@@ -194,6 +198,8 @@ class Game {
     this.qol = new QOL(this, ui);
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
+    this.crew = new Crew(this);
+    this.crewUI = new CrewUI(this, ui);
 
     this.cash = 120;
     this.wanted = 0;
@@ -243,6 +249,7 @@ class Game {
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
     this.recorder = new Recorder(this); // the session ring the observer replays (agent/recorder.js, WEB_OBSERVER.md)
     this.regions.placeAtStart(); // ?start=florida (the players' default): a new game begins at Meridian's clinic door
+    this.crew.seed(); // who you can meet: two in Rust Haven, one at Meridian, captives at a Dustwolf camp (data/crew.js CREW_SEEDS)
     this.api = new AgentAPI(this);
     this.title(ui);
     this.creator = new Creator(this); // point-buy survivors (data/creator.js, docs/design/WEB_CREATOR.md): the draft, the sheet, BEGIN
@@ -573,6 +580,8 @@ class Game {
   onKill(c, attacker, cause = 'bullet') {
     this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0, cause });
     this.society.deeds.onKill(c, attacker, cause); // witnesses and rumors; wanted stars only on a lawful witness's word
+    this.crew?.onKill(c, attacker); // a fight won outnumbered moves the crew's trust
+
     if (attacker === this.player) {
       this.stats.kills++;
       if (c.faction === 'raider') {
@@ -731,7 +740,7 @@ class Game {
     }
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.workshopUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.workshopUI.input(I); return; }
-    if (I.hit('KeyU')) { this.workshopUI.toggle(true); return; }
+    if (I.hit('KeyU') && this.workshop.siteAt(p.x, p.z)) { this.workshopUI.toggle(true); return; } // at a garage U is the workshop; anywhere else it is the crew (ui/crew.js)
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
     if (I.hit('KeyN')) { if (!this.travel.napRide()) this.trySleep(); return; } // on the trundle with a punch: sleep through the trip
@@ -1211,6 +1220,7 @@ class Game {
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
     if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
+    if (simDt) this.crew.input(I); // E beside a downed crew member is theirs: patch up, or hold to drag
     this.updatePlayer(dt);
     this.arms.update(dt);  // H, J, B, RB: stance, grip, fire mode, the wheel; who has noticed your gun
     this.melee.update(dt); // RMB / R3: the blow in flight lands at its moment of contact
@@ -1241,6 +1251,7 @@ class Game {
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.dogs.update(simDt);
+      this.crew.update(simDt); // the downed bleed, deeds move trust, jobs on the game clock, dawn
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
@@ -1281,6 +1292,7 @@ class Game {
     this.weaponBar.update(dt);
     this.qol.update(dt);
     this.invUI.update(dt);
+    this.crewUI.update(dt);
     this.workshopUI.update(dt);
     this.feedback.update(dt);
     this.recorder.tick(); // a time check; 4 times a game second, one sample into preallocated arrays

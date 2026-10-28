@@ -52,6 +52,7 @@ import { voiceStatsCommands } from './voicestats.js';
 import { voiceStatsChecks } from './voicestats-selftest.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
+import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { qolChecks } from './qol-selftest.js';
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
@@ -2011,6 +2012,8 @@ function buildCommands(api) {
     // Sound sets, barks, the local model's talk, the deep sheet, the journal (src/agent/voicestats.js, docs/design/WEB_VOICE_STATS.md).
     ...voiceStatsCommands(api, need),
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
+    // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
+    ...crewCommands(api, need),
   };
 }
 
@@ -5873,7 +5876,9 @@ async function runSelfTest(api, only = null, skip = null) {
   g.citygen.enabled = citygenWas;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
-  await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
+  await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await check('no runtime errors during the battery', async () =>
+ (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
@@ -5914,6 +5919,7 @@ export function snapshot(g) {
     materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
     clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
+    crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
   };
 }
 
@@ -5990,6 +5996,8 @@ export function restore(g, s) {
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
   g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
+  if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
+
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }
