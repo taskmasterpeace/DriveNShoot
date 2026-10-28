@@ -263,8 +263,8 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       O.drawTracks();
       const m = O.mesh, col = m.instanceColor.array, mean = (n) => (col[n * 3] + col[n * 3 + 1] + col[n * 3 + 2]) / 3;
       const fresh = mean(0);
-      const S = O.maxAge(0, 0); // how long an untrained eye reads the newest print
-      O.lay('scuff', p.x, p.z + 2, 0, 'check-old', 'infected', S * 0.85);
+      const i = O.lay('scuff', p.x, p.z + 2, 0, 'check-old', 'infected');
+      O.tt[i] = O.hours() - O.maxAge(i, 0) * 0.85; // most of the way through what an untrained eye can read of it
       O.drawTracks();
       const old = mean(0);
       const multiply = m.material.blending === THREE.MultiplyBlending && m.material.toneMapped === false;
