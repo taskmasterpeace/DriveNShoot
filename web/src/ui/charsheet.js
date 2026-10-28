@@ -9,7 +9,7 @@ import { journal } from '../systems/journal.js';
 // from somewhere. The HUD's stamped-steel language (ui/hud.css: steel gradients, stencil type, clipped corners).
 // Not per-frame: drawn on open and twice a second while open. The pause menu gets a JOURNAL tab (g.qol.addTab when the
 // tabbed pause menu is there; a button otherwise) and the LOCAL TALK toggle.
-const TABS = ['attributes', 'skills', 'perks', 'traits', 'body', 'standing', 'journal'];
+const TABS = ['attributes', 'skills', 'perks', 'traits', 'body', 'standing', 'journal', 'pulls']; // pulls: ui/pullsboard.js (what reached you)
 const CSS = `
 .cs{position:fixed;left:50%;top:5vh;transform:translateX(-50%);width:min(1040px,95vw);height:min(640px,88vh);z-index:60;color:var(--bone);font:13px var(--body);display:flex;flex-direction:column;
  background:var(--speckle,none),linear-gradient(172deg,var(--steel-hi),var(--steel-lo));border:1px solid oklch(0.11 0.01 60);box-shadow:inset 0 1px 0 rgba(255,250,235,.14),4px 6px 0 rgba(0,0,0,.55);
@@ -116,6 +116,7 @@ export class CharSheet {
     const bar = (x, max) => `<div class="cs-bar"><i style="width:${Math.max(0, Math.min(100, (x / max) * 100)).toFixed(0)}%"></i></div>`;
     const pct = (m) => `${m >= 1 ? '+' : ''}${Math.round((m - 1) * 100)}%`;
     const cols = (n) => { body.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`; };
+    body.style.display = ''; body.style.overflowY = ''; // the PULLS tab scrolls a list; the others are grids
     let h = '';
     if (this.tab === 'attributes') {
       cols(3);
@@ -149,6 +150,8 @@ export class CharSheet {
       h += card('STRESS', `<div class="cs-big">${Math.round(v.stress.value)} <span class="cs-muted">/ ${v.stress.cap}</span></div>${bar(v.stress.value, v.stress.cap)}${row('Panic at', `${v.stress.panicAt}%`)}`);
       h += card('MORALE', `<div class="cs-big">${v.morale.value} <span class="cs-muted">${v.morale.band}</span></div>${v.morale.mods.slice(0, 8).map((m) => `<span class="cs-pill ${m.v < 0 ? 'bad' : 'good'}">${m.label} ${m.v > 0 ? '+' : ''}${m.v}</span>`).join('')}`);
       h += card('REPUTATION', Object.values(v.reputation).map((r) => `${row(r.label, r.value)}${bar(r.value + (r.label.includes('/') ? 100 : 0), r.label.includes('/') ? 200 : 100)}`).join(''));
+    } else if (this.tab === 'pulls') {
+      body.style.overflowY = 'auto'; body.style.display = 'block'; h += this.g.pullsUI?.tabHTML() ?? ''; // the PULLS board
     } else {
       cols(2);
       h += this.journalCards();

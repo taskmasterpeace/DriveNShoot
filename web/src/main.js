@@ -62,6 +62,8 @@ import { Underground } from './systems/underground.js';
 import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
+import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
+import { PullsBoard } from './ui/pullsboard.js';
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
@@ -233,6 +235,8 @@ class Game {
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
+    this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
+    this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
     this.insideBuilding = null;
     this.paused = true;
@@ -415,7 +419,7 @@ class Game {
         let text;
         if (it.type === 'ammo') { const A = this.inv.ammo, W = new Set(this.inv.weapons.map((k) => WEAPONS[k]?.ammo)); A.pistol += 12; if (W.has('smg')) A.smg += 32; if (W.has('shells')) A.shells += 4; if (W.has('rifle')) A.rifle += 10; text = '+ AMMO'; } // by the rounds your guns eat
         else if (it.type === 'med' || it.type === 'water' || it.type === 'food') text = this.pickItem(it.type, it.x, it.z);
-        else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
+        else { const c = it.amount ?? 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; } // amount: a purse that spilled (systems/pulls.js)
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
         continue;
       }
@@ -617,6 +621,7 @@ class Game {
       if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
     }
+    this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); this.clone.onDeath(c); } // the husk lies where you fell
     if (c.res) this.residents.onKill(c, attacker); // a ring resident: the death goes on their household's record
   }
@@ -1288,6 +1293,7 @@ class Game {
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
+      this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
       this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.nanGuard('late');
     }
