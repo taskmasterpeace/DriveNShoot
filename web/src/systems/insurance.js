@@ -150,6 +150,27 @@ export class Insurance {
     return { vehicle: v.id, x: h.car.x, z: h.car.z };
   }
 
+  // ---- the INSURANCE tab: drawn into the pause menu's pane (ui/qol.js addTab), one screen, the menu's own classes ---------
+  renderTab(el) {
+    const v = this.view(), esc = (x) => String(x ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+    const grid = (rows) => `<div class="pm-run">${rows.map(([k, x]) => `<span><em>${esc(k)}</em><b>${esc(x)}</b></span>`).join('')}</div>`;
+    const P = v.policy, at = v.pressedAt, np = this.g.travel?.j?.nearestPole?.(v.base);
+    el.innerHTML = [
+      `<div class="pm-section">LIFE INSURANCE · ${esc(P ? P.name : 'NONE')} · ${esc(v.status)}</div>`,
+      grid([
+        ['Premium', P ? `$${P.premium}/day` : '-'], ['Brine book', `$${v.bank}`], ['Behind', `${v.owed} of ${P?.graceDays ?? 0} days`],
+        ['Home centre', v.home?.short ?? '-'], ['Pressed at', at ? `${this.row(at.vat)?.short ?? at.vat}${at.office ? ' (office)' : ''}` : '-'],
+        ['Pressing', at ? (at.cold ? 'COLD' : `${Math.round(at.hoursAgo)} h old`) : '-'], ['Cold in', at && !at.cold ? `${Math.round(at.coldIn)} h` : '-'],
+        ['You come up', P ? `${P.sickHours} h brine-sick` : 'flat'], ['Tow / re-press', P ? `${P.tow ? 'tow' : 'no tow'} · ${P.repress ? 're-press' : 'no'}` : '-'],
+      ]),
+      `<div class="pm-section">CLONING CENTRES · WHERE YOU CAN COME UP (TRANSFER FROM HOME)</div>`,
+      grid(v.centres.map((c) => [c.short + (c.onMap ? '' : ' · past the dust'), c.id === v.home?.id ? 'HOME · FREE' : c.transfer === null ? '-' : `$${c.transfer}`])),
+      `<div class="pm-section">YOUR BASE · ${esc(v.base?.name)}${np ? ` · NEAREST POLE ${esc(np.name)} · ${np.km} KM WALK` : ''}</div>`,
+      `<div class="pm-section">THE COVERS · SIGN AT ANY CLINIC OR PRESSING OFFICE (SMALL TOWNS SCAN, ONLY BIG CITIES GROW BODIES)</div>`,
+      grid(v.policies.map((q) => [q.name, `$${q.premium}/day · ${q.graceDays}d grace · cold ${q.staleDays}d`])),
+    ].join('');
+  }
+
   // ---- the INSURANCE tab (the lead's pause menu): everything about your cover in one read -------------------------------
   view() {
     const g = this.g, C = this.C, P = C.pressing, pol = P ? this.policy(P) : null, home = P ? this.homeOf(P) : null, here = C.vatHere?.();

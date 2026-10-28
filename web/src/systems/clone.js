@@ -481,6 +481,7 @@ export class Clone {
     this.quests0 = JSON.parse(JSON.stringify(g.quests ?? {}));
     if (CLONE_RULES.starterPressing && !this.pressing && !this.husks.length && !this.lineage.length && !this.loaded) this.press(this.startVat(), { free: true, force: true });
     this.buildVats();
+    g.qol?.addTab?.('insurance', 'INSURANCE', (el) => this.ins.renderTab(el)); // the pause menu's INSURANCE tab (feat/web-qol)
   }
   // The body on the ground: a real dead body near you, drawn by the character renderer; nothing far off.
   drawHusks() {
