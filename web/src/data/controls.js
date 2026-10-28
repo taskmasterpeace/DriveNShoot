@@ -78,6 +78,7 @@ export const BINDINGS = [
   { id: 'radioPrev', label: 'Radio: previous station', group: 'WORLD', code: null, keys: ['Comma'], pad: {} },
   { id: 'charsheet', label: 'Character sheet and journal', group: 'WORLD', code: null, keys: ['Backquote'], pad: {} },
   { id: 'controls', label: 'Controls: every binding, press to rebind', group: 'WORLD', code: null, keys: ['F2'], pad: { foot: 'back+left' } },
+  { id: 'hudEdit', label: 'HUD layout editor: move, size, hide and preset the HUD', group: 'WORLD', code: null, keys: ['F6'], pad: {} },
   // The crew (docs/design/WEB_CREW.md): tap for the CREW panel, hold for the orders radial (the pad: hold LB, the right
   // stick picks; LB's tap is still the grip, and a hold that opens the radial puts the grip back).
   { id: 'crew', label: 'Crew: tap the CREW panel, hold for orders (at a garage U is the workshop)', group: 'WORLD', code: null, keys: ['KeyU'], pad: { foot: 'lb', ride: 'lb' } },
