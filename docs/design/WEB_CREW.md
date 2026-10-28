@@ -258,7 +258,12 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
 - **Shard play:** `crew.save({ portable: true })` carries no character ids. Candidates and members are made again round
   you at login, and this page's own seeded candidate bodies are replaced.
 - **Pad LB:** shared with the grip's tap; the radial restores the grip.
-- **KeyU clash:** the gadgets lane binds `detonate` to KeyU too. See the shared notes.
+- **KeyU is shared:**
+  - **with the workshop** (on feat/web-engine): at a garage site (`workshop.siteAt`), U opens the workshop. Anywhere else
+    U is the crew's (tap = panel, hold = radial), and the pad's hold LB is the crew's everywhere.
+  - **with the gadgets lane** (`detonate`, also KeyU): not landed yet. See the shared notes.
+- **MAN THE GUN and GUNNER** fire the workshop's mounted weapons first (`workshop.fireMount`, group 1, in arc), then the
+  old hood gun, then their own gun.
 
 ## 6. Dependencies
 - **Reads:**
