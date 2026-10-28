@@ -112,6 +112,35 @@ Robert's review of the first renders: the alley "reads as a plain empty sand str
   - citygen's instance cap went from 90k to 120k, so three of the largest can be live at once.
   - The dressing pass takes ≤ 35 ms in the largest town (a 4 m box grid for its clear-ground tests).
 
+### 3.5 Dead cars (BACK-LOTS 2: `data/wrecks.js`, `world/wreckbody.js`, `systems/wrecks.js`)
+Robert, looking at three box cars by a road: "Are these placeholder cars or something? What happened to our cars?" Every static car in the world is now one of our own vehicle bodies (`systems/vehiclebodies.js buildBody`), dead.
+- **Types:** sedan, pickup, van and LAWMAN, weighted 5:3:2:1, each scaled into the collider it always had (4.2 × 1.9 m; at least 0.78).
+- **States** (`WRECK_STATES`), each made from the body's per-vertex `part` ids:
+  - **rusted:** faded paint, rust blotches (smooth noise: they run across panels), flat tyres, no glass, sagging 7 cm.
+  - **burned:** charred to about 1% albedo (it has to read black under the game's sun), ash patches on the tops, no glass, no tyres, on its belly, a ragged scorch on the ground.
+  - **stripped:** doors gone, hood stood open on its hinge, wheels gone, cinder blocks under the axles.
+  - **crushed** (the stunt show's): flattened to 46% height.
+- **Paint:** the body is built in a neutral paint, and the instance tint gives it its old colour (`WRECK_PAINTS`: faded red, blue, olive, cream, black, green, brown, white, teal).
+- **Sources** (`WRECK_SOURCES`, state mixes):
+  - **roadside:** chunkgen's shoulder and median wrecks, a looted station's car.
+  - **street:** the ring's kerbs, a holdout's kerb, a town's street wrecks, the island.
+  - **boneyard:** holdout and roadside boneyards, stacked hulks, one on its roof.
+  - **burnt:** the alleys.
+  - **blocks:** yard cars, ring chop shops, a holdout lot's hulk, a base's stripped truck.
+- **One draw call:** every dead car is one instance of a three.js `BatchedMesh` (one entry per type × state, built once). Owners hand sets over and take them back:
+  - a chunk going hot or cold (`streamer.applyStep`/`release`);
+  - a town stamped or released (citygen);
+  - the island at boot (main.js);
+  - a base's motor pool;
+  - the stunt show.
+
+  A base's `clearLot` clears the island's wrecks off its lot as it clears rubble.
+- **Collision is unchanged:** every collider stays as it was. Two non-car colliders that wore the `wreck` tag were retagged (`tractor` and the drained lake's `boatwreck`, both roadside). The bases' helicopter keeps its tag (the island hash) and is told apart by size.
+- **Pinned hashes:**
+  - A chunk's wreck list is part of its hash (it stays a pure function), so the six P1 chunks with wrecks move in `p1ChunksReal` and `p1Chunks`.
+  - `ringPlans` moves for the chop shops.
+  - The island hash does not move: its colliders and RNG draws are unchanged.
+
 ### 3.3 Runtime (`systems/backlots.js`)
 - **Gates.** Every 0.5 s, each yard within `GATES.near` (55 m) hangs its gates as an interiors ring (`bl:<yard>`, door kind `gate`). Past 80 m they are given back. A share `LOCKS[class].gate` is locked (none in an overrun town). Locked gates block the nav grid like any locked door.
 - **Back doors.** `citygen.openings` locks `backLock(B, rec)` of a building's back doors: `LOCKS[KIND_CLASS[kind]][state]`. This replaces the flat 35%.
@@ -230,6 +259,7 @@ Robert's review of the first renders: the alley "reads as a plain empty sand str
 | 8 | **AI pathing uses the alleys** | Live: with the town in the foot nav grid, an end-to-end alley route stays in the alley. A route from a yard home's street to its back yard (whose straight line meets a wall or fence) never crosses a wall or panel; it uses doors, gates and the alley. |
 | 10 | **the alleys and yards are dressed** | In 4 towns, every kind of dressing stands. No dressing collider stands in a lane or on a door's step. Every back door has its stoop. A town stays under 36k items and its dressing pass takes under 60 ms. The alley, loop and yard audits (checks 2–4) run on the dressed towns. |
 | 11 | **strays live in the alleys of a town** | A built town's alley dogs stand in its alleys; released, it takes back the ones nobody adopted. |
+| 12 | **no static car is built from raw boxes** | Every car-shaped collider in the live world (island, hot chunks, live towns) has one of our vehicle bodies standing in it, in a dead state, all in one batched mesh. |
 | 9 | **draw calls < 150 standing in an alley** | Every back-lot piece is an item of the one town mesh; gates are pooled leaves. |
 
 The existing citygen checks still pass on the new plan: the 20-stamp walkability audit, sites/homesteads/base, the 20 SITE rows, the law and the clone, and the live checks.

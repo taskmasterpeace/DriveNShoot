@@ -53,7 +53,7 @@ export class Roadside {
   constructor(W, rows = { lines: POWER_LINES, billboards: BILLBOARDS, sites: SITES }) {
     const t0 = performance.now();
     this.W = W; this.rows = rows; this.seed = hash32(W.seed, 0x524f4144);
-    this.items = []; this.wrecks = []; this.boxes = []; this.flora = []; this.lots = []; this.blocks = []; this.faces = []; this.pendingBills = [];
+    this.items = []; this.deadCars = []; this.boxes = []; this.flora = []; this.lots = []; this.blocks = []; this.faces = []; this.pendingBills = [];
     this.footprints = []; this.warnings = []; this.keep = new Map(); // keep-out shapes by 64 m cell (scatter keeps off)
     this.sites = []; this.spots = []; this.hulks = []; this.tanks = []; this.lines = []; this.pylons = []; this.hazards = []; this.billboards = [];
     this.addedRibbons = []; this.addedPieces = []; this.addedRails = [];
@@ -72,7 +72,7 @@ export class Roadside {
   // ---- small builders ---------------------------------------------------------------------------------------------------
   P(pool, x, y, z, w, h, d, col, rot = 0, shade = 1) { this.items.push({ pool, e: [x, y, z, w, h, d, col, rot, shade] }); }
   // A dead car (data/wrecks.js; systems/wrecks.js draws one of our real bodies): rot 0 = its nose to +z.
-  WK(x, z, rot, source, stack = 0, tilt = 0) { this.wrecks.push({ x, z, rot, stack, tilt, ...wreckOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), Math.round(stack * 10)), source), fit: [4.2, 1.9] }); }
+  WK(x, z, rot, source, stack = 0, tilt = 0) { this.deadCars.push({ x, z, rot, stack, tilt, ...wreckOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), Math.round(stack * 10)), source), fit: [4.2, 1.9] }); }
   // A box with a full transform (pitched, rolled): a matrix item (chunkgen pushes it with pushMatrix).
   // R = Ry(yaw) Rx(pitch) Rz(roll) (three.js's Euler order YXZ), scaled, column-major: written out, no THREE objects.
   M(pool, x, y, z, yaw, pitch, roll, sx, sy, sz, col, rect = null) {
@@ -821,7 +821,7 @@ export class Roadside {
     const K = (cx, cz) => (cx + 32768) * 65536 + cz + 32768, key = (x, z) => K(Math.floor(x / C), Math.floor(z / C));
     const add = (map, k, v) => { let l = map.get(k); if (!l) map.set(k, (l = [])); l.push(v); };
     for (const it of this.items) { const k = key(it.x ?? it.e[0], it.z ?? it.e[2]); add(own, k, it); touch.add(k); }
-    this.ownWrecks = new Map(); for (const w of this.wrecks) { const k = key(w.x, w.z); add(this.ownWrecks, k, w); touch.add(k); }
+    this.ownWrecks = new Map(); for (const w of this.deadCars) { const k = key(w.x, w.z); add(this.ownWrecks, k, w); touch.add(k); }
     this.ownFlora = new Map(); for (const f of this.flora) { const k = key(f[1], f[2]); add(this.ownFlora, k, f); touch.add(k); }
     this.boxBuckets = new Map();
     for (const b of this.boxes) for (let cx = chunkOf(b.x0 - 3); cx <= chunkOf(b.x1 + 3); cx++) for (let cz = chunkOf(b.z0 - 3); cz <= chunkOf(b.z1 + 3); cz++) { const k = K(cx, cz); add(this.boxBuckets, k, b); touch.add(k); }

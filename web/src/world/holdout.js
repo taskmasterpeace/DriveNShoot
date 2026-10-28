@@ -28,7 +28,7 @@ export class Holdout {
     this.approach = { x: this.x0 - row.approach, z: this.cz };
     this.seed = hash32(W.seed, row.seed);
     this.shore = shore;
-    this.lots = []; this.blocks = []; this.streetList = []; this.items = []; this.wrecks = []; this.boxes = []; this.flora = []; this.spots = {}; this.gates = [];
+    this.lots = []; this.blocks = []; this.streetList = []; this.items = []; this.deadCars = []; this.boxes = []; this.flora = []; this.spots = {}; this.gates = [];
     this.layout();
   }
   // local -> world
@@ -163,7 +163,7 @@ export class Holdout {
   // ---- open lots: data/holdout.js rows, Florida-dressed ----------------------------------------------------------------
   P(pool, x, y, z, w, h, d, col, rot = 0, shade = 1) { this.items.push({ pool, e: [x, y, z, w, h, d, col, rot, shade] }); }
   // A dead car (data/wrecks.js; systems/wrecks.js draws one of our real bodies): its nose along x when `alongX`.
-  deadCar(x, z, alongX, source, stack = 0, rot = 0) { this.wrecks.push({ x, z, rot: (alongX ? Math.PI / 2 : 0) + rot, stack, ...wreckOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), Math.round(stack * 10)), source), fit: [4.2, 1.9] }); }
+  deadCar(x, z, alongX, source, stack = 0, rot = 0) { this.deadCars.push({ x, z, rot: (alongX ? Math.PI / 2 : 0) + rot, stack, ...wreckOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), Math.round(stack * 10)), source), fit: [4.2, 1.9] }); }
   box(x0, z0, x1, z1, h, tag) { this.boxes.push({ x0, z0, x1, z1, h, tag }); }
   openLot(blk, kind, area, rng) {
     const b = area ?? blk, M = HOLDOUT.market, Y = HOLDOUT.yard, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, w = b.x1 - b.x0, d = b.z1 - b.z0;
@@ -661,7 +661,7 @@ export class Holdout {
       for (const it of f.items) if (own(it.e[0], it.e[2])) items.push(it);
       for (const q of f.boxes) if (q.x1 > ox - 3 && q.x0 < X1 + 3 && q.z1 > oz - 3 && q.z0 < Z1 + 3) boxes.push(q);
     }
-    const wrecks = this.wrecks.filter((w) => own(w.x, w.z));
+    const wrecks = this.deadCars.filter((w) => own(w.x, w.z));
     for (const L of this.lots) { if (L.lot.x1 < ox - 3 || L.lot.x0 > X1 + 3 || L.lot.z1 < oz - 3 || L.lot.z0 > Z1 + 3) continue; for (const w of this.fillOf(L).wrecks) if (own(w.x, w.z)) wrecks.push(w); }
     return { items, flora: this.flora.filter((f) => own(f[1], f[2])), boxes, wrecks };
   }
