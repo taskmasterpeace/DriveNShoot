@@ -1,6 +1,8 @@
 // THE HUD LAYOUT for agents (docs/design/WEB_UI_EDITOR.md; rows data/hudlayout.js, live layout + editor ui/hudedit.js): the
 // `hud` command (list, set, preset, reset, export, import, situation, edit) and the selftest's named checks for the lane
 // (each returns true or a JSON diagnostic, and puts the player's own layout back).
+import { PANELS, PANEL_IDS, PANEL_PRESET_IDS, validatePanels, validatePanelLayout } from '../data/panellayout.js';
+import { textOverlaps, rectsCross } from '../ui/panellayout.js';
 import { HUD_LAYOUT, HUD_PRESETS, PRESET_IDS, SITUATIONS, SITUATION_IDS, ANCHORS, placeRect, resolveLayout, validateHudLayout, layoutScale, fitScale } from '../data/hudlayout.js';
 
 export function hudCommands(api, need) {
@@ -43,10 +45,44 @@ export function hudCommands(api, need) {
           case 'edit': {
             const want = on === undefined ? !E().open : on === true || on === 'true';
             E().toggle(want);
-            g.hud.root.classList.toggle('nopanel', panel === false || panel === 'false');
+            const np = panel === false || panel === 'false';
+            g.hud.root.classList.toggle('nopanel', np); E().el.root.classList.toggle('nopanel', np);
             return out();
           }
           default: return { ok: false, error: `unknown action '${action}'`, hint: 'list | set | preset | reset | export | import | situation | edit' };
+        }
+      },
+    },
+    panelLayout: {
+      group: 'meta',
+      desc: 'The full screens as named regions (data/panellayout.js, docs/design/WEB_UI_EDITOR.md §3.8): workshop, pack, sheet, crew, dialogue, travel, creator, pause. action=list [panel=] (regions, live or not, where each sits) | open panel= | close panel= | set panel= [region=] [visible= scale= text= dx= dy= anchor=flow|tl|tc|tr|bl|bc|br cols= density=] (no region: scale= scales the whole panel) | preset name=default|compact|large | reset [panel=] [region=] | export | import json= | audit panel= (text runs that cross each other, at this size) | edit panel= (the HUD editor on that panel).',
+      args: { action: { type: 'string' }, panel: { type: 'string' }, region: { type: 'string' }, visible: { type: 'boolean' }, scale: { type: 'number' }, text: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number' }, anchor: { type: 'string' }, cols: { type: 'number' }, density: { type: 'number' }, name: { type: 'string' }, json: { type: 'string' }, tab: { type: 'number' } },
+      run: async ({ action = 'list', panel, region, name, json, tab, ...f } = {}) => {
+        const P = g.hud.panels;
+        need(P, 'no panel layout on this page');
+        const fail = (bad) => ({ ok: false, error: bad[0], problems: bad, hint: 'panelLayout action=list shows panels and regions' });
+        const ok = (x = {}) => ({ ok: true, preset: P.preset, ...x });
+        const needPanel = () => need(PANELS[panel], `panel=${panel} is not one of ${PANEL_IDS.join(' ')}`);
+        switch (action) {
+          case 'list':
+            if (panel) { needPanel(); return ok({ panel, open: P.isOpen(panel), scale: P.resolved(panel).scale, regions: P.list(panel) }); }
+            return ok({ panels: Object.fromEntries(PANEL_IDS.map((id) => [id, { name: PANELS[id].name, open: P.isOpen(id), regions: PANELS[id].regions.map((r) => r.id) }])), presets: PANEL_PRESET_IDS, bad: validatePanels() });
+          case 'open': { needPanel(); const r = P.open(panel, { tab }); return r.ok ? ok({ panel, regions: P.list(panel) }) : { ok: false, error: r.why ?? 'would not open' }; }
+          case 'close': needPanel(); P.close(panel); return ok({ panel });
+          case 'set': {
+            needPanel();
+            const fields = {};
+            for (const k of ['visible', 'scale', 'text', 'dx', 'dy', 'anchor', 'cols', 'density']) if (f[k] !== undefined) fields[k] = k === 'visible' ? f[k] === true || f[k] === 'true' : k === 'anchor' ? f[k] : Number(f[k]);
+            const bad = P.edit(panel, region ?? null, fields);
+            return bad.length ? fail(bad) : ok({ panel, edit: P.resolved(panel) });
+          }
+          case 'preset': { const bad = P.setPreset(name ?? 'default'); return bad.length ? fail(bad) : ok(); }
+          case 'reset': P.reset(panel ?? null, region ?? null); return ok();
+          case 'export': return ok({ layout: P.exportLayout(), json: JSON.stringify(P.exportLayout()) });
+          case 'import': { need(json, 'import needs json=<a layout from panelLayout action=export>'); const bad = P.importLayout(json); return bad.length ? fail(bad) : ok(); }
+          case 'audit': { needPanel(); const was = P.isOpen(panel); if (!was) P.open(panel, { tab }); await new Promise((r) => setTimeout(r, 120)); const hits = textOverlaps(P.rootEl(panel)); if (!was) P.close(panel); return ok({ panel, size: `${innerWidth}x${innerHeight}`, crossing: hits }); }
+          case 'edit': { needPanel(); E().show(); return E().screen(panel) ? ok({ panel }) : { ok: false, error: `${panel} would not open for editing` }; }
+          default: return { ok: false, error: `unknown action '${action}'`, hint: 'list | open | close | set | preset | reset | export | import | audit | edit' };
         }
       },
     },
@@ -185,6 +221,112 @@ export async function hudChecks({ api, g, check }) {
     const ok = l.ok && l.rows.length === HUD_LAYOUT.length && !l.bad.length && s.ok && s.row.scale === 0.8 && p.ok && p.preset === 'streamer' && sit.ok && sit.shown.includes('speedo') && !sit.shown.includes('weapon') && !bad.ok && back.forced === null;
     restore();
     return ok ? true : JSON.stringify({ l: l.ok, s: s.row, p: p.preset, shown: sit.shown, bad: bad.ok, back: back.forced });
+  });
+  restore();
+  await panelChecks({ api, g, check });
+}
+
+// THE PANELS (data/panellayout.js, ui/panellayout.js, ui/paneledit.js): each check opens what it needs and shuts it again,
+// and the player's own panel layout is put back at the end.
+async function panelChecks({ g, check }) {
+  const P = g.hud.panels, ed = g.hud.editor, saved = P.snapshot(), lay = g.hud.layout;
+  const frames = (n = 3) => new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+  const shut = () => { for (const id of PANEL_IDS) if (P.isOpen(id)) P.close(id); };
+  const restore = () => { if (ed.open) ed.hide(); shut(); P.setState(JSON.parse(saved)); lay.force(null); };
+
+  await check('panels: the region rows validate, every preset is legal, and a bad panel edit is named', async () => {
+    const bad = validatePanels(), wrong = validatePanelLayout({ workshop: { regions: { parts: { cols: 9 }, keys: { density: 1.2 }, nope: {} } }, ghost: {} });
+    const ok = !bad.length && wrong.some((w) => w.includes('cols')) && wrong.some((w) => w.includes('only applies to a list')) && wrong.some((w) => w.includes("unknown region 'nope'")) && wrong.some((w) => w.includes("unknown panel 'ghost'"));
+    return ok ? true : JSON.stringify({ bad, wrong });
+  });
+
+  await check('panels: every region of every panel maps to a live element when the panel opens', async () => {
+    const miss = [];
+    for (const id of PANEL_IDS) {
+      const r = P.open(id, { tab: 1 });
+      if (!r.ok) { miss.push(`${id}: would not open (${r.why})`); continue; }
+      await frames(2);
+      for (const reg of P.regionEls(id)) if (!reg.el || (!reg.tab && !reg.el.getClientRects().length)) miss.push(`${id}.${reg.id} (${reg.sel})`);
+      P.close(id);
+    }
+    restore();
+    return miss.length ? JSON.stringify(miss) : true;
+  });
+
+  await check('panels: no text run crosses another in any panel (this size; tools/panel-sheet.mjs audits 1280x720 and 2560x1440)', async () => {
+    const out = {};
+    for (const id of PANEL_IDS) {
+      if (!P.open(id, { tab: 1 }).ok) { out[id] = 'would not open'; continue; }
+      await frames(3);
+      const hits = textOverlaps(P.rootEl(id));
+      if (hits.length) out[id] = hits.slice(0, 3);
+      P.close(id);
+    }
+    restore();
+    return Object.keys(out).length ? JSON.stringify(out) : true;
+  });
+
+  await check("panels: the workshop's unavailable rows stay readable: dimmed, a padlock, the reason in its own column, nothing across the text", async () => {
+    if (!P.open('workshop', { tab: 1 }).ok) { restore(); return 'workshop would not open'; }
+    await frames(3);
+    const rack = P.rootEl('workshop').querySelector('.ws-rack'), no = [...rack.querySelectorAll('li.no')], bad = [];
+    for (const li of no) {
+      const nm = li.querySelector('.nm').getBoundingClientRect(), why = li.querySelector('.why'), lock = why?.querySelector('svg.lock'), words = why?.textContent.trim() ?? '';
+      if (!lock || words.length < 4) bad.push(`${li.textContent.trim().slice(0, 14)}: no padlock or no reason`);
+      if (why && rectsCross(why.getBoundingClientRect(), nm)) bad.push(`${li.textContent.trim().slice(0, 14)}: the reason crosses the name`);
+    }
+    for (const st of rack.querySelectorAll('.stamp')) if (getComputedStyle(st).transform !== 'none') bad.push('a rarity stamp is still slanted');
+    const hits = textOverlaps(rack);
+    restore();
+    return no.length && !bad.length && !hits.length ? true : JSON.stringify({ rows: no.length, bad: bad.slice(0, 5), hits });
+  });
+
+  await check('panels: a panel layout round-trips export/import and reaches the stylesheet (hidden region, columns, text size)', async () => {
+    P.setState({ preset: 'default', edits: {} });
+    const a = P.edit('workshop', 'parts', { cols: 3, density: 0.8 }), b = P.edit('workshop', 'keys', { visible: false }), c = P.edit('workshop', 'detail', { text: 1.3 }), d = P.edit('pack', null, { scale: 0.9 });
+    const exp = JSON.stringify(P.exportLayout()), before = P.snapshot();
+    P.reset();
+    const cleared = P.snapshot() !== before, imp = P.importLayout(exp), same = P.snapshot() === before;
+    const refused = P.importLayout('{"edits":{"workshop":{"regions":{"parts":{"cols":12}}}}}'), still = P.snapshot() === before;
+    P.open('workshop', { tab: 1 }); await frames(3);
+    const root = P.rootEl('workshop'), cols = getComputedStyle(root.querySelector('.ws-rack')).gridTemplateColumns.split(' ').length;
+    const keysGone = getComputedStyle(root.querySelector('.ws-keys')).display === 'none', zoom = Number(getComputedStyle(root.querySelector('.ws-dname')).zoom);
+    restore();
+    const ok = ![a, b, c, d].some((x) => x.length) && cleared && !imp.length && same && refused.length && still && cols === 3 && keysGone && Math.abs(zoom - 1.3) < 0.01;
+    return ok ? true : JSON.stringify({ a, b, c, d, cleared, imp, same, refused, still, cols, keysGone, zoom });
+  });
+
+  await check("panels: the HUD steps out of a panel's way (the panel situation shows no HUD element) and comes back when it shuts", async () => {
+    P.open('workshop', { tab: 1 }); lay.refresh();
+    const sit = lay.sit, shown = lay.boxes.filter((b) => b.wrap && !b.wrap.classList.contains('hl-off')).map((b) => b.id);
+    P.close('workshop'); lay.refresh();
+    const back = lay.sit, mm = !lay.byId.minimap.wrap.classList.contains('hl-off') || back === 'dead';
+    restore();
+    return sit === 'panel' && !shown.length && back !== 'panel' && mm ? true : JSON.stringify({ sit, shown, back, mm });
+  });
+
+  await check("panel editor: the workshop's regions are outlined and named over it; a click picks one, the wheel sizes it, undo puts it back", async () => {
+    P.setState({ preset: 'default', edits: {} });
+    ed.show();
+    const opened = ed.screen('workshop');
+    await frames(3); ed.pe.place();
+    const boxes = [...document.querySelectorAll('.hle-regs .hle-rbox')].filter((b) => b.style.display !== 'none' && b.querySelector('b')?.textContent);
+    const parts = P.rootEl('workshop')?.querySelector('.ws-rack')?.getBoundingClientRect();
+    let picked = null, grew = false, undone = false;
+    if (parts) {
+      const x = parts.x + 6, y = parts.y + parts.height - 6, L = ed.pe.layer;
+      L.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: x, clientY: y, button: 0, pointerId: 9 }));
+      L.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: x, clientY: y, button: 0, pointerId: 9 }));
+      picked = ed.pe.sel;
+      L.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: x, clientY: y, deltaY: -100 }));
+      grew = (P.resolved('workshop').regions.parts.scale ?? 1) > 1;
+      undone = ed.undo() && (P.resolved('workshop').regions.parts.scale ?? 1) === 1;
+    }
+    ed.hide();
+    const closed = !P.isOpen('workshop');
+    restore();
+    const ok = opened && boxes.length === PANELS.workshop.regions.length && picked === 'parts' && grew && undone && closed;
+    return ok ? true : JSON.stringify({ opened, boxes: boxes.length, picked, grew, undone, closed });
   });
   restore();
 }

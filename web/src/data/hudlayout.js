@@ -28,20 +28,21 @@ export const ANCHORS = {
 };
 
 // Where the player is decides what the HUD shows. One at a time, first match wins (situationOf in ui/hudedit.js):
-// dead > menu > driving > passenger > deck > prone > night > on_foot.
+// dead > menu > panel > driving > passenger > deck > prone > night > on_foot.
 export const SITUATIONS = {
   on_foot: { name: 'On foot', blurb: 'walking the street in daylight' },
   driving: { name: 'Driving', blurb: 'at the wheel: the dash replaces the gun plate' },
   passenger: { name: 'Passenger / turret', blurb: 'a passenger seat or the roof gun: your gun and the car\'s dash' },
   deck: { name: 'On a deck', blurb: 'riding a pickup bed, a van, a boat or a roof: the footing chip matters' },
   prone: { name: 'Prone', blurb: 'flat on the ground' },
-  menu: { name: 'In a menu', blurb: 'the pause menu, the map or the pack is open: only where and when' },
+  menu: { name: 'In a menu', blurb: 'the pause menu or the map is open: only where and when' },
+  panel: { name: 'Panel open', blurb: 'the workshop, the pack, the sheet, the crew or a travel board fills the middle: the HUD steps out of its way (a row that should stay lists panel)' },
   night: { name: 'Night', blurb: 'on foot after dark (the same set as on foot; check it reads in the dark)' },
   dead: { name: 'Dead', blurb: 'down: what killed you and the clock' },
 };
 export const SITUATION_IDS = Object.keys(SITUATIONS);
 
-const ALL = SITUATION_IDS;
+const ALL = SITUATION_IDS.filter((s) => s !== 'panel'); // 'panel' is opt-in: a full panel open keeps only what a row asks for
 const PLAY = ['on_foot', 'driving', 'passenger', 'deck', 'prone', 'night'];   // every living, unpaused situation
 const FOOT = ['on_foot', 'passenger', 'deck', 'prone', 'night'];              // anywhere you hold your own gun
 
