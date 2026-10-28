@@ -18,6 +18,7 @@ import { KINDS } from '../data/ring.js';
 import { STREAM } from '../data/streaming.js';
 import { C, hash32, rngOf, chunkOf, inIsland } from './geo.js';
 import { regionWater } from './regions.js';
+import { wreckOf } from '../data/wrecks.js';
 
 const TAU = Math.PI * 2;
 const idHash = (s) => hash32(...[...s].map((c) => c.charCodeAt(0)));
@@ -52,7 +53,7 @@ export class Roadside {
   constructor(W, rows = { lines: POWER_LINES, billboards: BILLBOARDS, sites: SITES }) {
     const t0 = performance.now();
     this.W = W; this.rows = rows; this.seed = hash32(W.seed, 0x524f4144);
-    this.items = []; this.boxes = []; this.flora = []; this.lots = []; this.blocks = []; this.faces = []; this.pendingBills = [];
+    this.items = []; this.wrecks = []; this.boxes = []; this.flora = []; this.lots = []; this.blocks = []; this.faces = []; this.pendingBills = [];
     this.footprints = []; this.warnings = []; this.keep = new Map(); // keep-out shapes by 64 m cell (scatter keeps off)
     this.sites = []; this.spots = []; this.hulks = []; this.tanks = []; this.lines = []; this.pylons = []; this.hazards = []; this.billboards = [];
     this.addedRibbons = []; this.addedPieces = []; this.addedRails = [];
@@ -70,6 +71,8 @@ export class Roadside {
 
   // ---- small builders ---------------------------------------------------------------------------------------------------
   P(pool, x, y, z, w, h, d, col, rot = 0, shade = 1) { this.items.push({ pool, e: [x, y, z, w, h, d, col, rot, shade] }); }
+  // A dead car (data/wrecks.js; systems/wrecks.js draws one of our real bodies): rot 0 = its nose to +z.
+  WK(x, z, rot, source, stack = 0, tilt = 0) { this.wrecks.push({ x, z, rot, stack, tilt, ...wreckOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), Math.round(stack * 10)), source), fit: [4.2, 1.9] }); }
   // A box with a full transform (pitched, rolled): a matrix item (chunkgen pushes it with pushMatrix).
   // R = Ry(yaw) Rx(pitch) Rz(roll) (three.js's Euler order YXZ), scaled, column-major: written out, no THREE objects.
   M(pool, x, y, z, yaw, pitch, roll, sx, sy, sz, col, rect = null) {
@@ -262,7 +265,7 @@ export class Roadside {
     if (looted) {
       // A car left at the pumps, a door open; an oil drum on its side; glass and junk on the apron.
       const c = rng.pick(WRECK), wx = cpx - ux * 8.5 - vx * 2.5, wz = cpz - uz * 8.5 - vz * 2.5, rot = along ? Math.PI / 2 : 0;
-      this.P('props', wx, 0.55, wz, 1.9, 0.8, 4.2, c, rot + rng.range(-0.1, 0.1)); this.P('props', wx, 1.15, wz, 1.6, 0.6, 2.0, '#2a2622', rot);
+      void c; this.WK(wx, wz, rot + rng.range(-0.1, 0.1), 'roadside'); // a car left at the pumps: our body, dead
       if (along) this.B(wx - 2.1, wz - 0.95, wx + 2.1, wz + 0.95, 1.4, 'wreck'); else this.B(wx - 0.95, wz - 2.1, wx + 0.95, wz + 2.1, 1.4, 'wreck');
       this.P('barrels', cpx - ux * 7, 0.45, cpz - uz * 7, 1, 0.82, 1, '#6a3a22', 0);
       for (let k = 0; k < 9; k++) this.P('props', apron.x0 + rng() * (apron.x1 - apron.x0), 0.08, apron.z0 + rng() * (apron.z1 - apron.z0), rng.range(0.3, 1.2), 0.12, rng.range(0.3, 1.0), rng.pick(['#5a5650', '#6a5a48', '#3a3632', '#7a6a52']), rng() * 3);
@@ -350,8 +353,9 @@ export class Roadside {
         const stack = rng() < 0.32 ? 2 : 1, c = rng.pick(WRECK), rot = (along ? 0 : Math.PI / 2) + rng.range(-0.12, 0.12), flip = rng() < 0.12;
         for (let s = 0; s < stack; s++) {
           const y0 = s * 1.25, cc = s ? rng.pick(WRECK) : c;
-          if (flip && !s) { this.P('props', x, 0.3, z, 1.6, 0.6, 2.0, '#2a2622', rot); this.P('props', x, 0.95, z, 1.9, 0.8, 4.2, cc, rot); }
-          else { this.P('props', x, 0.55 + y0, z, 1.9, 0.8, 4.2, cc, rot + (s ? rng.range(-0.25, 0.25) : 0)); this.P('props', x, 1.15 + y0, z, 1.6, 0.5, 2.0, '#2a2622', rot); }
+          void cc; // (the colour roll a box hulk took)
+          if (flip && !s) this.WK(x, z, rot, 'boneyard', 1.95, Math.PI); // on its roof
+          else this.WK(x, z, rot + (s ? rng.range(-0.25, 0.25) : 0), 'boneyard', y0);
         }
         // Wheels gone, a door off, a bonnet up: a dark slab or two beside it.
         if (rng() < 0.4) this.P('props', x + (along ? 1.4 : 0), 0.08, z + (along ? 0 : 1.4), 0.9, 0.06, 1.3, c, rng() * 3);
@@ -496,7 +500,7 @@ export class Roadside {
       // An old tractor rusting by the barn.
       const TrX = BX - lat.x * (bw / 2 + 4) + out.x * 3, TrZ = BZ - lat.z * (bd / 2 + 4) + out.z * 3;
       this.P('props', TrX, 0.9, TrZ, 1.6, 1.0, 3.0, '#8a4a22'); this.P('trunks', TrX, 0.8, TrZ - 1.1, 1.6, 0.4, 1.6, '#23201e'); this.P('props', TrX, 1.8, TrZ + 0.3, 1.0, 1.0, 1.0, '#3a3632');
-      this.B(TrX - 0.9, TrZ - 1.6, TrX + 0.9, TrZ + 1.6, 1.8, 'wreck');
+      this.B(TrX - 0.9, TrZ - 1.6, TrX + 0.9, TrZ + 1.6, 1.8, 'tractor'); // (a tractor: not one of our cars)
       const yardR = { x0: Math.min(r.x0, BX - bw / 2, SX - 4, WX - 4, TX - 4) - 4, z0: Math.min(r.z0, BZ - bd / 2, SZ - 4, WZ - 4, TZ - 4) - 4, x1: Math.max(r.x1, BX + bw / 2, SX + 4, WX + 4, TX + 4) + 4, z1: Math.max(r.z1, BZ + bd / 2, SZ + 4, WZ + 4, TZ + 4) + 4 };
       this.block(S, yardR, [{ ...yardR, band: 'yard' }], [HL]);
       this.keepRect(yardR.x0, yardR.z0, yardR.x1, yardR.z1);
@@ -652,7 +656,7 @@ export class Roadside {
     // The drained bed: silt flats where the lake stood, mud-cracked; dead snags and an old boat on its side.
     for (let k = 0; k < 9; k++) { const b = L(rng.range(-half - 120, half + 120), -top - slope - rng.range(40, 250)); this.M('floors', b.x, 0.03 + k * 0.002, b.z, rng() * 3, 0, 0, rng.range(60, 140), 0.04, rng.range(40, 90), rng.pick(['#b4a68a', '#a89a7e', '#bfb296'])); }
     for (let k = 0; k < 14; k++) { const b = L(rng.range(-half - 100, half + 100), -top - slope - rng.range(40, 240)); this.flor('deadtree', b.x, b.z, rng.range(3, 6)); }
-    const bt = L(half * 0.4, -top - slope - 90); this.P('props', bt.x, 0.5, bt.z, 2.2, 1.0, 6.4, '#d8d2c2', 0.6); this.P('props', bt.x, 1.1, bt.z, 1.8, 0.6, 2.2, '#4a5a62', 0.6); this.B(bt.x - 2, bt.z - 2, bt.x + 2, bt.z + 2, 1.2, 'wreck');
+    const bt = L(half * 0.4, -top - slope - 90); this.P('props', bt.x, 0.5, bt.z, 2.2, 1.0, 6.4, '#d8d2c2', 0.6); this.P('props', bt.x, 1.1, bt.z, 1.8, 0.6, 2.2, '#4a5a62', 0.6); this.B(bt.x - 2, bt.z - 2, bt.x + 2, bt.z + 2, 1.2, 'boatwreck'); // (an old boat: not one of our cars)
     // The cistern at the east toe (the dam's water, sold or drawn).
     const cs = L(half - 30, top + slope + 12);
     this.P('barrels', cs.x, 1.2, cs.z, 9, 2.2, 9, CONCRETE_D); this.P('barrels', cs.x, 2.3, cs.z, 8.2, 0.05, 8.2, '#3f5a52');
@@ -817,6 +821,7 @@ export class Roadside {
     const K = (cx, cz) => (cx + 32768) * 65536 + cz + 32768, key = (x, z) => K(Math.floor(x / C), Math.floor(z / C));
     const add = (map, k, v) => { let l = map.get(k); if (!l) map.set(k, (l = [])); l.push(v); };
     for (const it of this.items) { const k = key(it.x ?? it.e[0], it.z ?? it.e[2]); add(own, k, it); touch.add(k); }
+    this.ownWrecks = new Map(); for (const w of this.wrecks) { const k = key(w.x, w.z); add(this.ownWrecks, k, w); touch.add(k); }
     this.ownFlora = new Map(); for (const f of this.flora) { const k = key(f[1], f[2]); add(this.ownFlora, k, f); touch.add(k); }
     this.boxBuckets = new Map();
     for (const b of this.boxes) for (let cx = chunkOf(b.x0 - 3); cx <= chunkOf(b.x1 + 3); cx++) for (let cz = chunkOf(b.z0 - 3); cz <= chunkOf(b.z1 + 3); cz++) { const k = K(cx, cz); add(this.boxBuckets, k, b); touch.add(k); }
@@ -842,7 +847,7 @@ export class Roadside {
   railIn() { return null; }
   extras(cx, cz) {
     const k = this.K(cx, cz);
-    return { items: this.ownItems.get(k) ?? [], flora: this.ownFlora.get(k) ?? [], boxes: this.boxBuckets.get(k) ?? [] };
+    return { items: this.ownItems.get(k) ?? [], flora: this.ownFlora.get(k) ?? [], boxes: this.boxBuckets.get(k) ?? [], wrecks: this.ownWrecks.get(k) ?? [] };
   }
   // Scatter keeps off a site, a field, a tower's footings, a billboard.
   solid(x, z, r = 0) {

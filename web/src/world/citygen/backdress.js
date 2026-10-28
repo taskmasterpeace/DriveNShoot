@@ -15,6 +15,7 @@
 import { DRESS, YARD_DRESS, YARD, GATES, FENCES } from '../../data/backlots.js';
 import { makeRng } from '../../engine/rng.js';
 import { frameOf } from './backlots.js';
+import { wreckOf } from '../../data/wrecks.js';
 
 export function dressTown(T, out, box) {
   const t0 = performance.now(), rng = makeRng(((T.seed >>> 0) ^ 0xd2e55) >>> 0 || 7);
@@ -185,10 +186,7 @@ export function dressTown(T, out, box) {
     if (yardRects.some((q) => r[2] > q.x0 && r[0] < q.x1 && r[3] > q.z0 && r[1] < q.z1) || docks.some((q) => r[2] > q.x0 && r[0] < q.x1 && r[3] > q.z0 && r[1] < q.z1)) continue;
     if (!T.blocks.some((b) => r[0] >= b.x0 && r[2] <= b.x1 && r[1] >= b.z0 && r[3] <= b.z1)) continue; // on the block, never out in a street
     solid(...r, BU.tag, BU.h);
-    vis(x, 0.45, z, hx * 2, 0.6, hz * 2, BU.body);
-    vis(x, 1.0, z, hx * 1.05, 0.5, hz * 1.05, BU.top);
-    for (let k = 0; k < 3; k++) vis(x + (rng() - 0.5) * hx * 1.4, 0.77, z + (rng() - 0.5) * hz * 1.4, 0.5 + rng() * 0.5, 0.02, 0.4 + rng() * 0.4, BU.rust);
-    for (const [p, q] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) vis(x + p * hx * 0.66, 0.2, z + q * hz * 0.98, ax ? 0.5 : 0.18, 0.4, ax ? 0.18 : 0.5, '#151413'); // the rims
+    out.wrecks.push({ x, z, rot: ax ? Math.PI / 2 : 0, ...wreckOf(Math.floor(rng() * 4294967295) >>> 0, 'burnt'), fit: [BU.w, BU.d] }); // our body, burned out (systems/wrecks.js)
     out.cover.push(x + (ax ? 0 : side * (hx + 0.6)), z + (ax ? side * (hz + 0.6) : 0), 0, ax ? 0 : side, ax ? side : 0, 0.5, 8);
     counts.burnt++;
   }

@@ -481,15 +481,12 @@ export class Stunts {
   }
 
   // A dead car for the row: crushed flat by whatever drove over it at the last show. Long axis along p.h.
+  // One of our own bodies, crushed (data/wrecks.js; systems/wrecks.js draws it); its collider as it always was.
   wreckGeo(p, out, statics, rng) {
-    const parts = [], body = p.paint ?? '#5a3a24';
-    const dark = '#' + new THREE.Color(body).multiplyScalar(0.55).getHexString();
-    parts.push(box(1.86, 0.62, 4.3, body).translate(0, 0.62, 0));
-    parts.push(box(1.62, 0.34, 1.9, dark).translate(0, 1.1, -0.2)); // the cab, roof pushed down to the belt line
-    parts.push(box(1.7, 0.05, 1.3, '#2a2622').translate(0, 0.95, 1.35)); // hood seam
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(box(0.26, 0.62, 0.62, '#151413').translate(sx * 0.86, 0.32, sz * 1.35));
-    if (rng() < 0.6) parts.push(box(0.9, 0.04, 0.8, '#6b4a32').translate((rng() - 0.5) * 0.6, 0.95, -1.6 + rng() * 0.5)); // rust bloom
-    out.push(this.place(mergeGeometries(parts), p.x, p.z, p.h));
+    void out;
+    if (rng() < 0.6) { rng(); rng(); } // (the rust bloom's rolls: the show's rng stays as it was)
+    const n = (this.crushed = (this.crushed ?? 0) + 1);
+    this.g.wrecks?.add(`stunts:${p.site}:${n}`, [{ x: p.x, z: p.z, rot: p.h, type: n % 3 === 1 ? 'pickup' : 'sedan', state: 'crushed', paint: n % 8, fit: [4.3, 1.86] }]);
     const along = Math.abs(Math.sin(p.h)) > 0.7;
     statics.addCentered(p.x, p.z, along ? 4.3 : 1.86, along ? 1.86 : 4.3, 'wreck', 1.4);
   }

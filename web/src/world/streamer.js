@@ -276,7 +276,7 @@ export class Streamer {
       this.frameWrites++;
       h.step++;
     }
-    if (!h.done) { h.done = true; this.applied++; }
+    if (!h.done) { h.done = true; this.applied++; this.g.wrecks?.chunkOn(L); } // its dead cars: our bodies (systems/wrecks.js)
     return true;
   }
   release(L) {
@@ -284,6 +284,7 @@ export class Streamer {
     if (!h) return;
     if (h.slot) this.surfaces.release(h.slot);
     for (const [name, [start, n]] of Object.entries(h.ranges)) this.pools[name].release(start, n);
+    this.g.wrecks?.chunkOff(L);
     this.ringOff(L);
     L.hot = null;
     this.hot.delete(L.key);

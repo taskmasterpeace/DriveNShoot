@@ -272,6 +272,7 @@ export class CityGen {
     this.indexBlds();
     this.grid.rebuild(this.live.values());
     this.relayItems();
+    this.g.wrecks?.add(`town:${rec.id}`, built.wrecks, built.y0 ?? 0); // its dead cars: our bodies (systems/wrecks.js)
     // loot: each floor's containers at their own height
     const inv = this.g.inventory;
     if (inv) {
@@ -295,6 +296,7 @@ export class CityGen {
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);
+    this.g.wrecks?.remove(`town:${id}`);
     this.live.delete(id);
     this.indexBlds();
     this.grid.rebuild(this.live.values());

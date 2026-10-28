@@ -80,7 +80,7 @@ export const YARD_PROPS = {
   clothesline: { name: 'clothesline', chance: 0.5, lean: -0.1, w: 4.0, d: 0.1, h: 1.9, tag: null, col: '#c8c2b4', line: true },
   garden:      { name: 'vegetable garden', chance: 0.45, lean: 0, w: 3.0, d: 2.2, h: 0.25, tag: null, col: '#4e5a2e', bed: true },
   burn_barrel: { name: 'burn barrel', chance: 0.4, lean: -0.3, w: 0.7, d: 0.7, h: 0.9, tag: 'bl-barrel', col: '#5a4434' },
-  car_blocks:  { name: 'car on blocks', chance: 0.22, lean: -0.4, w: 4.2, d: 1.9, h: 1.3, tag: 'bl-carblocks', col: '#6a4a3a' },
+  car_blocks:  { name: 'car on blocks', chance: 0.22, lean: -0.4, w: 4.2, d: 1.9, h: 1.3, tag: 'bl-carblocks', col: '#6a4a3a' }, // drawn as one of our bodies, stripped (data/wrecks.js)
 };
 // A detached garage on the alley (its roll-up bay opens onto the lane): the chance a yard home gets one, the yard depth
 // it needs, and the clear gap kept to its lot lines (a way round it).
@@ -112,7 +112,7 @@ export const DRESS = {
   bags: { atBin: [2, 4], per100: 3, cols: ['#1e2420', '#2a2e2a', '#3a4a3a', '#4a4440', '#2c3440'] },
   weeds: { every: 4.6, tuft: [2, 4], dry: ['#7a7440', '#6c6a38', '#857a46', '#5e5c30'], green: ['#4e5e2a', '#5a6c30', '#465626', '#3e4e22'], dryBiomes: ['desert_sonoran', 'desert_mojave', 'high_plateau', 'badlands', 'salt_flat', 'great_plains'] },
   pallets: { per100: 2.2, col: '#8a6a44', dark: '#6a4e30' },
-  burnt: { perAlleys: 3, max: 6, w: 4.4, d: 1.9, h: 1.25, tag: 'bl-burnt', body: '#1f1d1b', top: '#2c2622', rust: '#6a3a1e', wallGap: 1.7 },
+  burnt: { perAlleys: 3, max: 6, w: 4.4, d: 1.9, h: 1.25, tag: 'bl-burnt', wallGap: 1.7 }, // the body: one of ours, burned out (data/wrecks.js)
   stoop: { col: '#8e8a80', step: '#a29e94', d: 0.6, h: 0.16 },
   across: { every: 38, chance: 0.45, h: 3.4, rows: ['gravel', 'dirt'], cols: ['#c8c2b4', '#7a8a9a', '#a07a5a', '#8a3a2a', '#5a6a4a', '#c4a24a'] },
   strays: { chance: 0.7, max: 2, breeds: ['mutt', 'mutt', 'shepherd', 'rottweiler'] },

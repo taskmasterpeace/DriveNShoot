@@ -20,6 +20,8 @@ const WALL = 0.4, IN = WALL / 2, FW = 1.4, LAND = 1.4, PITCH = 3.2 / 4.4, LADDER
 import { VERT, LOOT_BY_KIND, FLOOR_LOOT, ROADS, BIOMES } from '../../data/citygen.js';
 import { makeRng } from '../../engine/rng.js';
 import { buildBacklots } from './backlots-build.js';
+import { wreckOf } from '../../data/wrecks.js';
+const fnv = (x, z, k) => { let v = 2166136261 ^ k; for (const n of [Math.round(x * 10), Math.round(z * 10)]) { v ^= n; v = Math.imul(v, 16777619); } return v >>> 0; };
 
 // the one box shape (engine/collision.js StaticWorld.box): monomorphic for the hot loops
 const box = (minX, minZ, maxX, maxZ, tag, height, base = 0) => ({ minX, minZ, maxX, maxZ, tag, height, mark: 0, op: null, holes: null, holeX: false, sill: 0, base, owner: null });
@@ -418,7 +420,7 @@ function buildBridge(br, out) {
 // ---- the whole town ------------------------------------------------------------------------------------------------------
 export function buildTown(T) {
   const rng = makeRng((T.seed ^ 0xb1d6) >>> 0);
-  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [] };
+  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [], wrecks: [] };
   const BI = BIOMES[T.biome] ?? BIOMES.desert_sonoran;
   // ground: the town's lots, then the streets (and their walks) on top
   for (const b of T.blocks) out.items.push({ cx: (b.x0 + b.x1) / 2, cy: 0.02, cz: (b.z0 + b.z1) / 2, sx: b.x1 - b.x0, sy: 0.04, sz: b.z1 - b.z0, col: b.green ? '#6a7448' : BI.ground, lv: 0, R: null });
@@ -488,8 +490,7 @@ export function buildTown(T) {
     if (keep.some(([x, z, r]) => Math.abs(w.x - x) < r + 2.2 && Math.abs(w.z - z) < r + 2.2)) continue; // never in front of a door or a bay
     const lx = w.along === 'x' ? 2.2 : 0.95, lz = w.along === 'x' ? 0.95 : 2.2;
     out.boxes.push(box(w.x - lx, w.z - lz, w.x + lx, w.z + lz, 'cg-wreck', 1.4));
-    out.items.push({ cx: w.x, cy: 0.55, cz: w.z, sx: lx * 2, sy: 0.9, sz: lz * 2, col: w.c, lv: 0, R: null });
-    out.items.push({ cx: w.x, cy: 1.2, cz: w.z, sx: lx * 1.1, sy: 0.5, sz: lz * 1.1, col: '#2e2c2a', lv: 0, R: null });
+    out.wrecks.push({ x: w.x, z: w.z, rot: w.along === 'x' ? Math.PI / 2 : 0, ...wreckOf(fnv(w.x, w.z, 0x57), 'street'), fit: [4.4, 1.9] }); // our body, dead (systems/wrecks.js)
     out.cover.push(w.x + (w.along === 'x' ? 0 : 1.6), w.z + (w.along === 'x' ? 1.6 : 0), 0, w.along === 'x' ? 0 : 1, w.along === 'x' ? 1 : 0, 0.5, 8);
     out.cover.push(w.x - (w.along === 'x' ? 0 : 1.6), w.z - (w.along === 'x' ? 1.6 : 0), 0, w.along === 'x' ? 0 : -1, w.along === 'x' ? -1 : 0, 0.5, 8);
   }

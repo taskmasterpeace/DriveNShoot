@@ -8,6 +8,8 @@
 // out.fences: [{ id, yard, fence, box, items: [i...], kicks, broken }] for systems/backlots.js.
 import { ALLEYS, FENCES, YARD_PROPS, ALLEY_PROPS, DRESS } from '../../data/backlots.js';
 import { dressTown } from './backdress.js';
+import { wreckOf } from '../../data/wrecks.js';
+const fnv = (x, z, k) => { let v = 2166136261 ^ k; for (const n of [Math.round(x * 10), Math.round(z * 10)]) { v ^= n; v = Math.imul(v, 16777619); } return v >>> 0; };
 
 export function buildBacklots(T, out, box) {
   const vis = (cx, cy, cz, sx, sy, sz, col) => { out.items.push({ cx, cy, cz, sx, sy, sz, col, lv: 0, R: null }); return out.items.length - 1; };
@@ -81,8 +83,7 @@ export function buildBacklots(T, out, box) {
       if (P.bed) { vis(cx, P.h / 2, cz, sx, P.h, sz, '#5a4632'); for (let k = 0; k < 3; k++) { const o = (k - 1) * (Math.max(sx, sz) / 3.2); vis(sx >= sz ? cx + o : cx, P.h + 0.15, sx >= sz ? cz : cz + o, sx >= sz ? 0.4 : sx - 0.4, 0.3, sx >= sz ? sz - 0.4 : 0.4, P.col); } continue; }
       if (p.kind === 'car_blocks') {
         out.boxes.push(box(p.x0, p.z0, p.x1, p.z1, P.tag, P.h));
-        vis(cx, 0.75, cz, sx, 0.6, sz, P.col); vis(cx, 1.2, cz, sx * 0.55, 0.45, sz * 0.9, '#2e2c2a');
-        for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) vis(cx + a * sx * 0.32, 0.22, cz + c * sz * 0.32, 0.4, 0.44, 0.4, '#8a847a'); // the blocks
+        out.wrecks.push({ x: cx, z: cz, rot: sx >= sz ? Math.PI / 2 : 0, ...wreckOf(fnv(cx, cz, 0xb1), 'blocks'), fit: [Math.max(sx, sz), Math.min(sx, sz)] }); // our body, up on blocks
         cover(cx, cz + (sz / 2 + 0.6), 0, 1, 0.5, 8); cover(cx, cz - (sz / 2 + 0.6), 0, -1, 0.5, 8);
         continue;
       }
