@@ -34,7 +34,7 @@ export const NIGHT_I = { sun: [0.1, 1.5], hemi: [0.16, 1.55], dflt: 0.12 };
 const GOLDEN_FILL = 0.75;
 const GROUND_DAY = new THREE.Color('#9a7a58'), GROUND_NIGHT = new THREE.Color('#38342e'); // the bounce off sand
 const FOG_DAY = new THREE.Color('#d6bf96'), FOG_DUSK = new THREE.Color('#e08850'), FOG_NIGHT = new THREE.Color('#1c232b'), LIGHTNING = new THREE.Color('#dfe8ee');
-const _fog = new THREE.Color(), _night = new THREE.Color();
+const _fog = new THREE.Color(), _night = new THREE.Color(), _below = new THREE.Color();
 
 export class Sky {
   constructor(scene, audio) {
@@ -198,6 +198,16 @@ export class Sky {
 
     this.updateRain(dt, center, c.rain);
     this.updateMotes(dt, center, c.dust, c.ash);
+    // Below the street (systems/underground.js sets below 0..1 and the fill): no sun, no sky, a breath of fill, black fog.
+    if (this.below > 0) {
+      const b = this.below;
+      this.sun.intensity *= 1 - b;
+      this.hemi.intensity = lerp(this.hemi.intensity, this.belowFill ?? 0.02, b);
+      this.hemi.color.lerp(_below.set(this.belowSky ?? '#2e3236'), b); this.hemi.groundColor.lerp(_below.set(this.belowGround ?? '#120f0c'), b);
+      this.fog.color.lerp(_below.set('#000000'), b); this.scene.background.copy(this.fog.color);
+      this.fog.density = lerp(this.fog.density, 0.004, b);
+      if (b > 0.5) { this.rain.visible = false; this.motes.visible = false; }
+    }
   }
 
   updateRain(dt, center, amount) {

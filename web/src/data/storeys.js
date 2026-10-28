@@ -24,7 +24,8 @@ export const LEVEL = { same: 1.6, step: 0.25, head: 2.4, eye: 1.2 };
 //   minArea   the footprint a building needs (m²): a staircase and its landings take a wall's length
 export const RISE = {
   town: { share: 0.3, storeys: [1, 1], minArea: 220 },   // Rust Haven: three houses in ten have an upstairs
-  ruins: { share: 0.45, storeys: [1, 3], minArea: 220 }, // the Glass Flats' blocks: two to four storeys of rooms to clear
+  ruins: { share: 0.45, storeys: [1, 3], minArea: 220, tower: 5 }, // the Glass Flats' blocks: two to four storeys of rooms to clear;
+  //                                                                tower: the biggest one rising is downtown's six-storey tower
 };
 
 // Upstairs is furnished from its own rows: crates and shelves become containers (inventory.js placeFurniture), a

@@ -42,6 +42,8 @@ import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
+import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -238,7 +240,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, gy: r1(p.gy ?? 0), floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, gy: r1(p.gy ?? 0), floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0, under: p.ug ? { site: p.ug, level: g.under.levelOf(p.gy ?? 0) } : null, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo, cond: g.inv.cond, jam: g.inv.jam },
@@ -1009,9 +1011,17 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 } },
-      run: async ({ x, z, count, runners, radius }) => ({ ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) }),
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected). size=<n> (with at="x,z" or x,z, toward=<settlement id>, force=true to walk by day) instead raises a MIGRATING HORDE record (systems/overrun.js, docs/design/WEB_CITYGEN.md §3.6): it walks to that settlement (the nearest by default) at dusk, stands up to 40 bodies in the street near you (the rest stay strength), besieges it and may overrun it.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 }, size: { type: 'number' }, at: { type: 'string' }, toward: { type: 'string' }, force: { type: 'boolean', default: false } },
+      run: async ({ x, z, count, runners, radius, size, at, toward, force }) => {
+        if (at) [x, z] = at.split(',').map(Number);
+        if (size !== undefined || toward !== undefined) {
+          need(!toward || g.citygen.byId.has(toward), `no settlement "${toward}" (citygen lists them)`);
+          const H = g.citygen.overrun.spawnHorde({ x: x ?? P().x + 300, z: z ?? P().z, size: size ?? 60, toward, force });
+          return { horde: H.id, x: Math.round(H.x), z: Math.round(H.z), strength: H.strength, toward: H.target };
+        }
+        return { ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) };
+      },
     },
     infected: {
       group: 'world', desc: "The infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md). With no args: every sprinter (dormant / burst / overheat), Echo (frozen while you watch it, what it is at) and Choir-Touched (its aura) alive, the choir sites, the counters. kind=sprinter|echo|choir|shambler spawns one at x,z (an Echo works at the boarded window or locked door nearest it); site=<id> wakes a choir site now; burst=<id> breaks a sprinter.",
@@ -1967,6 +1977,8 @@ function buildCommands(api) {
     },
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     ...creatorCommands(api), // creator, sheet
+    ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
+    ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -2114,6 +2126,10 @@ async function runSelfTest(api, only = null, skip = null) {
   // another system's numbers. Its own checks (voicestats-selftest.js) turn it on in a stage of their own.
   const deepLive = g.deep.live; g.deep.reset(); g.deep.live = false; g.deep.recompute();
   const llmOn = g.llmtalk.enabled; g.llmtalk.enabled = false; // strangers' topics stay the authored three; the llm checks mock it
+  // Generated settlements (systems/citygen.js) would build themselves round unrelated checks out on I-10: they stay
+  // unbuilt for the battery; their own checks stamp what they need.
+  const citygenWas = g.citygen.enabled;
+  g.citygen.enabled = false; g.citygen.overrun.auto = false;
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5843,6 +5859,11 @@ async function runSelfTest(api, only = null, skip = null) {
   await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
   g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
   g.fauna.enabled = faunaWas;
+  // The underground (docs/design/WEB_UNDERGROUND.md §8): agent/underground-api.js.
+  await undergroundChecks({ api, g, check, C, snapshot, restore });
+  // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
+  await citygenChecks({ api, g, check, C });
+  g.citygen.enabled = citygenWas;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
@@ -5861,10 +5882,11 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
+    under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
@@ -5929,6 +5951,9 @@ export function restore(g, s) {
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
+  // The underground before the player: a save that has you below makes your site live and your level promoted, so the
+  // floor is under your feet when you stand again (an older save: every site as it was made).
+  g.under?.load(s.under ?? null, s.player);
   const p = g.player;
   if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
   Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });

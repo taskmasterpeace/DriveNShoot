@@ -426,6 +426,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
     if ((WT && (wetNear(x, z, r) || WT.nearFord(x, z, 40 + r))) || onFill(x, z, r)) return true; // the water, its banks, a ford's way across, the bridges and their fills
     if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
+    if (W.citygen && W.citygen.solid(x, z, r)) return true; // a generated settlement's footprint (systems/citygen.js)
     return false;
   };
   yield;

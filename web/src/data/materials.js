@@ -97,6 +97,10 @@ export const MATERIAL_RULES = {
     tree: 'timber', cactus: 'timber',
     husk: 'timber', drum: 'sheet_metal', hut: 'wood', // the hot ground's dead trunks and rusted drums, a Greyborn settlement's huts (they stand up at runtime)
     rock: 'rock', boulder: 'rock',
+    // below the street (systems/underground.js): a bunker's poured walls, a cave's living rock, a fallen roof, the stairs'
+    // flanks, the lift's gate, the collar round an open hatch, a pool's lip
+    'ug-wall': 'concrete', 'ug-rock': 'rock', 'ug-rubble': 'rock', 'ug-flank': 'concrete', 'ug-endblock': 'concrete', 'ug-rail': 'steel',
+    'ug-gate': 'steel', 'ug-collar': 'concrete', 'ug-water': 'rock', 'ug-door': 'steel',
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },
@@ -107,7 +111,7 @@ export const MATERIAL_RULES = {
   // doors break like the island's): walls of these tags break in strips (only a material that breaks: in practice the
   // drywall partitions), boxes of these tags break whole. Placed pieces always can.
   breakable: { walls: ['wall'], props: ['crate', 'shelf', 'furniture', 'table', 'desk', 'bench', 'booth', 'stall', 'tent', 'barricade'] },
-  doors: { wood: 'wood', metal: 'steel' },
+  doors: { wood: 'wood', metal: 'steel', blast: 'steel' }, // blast: the underground's blast doors (systems/underground.js)
   boards: 'wood',
   car: { body: 'sheet_metal', plated: 'steel', glass: 'glass', tyres: 'rubber' },
 };

@@ -85,7 +85,7 @@ export class Melee {
       const d = Math.hypot(dx, dz);
       if (d > K.reach + (c.radius ?? 0.45)) continue;
       if (d > 0.2 && Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d))) > K.arc) continue;
-      if (!g.storeys.sameFloor(p, c) || !g.statics.lineOfSight(p.x, p.z, c.x, c.z)) continue;
+      if (!g.storeys.sameFloor(p, c) || !g.statics.lineOfSight(p.x, p.z, c.x, c.z, undefined, p.ug ? (p.gy ?? 0) + 1.2 : -1)) continue; // below the street: the level's walls
       if (d < bd) { bd = d; best = c; }
     }
     g.noise(p.x, p.z, K.noise, p);
