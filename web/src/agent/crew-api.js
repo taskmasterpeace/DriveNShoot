@@ -182,7 +182,8 @@ export async function crewChecks(api, check, C) {
   }, { at: { x: 0, z: -40 } }));
 
   await check('crew: the captives at the Dustwolf camp are cut loose by dialogue (rescue: trust 35, a rescue deed); hire takes the day rate', () => stage(async () => {
-    const s = K.cands.get('camp0_captive_a');
+    let s = K.cands.get('camp0_captive_a');
+    if (!(s?.state === 'waiting' && s.c?.alive)) { s = { key: 'selftest_captive', row: 'captive_hand', how: 'rescue', where: { camp: 0, dx: -7, dz: 7 }, line: 'Cut me loose.', state: 'waiting' }; K.cands.set(s.key, s); const pos = K.seedPos(s); K.spawnCandidate(s, pos.x, pos.z); } // the seeded one, unless the battery already freed or lost them
     if (!s?.c?.alive || !s.c.hold) return `captive not standing tied (${s?.state}, hold ${s?.c?.hold})`;
     await C('teleport', { x: s.c.x + 1.2, z: s.c.z });
     const seq = g.eventSeq;
@@ -193,7 +194,9 @@ export async function crewChecks(api, check, C) {
     const m = K.members.find((x) => x.how === 'rescue');
     const deed = since(seq, 'deed', (e) => e.verb === 'rescue').length;
     if (!m || m.trust !== 35 || m.c.hold || !deed) return `rescued ${!!m} trust ${m?.trust} hold ${m?.c.hold} deed ${deed}`;
-    const h = K.cands.get('rh_guard'); if (!h?.c) return 'no hireable';
+    // The seeded guard if he still stands (the battery's raids can kill him), else one of the same row beside you.
+    let h = K.cands.get('rh_guard');
+    if (!(h?.state === 'waiting' && h.c?.alive)) { h = { key: 'selftest_hire', row: 'sutler_guard', how: 'hire', where: { x: g.player.x + 2, z: g.player.z }, line: 'Forty a day.', state: 'waiting' }; K.cands.set(h.key, h); K.spawnCandidate(h, h.where.x, h.where.z); }
     const cash = g.cash = 200;
     await C('teleport', { x: h.c.x + 1.2, z: h.c.z }); await C('talk', { id: h.c.id });
     const d2 = api.dialogueState(), j = d2.choices.findIndex((c) => c.text.startsWith('Hire on'));
@@ -285,10 +288,10 @@ export async function crewChecks(api, check, C) {
     await C('crewOrder', { order: 'holdfire' });
     await C('crewOrder', { order: 'focus', x: r1.x, z: r1.z });
     const focusOk = a.c.target === r1 && b.c.target === r1;
-    const shots0 = r1.hp; await steps(3);
-    const held = r1.hp === shots0 && r2.hp === r2.maxHp;
+    const shots0 = r1.hp, rounds0 = a.rounds + b.rounds, m0 = a.c.mag + b.c.mag; await steps(3);
+    const held = r1.hp === shots0 && r2.hp === r2.maxHp && a.c.mag + b.c.mag === m0 && a.rounds + b.rounds === rounds0;
     await C('crewOrder', { order: 'freefire' }); await steps(4);
-    const fired = r1.hp < shots0;
+    const fired = r1.hp < shots0 || a.c.mag + b.c.mag + a.rounds + b.rounds < m0 + rounds0; // rounds went at it (a hit is luck at 30 m)
     const dg = [a, b].map((m) => `${m.c.target?.id}/${m.c.tac?.holdFire}/${m.c.tac?.role}/${m.c.mag}/${m.rounds}/${m.dry}/${Math.hypot(m.c.x - r1.x, m.c.z - r1.z).toFixed(1)}/${m.c.reloading?.toFixed?.(1)}`).join(" ");
     return focusOk && held && fired ? true : `${dg} focus ${focusOk} (targets ${a.c.target?.id}/${b.c.target?.id} want ${r1.id}) held ${held} fired ${fired}`;
   }));
