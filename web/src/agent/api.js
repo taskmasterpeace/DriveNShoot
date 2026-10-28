@@ -54,7 +54,8 @@ import { voiceStatsChecks } from './voicestats-selftest.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
-import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js'; // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
+import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
+import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { qolChecks } from './qol-selftest.js';
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
@@ -2019,6 +2020,7 @@ function buildCommands(api) {
     ...crewCommands(api, need),
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
+    ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
   };
 }
 
@@ -5890,6 +5892,7 @@ async function runSelfTest(api, only = null, skip = null) {
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
+  await ritesChecks(api, check, C); // the dead: decay on the clock, the far fold, cemeteries by the formula, burial, funerals, no refills
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
@@ -5935,6 +5938,7 @@ export function snapshot(g) {
     materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
     clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
+    rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
   };
 }
@@ -6012,6 +6016,7 @@ export function restore(g, s) {
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
   g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
+  if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
 
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first

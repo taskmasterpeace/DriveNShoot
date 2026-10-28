@@ -266,7 +266,7 @@ const PAIRS = new Set(['thigh', 'shin', 'boot', 'upper', 'fore', 'hand']);
 const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = V(), _w = V(), _dir = V(), _n = V(), _pole = V(), _one = new THREE.Vector3(1, 1, 1);
 const _DOWN = new THREE.Vector3(0, -1, 0), _X = V(), _Y = V(), _Z = V();
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
-const _c = new THREE.Color(), _blood = new THREE.Color('#4a0606'), _soot = new THREE.Color('#141110');
+const _c = new THREE.Color(), _blood = new THREE.Color('#4a0606'), _soot = new THREE.Color('#141110'), _rot = new THREE.Color('#4e4a30');
 // Joints, index 0 = left (+x), 1 = right (-x). Legs live in the leg frame, arms in the root frame.
 const hip = [V(), V()], knee = [V(), V()], ankle = [V(), V()], sh = [V(), V()], el = [V(), V()], hand = [V(), V()], tgt = [V(), V()];
 const footPitch = [0, 0], SIDE = [1, -1];
@@ -339,7 +339,8 @@ export class CharacterRenderer {
   paint(ch) {
     const c = ch.colors, M = this.meshes, i = ch.slot;
     const b = Math.min(0.75, ch.blood * 0.85), burnt = Math.min(0.9, ch.charred ?? 0);
-    const set = (mesh, idx, hex, bloody = true) => { _c.set(hex); if (bloody && b > 0) _c.lerp(_blood, b); if (burnt > 0) _c.lerp(_soot, burnt); mesh.setColorAt(idx, _c); mesh.instanceColor.needsUpdate = true; };
+    const rot = ch.alive ? 0 : Math.min(0.85, ch.rot ?? 0); // the dead go the way of their stage (systems/rites.js)
+    const set = (mesh, idx, hex, bloody = true) => { _c.set(hex); if (bloody && b > 0) _c.lerp(_blood, b); if (rot > 0) _c.lerp(_rot, rot); if (burnt > 0) _c.lerp(_soot, burnt); mesh.setColorAt(idx, _c); mesh.instanceColor.needsUpdate = true; };
     const sleeve = c.sleeves === 'short' ? c.skin : c.shirt;
     set(M.torso, i, c.shirt); set(M.hips, i, c.pants); set(M.head, i, c.skin, b > 0.5);
     for (const k of [0, 1]) {
