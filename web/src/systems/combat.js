@@ -54,7 +54,7 @@ export class Combat {
     ch._mx = mx; ch._mz = mz; ch._shotAng = toe; // the gun's muzzle and line (the selftest's gun-at-the-side check)
     // Upstairs (world/storeys.js) the shot flies at that floor's height: its walls stop it, the floors' walls below and
     // above do not. On the street, ry = -1 and everything is as it was.
-    const fy = ch.storey || ch.ug ? ch.gy ?? 0 : 0, ry = fy > 0.5 || fy < -0.5 ? fy + 1.3 : -1; // below the street too (systems/underground.js)
+    const fy = ch.storey || ch.ug ? (ch.gy ?? 0) - (ch.storey?.y0 ?? 0) : 0, ry = fy > 0.5 || fy < -0.5 ? fy + 1.3 : -1; // below the street too (systems/underground.js)
     // Muzzle can't poke through a wall we're hugging.
     if (!g.statics.lineOfSight(ch.x, ch.z, ox, oz, RAY_SIGHT, ry)) return false;
     // Pressed against a window or a door, the barrel reaches past the glass, boards or leaf: the round
@@ -110,7 +110,7 @@ export class Combat {
     const g = this.g, M = g.materials, over = slope > 0 ? 1.15 / slope : Infinity, out = this.seg;
     shooter = shooter ?? NOBODY; F = F ?? NOBODY;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
-    const fy = F.storey || F.ug ? F.gy ?? 0 : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
+    const fy = F.storey || F.ug ? (F.gy ?? 0) - (F.storey?.y0 ?? 0) : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
     const down = up && fy > 0.5 && !F.ug; // up a building: its walls stop the round unless it leaves by a window hole or over the parapet
     let best = g.statics.raycast(ox, oz, dx, dz, left, RAY_BULLET, up ? fy + 1.3 : -1);
     const box = g.statics.hit.box, wnx = g.statics.hit.nx, wnz = g.statics.hit.nz;
@@ -121,7 +121,7 @@ export class Combat {
       if (c.underwater) continue;                          // bullets don't reach under water
       // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
       // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
-      if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey)) continue;
+      if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) - (F.storey?.y0 ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey)) continue;
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
       if (t >= 0 && t < best && t < over) { best = t; target = c; kind = 'char'; }
     }

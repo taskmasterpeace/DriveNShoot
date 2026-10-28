@@ -68,6 +68,14 @@ function archFor(rng, biome) {
   return c[0]?.[0] ?? 'interstate_exit';
 }
 const goldenChunks = new Set(Object.keys(GOLDEN.p1Chunks ?? {}));
+// What a SITE row stamps as (WEB_SITES_TERRAIN §3.1): its kind, walls and layout pick it; site.js lays it.
+export function stampOf(row) {
+  if (row.kind === 'military') return 'bunker';
+  if (row.layout_new === 'swamp_causeway' || row.layout_new === 'bayou_linear_town' || (row.biome === 'deep_south_swamp' && row.kind !== 'holdout')) return 'swamp road';
+  if (row.kind === 'holdout' || row.kind === 'fort' || (row.walls?.type && row.walls.type !== 'none')) return 'holdout';
+  if (row.kind === 'ruin') return 'ruin';
+  return { trade: 'trade post', camp: 'camp', station: 'station', industrial: 'works', landmark: 'landmark', farm: 'farm' }[row.kind] ?? row.kind;
+}
 export function planWorld(W, seed = 0xc17e) {
   const rng = makeRng(seed), out = [];
   const corridors = [W.i10, ...Object.values(W.regions ?? {}).flatMap((R) => R.corridors ?? [])].filter(Boolean);
@@ -95,14 +103,31 @@ export function planWorld(W, seed = 0xc17e) {
     if (!at) continue;
     out.push({ kind: 'town', arch: M.arch, biome: M.biome, half, x: at.x, z: at.z, seed: hashStr(M.town) ^ seed, id: `cg-${out.length}`, name: `${M.city.toUpperCase()} METRO`, major: M.city, town: M.town });
   }
-  // the SITE rows at their real anchors (data/sites/xz.js: the atlas projection), on free ground within 1.5 km of it
+  // the SITE rows at their real anchors (data/sites/xz.js: the atlas projection), on free ground within 1.5 km of it.
+  // Every row is accounted for (docs/design/WEB_SITES_TERRAIN.md §3.1): planned in the streamed world, planned BEYOND it
+  // (a record at its anchor, stamped when someone gets there: the streamed world grows region by region), off the map
+  // (abroad, Alaska, Hawaii, Puerto Rico) or unplaced (no free ground near its anchor). planWorld.siteReport lists them.
+  const siteReport = [];
   for (const row of SITES) {
-    const v = SITES_XZ[row.id];
-    if (!v || !W.inWorld(v[0], v[1], -300)) continue;
-    const half = Math.max(...row.footprint) / 2 + 20, at = near(v[0], v[1], half);
-    if (!at) continue;
-    out.push({ kind: row.kind === 'military' ? 'site' : 'site', site: row.id, arch: row.layout, biome: row.biome, half, x: at.x, z: at.z, seed: hashStr(row.id) ^ seed, id: `cg-${out.length}`, name: row.name, anchor: [v[0], v[1]], respect: respectful(row) });
+    const v = SITES_XZ[row.id], rep = { id: row.id, name: row.name, region: row.region, state: row.real?.state ?? null, kind: row.kind, stamp: stampOf(row), anchor: v ? [v[0], v[1]] : null, status: 'offmap', rec: null };
+    siteReport.push(rep);
+    if (!v) continue;
+    // a row whose anchor is the Phoenix island or its ring IS the hand-built city: nothing to stamp, it stands there
+    if (Math.hypot(v[0], v[1]) < (W.ring?.reach ?? 1900)) { rep.status = 'island'; continue; }
+    const half = Math.max(...row.footprint) / 2 + 20;
+    let at = null, beyond = false;
+    // (a row whose anchor is a built town or the island itself - Phoenix, Tampa's Ybor City - goes to the nearest free
+    // ground past the town's own clearance, up to 5 km out)
+    if (W.inWorld(v[0], v[1], -300)) { at = near(v[0], v[1], half) ?? near(v[0], v[1], half, 1750, 5000); if (!at) { rep.status = 'unplaced'; continue; } }
+    else { // beyond the streamed world: at its anchor, kept apart from any other record
+      beyond = true; at = { x: v[0], z: v[1] };
+      for (let k = 0; k < 24 && out.some((o) => Math.abs(o.x - at.x) < o.half + half + 120 && Math.abs(o.z - at.z) < o.half + half + 120); k++) at = { x: v[0] + Math.cos(k * 2.4) * (300 + 120 * k), z: v[1] + Math.sin(k * 2.4) * (300 + 120 * k) };
+    }
+    const rec = { kind: 'site', site: row.id, arch: row.layout, biome: row.biome, half, x: at.x, z: at.z, seed: hashStr(row.id) ^ seed, id: `cg-${out.length}`, name: row.name, anchor: [v[0], v[1]], respect: respectful(row), stamp: rep.stamp, ...(beyond ? { beyond: true } : {}) };
+    out.push(rec);
+    rep.status = beyond ? 'beyond' : 'planned'; rep.rec = rec.id;
   }
+  out.siteReport = siteReport;
   for (const cor of corridors) {
     const L = cor.L ?? 0;
     if (!(L > 2000)) continue;
@@ -150,6 +175,21 @@ export function planWorld(W, seed = 0xc17e) {
     r.walls = r.kind === 'base' ? MILITARY.fence : r.kind === 'site' ? (SITES_BY_ID.get(r.site)?.walls?.type ?? 'none') : A?.walls ?? 'none';
   }
   return out;
+}
+
+// A built settlement raised onto its pad (real terrain): everything drawn and every floor goes up by dy; the collision
+// boxes stay measured from the ground (as every streamed static is: engine/collision.js resolveBody subtracts the
+// building's y0 for someone upstairs). Floors get new arrays (the plan's own Y is never touched).
+export function liftBuilt(built, dy) {
+  for (const it of built.items) it.cy += dy;
+  for (const S of new Set(built.recs)) {
+    S.Y = S.Y.map((y) => y + dy); S.top += dy; S.y0 = dy;
+    for (const f of S.flights ?? []) { f.from += dy; f.to += dy; }
+  }
+  for (const q of built.loot) q.y = (q.y ?? 0) + dy;
+  for (let i = 2; i < built.cover.length; i += 7) built.cover[i] += dy;
+  built.y0 = dy;
+  return built;
 }
 
 export class CityGen {
@@ -216,6 +256,12 @@ export class CityGen {
     const t0 = performance.now();
     const T = this.layoutOf(rec);
     const built = buildTown(T);
+    // Real terrain (WEB_SITES_TERRAIN §3.2): the settlement stands on its pad. A record made after the survey (an ad-hoc
+    // stamp) gets its pad now and the chunks under it are laid out again on the terraced ground.
+    const RT = this.W?.terrain;
+    if (RT && !RT.padOf(rec.id)) { const keys = RT.addRecPad(rec); const S = this.g.streamer; if (S) for (const k of keys) if (!S.pinned?.has(k) && S.layouts?.has(k)) S.evict(k); }
+    rec.y = RT ? rec.y ?? 0 : 0;
+    if (rec.y) liftBuilt(built, rec.y);
     const t = { rec, T, built, blds: built.blds, chars: [] };
     this.live.set(rec.id, t);
     rec.size = T.size; rec.half = Math.max(rec.half, Math.max(T.x1 - T.x0, T.z1 - T.z0) / 2 + 12); rec.name = T.name;
@@ -250,7 +296,7 @@ export class CityGen {
     this.indexBlds();
     this.grid.rebuild(this.live.values());
     this.relayItems();
-    for (const c of this.g.chars) if (c.storey?.cg && !this.g.storeys.at(c.x, c.z)) { c.storey = null; c.gy = 0; }
+    for (const c of this.g.chars) if (c.storey?.cg && !this.g.storeys.at(c.x, c.z)) { c.storey = null; c.gy = this.W?.groundAt?.(c.x, c.z) ?? 0; }
     this.counts.released++;
   }
   // A base's vault: the underground lane's site row (data/underground.js KINDS.vault), entrance under the HQ's flank.
@@ -387,7 +433,7 @@ export class CityGen {
         const id = `cg:${B.id}`;
         const doors = t.built.doors.filter((d) => d.b === B.id && d.kind === 'door').map((d) => ({ x: d.x, z: d.z, w: d.w, nx: d.side === 'E' ? 1 : d.side === 'W' ? -1 : 0, nz: d.side === 'S' ? 1 : d.side === 'N' ? -1 : 0, kind: d.side === B.front ? 'front' : 'back' }));
         const windows = t.built.windows.filter((w) => w.b === B.id).map((w) => ({ ...w, ruined: B.ruined }));
-        I.attachRing(id, { x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ruined: B.ruined }, { doors, innerDoors: [], windows });
+        I.attachRing(id, { x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ruined: B.ruined, y: t.built.y0 || undefined }, { doors, innerDoors: [], windows });
         R.open = id;
         // locks: a holding town keeps some back doors locked (a claimed home: its owner's call)
         const rec = I.ringOpen.get(id);
@@ -433,6 +479,22 @@ export class CityGen {
     return ring;
   }
 
+  // Real terrain came on or went off (world/streamer.js setTerrain): every planned record's pad level is in rec.y
+  // (world/realterrain.js levelPad), so the live settlements are released and stamp again, on their pads.
+  onTerrain(T) {
+    if (!T) for (const r of this.plan) r.y = 0;
+    for (const id of [...this.live.keys()]) { const rec = this.live.get(id).rec; this.release(id); if (rec.adhoc || rec.pinned) this.stamp(rec); }
+  }
+  // Every SITE row and where it stands (WEB_SITES_TERRAIN §3.1; the `sites` command).
+  siteRows() {
+    const T = this.W?.terrain;
+    return (this.plan.siteReport ?? []).map((r) => {
+      const rec = r.rec ? this.byId.get(r.rec) : null;
+      return { ...r, x: rec ? rec.x : r.anchor?.[0] ?? null, z: rec ? rec.z : r.anchor?.[1] ?? null, y: rec && T ? +(rec.y ?? 0).toFixed(1) : rec ? 0 : null,
+        stamped: !!(rec && this.live.has(rec.id)), inWorld: !!(rec && !rec.beyond), land: rec && T ? T.coverAt(rec.x, rec.z) : null };
+    });
+  }
+
   // ---- for agents -------------------------------------------------------------------------------------------------------
   // Stamp a settlement anywhere (the `citygen` / `site` commands): an ad-hoc plan record, pinned until removed.
   stampAt(o) {
@@ -450,6 +512,7 @@ export class CityGen {
     this.release(id);
     const rec = this.byId.get(id);
     if (!rec) return false;
+    if (rec.adhoc && this.W?.terrain) { const S = this.g.streamer; for (const k of this.W.terrain.removeRecPad(id)) if (S && !S.pinned?.has(k) && S.layouts?.has(k)) S.evict(k); }
     this.byId.delete(id); this.unindex(rec);
     const i = this.plan.indexOf(rec); if (i >= 0) this.plan.splice(i, 1);
     return true;

@@ -22,14 +22,16 @@ export async function floridaChecks({ g, check, C }) {
   await check('florida: P1 is untouched by the region (twelve pinned P1 chunk hashes, the island golden) and the region builds where its rows put it', async () => {
     const { layoutChunk, makeScratch } = await import('../world/chunkgen.js');
     const sc = makeScratch(), bad = [];
-    for (const [key, want] of Object.entries(GOLDEN.p1Chunks ?? {})) {
+    // real terrain is the default (WEB_SITES_TERRAIN): the same twelve chunks have their own golden on the land
+    const P1G = (WI.terrain ? GOLDEN.p1ChunksReal : GOLDEN.p1Chunks) ?? {};
+    for (const [key, want] of Object.entries(P1G)) {
       const [cx, cz] = key.split(',').map(Number);
       const tiles = { foot: { a: new Uint8Array(65536), any: false }, car: { a: new Uint8Array(16384), any: false } };
       const gen = layoutChunk(WI, cx, cz, tiles, null, sc); let r; do r = gen.next(); while (!r.done);
       if (r.value.hash !== want) bad.push(`${key}: ${r.value.hash} != ${want}`);
     }
     const w = await C('world');
-    const ok = !bad.length && Object.keys(GOLDEN.p1Chunks ?? {}).length >= 12 && w.islandMatches !== false && SW.islandHash === GOLDEN.islandHash && FL && I95 && I75 && H;
+    const ok = !bad.length && Object.keys(P1G).length >= 12 && w.islandMatches !== false && SW.islandHash === GOLDEN.islandHash && FL && I95 && I75 && H;
     return ok ? true : JSON.stringify({ bad, island: SW.islandHash, golden: GOLDEN.islandHash, regions: Object.keys(WI.regions), corridors: WI.corridors.map((c) => c.id) });
   });
 

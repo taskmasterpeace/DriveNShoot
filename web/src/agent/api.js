@@ -44,6 +44,7 @@ import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
@@ -1986,6 +1987,7 @@ function buildCommands(api) {
     ...creatorCommands(api), // creator, sheet
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
+    ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -4662,7 +4664,8 @@ async function runSelfTest(api, only = null, skip = null) {
       if (Math.abs(deck - STREAM.ramp.deckH) > 0.01 || under !== 0) bad.push(`${X.id} bridge: deck ${deck}, under ${under}`);
       for (const dir of [1, -1]) {
         const one = WI.signs.find((s) => s.id === `${X.id}-${dir > 0 ? 'E' : 'W'}-1`), gore = X.s - dir * STREAM.ramp.gore;
-        if (one && Math.abs(Math.abs(gore - one.s) - MI) > 5) bad.push(`${one.id} is ${Math.round(Math.abs(gore - one.s))} m before the gore`);
+        const movedOff = one && WI.signs0?.find((q) => q.id === one.id && q.s !== one.s); // the water moved it off a deck (rivers.js fixSigns; on real terrain more crossings are decks)
+        if (one && !movedOff && Math.abs(Math.abs(gore - one.s) - MI) > 5) bad.push(`${one.id} is ${Math.round(Math.abs(gore - one.s))} m before the gore`);
         const dist = WI.signs.find((s) => s.id === `${X.id}-${dir > 0 ? 'E' : 'W'}-dist`);
         for (const line of dist?.lines ?? []) {
           const m = line.match(/^(.*\S)\s+(\d+|1\/2)$/), target = m && (WI.exits.find((o) => o.name === m[1]) ?? WI.towns.find((t) => t.name === m[1]));
@@ -5888,6 +5891,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
+  await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)

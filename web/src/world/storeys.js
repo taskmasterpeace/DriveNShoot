@@ -449,12 +449,12 @@ export class Storeys {
       if (dd < bd) { bd = dd; best = hy; }
     }
     if (best !== null) return best;
-    if (x < S.ix0 || x > S.ix1 || z < S.iz0 || z > S.iz1) return 0;
+    if (x < S.ix0 || x > S.ix1 || z < S.iz0 || z > S.iz1) return S.y0 ?? 0; // y0: the street floor of a building on raised ground (citygen on real terrain)
     for (let k = S.n; k >= 1; k--) {
       const hole = S.flights[k - 1];
       if (y > S.Y[k] - 2.2 && !(x >= hole.minX && x <= hole.maxX && z >= hole.minZ && z <= hole.maxZ)) return S.Y[k];
     }
-    return 0;
+    return S.y0 ?? 0;
   }
 
   levelOf(S, y) {

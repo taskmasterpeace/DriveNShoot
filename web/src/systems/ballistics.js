@@ -129,7 +129,7 @@ export class Ballistics {
     let vx = dx * row.velocity + (pv ? pv.vx : 0), vz = dz * row.velocity + (pv ? pv.vz : 0);
     if (opts?.pvx !== undefined) { vx = dx * row.velocity + opts.pvx; vz = dz * row.velocity + opts.pvz; }
     const sp = Math.hypot(vx, vz) || 1;
-    const fy = shooter && (shooter.storey || shooter.ug) ? shooter.gy ?? 0 : 0;
+    const fy = shooter && (shooter.storey || shooter.ug) ? (shooter.gy ?? 0) - (shooter.storey?.y0 ?? 0) : 0; // the floor's height over its pad (WEB_SITES_TERRAIN)
     p.live = true; p.show = 0; p.id = ++this.stats.launched; p.shooter = shooter; p.row = row; p.key = key; p.ammo = ammo;
     p.x = ox; p.z = oz; p.mx = ox; p.mz = oz; p.y = opts?.y ?? 1.45; p.vy = 0; p.fy = fy;
     p.dx = vx / sp; p.dz = vz / sp; p.sp = sp; p.sp0 = sp; p.k = row.drag; p.t = 0; p.flown = 0;
