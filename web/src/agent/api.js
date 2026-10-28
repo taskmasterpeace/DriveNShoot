@@ -5732,8 +5732,14 @@ async function runSelfTest(api, only = null, skip = null) {
       for (let k = 0; k < 15 && !steady.length; k++) { const a0 = seenNow(); await C('step', { seconds: 0.2 }); steady = seenNow().filter((c) => a0.includes(c)); }
       const stalking = pk.state === 'stalk', d0 = mean(), t0 = steady[0] ?? live.find((c) => c.alive && g.los(p.x, p.z, c.x, c.z)) ?? live[0];
       g.aimOverride = { x: t0.x, z: t0.z };
-      for (let i = 0; i < 8 && !((t0.hitAt ?? -99) > g.time - 1); i++) await C('fire', { id: t0.id, shots: 1 });
-      const hit = (t0.hitAt ?? -99) > g.time - 1;
+      // Any member hit counts, as the pack itself counts it (systems/grapevine.js): each try at one in sight right now.
+      const struck = () => live.some((c) => (c.hitAt ?? -99) > g.time - 1);
+      for (let i = 0; i < 12 && !struck(); i++) {
+        const tgt = seenNow()[0] ?? t0;
+        const r = await C('fire', { id: tgt.id, shots: 1 });
+        if (r.blocked) await C('step', { seconds: 0.25 });
+      }
+      const hit = struck();
       g.aimOverride = { x: p.x - 20, z: p.z };
       let ran = false;
       for (let t = 0; t < 1.5 && !ran; t += 0.25) { await C('step', { seconds: 0.25 }); ran = pk.state === 'retreat'; }
