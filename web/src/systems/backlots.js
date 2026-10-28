@@ -230,7 +230,7 @@ export class BackLots {
     const CG = this.g.citygen; let alleys = 0, yards = 0, gates = 0, fences = 0, broken = 0, docks = 0;
     for (const t of CG?.live.values() ?? []) { alleys += t.T.alleys?.length ?? 0; yards += t.T.yards?.length ?? 0; docks += t.T.docks?.length ?? 0; gates += t.built.gates.length; fences += t.built.fences.length; broken += t.built.fences.filter((f) => f.broken).length; }
     let strays = 0; for (const L of this.strays.values()) strays += L.filter((d) => !d.dead && !d.owned).length;
-    let dress = null; for (const t of CG?.live.values() ?? []) if (t.built.dress) { dress ??= {}; for (const [k, v] of Object.entries(t.built.dress)) if (k !== 'items') dress[k] = (dress[k] ?? 0) + v; }
+    let dress = null; for (const t of CG?.live.values() ?? []) if (t.built.dress) { dress ??= {}; for (const [k, v] of Object.entries(t.built.dress)) if (k !== 'items' && k !== 'ms') dress[k] = (dress[k] ?? 0) + v; }
     return { alleys, yards, docks, gates, fences, broken, strays, dress, counts: this.counts };
   }
 }

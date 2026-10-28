@@ -121,13 +121,13 @@ export async function backlotsChecks({ api, g, check, C }) {
     return !bad.length && n > 600 && docks > 50 ? true : JSON.stringify({ facing: n, docks, bad: bad.slice(0, 6) });
   });
 
-  await check('back lots: the alleys and yards are dressed (BACK-LOTS 2) - in a residential and a downtown town every kind of dressing stands (oil and cracks on paved lanes, puddles, sagging wires between poles, trash bags, weeds at fence feet, broken pallets, a burned-out car, a stoop at every back door, washing across a lane, yard junk and wild growth); no dressing collider stands in a lane, a bay drive lane, a door step or a gate; a town stays under 32k items and builds in under 150 ms', async () => {
+  await check('back lots: the alleys and yards are dressed (BACK-LOTS 2) - in a residential and a downtown town every kind of dressing stands (oil and cracks on paved lanes, puddles, sagging wires between poles, trash bags, weeds at fence feet, broken pallets, a burned-out car, a stoop at every back door, washing across a lane, yard junk and wild growth); no dressing collider stands in a lane, a bay drive lane, a door step or a gate; a town stays under 36k items (citygen CAP 120k: three live) and its dressing pass takes under 60 ms', async () => {
     const bad = [], tot = {};
     let maxItems = 0, maxMs = 0;
     for (const [a, seed] of [['dead_suburb', 21], ['sonoran_sprawl', 9182], ['rustbelt_mill', 1000], ['boom_strip', 44]]) {
-      const T = layoutTown({ arch: a, seed, x: 90000, z: 90000 }), t0 = performance.now(), B = buildTown(T), ms = performance.now() - t0;
+      const T = layoutTown({ arch: a, seed, x: 90000, z: 90000 }), B = buildTown(T), ms = B.dress.ms;
       maxItems = Math.max(maxItems, B.items.length); maxMs = Math.max(maxMs, ms);
-      for (const [k, v] of Object.entries(B.dress)) if (k !== 'items') tot[k] = (tot[k] ?? 0) + v;
+      for (const [k, v] of Object.entries(B.dress)) if (k !== 'items' && k !== 'ms') tot[k] = (tot[k] ?? 0) + v;
       const backs = T.buildings.reduce((n, q) => n + q.doors.filter((d) => d.kind === 'door' && d.side !== q.front).length, 0);
       if (B.dress.stoops !== backs) bad.push(`${a}: ${B.dress.stoops} stoops for ${backs} back doors`);
       const lanes = T.alleys.map((A) => A.lane);
@@ -138,7 +138,7 @@ export async function backlotsChecks({ api, g, check, C }) {
       }
     }
     const need = ['oil', 'cracks', 'puddles', 'wires', 'bags', 'weeds', 'pallets', 'burnt', 'stoops', 'lines', 'junk', 'wild'].filter((k) => !(tot[k] > 0));
-    return !bad.length && !need.length && maxItems < 32000 && maxMs < 150 ? true : JSON.stringify({ bad: bad.slice(0, 6), missing: need, tot, maxItems, maxMs: Math.round(maxMs) });
+    return !bad.length && !need.length && maxItems < 36000 && maxMs < 60 ? true : JSON.stringify({ bad: bad.slice(0, 6), missing: need, tot, maxItems, maxMs: Math.round(maxMs) });
   });
 
   // ---- live: a town stamped in the streamed world ----

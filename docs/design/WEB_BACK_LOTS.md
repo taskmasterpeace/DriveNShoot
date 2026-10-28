@@ -88,6 +88,30 @@ Every piece is an item in citygen's one instanced mesh (no new draw call):
 - **Dock:** platform, bumpers, pallets on top, apron; cover.
 - **Verge:** poles with a crossarm, dumpsters with a lid (cover), bins.
 
+### 3.4 Dressing (BACK-LOTS 2, `world/citygen/backdress.js`)
+Robert's review of the first renders: the alley "reads as a plain empty sand strip". The dressing pass runs at the end of the build on its own seed (`town.seed ^ 0xd2e55`), so the plan and every audit's geometry stay put. It reads `DRESS` and `YARD_DRESS` in `data/backlots.js`.
+- **Lanes:**
+  - Darker wheel ruts on unpaved lanes.
+  - Oil stains (5 per 100 m) and cracks (4 per 100 m) on paved lanes.
+  - Puddles: 1.6 per 100 m, ×2.5 in wet biomes.
+  - Weed clumps along both lane edges.
+- **Poles:** two wires to the next pole on the same verge (spans ≤ 42 m), sagging 1.1 m in 4 stepped segments. A transformer can on every third pole.
+- **Litter:**
+  - 2–4 trash bags round every dumpster and bin, and clusters of 1–3 along the verges (3 per 100 m).
+  - Broken pallets on the verges.
+  - Weed clumps at every fence's foot.
+- **Wrecks:** burned-out cars, one per 3 alleys (at most 6 a town). Each stands on the lot ground just past the verge, has a collider (`bl-burnt`: carbody) and cover both sides. They are never in a lane, a bay's drive lane, a door's step, a gate, a yard or a dock apron, and always ≥ 1.7 m from any wall (the way round).
+- **Doors:** a step outside every back door; a two-step stoop for a yard home.
+- **Across:** washing lines over gravel and dirt lanes (one every ~38 m, 45% each), strung at 3.4 m: a truck passes under.
+- **Dock aprons:** oil stains and a pallet stack, kept clear of the bay's lane.
+- **Yards let go** (poorer towns more often): a junk pile (`bl-junk`), a tire stack (`bl-tires`), a woodpile (`bl-woodpile`), a lawn chair, and 2–3 overgrown patches (gardens gone wild), on the same free ground the planner keeps.
+- **Strays** (`systems/backlots.js alleyDogs`): while settlements build themselves, a town with alleys gets 1–2 stray dogs (70%, from its seed) in its alleys. They are the dogs system's own strays. Released, the town takes back the ones nobody adopted.
+- **Budget:**
+  - Every piece is an item of the one town mesh; the only new things that move are the dogs.
+  - The biggest town is 33.4k items (it was 25.6k with the plan alone).
+  - citygen's instance cap went from 90k to 120k, so three of the largest can be live at once.
+  - The dressing pass takes ≤ 35 ms in the largest town (a 4 m box grid for its clear-ground tests).
+
 ### 3.3 Runtime (`systems/backlots.js`)
 - **Gates.** Every 0.5 s, each yard within `GATES.near` (55 m) hangs its gates as an interiors ring (`bl:<yard>`, door kind `gate`). Past 80 m they are given back. A share `LOCKS[class].gate` is locked (none in an overrun town). Locked gates block the nav grid like any locked door.
 - **Back doors.** `citygen.openings` locks `backLock(B, rec)` of a building's back doors: `LOCKS[KIND_CLASS[kind]][state]`. This replaces the flat 35%.
@@ -185,6 +209,12 @@ Every piece is an item in citygen's one instanced mesh (no new draw call):
 | `GARAGE.chance` / `needYard` | 0.35 / 15 | 0–0.8 / ≥ 14 | garages on the alley |
 | `DOCKS.kinds` / `dock` | — | — | who gets a dock, its platform |
 | `GATES.near` | 55 | 30–90 | how far gate leaves hang (the leaf pool is shared) |
+| `DRESS.*.per100` | 1.6–5 | 0–10 | litter density (items: watch the 36k a town) |
+| `DRESS.weeds.every` / `tuft` | 4.6 / 2–4 | 3–8 / 1–6 | weed clumps (the biggest item cost) |
+| `DRESS.burnt.perAlleys` / `max` | 3 / 6 | 2–8 / 0–10 | burned-out cars |
+| `DRESS.across.h` | 3.4 | > 3 (validated) | washing over a lane clears a truck |
+| `DRESS.strays.chance` / `max` | 0.7 / 2 | 0–1 / 0–4 | alley dogs (the dogs system caps all dogs at 32) |
+| `YARD_DRESS.*.chance` | 0.25–0.55 | 0–1 | yard junk; `poor` rows scale up as wealth falls |
 
 ## 8. Acceptance Criteria (selftest checks, `agent/backlots-api.js`)
 
@@ -198,6 +228,8 @@ Every piece is an item in citygen's one instanced mesh (no new draw call):
 | 6 | **kicking a back door is louder than picking it** | Live, on a locked back door: kick heard 30 m > bar 18 m > picks 0. The lock odds come from the rows (holding > overrun; the law > homes). |
 | 7 | **climbing a fence is slower than the gate** | Live: held keys through a yard's alley gate take less time than held E over the panel beside it (and at least the row's climb time). Two kicks break a picket; chain-link never gives. |
 | 8 | **AI pathing uses the alleys** | Live: with the town in the foot nav grid, an end-to-end alley route stays in the alley. A route from a yard home's street to its back yard (whose straight line meets a wall or fence) never crosses a wall or panel; it uses doors, gates and the alley. |
+| 10 | **the alleys and yards are dressed** | In 4 towns, every kind of dressing stands. No dressing collider stands in a lane or on a door's step. Every back door has its stoop. A town stays under 36k items and its dressing pass takes under 60 ms. The alley, loop and yard audits (checks 2–4) run on the dressed towns. |
+| 11 | **strays live in the alleys of a town** | A built town's alley dogs stand in its alleys; released, it takes back the ones nobody adopted. |
 | 9 | **draw calls < 150 standing in an alley** | Every back-lot piece is an item of the one town mesh; gates are pooled leaves. |
 
 The existing citygen checks still pass on the new plan: the 20-stamp walkability audit, sites/homesteads/base, the 20 SITE rows, the law and the clone, and the live checks.

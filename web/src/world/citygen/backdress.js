@@ -17,9 +17,13 @@ import { makeRng } from '../../engine/rng.js';
 import { frameOf } from './backlots.js';
 
 export function dressTown(T, out, box) {
-  const rng = makeRng(((T.seed >>> 0) ^ 0xd2e55) >>> 0 || 7);
+  const t0 = performance.now(), rng = makeRng(((T.seed >>> 0) ^ 0xd2e55) >>> 0 || 7);
   const vis = (cx, cy, cz, sx, sy, sz, col) => { out.items.push({ cx, cy, cz, sx, sy, sz, col, lv: 0, R: null }); };
   const pick = (a) => a[Math.floor(rng() * a.length)];
+  // a clump of weeds: a few small stalk boxes of their own heights and greens round (x, z), spread along `ax` by `l`
+  const tuft = (x, z, l, wd, hmax, ax, n = DRESS.weeds.tuft[0] + Math.floor(rng() * (DRESS.weeds.tuft[1] - DRESS.weeds.tuft[0] + 1))) => {
+    for (let k = 0; k < n; k++) { const a = (rng() - 0.5) * l, o = (rng() - 0.5) * wd, s = 0.18 + rng() * 0.3, h = hmax * (0.45 + rng() * 0.55); vis(ax ? x + a : x + o, h / 2, ax ? z + o : z + a, s, h, s, pick(weedCols)); }
+  };
   const dry = DRESS.weeds.dryBiomes.includes(T.biome), weedCols = dry ? DRESS.weeds.dry : DRESS.weeds.green;
   const wet = DRESS.puddle.wetBiomes.includes(T.biome);
   const counts = { oil: 0, cracks: 0, puddles: 0, wires: 0, bags: 0, weeds: 0, pallets: 0, burnt: 0, stoops: 0, lines: 0, junk: 0, wild: 0 };
@@ -70,7 +74,7 @@ export function dressTown(T, out, box) {
       if (rng() < 0.35) continue;
       const l = 0.5 + rng() * 1.3, h = 0.12 + rng() * 0.25, [x, z] = P(a, ve);
       if (kept(x - 0.3, z - 0.3, x + 0.3, z + 0.3)) continue;
-      vis(x, h / 2, z, ax ? l : 0.35, h, ax ? 0.35 : l, pick(weedCols)); counts.weeds++;
+      tuft(x, z, l, 0.35, h + 0.15, ax); counts.weeds++;
     }
     // washing strung across a residential lane, above a truck
     if (DRESS.across.rows.includes(A.row)) for (let a = a0 + DRESS.across.every / 2; a < a1 - 6; a += DRESS.across.every * (0.8 + rng() * 0.5)) {
@@ -84,6 +88,18 @@ export function dressTown(T, out, box) {
       const n = 3 + Math.floor(rng() * 3);
       for (let k = 0; k < n; k++) { const v = va + span * (k + 0.5 + (rng() - 0.5) * 0.4) / n, [x, z] = P(a, v), w = 0.5 + rng() * 0.4, hh = 0.5 + rng() * 0.4; vis(x, H - hh / 2 - 0.03, z, ax ? 0.04 : w, hh, ax ? w : 0.04, pick(DRESS.across.cols)); }
       counts.lines++;
+    }
+  }
+
+  // ---- dock aprons: oil where the trucks stood, a pallet stack and a bag by the wall (never in the bay's lane) ----
+  for (const D of T.docks ?? []) {
+    const ap = D.apron, w = ap.x1 - ap.x0, d = ap.z1 - ap.z0;
+    for (let i = 0; i < 3; i++) { const x = ap.x0 + w * (0.15 + rng() * 0.7), z = ap.z0 + d * (0.15 + rng() * 0.7); vis(x, 0.09, z, 0.9 + rng() * 1.1, 0.02, 0.7 + rng() * 0.8, pick(DRESS.oil.cols)); counts.oil++; }
+    for (let t = 0; t < 6; t++) {
+      const x = ap.x0 + 0.8 + rng() * Math.max(0, w - 1.6), z = ap.z0 + 0.8 + rng() * Math.max(0, d - 1.6);
+      if (kept(x - 0.7, z - 0.7, x + 0.7, z + 0.7)) continue;
+      for (let k = 0; k < 2 + Math.floor(rng() * 3); k++) vis(x, 0.08 + k * 0.15, z, 1.2, 0.13, 1.0, k % 2 ? DRESS.pallets.dark : DRESS.pallets.col);
+      counts.pallets++; break;
     }
   }
 
@@ -139,7 +155,7 @@ export function dressTown(T, out, box) {
     for (let a = 0.3; a < len - 0.3; a += DRESS.weeds.every * (0.5 + rng())) {
       if (rng() < 0.3) continue;
       const l = Math.min(len - a, 0.6 + rng() * 1.6), h = 0.18 + rng() * 0.32, side = rng() < 0.5 ? -1 : 1, x = horiz ? b.minX + a + l / 2 : c + side * 0.2, z = horiz ? c + side * 0.2 : b.minZ + a + l / 2;
-      vis(x, h / 2, z, horiz ? l : 0.3, h, horiz ? 0.3 : l, pick(weedCols)); counts.weeds++;
+      tuft(x, z, l, 0.3, h + 0.15, horiz); counts.weeds++;
     }
   }
 
@@ -203,7 +219,7 @@ export function dressTown(T, out, box) {
       if (rng() > P.chance * (P.poor ? 0.6 + poor : 1)) continue;
       if (k === 'wild') {
         const n = P.patches[0] + Math.floor(rng() * (P.patches[1] - P.patches[0] + 1));
-        for (let i = 0; i < n; i++) { const w = 1.2 + rng() * 2, d = 0.8 + rng() * 1.6, cu = lu + rng() * (hu - lu), cv = lv + rng() * (hv - lv), R = F.rect(cu - w / 2, cu + w / 2, cv - d / 2, cv + d / 2); if (kept(R.x0, R.z0, R.x1, R.z1)) continue; const h = P.h[0] + rng() * (P.h[1] - P.h[0]); vis((R.x0 + R.x1) / 2, h / 2, (R.z0 + R.z1) / 2, R.x1 - R.x0, h, R.z1 - R.z0, pick(weedCols)); vis((R.x0 + R.x1) / 2 + 0.3, h * 0.65, (R.z0 + R.z1) / 2 - 0.2, (R.x1 - R.x0) * 0.6, h * 1.3, (R.z1 - R.z0) * 0.6, pick(weedCols)); counts.wild++; }
+        for (let i = 0; i < n; i++) { const w = 1.2 + rng() * 2, d = 0.8 + rng() * 1.6, cu = lu + rng() * (hu - lu), cv = lv + rng() * (hv - lv), R = F.rect(cu - w / 2, cu + w / 2, cv - d / 2, cv + d / 2); if (kept(R.x0, R.z0, R.x1, R.z1)) continue; const h = P.h[0] + rng() * (P.h[1] - P.h[0]), wx = R.x1 - R.x0, wz = R.z1 - R.z0; vis((R.x0 + R.x1) / 2, 0.025, (R.z0 + R.z1) / 2, wx, 0.03, wz, '#6a6440'); for (let q = 0; q < P.per[0] + Math.floor(rng() * (P.per[1] - P.per[0] + 1)); q++) tuft(R.x0 + rng() * wx, R.z0 + rng() * wz, 0.7, 0.7, h, true, 3); counts.wild++; }
         continue;
       }
       if (k === 'chair') { const r = place(0.7, 0.7); if (r) { const cx = (r[0] + r[2]) / 2, cz = (r[1] + r[3]) / 2; vis(cx, 0.42, cz, 0.6, 0.06, 0.6, P.col); vis(cx, 0.75, cz - 0.27, 0.6, 0.6, 0.06, P.col); } continue; }
@@ -216,6 +232,6 @@ export function dressTown(T, out, box) {
       else if (k === 'woodpile') { for (let i = 0; i < 3; i++) vis(cx, 0.18 + i * 0.3, cz, sx - i * 0.15, 0.28, sz - i * 0.1, i % 2 ? '#8a6a44' : P.col); }
     }
   }
-  counts.items = out.items.length;
+  counts.items = out.items.length; counts.ms = Math.round((performance.now() - t0) * 10) / 10;
   return counts;
 }

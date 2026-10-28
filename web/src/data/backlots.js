@@ -107,10 +107,10 @@ export const DRESS = {
   rut: { col: '#4a3e2e', w: 0.5 },
   oil: { per100: 5, cols: ['#262422', '#2e2b28', '#1f1e1c'], rows: ['paved'] },
   crack: { per100: 4, col: '#34322f', rows: ['paved'] },
-  puddle: { per100: 1.6, wet: 2.5, wetBiomes: ['gulf_coast', 'deep_south_swamp', 'river_delta', 'pacific_rain', 'atlantic_coast', 'temperate_forest', 'great_lakes_rust', 'appalachian'], cols: ['#56646c', '#4e5c64', '#5e6a6e'] },
+  puddle: { per100: 1.6, wet: 2.5, wetBiomes: ['gulf_coast', 'deep_south_swamp', 'river_delta', 'pacific_rain', 'atlantic_coast', 'temperate_forest', 'great_lakes_rust', 'appalachian'], cols: ['#3c464a', '#424c50', '#384246'] },
   wires: { n: 2, sag: 1.1, drop: 0.6, segs: 4, col: '#1c1b1a', maxSpan: 42, transformerEvery: 3, transformer: '#6a6e66' },
   bags: { atBin: [2, 4], per100: 3, cols: ['#1e2420', '#2a2e2a', '#3a4a3a', '#4a4440', '#2c3440'] },
-  weeds: { every: 3.6, dry: ['#8a8250', '#7e7646', '#958b5a'], green: ['#5e6a34', '#6a7a3a', '#56622e'], dryBiomes: ['desert_sonoran', 'desert_mojave', 'high_plateau', 'badlands', 'salt_flat', 'great_plains'] },
+  weeds: { every: 4.6, tuft: [2, 4], dry: ['#7a7440', '#6c6a38', '#857a46', '#5e5c30'], green: ['#4e5e2a', '#5a6c30', '#465626', '#3e4e22'], dryBiomes: ['desert_sonoran', 'desert_mojave', 'high_plateau', 'badlands', 'salt_flat', 'great_plains'] },
   pallets: { per100: 2.2, col: '#8a6a44', dark: '#6a4e30' },
   burnt: { perAlleys: 3, max: 6, w: 4.4, d: 1.9, h: 1.25, tag: 'bl-burnt', body: '#1f1d1b', top: '#2c2622', rust: '#6a3a1e', wallGap: 1.7 },
   stoop: { col: '#8e8a80', step: '#a29e94', d: 0.6, h: 0.16 },
@@ -122,7 +122,7 @@ export const YARD_DRESS = {
   junk:     { chance: 0.4, poor: true, w: 1.8, d: 1.3, h: 0.8, tag: 'bl-junk', cols: ['#6a5a4a', '#5a4a3e', '#7a6a52', '#4a4844'] },
   tires:    { chance: 0.35, poor: true, w: 0.85, d: 0.85, h: 0.95, tag: 'bl-tires', col: '#1c1b1a' },
   woodpile: { chance: 0.3, poor: false, w: 2.2, d: 0.8, h: 1.0, tag: 'bl-woodpile', col: '#7a5a3a' },
-  wild:     { chance: 0.55, poor: true, patches: [2, 4], h: [0.35, 0.7] },
+  wild:     { chance: 0.55, poor: true, patches: [2, 3], h: [0.35, 0.75], per: [4, 6] },
   chair:    { chance: 0.25, poor: false, col: '#b8a070' },
 };
 
