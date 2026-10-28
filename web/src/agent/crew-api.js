@@ -132,6 +132,9 @@ export async function crewChecks(api, check, C) {
     if (g.dialogue?.active) g.dialogue.close();
     if (g.crewUI.open) g.crewUI.toggle(false);
     const at = o.at ?? STAGE;
+    // Your gun down and no standoff: a raised gun held on a man puts him in the gunpoint standoff (hands up, frozen),
+    // which froze a rifleman mid-check once.
+    g.gunpoint?.clear?.(); g.arms?.lower?.();
     await C('teleport', at);
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.crewRec && Math.hypot(c.x - at.x, c.z - at.z) < 120) g.removeChar(c);
     // Dustwolf buggies roam the flats and run people down (a member died that way mid-check): parked out of it.
