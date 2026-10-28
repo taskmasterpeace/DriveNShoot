@@ -409,7 +409,7 @@ function building(push, W, kind, r1, r2, r3, face, side) {
   if (!burnt) push('roofs', `${kind}roof`, W.x, h + 0.15, W.z, W.rot, d + 0.9, barn ? 0.4 : 0.3, w + 0.9, rc);
   else { // burnt out: a low shell, the roof fallen in as charred timbers on top of the rubble
     const ch = rgbOf(LOOK.char);
-    push('roofs', `${kind}roof`, W.x, h + 0.08, W.z, W.rot, d * 0.92, 0.14, w * 0.92, ch);
+    push('props', `${kind}char`, W.x, h + 0.08, W.z, W.rot, d * 0.92, 0.14, w * 0.92, ch); // (props: the roofs pool would paint tiles on it)
     for (let k = 0; k < 3; k++) push('props', 'charbeam', W.x + (k - 1) * 1.6 * Math.cos(W.rot), h + 0.3, W.z - (k - 1) * 1.6 * Math.sin(W.rot), W.rot + 0.3 * (k - 1), 0.25, 0.25, w * 0.8, ch);
   }
   // the porch step on the side it faces (face 1: toward the road; -1: backed onto it), a barn's big doors
