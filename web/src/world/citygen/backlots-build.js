@@ -46,7 +46,7 @@ export function buildBacklots(T, out, box) {
         const x = horiz ? r.x0 + a : (r.x0 + r.x1) / 2, z = horiz ? (r.z0 + r.z1) / 2 : r.z0 + a;
         items.push(vis(x, F.h / 2 + 0.05, z, 0.14, F.h + 0.1, 0.14, F.postColor));
       }
-      b.fence = { id: `${y.id}.f${out.fences.length}`, yard: y.id, b: y.b, fence: y.fence, box: b, items, kicks: F.kicks, broken: false, horiz };
+      b.fence = { id: `${y.id}.f${out.fences.length}`, town: T.id, yard: y.id, b: y.b, fence: y.fence, box: b, items, kicks: F.kicks, broken: false, horiz };
       out.fences.push(b.fence);
     }
     for (const g of y.gates) {

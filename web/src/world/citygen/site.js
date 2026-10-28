@@ -111,7 +111,7 @@ export function layoutSite(row, { x, z, seed = 1 } = {}) {
   if (row.kind === 'ruin') for (const B of T.buildings) if (!B.hero && !B.ruined && rng.chance(0.55)) Object.assign(B, makeBuilding(rng, B.kind, B.x0, B.z0, B.x1, B.z1, B.front, { ...B, ruined: true, storeys: Math.max(1, B.n - 1), id: B.id }));
   if (T.respect) for (const B of T.buildings) B.noLoot = true; // a sacred, burial or living place: nothing to take
   reconcileBacklots(T); // BACK LOTS: a hero on a yard home's lot takes the lot whole
-  clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null);
+  clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null, (T.yards ?? []).flatMap((y) => y.segs));
   finishBacklots(rng, T);
   T.bridges = roofBridges(rng, T.buildings, T.id);
   return T;

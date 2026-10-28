@@ -22,11 +22,11 @@ export const ALLEY_PLAN = { grow: 7.2, dirtPast: 0.7, poleEvery: 28, dumpsterPer
 // climbNoise: m a climb is heard (chain-link rattles); kicks: boots to break a panel (0: it does not break: a wall);
 // breakNoise: m a broken panel is heard; post: m between posts; color, postColor.
 export const FENCES = {
-  picket:  { name: 'picket fence', h: 1.1, t: 0.08, tag: 'bl-picket', climb: 0.9, climbNoise: 5, kicks: 2, breakNoise: 22, post: 2.4, color: '#d6cfbf', postColor: '#bcb4a2' },
-  privacy: { name: 'board privacy fence', h: 1.9, t: 0.1, tag: 'bl-privacy', climb: 2.2, climbNoise: 8, kicks: 3, breakNoise: 26, post: 2.4, color: '#8a6a48', postColor: '#6e5236' },
-  chain:   { name: 'chain-link fence', h: 1.8, t: 0.06, tag: 'bl-chain', climb: 2.6, climbNoise: 14, kicks: 0, breakNoise: 0, post: 3.0, color: '#9a9a92', postColor: '#7a7a74' },
-  adobe:   { name: 'adobe yard wall', h: 1.6, t: 0.3, tag: 'bl-adobe', climb: 1.8, climbNoise: 4, kicks: 0, breakNoise: 0, post: 0, color: '#b98a5c', postColor: '#a77a50' },
-  rail:    { name: 'split-rail fence', h: 1.2, t: 0.12, tag: 'bl-rail', climb: 0.7, climbNoise: 4, kicks: 3, breakNoise: 20, post: 3.0, color: '#7a5e40', postColor: '#5e4630' },
+  picket:  { name: 'picket fence', h: 1.1, t: 0.08, tag: 'bl-picket', climb: 1.6, climbNoise: 5, kicks: 2, breakNoise: 22, post: 2.4, color: '#d6cfbf', postColor: '#bcb4a2' },
+  privacy: { name: 'board privacy fence', h: 1.9, t: 0.1, tag: 'bl-privacy', climb: 2.6, climbNoise: 8, kicks: 3, breakNoise: 26, post: 2.4, color: '#8a6a48', postColor: '#6e5236' },
+  chain:   { name: 'chain-link fence', h: 1.8, t: 0.06, tag: 'bl-chain', climb: 3.0, climbNoise: 14, kicks: 0, breakNoise: 0, post: 3.0, color: '#9a9a92', postColor: '#7a7a74' },
+  adobe:   { name: 'adobe yard wall', h: 1.6, t: 0.3, tag: 'bl-adobe', climb: 2.2, climbNoise: 4, kicks: 0, breakNoise: 0, post: 0, color: '#b98a5c', postColor: '#a77a50' },
+  rail:    { name: 'split-rail fence', h: 1.2, t: 0.12, tag: 'bl-rail', climb: 1.3, climbNoise: 4, kicks: 3, breakNoise: 20, post: 3.0, color: '#7a5e40', postColor: '#5e4630' },
 };
 // Which fence a yard gets: the first row whose biomes hold the town's biome, then by the town's wealth (0..1): under
 // poor -> poor, under rich -> mid, else rich.
@@ -41,7 +41,7 @@ export const FENCE_PICK = [
 // pick, pry; a locked one blocks the nav grid). w: the alley gate's width; side: a side yard narrower than sideMax gets
 // one gate the yard's width, wider ones a gate of side.w and a panel; near: m from you a yard's gates hang (the leaf pool
 // is shared with every door in town).
-export const GATES = { w: 1.4, side: { w: 1.4, max: 2.6 }, near: 55 };
+export const GATES = { w: 1.6, side: { w: 1.4, max: 2.6 }, near: 55 };
 
 // LOCKS: the share of back doors, alley gates and dock doors locked, by building class x the town's state. A row per
 // class; KIND_CLASS says which class a building kind is. Front doors keep their own rules (none locked).

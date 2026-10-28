@@ -174,7 +174,7 @@ export function layoutTown(opts) {
           if (dd <= lotDepth - (yardK ? 5 + YARD.minYard : b.zone === 'res' ? 3 : 0.5) && cur + ww <= a1 - (yardK ? 2.4 : 0.5)) { k = c; w = ww; d = dd; }
         }
         if (!k) break;
-        const setback = b.zone === 'res' || b.zone === 'farm' ? rng.range(2.5, 5) : rng.range(0.4, 1.2);
+        const setback = Math.max(0.3, Math.min(b.zone === 'res' || b.zone === 'farm' ? rng.range(2.5, 5) : rng.range(0.4, 1.2), lotDepth - d - 1.1)); // never into the alley
         let x0, z0, x1, z1;
         if (alongX) { x0 = cur; x1 = cur + w; if (front === 'N') { z0 = b.z0 + setback; z1 = z0 + d; } else { z1 = b.z1 - setback; z0 = z1 - d; } }
         else { z0 = cur; z1 = cur + w; if (front === 'W') { x0 = b.x0 + setback; x1 = x0 + d; } else { x1 = b.x1 - setback; x0 = x1 - d; } }
@@ -219,7 +219,7 @@ export function layoutTown(opts) {
   // ---- back lots: the yard homes' fenced yards (and their garages on the alley), the docks ----
   for (const G of planYards(rng, T, lots.filter((L) => T.buildings.includes(L.B)), (x0, z0, x1, z1, front, H) => makeBuilding(rng, 'garage', x0, z0, x1, z1, front, { zone: H.zone, color: H.color, roofColor: H.roofColor, wealth, id: `${T.id}.b${nid++}` }))) { G.outbuilding = true; T.buildings.push(G); } // an outbuilding: not a lot of its own
   planDocks(T, lots);
-  clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null);
+  clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null, T.yards.flatMap((y) => y.segs));
 
   finishBacklots(rng, T); // a dock whose bay had no room goes; the verge props
 
@@ -245,6 +245,7 @@ export function layoutTown(opts) {
       const a = (r.axis === 'x' ? r.x0 : r.z0) + rng.range(0.1, 0.9) * L, off = rng.range(-0.3, 0.3) * (r.axis === 'x' ? r.z1 - r.z0 : r.x1 - r.x0);
       const x = r.axis === 'x' ? a : (r.x0 + r.x1) / 2 + off, z = r.axis === 'x' ? (r.z0 + r.z1) / 2 + off : a;
       if (T.buildings.some((B) => x > B.x0 - 3 && x < B.x1 + 3 && z > B.z0 - 3 && z < B.z1 + 3)) continue;
+      if (T.alleys.some((A) => x > A.x0 - 7 && x < A.x1 + 7 && z > A.z0 - 7 && z < A.z1 + 7)) continue; // never in an alley's mouth
       T.wrecks.push({ x: r1(x), z: r1(z), along: rng.chance(0.75) ? r.axis : (r.axis === 'x' ? 'z' : 'x'), c: rng.pick(['#5a4a3a', '#6a3a2a', '#4a4a44', '#7a6a4a']) });
     }
   }
@@ -253,7 +254,7 @@ export function layoutTown(opts) {
 
 // A roll-up bay needs room to drive up to it: 6 m clear outside it (no other building, no fence). A blocked back bay is
 // walled up; a blocked front bay too (its building keeps a man door).
-export function clearBays(list, bounds = null) {
+export function clearBays(list, bounds = null, fences = null) {
   for (const B of list) {
     if (!B.doors.some((d) => d.kind === 'bay')) continue;
     const keep = [];
@@ -263,6 +264,7 @@ export function clearBays(list, bounds = null) {
       const r = d.side === 'N' ? [d.at - hw, B.z0 - D, d.at + hw, B.z0] : d.side === 'S' ? [d.at - hw, B.z1, d.at + hw, B.z1 + D] : d.side === 'W' ? [B.x0 - D, d.at - hw, B.x0, d.at + hw] : [B.x1, d.at - hw, B.x1 + D, d.at + hw];
       if (list.some((o) => o !== B && r[2] > o.x0 - 0.3 && r[0] < o.x1 + 0.3 && r[3] > o.z0 - 0.3 && r[1] < o.z1 + 0.3)) continue;
       if (bounds && (r[0] < bounds.x0 + 1 || r[2] > bounds.x1 - 1 || r[1] < bounds.z0 + 1 || r[3] > bounds.z1 - 1)) continue; // the fence or the town wall
+      if (fences && fences.some((f) => r[2] > f.x0 && r[0] < f.x1 && r[3] > f.z0 && r[1] < f.z1)) continue; // a yard's fence (BACK LOTS)
       keep.push(d);
     }
     // a through-bay whose partner went is still a bay (drive in, back out); a building that lost every bay keeps a door

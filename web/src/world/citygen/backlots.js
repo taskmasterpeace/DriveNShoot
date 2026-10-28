@@ -67,7 +67,7 @@ export function planYards(rng, T, lots, makeGarage) {
     }
     for (let i = 0; i < run.length; i++) {
       const L = run[i], B = L.B;
-      if (!YARD.kinds.includes(B.kind) || B.hero) continue;
+      if (!YARD.kinds.includes(B.kind) || B.hero || (B.zone !== 'res' && B.zone !== 'farm')) continue; // a terrace in the core backs straight onto the alley
       const s = F.s, vB = F.vBack(B), vY = L.backV, depth = (vY - vB) * s;
       if (depth < YARD.minYard - 0.01) continue;
       const fence = fenceFor(T.biome, Math.max(0, Math.min(1, T.wealth + rng.range(-0.18, 0.18)))), FR = FENCES[fence];
@@ -106,7 +106,7 @@ export function planYards(rng, T, lots, makeGarage) {
       }
       // the yard's things: inside the fences, off the lot lines (a way down each side), off the walk behind the house,
       // clear of the alley gate and the garage
-      const zu0 = L.l0 + 1.5, zu1 = L.l1 - 1.5, zv0 = vB + s * (0.2 + YARD.walk), zv1 = vY - s * 0.6;
+      const zu0 = L.l0 + 1.5, zu1 = L.l1 - 1.5, zv0 = vB + s * (0.2 + YARD.walk), zv1 = vY - s * 1.5; // a climb over the back fence lands clear
       const taken = [];
       if (y.gu) taken.push({ u0: y.gu[0] - 1.2, u1: y.gu[1] + 1.2, v0: Math.min(vY, vY - s * (gd + 1.8)), v1: Math.max(vY, vY - s * (gd + 1.8)) });
       taken.push({ u0: gu - 1.6, u1: gu + 1.6, v0: Math.min(vY, vY - s * 2.6), v1: Math.max(vY, vY - s * 2.6) });
@@ -211,7 +211,9 @@ export function reconcileBacklots(T) {
 }
 export function finishBacklots(rng, T) {
   // a gas station's canopy (build.js: four posts 11 m out from its front) over a dock's drive lane: that dock is walled up
-  const canopies = T.buildings.filter((B) => B.canopy).map((B) => { const F = frameOf(B.front), c = (F.u0(B) + F.u1(B)) / 2, v = F.vFront(B) - F.s * 11; return F.rect(c - 9, c + 9, v - 5, v + 5); });
+  const canopyOf = (B) => { const F = frameOf(B.front), c = (F.u0(B) + F.u1(B)) / 2, v = F.vFront(B) - F.s * 11; return F.rect(c - 9, c + 9, v - 5, v + 5); };
+  for (const B of T.buildings) if (B.canopy) { const c = canopyOf(B); if ((T.alleys ?? []).some((A) => c.x1 > A.x0 && c.x0 < A.x1 && c.z1 > A.z0 && c.z0 < A.z1)) B.canopy = false; } // pumps over an alley: none
+  const canopies = T.buildings.filter((B) => B.canopy).map(canopyOf);
   if (canopies.length) for (const D of T.docks ?? []) {
     const B = T.buildings.find((q) => q.id === D.b), d = B?.doors.find((q) => q.dock);
     if (!d) continue;
