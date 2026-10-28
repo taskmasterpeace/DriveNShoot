@@ -57,6 +57,7 @@ export const HUD_LAYOUT = [
   { id: 'respect', name: 'Respect chips', group: 'social', sel: '.respect', anchor: 'tr', x: 12, y: 185, scale: 1, visible: true, situations: [...FOOT, 'menu'], w: 272, h: 86 },
   { id: 'cash', name: 'Cash plate', group: 'social', sel: '.cash-plate', anchor: 'tr', x: 12, y: 280, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 226, h: 112 },
   { id: 'killfeed', name: 'Kill feed', group: 'messages', sel: '.kill-slot', anchor: 'tr', x: 12, y: 402, scale: 1, visible: true, situations: [...PLAY, 'dead'], w: 300, h: 100 },
+  { id: 'pulls', name: 'Pulls chip', group: 'social', sel: '.pulls-chip', anchor: 'tr', x: 12, y: 512, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 284, h: 40 }, // why go out today: what reached you (ui/pullsboard.js)
   { id: 'feed', name: 'Messages', group: 'messages', sel: '.feed', anchor: 'tl', x: 24, y: 268, scale: 1, visible: true, situations: ALL, w: 330, h: 120 },
   // ---- you ----
   { id: 'status', name: 'Health and stamina', group: 'vitals', sel: '.status', anchor: 'bl', x: 244, y: 6, scale: 1, visible: true, situations: PLAY, w: 432, h: 132, talkHide: true },

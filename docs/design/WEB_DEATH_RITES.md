@@ -196,6 +196,10 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 
 **Rites reads (layout):** `world/chunkgen.js` `mesasOf`, `mesaNorm`, `MESA_REACH` (pure), `streamer.layouts/pinned/evict`, `statics.boxes` (the island's), `citygen.live[].T.wall`. **Chunkgen reads rites:** `W.rites.solid` (set in the Rites constructor, like `W.citygen`).
 
+**PULLS (WEB_PULLS.md) carries rites' news:** `learn` ends with `g.pulls?.deathNews?.(R, fact)`, which puts what the household learned into the knowledge model (their town's talk, the grapevine, the funeral as word and on the town's set). Rites stays the one place that decides who knows a death and when.
+
+**PULLS (WEB_PULLS.md) uses rites:** a pull's dead (a caller who bled out, a wreck's driver, a robber you shot) go on the rites' clock through `rites.onDeath` (dated to when they died off screen); pulls never makes that character again once `rites.bodies` holds it, and reads a folded body's spot from the record so it can still be found.
+
 **Others read rites:** the observer events (`bodyStage`, `bodyDegraded`, `buried`, `bodyBurned`, `funeralScheduled/Started/Done`, `mournerArrived`, `graveSickness`, `delivered`), and the chronicle verbs `buried`, `burned`, `funeral`.
 
 **Multiplayer (shard shape):**
