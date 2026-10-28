@@ -380,6 +380,7 @@ export class CityGen {
     for (const t of this.live.values()) {
       const near = Math.abs(t.rec.x - px) < t.rec.half + RO.far && Math.abs(t.rec.z - pz) < t.rec.half + RO.far;
       for (const R of t.blds) {
+        if (R.open && !I.ringOpen.has(R.open)) R.open = null; // detached elsewhere (a load, the ring's scan): attach it again
         const B = R.B, dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ), d2 = dx * dx + dz * dz;
         if (R.open && (!near || d2 > RO.far * RO.far)) { I.detachRing(R.open); R.open = null; continue; }
         if (R.open || !near || d2 > RO.near * RO.near) continue;

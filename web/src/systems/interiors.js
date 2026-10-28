@@ -866,6 +866,7 @@ export class Interiors {
       }
     }
     for (const [id, rec] of this.ringOpen) {
+      if (id.startsWith('cg:')) continue; // a generated settlement's openings: citygen.openings() attaches and detaches those
       const dx = Math.max(rec.x0 - P.x, 0, P.x - rec.x1), dz = Math.max(rec.z0 - P.z, 0, P.z - rec.z1);
       if (!seen.has(id) || dx * dx + dz * dz > far * far) { this.detachRing(id); continue; }
       // A chunk slot that changed hands emptied its cells: put the openings back.
