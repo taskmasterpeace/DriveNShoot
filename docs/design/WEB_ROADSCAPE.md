@@ -208,11 +208,31 @@ The global `perf budget (< 150 draw calls)` check covers the draw-call budget. T
 
 **Screenshots** (game camera, zoom 90, 10:30 clear) are in `docs/renders/web/roadscape/`:
 
-- `florida-twolane.jpg`
-- `forest-road.jpg`
-- `desert-interstate.jpg`
-- `farmland-road.jpg`
-- `interstate-by-city.jpg`
+| File | What it shows |
+|---|---|
+| `florida-twolane.jpg` | Meridian's access road: cypress and cabbage palm walls on both sides |
+| `forest-road.jpg` | I-75: cypress woods past the clear zone, the canal beyond |
+| `desert-interstate.jpg` | I-10 at mile 7.9: scrub and a rock |
+| `desert-nothing.jpg` | I-10 at mile 48: a nothing super-block |
+| `farmland-road.jpg` | I-10 at mile 30.4: a field fence, crop rows on furrows, a billboard |
+| `interstate-by-city.jpg` | I-10 at mile 3.6, by the Los Angeles end: a broken sound wall, houses behind it, two burnt out |
+
+**Perf.** `scenario name=stress` (Phoenix), three fresh pages each:
+
+| Build | ms/frame | Draw calls |
+|---|---|---|
+| origin/main | 6.23, 5.99, 6.60 | |
+| main + roadscape | 6.07, 6.11, 6.14 | 87-88 |
+| + the old roadside branch | 6.20, 6.66, 7.06 | 87-88 |
+
+Benches on the roadside, 180 frames at 1280 × 720 on an RTX 4090:
+
+| Spot | Before (frame ms) | Before (triangles) | After (frame ms) | After (triangles) |
+|---|---|---|---|---|
+| I-10 mile 28.4 | 7.2 | 1.45 M | 8.6 | 1.93 M |
+| I-10 mile 40 | 7.2 | 1.78 M | 8.3 | 1.85 M |
+
+The extra triangles are the roadside's instances. Draw calls stayed at 73-82 (no new pool).
 
 **Critic pass.** The three ugliest things found on the first shots, all fixed:
 

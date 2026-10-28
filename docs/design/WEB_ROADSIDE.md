@@ -6,6 +6,10 @@
 (+ `roadside-art.js`, the billboard atlas). **Live:** `web/src/systems/roadside.js`. **Agent:** the `roadside` command and
 ten selftest checks in `web/src/agent/roadside-api.js`. **Renders:** `docs/renders/web/roadside/`.
 
+
+**2026-10-28:** merged into `feat/web-roadside2` beside **THE ROADSCAPE** ([WEB_ROADSCAPE.md](WEB_ROADSCAPE.md)), the procedural layer of what stands beside every road: tree walls, fences, sound walls, crop rows and long stretches of nothing, by road class and road biome. It keeps off these sites through the chunk's keep-out (`W.roadside.solid`).
+Fix in the merge: a work spot (a tank's caps, a hulk, a water tank, the wheel) now measures its height from the ground under it (`systems/roadside.js spotNear`). Real terrain is the default since 2026-10-28, so the old flat compare found no spot in reach.
+
 ---
 
 ## 1. Overview
