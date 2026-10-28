@@ -116,7 +116,7 @@ export class CharSheet {
     const bar = (x, max) => `<div class="cs-bar"><i style="width:${Math.max(0, Math.min(100, (x / max) * 100)).toFixed(0)}%"></i></div>`;
     const pct = (m) => `${m >= 1 ? '+' : ''}${Math.round((m - 1) * 100)}%`;
     const cols = (n) => { body.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`; };
-    body.style.display = ''; body.style.overflowY = ''; // the PULLS tab scrolls a list; the others are grids
+    body.style.display = ''; this.g.pullsUI?.show(this.tab === 'pulls'); // the PULLS tab: the board's own element takes the body's place
     let h = '';
     if (this.tab === 'attributes') {
       cols(3);
@@ -151,7 +151,7 @@ export class CharSheet {
       h += card('MORALE', `<div class="cs-big">${v.morale.value} <span class="cs-muted">${v.morale.band}</span></div>${v.morale.mods.slice(0, 8).map((m) => `<span class="cs-pill ${m.v < 0 ? 'bad' : 'good'}">${m.label} ${m.v > 0 ? '+' : ''}${m.v}</span>`).join('')}`);
       h += card('REPUTATION', Object.values(v.reputation).map((r) => `${row(r.label, r.value)}${bar(r.value + (r.label.includes('/') ? 100 : 0), r.label.includes('/') ? 200 : 100)}`).join(''));
     } else if (this.tab === 'pulls') {
-      body.style.overflowY = 'auto'; body.style.display = 'block'; h += this.g.pullsUI?.tabHTML() ?? ''; // the PULLS board
+      body.style.display = 'none'; // the PULLS board is its own element in this panel (ui/pullsboard.js), shown below
     } else {
       cols(2);
       h += this.journalCards();

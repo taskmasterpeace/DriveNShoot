@@ -139,9 +139,10 @@ Shared-file hooks (exact):
 | `web/src/main.js` | 2 imports; `this.pulls` and `this.pullsUI` constructed before the roadside; `this.pulls.update(simDt)` in the sim block; `this.pulls?.onKill(c, attacker)` in `onKill`; `it.amount ??` in the cash pickup (a spilled purse is its exact amount) |
 | `web/src/systems/ai.js` | 1 line after the Grapevine branch: `if ((c.pullRec \|\| c.barRole) && g.pulls?.think(c, dt)) continue;` |
 | `web/src/ui/dialogue.js` | 2 lines in the stranger branch: `g.pulls.talkFor(c)` before the small talk |
-| `web/src/ui/charsheet.js` | `'pulls'` in `TABS`; one render branch; one style reset line |
+| `web/src/ui/charsheet.js` | `'pulls'` in `TABS`; the pulls branch hides the card body; one line shows the board's own element on its tab |
 | `web/src/systems/rites.js` | 1 line at the end of `learn`: `this.g.pulls?.deathNews?.(R, fact)` |
 | `web/src/data/hudlayout.js` | 1 row: `pulls` (`.pulls-chip`) |
+| `web/src/data/panellayout.js` | 2 region rows on the sheet panel: `pulls` (`.pb-list`, a list, tab `pulls`) and `pulls_empty` (`.pb-empty`); the board is its own element in the panel, shown only on its tab |
 | `web/src/agent/api.js` | import, `...pullsCommands`, `await pullsChecks(...)` before the perf budget; the snapshot excludes `pullRec`/`barRole` characters and saves `pulls`; restore calls `g.pulls.load` before the characters |
 | `web/docs/COMMANDS.md` | regenerated |
 

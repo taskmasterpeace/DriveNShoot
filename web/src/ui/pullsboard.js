@@ -11,6 +11,7 @@ const CSS = `
 .pulls-chip b{font:900 18px var(--stencil,system-ui);color:var(--gold,#e0a83a);min-width:18px;text-align:center}
 .pulls-chip .pc-t{display:flex;flex-direction:column;line-height:1.15;min-width:0}.pulls-chip .pc-k{font-size:11px;color:var(--sand,#c8b48a);letter-spacing:.12em}
 .pulls-chip .pc-n{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.pb-board{flex:1;min-height:0;overflow-y:auto;padding:12px 18px 14px;border-top:2px solid var(--gold,#e0a83a);position:relative}.pb-board.hidden{display:none}
 .pb-list{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
 .pb-row{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:start;padding:7px 10px;margin:0;background:oklch(0.17 0.01 60 / .82);border:1px solid oklch(0.12 0.01 60);border-left:3px solid var(--gold,#e0a83a);transition:background .2s}
 .pb-row:hover{background:oklch(0.2 0.012 60 / .9)}.pb-row.exp{border-left-color:var(--rust,#a8442a);opacity:.6}.pb-row.need{border-left-color:oklch(0.62 0.12 145)}
@@ -55,6 +56,7 @@ export class PullsBoard {
     this.chipEl.innerHTML = `<b>0</b><span class="pc-t"><span class="pc-k">PULLS</span><span class="pc-n">nothing has reached you</span></span>`;
     this.chipEl.onclick = () => g.charSheet?.toggle(true, 'pulls');
     (ui ?? document.body).appendChild(this.chipEl); // the layout lifts it into its row's wrapper (bind)
+    this.mount();
     this.timer = setInterval(() => this.refresh(), 500);
   }
   bearing(from, to) { const a = Math.atan2(to.x - from.x, -(to.z - from.z)); return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][(Math.round(a / (Math.PI / 4)) + 8) % 8]; }
@@ -69,16 +71,34 @@ export class PullsBoard {
     this.chipEl.querySelector('b').textContent = String(n);
     this.chipEl.querySelector('.pc-n').textContent = line;
   }
-  tabHTML() {
+  // The board's own element inside the character sheet panel (after its card body): an empty state and the list, both always
+  // there (the panel's `pulls` and `pulls_empty` regions, data/panellayout.js), shown only while the PULLS tab is.
+  mount() {
+    const cs = this.g.charSheet?.el; if (!cs || this.boardEl) return this.boardEl ?? null;
+    this.boardEl = document.createElement('div');
+    this.boardEl.className = 'pb-board hidden';
+    this.boardEl.innerHTML = `<div class="pb-empty"><span class="pb-ic">${svg('radio', 32)}</span><div><b>Nothing has reached you.</b></div><div>Buy a drink in a saloon, read a town board, tune a radio, or watch the road.</div></div><div class="pb-list"></div>`;
+    cs.appendChild(this.boardEl);
+    return this.boardEl;
+  }
+  show(on) {
+    const el = this.mount(); if (!el) return;
+    el.classList.toggle('hidden', !on);
+    if (!on) return;
+    const rows = this.g.pulls?.board() ?? [];
+    el.querySelector('.pb-empty').style.display = rows.length ? 'none' : '';
+    el.querySelector('.pb-list').innerHTML = this.rowsHTML(rows);
+  }
+  tabHTML() { return this.rowsHTML(this.g.pulls?.board() ?? []); }
+  rowsHTML(rows) {
     const P = this.g.pulls; if (!P) return '';
-    const rows = P.board(), me = P.me();
-    if (!rows.length) return `<div class="pb-empty"><span class="pb-ic">${svg('radio', 32)}</span><div><b>Nothing has reached you.</b></div><div>Buy a drink in a saloon, read a town board, tune a radio, or watch the road.</div></div>`;
-    return `<div class="pb-list">${rows.map((r) => {
+    const me = P.me();
+    return `${rows.map((r) => {
       const left = r.what === 'need' ? '' : r.expired ? '<span class="l bad">EXPIRED</span>' : `<span class="l">${hrs(r.leftH)} left</span>`;
       const where = r.where ? `${km(r.distM)} ${this.bearing(me, r.where)}` : '';
       const src = r.what === 'need' ? 'your own eyes' : `<i>${esc(r.channelName)}</i>${r.channel !== 'saw' ? ` · ${esc(r.from)}` : ''} · ${hrs(r.heardH)} ago${r.ageH - r.heardH > 0.5 ? ` · the news is ${hrs(r.ageH)} old` : ''}${r.where?.place ? ` · ${esc(r.where.place)}` : ''}`;
       return `<div class="pb-row${r.expired ? ' exp' : ''}${r.what === 'need' ? ' need' : ''}"><span class="pb-ic">${svg(r.what)}</span><div><div class="pb-k">${esc(r.kind.toUpperCase())}</div><div class="pb-x">${esc(r.text)}.</div><div class="pb-src">${src}</div>${r.outcome ? `<div class="pb-out">${esc(r.outcome)}.</div>` : ''}</div>
         <div class="pb-r"><div class="d">${where}</div>${left}<div class="pb-conf" title="how sure the one who told you was"><i style="width:${Math.round(r.conf * 100)}%"></i></div></div></div>`;
-    }).join('')}</div>`; // the board is the sheet panel's `pulls` region (data/panellayout.js): F6 sets its columns and density
+    }).join('')}`; // the rows of the sheet panel's `pulls` region (data/panellayout.js): F6 sets its columns and density
   }
 }
