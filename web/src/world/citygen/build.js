@@ -353,7 +353,7 @@ export function buildBuilding(B, out, T, rng) {
       vis((qv.minX + qv.maxX) / 2, y + (RAIL_H + STEP) / 2, (qv.minZ + qv.maxZ) / 2, qv.maxX - qv.minX, RAIL_H + STEP, qv.maxZ - qv.minZ, '#2e2a26', L);
       for (const r of [-LAND, k.L0 + LAND]) { const e = k.frame.rect(r - 0.06, r + 0.06, 0, FW * 2); add(e.minX, e.minZ, e.maxX, e.maxZ, 'cg-rail', y + RAIL_H, y); }
       // the landing's grating (visual: the deck is the record's)
-      vis((fr.minX + fr.maxX) / 2, y - 0.05, (fr.minZ + fr.maxZ) / 2, fr.maxX - fr.minX, 0.1, fr.maxZ - fr.minZ, '#3a3632', L);
+      vis((fr.minX + fr.maxX) / 2, y - 0.05 + STEP / 2, (fr.minZ + fr.maxZ) / 2, fr.maxX - fr.minX, 0.1, fr.maxZ - fr.minZ, '#3a3632', L); // half a depth step over the flight's top tread
     }
     const ly = esc.Ye.slice(); ly[ly.length - 1] = esc.topL === n ? top : ly[ly.length - 1];
     R.E = { b: { minX: fr.minX, maxX: fr.maxX, minZ: fr.minZ, maxZ: fr.maxZ, escapeOf: R }, n: esc.Ye.length - 1, Y: ly, flights: k.flights, frame: k.frame, depth: FW * 2, area: fr,

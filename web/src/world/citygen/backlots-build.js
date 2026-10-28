@@ -7,6 +7,7 @@
 //   verges   utility poles, dumpsters, bins
 // out.fences: [{ id, yard, fence, box, items: [i...], kicks, broken }] for systems/backlots.js.
 import { ALLEYS, FENCES, YARD_PROPS, ALLEY_PROPS } from '../../data/backlots.js';
+import { STEP } from '../../engine/depthlayers.js';
 
 export function buildBacklots(T, out, box) {
   const vis = (cx, cy, cz, sx, sy, sz, col) => { out.items.push({ cx, cy, cz, sx, sy, sz, col, lv: 0, R: null }); return out.items.length - 1; };
@@ -14,19 +15,20 @@ export function buildBacklots(T, out, box) {
   const cover = (x, z, nx, nz, h, kind) => out.cover.push(x, z, 0, nx, nz, h, kind);
   // ---- alleys: lane over verges over the block's ground ----
   for (const A of T.alleys ?? []) {
-    const R = ALLEYS[A.row];
-    vis((A.x0 + A.x1) / 2, 0.045, (A.z0 + A.z1) / 2, A.x1 - A.x0, 0.05, A.z1 - A.z0, R.edge);
+    const R = ALLEYS[A.row], up = A.axis === 'x' ? 0 : STEP / 2; // the depth layers (engine/depthlayers.js): over the block (0.04), under the
+    // streets' kerbs (0.08), a z alley half a step over an x one where they cross, each band >= 5 mm from the next
+    vis((A.x0 + A.x1) / 2, 0.046 + up - 0.025, (A.z0 + A.z1) / 2, A.x1 - A.x0, 0.05, A.z1 - A.z0, R.edge);
     const L = A.lane;
-    vis((L.x0 + L.x1) / 2, 0.06, (L.z0 + L.z1) / 2, L.x1 - L.x0, 0.05, L.z1 - L.z0, R.color);
+    vis((L.x0 + L.x1) / 2, 0.062 + up - 0.025, (L.z0 + L.z1) / 2, L.x1 - L.x0, 0.05, L.z1 - L.z0, R.color);
     if (A.row !== 'paved') for (const o of [-0.85, 0.85]) { // two wheel ruts down an unpaved lane (it reads as a lane from above)
       const ax = A.axis === 'x', c = ax ? (L.z0 + L.z1) / 2 + o : (L.x0 + L.x1) / 2 + o;
-      vis(ax ? (L.x0 + L.x1) / 2 : c, 0.07, ax ? c : (L.z0 + L.z1) / 2, ax ? L.x1 - L.x0 : 0.45, 0.05, ax ? 0.45 : L.z1 - L.z0, '#6a5a44');
+      vis(ax ? (L.x0 + L.x1) / 2 : c, 0.074 - 0.025, ax ? c : (L.z0 + L.z1) / 2, ax ? L.x1 - L.x0 : 0.45, 0.05, ax ? 0.45 : L.z1 - L.z0, '#6a5a44'); // top 0.074
     }
   }
   // ---- docks: apron, platform, bumpers, pallets ----
   for (const D of T.docks ?? []) {
     const a = D.apron;
-    vis((a.x0 + a.x1) / 2, 0.065, (a.z0 + a.z1) / 2, a.x1 - a.x0, 0.04, a.z1 - a.z0, '#7a7670');
+    vis((a.x0 + a.x1) / 2, 0.057 - 0.02, (a.z0 + a.z1) / 2, a.x1 - a.x0, 0.04, a.z1 - a.z0, '#7a7670'); // top 0.057: between the alley's kerb and its lane
     const P = D.platform;
     if (!P) continue;
     solid(P.x0, P.z0, P.x1, P.z1, 'bl-dock', P.h, '#8e8a82');
@@ -66,7 +68,7 @@ export function buildBacklots(T, out, box) {
         out.boxes.push(box(p.x0, p.z1 - t, p.x1, p.z1, P.tag, P.h)); vis(cx, P.h / 2, p.z1, sx, P.h, t, P.col);
         if (wide) { out.boxes.push(box(p.x0, p.z0, p.x0 + t, p.z1, P.tag, P.h)); vis(p.x0, P.h / 2, cz, t, P.h, sz, P.col); }
         else { out.boxes.push(box(p.x1 - t, p.z0, p.x1, p.z1, P.tag, P.h)); vis(p.x1, P.h / 2, cz, t, P.h, sz, P.col); }
-        vis(cx, 0.03, cz, sx - 0.2, 0.02, sz - 0.2, '#7a6a4a'); // trodden dirt
+        vis(cx, 0.046 - 0.01, cz, sx - 0.2, 0.02, sz - 0.2, '#7a6a4a'); // trodden dirt (top 0.046: half a depth step over the block's 0.04)
         vis(wide ? p.x1 - 0.7 : cx, 0.45, wide ? cz : p.z0 + 0.7, 0.9, 0.8, 0.9, '#6a5236'); // the kennel
         continue;
       }

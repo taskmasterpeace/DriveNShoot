@@ -60,6 +60,9 @@ from their row. Measured from the code (audit 2026-10-28):
 | citygen x road: kerb / surface | idem | Std | - | 0 | base + 0.08 / 0.10 |
 | citygen z road: kerb / surface | idem | Std | - | 0 | base + 0.092 / 0.112 (**+STEP**) |
 | citygen stair flanks | idem | Std | - | 0 | top **STEP under** the floor they meet |
+| citygen fire-escape landing grating | idem | Std | - | 0 | top **STEP/2 over** the flight's top tread |
+| back-lots alley kerb / lane / ruts (x; z +STEP/2) | `world/citygen/backlots-build.js` | citygen mesh | - | 0 | base + 0.046 / 0.062 / 0.074: over the block (0.04), under the streets' kerbs (0.08) |
+| back-lots dock apron, yard trodden dirt | idem | citygen mesh | - | 0 | base + 0.057 / 0.046 |
 | citygen fire-escape outer rail | idem | Std | - | 0 | **STEP proud** of the flight rail (top and face) |
 | roofs (island, ring pool, citygen) | `world/surfaces.js` roofSurface | Std | - | 0 | h + 0.2 slab / top + 0.15; walkable deck = slab top |
 | window lintel / head | `systems/interiors.js` | Std | - | 0 | lintel top **STEP under** the wall top; head **STEP over** jambs |
@@ -149,5 +152,6 @@ The `screenshot` command's zoom shots set the near plane the same way.
   edges against partitions, ring props, island storey corners) show at sin 8 degrees of their height from the game camera.
   The biggest are citygen's partition ends flush with slab edges (~26k samples in a casino strip).
 - Earthworks fills overlapping (I-95 mile 9) are steep faces of one mesh with one colour: reported as walls.
+- Breakage debris (`systems/materials.js`): now on the land, each piece of a pile STEP/2 over the last.
 - Wide flat roadscape boxes (aprons 8 m, furrows 16 m) are lifted by their centre only and sink at one end on slopes.
 - Shadow texel snapping (shimmer as the view moves) is not added.
