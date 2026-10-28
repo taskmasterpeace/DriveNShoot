@@ -33,6 +33,10 @@ const WG = 65; // a region chunk's water grid: 4 m samples, 65 x 65 (its edges s
 const URBAN = [0.9, 0.87, 0.82]; // the ring's ground: dust over old concrete and yards (data/ring.js zones tint their blocks)
 const ROCK_TONE = [0.9, 0.8, 0.72]; // real terrain (flag): steep ground goes to bare, ruddier rock
 const HILLSHADE = 0.24;            // real terrain (flag): how much a slope at the full grade lightens or darkens
+// Real terrain past the strip (docs/design/WEB_SITES_TERRAIN.md §7): canyon strata on steep ground (bands of STRATA_M
+// metres of height, STRATA_K of the colour), a conifer stand in forest (pines a chunk), rock outcrops on slopes past
+// OUTCROP_SLOPE (tries a chunk).
+const STRATA_M = 7, STRATA_K = 0.24, FOREST_PINES = 220, OUTCROP_TRIES = 36, OUTCROP_SLOPE = 0.11;
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
 class InstBuf {
@@ -589,8 +593,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
         const hh = (a, b) => (TG ? hAt(a, b) : 0) + cv(a, b);
         const sx = (hh(i + 1, j) - hh(i - 1, j)) / 16, sz = (hh(i, j + 1) - hh(i, j - 1)) / 16, l = Math.hypot(sx, 1, sz);
         if (TG) {
-          const rock = Math.min(1, Math.hypot(sx, sz) / T.g) * 0.3, hs = 1 + HILLSHADE * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / T.g));
-          for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs;
+          const rock = Math.min(1.5, Math.hypot(sx, sz) / T.g) * 0.3, hs = 1 + HILLSHADE * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / T.g));
+          const st = rock > 0.18 ? 1 + STRATA_K * ((rock - 0.18) / 0.12) * Math.sin((hh(i, j) / STRATA_M) * 6.283) : 1; // strata (as below)
+          for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs * st;
         } else {
           // Flat ground: the cut banks still read from straight above (the map-maker's light from the north-west).
           const hs = 1 + HILLSHADE * 1.3 * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / 0.25));
@@ -602,11 +607,13 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       }
       if (TG) {
         const sx = (hAt(i + 1, j) - hAt(i - 1, j)) / 16, sz = (hAt(i, j + 1) - hAt(i, j - 1)) / 16, l = Math.hypot(sx, 1, sz);
-        const rock = Math.min(1, Math.hypot(sx, sz) / T.g) * 0.3;
+        const rock = Math.min(1.5, Math.hypot(sx, sz) / T.g) * 0.3;
         // A map-maker's hillshade (light from the north-west, whatever the sun is doing): a slope at the full grade is
         // HILLSHADE brighter facing the light and as much darker facing away, so the land reads from straight above.
         const hs = 1 + HILLSHADE * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / T.g));
-        for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs;
+        // Strata: steep ground shows its layers as bands by height (a canyon wall reads from above).
+        const st = rock > 0.18 ? 1 + STRATA_K * ((rock - 0.18) / 0.12) * Math.sin((TG[j * N_G + i] / STRATA_M) * 6.283) : 1;
+        for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs * st;
         idx[j * N_G + i] = G.v(i * 8, TG[j * N_G + i], j * 8, -sx / l, 1 / l, -sz / l, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
         if (FW || HO) floorAt(idx[j * N_G + i], x, z);
         continue;
@@ -1206,6 +1213,27 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       if (live) rng(); // the old crown's turn
       plant(live ? 'paloverde' : 'deadtree', x, z, live ? (h + 0.8) / SPECIES.paloverde.h : h / SPECIES.deadtree.h, floraHash(z, x) * 6.283, 0.92 + 0.16 * floraHash(x, z));
       addBox(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 'tree', h);
+    }
+  }
+  // ---- real terrain (WEB_SITES_TERRAIN §3.4): a conifer stand where the land is forest, rock outcrops where it is steep.
+  // Their own seed, so nothing above moves; flat-world chunks never reach here.
+  if (TG) {
+    const fr = rngOf(hash32(seed, cx, cz, 7177)), ROK = [col('#8a6a4e'), col('#7a5c44'), col('#9a7a5c')];
+    if (biomeKey === 'F') {
+      for (let k = 0, n = Math.round(FOREST_PINES * (0.75 + fr() * 0.5)); k < n; k++) {
+        const x = ox + fr.range(3, C - 3), z = oz + fr.range(3, C - 3), h = fr.range(10, 18);
+        if (blocked(x, z, 1.4)) continue;
+        plant('pine', x, z, h / SPECIES.pine.h, floraHash(z, x) * 6.283, 0.82 + 0.2 * floraHash(x, z));
+        addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h);
+      }
+    }
+    for (let k = 0; k < OUTCROP_TRIES; k++) {
+      const x = ox + fr.range(4, C - 4), z = oz + fr.range(4, C - 4), r = fr.range(1.4, 4.2);
+      const sl = Math.hypot(T.at(x + 6, z) - T.at(x - 6, z), T.at(x, z + 6) - T.at(x, z - 6)) / 12;
+      if (sl < OUTCROP_SLOPE || blocked(x, z, r)) continue;
+      const c = ROK[fr.int(0, 2)], v = fr.range(0.85, 1.08);
+      INST.boulders.push(x, r * 0.3, z, fr() * 6.28, r * fr.range(1.1, 1.6), r * fr.range(0.5, 0.8), r * fr.range(0.9, 1.3), c[0] * v, c[1] * v, c[2] * v);
+      addBox(x - r * 0.8, z - r * 0.8, x + r * 0.8, z + r * 0.8, 'boulder', r * 0.6);
     }
   }
   // ---- L1 water: brush down the dry washes, mesquite thickets along the rivers (their own seed: nothing else moves) -----

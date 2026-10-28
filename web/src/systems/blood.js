@@ -202,9 +202,9 @@ export class Blood {
     if (c._splashT === g.time && !big && Math.random() < 0.7) return null; // a shotgun's pellets: not a splash each
     c._splashT = g.time;
     dx /= dl; dz /= dl;
-    const fy = c.storey ? c.gy ?? 0 : 0, up = fy > 0.5;
+    const fy = c.storey ? c.gy ?? 0 : 0, fyr = fy - (c.storey?.y0 ?? 0), up = fyr > 0.5; // fyr: the floor above its own ground (a building on raised land, WEB_SITES_TERRAIN)
     const ox = c.x + dx * 0.3, oz = c.z + dz * 0.3, reach = BLOOD.reach;
-    let t = S.raycast(ox, oz, dx, dz, reach, RAY_BULLET, up ? fy + 1.3 : -1);
+    let t = S.raycast(ox, oz, dx, dz, reach, RAY_BULLET, up ? fyr + 1.3 : -1);
     const box = S.hit.box;
     let nx = S.hit.nx, nz = S.hit.nz;
     // A car behind them takes it on its roof and doors (it rides along with the car).
