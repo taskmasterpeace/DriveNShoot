@@ -2,7 +2,8 @@
 // `water action=wave|current` extends the water command (agent/water-api.js answers action=depth, the default);
 // `sealife` lists, spawns and inspects what lives in the water. The checks stage the real path: a boat driven, a swimmer
 // wounded, a dive held, a raft on the river - and read what the systems did.
-import { SEALIFE, WATER_PLACES, validateSealife } from '../data/sealife.js';
+import { SEALIFE, WATER_PLACES, SWAMP, validateSealife } from '../data/sealife.js';
+import { FAUNA as REGION_FAUNA } from '../data/regions.js';
 import { SWELL, WAVES, validateWaves } from '../data/waves.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -247,6 +248,64 @@ export async function sealifeChecks(api, check, C) {
       g.decks.dismount(g.player, 'walked', true); g.vehiclesSys.remove(v);
       await home();
       return on && dz > 3 && Math.abs(pdz - dz) < 1.2 ? true : JSON.stringify({ on, dz: r2(dz), pdz: r2(pdz) });
+    });
+
+    // The nasty water: the canal beside I-95 a mile and a half south of Meridian's exit (florida-checks.js uses it too).
+    const I95 = g.streamer?.W?.corridors?.find((c) => c.id === 'I-95');
+    const canal = (() => { if (!I95?.canal) return null; const f = I95.at((9 - 2.5) * 1609.344), cn = I95.canal; return { x: f.x + f.nx * cn.side * cn.off, z: f.z + f.nz * cn.side * cn.off, f, cn }; })();
+    await C('god', { on: false });
+    await check('sealife: piranhas swarm only on blood or splashing (a still swimmer, an engine overhead: nothing; a wound in the water: the surface boils and they bite)', async () => {
+      if (!canal) return 'no I-95 canal';
+      await C('teleport', { x: canal.x, z: canal.z }); await C('step', { seconds: 2 }); heal(); clear();
+      const p = g.player, S = SEALIFE.piranha;
+      if (g.water.stateAt(p.x, p.z) !== 'swim') return `not swimming in the canal (${g.water.stateAt(p.x, p.z)}, depth ${r2(g.water.depthAt(p.x, p.z))})`;
+      const a = sl.spawn('piranha', p.x + canal.f.tx * 6, p.z + canal.f.tz * 6, { hx: p.x + canal.f.tx * 6, hz: p.z + canal.f.tz * 6, r: 4 });
+      await C('step', { seconds: 4 });
+      const idleStill = a.state;
+      sl.stimulus(a.x, a.z, 'engine', 2, null); sl.stimulus(a.x, a.z, 'shot', 2, null);
+      await C('step', { seconds: 2 });
+      const idleEngine = a.state, bites0 = sl.stats.bites;
+      g.combat.damage(p, 10, null, 0, 0, 'bullet');
+      let frenzy = false;
+      for (let i = 0; i < 8; i++) { await C('step', { seconds: 0.5 }); frenzy ||= a.state === 'frenzy'; }
+      const bit = sl.stats.bites - bites0, hurt = p.hp < p.maxHp - 10;
+      clear(); heal();
+      return idleStill === 'idle' && idleEngine === 'idle' && frenzy && bit > 0 && hurt ? true : JSON.stringify({ idleStill, idleEngine, frenzy, bit, hp: Math.round(p.hp), reach: S.reach });
+    });
+    await check('sealife: a gator strikes only what is within its edge-ambush range (a man on the bank out of its lunge: it may stalk, never strikes from there; inside it: it comes off the edge)', async () => {
+      if (!canal) return 'no I-95 canal';
+      const { f, cn } = canal, R = REGION_FAUNA.gator.lungeRange, out = [];
+      for (const [extra, want] of [[R + 5, false], [2.5, true]]) {
+        await C('teleport', { x: canal.x - cn.side * f.nx * 40, z: canal.z });
+        const sp = await C('region', { action: 'spawn', kind: 'gator', x: canal.x, z: canal.z });
+        const gator = g.chars.find((c) => c.id === sp.id);
+        const bx = canal.x - cn.side * f.nx * (cn.half + extra), bz = canal.z - f.nz * cn.side * (cn.half + extra);
+        const dummy = g.addChar({ x: bx, z: bz, faction: 'drifter', weapon: null, hp: 300, name: 'Bank fisher (selftest)', flag: 'US' });
+        dummy.hold = true;
+        const since = g.eventSeq;
+        await C('step', { seconds: 6 });
+        const lunges = g.events.filter((e) => e.seq > since && e.type === 'faunaLunge' && e.id === gator?.id);
+        const tooFar = lunges.filter((e) => Number.isFinite(e.dist) && e.dist > R + 0.6);
+        out.push({ extra, want, lunges: lunges.length, tooFar: tooFar.length, firstDist: lunges[0] ? lunges[0].dist : -1, dist: r1(Math.hypot(dummy.x - (gator?.x ?? 0), dummy.z - (gator?.z ?? 0))) });
+        g.removeChar(dummy); if (gator) g.removeChar(gator);
+      }
+      // Out of reach it may stalk closer (slowly, on land) but never strikes from there; inside it, it strikes.
+      return out.every((o) => o.tooFar === 0) && out[1].lunges > 0 && out[0].firstDist !== null ? true : JSON.stringify(out);
+    });
+    await C('god', { on: true });
+    await check('water: THE NASTY WATER - a canal wears scum and pads, its murk hides what is under it, filth gets into an open wound, it slows a wader, and fog lies on it at first light', async () => {
+      if (!canal) return 'no I-95 canal';
+      await C('teleport', { x: canal.x, z: canal.z }); await C('setTime', { hour: 5.9 }); await C('step', { seconds: 2 }); heal();
+      const N = g.needs, w = g.survival.wound('laceration'); // a real wound (systems/survival.js)
+      w.dirt = 0;
+      await C('step', { seconds: 4 });
+      const sw = g.swamp.summary(), murkFish = sl.shapeOf('fish', 0.8, sl.murkAt(canal.x, canal.z)).a, seaFish = sl.shapeOf('fish', 0.8, 1).a;
+      const slow = g.player.swampSlow;
+      const i = N.wounds.indexOf(w); if (i >= 0) N.wounds.splice(i, 1); g.player.bleed = 0;
+      await C('setTime', { hour: 10 });
+      const ok = sw.near && sw.pads > 0 && sw.fog > 0 && w.dirt > 0.05 && murkFish < 0.05 && seaFish > 0.3 && slow === SWAMP.wadeSlow;
+      await home();
+      return ok ? true : JSON.stringify({ sw, dirt: r2(w.dirt), murkFish: r2(murkFish), seaFish: r2(seaFish), slow });
     });
 
     await check('sealife: nothing spawns in view - the director puts every creature out past the camera\'s view, over water it can live in', async () => {

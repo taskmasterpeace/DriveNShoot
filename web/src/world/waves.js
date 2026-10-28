@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SWELL, WAVES, KIND_OF_WK, KIND_OF_L1 } from '../data/waves.js';
 import { WATER } from '../data/water.js';
+import { SWAMP } from '../data/sealife.js';
 import { regionAt, regionWater } from './regions.js';
 import { RIVER as ISLAND_RIVER, LAKE as ISLAND_LAKE } from './water.js';
 
@@ -44,7 +45,7 @@ uniform vec2 uWO;          // the phase origin (near the camera, snapped): posit
 uniform float uWP[${N}];   // each component's phase at uWO now, mod 2pi (worked out in double precision on the CPU)
 uniform vec4 uWS[${N}];   // share, steep, carried by the sheet (1/0), short (1/0)
 uniform float uKA[6], uKC[6], uKS[6], uKF[6];
-uniform vec3 uWFoam;
+uniform vec3 uWFoam, uScum, uAlgae, uOil;
 uniform vec3 uIsleLake;   // the island lake: x, z, r (its depth is analytic)
 uniform vec4 uCalm[4];    // still water round a key: x, z, r, ramp (systems/waterplace.js)
 float wwCalm(vec2 p) { float k = 1.0; for (int i = 0; i < 4; i++) { if (uCalm[i].z <= 0.0) continue; k *= smoothstep(uCalm[i].z, uCalm[i].z + uCalm[i].w, length(p - uCalm[i].xy)); } return k; }
@@ -87,6 +88,7 @@ export class Waves {
       uIsleLake: { value: new THREE.Vector3(ISLAND_LAKE.x, ISLAND_LAKE.z, ISLAND_LAKE.r) },
       uAbsO: { value: WAVES.absorb.ocean }, uAbsL: { value: WAVES.absorb.lagoon },
       uCalm: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 1)) },
+      uScum: { value: new THREE.Color(SWAMP.colour.scum) }, uAlgae: { value: new THREE.Color(SWAMP.colour.algae) }, uOil: { value: new THREE.Color(SWAMP.colour.oil) },
     };
     this.setSea(1);
     this.calm = []; // still-water discs { x, z, r, ramp } (a key in open water: systems/waterplace.js); the shader takes 4
@@ -289,6 +291,22 @@ varying vec2 vWXZ; varying float vWA, vWK, vWD;`)
       float sb = sin(vWD * uShoreBands * 6.2832 + uWT * 1.6 + wwN(vWXZ * 0.08) * 6.0);
       sf = smoothstep(0.55, 0.95, sb) * (1.0 - smoothstep(0.0, uShoreFoam, vWD)) * smoothstep(0.25, 0.7, lace + 0.2);
       sf = max(sf, 1.0 - smoothstep(0.03, 0.16, vWD));
+    }
+    // THE NASTY WATER: a slough (5) or a canal (4) wears a film - duckweed and scum in drifting rafts, algae clouds in
+    // the water under it, oily slicks on a canal. The film flattens the ripples and kills the shine where it lies.
+    if (wk >= 4) {
+      // Two noises on rotated lattices, averaged: a thresholded value noise on one lattice shows its squares.
+      vec2 dq = vWXZ * 0.16 + vec2(uWT * 0.006, uWT * 0.004), dr = mat2(0.8, -0.6, 0.6, 0.8) * vWXZ * 0.21 + 13.7;
+      float duck = smoothstep(0.47, 0.6, wwF(dq) * 0.5 + wwF(dr) * 0.5) * (wk == 5 ? 1.0 : 0.45);
+      float alg = smoothstep(0.42, 0.62, wwF(vWXZ * 0.05 + 7.3) * 0.5 + wwF(mat2(0.6, 0.8, -0.8, 0.6) * vWXZ * 0.06) * 0.5) * (1.0 - duck);
+      float oil = wk == 4 ? smoothstep(0.66, 0.72, wwF(vWXZ * 0.03 + 21.7)) : 0.0;
+      diffuseColor.rgb = mix(diffuseColor.rgb, uAlgae, alg * 0.6);
+      diffuseColor.rgb = mix(diffuseColor.rgb, uScum * (0.85 + 0.3 * wwF(dr * 4.0)), duck * 0.92);
+      diffuseColor.rgb = mix(diffuseColor.rgb, uOil, oil * 0.85);
+      normal = normalize(mix(normal, vUp, max(duck, oil * 0.6)));
+      roughnessFactor = mix(roughnessFactor, 0.95, duck);
+      roughnessFactor = mix(roughnessFactor, 0.12, oil);
+      cap = 0.0;
     }
     float foam = clamp(max(cap, sf), 0.0, 1.0);
     if (wk == 0) roughnessFactor = max(roughnessFactor, 0.58); // the open sea: a broad sheen, not a mirror's glare

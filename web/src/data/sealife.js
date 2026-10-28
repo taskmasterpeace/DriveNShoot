@@ -46,6 +46,16 @@ export const SEALIFE = {
     count: 14, len: 0.35, cruise: 1.2, swim: 6.0, depth: [0.6, 1.8], spread: 3.2, scatter: 7, // a school scatters from anything moving within `scatter` m
     colour: { body: '#33433f' },
   },
+  // Piranhas: warm still water only (Florida's sloughs and canals). A swarm idles as a few dark flecks; blood in the
+  // water or a swimmer thrashing near it and it boils the surface, stripping whoever is in the water. Hulls mean nothing
+  // to it (it hears no engine, it bites no boat). It has no eyes worth the name in that murk (see 0).
+  piranha: {
+    form: 'swarm', name: 'PIRANHA', waters: ['swamp', 'canal'], minDepth: 0.8, perKm2: 2.5, max: 2,
+    count: 24, len: 0.32, cruise: 0.7, swim: 6.5, depth: [0.8, 0.12], spread: 2.4,
+    smell: 30, hear: 11, see: 0, ignore: ['engine', 'shot'], // what it never answers
+    bite: 5, biteCd: 0.3, reach: 1.8, frenzy: 9, // damage per nip to each person in reach; s between nips; m from the swarm's heart; s a frenzy lasts after the last sense
+    colour: { body: '#3e3326' },
+  },
   gulls: {
     form: 'gulls', name: 'GULLS', waters: ['ocean', 'lagoon'], perKm2: 0, max: 3,
     count: 6, alt: [5, 9], radius: 7, over: 'school', bodyK: 0.8, // they wheel over a school near the surface (or a body in the water)
@@ -65,6 +75,19 @@ export const SEA_RULES = {
   kickEvery: 0.6,           // s between the splashes a moving swimmer makes (0.3-1.5)
   engineHear: 1.4,          // x a species' hear range for a boat's engine under way (1-3)
   shotHear: 0.8,            // x a species' hear range for a gunshot over the water (0.3-1.5)
+};
+
+// ---- THE NASTY WATER (systems/swamp.js; world/waves.js shades it): Robert, 2026-10-28: "alligators, swamps, piranhas,
+// seaweed. Like the nasty looking water." Swamp-class water = a region's slough or canal (world/waves.js kinds).
+export const SWAMP = {
+  murk: 0.14,               // x a silhouette's 63% depth in swamp water: you see nothing until it is at the top (0.1-0.5)
+  cell: 6, radius: 70,      // m: the dressing is rolled per cell, this far round you
+  pads: 220, padChance: 0.22, knees: 90, kneeChance: 0.12, weed: 160, weedChance: 0.3, // instance caps and how often a cell has them
+  fog: 28, fogOpacity: 0.45, // fog quads lying on the water; their opacity at full night / first light (0-0.6)
+  bubbleEvery: 0.9,         // s between rot bubbles coming up somewhere round you
+  dirtPerSec: 0.025,        // an open wound's dirt per second in it (x1.6 swimming); survival.js infects at dirt 1 (0.005-0.1)
+  wadeSlow: 0.78,           // x walking/wading speed in it: the muck and the weed hold your legs (0.5-1)
+  colour: { scum: '#3d4720', algae: '#2b3618', oil: '#15130f', knee: '#4d3f2e', weed: '#1c2414', fog: '#b9bfae', pads: ['#4f6b2c', '#5a7431', '#466024'] },
 };
 
 // ---- places (WEB_DEPTH_PLAN Wave 2 WATER-PLACE) -----------------------------------------------------------------------
@@ -89,7 +112,7 @@ export const FERRIES = [
 
 // ---- the validator (selftest + World Forge) --------------------------------------------------------------------------
 const KINDS = ['ocean', 'lagoon', 'lake', 'river', 'canal', 'swamp'];
-const FORMS = ['shark', 'leviathan', 'school', 'gulls'];
+const FORMS = ['shark', 'leviathan', 'school', 'gulls', 'swarm'];
 export function validateSealife(rows = { SEALIFE, WATER_PLACES, FERRIES, SEA_RULES }) {
   const bad = [], num = (v) => typeof v === 'number' && Number.isFinite(v);
   const hexOk = (h) => {
@@ -122,6 +145,7 @@ export function validateSealife(rows = { SEALIFE, WATER_PLACES, FERRIES, SEA_RUL
         if (!(s.minDepth >= 4)) bad.push(`${at}: minDepth must be >= 4 m (shallow water is the way out)`);
       }
     }
+    if (s.form === 'swarm' && !(num(s.smell) && s.smell > 0 && num(s.hear) && s.hear > 0 && num(s.bite) && num(s.reach) && num(s.frenzy))) bad.push(`${at}: a swarm needs smell, hear, bite, reach and frenzy`);
     for (const [k, h] of Object.entries(s.colour ?? {})) if (!hexOk(h)) bad.push(`${at}: colour ${k} ${h} is not a hex or is purple`);
   }
   const ids = new Set();

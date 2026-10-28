@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SEALIFE, SEA_RULES as SR } from '../data/sealife.js';
+import { SEALIFE, SEA_RULES as SR, SWAMP } from '../data/sealife.js';
 import { rayCircle } from '../engine/collision.js';
 
 // SEA LIFE (docs/design/WEB_WATER_LIFE.md; rows in data/sealife.js). What lives in the water and what you see of it from
@@ -72,7 +72,7 @@ export class Sealife {
     const S = a.S;
     let best = null, bw = 0;
     for (const s of this.stim) {
-      if (!s.kind || this.t - s.t > s.life) continue;
+      if (!s.kind || this.t - s.t > s.life || S.ignore?.includes(s.kind)) continue;
       const range = (s.kind === 'blood' ? S.smell ?? 0 : (S.hear ?? 0) * (s.kind === 'engine' ? SR.engineHear : 1)) * Math.sqrt(s.str);
       const d = Math.hypot(s.x - a.x, s.z - a.z);
       if (d > range) continue;
@@ -132,6 +132,7 @@ export class Sealife {
       tx: x, tz: z, target: null, mem: { x, z, kind: null, t: -1e9 }, laps: 0, ang: 0, rad: 0, biteCd: 0, dead: false, deadT: 0, born: this.t, wanderT: 0,
       rise: 0, arms: 0, grab: null, armDmg: 0, hurtFire: 0, awayT: 0, sinceSense: 0, alphaLog: 0 };
     if (S.form === 'school') { a.m = Array.from({ length: S.count }, (_, i) => ({ ox: (Math.random() - 0.5) * S.spread * 2, oz: (Math.random() - 0.5) * S.spread * 2, ph: i * 0.7, vx: 0, vz: 0, y: S.depth[0] + Math.random() * (S.depth[1] - S.depth[0]) })); a.y = S.depth[0]; }
+    if (S.form === 'swarm') { a.m = Array.from({ length: S.count }, (_, i) => ({ ph: i * 0.9 + Math.random(), r: Math.random(), vx: 0, vz: 0, y: S.depth[0] })); a.y = S.depth[0]; a.state = 'idle'; }
     if (S.form === 'gulls') { a.b = Array.from({ length: S.count }, (_, i) => ({ ph: (i / S.count) * TAU, r: S.radius * (0.6 + Math.random() * 0.6), alt: S.alt[0] + Math.random() * (S.alt[1] - S.alt[0]), sp: 0.5 + Math.random() * 0.4 })); a.over = o.over ?? null; a.y = 0; }
     if (S.form === 'leviathan') { a.state = 'patrol'; a.y = S.depth[0]; a.armA = Array.from({ length: S.arms }, (_, i) => ({ ang: (i / S.arms) * TAU + 0.2, up: 0, hp: S.armHp, ph: i * 1.3 })); }
     this.live.push(a);
@@ -200,6 +201,7 @@ export class Sealife {
       else if (a.form === 'leviathan') this.brainDeep(a, dt);
       else if (a.form === 'school') this.brainSchool(a, dt);
       else if (a.form === 'gulls') this.brainGulls(a, dt);
+      else if (a.form === 'swarm') this.brainSwarm(a, dt);
     }
     this.r?.sync(this, dt);
   }
@@ -464,6 +466,37 @@ export class Sealife {
     for (const b of a.b) b.ph += dt * b.sp * (a.leave ? 0.2 : 1);
   }
 
+  // A piranha swarm: idle (a few slow flecks deep in the murk) until blood or a thrashing swimmer is in its range ->
+  // frenzy: it races to the sense, rises, boils the surface, and nips everyone in the water within reach (each nip
+  // more blood: it feeds itself while you stay in). It never hears an engine and never bites a hull.
+  brainSwarm(a, dt) {
+    const S = a.S, g = this.g;
+    a.t += dt; a.biteCd -= dt;
+    const s = this.sense(a);
+    if (s) { a.mem.x = s.x; a.mem.z = s.z; a.mem.kind = s.kind; a.mem.t = this.t; if (a.state !== 'frenzy') { a.state = 'frenzy'; a.t = 0; this.stats.senses[s.kind] = (this.stats.senses[s.kind] ?? 0) + 1; g.emit?.('swarmFrenzy', { id: a.id, why: s.kind, dist: +s.d.toFixed(1) }); } }
+    if (a.state === 'frenzy') {
+      if (this.t - a.mem.t > S.frenzy) { a.state = 'idle'; a.t = 0; g.emit?.('swarmCalm', { id: a.id }); return; }
+      a.y += (S.depth[1] - a.y) * Math.min(1, dt * 3);
+      this.steer(a, a.mem.x, a.mem.z, S.swim, dt, 6);
+      // The surface boils over it.
+      a.boilT = (a.boilT ?? 0) - dt;
+      if (a.boilT <= 0 && g.waves) { a.boilT = 0.12; const y0 = this.surface(a.x, a.z); g.waves.puff(a.x + (Math.random() - 0.5) * S.spread * 2, a.z + (Math.random() - 0.5) * S.spread * 2, y0, 0, 0, 0.25, 0.6, 1.0, 0.8); g.fx?.spawn?.(2, a.x + (Math.random() - 0.5) * S.spread, y0 + 0.1, a.z + (Math.random() - 0.5) * S.spread, (Math.random() - 0.5) * 1.5, 1.6, (Math.random() - 0.5) * 1.5, 0.4, 0.2, '#d9dccb', 14); }
+      if (a.biteCd <= 0) for (const c of this.inWater) {
+        if (c.inVehicle || c.onDeck || Math.hypot(c.x - a.x, c.z - a.z) > S.reach) continue;
+        a.biteCd = S.biteCd;
+        g.combat.damage(c, S.bite, null, 0, 0, 'bite');
+        this.stimulus(c.x, c.z, 'blood', 0.8, c);
+        this.stats.bites++;
+        g.emit?.('swarmBite', { id: a.id, target: c.id, hp: Math.round(c.hp) });
+        if (c === g.player && !a.warned) { a.warned = true; g.hud?.toast?.('PIRANHAS - OUT OF THE WATER', 'hot'); }
+      }
+    } else {
+      a.y += (S.depth[0] - a.y) * Math.min(1, dt);
+      this.wander(a, dt, S.cruise);
+    }
+    for (const m of a.m) m.ph += dt * (a.state === 'frenzy' ? 9 : 1.2);
+  }
+
   // ---- rounds into the water -------------------------------------------------------------------------------------------
   // systems/combat.js: a shark near the surface (its fin, its back) takes a round; deeper the water stops it. An arm of
   // the deep one up through the surface takes one too (and lets go). Returns HIT or null.
@@ -510,10 +543,12 @@ export class Sealife {
 
   // ---- what the creature looks like from above (for the renderer and the agent) ------------------------------------
   // Silhouette alpha and blur for a shape at depth y (VIS rows): what you can see of it through the water.
-  shapeOf(kind, y) { const V = VIS[kind]; return { a: V[0] * Math.exp(-Math.max(0, y) / V[1]), blur: Math.max(0, y) * V[2] }; }
+  shapeOf(kind, y, murk = 1) { const V = VIS[kind]; return { a: V[0] * Math.exp(-Math.max(0, y) / (V[1] * murk)), blur: Math.max(0, y) * V[2] / murk }; }
+  // How clear the water is here: the nasty water (a slough, a canal) hides anything not right at the top.
+  murkAt(x, z) { const k = this.g.waves?.kindAt(x, z).kind; return k === 'swamp' || k === 'canal' ? SWAMP.murk : 1; }
   view(a) {
-    const kind = a.form === 'leviathan' ? 'leviathan' : a.form === 'school' ? 'fish' : 'shark';
-    const sh = this.shapeOf(kind, a.y);
+    const kind = a.form === 'leviathan' ? 'leviathan' : a.form === 'school' || a.form === 'swarm' ? 'fish' : 'shark';
+    const sh = this.shapeOf(kind, a.y, this.murkAt(a.x, a.z));
     return { id: a.id, species: a.sp, form: a.form, state: a.state, x: +a.x.toFixed(1), z: +a.z.toFixed(1), depth: +a.y.toFixed(2), speed: +a.v.toFixed(1), hp: Number.isFinite(a.hp) ? Math.round(a.hp) : null,
       finUp: a.form === 'shark' && !a.dead && a.y < 0.55, shape: { alpha: +sh.a.toFixed(3), blur: +sh.blur.toFixed(2) }, dead: !!a.dead,
       target: a.target?.id ?? null, sensed: a.mem.kind, sensedAgo: a.mem.t > -1e8 ? +(this.t - a.mem.t).toFixed(1) : null, arms: a.arms ? +a.arms.toFixed(2) : undefined, grab: a.grab ? a.grab.who.id : undefined };
@@ -627,7 +662,7 @@ class SeaRenderer {
   // One silhouette: kind, at (x, z) facing h, len metres, depth y.
   silhouette(sys, kind, x, z, h, len, y, aMul = 1) {
     const i = this.ns; if (i >= MAXSIL) return 0;
-    const V = sys.shapeOf(kind, y), a = V.a * aMul;
+    const V = sys.shapeOf(kind, y, sys.murkAt(x, z)), a = V.a * aMul;
     if (a < 0.02) return 0;
     const g = sys.g, s0 = g.water?.surfaceAt?.(x, z, 0) ?? 0;
     const W = sys.g.waves, wy = W ? W.sheetAt(x, z) : 0;
@@ -659,6 +694,9 @@ class SeaRenderer {
           }
         } else if (a.form === 'school') {
           for (const m of a.m) if (this.ns < MAXSIL) this.silhouette(sys, 'fish', a.x + m.vx, a.z + m.vz, a.h + Math.sin(m.ph) * 0.3, a.S.len, m.y, 1);
+        } else if (a.form === 'swarm') {
+          const sp = a.S.spread * (a.state === 'frenzy' ? 0.8 : 1.4);
+          for (let k = 0; k < a.m.length && this.ns < MAXSIL; k++) { const m = a.m[k], an = m.ph * (0.6 + m.r) + k; this.silhouette(sys, 'fish', a.x + Math.sin(an) * sp * (0.3 + m.r), a.z + Math.cos(an * 1.1) * sp * (0.3 + m.r), an + Math.PI / 2, a.S.len, a.y + m.r * 0.2, 1); }
         } else if (a.form === 'leviathan') {
           a.alphaLog = this.silhouette(sys, 'leviathan', a.x, a.z, a.h, a.S.len, a.y, 1);
           if (a.arms > 0.02) na = this.arms(sys, a, na);
