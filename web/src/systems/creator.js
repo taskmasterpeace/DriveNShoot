@@ -153,6 +153,7 @@ export class Creator {
     p.name = P.name; p.flag = FLAGS[P.flag] ? P.flag : 'US';
     p.colors = lookColors(P);
     const b = buildOf(P); p.build = b.w === 1 && b.h === 1 ? null : b;
+    p.hand = P.look?.hand === 'L' ? 'L' : 'R'; // the gun hand (data/creator.js HANDS)
     if (g.gear) { g.gear.look0 = null; g.gear.dress(); }
     g.charR?.paint(p);
     p.maxHp = 100 + fx.hp;
@@ -177,7 +178,7 @@ export class Creator {
     const g = this.g, p = g.player, B = this.base;
     this.sheet = null; g.sheet = null;
     if (B) { p.name = B.name; p.flag = B.flag; p.colors = { ...B.colors }; p.maxHp = B.maxHp; if (p.hp > p.maxHp) p.hp = p.maxHp; }
-    p.build = null;
+    p.build = null; p.hand = 'R';
     if (g.gear) { g.gear.look0 = null; g.gear.dress(); }
     g.charR?.paint(p);
     g.hud?.paintFlag?.(p.flag);

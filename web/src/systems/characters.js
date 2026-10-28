@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CARRY } from '../data/arms.js';
 
 // People: one articulated low-poly body for everyone, drawn by InstancedMeshes shared by all 160
 // characters (left+right limbs pack into one mesh; hat, gear, accessory and gun variants pack only
@@ -36,6 +37,18 @@ export function gunModel(w) {
 }
 export function muzzleForward(w) { const m = GUN_MODELS[gunModel(w) ?? 'revolver']; return m.grip + m.muzzle; }
 export const MUZZLE_FORWARD = muzzleForward({ ammo: 'pistol' });
+// Handedness (data/arms.js CARRY): 'R' or 'L', stable from a name (or the slot): about CARRY.leftShare are lefties.
+export function handOf(seed) {
+  const s = String(seed ?? '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 1000) / 1000 < CARRY.leftShare ? 'L' : 'R';
+}
+// How far off the chest centre the aimed gun sits (m, toward the dominant side), for this gun and grip.
+export function carryLateral(ch, w) {
+  const m = GUN_MODELS[gunModel(w) ?? 'revolver'];
+  return m.carry === 'low' ? CARRY.longGun.lateral : ch.oneHand ? CARRY.pistolOneHand.lateral : CARRY.pistolTwoHand.lateral;
+}
 
 // Gait: step length grows with speed, so cadence stays human (2 steps/s shuffling, 4 sprinting).
 // The walk phase advances π per step; movers call stridePhase instead of a fixed rate.
@@ -58,6 +71,7 @@ export class Character {
     this.maxHp = this.hp;
     this.faction = opts.faction ?? 'drifter';
     this.name = opts.name ?? null;
+    this.hand = opts.hand ?? (opts.faction === 'player' ? 'R' : handOf(opts.name ?? slot)); // the gun hand (data/arms.js CARRY)
     this.npc = opts.npc ?? null;           // dialogue definition for named NPCs
     this.weapon = opts.weapon ?? null;      // weapon key or null
     this.colors = opts.colors;
@@ -317,6 +331,7 @@ export class CharacterRenderer {
     for (const k of GUN_KEYS) { const m = make(G[k], gunMat, MAX_CHARS, false); this.meshes[`gun_${k}`] = m; this.variant.push(`gun_${k}`); }
     // Small parts don't need shadows from a top-down camera: skip them in the shadow pass.
     for (const k of ['face', 'hand', 'boot', 'fore', 'hips', 'hat_short', 'hat_mohawk', 'hat_cap', 'hat_bandana', 'gear_pads', 'gear_vest', 'gear_bandolier', 'acc_goggles', 'acc_mask', 'acc_eyepatch', ...SCARS.map((s) => `scar_${s}`), ...GUN_KEYS.map((k) => `gun_${k}`)]) this.meshes[k].castShadow = false;
+    for (const k in this.meshes) for (const m of [this.meshes[k].material].flat()) m.userData.noCut = true; // people are never cut away (systems/cutaway.js)
     this.packed = {};
   }
 
@@ -344,9 +359,10 @@ export class CharacterRenderer {
   }
 
   // A packed variant instance at frame F * T(x, y, z) * Rx(rx).
-  put(key, F, x, y, z, rx, color) {
+  put(key, F, x, y, z, rx, color, ry) {
     const mesh = this.meshes[key], k = this.packed[key]++;
     _t.makeTranslation(x, y, z);
+    if (ry) _t.multiply(_r.makeRotationY(ry));
     if (rx) _t.multiply(_r.makeRotationX(rx));
     mesh.setMatrixAt(k, _m.multiplyMatrices(F, _t));
     if (color && mesh.instanceColor) mesh.setColorAt(k, _c.set(color));
@@ -548,15 +564,25 @@ export class CharacterRenderer {
     else if (gm && gm.carry === 'low') mode = 'low';
     ch._pose = mode; // what the arms are doing (the selftest reads it)
     let gunKey = null, gunHand = false;
+    // The dominant hand: fh holds the gun (1 = the right, -x), sup supports; hs mirrors a lefty's carry across the body.
+    const lefty = ch.hand === 'L', fh = lefty ? 0 : 1, sup = 1 - fh, hs = lefty ? -1 : 1;
+    let aimX = 0, aimY = AIM_Y, aimYaw = 0;
     for (let s = 0; s < 2; s++) sh[s].set(SIDE[s] * SHOULDER_X, SHOULDER_UP, 0);
     const ikArm = (s, x, y, z) => { tgt[s].set(x, y, z); };
     let useIK = true;
     switch (mode) {
       case 'aim': {
-        ikArm(1, -0.03, AIM_Y - 0.01, gm.grip);
+        // The gun at the side (data/arms.js CARRY): off the centre line on the dominant side, toed in to the aim point.
+        const long = gm.carry === 'low', one = ch.oneHand && !long;
+        const lat = long ? CARRY.longGun.lateral : one ? CARRY.pistolOneHand.lateral : CARRY.pistolTwoHand.lateral;
+        aimX = -hs * lat;
+        if (one) aimY = Math.min(AIM_Y, CARRY.pistolOneHand.height - hipY - WAIST_UP);
+        aimYaw = hs * Math.min(CARRY.toeInMax * Math.PI / 180, Math.atan2(lat, ch.aimD ?? CARRY.toeInDefault));
+        ikArm(fh, aimX, aimY - 0.01, gm.grip);
         // One hand (systems/arms.js): the support hand drops to the side; two hands: it cups the grip or the fore-end.
-        if (ch.oneHand) ikArm(0, SIDE[0] * 0.36, 0.06, 0.08);
-        else ikArm(0, gm.support === gm.grip ? 0.03 : 0.02, AIM_Y, gm.support);
+        if (ch.oneHand) ikArm(sup, SIDE[sup] * 0.36, 0.06, 0.08);
+        else ikArm(sup, aimX + hs * (gm.support === gm.grip ? 0.06 : 0.05), aimY, gm.support);
+        ch._gunX = aimX; // the selftest reads it (the gun at the side)
         gunKey = model;
         break;
       }
@@ -579,9 +605,9 @@ export class CharacterRenderer {
       }
       case 'low': {
         // Low ready: the gun across the body, muzzle down and to the left, finger off the trigger.
-        _X.set(0.3, -0.4, 0.87).normalize();
-        ikArm(1, -0.12, 0.14, 0.22);
-        ikArm(0, -0.12 + _X.x * (gm.support - gm.grip + 0.06), 0.14 + _X.y * (gm.support - gm.grip + 0.06), 0.22 + _X.z * (gm.support - gm.grip + 0.06));
+        _X.set(0.3 * hs, -0.4, 0.87).normalize();
+        ikArm(fh, -0.12 * hs, 0.14, 0.22);
+        ikArm(sup, -0.12 * hs + _X.x * (gm.support - gm.grip + 0.06), 0.14 + _X.y * (gm.support - gm.grip + 0.06), 0.22 + _X.z * (gm.support - gm.grip + 0.06));
         gunKey = model;
         break;
       }
@@ -641,7 +667,7 @@ export class CharacterRenderer {
       this.seg(M.upper, j, _g, sh[s], el[s]);
       const fm = this.seg(M.fore, j, _g, el[s], hand[s]);
       M.hand.setMatrixAt(j, fm);
-      if (gunHand && s === 1) {
+      if (gunHand && s === fh) {
         // The revolver in the right fist: grip at the hand, barrel along the forearm, tipped forward.
         _t.makeTranslation(0, -FORE, 0).multiply(_r.makeRotationX(1.25));
         const key = `gun_${gunKey}`;
@@ -649,12 +675,12 @@ export class CharacterRenderer {
       }
     }
     if (gunKey && !gunHand) {
-      if (mode === 'aim') this.put(`gun_${gunKey}`, _g, 0, AIM_Y, gm.grip, -lean, null); // level, even from a crouch
+      if (mode === 'aim') this.put(`gun_${gunKey}`, _g, aimX, aimY, gm.grip, -lean, null, aimYaw); // level, even from a crouch; at the side
       else if (mode === 'melee') this.put(`gun_${gunKey}`, _g, 0, AIM_Y + 0.04, 0.2 + 0.36 * (ch._buttExt ?? 0), -lean, null); // the butt-stroke
       else {
         // Low ready: orient the gun along its carry line through the right hand.
-        _Z.set(0.3, -0.4, 0.87).normalize(); _X.crossVectors(_v.set(0, 1, 0), _Z).normalize(); _Y.crossVectors(_Z, _X);
-        _t.makeBasis(_X, _Y, _Z).setPosition(-0.12, 0.14, 0.22);
+        _Z.set(0.3 * hs, -0.4, 0.87).normalize(); _X.crossVectors(_v.set(0, 1, 0), _Z).normalize(); _Y.crossVectors(_Z, _X);
+        _t.makeBasis(_X, _Y, _Z).setPosition(-0.12 * hs, 0.14, 0.22);
         const key = `gun_${gunKey}`, k2 = this.packed[key]++;
         M[key].setMatrixAt(k2, _m.multiplyMatrices(_g, _t));
       }
