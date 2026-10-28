@@ -102,6 +102,8 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
 - **The shelf runs dry:** "the next wagon brings more". A delivery that restocks it is future work (law 2: only a visible delivery restocks).
 - **A town stamped after the plan** (ad hoc or forge) becomes a node when its bar first opens.
 - **A full pack:** no bottle, no sale, no item is lost.
+- **A hired gun's days run out:** after `hireDays` they say so, are dismissed (`seats.dismiss`) and go back to their bar. The pay stays theirs.
+- **A dead pull person far away:** the rites keep the body. Coming back, you find the rites' body, not a second copy.
 - **A hired gun:** `seats.recruit` gives followers `mag 99`. The hire puts the gun's own magazine back. The engine's AI reload still refills from nothing; that is the AI's law, not this lane's.
 
 ## 6. Dependencies
@@ -113,6 +115,7 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
 | `radio.canHear()` | who hears a broadcast |
 | `inventory` (`add`, `spend`, `place`, `trunk`) | drinks, help, trades, bodies |
 | `combat.kill`, `ai.move`, `society.deeds.direct` | deaths, walking, deeds |
+| `rites` (WEB_DEATH_RITES) | a pull's dead go on the rites' clock (`rites.onDeath`, dated to when they died off screen); once rites holds the body, pulls never makes that character again, and a folded body can still be seen and found |
 
 Shared-file hooks (exact):
 | File | Hook |

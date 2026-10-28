@@ -164,6 +164,8 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 | `src/systems/grapevine.js` | `eat` hands the body to `rites.eaten` (bones, box kept) instead of deleting the box |
 | `src/systems/characters.js` | `paint` lerps the dead toward `_rot` by `ch.rot` |
 
+**PULLS (WEB_PULLS.md) uses rites:** a pull's dead (a caller who bled out, a wreck's driver, a robber you shot) go on the rites' clock through `rites.onDeath` (dated to when they died off screen); pulls never makes that character again once `rites.bodies` holds it, and reads a folded body's spot from the record so it can still be found.
+
 **Others read rites:** the observer events (`bodyStage`, `bodyDegraded`, `buried`, `bodyBurned`, `funeralScheduled/Started/Done`, `mournerArrived`, `graveSickness`, `delivered`), and the chronicle verbs `buried`, `burned`, `funeral`.
 
 **Multiplayer (shard shape):**
