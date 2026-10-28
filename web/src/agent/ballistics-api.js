@@ -51,7 +51,7 @@ async function testShot(api, round, dist, dt = 1 / 60, L0 = null) {
   if (!shot) { g.removeChar(d); throw new Error('no round left the muzzle'); }
   const id = shot.id;
   for (let k = 0; k < 2000 && shot.live && shot.id === id; k++) await api._step(1, dt);
-  const L2 = B.last, mine = L2?.id === id;
+  const mine = shot.id === id && !shot.live, L2 = { kind: shot.hitKind, t: shot.hitT >= 0 ? shot.hitT : shot.t, x: shot.x, drop: 1.45 - shot.y }; // its own slot, not B.last (another round may land in the same frame)
   const out = { round, dist, dt: r3(dt), hit: mine ? L2.kind : null, hurt: d.hp < hp0, flightTime: mine ? r3(L2.t) : null, closedForm: r3(B.flightTime(round, dist - 0.6 - d.radius - 0.1)), at: mine ? { x: r3(L2.x - p.x), drop: r3(L2.drop) } : null, stepped: r3(B.clock - t0) };
   g.removeChar(d);
   return out;
@@ -132,7 +132,7 @@ export async function ballisticsChecks(ctx) {
         for (const dt of [1 / 20, 1 / 144]) for (const key of ['rifle', 'pistol']) for (let k = 0; k < 3; k++) {
           const p = B.launch(g.player, x - 18, z + (k - 1) * 0.3, 1, 0, 60, 40, key, key), id = p.id;
           for (let n = 0; n < 400 && p.live && p.id === id; n++) await api._step(1, dt);
-          rows.push({ dt: Math.round(1 / dt), key, kind: B.last?.id === id ? B.last.kind : 'lost', x: r3((B.last?.x ?? 0) - x) });
+          rows.push({ dt: Math.round(1 / dt), key, kind: p.id === id && !p.live ? p.hitKind : 'lost', x: r3(p.x - x) }); // the round's own slot (B.last is whoever landed last)
         }
       } finally { M.unbuild(wall); }
       const ok = man.hp === hp0 && rows.every((r) => r.kind === 'wall' && r.x < 0.3 && r.x > -0.3);
