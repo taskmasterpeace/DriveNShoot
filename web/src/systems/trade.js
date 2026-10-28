@@ -49,6 +49,8 @@ export class Trade {
   keep(c, boxes) {
     const row = TRADERS[c.npc?.id], day = this.g.society?.day ?? 0;
     if (!row?.keeps || c.keptDay === day || !boxes.length) return;
+    // The loot law (data/rites.js LOOT_LAW): the opening stock once; after that only what a delivery brought.
+    if (c.keptDay !== undefined && TRADE.law !== 'mint') { c.keptDay = day; this.delivered(c.npc.id, boxes); return; }
     c.keptDay = day;
     for (const [id, n] of row.keeps) {
       let have = 0;
@@ -165,6 +167,16 @@ export class Trade {
     g.emit('trade', { trader: D.id, side, item: id, n, cash, tier: D.tier });
   }
 
+  // Goods that came in by a visible source (a courier, a caravan, a producing building: g.rites.deliver) go on the
+  // trader's shelves, the first of their boxes with room.
+  delivered(trader, boxes) {
+    const R = this.g.rites;
+    for (let d = R?.takeDelivery(trader); d; d = R.takeDelivery(trader)) {
+      for (const s of d.items) for (const b of boxes) { const n = this.g.inventory.add(b, s.id, s.n, s); if (n >= s.n) break; s.n -= n; }
+      this.g.emit('restocked', { trader, from: d.source.kind, items: d.items.length });
+    }
+  }
+
   // Shelves fill again overnight: on the first look on a new day, a box holding fewer than TRADE.restock things gets
   // another roll of its table (seeded by the day, so a save sees the same goods).
   restock(box) {
@@ -173,6 +185,7 @@ export class Trade {
     const seen = box.stockDay !== undefined;
     box.stockDay = day;
     if (!seen || box.slots.length >= TRADE.restock) return;
+    if (TRADE.law !== 'mint') return; // no regeneration: goods come in by delivery (keep -> delivered), never from the table again
     const seed = box.seed;
     box.seed = (seed ^ Math.imul(day + 1, 0x9e3779b1)) >>> 0;
     this.g.inventory.roll(box);

@@ -3,6 +3,7 @@ import { stridePhase } from './characters.js';
 import { angleLerp } from '../engine/rng.js';
 import { MAX_FACTIONS } from './factions.js';
 import { TOWN_NIGHT } from '../data/survival.js';
+import { LEAD } from '../data/ballistics.js';
 
 const NO_BEDS = [];
 // Floor spots tried around home, nearest first: a body lies along z (2 m), so rows sit 1.2 m apart across and 2.2 along.
@@ -217,6 +218,52 @@ export class AI {
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
   }
 
+  // ---- leading a moving target (docs/design/WEB_BALLISTICS.md §3.4) ------------------------------------------------
+  // watch: every frame c SEES t (the same sight it shoots by). It keeps a velocity smoothed out of the positions it saw;
+  // a new target, or half a second out of sight, starts the estimate over. The error it will lead with is rolled here
+  // every 0.4 s (LEAD.err, a person's own leadErr, worse when suppressed), so the aim does not twitch frame to frame.
+  watch(c, t, dt) {
+    if (!(dt > 0) || !t) return;
+    const W = (c._lead ??= { who: null, x: 0, z: 0, vx: 0, vz: 0, at: -1e9, age: 0, err: 1, errT: 0 });
+    const tx = t.inVehicle ? t.inVehicle.x : t.x, tz = t.inVehicle ? t.inVehicle.z : t.z, now = this.g.time;
+    if (W.who !== t || now - W.at > LEAD.forget) { W.who = t; W.x = tx; W.z = tz; W.vx = 0; W.vz = 0; W.at = now; W.age = 0; return; }
+    const a = Math.min(1, dt / LEAD.smooth);
+    W.vx += ((tx - W.x) / dt - W.vx) * a; W.vz += ((tz - W.z) / dt - W.vz) * a;
+    W.x = tx; W.z = tz; W.at = now; W.age += dt;
+    if ((W.errT -= dt) <= 0) { W.errT = 0.4; W.err = 1 + (Math.random() - 0.5) * 2 * (c.leadErr ?? LEAD.err) * (c.tac ? this.g.tactics.aimMul(c) : 1); }
+  }
+
+  // The heading to shoot along at t (seen at tx, tz) with a round of row `round`: where the velocity it watched puts them
+  // when the round arrives (their velocity less the shooter's own car's, which the round inherits), off by its error.
+  leadAngle(c, t, tx, tz, round) {
+    const W = c._lead, B = this.g.ballistics;
+    let ax = tx, az = tz;
+    if (W && W.who === t && W.age > 0.15 && B?.on && round) {
+      const pv = B.platformV(c), rvx = W.vx - (pv ? pv.vx : 0), rvz = W.vz - (pv ? pv.vz : 0);
+      if (Math.hypot(rvx, rvz) >= LEAD.minSpeed) {
+        let d = Math.hypot(tx - c.x, tz - c.z), lx = 0, lz = 0;
+        for (let k = 0; k < 2; k++) {
+          const tf = B.flightTime(round, d) ?? 0;
+          lx = rvx * tf * W.err; lz = rvz * tf * W.err;
+          const L = Math.hypot(lx, lz); if (L > LEAD.maxLead) { lx *= LEAD.maxLead / L; lz *= LEAD.maxLead / L; }
+          d = Math.hypot(tx + lx - c.x, tz + lz - c.z);
+        }
+        ax = tx + lx; az = tz + lz;
+      }
+    }
+    return Math.atan2(ax - c.x, az - c.z);
+  }
+
+  // Where c believes t is now, from what it last SAW (law 6, WEB_DEPTH_PLAN.md): the last sighting carried on along the
+  // motion it saw, for at most LEAD.coast s (a man who ducked behind a wall is shot at where he was heading, not where he
+  // is). With no sighting of t, (fx, fz): the caller's own last-known point. One object, reused.
+  seenAt(c, t, fx, fz) {
+    const W = c._lead, S = this._seen ??= { x: 0, z: 0, fresh: false };
+    if (W && W.who === t) { const k = Math.min(LEAD.coast, Math.max(0, this.g.time - W.at)); S.x = W.x + W.vx * k; S.z = W.z + W.vz * k; S.fresh = this.g.time - W.at < 0.1; }
+    else { S.x = fx; S.z = fz; S.fresh = false; }
+    return S;
+  }
+
   update(dt) {
     const g = this.g;
     const chars = g.chars;
@@ -316,7 +363,8 @@ export class AI {
         }
         if (los && d < w.range * 0.9) {
           c.aiming = true;
-          const want = Math.atan2(tx - c.x, tz - c.z);
+          this.watch(c, t, dt); // what it sees of them moving (the lead's only source: no cheating)
+          const want = this.leadAngle(c, t, tx, tz, g.ballistics?.rowKey(w));
           c.face = angleLerp(c.face, want, Math.min(1, dt * 7));
           // Strafe a little so firefights move.
           c.strafeT = (c.strafeT || 0) - dt;
@@ -346,7 +394,7 @@ export class AI {
           // keeps the target's head down: rounds at the cover they went behind (suppressive fire).
           const U = c.tac;
           if (!los && U && !U.holdFire && d < w.range * 0.9 && c.mag > 0 && c.cool <= 0 && c.reloading <= 0 && U.lastX && g.tactics.suppressive(c)) {
-            const ang = Math.atan2(U.lastX - c.x, U.lastZ - c.z);
+            const S = this.seenAt(c, t, U.lastX, U.lastZ), ang = Math.atan2(S.x - c.x, S.z - c.z); // where they were heading (law 6)
             c.aiming = true; c.face = angleLerp(c.face, ang, Math.min(1, dt * 7));
             if (Math.abs(angleLerp(c.face, ang, 1) - c.face) < 0.3 && g.combat.fire(c, c.weapon, c.face + (Math.random() - 0.5) * 0.18)) { c.mag--; c.cool = w.rate * 3 * 1.6 + Math.random() * 0.5; }
           }

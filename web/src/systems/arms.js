@@ -76,6 +76,7 @@ export class Arms {
     r.rate = m.rate ?? w.rate; r.dmg = m.dmg ?? w.dmg; r.pellets = m.pellets ?? w.pellets; r.range = m.range ?? w.range;
     r.auto = m.burst === 0; r.after = m.after ?? r.rate; r.kick = m.kick ?? 0.25;
     r.spread = w.spread * (m.spread ?? 1) * this.gripSpread(k) * (1 + this.bloom);
+    r.round = m.round ?? w.round; // the flight row (data/ballistics.js): the slug flies as a slug
     r.grip = this.grip;
     return r;
   }

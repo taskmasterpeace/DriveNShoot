@@ -17,6 +17,7 @@ import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
+import { Ballistics } from './systems/ballistics.js';
 import { Arms } from './systems/arms.js';
 import { Gunpoint } from './systems/gunpoint.js';
 import { Melee } from './systems/melee.js';
@@ -71,6 +72,7 @@ import { Seats } from './systems/seats.js';
 import { Stance } from './systems/stance.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Gadgets } from './systems/gadgets.js';
+import { Rites } from './systems/rites.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -164,6 +166,7 @@ class Game {
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
     this.vehicles = [];
     this.combat = new Combat(this);
+    this.ballistics = new Ballistics(this, this.scene); // rounds in flight (docs/design/WEB_BALLISTICS.md)
     this.arms = new Arms(this);         // stance, grip, fire modes, recoil (WEB_CONTROLLER §3.2-3.4)
     this.gunpoint = new Gunpoint(this); // a raised gun held on a person is a state (§3.5)
     this.melee = new Melee(this);       // shove, strike, kick (§3.6)
@@ -205,6 +208,7 @@ class Game {
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
     this.crew = new Crew(this);
+    this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
     this.crewUI = new CrewUI(this, ui);
 
     this.cash = 120;
@@ -297,6 +301,7 @@ class Game {
     const i = this.chars.indexOf(c);
     // Someone already gone: their slot is free already (pushing it twice gave two people one slot and the cap 161).
     if (i < 0) { (this.doubleRemoves ??= []).push(new Error().stack?.split('\n').slice(2, 5).join(' <- ')); return; }
+    if (!c.alive) this.rites?.fold(c); // the dead leave the world as their body's record (systems/rites.js), never as nothing
     this.chars.splice(i, 1);
     this.charR.clear(c.slot);
     this.freeSlots.push(c.slot);
@@ -619,6 +624,7 @@ class Game {
     }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); this.clone.onDeath(c); } // the husk lies where you fell
     if (c.res) this.residents.onKill(c, attacker); // a ring resident: the death goes on their household's record
+    this.rites?.onDeath(c, attacker, cause); // the body's record: it rots on the clock until buried, burned or dragged off
   }
 
   // A pickup box is a find: it goes in your pack (or, with no room, you use it on the spot - drink the water, eat
@@ -1173,7 +1179,7 @@ class Game {
   }
 
   updatePopulation(dt) {
-    // Bodies far from view eventually get cleaned up (the blood stays).
+    // Bodies far from view fold into their records (systems/rites.js draws them and ages them; the blood stays).
     for (let i = this.chars.length - 1; i >= 0; i--) {
       const c = this.chars[i];
       if (!c.alive && c !== this.player && !c.npc && !c.res && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
@@ -1252,6 +1258,7 @@ class Game {
     const simDt = this.dialogue.active ? 0 : dt;
     if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
     if (simDt) this.crew.input(I); // E beside a downed crew member is theirs: patch up, or hold to drag
+    if (simDt) this.rites.input(I); // beside the dead: hold E to drag, G to bury, F to burn (systems/rites.js)
     this.updatePlayer(dt);
     this.arms.update(dt);  // H, J, B, RB: stance, grip, fire mode, the wheel; who has noticed your gun
     this.melee.update(dt); // RMB / R3: the blow in flight lands at its moment of contact
@@ -1275,9 +1282,11 @@ class Game {
       this.ambient.update(simDt);
       this.gunpoint.update(simDt); // after ambient: the held keep their hands up
       this.carCombat.update(simDt);
+      this.ballistics.update(simDt); // rounds in the air fly on and meet what is in their way
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.rites.update(simDt); // the dead age on the clock, the cemeteries near you, funerals (systems/rites.js)
       this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
