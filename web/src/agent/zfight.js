@@ -84,8 +84,10 @@ export function zfightScan(g, { x, z, r = 24, spacing = 0.5, minNy = -0.25, deca
   const D = { v: [], n: [], bb: [], tag: [], flip: false }; // decals
   const tags = []; // { o, inst, label, off, m }
   let meshes = 0;
-  // People are not layers: two standing on one spot (a body over a body) overlap for as long as they do (systems/characters.js).
+  // People and cars are not layers: two standing on one spot (a body over a body) overlap for as long as they do (systems/characters.js).
+  // Vehicles too: a car body is one merged mesh of parts (systems/vehiclebodies.js), checked as an asset, not a layer.
   const actors = new Set(Object.values(g.charR?.meshes ?? {}));
+  for (const v of g.vehicles ?? []) v.mesh?.traverse?.((o) => actors.add(o));
   const nearS = (sph) => sph.center.x + sph.radius >= box.x0 && sph.center.x - sph.radius <= box.x1 && sph.center.z + sph.radius >= box.z0 && sph.center.z - sph.radius <= box.z1;
   scene.traverse((o) => {
     if (!o.isMesh || o.isSkinnedMesh || actors.has(o) || !visibleUp(o)) return;
