@@ -15,7 +15,9 @@ Every place the world plans has a cemetery: all 305 citygen plan records (towns,
 Each one is sized by one formula.
 Its old graves are a seeded history: names, birth and death years, causes, and a battle year for a mass grave.
 
-A ring resident who dies with family gets a funeral 1–2 game days later at their quarter's yard.
+A ring resident who dies with family gets a funeral 1–2 game days after **their people learn of it**.
+Under law 6 (NPCs only know what they were told), the death is news that nobody holds until a sourced fact reaches them.
+The funeral is at their quarter's yard.
 One of the family fetches the body and drags it there. The others walk there on foot paths (no teleport), stand at the grave, and go home.
 Standing toward the killer drops. Attending, digging the grave and paying for a stone each raise it.
 STATIC 1660 announces the funeral, and the chronicle records it.
@@ -65,14 +67,30 @@ Out in the ring, the family whose son you killed buries him tomorrow at ten. You
 | war_graves | military bases | edge | crosses |
 | lot_yard | Phoenix-ring quarters | the quarter's empty lot nearest its middle | rows fitted to the lot |
 
-A cemetery's position is provisional until its place is built. On `citygen.stamp`, `rites.onBuilt` places it against the built boxes, the town's road rows, water at its corners, the corridors and the island grid.
+A cemetery's position is provisional until its place is built.
+**Placement score:** a candidate footprint (both orientations) is sampled at 7 × 7 points, and every point on a building (the live towns' 8 m box grid), a street (town road rows, the island's 80 m grid, within 24 m of a corridor), water or a ring lot counts against it. The lowest score wins (`clash` in the view; 0 is clear ground).
+- Candidates for a town ring its edge.
+- A site tries its own blocks, and falls back outside its walls when it is built solid (the Coquina Star's mass grave lies by the shore past its fort).
+- Edge and plot cemeteries follow the land: every mound, marker and post stands on the ground under it. A site's yard lies on its pad. On `citygen.stamp`, `rites.onBuilt` places it against the built boxes, the town's road rows, water at its corners, the corridors and the island grid.
+
+**What the living know** (law 6, `WEB_DEPTH_PLAN.md` §0):
+- A family death is **news** (`R.news`).
+- Every fact carries `{ source, who, at, killer }`, and its age is `now − at`.
+- A family member learns of the death in one of four ways:
+  - **saw it happen:** they are in the kill deed's witness list (`chronicle.w`). Only this source names the killer, and only if the deed is identified.
+  - **saw the body:** a promoted member within 25 m with line of sight.
+  - **found at home:** the body lies in their own house (±6 m) half an hour on, whether or not anyone is promoted.
+  - **told by a witness:** a non-family witness of the killing carries word after `FUNERAL.toldAfter` = 2 game hours, naming the killer if the deed identified them.
+- **Told by you:** `rites action=report id=`, standing within 4 m of one of them.
+- No fact means no funeral (`summary.unreported` lists those deaths).
+- The killer's standing drops (−8 with the household's faction) only on a fact whose `killer` is the player.
+- STATIC 1660 announces only funerals that are planned.
 
 **Funerals** (`FUNERAL`):
-- Scheduled when a `family` household member dies and at least one other member is alive.
-- The time is a seeded 24–48 h after the death, at 10:00, and lasts 2 h.
-- The killer's standing with the household's faction drops by 8 when the funeral is scheduled.
-- Mourners leave home when the walk (at 1.4 m/s) will get them to the grave by the start time.
-- The first mourner fetches the body and drags it there if it lies more than 3 m from the grave.
+- Scheduled at the first fact about a `family` member's death, if at least one other member is alive.
+- The time is a seeded 24–48 h after **learning**, at 10:00, and lasts 2 h.
+- Mourners leave home when the walk (at 1.4 m/s) will get them to the grave by the start time. The carrier's lead time also counts walking to the body and dragging it back at 0.8× speed.
+- The first mourner fetches the body and drags it there if it lies more than 3 m from the grave. A funeral waits up to `FUNERAL.wait` = 2 h past its end for a body that is being carried in.
 - Within 18 m of the grave during the funeral you count as attending: +3 standing, and gloom on you.
 - At the end, the body goes into the grave with a cross (a stone if one was paid for), and the yard's mood darkens. If the family is off the map (no member promoted within 400 m of you), the record tier does the same thing on the same clock.
 
@@ -110,6 +128,23 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 - **A cemetery that won't fit:** the candidate search falls back to its first candidate, so it may overlap a street. Rust Haven's 292 graves don't fit inside the island grid (roads every 80 m), which is why its row is set outside it.
 - **Places off the map** (30 site rows abroad, in Alaska or Hawaii, the Keys): no world record, so no cemetery until the map grows to them. The `beyond` records (199) do have theirs.
 
+**Renders** (`docs/renders/web/death-rites/`, game camera):
+- 01 a fresh body
+- 02 bloated, still the character (tinted, flies)
+- 03 bloated and folded (swollen, blood-soaked)
+- 04 rotting
+- 05 bones
+- 06 a county seat's cemetery at the town's edge
+- 07 the same, close
+- 08 the Coquina Star's mass grave in trenches outside the fort
+- 09 a funeral (two of the Balogun family kneel at the grave the body was dragged to; the smear runs back to the house)
+- 10 the same ring lot yard
+
+**Known look issues (follow-ups):**
+- The chunk generator's boulders and trees can stand inside a cemetery, because its scatter keeps off a settlement's half-size but not the cemetery's own rectangle.
+- Mounds on a steep slope tilt with the land per piece, but each box itself stays level.
+- The funeral spot is chosen when the funeral is planned, so the grave row can land a few slots along.
+
 ## 6. Dependencies (both ways)
 
 **Rites reads:** `survival.airAt`, `water.depthAt`, `inventory` (boxes, place, roll, add), `citygen.plan/live/recAt`, `streamer.W` (groundAt, project, ring, holdouts), `residents` (recs, walk), `society` (day, chronicle, factions, director.radio), `skillsSys`, `fx`, `noise`.
@@ -125,7 +160,7 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 | `src/systems/crew.js` | `g.rites?.graveFromCrew(...)` in `bury` |
 | `src/systems/trade.js` | `keep`: the opening stock once, then deliveries; `restock`: returns unless `TRADE.law === 'mint'`; new `delivered()` |
 | `src/data/trade.js` | `TRADE.law: 'delivery'` |
-| `src/systems/residents.js` | `promote` skips `g.rites.gone(m)`; `think` calls `g.rites.mourn(c, dt)` before the far-keep-still line |
+| `src/systems/residents.js` | `promote` skips `g.rites.gone(m)` (bones, buried, burned: a folded body still comes back as the household's own character); `think` calls `g.rites.mourn(c, dt)` before the far-keep-still line |
 | `src/systems/grapevine.js` | `eat` hands the body to `rites.eaten` (bones, box kept) instead of deleting the box |
 | `src/systems/characters.js` | `paint` lerps the dead toward `_rot` by `ch.rot` |
 
@@ -162,7 +197,11 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 4. **far body survives 2 km:** a body is left, you go 2 km away in 400 m teleport legs (the streamer pages), stay 100 s (past the 90 s fold), and come back. The record is there with the same box contents and is drawn by the rites mesh. *Proves the far fold replaced the delete.* (Teleport legs, not a drive: the fold doesn't care how you left.)
 5. **cemetery for every place:** every one of the 305 plan records has a cemetery whose count equals the formula, of the right kind (bunker → crypt, battle → mass grave, rural → family plot). Every planned or beyond site row has one, and the history has that many graves with names, causes and years in range. *Proves "burial stuff everywhere in each one of those places".*
 6. **burial writes a grave row:** drag, dig with a shovel (a `digStart`), bury. The row has who, when, how, by whom and a cross marker; the body's things are in the grave box; there is a `buried` chronicle row; the body is gone from the street.
-7. **funeral and walking mourners:** a ring family member is killed and the funeral is 1–2 days out. The clock runs to just before they set out. A mourner walks more than 10 m on foot paths, with no frame-to-frame jump over 1.5 m, in the states `to the funeral` / `fetching the body` / `carrying the body` / `mourning`.
+7. **law 6 + funeral + walking mourners:**
+   - A ring family member is staged 150 m from home with nobody watching and killed. After 3 game hours there is no funeral, and the death is in `unreported`.
+   - You walk to one of the family and `report`. The funeral is planned 1–2 days out, with `learned.source === 'told by you'`.
+   - The clock runs to just before they set out. A mourner walks more than 10 m on foot paths, with no frame-to-frame jump over 1.5 m, in the states `to the funeral` / `fetching the body` / `carrying the body` / `mourning`.
+   - The world is saved before and loaded after, so a reused page's ring checks find the household whole.
 8. **no container refills over 3 game days:** Ike's shelf with the pistol rounds sold out, his keeps, and a searched crate are all the same or emptier after 3 days of looks; a courier delivery is the one way 12 rounds come back.
 
 **Loot law audit** (`rites action=law`, rows `LOOT_LAW`):
