@@ -8,7 +8,8 @@
 //             people route round buildings, through doors and gates, and down the alleys
 // One instance: main.js constructs it after citygen; update(dt) every frame (cheap: a scan every 0.5 s), interact() in the
 // E chain after the interiors and citygen's bays.
-import { FENCES, GATES, LOCKS, KIND_CLASS } from '../data/backlots.js';
+import { FENCES, GATES, LOCKS, KIND_CLASS, DRESS } from '../data/backlots.js';
+import { makeRng } from '../engine/rng.js';
 import { WINDOW } from '../data/interiors.js';
 
 const h01 = (s) => { let v = 2166136261; for (let i = 0; i < s.length; i++) { v ^= s.charCodeAt(i); v = Math.imul(v, 16777619); } return (v >>> 0) / 4294967296; };
@@ -23,6 +24,7 @@ export class BackLots {
     this.counts = { climbs: 0, kicks: 0, broken: 0, gatesHung: 0 };
     this.liveKey = '';
     this.hung = new Map(); // interiors ring id -> its town's id (a released town gives its gates back)
+    this.strays = new Map(); // town id -> the strays that live in its alleys (BACK-LOTS 2)
     const cg = g.citygen;
     if (g.nav) for (const k of ['foot', 'car']) g.nav[k].overlay = (grid) => this.navOverlay(grid);
     void cg;
@@ -46,7 +48,7 @@ export class BackLots {
     this.scanT = 0.5;
     // a town built or released: the nav windows take its colliders on (or off) at their next query
     let key = ''; for (const id of CG.live.keys()) key += id + ';';
-    if (key !== this.liveKey) { this.liveKey = key; this.dirtyNav(); this.dropGone(); }
+    if (key !== this.liveKey) { this.liveKey = key; this.dirtyNav(); this.dropGone(); this.alleyDogs(); }
     const P = this.g.player;
     this.hang(P.inVehicle ? P.inVehicle.x : P.x, P.inVehicle ? P.inVehicle.z : P.z);
   }
@@ -54,6 +56,32 @@ export class BackLots {
   dropGone() {
     const I = this.g.interiors, CG = this.g.citygen;
     for (const [id, town] of this.hung) if (!CG.live.has(town)) { if (I.ringOpen.has(id)) I.detachRing(id); this.hung.delete(id); }
+  }
+  // Strays living in a town's alleys (DRESS.strays): a built town (while settlements build themselves: the battery holds
+  // that off) gets up to max of them, from its seed, at its alleys; a released one takes back those nobody adopted.
+  alleyDogs() {
+    const D = this.g.dogs, CG = this.g.citygen;
+    if (!D) return;
+    for (const [id, list] of this.strays) if (!CG.live.has(id)) {
+      for (const d of list) if (!d.owned) { const i = D.dogs.indexOf(d); if (i >= 0) D.dogs.splice(i, 1); }
+      this.strays.delete(id);
+    }
+    if (!CG.enabled) return;
+    for (const t of CG.live.values()) {
+      if (this.strays.has(t.rec.id) || !t.T.alleys?.length) continue;
+      const rng = makeRng(((t.rec.seed >>> 0) ^ 0xd065) >>> 0 || 3), list = [];
+      this.strays.set(t.rec.id, list);
+      if (rng() > DRESS.strays.chance) continue;
+      const n = 1 + Math.floor(rng() * DRESS.strays.max);
+      for (let k = 0; k < n; k++) {
+        const A = t.T.alleys[Math.floor(rng() * t.T.alleys.length)], L = A.lane, ax = A.axis === 'x';
+        const a = (ax ? L.x0 : L.z0) + 3 + rng() * Math.max(1, (ax ? L.x1 - L.x0 : L.z1 - L.z0) - 6), v = ax ? (L.z0 + L.z1) / 2 : (L.x0 + L.x1) / 2;
+        const d = D.make(DRESS.strays.breeds[Math.floor(rng() * DRESS.strays.breeds.length)], ax ? a : v, ax ? v : a, { rng });
+        if (!d) break;
+        d.alley = t.rec.id; d.leader = list[0] ?? d; d.home = { x: d.x, z: d.z };
+        list.push(d);
+      }
+    }
   }
   dirtyNav() { const n = this.g.nav; if (n) { n.foot.dirty = true; n.car.dirty = true; } }
 
@@ -201,6 +229,8 @@ export class BackLots {
   view() {
     const CG = this.g.citygen; let alleys = 0, yards = 0, gates = 0, fences = 0, broken = 0, docks = 0;
     for (const t of CG?.live.values() ?? []) { alleys += t.T.alleys?.length ?? 0; yards += t.T.yards?.length ?? 0; docks += t.T.docks?.length ?? 0; gates += t.built.gates.length; fences += t.built.fences.length; broken += t.built.fences.filter((f) => f.broken).length; }
-    return { alleys, yards, docks, gates, fences, broken, counts: this.counts };
+    let strays = 0; for (const L of this.strays.values()) strays += L.filter((d) => !d.dead && !d.owned).length;
+    let dress = null; for (const t of CG?.live.values() ?? []) if (t.built.dress) { dress ??= {}; for (const [k, v] of Object.entries(t.built.dress)) if (k !== 'items' && k !== 'ms') dress[k] = (dress[k] ?? 0) + v; }
+    return { alleys, yards, docks, gates, fences, broken, strays, dress, counts: this.counts };
   }
 }

@@ -294,10 +294,11 @@ export async function gadgetsChecks(api, check, C) {
       for (let k = 0; k < 30 && !S2.arrest; k++) await C('step', { seconds: 0.5 });
       if (!S2.arrest) return `no arrest offered (modes ${S2.responses.map((r) => r.mode)})`;
       g.arms.holster('test');
-      const c0 = g.cash;
-      for (let k = 0; k < 20 && S2.arrest; k++) { P().speed = 0; await C('step', { seconds: 0.5 }); }
+      const c0 = g.cash, hits = [], dmg0 = g.combat.damage; // (diagnostic: who hurts a bull while the offer stands)
+      g.combat.damage = function (t, d, by, ...rest) { if (S2.responses.some((r) => r.men.includes(t))) hits.push(`${by?.id ?? by?.kind ?? by?.type ?? typeof by}/${by?.faction ?? by?.zkind ?? ''}:${Math.round(d)}`); return dmg0.call(this, t, d, by, ...rest); };
+      try { for (let k = 0; k < 20 && S2.arrest; k++) { P().speed = 0; await C('step', { seconds: 0.5 }); } } finally { g.combat.damage = dmg0; }
       const why = g.events.filter((e) => e.type === 'shootout' || e.type === 'arrested').slice(-2).map((e) => `${e.type}:${e.why ?? e.outcome ?? ''}`), resp = S2.responses[S2.responses.length - 1];
-      return !S2.arrest && g.wanted === 0 && g.cash < c0 ? true : `arrest=${!!S2.arrest} wanted=${g.wanted} cash ${c0}->${g.cash} ${why.join(',')} men=${resp?.men.filter((c) => c.alive).length ?? '-'} near=${resp ? Math.round(Math.min(...resp.men.map((c) => Math.hypot(c.x - P().x, c.z - P().z)))) : '-'}`; // (the why: BACK LOTS lane's diagnostic)
+      return !S2.arrest && g.wanted === 0 && g.cash < c0 ? true : `arrest=${!!S2.arrest} wanted=${g.wanted} cash ${c0}->${g.cash} ${why.join(',')} men=${resp?.men.filter((c) => c.alive).length ?? '-'} near=${resp ? Math.round(Math.min(...resp.men.map((c) => Math.hypot(c.x - P().x, c.z - P().z)))) : '-'} hits=${hits.slice(0, 4).join(',')}`; // (the why: BACK LOTS lane's diagnostic)
     });
 
     await check('security: a roadblock (posse) puts two bull cars across the road and a chain between them', async () => {

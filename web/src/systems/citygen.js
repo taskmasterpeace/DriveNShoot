@@ -33,7 +33,7 @@ import { ALLEYS } from '../data/backlots.js';
 //   tactics: coverNear(x, z, r, y, out) -> out filled with { x, z, y, nx, nz, h (1 full / 0.5 half), kind } (kind: 1 wall,
 //            2 ruin half-wall, 3 window frame, 4 pump, 5 parapet, 6 crate, 7 town wall, 8 wreck); COVER_KINDS names them
 export const COVER_KINDS = ['', 'wall', 'half_wall', 'window_frame', 'pump', 'parapet', 'crate', 'town_wall', 'wreck'];
-const CELL = 8, CAP = 90000, EMPTY = [];
+const CELL = 8, CAP = 120000, EMPTY = []; // CAP: three of the largest dressed towns live at once (BACK-LOTS 2: ~30k items each)
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 
 // The live towns' boxes, bucketed for engine/collision.js (statics.cg): cell(gx, gz) is the list in global 8 m cell.
@@ -272,6 +272,7 @@ export class CityGen {
     this.indexBlds();
     this.grid.rebuild(this.live.values());
     this.relayItems();
+    this.g.wrecks?.add(`town:${rec.id}`, built.wrecks, built.y0 ?? 0); // its dead cars: our bodies (systems/wrecks.js)
     // loot: each floor's containers at their own height
     const inv = this.g.inventory;
     if (inv) {
@@ -295,6 +296,7 @@ export class CityGen {
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);
+    this.g.wrecks?.remove(`town:${id}`);
     this.live.delete(id);
     this.indexBlds();
     this.grid.rebuild(this.live.values());

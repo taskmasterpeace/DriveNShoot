@@ -121,6 +121,26 @@ export async function backlotsChecks({ api, g, check, C }) {
     return !bad.length && n > 600 && docks > 50 ? true : JSON.stringify({ facing: n, docks, bad: bad.slice(0, 6) });
   });
 
+  await check('back lots: the alleys and yards are dressed (BACK-LOTS 2) - in a residential and a downtown town every kind of dressing stands (oil and cracks on paved lanes, puddles, sagging wires between poles, trash bags, weeds at fence feet, broken pallets, a burned-out car, a stoop at every back door, washing across a lane, yard junk and wild growth); no dressing collider stands in a lane, a bay drive lane, a door step or a gate; a town stays under 36k items (citygen CAP 120k: three live) and its dressing pass takes under 60 ms', async () => {
+    const bad = [], tot = {};
+    let maxItems = 0, maxMs = 0;
+    for (const [a, seed] of [['dead_suburb', 21], ['sonoran_sprawl', 9182], ['rustbelt_mill', 1000], ['boom_strip', 44]]) {
+      const T = layoutTown({ arch: a, seed, x: 90000, z: 90000 }), B = buildTown(T), ms = B.dress.ms;
+      maxItems = Math.max(maxItems, B.items.length); maxMs = Math.max(maxMs, ms);
+      for (const [k, v] of Object.entries(B.dress)) if (k !== 'items' && k !== 'ms') tot[k] = (tot[k] ?? 0) + v;
+      const backs = T.buildings.reduce((n, q) => n + q.doors.filter((d) => d.kind === 'door' && d.side !== q.front).length, 0);
+      if (B.dress.stoops !== backs) bad.push(`${a}: ${B.dress.stoops} stoops for ${backs} back doors`);
+      const lanes = T.alleys.map((A) => A.lane);
+      for (const b of B.boxes) {
+        if (!['bl-burnt', 'bl-junk', 'bl-tires', 'bl-woodpile'].includes(b.tag)) continue;
+        if (lanes.some((L) => b.maxX > L.x0 && b.minX < L.x1 && b.maxZ > L.z0 && b.minZ < L.z1)) bad.push(`${a}: ${b.tag} in a lane`);
+        for (const q of T.buildings) for (const d of q.doors) { const [x, z] = d.side === 'N' ? [d.at, q.z0] : d.side === 'S' ? [d.at, q.z1] : d.side === 'W' ? [q.x0, d.at] : [q.x1, d.at]; if (Math.abs(x - (b.minX + b.maxX) / 2) < (b.maxX - b.minX) / 2 + 1.2 && Math.abs(z - (b.minZ + b.maxZ) / 2) < (b.maxZ - b.minZ) / 2 + 1.2) bad.push(`${a}: ${b.tag} on ${q.id}'s ${d.kind} step`); }
+      }
+    }
+    const need = ['oil', 'cracks', 'puddles', 'wires', 'bags', 'weeds', 'pallets', 'burnt', 'stoops', 'lines', 'junk', 'wild'].filter((k) => !(tot[k] > 0));
+    return !bad.length && !need.length && maxItems < 36000 && maxMs < 60 ? true : JSON.stringify({ bad: bad.slice(0, 6), missing: need, tot, maxItems, maxMs: Math.round(maxMs) });
+  });
+
   // ---- live: a town stamped in the streamed world ----
   let t = CG.live.get('bl-selftest');
   if (!t) { const s = freeSpot(g, 9000, -7000, 230); if (s) t = CG.stampAt({ id: 'bl-selftest', arch: 'dead_suburb', seed: 21, x: s.x, z: s.z }); }
@@ -229,6 +249,22 @@ export async function backlotsChecks({ api, g, check, C }) {
     // the straight line would have met a wall or a fence (the route had to find its way)
     const straightThrough = !fine({ from: { x: fx, z: fz }, list: [{ x: tx, z: tz }] });
     return alleyOk && roundOk && straightThrough ? true : JSON.stringify({ alley: A.id, route: route?.length ?? null, alleyOk, r2: r2?.map((q) => [r1(q.x), r1(q.z)]).slice(0, 8) ?? null, roundOk, straightThrough, hit: hit1, from: [r1(fx), r1(fz)], house: [H.x0, H.z0, H.x1, H.z1, H.front], doors: H.doors.map((d) => `${d.side}@${d.at}`) });
+  });
+
+  await check('back lots: strays live in the alleys of a town (BACK-LOTS 2) - a built town (settlements building themselves) gets its alley dogs from its seed, standing in its alleys; released, it takes back those nobody adopted', async () => {
+    if (!t) return 'no ground for a stamp';
+    const D = g.dogs, was = CG.enabled;
+    BL.strays.delete(t.rec.id);
+    CG.enabled = true;
+    try {
+      let list = [];
+      for (let s2 = 0; s2 < 40 && !list.length; s2++) { BL.strays.delete(t.rec.id); const seed = t.rec.seed; t.rec.seed = (seed + s2 * 7919) >>> 0; BL.alleyDogs(); t.rec.seed = seed; list = BL.strays.get(t.rec.id) ?? []; if (!list.length) BL.strays.delete(t.rec.id); }
+      const inAlley = list.every((d) => t.T.alleys.some((A) => d.x > A.x0 - 2 && d.x < A.x1 + 2 && d.z > A.z0 - 2 && d.z < A.z1 + 2));
+      const before = D.dogs.length;
+      CG.live.delete(t.rec.id); BL.alleyDogs(); CG.live.set(t.rec.id, t); // as if released
+      const gone = list.every((d) => !D.dogs.includes(d)) && D.dogs.length === before - list.length;
+      return list.length >= 1 && inAlley && gone ? true : JSON.stringify({ strays: list.length, inAlley, gone, dogs: D.dogs.length, before });
+    } finally { CG.enabled = was; }
   });
 
   await check('back lots: draw calls stay under 150 standing in an alley of a stamped town (alleys, fences, yard things and verge props are items of the one instanced town mesh; gates are leaves of the interiors pool)', async () => {

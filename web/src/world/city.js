@@ -14,6 +14,7 @@ import { furnishRooms, placePiece } from './furnish.js';
 import { hash32, rngOf } from './geo.js';
 import { riseOf } from './storeys.js';
 import { plantIsland } from './flora.js';
+import { wreckOf } from '../data/wrecks.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -100,6 +101,7 @@ const RUIN_COLORS = ['#a39b8d', '#b4a994', '#8e877c', '#c1b49b', '#9a8c78', '#85
 const ROOF_TOWN = ['#8a5a3a', '#6a7470', '#9a8060', '#7a5236', '#857868'];
 
 export function buildWorld(scene, statics) {
+  const wrecks = []; // the island's dead cars (data/wrecks.js): main.js hands them to systems/wrecks.js
   const rng = makeRng(1977);
   // Doors, locks and windows draw from their own stream: the main one must make exactly the same
   // calls as it always has, or every building, prop and spawn in the world would shift.
@@ -521,10 +523,9 @@ export function buildWorld(scene, statics) {
   // ---- wrecks, barrels, trees ----------------------------------------------------
   const wreck = (x, z, rot) => {
     if (nearWater(x, z, 4) || nearRail(x, z, 4)) return;
-    const col = rng.pick(['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#704020']);
+    rng.pick(['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#704020']); // (the colour roll a box wreck took: the island's rng stays as it was)
     const along = Math.abs(Math.sin(rot)) > 0.7; // rotated ~90 degrees
-    props.add(x, 0.55, z, 1.9, 0.8, 4.2, col, rot);
-    props.add(x, 1.15, z, 1.6, 0.6, 2.0, '#2a2622', rot);
+    wrecks.push({ x, z, rot, ...wreckOf(hash32(0x15, Math.round(x * 10), Math.round(z * 10), 0x3ec), 'street'), fit: [4.2, 1.9] }); // our body, dead (systems/wrecks.js)
     if (along) statics.addCentered(x, z, 4.2, 1.9, 'wreck', 1.4);
     else statics.addCentered(x, z, 1.9, 4.2, 'wreck', 1.4);
   };
@@ -866,6 +867,7 @@ export function buildWorld(scene, statics) {
     walls, // the wall batch: systems/materials.js hides a partition that is breached and draws what is left of it
     doors: doorRows, windows: windowRows, // data rows: systems/interiors.js hangs the leaves and glass
     flora, // world/flora.js: one pool per species, the streamer shares them
+    wrecks, // the island's dead cars: systems/wrecks.js draws our real bodies (main.js)
     updateFlames(time) {
       fires.forEach((f, i) => {
         const s = 1.4 + Math.sin(time * 13 + i * 7) * 0.25 + Math.sin(time * 29 + i) * 0.15;

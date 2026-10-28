@@ -61,6 +61,7 @@ import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
 import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
+import { Wrecks } from './systems/wrecks.js';
 import { BackLots } from './systems/backlots.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
@@ -134,6 +135,8 @@ class Game {
     this.audio = new Audio();
     this.statics = new StaticWorld();
     this.world = buildWorld(this.scene, this.statics);
+    this.wrecks = new Wrecks(this); // every static car is one of our bodies, dead, in one batched mesh (systems/wrecks.js)
+    this.wrecks.add('island', this.world.wrecks);
     // Mountains (outer desert ring) and water (east river → lake), before the nav grids.
     this.terrain = buildTerrain(this.scene, this.statics, { avoid: [...this.world.spawns.camps.map((c) => ({ x: c.x, z: c.z, r: 34 })), ...WATER_AVOID, ...RAIL_AVOID] });
     this.water = new Water(this);

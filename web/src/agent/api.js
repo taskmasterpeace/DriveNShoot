@@ -54,6 +54,7 @@ import { pullsCommands, pullsChecks } from './pulls-api.js'; // pulls: bars, roa
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys, fenced back yards, docks, back doors (WEB_BACK_LOTS.md)
+import { wrecksCommands, wrecksChecks } from './wrecks-api.js'; // dead cars: our real bodies, in one batched mesh (WEB_BACK_LOTS.md §3.5)
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -2046,6 +2047,7 @@ function buildCommands(api) {
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
+    ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
@@ -5980,6 +5982,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   await backlotsChecks({ api, g, check, C }); // the back lots: alleys, yards, back doors, fences, pathing (WEB_BACK_LOTS.md §8)
   await zfightChecks({ g, check, C }); // the depth layers: no flicker at seven spots, blood shows from the widest zoom (WEB_DEPTH_LAYERS.md §8)
+  await wrecksChecks({ api, g, check, C }); // no static car built from boxes: every one is our body, dead
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)

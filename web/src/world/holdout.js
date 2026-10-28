@@ -7,6 +7,7 @@
 //   extras   - the wall (panels, junk, posts, towers, gates and their name boards), the market square, the gardens and
 //              fields, the pit, the boneyard, the water tower, the lagoon road and its pier, lamps, palms and oaks
 // Pure: a function of the rows, the seed and where the exit put it. Positions are world metres; collision axis-aligned.
+import { wreckOf } from '../data/wrecks.js';
 import { KINDS, RING } from '../data/ring.js';
 import { HOLDOUT } from '../data/holdout.js';
 import { C, hash32, rngOf, chunkOf } from './geo.js';
@@ -27,7 +28,7 @@ export class Holdout {
     this.approach = { x: this.x0 - row.approach, z: this.cz };
     this.seed = hash32(W.seed, row.seed);
     this.shore = shore;
-    this.lots = []; this.blocks = []; this.streetList = []; this.items = []; this.boxes = []; this.flora = []; this.spots = {}; this.gates = [];
+    this.lots = []; this.blocks = []; this.streetList = []; this.items = []; this.deadCars = []; this.boxes = []; this.flora = []; this.spots = {}; this.gates = [];
     this.layout();
   }
   // local -> world
@@ -161,6 +162,8 @@ export class Holdout {
 
   // ---- open lots: data/holdout.js rows, Florida-dressed ----------------------------------------------------------------
   P(pool, x, y, z, w, h, d, col, rot = 0, shade = 1) { this.items.push({ pool, e: [x, y, z, w, h, d, col, rot, shade] }); }
+  // A dead car (data/wrecks.js; systems/wrecks.js draws one of our real bodies): its nose along x when `alongX`.
+  deadCar(x, z, alongX, source, stack = 0, rot = 0) { this.deadCars.push({ x, z, rot: (alongX ? Math.PI / 2 : 0) + rot, stack, ...wreckOf(hash32(this.seed, Math.round(x * 10), Math.round(z * 10), Math.round(stack * 10)), source), fit: [4.2, 1.9] }); }
   box(x0, z0, x1, z1, h, tag) { this.boxes.push({ x0, z0, x1, z1, h, tag }); }
   openLot(blk, kind, area, rng) {
     const b = area ?? blk, M = HOLDOUT.market, Y = HOLDOUT.yard, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, w = b.x1 - b.x0, d = b.z1 - b.z0;
@@ -271,7 +274,7 @@ export class Holdout {
       for (let z = b.z0 + 7; z < b.z1 - 6; z += 7) for (let x = b.x0 + 6; x < b.x1 - 6; x += 5.2) {
         if (rng() < 0.3) continue;
         const c = rng.pick(W), stack = rng() < 0.4 ? 2 : 1;
-        for (let s = 0; s < stack; s++) { this.P('props', x, 0.55 + s * 1.2, z, 1.9, 0.9, 4.2, c, rng.range(-0.15, 0.15)); this.P('props', x, 1.15 + s * 1.2, z, 1.6, 0.5, 2.0, '#2a2622'); }
+        void c; for (let s = 0; s < stack; s++) this.deadCar(x, z, false, 'boneyard', s * 1.2, rng.range(-0.15, 0.15)); // stacked hulks: our bodies, dead
         this.box(x - 1.1, z - 2.2, x + 1.1, z + 2.2, 1.4 + (stack - 1) * 1.2, 'wreck');
       }
     } else if (kind === 'tower') {
@@ -286,7 +289,7 @@ export class Holdout {
       const r = area ?? b;
       blk.pads.push({ x0: r.x0 + 1, x1: r.x1 - 1, z0: r.z0 + 1, z1: r.z1 - 1, band: 'lot' });
       const W = ['#56603f', '#6a2a1a', '#3f5a62', '#8a6a2a', '#4a4a48'];
-      for (let x = r.x0 + 6; x < r.x1 - 6; x += 6.4) { if (rng() < 0.35) continue; const c = rng.pick(W); const z = r.z0 + 5; this.P('props', x, 0.55, z, 1.9, 0.9, 4.2, c); this.P('props', x, 1.15, z, 1.6, 0.5, 2.0, '#2a2622'); this.box(x - 1.1, z - 2.2, x + 1.1, z + 2.2, 1.4, 'wreck'); }
+      for (let x = r.x0 + 6; x < r.x1 - 6; x += 6.4) { if (rng() < 0.35) continue; const c = rng.pick(W); const z = r.z0 + 5; void c; this.deadCar(x, z, false, 'boneyard'); this.box(x - 1.1, z - 2.2, x + 1.1, z + 2.2, 1.4, 'wreck'); }
       for (let k = 0; k < 4; k++) { const x = r.x1 - 4 - k * 1.1, z = r.z1 - 4; this.P('barrels', x, 0.5, z, 1.4, 0.9, 1.4, '#2b2826'); }
       blk.yardSpot = { x: (r.x0 + r.x1) / 2, z: r.z1 - 8, r: 4 };
       this.parking = { x: (r.x0 + r.x1) / 2 + 4, z: (r.z0 + r.z1) / 2 + 2, h: 0 };
@@ -302,7 +305,7 @@ export class Holdout {
       if (!kx) continue;
       const cart = rng() < 0.45, c = rng.pick(cart ? ['#7a5a34', '#6b4e2e'] : ['#56603f', '#6a2a1a', '#3f5a62', '#8a6a2a', '#e0d8c0', '#4a4a48']);
       if (cart) { this.P('props', kx.x, 0.6, kx.z, 2.4, 0.5, 1.4, c); for (const s of [-1, 1]) this.P('trunks', kx.x, 0.45, kx.z + s * 0.8, 0.9, 0.12, 0.9, '#2b2826'); this.box(kx.x - 1.2, kx.z - 0.8, kx.x + 1.2, kx.z + 0.8, 1, 'cart'); }
-      else { this.P('props', kx.x, 0.55, kx.z, 4.2, 0.8, 1.9, c); this.P('props', kx.x, 1.15, kx.z, 2.0, 0.6, 1.6, '#2a2622'); this.box(kx.x - 2.1, kx.z - 0.95, kx.x + 2.1, kx.z + 0.95, 1.4, 'car'); }
+      else { this.deadCar(kx.x, kx.z, true, 'street'); this.box(kx.x - 2.1, kx.z - 0.95, kx.x + 2.1, kx.z + 0.95, 1.4, 'car'); }
     }
   }
 
@@ -314,7 +317,7 @@ export class Holdout {
   // of one, or within 0.6 m of its walls). A pure function of the rows, the seed and the lot.
   fillOf(L) {
     if (L.fill) return L.fill;
-    const G = this.row.grit, out = (L.fill = { items: [], boxes: [] });
+    const G = this.row.grit, out = (L.fill = { items: [], boxes: [], wrecks: [] });
     if (!G) return out;
     const Y = HOLDOUT.yard, rng = rngOf(hash32(this.seed, L.salt ?? 0, 0x46494c4c));
     const P = (pool, x, y, z, w, h, d, col, rot = 0, shade = 1) => out.items.push({ pool, e: [x, y, z, w, h, d, col, rot, shade] });
@@ -439,8 +442,10 @@ export class Holdout {
         const along = rng() < 0.5, w = along ? 4.2 : 1.9, d = along ? 1.9 : 4.2, at = spot(w, d);
         if (at) {
           const [u, v] = at, c = pickC(G.hulk), cw = along ? 2.0 : 1.6, cd = along ? 1.6 : 2.0;
-          bx('props', u, v, w, d, 0.3, 0.75, c, 0.85 + rng() * 0.2); bx('props', u + (w - cw) / 2, v + (d - cd) / 2, cw, cd, 1.05, 0.5, burnt ? '#2a2622' : '#3a3632');
-          if (rng() < 0.5) bx('props', u + (along ? 0.3 : 0.2), v + (along ? 0.2 : 0.3), along ? 1.0 : 1.5, along ? 1.5 : 1.0, 1.06, 0.04, pickC(tin)); // a tarp over the engine bay
+          void c; void cw; void cd; rng(); // (the shade roll the box hulk took: the lot's rng stays as it was)
+          const wx = X(u + w / 2, v + d / 2), wz = Z(u + w / 2, v + d / 2), alongX = ns ? along : !along; // our body, stripped and up on blocks
+          out.wrecks.push({ x: wx, z: wz, rot: alongX ? Math.PI / 2 : 0, ...wreckOf(hash32(this.seed, Math.round(wx * 10), Math.round(wz * 10), 0xb10c), 'blocks'), fit: [4.2, 1.9] });
+          if (rng() < 0.5) pickC(tin); // (the tarp's colour roll)
           solid(u, v, w, d, 1.5, 'wreck');
         }
       }
@@ -656,7 +661,9 @@ export class Holdout {
       for (const it of f.items) if (own(it.e[0], it.e[2])) items.push(it);
       for (const q of f.boxes) if (q.x1 > ox - 3 && q.x0 < X1 + 3 && q.z1 > oz - 3 && q.z0 < Z1 + 3) boxes.push(q);
     }
-    return { items, flora: this.flora.filter((f) => own(f[1], f[2])), boxes };
+    const wrecks = this.deadCars.filter((w) => own(w.x, w.z));
+    for (const L of this.lots) { if (L.lot.x1 < ox - 3 || L.lot.x0 > X1 + 3 || L.lot.z1 < oz - 3 || L.lot.z0 > Z1 + 3) continue; for (const w of this.fillOf(L).wrecks) if (own(w.x, w.z)) wrecks.push(w); }
+    return { items, flora: this.flora.filter((f) => own(f[1], f[2])), boxes, wrecks };
   }
   // The HUD street sign inside the wall.
   nameAt(x, z) {

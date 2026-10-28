@@ -1,3 +1,4 @@
+import { wreckOf } from '../data/wrecks.js';
 import * as THREE from 'three';
 import { STREAM, BIOMES, FLORA } from '../data/streaming.js';
 import { C, ISLAND, inIsland, hash32, rngOf, vnoise, Hasher } from './geo.js';
@@ -199,7 +200,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   const seed = W.seed, rng = rngOf(hash32(seed, cx, cz, 7)), F = W.featuresOf(cx, cz) ?? { ribbons: [], pieces: [], rails: [], structs: [], buildings: [], signs: [], stops: [], posts: [] };
   const own = (x, z) => x >= ox && x < X1 && z >= oz && z < Z1;
   const isl = cx * C < ISLAND && X1 > -ISLAND && cz * C < ISLAND && Z1 > -ISLAND;
-  const out = { cx, cz, key: `${cx},${cz}`, boxes: [], counts: {}, warnings: [], hash: '', edges: {}, buildMs: 0, workMs: 0 };
+  const out = { cx, cz, key: `${cx},${cz}`, boxes: [], counts: {}, warnings: [], hash: '', edges: {}, buildMs: 0, workMs: 0, wrecks: [] };
   // Real terrain (flag, world/realterrain.js; null when off): this chunk's ground on the 8 m grid. Everything is laid out
   // on flat ground as before and lifted onto it at the end (the lift pass below); collision heights stay measured from it.
   const T = W.terrain ?? null, TG = T ? T.gridOf(cx, cz) : null;
@@ -1008,11 +1009,12 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
 
   // ---- wrecks on the shoulders and in the median: an old evacuation, cars left where they died ---------------------------
   const WRECK = ['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#704020', '#4f5a52', '#6a5a3a'];
-  const wreck = (x, z, rot, c) => {
+  // One of our own vehicle bodies, dead (data/wrecks.js; systems/wrecks.js draws it while the chunk is hot): the record,
+  // and its collider as it always was.
+  const wreck = (x, z, rot, c, source = 'roadside') => {
     const along = Math.abs(Math.sin(rot)) > 0.7;
-    const wc = col(c);
-    INST.props.push(x, 0.55, z, rot, 1.9, 0.8, 4.2, wc[0], wc[1], wc[2]);
-    INST.props.push(x, 1.15, z, rot, 1.6, 0.6, 2.0, 0.16, 0.15, 0.13);
+    void c;
+    out.wrecks.push({ x, z, rot, ...wreckOf(hash32(seed, Math.round(x * 10), Math.round(z * 10), 0x3ec), source), fit: [4.2, 1.9] });
     if (along) addBox(x - 2.1, z - 0.95, x + 2.1, z + 0.95, 'wreck', 1.4); else addBox(x - 0.95, z - 2.1, x + 0.95, z + 2.1, 'wreck', 1.4);
   };
   for (const q of segL) for (const i of q.near) {
@@ -1124,13 +1126,15 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       pause(); yield; resume(); // a yield a building: a planned one (rooms, furniture, its nav probe) is 0.1-1 ms of work
     }
     // Cars left at the kerb (whole inside this chunk), and the Iron Line running on through the yards.
-    for (const w of RG.wrecks(cx, cz)) wreck(w.x, w.z, w.rot, w.color);
+    for (const w of RG.wrecks(cx, cz)) wreck(w.x, w.z, w.rot, w.color, 'street');
+    for (const L of mine) for (const w of RG.geo(L).wrecks ?? []) out.wrecks.push(w); // a chop shop's car (world/ring.js)
     // A holdout's own pieces: its wall, gates and towers, the market, gardens, pit and boneyard, lamps, trees (its centre
     // in this chunk draws it; every box that reaches in is solid here).
     if (RG.extras) {
       const ex = RG.extras(cx, cz);
       // (A matrix item - pitched, rolled, a billboard face with its atlas rect - goes in whole: world/roadside.js.)
       for (const it of ex.items) { if (it.m) { const c = col(it.c), b = INST[it.pool], i = b.pushMatrix(it.mo, c[0], c[1], c[2]); if (i >= 0 && it.rect) b.e.set(it.rect, i * 4); } else I(it.pool, it.e); }
+      for (const w of ex.wrecks ?? []) out.wrecks.push(w); // a boneyard's hulks, a yard's car on blocks: our bodies, dead (systems/wrecks.js)
       for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h, q.base ?? 0);
       for (const [kind, x, z, h, v] of ex.flora) if (SPECIES[kind]) { const b = INST[poolName(kind)], i = b.push(x, 0, z, floraHash(z, x) * 6.283, h / SPECIES[kind].h, h / SPECIES[kind].h, h / SPECIES[kind].h, 1, 1, 1); if (i >= 0) b.e[i] = v; addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h); }
       pause(); yield; resume();
@@ -1445,6 +1449,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   const H = new Hasher().int(cx).int(cz).str(W.dataHash);
   if (BR) H.str(BR.hash); // the painted strokes are data too
   for (const b of boxes) H.num(b.minX).num(b.minZ).num(b.maxX).num(b.maxZ).num(b.height).num(b.base).str(b.tag);
+  for (const w of out.wrecks) H.num(w.x).num(w.z).num(w.rot).num(w.stack ?? 0).str(w.type).str(w.state).int(w.paint); // the dead cars (data/wrecks.js)
   for (const k of POOL_NAMES) { const r = out.inst[k]; if (!r && !P1_POOLS.has(k)) continue; H.str(k).int(r?.n ?? 0); if (r) for (let i = 0; i < r.m.length; i += 7) H.num(r.m[i]); }
   for (const k of Object.keys(out.surf)) { const s = out.surf[k]; H.str(k).int(s?.nv ?? 0).int(s?.ni ?? 0); if (s) for (let i = 0; i < s.pos.length; i += 5) H.num(s.pos[i]); }
   out.hash = H.hex();
