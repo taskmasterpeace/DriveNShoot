@@ -320,7 +320,7 @@ export class AI {
       c.aiming = false;
 
       // Bleeding out leaves a trail.
-      if (c.bleed > 0.2 && Math.random() < dt * 4 * c.bleed) g.fx.decal(c.x, c.z, 0.25 + Math.random() * 0.3, '#5a0606');
+      if (c.bleed > 0.2 && Math.random() < dt * 4 * c.bleed) g.fx.decal(c.x, c.z, 0.25 + Math.random() * 0.3, '#5a0606', undefined, g.fx.onFloor(c));
 
       // A witness running home to tell it (systems/witnesses.js): runs at any distance, deaf to the rest.
       if (c.telling && g.witnesses.think(c, dt)) continue;

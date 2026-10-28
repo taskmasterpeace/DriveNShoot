@@ -9,6 +9,7 @@ import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted densi
 import { regionWater, WK } from './regions.js';
 import { WATER } from '../data/water.js';
 import { clearEdge, roadscapeStage } from './roadscape.js'; // THE ROADSCAPE: per-class clear zones and the roadside scenes (docs/design/WEB_ROADSCAPE.md)
+import { TOWN, tieLift, RIBBON_BASE, RIBBON_STEP, PAINT_LIFT, ribbonRank } from '../engine/depthlayers.js'; // THE DEPTH LAYERS: one law for flat things on flat things (docs/design/WEB_DEPTH_LAYERS.md)
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -68,7 +69,7 @@ class InstBuf {
 }
 class MeshBuf {
   // flr: a ground's FLOOR channel (world/surfaces.js groundSurface): per vertex [forest floor, town floor] weights 0..1.
-  constructor(maxV, maxI, uv, col, flr = false) { this.pos = new Float32Array(maxV * 3); this.nrm = new Float32Array(maxV * 3); this.uv = uv ? new Float32Array(maxV * 2) : null; this.col = col ? new Float32Array(maxV * 3) : null; this.flr = flr ? new Float32Array(maxV * 2) : null; this.idx = new Uint32Array(maxI); this.maxV = maxV; this.maxI = maxI; this.nv = 0; this.ni = 0; this.over = false; }
+  constructor(maxV, maxI, uv, col, flr = false) { this.pos = new Float32Array(maxV * 3); this.nrm = new Float32Array(maxV * 3); this.uv = uv ? new Float32Array(maxV * 2) : null; this.col = col ? new Float32Array(maxV * 3) : null; this.flr = flr ? new Float32Array(maxV * 2) : null; this.dl = null; this.idx = new Uint32Array(maxI); this.maxV = maxV; this.maxI = maxI; this.nv = 0; this.ni = 0; this.over = false; }
   reset() { this.nv = 0; this.ni = 0; this.over = false; }
   room(v, i) { if (this.nv + v > this.maxV || this.ni + i > this.maxI) { this.over = true; return false; } return true; }
   v(x, y, z, nx, ny, nz, u = 0, w = 0, r = 1, g = 1, b = 1) {
@@ -78,8 +79,12 @@ class MeshBuf {
     if (this.uv) { this.uv[i * 2] = u; this.uv[i * 2 + 1] = w; }
     if (this.col) { this.col[o] = r; this.col[o + 1] = g; this.col[o + 2] = b; }
     if (this.flr) { this.flr[i * 2] = 0; this.flr[i * 2 + 1] = 0; }
+    if (this.dl) this.dl[i] = 0;
     return i;
   }
+  // THE DEPTH LAYERS (engine/depthlayers.js): a render-only lift for vertex i, added after the layout hash (applyLift), so
+  // the layer law moves what is drawn and never the chunk's golden hash.
+  lift(i, d) { if (!this.dl) this.dl = new Float32Array(this.maxV); this.dl[i] = d; return i; }
   tri(a, b, c) { this.idx[this.ni++] = a; this.idx[this.ni++] = b; this.idx[this.ni++] = c; }
   quad(a, b, c, d) { this.tri(a, b, c); this.tri(a, c, d); }
   take(ox, oz) {
@@ -91,7 +96,7 @@ class MeshBuf {
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
     return {
       nv: this.nv, ni: this.ni, pos: this.pos.slice(0, this.nv * 3), nrm: this.nrm.slice(0, this.nv * 3), uv: this.uv ? this.uv.slice(0, this.nv * 2) : null,
-      col: this.col ? this.col.slice(0, this.nv * 3) : null, flr: this.flr ? this.flr.slice(0, this.nv * 2) : null, idx: this.idx.slice(0, this.ni),
+      col: this.col ? this.col.slice(0, this.nv * 3) : null, flr: this.flr ? this.flr.slice(0, this.nv * 2) : null, idx: this.idx.slice(0, this.ni), dl: this.dl ? this.dl.slice(0, this.nv) : null,
       bounds: { cx, cy, cz, r: Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2 + 0.5, wx0: x0 + ox, wx1: x1 + ox, wz0: z0 + oz, wz1: z1 + oz },
     };
   }
@@ -751,13 +756,14 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const edge = (k) => {
         const k0 = Math.max(0, k - 1), k1 = Math.min(rb.n - 1, k + 1), tx = rb.x[k1] - rb.x[k0], tz = rb.z[k1] - rb.z[k0], l = Math.hypot(tx, tz) || 1;
         const nx = -tz / l, nz = tx / l;
-        return [rb.x[k] - nx * rb.wl[k] - ox, rb.z[k] - nz * rb.wl[k] - oz, rb.x[k] + nx * rb.wr[k] - ox, rb.z[k] + nz * rb.wr[k] - oz, rb.y[k]];
+        // [5]: the depth lift (engine/depthlayers.js): its rank (interstate, ramp, a road by heading), so crossings never share a plane
+        return [rb.x[k] - nx * rb.wl[k] - ox, rb.z[k] - nz * rb.wl[k] - oz, rb.x[k] + nx * rb.wr[k] - ox, rb.z[k] + nz * rb.wr[k] - oz, rb.y[k], RIBBON_BASE + RIBBON_STEP * ribbonRank(rb, tx, tz)];
       };
       let a, b;
       if (prevI === i - 1) { a = prevA; b = prevB; }
-      else { const e0 = edge(i); a = R.v(e0[0], e0[4], e0[1], 0, 1, 0, rb.s[i] / per, v0); b = R.v(e0[2], e0[4], e0[3], 0, 1, 0, rb.s[i] / per, v1); }
+      else { const e0 = edge(i); a = R.lift(R.v(e0[0], e0[4], e0[1], 0, 1, 0, rb.s[i] / per, v0), e0[5]); b = R.lift(R.v(e0[2], e0[4], e0[3], 0, 1, 0, rb.s[i] / per, v1), e0[5]); }
       const e1 = edge(i + 1);
-      const c = R.v(e1[2], e1[4], e1[3], 0, 1, 0, rb.s[i + 1] / per, v1), d = R.v(e1[0], e1[4], e1[1], 0, 1, 0, rb.s[i + 1] / per, v0);
+      const c = R.lift(R.v(e1[2], e1[4], e1[3], 0, 1, 0, rb.s[i + 1] / per, v1), e1[5]), d = R.lift(R.v(e1[0], e1[4], e1[1], 0, 1, 0, rb.s[i + 1] / per, v0), e1[5]);
       R.tri(a, c, d); R.tri(a, b, c); // wound to face up
       prevA = d; prevB = c; prevI = i;
     }
@@ -777,6 +783,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const p = (a, u) => [st.x + tx * a + nx * u - ox, st.z + tz * a + nz * u - oz];
     const [ax, az] = p(-0.6, -hw), [bx, bz] = p(-0.6, hw), [cx2, cz2] = p(0.0, hw), [dx, dz] = p(0.0, -hw);
     const i0 = R.v(ax, y, az, 0, 1, 0, 0.5, BAND.white[0]), i1 = R.v(bx, y, bz, 0, 1, 0, 0.5, BAND.white[1]), i2 = R.v(cx2, y, cz2, 0, 1, 0, 0.6, BAND.white[1]), i3 = R.v(dx, y, dz, 0, 1, 0, 0.6, BAND.white[0]);
+    for (const q of [i0, i1, i2, i3]) R.lift(q, PAINT_LIFT - 0.05); // paint over every ribbon rank (engine/depthlayers.js)
     R.quad(i0, i1, i2, i3); R.quad(i0, i3, i2, i1);
   }
   pause(); yield; resume();
@@ -1055,17 +1062,17 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     pause(); const w0 = work; resume();
     // A flat quad of the road layer clipped to this chunk; u along `axis` in metres / per, v across the band from the
     // rect's own edge (so a strip clipped at a chunk seam carries on in the neighbour without a jump).
-    const quad = (x0, z0, x1, z1, y, band, axis, per) => {
+    const quad = (x0, z0, x1, z1, y, band, axis, per, lay = band, tie = 0) => {
       const a0 = Math.max(x0, ox), a1 = Math.min(x1, X1), b0 = Math.max(z0, oz), b1 = Math.min(z1, Z1);
       if (a1 - a0 < 0.05 || b1 - b0 < 0.05 || !R.room(4, 6)) return;
       const v0 = BAND[band][0] + 0.002, v1 = BAND[band][1] - 0.002; // two texels in: no bleed from the next band
       const vx = (x, z) => v0 + (v1 - v0) * (axis === 'z' ? (x - x0) / (x1 - x0) : (z - z0) / (z1 - z0));
-      const vtx = (x, z) => R.v(x - ox, y, z - oz, 0, 1, 0, (axis === 'z' ? z : x) / per, vx(x, z));
+      const vtx = (x, z) => R.lift(R.v(x - ox, y, z - oz, 0, 1, 0, (axis === 'z' ? z : x) / per, vx(x, z)), TOWN[lay] + tie - y); // drawn at its depth layer
       const p0 = vtx(a0, b0), p1 = vtx(a1, b0), p2 = vtx(a1, b1), p3 = vtx(a0, b1);
       R.tri(p0, p3, p2); R.tri(p0, p2, p1); // wound to face up
     };
     // Strips of a band across a wide pad (a yard, a parking lot): `w` metres each, along its longer side.
-    const pad = (p, y, band, per, w) => {
+    const pad = (p, y, band, per, w) => { // (y: the height the layout hash was pinned with; drawn at TOWN[band], engine/depthlayers.js)
       const along = p.x1 - p.x0 >= p.z1 - p.z0 ? 'x' : 'z', span = along === 'x' ? p.z1 - p.z0 : p.x1 - p.x0, n = Math.max(1, Math.round(span / w));
       for (let k = 0; k < n; k++) {
         const s0 = (span / n) * k, s1 = (span / n) * (k + 1);
@@ -1075,14 +1082,14 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const rgStreets = RG.streets(ox, oz, X1, Z1);
     ringStreets = ringStreets ? ringStreets.concat(rgStreets) : rgStreets;
     for (const s of rgStreets) {
-      quad(s.x0, s.z0, s.x1, s.z1, s.axis === 'z' ? 0.036 : 0.032, 'street', s.axis, 21); rs.streets++;
+      quad(s.x0, s.z0, s.x1, s.z1, s.axis === 'z' ? 0.036 : 0.032, 'street', s.axis, 21, s.axis === 'z' ? 'streetZ' : 'streetX', tieLift(String(s.line))); rs.streets++; // drawn at TOWN's: a crossing never shares a plane
       // Seams: a street that runs on over an edge (not one that starts there) is named on it.
       if (s.axis === 'z') { if (s.open0) crossings.n.push(`ring:z${s.line}`); if (s.open1) crossings.s.push(`ring:z${s.line}`); }
       else { if (s.open0) crossings.w.push(`ring:x${s.line}`); if (s.open1) crossings.e.push(`ring:x${s.line}`); }
     }
     RG.blocksOver(ox - 4, oz - 4, X1 + 4, Z1 + 4, (b) => {
       for (const p of RG.pads(b)) {
-        if (p.band === 'walk') quad(p.x0, p.z0, p.x1, p.z1, 0.026, 'walk', p.x1 - p.x0 >= p.z1 - p.z0 ? 'x' : 'z', 6);
+        if (p.band === 'walk') { const ax = p.x1 - p.x0 >= p.z1 - p.z0 ? 'x' : 'z'; quad(p.x0, p.z0, p.x1, p.z1, 0.026, 'walk', ax, 6, ax === 'x' ? 'walkX' : 'walkZ'); } // (walks meet at corners: one axis over the other)
         else if (p.band === 'yard') pad(p, 0.022, 'yard', 12, 6);
         else pad(p, 0.024, 'lot', 10.8, 5.5);
       }
@@ -1440,6 +1447,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   for (const k of POOL_NAMES) { const r = out.inst[k]; if (!r && !P1_POOLS.has(k)) continue; H.str(k).int(r?.n ?? 0); if (r) for (let i = 0; i < r.m.length; i += 7) H.num(r.m[i]); }
   for (const k of Object.keys(out.surf)) { const s = out.surf[k]; H.str(k).int(s?.nv ?? 0).int(s?.ni ?? 0); if (s) for (let i = 0; i < s.pos.length; i += 5) H.num(s.pos[i]); }
   out.hash = H.hex();
+  // THE DEPTH LAYERS (engine/depthlayers.js): the render-only lifts go on now, after the hash (layout stays pinned).
+  for (const k of Object.keys(out.surf)) { const s = out.surf[k]; if (s?.dl) { for (let i = 0; i < s.nv; i++) s.pos[i * 3 + 1] += s.dl[i]; s.dl = null; } }
   out.edgeRoads = { n: crossings.n.length, s: crossings.s.length, w: crossings.w.length, e: crossings.e.length };
   for (const e of ['n', 's', 'w', 'e']) { const h = out.edges[e]; for (const c of crossings[e].sort()) h.str(c); out.edges[e] = h.hex(); }
   out.boxCount = boxes.length;

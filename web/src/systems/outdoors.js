@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ITEMS } from '../data/items.js';
+import { DECAL_Y, layerMesh } from '../engine/depthlayers.js';
 import { SPECIES, PHASES } from '../data/fauna.js';
 import { BREEDS } from '../data/dogs.js';
 import { LAKE } from '../world/water.js';
@@ -49,7 +50,7 @@ export class Outdoors {
     if (game.scene) {
       const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
       this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.62, depthWrite: false, fog: true }), TRACKS.draw);
-      this.mesh.count = 0; this.mesh.visible = false; this.mesh.frustumCulled = false; this.mesh.renderOrder = 1;
+      this.mesh.count = 0; this.mesh.visible = false; this.mesh.frustumCulled = false; layerMesh(this.mesh, 'groundDecal'); // engine/depthlayers.js
       this.mesh.setColorAt(0, _c.set('#000000'));
       game.scene.add(this.mesh);
       this.campMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }), CAMP.max);
@@ -196,7 +197,7 @@ export class Outdoors {
       const max = this.maxAge(i, L), age = now - this.tt[i];
       if (age > max) continue;
       const K = TRACK_KINDS[KINDS[this.tk[i]]], fade = 1 - (age / Math.max(1e-3, max)) * 0.75;
-      _o.position.set(x, 0.115 + (ground ? ground(x, z) : 0), z); _o.rotation.set(0, this.tf[i], 0);
+      _o.position.set(x, DECAL_Y + (ground ? ground(x, z) : 0), z); // over a building's floor and rugs too (engine/depthlayers.js) _o.rotation.set(0, this.tf[i], 0);
       _o.scale.set(K.size * (KINDS[this.tk[i]] === 'tyre' ? 0.35 : 0.6), 1, K.size); _o.updateMatrix();
       m.setMatrixAt(n, _o.matrix);
       m.setColorAt(n, _c.set(K.colour).multiplyScalar(0.6 + 0.4 * (1 - fade)).lerp(_c2.set('#9a8a70'), 1 - fade));

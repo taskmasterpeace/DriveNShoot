@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { layerMesh } from '../engine/depthlayers.js';
 import { WATER } from '../data/water.js';
 
 // Water: the Colorado Remnant (a river down the east flank, under the Route 66 bridge)
@@ -150,7 +151,7 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
     }
     const ring = new THREE.CircleGeometry(LAKE.r + 7, 64); ring.rotateX(-Math.PI / 2); ring.translate(LAKE.x, 0.008, LAKE.z); shore.push(ring);
     const sm = new THREE.Mesh(mergeGeometries(shore), new THREE.MeshStandardMaterial({ color: '#5e4430', roughness: 0.6, transparent: true, opacity: 0.55, depthWrite: false }));
-    sm.receiveShadow = true; sm.renderOrder = 0;
+    sm.receiveShadow = true; layerMesh(sm, 'groundDecal'); // engine/depthlayers.js: a decal over the bank
     game.scene.add(sm);
 
     this.buildBridge(game);
@@ -193,7 +194,7 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
     const { x, z, halfW, halfL } = BRIDGE;
     const steel = new THREE.MeshStandardMaterial({ color: '#5a554e', roughness: 0.7, metalness: 0.3 });
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(halfL * 2, halfW * 2 + 5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#0a1a1c', transparent: true, opacity: 0.45, depthWrite: false }));
-    shadow.position.set(x, 0.02, z + 1.2); game.scene.add(shadow); // cast onto the water beside the deck
+    shadow.position.set(x, 0.02, z + 1.2); layerMesh(shadow, 'shadowBlob'); game.scene.add(shadow); // cast onto the water beside the deck
     for (const s of [-1, 1]) {
       const girder = new THREE.Mesh(new THREE.BoxGeometry(halfL * 2 + 2, 0.5, 0.6), steel);
       girder.position.set(x, 0.2, z + s * (halfW + 0.3)); girder.castShadow = true; game.scene.add(girder);

@@ -18,6 +18,7 @@
 //   loot      per-floor containers (richer upstairs), a crate on the roof; cover: points with their facing and height
 const WALL = 0.4, IN = WALL / 2, FW = 1.4, LAND = 1.4, PITCH = 3.2 / 4.4, LADDER = 1.73, RAIL_H = 1.0, RAIL_T = 0.12, BLOCK = 2.0, LINTEL = 2.6;
 import { VERT, LOOT_BY_KIND, FLOOR_LOOT, ROADS, BIOMES } from '../../data/citygen.js';
+import { STEP } from '../../engine/depthlayers.js';
 import { makeRng } from '../../engine/rng.js';
 import { buildBacklots } from './backlots-build.js';
 
@@ -109,7 +110,7 @@ function coreSolids(core, add, vis, lvBase, outerOpen) {
     for (const q of flankQs) {
       const fl = fr.rect(f.rBottom + dirR * OPEN, f.rTop, q - RAIL_T / 2, q + RAIL_T / 2), r = fr.rect(f.rBottom, f.rTop, q - RAIL_T / 2, q + RAIL_T / 2);
       add(fl.minX, fl.minZ, fl.maxX, fl.maxZ, 'cg-flank', f.to + 0.1, f.from);
-      vis((fl.minX + fl.maxX) / 2, (f.from + f.to) / 2, (fl.minZ + fl.maxZ) / 2, fl.maxX - fl.minX, f.to - f.from, fl.maxZ - fl.minZ, '#4a4038', lvBase + f.i);
+      vis((fl.minX + fl.maxX) / 2, (f.from + f.to - STEP) / 2, (fl.minZ + fl.maxZ) / 2, fl.maxX - fl.minX, f.to - f.from - STEP, fl.maxZ - fl.minZ, '#4a4038', lvBase + f.i); // drawn a depth step under the floor it meets (engine/depthlayers.js)
       add(r.minX, r.minZ, r.maxX, r.maxZ, 'cg-rail', f.to + RAIL_H, f.to);
       vis((r.minX + r.maxX) / 2, f.to + RAIL_H / 2, (r.minZ + r.maxZ) / 2, r.maxX - r.minX, RAIL_H, r.maxZ - r.minZ, '#3a3430', lvBase + f.i + 1);
     }
@@ -348,10 +349,11 @@ export function buildBuilding(B, out, T, rng) {
     for (let L = 1; L < esc.Ye.length; L++) {
       const y = esc.Ye[L];
       add(qOut.minX, qOut.minZ, qOut.maxX, qOut.maxZ, 'cg-rail', y + RAIL_H, y);
-      vis((qOut.minX + qOut.maxX) / 2, y + RAIL_H / 2, (qOut.minZ + qOut.maxZ) / 2, qOut.maxX - qOut.minX, RAIL_H, qOut.maxZ - qOut.minZ, '#2e2a26', L);
+      const qv = k.frame.rect(-LAND, k.L0 + LAND, FW * 2 - RAIL_T, FW * 2 + STEP); // drawn a depth step proud of the flight's own rail it runs along
+      vis((qv.minX + qv.maxX) / 2, y + (RAIL_H + STEP) / 2, (qv.minZ + qv.maxZ) / 2, qv.maxX - qv.minX, RAIL_H + STEP, qv.maxZ - qv.minZ, '#2e2a26', L);
       for (const r of [-LAND, k.L0 + LAND]) { const e = k.frame.rect(r - 0.06, r + 0.06, 0, FW * 2); add(e.minX, e.minZ, e.maxX, e.maxZ, 'cg-rail', y + RAIL_H, y); }
       // the landing's grating (visual: the deck is the record's)
-      vis((fr.minX + fr.maxX) / 2, y - 0.05, (fr.minZ + fr.maxZ) / 2, fr.maxX - fr.minX, 0.1, fr.maxZ - fr.minZ, '#3a3632', L);
+      vis((fr.minX + fr.maxX) / 2, y - 0.05 + STEP / 2, (fr.minZ + fr.maxZ) / 2, fr.maxX - fr.minX, 0.1, fr.maxZ - fr.minZ, '#3a3632', L); // half a depth step over the flight's top tread
     }
     const ly = esc.Ye.slice(); ly[ly.length - 1] = esc.topL === n ? top : ly[ly.length - 1];
     R.E = { b: { minX: fr.minX, maxX: fr.maxX, minZ: fr.minZ, maxZ: fr.maxZ, escapeOf: R }, n: esc.Ye.length - 1, Y: ly, flights: k.flights, frame: k.frame, depth: FW * 2, area: fr,
@@ -424,10 +426,11 @@ export function buildTown(T) {
   for (const b of T.blocks) out.items.push({ cx: (b.x0 + b.x1) / 2, cy: 0.02, cz: (b.z0 + b.z1) / 2, sx: b.x1 - b.x0, sy: 0.04, sz: b.z1 - b.z0, col: b.green ? '#6a7448' : BI.ground, lv: 0, R: null });
   for (const r of T.roads) {
     const RW = ROADS[r.row];
-    out.items.push({ cx: (r.x0 + r.x1) / 2, cy: 0.05, cz: (r.z0 + r.z1) / 2, sx: r.x1 - r.x0, sy: 0.06, sz: r.z1 - r.z0, col: RW.edge, lv: 0, R: null });
+    const up = r.axis === 'x' ? 0 : STEP; // a crossing never shares a plane: the z streets a depth step over the x (engine/depthlayers.js)
+    out.items.push({ cx: (r.x0 + r.x1) / 2, cy: 0.05 + up, cz: (r.z0 + r.z1) / 2, sx: r.x1 - r.x0, sy: 0.06, sz: r.z1 - r.z0, col: RW.edge, lv: 0, R: null });
     const inset = RW.walk;
     if (r.axis === 'x') out.items.push({ cx: (r.x0 + r.x1) / 2, cy: 0.07, cz: (r.z0 + r.z1) / 2, sx: r.x1 - r.x0, sy: 0.06, sz: r.z1 - r.z0 - 2 * inset, col: RW.color, lv: 0, R: null });
-    else out.items.push({ cx: (r.x0 + r.x1) / 2, cy: 0.07, cz: (r.z0 + r.z1) / 2, sx: r.x1 - r.x0 - 2 * inset, sy: 0.06, sz: r.z1 - r.z0, col: RW.color, lv: 0, R: null });
+    else out.items.push({ cx: (r.x0 + r.x1) / 2, cy: 0.07 + up, cz: (r.z0 + r.z1) / 2, sx: r.x1 - r.x0 - 2 * inset, sy: 0.06, sz: r.z1 - r.z0, col: RW.color, lv: 0, R: null });
   }
   if (T.runway) out.items.push({ cx: (T.runway.x0 + T.runway.x1) / 2, cy: 0.09, cz: (T.runway.z0 + T.runway.z1) / 2, sx: T.runway.x1 - T.runway.x0 - 20, sy: 0.02, sz: 1, col: '#c8c0a0', lv: 0, R: null });
   // bridges first (their parapet gaps), then the buildings

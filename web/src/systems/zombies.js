@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { layerMesh } from '../engine/depthlayers.js';
 import { outfit } from './characters.js';
 import { INFECTED, CHOIR_SITES, FOOTSTEPS, INSIDE, BREEDS } from '../data/infected.js';
 import { HIT_ODDS } from '../data/gear.js';
@@ -47,7 +48,7 @@ export class Zombies {
     if (!this.auraRing) {
       const geo = new THREE.RingGeometry(CH.aura - 0.6, CH.aura, 96); geo.rotateX(-Math.PI / 2);
       this.auraRing = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#b9c2a4', transparent: true, opacity: 0.18, depthWrite: false }));
-      this.auraRing.renderOrder = 2;
+      layerMesh(this.auraRing, 'ring'); // engine/depthlayers.js
       g.scene.add(this.auraRing);
     }
     this.auraRing.visible = true;

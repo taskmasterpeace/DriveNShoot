@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RAY_SOLID, RAY_SIGHT, RAY_BULLET } from '../engine/collision.js';
+import { STEP } from '../engine/depthlayers.js';
 import { DOOR, DOOR_MATERIALS, WINDOW, WINDOW_LOOK, WINDOW_MIX, RING_OPENINGS as RO } from '../data/interiors.js';
 import { glassMaterial } from './carcombat.js';
 import { windowGlassTexture } from '../world/textures.js';
@@ -732,9 +733,9 @@ export class Interiors {
     const wallH = W.row.wallH ?? b?.h ?? WINDOW.top, T = W.row.t ?? 0.5;
     const pal = town ? L.frame.town : L.frame.ruins, frame = pal[Math.floor(hash(0) * pal.length)];
     const oh = WINDOW.top - WINDOW.sill, fw = L.frame.w;
-    if (wallH > WINDOW.top + 0.05) put(0, (WINDOW.top + wallH) / 2, 0, W.width, wallH - WINDOW.top, T, W.row.color ?? b?.color ?? '#a39b8d'); // the lintel: the wall goes on over the window
+    if (wallH > WINDOW.top + 0.05) put(0, (WINDOW.top + wallH - STEP) / 2, 0, W.width, wallH - WINDOW.top - STEP, T, W.row.color ?? b?.color ?? '#a39b8d'); // the lintel: the wall goes on over the window (a depth step under the wall's own top, which some buildings carry over the opening too)
     for (const s of [-1, 1]) put(s * (W.half - fw / 2), (WINDOW.sill + WINDOW.top) / 2, 0, fw, oh, L.frame.depth, frame);
-    put(0, WINDOW.top - fw / 2, 0, W.width, fw, L.frame.depth, frame);
+    put(0, WINDOW.top - fw / 2 + STEP / 2, 0, W.width, fw + STEP, L.frame.depth, frame); // the head: a depth step over the jambs' and bars' tops it caps (engine/depthlayers.js)
     put(0, WINDOW.sill, L.sill.out, W.width + 0.24, L.sill.h, L.sill.depth, L.sill.color);
     // Shutters, outside, either side: Rust Haven paints them; a ruin's may hang off one hinge.
     if (hash(3) < (town ? L.shutter.town : L.shutter.ruins)) {

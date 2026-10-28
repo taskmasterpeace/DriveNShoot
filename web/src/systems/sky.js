@@ -126,7 +126,12 @@ export class Sky {
   // to its edges and doesn't wash out under the haze meant for a street-level view.
   update(dt, center, ground, roads, viewR = 30) {
     const half = Math.max(70, viewR * 1.05), sc = this.sun.shadow.camera;
-    if (Math.abs(sc.right - half) > 4) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.updateProjectionMatrix(); }
+    if (Math.abs(sc.right - half) > 4) {
+      sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.updateProjectionMatrix();
+      // Acne without peter-panning (docs/design/WEB_DEPTH_LAYERS.md): the normal offset follows the shadow texel (0.6 of
+      // one), so a wide zoom's bigger texels don't stripe the ground and a close one's shadows stay at the foot.
+      this.sun.shadow.normalBias = Math.max(0.04, (0.6 * 2 * half) / this.sun.shadow.mapSize.x);
+    }
     const gameHours = dt * this.timeScale * (this.fast ? 40 : 1);
     this.time = (this.time + gameHours) % 24;
     this.nextWeatherIn -= dt * (this.fast ? 40 : 1);
