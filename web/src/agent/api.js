@@ -46,6 +46,9 @@ import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
 import { voiceStatsCommands } from './voicestats.js';
 import { voiceStatsChecks } from './voicestats-selftest.js';
+import { qolChecks } from './qol-selftest.js';
+import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
+import { MOUNT_WEAPONS } from '../data/workshop.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -860,6 +863,15 @@ function buildCommands(api) {
       group: 'player', desc: 'Current objective text, its target position, and GPS route length (what the HUD tracker shows).',
       run: async () => { const o = g.qol.objective(); g.qol.routeT = 0; g.qol.updateRoute(0); return { text: o.text, target: o.target ? { x: r1(o.target.x), z: r1(o.target.z) } : null, routeLength: g.qol.routeLength() && Math.round(g.qol.routeLength()), waypoint: g.qol.waypoint }; },
     },
+    qol: {
+      group: 'meta', desc: 'The quality-of-life layer: settings, THIS RUN totals, the RECENT log, save times. set=<setting> value=<v> changes one setting for this session (hudScale, nameTags aim|near|off, killFeed, dmgNumbers, autosaveMin, pauseOnBlur, muteOnBlur, ...); hud=true|false hides/shows the HUD (F1).',
+      args: { set: { type: 'string' }, value: { type: 'string' }, hud: { type: 'boolean' } },
+      run: async ({ set, value, hud }) => {
+        if (set) { const cur = g.qol.settings[set], v = typeof cur === 'boolean' ? value === 'true' : typeof cur === 'number' ? Number(value) : value; g.qol.settings[set] = v; g.qol.syncInputs(); g.qol.apply(); }
+        if (hud !== undefined) g.qol.toggleHud(!hud);
+        return g.qol.view();
+      },
+    },
     waypoint: {
       group: 'player', desc: 'Set (x,z) or clear (no args) the GPS waypoint shown on the minimap/big map.',
       args: { x: { type: 'number' }, z: { type: 'number' } },
@@ -1563,14 +1575,14 @@ function buildCommands(api) {
     },
     garage: {
       group: 'vehicle', desc: 'Fit or read a car\'s armour and mounts (data/parts.js): plates=front|rear|left|right|sides|all with points=N (negative removes), mount=mg|oil|caltrops|smoke, refill=true. vehicle defaults to the one you are in (or last drove). pay=true charges your cash like Kenji does.',
-      args: { vehicle: { type: 'string' }, plates: { type: 'string' }, points: { type: 'number', default: 4 }, mount: { type: 'string' }, refill: { type: 'boolean', default: false }, pay: { type: 'boolean', default: false } },
-      run: async ({ vehicle, plates, points, mount, refill, pay }) => {
+      args: { vehicle: { type: 'string' }, plates: { type: 'string' }, points: { type: 'number', default: 4 }, kind: { type: 'string' }, mount: { type: 'string' }, refill: { type: 'boolean', default: false }, pay: { type: 'boolean', default: false } },
+      run: async ({ vehicle, plates, points, kind, mount, refill, pay }) => {
         const v = vehicle ? api.findVeh(vehicle) : P().inVehicle ?? g.lastVehicle;
         need(v && !v.dead, vehicle ? `no live vehicle ${vehicle}` : 'not in (or near) a vehicle; pass vehicle=');
         const G = g.garage, out = {};
         if (plates) {
           if (pay) need(g.spend(Math.max(0, points) * PLATE.price * (plates === 'sides' ? 2 : plates === 'all' ? 4 : 1)), 'not enough cash');
-          const r = G.plate(v, plates, points); need(r.ok, r.why); out.added = r.added;
+          const r = G.plate(v, plates, points, kind); need(r.ok, r.why); out.added = r.added;
         }
         if (mount) { if (pay) need(g.spend(MOUNTS[mount]?.price ?? 0), 'not enough cash'); const r = G.mount(v, mount); need(r.ok, r.why); }
         if (refill) out.refilled = G.refill(v);
@@ -1787,7 +1799,7 @@ function buildCommands(api) {
           const before = v.mounts.front.ammo;
           if (!g.garage.fireFront(v, P(), Math.atan2(tx - v.x, tz - v.z))) { outOfArc = true; break; }
           if (v.mounts.front.ammo < before) fired++;
-          await api._step(Math.ceil(MOUNTS[v.mounts.front.kind].rate * 60));
+          await api._step(Math.ceil((MOUNT_WEAPONS[v.mounts.front.kind] ?? MOUNTS[v.mounts.front.kind]).rate * 60));
         }
         return { fired, ammo: v.mounts.front.ammo, outOfArc, target: t ? { id: t.id, hp: Math.round(t.hp), alive: t.alive ?? !t.dead } : null };
       },
@@ -1958,6 +1970,7 @@ function buildCommands(api) {
     // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
     // row above, same answers there), rivers, bridges.
     ...waterCommands(api, need),
+    ...workshopCommands(api), // workshop, mount, arena (agent/workshop-api.js; docs/design/WEB_WORKSHOP.md)
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
     ...cloneCommands(api, need),
@@ -3652,6 +3665,7 @@ async function runSelfTest(api, only = null, skip = null) {
     g.garage.hazards.length = 0;
     return heavier && absorbed && breached && through && gunned && slipped ? true : JSON.stringify({ heavier, absorbed, breached, through, gunned, hg, slipped, plates: v.plates });
   });
+  await workshopChecks({ g, api, C, check, stage, person }); // THE WORKSHOP: the formula, THE BREACH, oil, arcs, the rail gun, the counter, the screen, the save (agent/workshop-api.js)
   await check('faction sim: ten days off-screen move strength and stores, skirmish at war, and run in under 20 ms', async () => {
     const S = g.society, sv = S.sim.save();
     const r = await C('simTick', { hours: 240 });
@@ -5812,6 +5826,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
   g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
   g.fauna.enabled = faunaWas;
+  await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
@@ -5831,7 +5846,7 @@ export function snapshot(g) {
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
     chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
-      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
+      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
@@ -5869,6 +5884,7 @@ export function restore(g, s) {
     if (!v) { v = g.vehiclesSys.spawn(sv.type, sv.x, sv.z, sv.h, sv.paint, { ai: sv.ai }); v.id = sv.id; }
     Object.assign(v, { x: sv.x, z: sv.z, h: sv.h, hp: sv.hp, vx: 0, vz: 0, av: 0, ai: sv.ai, driver: null });
     v.plates = sv.plates ? { ...sv.plates } : undefined; v.mounts = sv.mounts ? JSON.parse(JSON.stringify(sv.mounts)) : undefined;
+    g.garage.loadBuild(v, sv.build); // an old save: plain boiler plate, no gadgets
     g.garage.retune(v);
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }
   }
