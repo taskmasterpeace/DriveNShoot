@@ -63,10 +63,11 @@ export class AI {
   // quiet: the caller already recorded the deed (a carjack is not also an assault).
   onDamaged(c, attacker, quiet = false) {
     c.hitAt = this.g.time; // a resident hit in the last seconds is never demoted out from under you (systems/residents.js)
+    if (c.faction === 'zombie') this.g.zombies?.onHurt(c, attacker === c ? null : attacker); // legs, falls, which way it came from (systems/zombies.js)
     if (c.sleeping) this.wake(c, 'hurt');
     if (!attacker || attacker === c || c === this.g.player) return;
     if (!quiet) this.g.society?.deeds.onHurt(c, attacker); // witnesses decide whether the law hears of it
-    if (c.faction === 'zombie') { if (attacker.alive) c.ztarget = attacker; return; } // the dead don't flee
+    if (c.faction === 'zombie') return; // the dead don't flee; what they know of the attacker is zombies.onHurt's (law 6: a direction, not a position)
     if (c.faction !== attacker.faction || attacker === this.g.player) c.grudge = attacker;
     if (c.weapon) { c.target = attacker; c.state = 'fight'; }
     else { c.flee = 8; c.fleeX = attacker.x; c.fleeZ = attacker.z; }
