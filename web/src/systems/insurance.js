@@ -158,7 +158,7 @@ export class Insurance {
     el.innerHTML = [
       `<div class="pm-section">LIFE INSURANCE · ${esc(P ? P.name : 'NONE')} · ${esc(v.status)}</div>`,
       grid([
-        ['Premium', P ? `$${P.premium}/day` : '-'], ['Brine book', `$${v.bank}`], ['Behind', `${v.owed} of ${P?.graceDays ?? 0} days`],
+        ['Premium', P ? (P.premium === 0 && at?.free ? 'FREE (the town pays)' : `$${P.premium}/day`) : '-'], ['Brine book', `$${v.bank}`], ['Behind', `${v.owed} of ${P?.graceDays ?? 0} days`],
         ['Home centre', v.home?.short ?? '-'], ['Pressed at', at ? `${this.row(at.vat)?.short ?? at.vat}${at.office ? ' (office)' : ''}` : '-'],
         ['Pressing', at ? (at.cold ? 'COLD' : `${Math.round(at.hoursAgo)} h old`) : '-'], ['Cold in', at && !at.cold ? `${Math.round(at.coldIn)} h` : '-'],
         ['You come up', P ? `${P.sickHours} h brine-sick` : 'flat'], ['Tow / re-press', P ? `${P.tow ? 'tow' : 'no tow'} · ${P.repress ? 're-press' : 'no'}` : '-'],
