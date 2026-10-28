@@ -22,6 +22,7 @@ export class BackLots {
     this.W = { id: '', x: 0, z: 0, ux: 0, uz: 0, nx: 0, nz: 0, half: 1 }; // the fence as interiors.startVault wants a window
     this.counts = { climbs: 0, kicks: 0, broken: 0, gatesHung: 0 };
     this.liveKey = '';
+    this.hung = new Map(); // interiors ring id -> its town's id (a released town gives its gates back)
     const cg = g.citygen;
     if (g.nav) for (const k of ['foot', 'car']) g.nav[k].overlay = (grid) => this.navOverlay(grid);
     void cg;
@@ -45,9 +46,14 @@ export class BackLots {
     this.scanT = 0.5;
     // a town built or released: the nav windows take its colliders on (or off) at their next query
     let key = ''; for (const id of CG.live.keys()) key += id + ';';
-    if (key !== this.liveKey) { this.liveKey = key; this.dirtyNav(); }
+    if (key !== this.liveKey) { this.liveKey = key; this.dirtyNav(); this.dropGone(); }
     const P = this.g.player;
     this.hang(P.inVehicle ? P.inVehicle.x : P.x, P.inVehicle ? P.inVehicle.z : P.z);
+  }
+  // A town released (or removed): its gates' leaves go back to the pool.
+  dropGone() {
+    const I = this.g.interiors, CG = this.g.citygen;
+    for (const [id, town] of this.hung) if (!CG.live.has(town)) { if (I.ringOpen.has(id)) I.detachRing(id); this.hung.delete(id); }
   }
   dirtyNav() { const n = this.g.nav; if (n) { n.foot.dirty = true; n.car.dirty = true; } }
 
@@ -64,12 +70,12 @@ export class BackLots {
         if (!gs) continue;
         const g0 = gs[0], d = Math.hypot(g0.x - px, g0.z - pz);
         const open = B.yardOpen.get(y.id);
-        if (open && (!I.ringOpen.has(id) || d > near + 25)) { if (I.ringOpen.has(id)) I.detachRing(id); B.yardOpen.delete(y.id); continue; }
+        if (open && (!I.ringOpen.has(id) || d > near + 25)) { if (I.ringOpen.has(id)) I.detachRing(id); B.yardOpen.delete(y.id); this.hung.delete(id); continue; }
         if (open || d > near) continue;
         let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
         for (const q of gs) { x0 = Math.min(x0, q.x - 1); x1 = Math.max(x1, q.x + 1); z0 = Math.min(z0, q.z - 1); z1 = Math.max(z1, q.z + 1); }
         I.attachRing(id, { x0, z0, x1, z1, ruined: false, y: B.y0 || undefined }, { doors: gs.map((q) => ({ x: q.x, z: q.z, w: q.w, nx: q.nx, nz: q.nz, kind: 'gate' })), innerDoors: [], windows: [] });
-        B.yardOpen.set(y.id, true);
+        B.yardOpen.set(y.id, true); this.hung.set(id, t.rec.id);
         this.counts.gatesHung += gs.length;
         const rec = I.ringOpen.get(id), H = t.T.buildings.find((q) => q.id === y.b), odds = this.gateLock(H, t.rec);
         if (rec) for (const door of rec.doors) { door.gate = true; door.yard = y.id; if (h01(door.id) < odds) I.setLocked(door, true); }

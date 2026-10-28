@@ -202,7 +202,7 @@ Every piece is an item in citygen's one instanced mesh (no new draw call):
 
 The existing citygen checks still pass on the new plan: the 20-stamp walkability audit, sites/homesteads/base, the 20 SITE rows, the law and the clone, and the live checks.
 
-**Golden chunk hashes:** the island hash, ringPlans and the 12 P1 chunks don't include generated towns (the plan avoids pinned chunks), so no pin moves; see the hand-back for the measured result. What does change: every town's layout. Blocks are 7 m bigger, so there are fewer of them, and the lots, buildings and wrecks differ. A town's `rec.half` can grow with its extent, which moves which streamed chunks keep wild scatter off it.
+**Golden chunk hashes: none moved.** The island hash, `ringPlans` and all 12 pinned P1 chunk hashes pass in both batteries; the plan keeps settlements off pinned chunks, and generated towns are not part of any chunk hash. What does change: every generated town's layout. Blocks are 7 m bigger, so there are fewer of them, and the lots, buildings and street wrecks differ. A town's `rec.half` can grow with its extent, which moves which streamed (unpinned) chunks keep wild scatter off it.
 
 **Not done (follow-ups):**
 - Rear stairs on two-storey shops (fire escapes stay on side walls).

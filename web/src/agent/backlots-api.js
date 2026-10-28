@@ -244,5 +244,7 @@ export async function backlotsChecks({ api, g, check, C }) {
 
   letGo();
   if (CG.live.has('bl-selftest')) CG.remove('bl-selftest');
+  BL.dropGone(); // its gates go back to the leaf pool now (not at the next scan)
+  g.wanted = 0; g.wantedT = 0; // a kicked door in town is nobody else's business
   void ARCHETYPES; void YARD;
 }
