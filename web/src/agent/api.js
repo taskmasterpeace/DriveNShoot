@@ -1,7 +1,8 @@
 import { knowing as knowingFor } from '../data/creator.js'; // where you start decides where you are a local
 import { WEAPONS } from '../systems/combat.js';
 import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
-import { DECK_RULES, CAMP } from '../data/decks.js';
+import { DECK_RULES, CAMP, validateDecks } from '../data/decks.js';
+import { STANCES, PRONE, FOOTING, validateStance } from '../data/stance.js';
 import { WEATHER, NIGHT_I } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
@@ -32,6 +33,7 @@ import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
 import { waterCommands } from './water-api.js';
 import { waterChecks } from './water-selftest.js';
+import { decksStanceChecks } from './decks-stance-selftest.js';
 import { journeyCommands, journeyChecks } from './journeys-api.js'; // life insurance, the city picker, risky journeys (WEB_INSURANCE_JOURNEYS.md)
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
@@ -44,6 +46,7 @@ import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
@@ -59,6 +62,7 @@ import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay,
 import { qolChecks } from './qol-selftest.js';
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
+import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -69,6 +73,7 @@ import { MOUNT_WEAPONS } from '../data/workshop.js';
 // ============================================================================
 
 const r1 = (v) => Math.round(v * 10) / 10;
+const r2s = (v) => Math.round(v * 100) / 100;
 const TOO_FAR = 'farther apart than one nav window (1,024 m): a route that long needs the road graph (WEB_STREAMING P3); go by way of a nearer point';
 // Why a vehicle can't make power at all (vehicledamage.js: a dead engine or a dry tank gives zero power), or null.
 // drive and ram say so instead of flooring a dead car for their whole budget (ram used to call it "walls in the way").
@@ -104,6 +109,7 @@ function vehView(g, v) {
     ...g.vehDamage.view(v),
     occupants: g.seats.occupants(v), seatsTotal: v.seats?.length ?? 0, fallen: !!v.fallen, boat: !!v.boat, sunk: !!v.sunk, waterDepth: r1(v.depth ?? 0),
     reverse: r1(reverseOf(v)), deck: g.decks.view(v) ?? undefined,
+    turret: v.mounts?.top ? { by: v.turretBy ?? null, yaw: r2s(v.mounts.top.yaw ?? v.h) } : undefined, // the turret seat (data/decks.js TURRET_SEAT): who mans it, where it points
   };
 }
 
@@ -696,6 +702,38 @@ function buildCommands(api) {
     },
     crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.crouchOverride = on; P().crouch = on; return { crouch: on }; } },
+    prone: { group: 'player', desc: 'Go prone (on=true) or get up (on=false): flat on the belly - 0.8 m/s, the gun only within 40 degrees of where the body points, 0.25x as easy to spot in the open, unseen past 12 m in grass or cover, never thrown off an open deck and never seen past its rail; never in a seat, a cabin or the water (data/stance.js, D2). heading= (radians) lays the body that way. Keyboard: Alt (pad: VIEW+LT).',
+      args: { on: { type: 'boolean', default: true }, heading: { type: 'number' }, id: { type: 'string', default: 'player' } },
+      run: async ({ on, heading, id }) => {
+        const c = api.findChar(id);
+        need(c?.alive, `no living character ${id}`);
+        if (c === P()) g.crouchOverride = false;
+        const r = g.stance.setProne(c, on);
+        need(r.ok, `can't: ${r.why}`);
+        if (on && heading !== undefined) { c.proneH = heading; c.face = heading; if (c.onDeck) c.onDeck.bh = Math.atan2(Math.sin(heading - c.onDeck.v.h), Math.cos(heading - c.onDeck.v.h)); g.stance.fitNow(c); }
+        await api._step(Math.ceil(PRONE.downT * 60) + 2);
+        return g.stance.view(c);
+      } },
+    posture: { group: 'player', desc: 'A body\'s stance (data/stance.js): stand | crouch | prone, its collision body (r, len, h), speed, concealment where it lies (0..1: grass, brush), its FOOTING on a moving deck (QUICKNESS x the stance\'s brace: every throw-out line times this) and the stance rows. id defaults to the player. conceal=<0..1> stages a patch of grass under them (a test hide; omit to clear it).',
+      args: { id: { type: 'string', default: 'player' }, conceal: { type: 'number' }, clear: { type: 'boolean', default: false } },
+      run: async ({ id, conceal, clear }) => {
+        const c = api.findChar(id);
+        need(c, `no character ${id}`);
+        if (conceal !== undefined) c.concealOverride = conceal; else if (clear) delete c.concealOverride;
+        c._cnT = undefined;
+        return { ...g.stance.view(c), rows: STANCES, proneRule: PRONE, footingRule: FOOTING, bad: [...validateStance(), ...validateDecks()] };
+      } },
+    turretSeat: { group: 'vehicle', desc: 'THE TURRET SEAT (data/decks.js TURRET_SEAT): a passenger mans the roof turret (a workshop top mount, trigger group 3) and aims and fires it independently of the driver; one owner at a time, released on leaving the seat, death or a wreck. on=true takes it for id (default the player; they must be a passenger), on=false lets it go. No on: who mans it. In the game: as a passenger, hold RMB (it takes the free turret and fires where you aim); a crew passenger takes a free turret and works it on their own. Multiplayer: v.turretBy is the claim (one owner; the owner\'s client aims and fires, others see its yaw and rounds).',
+      args: { vehicle: { type: 'string' }, id: { type: 'string', default: 'player' }, on: { type: 'boolean' } },
+      run: async ({ vehicle, id, on }) => {
+        const c = api.findChar(id);
+        const v = vehicle ? api.findVeh(vehicle) : c?.inVehicle;
+        need(v, 'no vehicle (vehicle=<id>, or be in one)');
+        if (on === true) { const r = g.seats.takeTurret(c, v); need(r.ok, r.why); }
+        else if (on === false && v.turretBy === c?.id) g.seats.releaseTurret(v, 'command');
+        const own = g.seats.turretOwner(v);
+        return { vehicle: v.id, hasTurret: !!v.mounts?.top, by: own?.id ?? null, driver: v.driver?.id ?? null, yaw: v.mounts?.top ? r2s(v.mounts.top.yaw ?? v.h) : null };
+      } },
     photo: {
       group: 'observe', desc: 'Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K.',
       args: { on: { type: 'boolean', default: true }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' }, tilt: { type: 'number' } },
@@ -1172,9 +1210,9 @@ function buildCommands(api) {
       },
     },
     deck: {
-      group: 'vehicle', desc: 'Walkable vehicles (docs/design/WEB_WALK_VEHICLES.md; data/decks.js): a pickup\'s bed, a van\'s cargo box, an RV\'s coach are floors that ride with the vehicle. No args: every deck in the world with its riders. id=<vehicle>: that deck - riders and where they stand in its frame (lx: the driver\'s left, lz: forward), its boxes, beds, tank, camp, whether its roof is cut away. mount=<char id|player> puts someone aboard (lx, lz: where; default its middle; force=true skips the reach check for the player); leave=<char id|player> steps them off where they are. In the game: E climbs into a bed or steps in a door (walking into a door works too), Space over the side, walk out a door, F at the wheel drives, F at the wheel again stands you back up inside.',
-      args: { id: { type: 'string' }, mount: { type: 'string' }, leave: { type: 'string' }, lx: { type: 'number' }, lz: { type: 'number' }, force: { type: 'boolean', default: false } },
-      run: async ({ id, mount, leave, lx, lz, force }) => {
+      group: 'vehicle', desc: 'Walkable vehicles (docs/design/WEB_WALK_VEHICLES.md, WEB_DECKS_STANCE.md; data/decks.js): a pickup\'s bed, a van\'s cargo box, an RV\'s coach, the airboat\'s and the gunboat\'s decks, the trundle\'s aisle are floors that ride with the vehicle, and the van, the RV and the trundle have a ROOF too (roof=true: that deck; in the game E at the ladder\'s foot climbs it, E at its top climbs down). No args: every deck in the world with its riders. id=<vehicle>: that deck - riders and where they stand in its frame (lx: the driver\'s left, lz: forward), its boxes, beds, tank, camp, whether its roof is cut away. mount=<char id|player> puts someone aboard (lx, lz: where; default its middle; force=true skips the reach check for the player); leave=<char id|player> steps them off where they are. In the game: E climbs into a bed or steps in a door (walking into a door works too), Space over the side, walk out a door, F at the wheel drives, F at the wheel again stands you back up inside.',
+      args: { id: { type: 'string' }, mount: { type: 'string' }, leave: { type: 'string' }, lx: { type: 'number' }, lz: { type: 'number' }, force: { type: 'boolean', default: false }, roof: { type: 'boolean', default: false } },
+      run: async ({ id, mount, leave, lx, lz, force, roof }) => {
         if (!id && !mount && !leave) return { decks: g.decks.list.filter((v) => !v.dead).map((v) => ({ id: v.id, type: v.type, x: r1(v.x), z: r1(v.z), ...g.decks.view(v) })), rules: DECK_RULES };
         if (leave) {
           const c = api.findChar(leave);
@@ -1189,9 +1227,11 @@ function buildCommands(api) {
           const c = api.findChar(mount);
           need(c?.alive, `no living character ${mount}`);
           if (c === P() && !force) need(Math.hypot(v.x - c.x, v.z - c.z) < v.len * 0.5 + 3.5, `${v.name} is out of reach; moveTo id=${v.id} first (or force=true)`);
-          need(g.decks.room(v), `${v.name}'s deck is full`);
-          const F = v.deck.floor;
-          g.decks.mount(c, v, lx ?? (F[0] + F[1]) / 2, lz ?? (F[2] + F[3]) / 2, 'command');
+          const D = roof ? v.roofDeck : v.deck;
+          need(D, `${v.name} has no roof to stand on (the van, the RV and the trundle do)`);
+          need(g.decks.room(v, D), `${v.name}'s ${roof ? 'roof' : 'deck'} is full`);
+          const F = D.floor;
+          g.decks.mount(c, v, lx ?? (F[0] + F[1]) / 2, lz ?? (F[2] + F[3]) / 2, 'command', D);
           return { mounted: c.id, ...g.decks.view(v) };
         }
         return { id: v.id, type: v.type, ...g.decks.view(v) };
@@ -1987,6 +2027,7 @@ function buildCommands(api) {
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
+    ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -2021,6 +2062,8 @@ function buildCommands(api) {
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
+    // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
+    ...roadsideCommands(api, need),
   };
 }
 
@@ -3208,6 +3251,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return g.player.onDeck?.v === v && a.onDeck?.v === v && aboard && t.hp < hp0 ? true : JSON.stringify({ player: !!g.player.onDeck, aboard, hp: [hp0, t.hp], allyAt: [+a.x.toFixed(1), +a.z.toFixed(1)] });
     } finally { wvClean([v, d, a, t]); }
   }));
+  await decksStanceChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // boats, the aisle, roofs, prone, footing, the turret seat (src/agent/decks-stance-selftest.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
@@ -5888,11 +5932,13 @@ async function runSelfTest(api, only = null, skip = null) {
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
+  await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
+  await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
@@ -5913,7 +5959,7 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
@@ -5940,6 +5986,7 @@ export function snapshot(g) {
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
+    roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
   };
 }
 
@@ -5963,6 +6010,7 @@ export function restore(g, s) {
   // The ring's residents first: their characters go, their records start again from the save (promoted again near you).
   g.residents.load(s.residents);
   g.wilds.load(s.wilds); // theirs too: promoted again near you from the saved records (an old save: fresh records)
+  g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);

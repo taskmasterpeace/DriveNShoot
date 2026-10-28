@@ -23,7 +23,7 @@ export class Input {
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
       this.keyDown(e.code);
-      if (['Space', 'Tab', 'F3', 'F4'].includes(e.code)) e.preventDefault();
+      if (['Space', 'Tab', 'F3', 'F4', 'AltLeft'].includes(e.code)) e.preventDefault(); // Alt: prone (data/controls.js), never the browser's menu
     });
     addEventListener('keyup', (e) => this.keyUp(e.code));
     addEventListener('blur', () => { for (const k of [...this.phys]) this.keyUp(k); this.down.clear(); this.holders.clear(); this.mouseButton(0, false); this.mouseButton(2, false); });

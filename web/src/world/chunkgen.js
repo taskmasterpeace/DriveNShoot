@@ -8,6 +8,7 @@ import { SPECIES, FLORA_KINDS, P1_FLORA, poolName, floraVariant, floraHash, crow
 import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted density rows (docs/design/WEB_FORGE.md §3.4)
 import { regionWater, WK } from './regions.js';
 import { WATER } from '../data/water.js';
+import { clearEdge, roadscapeStage } from './roadscape.js'; // THE ROADSCAPE: per-class clear zones and the roadside scenes (docs/design/WEB_ROADSCAPE.md)
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -24,7 +25,7 @@ const N_G = C / 8 + 1;          // ground vertices per side (33)
 const RAD_FOOT = 0.45, RAD_CAR = 1.9;
 const BAND = ROAD_BANDS;
 const UPER = { hwy: 24, county: 14, ramp: 18, aux: 18 };  // metres of road per texture repeat (lane dashes every 12 m)
-const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName), 'signsfl']; // fl_<kind>: world/flora.js; signsfl: a region's own sign atlas
+const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName), 'signsfl', 'bills']; // fl_<kind>: world/flora.js; signsfl: a region's own sign atlas; bills: the roadside's billboard faces (world/roadside.js)
 // The pools every P1 layout hashed (an empty one too). A pool added since counts in a chunk's hash only when the chunk
 // uses it, so every P1 chunk keeps the hash it had (docs/design/WEB_FLORIDA.md §5).
 const P1_POOLS = new Set(['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...P1_FLORA.map(poolName)]);
@@ -36,6 +37,9 @@ const HILLSHADE = 0.24;            // real terrain (flag): how much a slope at t
 // Real terrain past the strip (docs/design/WEB_SITES_TERRAIN.md §7): canyon strata on steep ground (bands of STRATA_M
 // metres of height, STRATA_K of the colour), a conifer stand in forest (pines a chunk), rock outcrops on slopes past
 // OUTCROP_SLOPE (tries a chunk).
+// THE ROADSCAPE (data/roadscape.js ROAD_CLASSES): scatter keeps out of each road's clear zone. An interstate's is measured from
+// its paved edge (the mainline cross-section), a county road's from its ribbon's edge.
+const EDGE_I = clearEdge('interstate', STREAM.median / 2 + STREAM.shoulderIn + 2 * STREAM.lane + STREAM.shoulderOut), CLEAR_COUNTY = clearEdge('two-lane', 0);
 const STRATA_M = 7, STRATA_K = 0.24, FOREST_PINES = 220, OUTCROP_TRIES = 36, OUTCROP_SLOPE = 0.11;
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
@@ -101,7 +105,7 @@ export function makeScratch() {
   return {
     INST: {
       props: new InstBuf(6000), walls: new InstBuf(4000), roofs: new InstBuf(1200), floors: new InstBuf(400), cacti: new InstBuf(1500), trunks: new InstBuf(800),
-      boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), signsfl: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
+      boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), signsfl: new InstBuf(64, 4), bills: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
       ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(SPECIES[k].chunk ?? 400, 1)])), // extra: the variant (world/flora.js); a forest species holds more
     },
     SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true), water: new MeshBuf(...SURF_CAPS.water, true, true) },
@@ -145,6 +149,7 @@ export function mesasOf(W, cx, cz) {
     if (W.project(x, z, R + 120).d < R + 55) continue;
     if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + R || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + R || (X.access && W.ribbonDist(X.access, x, z) < R + 30))) continue;
     if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + R)) continue;
+    if (W.roadside?.nearSite(x, z, R + 60)) continue; // no mesa on a station, a junkyard, a farm belt or the dam (world/roadside.js)
     out.push(m);
   }
   W.mesaCache.set(key, out);
@@ -422,8 +427,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) for (const m of mesasOf(W, cx + ix, cz + iz)) { const R = m.r * MESA_REACH; if (m.x + R > ox - 2 && m.x - R < X1 + 2 && m.z + R > oz - 2 && m.z - R < Z1 + 2) mesas.push(m); }
   const blocked = (x, z, r) => {
     if (inIsland(x, z, r + 3)) return true;
-    if (anySegs && roadD(x, z) < 22 + r) return true;
-    for (const rb of F.ribbons) if (!rb.mainline && x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && W.ribbonDist(rb, x, z) < Math.max(rb.wl[0], rb.wr[0]) + 4 + rb.ymax * 2 + r) return true;
+    if (anySegs && roadD(x, z) < EDGE_I + r) return true;
+    for (const rb of F.ribbons) if (!rb.mainline && x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && W.ribbonDist(rb, x, z) < Math.max(rb.wl[0], rb.wr[0]) + (rb.kind === 'county' ? CLEAR_COUNTY : 4) + rb.ymax * 2 + r) return true;
     for (const b of F.buildings) if (x > b.x0 - 4 - r && x < b.x1 + 4 + r && z > b.z0 - 4 - r && z < b.z1 + 4 + r) return true;
     for (const s of F.structs) if (Math.hypot(s.x - x, s.z - z) < Math.max(s.sa, s.su) / 2 + 3 + r) return true;
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
@@ -431,6 +436,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if ((WT && (wetNear(x, z, r) || WT.nearFord(x, z, 40 + r))) || onFill(x, z, r)) return true; // the water, its banks, a ford's way across, the bridges and their fills
     if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
     if (W.citygen && W.citygen.solid(x, z, r)) return true; // a generated settlement's footprint (systems/citygen.js)
+    if (W.roadside?.solid(x, z, r)) return true; // the roadside's sites, fields, towers and billboards (world/roadside.js)
     return false;
   };
   yield;
@@ -1115,8 +1121,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     // in this chunk draws it; every box that reaches in is solid here).
     if (RG.extras) {
       const ex = RG.extras(cx, cz);
-      for (const it of ex.items) I(it.pool, it.e);
-      for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h);
+      // (A matrix item - pitched, rolled, a billboard face with its atlas rect - goes in whole: world/roadside.js.)
+      for (const it of ex.items) { if (it.m) { const c = col(it.c), b = INST[it.pool], i = b.pushMatrix(it.mo, c[0], c[1], c[2]); if (i >= 0 && it.rect) b.e.set(it.rect, i * 4); } else I(it.pool, it.e); }
+      for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h, q.base ?? 0);
       for (const [kind, x, z, h, v] of ex.flora) if (SPECIES[kind]) { const b = INST[poolName(kind)], i = b.push(x, 0, z, floraHash(z, x) * 6.283, h / SPECIES[kind].h, h / SPECIES[kind].h, h / SPECIES[kind].h, 1, 1, 1); if (i >= 0) b.e[i] = v; addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h); }
       pause(); yield; resume();
     }
@@ -1246,7 +1253,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (const off of wash ? [0.3, 0.75, 1.0, 1.15] : [1.1, 1.3, 1.6, 2.0]) {
         if (br() > (wash ? (off < 0.9 ? 0.22 : 0.7) : 0.55)) continue; // a wash: brush lines its banks, a little grows in the bed
         const d = (wash ? hw * off : hw + (off - 1) * 22) + br.range(-1.6, 1.6), px = x + nx * d, pz = z + nz * d;
-        if (!own(px, pz) || inIsland(px, pz, 4) || (anySegs && roadD(px, pz) < 26) || onFill(px, pz, 2) || depthNear(px, pz) > 1 || WT.nearFord(px, pz, 45)) continue; // a ford's banks are kept clear (the way across)
+        if (!own(px, pz) || inIsland(px, pz, 4) || (anySegs && roadD(px, pz) < EDGE_I + 4) || onFill(px, pz, 2) || depthNear(px, pz) > 1 || WT.nearFord(px, pz, 45)) continue; // a ford's banks are kept clear (the way across)
         if (F.buildings.some((bd) => px > bd.x0 - 4 && px < bd.x1 + 4 && pz > bd.z0 - 4 && pz < bd.z1 + 4)) continue;
         const sq = WT.sample(px, pz);
         if (sq.depth > 0) continue;
@@ -1289,6 +1296,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
   }
   } // (the desert)
+  // THE ROADSCAPE (world/roadscape.js, data/roadscape.js): tree walls, fences, poles, billboards, sound walls, farms and the rest
+  // beside every corridor and county road, by road class and road biome (position-hashed: no draws on rng).
+  out.roadscape = yield* roadscapeStage({ W, cx, cz, C, INST, addBox, addOriented, blocked, wet: (x, z) => depthNear(x, z) > 0, featuresOf: (a, b) => W.featuresOf(a, b), pause, resume,
+    specH: (k) => SPECIES[k].h, plant: (k, x, z, sc, rot, sh) => { const b = INST[poolName(k)], i = b.push(x, 0, z, rot, sc, sc, sc, sh, sh, sh); if (i >= 0) b.e[i] = floraVariant(x, z); return i; } });
   // THE BRUSH (world/brush.js): woods, undergrowth and hot zones where strokes reach (its own random stream).
   if (BR) out.brush = yield* brushStage(BR, { INST, addBox, blocked, boxes, ox, oz, cx, cz, seed, state, pause, resume });
   pause(); yield; resume();

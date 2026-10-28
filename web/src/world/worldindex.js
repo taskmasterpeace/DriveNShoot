@@ -13,6 +13,7 @@ import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md 
 import { buildRegions, regionAt, regionWater, makeDepthAt } from './regions.js';
 import { Holdout } from './holdout.js';
 import { HOLDOUTS } from '../data/holdouts.js';
+import { Roadside } from './roadside.js'; // THE ROADSIDE: power lines, billboards, stations, junkyards, farms, the dam (docs/design/WEB_ROADSIDE.md)
 
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -237,11 +238,13 @@ export class WorldIndex {
     for (const R of Object.values(this.regions)) for (const cor of R.corridors) this.buildCorridorSigns(cor);
     for (const H of this.holdouts) this.signs.push(...H.signList); // the name boards over a holdout's gates
     this.water.fixSigns(this);
+    // THE ROADSIDE (world/roadside.js): laid out now, so the dam road's ribbon, fill and rails are bucketed with the rest.
+    this.roadside = new Roadside(this);
     this.bucketFeatures();
     // The Phoenix ring (world/ring.js, data/ring.js): the dead metro round the island, laid out lazily by the chunks.
     this.ring = new Ring(this);
     // The holdouts' own generators (world/holdout.js): Meridian. Ring-like: chunks ask each what they hold.
-    this.towners = [this.ring, ...this.holdouts];
+    this.towners = [this.ring, ...this.holdouts, this.roadside];
     // THE water authority past the island (world/water.js EXT): world/rivers.js answers, with a region's own water
     // (world/regions.js: the sea, the lagoon, the canals, the sloughs) as its second source.
     this.regionDepth = makeDepthAt(this);
@@ -834,6 +837,7 @@ export class WorldIndex {
 
   // ---- per-chunk feature buckets: everything a chunk must clip against or own ----------------------------------------
   bucketFeatures() {
+    this.roadside?.attach(this); // the dam road's ribbon, fill and rails, back in after a rebuild (the forge's live push)
     const B = (this.chunkFeat = new Map());
     const add = (x0, z0, x1, z1, f) => {
       for (let cx = chunkOf(x0); cx <= chunkOf(x1); cx++) for (let cz = chunkOf(z0); cz <= chunkOf(z1); cz++) {

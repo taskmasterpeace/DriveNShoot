@@ -29,7 +29,7 @@ export class Deeds {
   ranges(actor = this.g.player) {
     const sky = this.g.sky, fogK = Math.max(0, Math.min(0.7, ((sky.cur?.fog ?? 0.0028) - 0.0028) / 0.033));
     let sight = (SIGHT_DAY + (SIGHT_NIGHT - SIGHT_DAY) * (sky.night ?? 0)) * (1 - fogK);
-    if (actor.crouch) sight *= 0.6;
+    if (actor.prone && this.g.stance) sight = this.g.stance.seenRange(actor, sight, 0.6); else if (actor.crouch) sight *= 0.6; // prone: systems/stance.js (D2)
     if (actor.inVehicle) sight *= 1.2;
     const P = this.g.player, flash = actor === P && this.g.flashMat?.opacity > 0;
     // A known ghost (roles.js perk idMul) has to be closer still before a witness can put a name to them.
