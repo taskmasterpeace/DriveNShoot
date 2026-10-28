@@ -209,7 +209,7 @@ function decalCheck(S, D, tags, box, cell) {
       // the top opaque up face here, at most 0.5 m over the decal (higher = something standing on it: a person, a car, a crate)
       let top = -Infinity, topTag = -1;
       for (let t = 0; t < S.tag.length; t++) {
-        const b = t * 6; if (S.bb[b] > px || S.bb[b + 3] < px || S.bb[b + 2] > pz || S.bb[b + 5] < pz || S.n[t * 5 + 1] < 0.5) continue;
+        const b = t * 6; if (S.bb[b] > px || S.bb[b + 3] < px || S.bb[b + 2] > pz || S.bb[b + 5] < pz || S.n[t * 5 + 1] < 0.5 || S.n[t * 5 + 4] < 0.5) continue; // (a floor, a road, a rug: a face over half a square metre; blood under a body, a crate or a broken board is just under it)
         const r = t * 5, yt = (S.n[r + 3] - S.n[r] * px - S.n[r + 2] * pz) / S.n[r + 1];
         if (yt > top && yt < y + 0.5 && inside(S, t, px, yt, pz)) { top = yt; topTag = S.tag[t]; }
       }
