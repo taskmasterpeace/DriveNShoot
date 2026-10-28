@@ -102,12 +102,12 @@ export const BAR = {
 
 // Words, our own (ip-lint scans them).
 export const PULL_WORDS = {
-  hitchhiker: (p) => `${p.who} walking the ${p.road} toward ${p.toName}, thumb out`,
-  stranded: (p) => `${p.who} stuck on the ${p.road} with a dry tank, near mile ${p.mile}`,
-  caravan: (p) => `a caravan broken down on the ${p.road} near mile ${p.mile}, ${p.n} hands and a load. Raiders work that stretch`,
-  refugees: (p) => `${p.n} people walking the ${p.road} toward ${p.toName}, with nothing`,
-  trader: (p) => `a trader pushing a cart up the ${p.road} toward ${p.toName}, selling as he goes`,
-  wreck: (p) => `a wreck on the ${p.road} near mile ${p.mile}, a body by it`,
+  hitchhiker: (p) => `${p.who} walking ${p.road} toward ${p.toName}, thumb out`,
+  stranded: (p) => `${p.who} stuck on ${p.road} with a dry tank, near mile ${p.mile}`,
+  caravan: (p) => `a caravan broken down on ${p.road} near mile ${p.mile}, ${p.n} hands and a load. Raiders work that stretch`,
+  refugees: (p) => `${p.n} people walking ${p.road} toward ${p.toName}, with nothing`,
+  trader: (p) => `a trader pushing a cart up ${p.road} toward ${p.toName}, selling as they go`,
+  wreck: (p) => `a wreck on ${p.road} near mile ${p.mile}, a body by it`,
   medic: (p) => `${p.who} bleeding out at ${p.placeName}. Needs a medic inside ${p.hours} hours`,
   missing: (p) => `${p.who} went out from ${p.fromName} and never came back. Last seen toward ${p.placeName}`,
   bounty: (p) => `${p.fromName} pays $${p.pay} for ${p.kills} Dustwolves put down at ${p.placeName}`,

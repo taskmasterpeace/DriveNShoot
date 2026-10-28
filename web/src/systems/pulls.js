@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { PULL_RULES as R, PULL_KINDS as KINDS, BAR, CHANNELS, FACT_KINDS, PULL_WORDS as WORDS } from '../data/pulls.js';
 import { ITEMS } from '../data/items.js';
 import { WEAPONS } from './combat.js';
@@ -27,6 +28,8 @@ const roll = (rng, [a, b]) => a + rng() * (b - a);
 const iroll = (rng, [a, b]) => Math.floor(a + rng() * (b - a + 1));
 const BIRTH_W = [['hitchhiker', 3], ['stranded', 1.6], ['caravan', 1], ['refugees', 1.3], ['trader', 1.3], ['wreck', 1]];
 const MILE = 1609;
+const FURN_CAP = 480; // bar furniture boxes, every bar near you (one instanced draw call)
+const _o = new THREE.Object3D(), _c = new THREE.Color();
 
 export class Pulls {
   constructor(g) {
@@ -53,7 +56,8 @@ export class Pulls {
   cor(id) { return this.cors().find((c) => c.id === id) ?? null; }
   halfW(c) { return (c.road?.lanes ?? 4) * 1.85 + (c.road?.divided ? 3 : 0); }
   onRoad(c, s, side = 1) { const f = c.at(Math.max(0, Math.min(c.L, s))), o = side * (this.halfW(c) + R.shoulder); return { x: f.x + f.nx * o, z: f.z + f.nz * o, tx: f.tx, tz: f.tz }; }
-  roadName(c) { return c.road?.nickname ? `${c.road.nickname}` : c.id; }
+  // 'the Furnace Run (I-10)': the road's own name, said the way people say it
+  roadName(c) { const n = c.road?.nickname ? titled(c.road.nickname).replace(/^The /, '') : null; return n ? `the ${n} (${c.id})` : c.id; }
   mileOf(c, s) { return Math.round(s / MILE); }
   island(c, s) { return Number.isFinite(c.sIslW) && s > c.sIslW - 200 && s < c.sIslE + 200; }
 
@@ -160,7 +164,7 @@ export class Pulls {
     const K = KINDS[rec.kind], C = this.cor(rec.cor), to = this.node(rec.to), from = this.node(rec.from);
     const who = rec.people.length > 1 ? `${rec.people.length} people` : 'somebody';
     const text = (WORDS[rec.kind] ?? (() => rec.kind))({ who: who === 'somebody' ? (rec.kind === 'hitchhiker' ? 'a hitchhiker' : 'a driver') : who, road: C ? this.roadName(C) : 'road', toName: to?.name ?? 'the next town', fromName: from?.name ?? 'town', mile: C ? this.mileOf(C, rec.s) : 0, n: rec.people.length });
-    const f = this.k.record({ what: rec.kind, subject: rec.id, text: cap(text), where: { x: rec.x, z: rec.z, place: C ? `${this.roadName(C)} mile ${this.mileOf(C, rec.s)}` : null }, who: rec.people[0]?.name ?? null, data: { to: rec.to } });
+    const f = this.k.record({ what: rec.kind, subject: rec.id, text: cap(text), where: { x: rec.x, z: rec.z, place: C ? `${C.id} mile ${this.mileOf(C, rec.s)}` : null }, who: rec.people[0]?.name ?? null, data: { to: rec.to } });
     rec.fact = f.id;
     // the people themselves know (they tell whoever picks them up, or the town they came from)
     for (const p of rec.people) if (!p.dead) this.k.see(`p:${rec.id}:${p.n}`, f, null);
@@ -204,7 +208,7 @@ export class Pulls {
       const s = pr.s + (rng() < 0.5 ? -1 : 1) * roll(rng, [700, 2400]);
       if (s < 200 || s > c.L - 200 || this.island(c, s)) continue;
       const side = rng() < 0.5 ? -1 : 1, q = this.onRoad(c, s, side);
-      return { x: q.x, z: q.z, cor: c.id, s, side, place: `${this.roadName(c)} mile ${this.mileOf(c, s)}` };
+      return { x: q.x, z: q.z, cor: c.id, s, side, place: `${c.id} mile ${this.mileOf(c, s)}` };
     }
     return null;
   }
@@ -212,7 +216,8 @@ export class Pulls {
     const L = (this.g.citygen?.plan ?? []).filter((r) => r.kind === 'rural' && Math.hypot(r.x - me.x, r.z - me.z) < 2600 && Math.hypot(r.x - me.x, r.z - me.z) > 600);
     if (!L.length) return null;
     const r = pick(rng, L);
-    return { x: r.x + (rng() - 0.5) * 10, z: r.z + (rng() - 0.5) * 10, place: titled(r.name) };
+    const n = this.nearestNode(r.x, r.z);
+    return { x: r.x + (rng() - 0.5) * 10, z: r.z + (rng() - 0.5) * 10, place: `a ${String(r.name).toLowerCase()} ${n ? `${compass(n, r)} of ${n.name}` : 'out on the flats'}` };
   }
 
   // A town posts work: a bounty, a work order, a missing person. It goes on the town's board and into the town's talk.
@@ -382,8 +387,13 @@ export class Pulls {
         if (d > range) continue;
         if (!(p.inVehicle ? g.los(me.x, me.z, c.x, c.z) : g.sees(p, c))) continue;
         // the living: where they are now; the dead: how it ended (a corpse never renews a call)
-        if (c.alive) { const f = this.k.fact(rec.fact); if (f) this.k.see('player', f, { x: c.x, z: c.z }); }
+        if (c.alive || rec.kind === 'wreck') { const f = this.k.fact(rec.fact); if (f) this.k.see('player', f, { x: c.x, z: c.z }); }
         else if (rec.outcome) { const o = this.k.fact(rec.outcome); if (o && !this.k.holds('player', o.id)) this.k.see('player', o, { x: c.x, z: c.z }); }
+        // a note on a body is read standing over it (written: the one who wrote it is the source)
+        if (!c.alive && rec.note && d < CHANNELS.note.range + 1 && !this.k.holds('player', rec.note)) {
+          const n = this.k.fact(rec.note);
+          if (n && this.k.put('player', n, { channel: 'note', from: `p:${rec.id}:${q.n}`, fromName: q.name }, CHANNELS.note.conf, 0)) g.hud?.subtitle?.(n.text, 6);
+        }
         break;
       }
     }
@@ -421,7 +431,7 @@ export class Pulls {
     }
     rec.live = true; this.stats.promoted++;
     // a note on the wreck's body (a written fact: read it at the body)
-    if (rec.kind === 'wreck' && !rec.note) rec.note = this.k.record({ what: 'place', subject: rec.id, text: `A note in the driver's pocket: "${pick(rngOf(rec.seed), ['Went for fuel at the next town. If I am not back, the kids are at the culvert past mile', 'They took the water at the overpass. Do not stop for the woman with the dog. Mile', 'Left the spare rounds under the third pole past mile'])} ${C ? this.mileOf(C, rec.s) + 2 : 0}."`, where: { x: rec.x, z: rec.z, place: C ? `${this.roadName(C)} mile ${this.mileOf(C, rec.s)}` : null }, who: rec.people[0]?.name }).id;
+    if (rec.kind === 'wreck' && !rec.note) rec.note = this.k.record({ what: 'place', subject: rec.id, text: `A note in the driver's pocket: "${pick(rngOf(rec.seed), ['Went for fuel at the next town. If I am not back, the kids are at the culvert past mile', 'They took the water at the overpass. Do not stop for the woman with the dog. Mile', 'Left the spare rounds under the third pole past mile'])} ${C ? this.mileOf(C, rec.s) + 2 : 0}."`, where: { x: rec.x, z: rec.z, place: C ? `${C.id} mile ${this.mileOf(C, rec.s)}` : null }, who: rec.people[0]?.name }).id;
   }
   demote(rec) {
     const g = this.g;
@@ -644,7 +654,7 @@ export class Pulls {
     const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2;
     this.ensureNode(rec);
     const bar = { id: B.id, town: rec.id, townName: titled(rec.name), name: `${titled(rec.name)} saloon`, x: cx, z: cz, y: rec.y ?? 0, w: B.x1 - B.x0, d: B.z1 - B.z0,
-      stock: iroll(rng, BAR.stock), till: iroll(rng, BAR.purse), keep: { name: BAR.names.keep[0], flag: g.randomFlag(rng), c: null }, drinkers: [], live: false, keepDead: false };
+      front: B.front, stock: iroll(rng, BAR.stock), till: iroll(rng, BAR.purse), keep: { name: BAR.names.keep[0], flag: g.randomFlag(rng), c: null }, drinkers: [], live: false, keepDead: false };
     const n = iroll(rng, BAR.drinkers);
     for (let i = 0; i < n; i++) {
       const gun = rng() < BAR.gun.share;
@@ -659,30 +669,83 @@ export class Pulls {
   }
   promoteBar(bar) {
     const g = this.g;
-    const spot = (dx, dz) => ({ x: bar.x + dx, z: bar.z + dz });
+    const L = this.layout(bar), len = Math.min(L.width * 0.6, 7.5);
+    const faceIn = Math.atan2(L.inX, L.inZ);
     if (!bar.keepDead && !bar.keep.c) {
-      const q = spot(0, -Math.min(3, bar.d / 2 - 2));
+      const q = L.at(1.85, 0); // behind the counter, back to the shelf
       const c = g.addChar({ x: q.x, z: q.z, faction: 'drifter', weapon: null, hp: 100, colors: { ...outfit('drifter', rngOf(hash32(bar.id.length, 9, 9))), ...BAR.colors.keep }, name: 'Barkeep', flag: bar.keep.flag });
-      if (c) { c.barRole = 'keep'; c.barId = bar.id; c.home = { ...q }; g.standOn?.(c); bar.keep.c = c; }
+      if (c) { c.barRole = 'keep'; c.barId = bar.id; c.home = { ...q }; c.face = faceIn; g.standOn?.(c); bar.keep.c = c; }
     }
     for (const d of bar.drinkers) {
       if (d.c || d.dead || d.hired) continue;
-      const a = d.n * 2.1 + 0.5, q = spot(Math.cos(a) * 2.2, Math.sin(a) * 2.2 + 1);
+      // two on the stools at the counter, the rest round the card table
+      const tbl = L.at(Math.min(L.depth - 3, 6.2), L.width * 0.22);
+      const q = d.n < 2 ? L.at(3.8, -len / 3 + d.n * len / 3) : { x: tbl.x + (d.n === 2 ? 1.05 : -1.05), z: tbl.z };
       const c = g.addChar({ x: q.x, z: q.z, faction: 'drifter', weapon: null, hp: d.gun ? BAR.gun.hp : 100, colors: outfit('drifter', rngOf(d.seed)), name: d.name, flag: d.flag });
       if (!c) break;
-      c.barRole = d.gun ? 'gun' : 'drinker'; c.barId = bar.id; c.barN = d.n; c.home = { ...q }; g.standOn?.(c); d.c = c;
+      c.barRole = d.gun ? 'gun' : 'drinker'; c.barId = bar.id; c.barN = d.n; c.home = { ...q }; c.face = d.n < 2 ? faceIn + Math.PI : Math.atan2(tbl.x - q.x, tbl.z - q.z); g.standOn?.(c); d.c = c;
       // a drinker knows a little of the town's talk (a copy, said over a glass)
       const hid = `d:${bar.id}:${d.n}`, H = this.k.holder(hid, { name: d.name, x: q.x, z: q.z }), town = this.k.holders.get(`town:${bar.town}`);
       if (town) for (const f of town.facts.slice(-3)) this.k.tell(town.id, hid, f.id, 'said', { force: true });
       void H;
     }
     bar.live = true;
+    this.furnish();
   }
   demoteBar(bar) {
     const g = this.g;
     if (bar.keep.c) { if (!bar.keep.c.alive) bar.keepDead = true; if (g.chars.includes(bar.keep.c)) g.removeChar(bar.keep.c); bar.keep.c = null; }
     for (const d of bar.drinkers) { if (!d.c) continue; if (!d.c.alive) d.dead = true; if (!d.c.follower && g.chars.includes(d.c)) g.removeChar(d.c); d.c = null; }
     bar.live = false;
+    this.furnish();
+  }
+  // ---- the furniture: a counter, the back shelf and its bottles, stools, a card table, the board on the wall ----------
+  // Laid out from the building's own front: the counter faces the door, the shelf against the back wall. One instanced
+  // mesh for every bar near you; rebuilt only when a bar opens or closes (never per frame).
+  layout(bar) {
+    const B = { x0: bar.x - bar.w / 2, x1: bar.x + bar.w / 2, z0: bar.z - bar.d / 2, z1: bar.z + bar.d / 2 }, f = bar.front ?? 'N';
+    // back wall point and the inward direction (toward the door), the width axis along the back wall
+    const inX = f === 'E' ? 1 : f === 'W' ? -1 : 0, inZ = f === 'S' ? 1 : f === 'N' ? -1 : 0;
+    const backX = inX ? (inX > 0 ? B.x0 : B.x1) : bar.x, backZ = inZ ? (inZ > 0 ? B.z0 : B.z1) : bar.z;
+    const ax = inZ ? 1 : 0, az = inX ? 1 : 0, width = inZ ? bar.w : bar.d, depth = inZ ? bar.d : bar.w;
+    const at = (din, dw) => ({ x: backX + inX * din + ax * dw, z: backZ + inZ * din + az * dw });
+    return { at, inX, inZ, ax, az, width, depth, along: inZ ? 0 : Math.PI / 2 };
+  }
+  furnish() {
+    const g = this.g;
+    if (!this.furn) {
+      this.furn = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.04 }), FURN_CAP);
+      this.furn.name = 'pulls-bars'; this.furn.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FURN_CAP * 3).fill(1), 3);
+      this.furn.castShadow = true; this.furn.receiveShadow = true; this.furn.frustumCulled = false; this.furn.count = 0;
+      g.scene?.add(this.furn);
+    }
+    let n = 0;
+    const box = (p, y, sx, sy, sz, rot, col) => {
+      if (n >= FURN_CAP) return;
+      _o.position.set(p.x, y + sy / 2, p.z); _o.rotation.set(0, rot, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
+      this.furn.setMatrixAt(n, _o.matrix); this.furn.setColorAt(n, _c.set(col)); n++;
+    };
+    for (const bar of this.bars.values()) {
+      if (!bar.live) continue;
+      const L = this.layout(bar), y = bar.y ?? 0, len = Math.min(L.width * 0.6, 7.5), rot = L.along;
+      const wood = '#4b3020', dark = '#2e1e14', top = '#6a4a2e';
+      box(L.at(2.9, 0), y, len, 1.05, 0.7, rot, wood);                 // the counter
+      box(L.at(2.9, 0), y + 1.05, len + 0.2, 0.06, 0.85, rot, top);     // its top
+      box(L.at(0.75, 0), y, len, 1.3, 0.5, rot, dark);                  // the back shelf
+      const bottles = ['#7a4a12', '#3f5a2a', '#8a6a2a', '#5a2e14', '#2f4a3a', '#9a7a3a'];
+      for (let i = 0; i < Math.min(14, bar.stock); i++) box(L.at(0.75, -len / 2 + 0.4 + i * (len - 0.8) / 13), y + 1.3, 0.14, 0.36, 0.14, rot, bottles[i % bottles.length]); // what is left on it
+      for (let i = 0; i < 3; i++) box(L.at(3.75, -len / 3 + i * len / 3), y, 0.42, 0.72, 0.42, rot, dark); // stools
+      const tbl = L.at(Math.min(L.depth - 3, 6.2), L.width * 0.22);
+      box(tbl, y, 1.5, 0.76, 1.5, rot, wood); box(tbl, y + 0.76, 1.6, 0.05, 1.6, rot, '#2e4a2e'); // the card table and its baize
+      for (const [dx, dz] of [[1.05, 0], [-1.05, 0], [0, 1.05], [0, -1.05]]) box({ x: tbl.x + dx, z: tbl.z + dz }, y, 0.45, 0.5, 0.45, rot, dark);
+      // the board: a plank on the side wall with its papers
+      const side = L.at(Math.min(L.depth - 2, 4.5), -L.width / 2 + 0.12);
+      box(side, y + 1.2, L.inZ ? 0.08 : 1.6, 1.0, L.inZ ? 1.6 : 0.08, 0, '#5a4028');
+      for (let i = 0; i < 3; i++) { const q = { x: side.x + (L.inZ ? 0.06 : -0.55 + i * 0.5), z: side.z + (L.inZ ? -0.55 + i * 0.5 : 0.06) }; box(q, y + 1.45 - (i % 2) * 0.3, L.inZ ? 0.03 : 0.36, 0.42, L.inZ ? 0.36 : 0.03, 0, '#e8dcc0'); }
+    }
+    this.furn.count = n;
+    this.furn.instanceMatrix.needsUpdate = true; if (this.furn.instanceColor) this.furn.instanceColor.needsUpdate = true;
+    this.furn.visible = n > 0;
   }
   barTalk(c) {
     const bar = this.bars.get(c.barId); if (!bar) return null;
@@ -690,7 +753,7 @@ export class Pulls {
     const keepH = this.k.holder(`bar:${bar.id}`); keepH.x = c.x; keepH.z = c.z;
     if (c.barRole === 'keep') {
       const T = this.node(bar.town), ch = [];
-      ch.push({ t: `Pour me one. ($${BAR.price}) · ${bar.stock} bottles on the shelf`, reply: () => { const r = this.drink(bar.id); return r.ok ? (r.fact ? `(He pours.) "${r.fact.text}."` : '(He pours.) "Quiet week. Nobody tells me anything."') : `(${r.why})`; } });
+      ch.push({ t: `Pour me one. ($${BAR.price}) · ${bar.stock} bottles on the shelf`, reply: () => { const r = this.drink(bar.id); return r.ok ? (r.fact ? `(A glass, poured.) "${r.fact.text}."` : '(A glass, poured.) "Quiet week. Nobody tells me anything."') : `(${r.why})`; } });
       ch.push({ t: 'Read the board on the wall.', reply: () => { const r = this.readBoard(bar.town); return r.length ? `(The board.) ${r.map((x) => x.text).join(' · ')}` : '(The board is bare.)'; } });
       for (const rec of this.list) {
         if (rec.town !== bar.town || rec.state !== 'posted') continue;
@@ -718,6 +781,7 @@ export class Pulls {
     if (g.cash < BAR.price) return { ok: false, why: `you need $${BAR.price}` };
     if (!g.inventory.add(g.inventory.carried, BAR.drink, 1)) return { ok: false, why: 'no room in your pack for the bottle' };
     g.cash -= BAR.price; bar.till += BAR.price; bar.stock--; this.stats.drinks++; g.inventory.changed?.();
+    if (bar.stock < 14) this.furnish(); // one bottle fewer on the shelf
     const fact = this.tellPlayer(`bar:${bar.id}`);
     g.emit('pullDrink', { bar: bar.id, fact: fact?.id ?? null, stock: bar.stock });
     return { ok: true, fact, stock: bar.stock, till: bar.till };
