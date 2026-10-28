@@ -591,7 +591,7 @@ function buildCommands(api) {
     aim: { group: 'player', desc: 'Lock the aim point to x,z (null x to release back to the mouse).', args: { x: { type: 'number' }, z: { type: 'number' } },
       run: async ({ x, z }) => { g.aimOverride = x === undefined ? null : { x, z }; return { aim: g.aimOverride }; } },
     fire: {
-      group: 'player', desc: 'Fire the current weapon at x,z or entity id (id="hostile" = nearest enemy, re-acquired every shot). Auto-reloads. shots=N fires N rounds, stepping the sim between them.',
+      group: 'player', desc: 'Fire the current weapon at x,z or entity id (id="hostile" = nearest enemy, re-acquired every shot; a moving one is led by the flight time of its round, see WEB_BALLISTICS.md). Auto-reloads. shots=N fires N rounds, stepping the sim between them.',
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' }, shots: { type: 'number', default: 1 } },
       run: async ({ x, z, id, shots }) => {
         const p = P();
@@ -604,6 +604,16 @@ function buildCommands(api) {
             const t = api.findChar(id) ?? api.findVeh(id);
             if (!t && id === 'hostile') return { fired: i, killed: g.stats.kills - before, note: 'no hostiles left' };
             need(t, `no entity ${id}`); tx = t.x; tz = t.z;
+            // A round takes time to get there (WEB_BALLISTICS.md): lead a moving target by its velocity (a car's own; a
+            // person's from one frame of watching) times the flight, less the shooter's own car's.
+            if (g.ballistics?.on) {
+              let vx = t.vx ?? 0, vz = t.vz ?? 0;
+              if (!t.len) { const x0 = t.x, z0 = t.z; await api._step(1); vx = (t.x - x0) * 60; vz = (t.z - z0) * 60; tx = t.x; tz = t.z; }
+              const pv = g.ballistics.platformV(p), rvx = vx - (pv?.vx ?? 0), rvz = vz - (pv?.vz ?? 0), key = g.ballistics.rowKey(WEAPONS[g.inv.current]);
+              let d = Math.hypot(tx - p.x, tz - p.z), lx = 0, lz = 0;
+              for (let k = 0; k < 2; k++) { const tf = g.ballistics.flightTime(key, d) ?? 0; lx = rvx * tf; lz = rvz * tf; d = Math.hypot(tx + lx - p.x, tz + lz - p.z); }
+              tx += lx; tz += lz;
+            }
           }
           need(p.alive, 'player died');
           need(tx !== undefined && tz !== undefined, 'give x,z or id');
@@ -3108,7 +3118,7 @@ async function runSelfTest(api, only = null, skip = null) {
     wvClean([]); wvReady();
     const { v, d } = crewed('pickup', -330, 3.5, Math.PI / 2);
     const t = person('raider', 0, 0, { hp: 600 });
-    t.x = -300; t.z = -10; t.home = { x: t.x, z: t.z };
+    t.x = -288; t.z = -10; t.home = { x: t.x, z: t.z }; // far enough down the road that the bed is still in reach after a reload (rounds now fly: WEB_BALLISTICS.md)
     try {
       await C('teleport', { x: -331.5, z: 5.1 }); await api._step(5);
       await tk('KeyE');
@@ -5715,7 +5725,12 @@ async function runSelfTest(api, only = null, skip = null) {
       g.aimOverride = { x: p.x - 20, z: p.z };
       await C('step', { seconds: 3 });
       const live = G.alive(pk), mean = () => live.filter((c) => c.alive).reduce((s, c) => s + Math.hypot(c.x - p.x, c.z - p.z), 0) / Math.max(1, live.filter((c) => c.alive).length);
-      const stalking = pk.state === 'stalk', d0 = mean(), t0 = live.find((c) => g.los(p.x, p.z, c.x, c.z)) ?? live[0];
+      // One of them in sight to shoot at (they circle: give it up to 3 s rather than shoot at a wall - the battery's clock moves where they stalk).
+      // A round flies now (WEB_BALLISTICS.md): the one shot at must stay in sight while it gets there, not be stepping round a corner.
+      const seenNow = () => live.filter((c) => c.alive && g.los(p.x, p.z, c.x, c.z));
+      let steady = [];
+      for (let k = 0; k < 15 && !steady.length; k++) { const a0 = seenNow(); await C('step', { seconds: 0.2 }); steady = seenNow().filter((c) => a0.includes(c)); }
+      const stalking = pk.state === 'stalk', d0 = mean(), t0 = steady[0] ?? live.find((c) => c.alive && g.los(p.x, p.z, c.x, c.z)) ?? live[0];
       g.aimOverride = { x: t0.x, z: t0.z };
       for (let i = 0; i < 8 && !((t0.hitAt ?? -99) > g.time - 1); i++) await C('fire', { id: t0.id, shots: 1 });
       const hit = (t0.hitAt ?? -99) > g.time - 1;
