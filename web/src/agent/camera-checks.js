@@ -112,7 +112,7 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
   await check('camera: aim is not the walk - walking north while aiming east turns the body east, the legs strafe, and the shot goes east (a target east is hit, one north is not)', async () => hush(async () => {
     await home(); R.setView('ANGLED', true);
     const p = g.player;
-    await C('give', { weapon: 'pistol', pistol: 24 }); g.switchWeapon('pistol'); g.inv.mag.pistol = 6; g.arms.raise?.('test');
+    if (!g.inv.weapons.includes('pistol')) await C('give', { weapon: 'pistol' }); g.switchWeapon('pistol'); g.inv.mag.pistol = 6; g.arms.raise?.('test'); // a loaded mag, nothing added to the pack (the end puts the mags back)
     const e = (await C('spawn', { kind: 'drifter', x: p.x + 9, z: p.z - 2, hp: 400 })).ids?.[0];
     const n = (await C('spawn', { kind: 'drifter', x: p.x, z: p.z - 11, hp: 400 })).ids?.[0];
     const E = api.findChar(e), N = api.findChar(n);
