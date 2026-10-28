@@ -98,13 +98,13 @@ export const BIOME_MAP = {
 // ---- scenes (road-kit-roadside.js SCENES), setbacks in METRES beyond the clear zone's edge ----------------------------
 //   group      houses | wall | signage | nature | farm | service (a knob per group)
 //   span       slots (1-2); side: 'one' (a hashed side) | 'both'
-//   weights    per road biome; byClass per road class; nearCity: metres from a town's edge where it ramps up (and, for
-//              cityOnly, the only place it stands)
+//   weights    per road biome; byClass per road class; nearCity: metres from a town's edge where it ramps up (x up to
+//              1 + nearBoost at the edge, default 2; and, for cityOnly, the only place it stands); chance: a prop's own odds
 //   props      kind (world/roadside.js draws each), n [min,max] or a strip, set [min,max] setback, depth [min,max]
 const W = (o, d = 0) => Object.fromEntries(Object.keys(ROAD_BIOMES).map((b) => [b, o[b] ?? d]));
 export const SCENES = {
   'tree-wall': { label: 'Woods close to the road', group: 'nature', span: 2, side: 'both',
-    weights: W({ 'forest-hills': 6, 'pine-flat': 6, mountain: 3, swamp: 1.6, snow: 2.2, farmland: 0.7, grassland: 0.2, scrub: 0.3, sprawl: 0.6 }),
+    weights: W({ 'forest-hills': 6, 'pine-flat': 6, mountain: 3, swamp: 5, snow: 2.2, farmland: 0.7, grassland: 0.2, scrub: 0.3, sprawl: 0.6 }),
     byClass: { interstate: 0.5, divided: 0.9, 'two-lane': 1.6, rural: 1.8, dirt: 2.4 },
     props: [{ kind: 'treewall', set: [0.2, 1.1], depth: [23, 61], spacing: 4.6, understory: 0.5 }] }, // set 1-6 u, depth 120-320 u
   'houses-off-road': { label: 'A few houses off the road', group: 'houses', span: 2, side: 'one',
@@ -120,11 +120,11 @@ export const SCENES = {
     byClass: { interstate: 1, divided: 0.7 }, nearCity: 1200, cityOnly: true,
     props: [{ kind: 'soundwall', set: [0.8, 0.8], h: 4.8, gaps: 0.12 }, { kind: 'house', n: [3, 6], set: [15, 23], backs: true }] }, // set 4 u; 40 u tall -> a real wall's 4.8 m
   billboard: { label: 'Billboard', group: 'signage', span: 1, side: 'one',
-    weights: W({ 'forest-hills': 0.6, 'pine-flat': 0.8, farmland: 1, grassland: 1.3, desert: 1.5, scrub: 1.3, snow: 0.25, swamp: 0.5, sprawl: 2, mountain: 0.4 }),
-    byClass: { interstate: 3, divided: 2, 'two-lane': 0.5 }, nearCity: 4000,
+    weights: W({ 'forest-hills': 0.6, 'pine-flat': 0.8, farmland: 1, grassland: 1.3, desert: 1.5, scrub: 1.3, snow: 0.25, swamp: 0.5, sprawl: 1, mountain: 0.4 }),
+    byClass: { interstate: 3, divided: 2, 'two-lane': 0.5 }, nearCity: 4000, nearBoost: 0.6,
     props: [{ kind: 'billboard', n: [1, 1], set: [2, 3.4], h: 8.6 }] }, // set 10-18 u, 45 u up
   'billboard-pair': { label: 'Billboard pair', group: 'signage', span: 2, side: 'both', weights: W({ grassland: 0.7, desert: 0.9, farmland: 0.6, scrub: 0.7 }),
-    byClass: { interstate: 1.6, divided: 0.8 }, nearCity: 4000, props: [{ kind: 'billboard', n: [1, 1], set: [2, 3.4], h: 8.6 }] },
+    byClass: { interstate: 1.6, divided: 0.8 }, nearCity: 4000, nearBoost: 0.6, props: [{ kind: 'billboard', n: [1, 1], set: [2, 3.4], h: 8.6 }] },
   'open-view': { label: 'Open view, nothing in it', group: 'nature', span: 1, side: 'both', weights: W({ desert: 1.5, grassland: 1.5, scrub: 1.4, snow: 1.2, farmland: 0.8, swamp: 0.5, mountain: 0.8 }),
     byClass: { interstate: 1, divided: 1, 'two-lane': 1, rural: 1, dirt: 1 }, props: [{ kind: 'rock', n: [0, 2], set: [11, 76] }] }, // 60-400 u
   'farm-lane': { label: 'Farm lane to a farmhouse', group: 'farm', span: 2, side: 'one', weights: W({ farmland: 4, grassland: 1.6, 'forest-hills': 0.5, 'pine-flat': 0.5 }),
@@ -149,7 +149,7 @@ export const SCENES = {
     props: [{ kind: 'snowpole', n: [3, 5], set: [0.6, 1.1] }, { kind: 'snowfence', set: [5.7, 8.6], h: 1.9 }, { kind: 'firclump', n: [1, 3], set: [11, 38] }] }, // 3-6 u, 30-45 u, 60-200 u
   'causeway-reeds': { label: 'Cattails, sawgrass and a stilt shack', group: 'nature', span: 2, side: 'both', weights: W({ swamp: 6, 'pine-flat': 0.8 }),
     byClass: { 'two-lane': 1.3, rural: 1.2, divided: 0.9, interstate: 0.8, dirt: 1 },
-    props: [{ kind: 'cattails', n: [4, 9], set: [0.6, 7.6] }, { kind: 'stiltshack', n: [0, 1], set: [15, 34] }] }, // 3-40 u, 80-180 u
+    props: [{ kind: 'cattails', n: [4, 9], set: [0.6, 7.6] }, { kind: 'stiltshack', n: [0, 1], set: [15, 34], chance: 0.25 }] }, // 3-40 u, 80-180 u
   'gas-stop': { label: 'A dead gas stop', group: 'service', span: 2, side: 'one', weights: W({ desert: 1, scrub: 1.2, grassland: 1.4, farmland: 1.2, 'forest-hills': 1, 'pine-flat': 1, snow: 1, swamp: 0.9, mountain: 0.8, sprawl: 1 }),
     byClass: { 'two-lane': 2, rural: 1, divided: 1.6 }, props: [{ kind: 'gasstop', set: [4, 8] }] }, // 20-40 u
 };
@@ -158,12 +158,12 @@ export const DEFAULT_KNOBS = { density: 1, nothing: 1, houses: 1, wall: 1, signa
 
 // ---- what the props look like (colours: no purple) ---------------------------------------------------------------------
 export const LOOK = {
-  soundwall: '#9a958a', soundwallCap: '#7c776e', billboardPost: '#4a4038', billboardFace: ['#c9b48a', '#a8b2a4', '#c69a6a', '#b8a888', '#8a9a8a'], billboardBack: '#5a544a',
+  soundwall: '#8a857a', soundwallCap: '#6c675e', soundwallPost: '#55524c', billboardPost: '#4a4038', billboardFace: ['#c9b48a', '#a8b2a4', '#c69a6a', '#b8a888', '#8a9a8a'], billboardBack: '#5a544a',
   fencePost: '#5e4b36', fenceRail: '#6e5a42', wire: '#3a3631', pole: '#4a3a2a', arm: '#3d3026',
-  house: ['#d9c7a6', '#c9b08a', '#b9c2b0', '#d8b48c', '#a8b8b0', '#cfc2a8', '#9c9484', '#b0a08a'], roof: ['#5a4a3e', '#4e4640', '#6a5444', '#5c5a54'],
+  house: ['#d9c7a6', '#c9b08a', '#b9c2b0', '#d8b48c', '#a8b8b0', '#cfc2a8', '#9c9484', '#b0a08a'], roof: ['#5a4a3e', '#4e4640', '#6a5444', '#5c5a54'], char: '#2a2420',
   barn: ['#7a3a28', '#6e3424', '#7c5a3a', '#6a5a48'], silo: '#a8a49a', drive: '#8a7a5c', mailbox: '#6a6a66',
   windmill: '#6a6660', vane: '#8a857c', tank: '#6e7a7a', water: '#4a5a52',
-  crop: ['#a8914e', '#9c8848', '#8e8a4a', '#b09a5a'], stubble: '#7a6a42',
+  crop: ['#8a7a3e', '#7e7038', '#76723c', '#8e7c44'], stubble: '#6a5a38', soil: '#4e3e2c',
   cattail: '#7a7a44', cattailHead: '#4a3424', sawgrass: '#7c7a48', snowpole: '#c8642a', snowfence: '#6e5a42',
   rock: ['#7e6248', '#8a6a4e', '#6e5440', '#94735a', '#7a7470'], canopy: '#8a8478', pump: '#a04a2a', shell: ['#c8bfae', '#b8ae9a', '#a89c86'],
 };

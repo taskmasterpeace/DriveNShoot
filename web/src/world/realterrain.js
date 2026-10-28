@@ -293,8 +293,8 @@ export class RealTerrain {
       bedR[i] = ROAD_BIOMES[roadBiomeOf(L, this.W.regionOf?.(x, z, 3000)?.id ?? null, this.W.stateAt(x, z))]?.bed ?? 0;
     }
     const dkS = box(box(dkR)), bedS = box(box(bedR));
-    const dk = (R.dk = new Float32Array(n));
-    for (let i = 0; i < n; i++) { dk[i] = dkR[i] > 0 ? Math.min(dkR[i], dkS[i]) : 0; R.yr[i] += bedS[i] * dk[i]; }
+    const dk = (R.dk = new Float32Array(n)), bed = (R.bed = new Float32Array(n));
+    for (let i = 0; i < n; i++) { dk[i] = dkR[i] > 0 ? Math.min(dkR[i], dkS[i]) : 0; bed[i] = bedS[i] * dk[i]; R.yr[i] += bed[i]; }
     let dmax = 0, gmax = 0, cut = 0, fill = 0;
     for (let i = 0; i < n; i++) {
       const d = R.yr[i] - y[i];

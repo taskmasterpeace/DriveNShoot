@@ -25,7 +25,9 @@ export const saltOf = (s) => { s = String(s); let h = 2166136261; for (let i = 0
 const R_NOTHING = 1, R_SVC = 2, R_SVCSLOT = 3, R_SVCSIDE = 4, R_SVCPICK = 5, R_FILL = 6, R_PICK = 7, R_SIDE = 8, R_PROP = 9;
 
 const RGB = new Map();
-export const rgbOf = (hex) => { let c = RGB.get(hex); if (!c) { const v = parseInt(hex.slice(1), 16); RGB.set(hex, (c = [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255])); } return c; };
+// '#rrggbb' (sRGB, as the rows write it) to the linear RGB the instance pools take (what THREE.Color.set gives chunkgen's col()).
+const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+export const rgbOf = (hex) => { let c = RGB.get(hex); if (!c) { const v = parseInt(hex.slice(1), 16); RGB.set(hex, (c = [lin(((v >> 16) & 255) / 255), lin(((v >> 8) & 255) / 255), lin((v & 255) / 255)])); } return c; };
 
 // ---- the road biome of a place (BIOME_MAP): a usmap/landcover letter, the region it is in, the state ---------------------
 export function roadBiomeOf(letter, region = null, state = null) {
@@ -42,7 +44,7 @@ function weightOf(id, biome, cls, cityDist, k) {
   let w = (s.weights[biome] ?? 0) * (s.byClass[cls] ?? 0) * (s.group === 'service' ? 1 : k.density) * (k[s.group] ?? 1);
   if (w > 0 && s.nearCity) {
     if (cityDist > s.nearCity) w = s.cityOnly ? 0 : w * 0.35; // a sound wall only stands where the town's houses are
-    else w *= 1 + 2 * (1 - cityDist / s.nearCity);
+    else w *= 1 + (s.nearBoost ?? 2) * (1 - cityDist / s.nearCity);
   }
   return w;
 }
@@ -232,13 +234,15 @@ function emitScene(ctx, R, def, sc, side, props, own) {
       }
       case 'soundwall': {
         // 4 m concrete panels on posts, a darker cap; the odd panel fallen out (gaps), a stretch gone where a car went in.
-        const set = between(r(1), p.set), c = rgbOf(LOOK.soundwall), cap = rgbOf(LOOK.soundwallCap);
+        const set = between(r(1), p.set), c = rgbOf(LOOK.soundwall), cap = rgbOf(LOOK.soundwallCap), post = rgbOf(LOOK.soundwallPost);
         for (let s = sA, i = 0; s < sB - 2; s += 4, i++) {
           if (r(i, 1) < p.gaps) continue;
           const v = 0.9 + 0.14 * r(i, 2), h = p.h * (r(i, 3) < 0.06 ? 0.55 : 1);
-          place(s + 2, set + 0.15);
-          push('walls', 'soundwall', W.x, h / 2, W.z, W.rot, 0.3, h, 4.02, [c[0] * v, c[1] * v, c[2] * v], { box: { sa: 4, su: 0.35 }, h, tag: 'soundwall' });
-          push('props', 'soundwallcap', W.x, h + 0.08, W.z, W.rot, 0.42, 0.16, 4.02, cap);
+          place(s + 2, set + 0.25);
+          push('walls', 'soundwall', W.x, h / 2, W.z, W.rot, 0.5, h, 4.02, [c[0] * v, c[1] * v, c[2] * v], { box: { sa: 4, su: 0.55 }, h, tag: 'soundwall' });
+          push('props', 'soundwallcap', W.x, h + 0.08, W.z, W.rot, 0.7, 0.16, 4.02, cap);
+          place(s, set + 0.25);
+          push('props', 'soundwallpost', W.x, (h + 0.3) / 2, W.z, W.rot, 0.62, h + 0.3, 0.45, post);
         }
         break;
       }
@@ -269,12 +273,13 @@ function emitScene(ctx, R, def, sc, side, props, own) {
       }
       case 'cropfield': {
         // A dead crop in rows parallel to the road (16 m pieces so they follow the curve and the land), gone patchy.
-        const set = between(r(1), p.set), depth = between(r(2), p.depth), crop = rgbOf(LOOK.crop[Math.floor(r(3) * LOOK.crop.length)]), stub = rgbOf(LOOK.stubble), fallow = r(4) < 0.3;
+        const set = between(r(1), p.set), depth = between(r(2), p.depth), crop = rgbOf(LOOK.crop[Math.floor(r(3) * LOOK.crop.length)]), stub = rgbOf(LOOK.stubble), soil = rgbOf(LOOK.soil), fallow = r(4) < 0.3;
         for (let j = 0, rows = Math.floor(depth / p.row); j < rows; j++) for (let s = sA + 4, i = 0; s < sB - 4; s += 16, i++) {
           if (r(i, j + 1000) < 0.14) continue;
           const v = 0.86 + 0.2 * r(i, j + 2000), h = fallow ? 0.18 : 0.35 + 0.35 * r(i, j + 3000), c = fallow ? stub : crop;
           place(s + 8, set + 1 + j * p.row);
-          push('props', 'crop', W.x, h / 2, W.z, W.rot, 0.65, h, 15.4, [c[0] * v, c[1] * v, c[2] * v]);
+          push('props', 'furrow', W.x, 0.03, W.z, W.rot, p.row * 0.98, 0.06, 16, [soil[0] * v, soil[1] * v, soil[2] * v]);
+          push('props', 'crop', W.x, h / 2, W.z, W.rot, 0.5, h, 15.4, [c[0] * v, c[1] * v, c[2] * v]);
         }
         break;
       }
@@ -356,7 +361,7 @@ function emitScene(ctx, R, def, sc, side, props, own) {
         break;
       }
       case 'stiltshack': {
-        const n = p.n[0] + Math.floor(r(1) * (p.n[1] - p.n[0] + 1));
+        const n = r(9) < (p.chance ?? 1) ? p.n[0] + Math.floor(r(1) * (p.n[1] - p.n[0] + 1)) : 0;
         for (let i = 0; i < n; i++) {
           place(lerp(sA + 10, sB - 10, r(i, 1)), between(r(i, 2), p.set));
           const x = W.x, z = W.z, rot = W.rot, w = 5 + r(i, 3) * 2, d = 4 + r(i, 4) * 2, c = rgbOf(LOOK.shell[Math.floor(r(i, 5) * 3)]);
@@ -397,12 +402,16 @@ function silo(push, W, rv) {
 }
 // A house, or a barn: a shell (walls) with its roof, fallen in on the burnt ones; faces the road (or backs onto it).
 function building(push, W, kind, r1, r2, r3, face, side) {
-  const barn = kind === 'barn', w = barn ? 12 + r1 * 4 : 8 + r1 * 4, d = barn ? 9 + r2 * 3 : 7 + r2 * 3, h = barn ? 5 + r3 * 1.5 : 2.8 + r3 * 0.6;
-  const pal = barn ? LOOK.barn : LOOK.house, c = rgbOf(pal[Math.floor(r1 * 997) % pal.length]), burnt = !barn && r3 < 0.3, v = burnt ? 0.55 : 1;
+  const barn = kind === 'barn', burnt = !barn && r3 < 0.3, w = barn ? 12 + r1 * 4 : 8 + r1 * 4, d = barn ? 9 + r2 * 3 : 7 + r2 * 3, h = barn ? 5 + r3 * 1.5 : burnt ? 1.4 + r3 * 2 : 2.8 + r3 * 0.6;
+  const pal = barn ? LOOK.barn : LOOK.house, c = rgbOf(pal[Math.floor(r1 * 997) % pal.length]), v = burnt ? 0.55 : 1;
   const rc = rgbOf(LOOK.roof[Math.floor(r2 * 991) % LOOK.roof.length]);
   push('walls', kind, W.x, h / 2, W.z, W.rot, d, h, w, [c[0] * v, c[1] * v, c[2] * v], { box: { sa: w, su: d }, h, tag: barn ? 'barn' : 'homestead' });
   if (!burnt) push('roofs', `${kind}roof`, W.x, h + 0.15, W.z, W.rot, d + 0.9, barn ? 0.4 : 0.3, w + 0.9, rc);
-  else push('roofs', `${kind}roof`, W.x + 0.6, h * 0.55, W.z - 0.4, W.rot + 0.05, d * 0.6, 0.25, w * 0.55, [0.34, 0.31, 0.28]);
+  else { // burnt out: a low shell, the roof fallen in as charred timbers on top of the rubble
+    const ch = rgbOf(LOOK.char);
+    push('roofs', `${kind}roof`, W.x, h + 0.08, W.z, W.rot, d * 0.92, 0.14, w * 0.92, ch);
+    for (let k = 0; k < 3; k++) push('props', 'charbeam', W.x + (k - 1) * 1.6 * Math.cos(W.rot), h + 0.3, W.z - (k - 1) * 1.6 * Math.sin(W.rot), W.rot + 0.3 * (k - 1), 0.25, 0.25, w * 0.8, ch);
+  }
   // the porch step on the side it faces (face 1: toward the road; -1: backed onto it), a barn's big doors
   const fx = side * Math.cos(W.rot) * face, fz = -side * Math.sin(W.rot) * face, o = d / 2 + 0.6;
   push('props', barn ? 'barndoor' : 'porch', W.x + fx * o, barn ? 1.8 : 0.15, W.z + fz * o, W.rot, 1.2, barn ? 3.6 : 0.3, barn ? 4 : 3, barn ? [0.32, 0.2, 0.14] : [0.45, 0.4, 0.34]);
@@ -435,6 +444,46 @@ export function cityDistOf(W) {
 }
 export const roadBiomeAtOf = (W) => (x, z) => roadBiomeOf(W.biomeAt(x, z), W.regionOf?.(x, z, 3000)?.id ?? null, W.stateAt(x, z));
 
+// A corridor as a road run for the placer (sA..sB: the arc length to scan). Its skip spans: the trimmed ends, every
+// interchange (its own furniture), a bridge and its fills, the Phoenix island and ring, a built town's frontage.
+export function corridorRun(W, cor, sA, sB) {
+  const id = cor.id ?? 'I-10', i10 = cor === W.i10, exits = i10 ? (W.exits ?? []).filter((X) => !X.cor || X.cor === W.i10) : cor.exits;
+  return {
+    id, salt: saltOf(id), cls: CLASS_OF.corridor, L: cor.L, sA, sB,
+    at: (s, P) => { const f = cor.at(s); P.x = f.x; P.z = f.z; P.tx = f.tx; P.tz = f.tz; return P; },
+    half: (s) => cor.section(s).out,
+    skip: (s) => {
+      if (s < cor.mainlineFrom + 200 || s > cor.L - 120) return true;
+      for (const X of exits) if (Math.abs(X.s - s) < 650) return true;
+      if (i10 && W.water?.onBridge(s, 60)) return true;
+      const f = cor.at(s);
+      if (Math.abs(f.x) < 700 && Math.abs(f.z) < 700) return true;
+      if (W.ring && W.ring.inCity(f.x, f.z, 40)) return true;
+      for (const t of W.towns ?? []) if (t.built && Math.hypot(t.x - f.x, t.z - f.z) < 380) return true;
+      return false;
+    },
+  };
+}
+// A county ribbon (an exit's cross road, a community's access road) as a road run. Its skip spans: its ends, its fills
+// and decks, and the interchange it leaves.
+export function ribbonRun(W, rb) {
+  const seg = (s) => { let lo = 0, hi = rb.n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (rb.s[m] <= s) lo = m; else hi = m; } return lo; };
+  return {
+    id: rb.id, salt: saltOf(rb.id), cls: CLASS_OF.county, L: rb.L, sA: 0, sB: rb.L,
+    at: (s, P) => { const i = seg(Math.max(0, Math.min(rb.L, s))), l = rb.s[i + 1] - rb.s[i] || 1, t = Math.max(0, Math.min(1, (s - rb.s[i]) / l)), dx2 = rb.x[i + 1] - rb.x[i], dz2 = rb.z[i + 1] - rb.z[i], dl = Math.hypot(dx2, dz2) || 1; P.x = rb.x[i] + dx2 * t; P.z = rb.z[i] + dz2 * t; P.tx = dx2 / dl; P.tz = dz2 / dl; return P; },
+    half: (s) => { const i = seg(Math.max(0, Math.min(rb.L, s))); return Math.max(rb.wl[i], rb.wr[i]); },
+    skip: (s) => {
+      if (s < 12 || s > rb.L - 12) return true;
+      const i = seg(s);
+      if (rb.y[i] > 0.4 || rb.y[Math.min(rb.n - 1, i + 1)] > 0.4) return true; // on a fill or a deck
+      const P = { x: rb.x[i], z: rb.z[i] };
+      for (const cor of W.corridors ?? [W.i10]) { const q = cor.project(P.x, P.z, 90); if (q.d < 90) return true; } // the interchange
+      return false;
+    },
+  };
+}
+// Debug (the roadside command's audits): keep each chunk's placed props (kind, x, z, radius) on its layout.
+export const RS_DEBUG = { keep: false };
 // This chunk's road runs: every corridor whose roadside can reach it, and every county ribbon nearby.
 export function chunkRoads(W, cx, cz, C, featuresOf) {
   const ox = cx * C, oz = cz * C, mx = ox + C / 2, mz = oz + C / 2, R0 = C * 0.7072 + MAX_REACH, roads = [];
@@ -442,23 +491,7 @@ export function chunkRoads(W, cx, cz, C, featuresOf) {
     if (!cor) continue;
     if (cor !== W.i10 && (cor.bbox.x1 < ox - R0 || cor.bbox.x0 > ox + C + R0 || cor.bbox.z1 < oz - R0 || cor.bbox.z0 > oz + C + R0)) continue;
     const pr = cor.project(mx, mz, R0);
-    if (!(pr.d <= R0)) continue;
-    const id = cor.id ?? 'I-10', i10 = cor === W.i10, exits = i10 ? (W.exits ?? []).filter((X) => !X.cor || X.cor === W.i10) : cor.exits;
-    roads.push({
-      id, salt: saltOf(id), cls: CLASS_OF.corridor, L: cor.L, sA: pr.s - R0, sB: pr.s + R0,
-      at: (s, P) => { const f = cor.at(s); P.x = f.x; P.z = f.z; P.tx = f.tx; P.tz = f.tz; return P; },
-      half: (s) => cor.section(s).out,
-      skip: (s) => {
-        if (s < cor.mainlineFrom + 200 || s > cor.L - 120) return true;
-        for (const X of exits) if (Math.abs(X.s - s) < 650) return true;     // an interchange's own furniture
-        if (i10 && W.water?.onBridge(s, 60)) return true;                      // a bridge and its fills
-        const f = cor.at(s);
-        if (Math.abs(f.x) < 700 && Math.abs(f.z) < 700) return true;          // the Phoenix island's edge
-        if (W.ring && W.ring.inCity(f.x, f.z, 40)) return true;              // inside the ring: the city's own frontage
-        for (const t of W.towns ?? []) if (t.built && Math.hypot(t.x - f.x, t.z - f.z) < 380) return true;
-        return false;
-      },
-    });
+    if (pr.d <= R0) roads.push(corridorRun(W, cor, pr.s - R0, pr.s + R0));
   }
   // County roads (exit cross roads and community access roads): the ribbons the 3 x 3 chunks round this one carry.
   const seen = new Set();
@@ -469,20 +502,7 @@ export function chunkRoads(W, cx, cz, C, featuresOf) {
       if (seen.has(rb) || rb.mainline || CLASS_OF[rb.kind] !== 'two-lane' || rb.n < 2 || rb.L < 60) continue;
       seen.add(rb);
       if (rb.x1 < ox - MAX_REACH || rb.x0 > ox + C + MAX_REACH || rb.z1 < oz - MAX_REACH || rb.z0 > oz + C + MAX_REACH) continue;
-      const seg = (s) => { let lo = 0, hi = rb.n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (rb.s[m] <= s) lo = m; else hi = m; } return lo; };
-      roads.push({
-        id: rb.id, salt: saltOf(rb.id), cls: CLASS_OF.county, L: rb.L, sA: 0, sB: rb.L,
-        at: (s, P) => { const i = seg(Math.max(0, Math.min(rb.L, s))), l = rb.s[i + 1] - rb.s[i] || 1, t = Math.max(0, Math.min(1, (s - rb.s[i]) / l)), dx2 = rb.x[i + 1] - rb.x[i], dz2 = rb.z[i + 1] - rb.z[i], dl = Math.hypot(dx2, dz2) || 1; P.x = rb.x[i] + dx2 * t; P.z = rb.z[i] + dz2 * t; P.tx = dx2 / dl; P.tz = dz2 / dl; return P; },
-        half: (s) => { const i = seg(Math.max(0, Math.min(rb.L, s))); return Math.max(rb.wl[i], rb.wr[i]); },
-        skip: (s) => {
-          if (s < 12 || s > rb.L - 12) return true;
-          const i = seg(s);
-          if (rb.y[i] > 0.4 || rb.y[Math.min(rb.n - 1, i + 1)] > 0.4) return true; // on a fill or a deck
-          const P = { x: rb.x[i], z: rb.z[i] };
-          for (const cor of W.corridors ?? [W.i10]) { const q = cor.project(P.x, P.z, 90); if (q.d < 90) return true; } // the interchange
-          return false;
-        },
-      });
+      roads.push(ribbonRun(W, rb));
     }
   }
   return roads;
@@ -500,7 +520,7 @@ export function* roadsideStage(ctx) {
   for (const s of res.scenes) st.scenes[s.scene] = (st.scenes[s.scene] ?? 0) + 1;
   let k = 0;
   for (const p of res.props) {
-    const rr = p.box?.r ?? (p.box ? Math.max(p.box.sa, p.box.su) / 2 : 0.2);
+    const rr = p.box?.r ?? (p.box ? p.box.su / 2 : 0.2); // an oriented box keeps its thickness off the road (it runs along it)
     if (blocked(p.x, p.z, p.kind === 'wire' ? 0 : Math.min(rr, 2))) { st.dropped.blocked++; continue; }
     if (wet(p.x, p.z)) { st.dropped.wet++; continue; }
     let i;
@@ -512,6 +532,7 @@ export function* roadsideStage(ctx) {
       else addBox(p.x - p.box.r, p.z - p.box.r, p.x + p.box.r, p.z + p.box.r, p.tag, p.h);
     }
     st.placed++; st.kinds[p.kind] = (st.kinds[p.kind] ?? 0) + 1;
+    if (RS_DEBUG.keep) (st.kept ??= []).push({ kind: p.kind, scene: p.scene, x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: p.kind === 'wire' ? 0 : Math.min(rr, 2), lat: +p.lat.toFixed(2), edge: +p.edge.toFixed(2) });
     if ((++k & 255) === 255) { ctx.pause(); yield; ctx.resume(); }
   }
   return st;
