@@ -296,7 +296,8 @@ export async function gadgetsChecks(api, check, C) {
       g.arms.holster('test');
       const c0 = g.cash;
       for (let k = 0; k < 20 && S2.arrest; k++) { P().speed = 0; await C('step', { seconds: 0.5 }); }
-      return !S2.arrest && g.wanted === 0 && g.cash < c0 ? true : `arrest=${!!S2.arrest} wanted=${g.wanted} cash ${c0}->${g.cash}`;
+      const why = g.events.filter((e) => e.type === 'shootout' || e.type === 'arrested').slice(-2).map((e) => `${e.type}:${e.why ?? e.outcome ?? ''}`), resp = S2.responses[S2.responses.length - 1];
+      return !S2.arrest && g.wanted === 0 && g.cash < c0 ? true : `arrest=${!!S2.arrest} wanted=${g.wanted} cash ${c0}->${g.cash} ${why.join(',')} men=${resp?.men.filter((c) => c.alive).length ?? '-'} near=${resp ? Math.round(Math.min(...resp.men.map((c) => Math.hypot(c.x - P().x, c.z - P().z)))) : '-'}`; // (the why: BACK LOTS lane's diagnostic)
     });
 
     await check('security: a roadblock (posse) puts two bull cars across the road and a chain between them', async () => {

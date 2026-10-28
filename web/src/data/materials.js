@@ -105,6 +105,11 @@ export const MATERIAL_RULES = {
     // THE ROADSIDE (world/roadside.js): a pylon's lattice, a hulk, a silo, a billboard's legs, a canal's lining, the dam,
     // a substation's chain-link.
     pylon: 'steel', hulk: 'carbody', silo: 'sheet_metal', billboard: 'wood', canal: 'concrete', dam: 'concrete', wirefence: 'chainlink',
+    // THE BACK LOTS (world/citygen/backlots-build.js, data/backlots.js): yard fences (a round goes through chain-link and
+    // splinters a picket), yard things, the alley's poles, dumpsters and bins, a loading dock's platform.
+    'bl-picket': 'wood', 'bl-privacy': 'wood', 'bl-rail': 'wood', 'bl-chain': 'chainlink', 'bl-adobe': 'adobe', 'bl-gatepost': 'wood',
+    'bl-shed': 'sheet_metal', 'bl-barrel': 'sheet_metal', 'bl-carblocks': 'carbody', 'bl-dumpster': 'sheet_metal', 'bl-bin': 'sheet_metal',
+    'bl-pole': 'timber', 'bl-dock': 'concrete',
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },

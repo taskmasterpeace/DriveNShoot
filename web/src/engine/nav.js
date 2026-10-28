@@ -24,6 +24,7 @@ export class NavGrid {
     this.store = new Uint8Array(this.ni * this.ni);
     this.rasterise(statics.boxes, this.store, this.ni, -island, -island);
     this.tiles = null;                          // set by the streamer
+    this.overlay = null;                        // fn(grid): more colliders into the window after the tiles (systems/backlots.js)
     this.blocked = new Uint8Array(this.n * this.n);
     // Scratch buffers reused across queries (no per-query allocation of big arrays).
     const nn = this.n * this.n;
@@ -85,6 +86,7 @@ export class NavGrid {
         else B.fill(1, dst, dst + T);
       }
     }
+    if (this.overlay) this.overlay(this); // the generated towns' colliders (systems/backlots.js navOverlay: BACK LOTS)
     // The window's edge.
     for (let i = 0; i < n; i++) { B[i] = B[(n - 1) * n + i] = B[i * n] = B[i * n + n - 1] = 1; }
     this.dirty = false;

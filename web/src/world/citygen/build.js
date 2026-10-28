@@ -20,6 +20,7 @@ const WALL = 0.4, IN = WALL / 2, FW = 1.4, LAND = 1.4, PITCH = 3.2 / 4.4, LADDER
 import { VERT, LOOT_BY_KIND, FLOOR_LOOT, ROADS, BIOMES } from '../../data/citygen.js';
 import { STEP } from '../../engine/depthlayers.js';
 import { makeRng } from '../../engine/rng.js';
+import { buildBacklots } from './backlots-build.js';
 
 // the one box shape (engine/collision.js StaticWorld.box): monomorphic for the hot loops
 const box = (minX, minZ, maxX, maxZ, tag, height, base = 0) => ({ minX, minZ, maxX, maxZ, tag, height, mark: 0, op: null, holes: null, holeX: false, sill: 0, base, owner: null });
@@ -419,7 +420,7 @@ function buildBridge(br, out) {
 // ---- the whole town ------------------------------------------------------------------------------------------------------
 export function buildTown(T) {
   const rng = makeRng((T.seed ^ 0xb1d6) >>> 0);
-  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [] };
+  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [] };
   const BI = BIOMES[T.biome] ?? BIOMES.desert_sonoran;
   // ground: the town's lots, then the streets (and their walks) on top
   for (const b of T.blocks) out.items.push({ cx: (b.x0 + b.x1) / 2, cy: 0.02, cz: (b.z0 + b.z1) / 2, sx: b.x1 - b.x0, sy: 0.04, sz: b.z1 - b.z0, col: b.green ? '#6a7448' : BI.ground, lv: 0, R: null });
@@ -482,6 +483,8 @@ export function buildTown(T) {
       out.items.push({ cx: x, cy: (h + 3.5) / 2, cz: z, sx: 4, sy: h + 3.5, sz: 4, col: '#5a4a38', lv: 0, R: null });
     }
   }
+  // the back lots (world/citygen/backlots-build.js): alleys, yard fences and gates, yard things, docks, verge props
+  buildBacklots(T, out, box);
   // wrecks: dead cars in the street, cover for a firefight
   const keep = out.doors.map((d) => [d.x, d.z, d.kind === 'bay' ? 10 : 4.5]);
   for (const w of T.wrecks) {
