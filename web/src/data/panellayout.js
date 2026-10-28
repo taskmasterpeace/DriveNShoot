@@ -51,6 +51,8 @@ export const PANELS = {
       { id: 'head', name: 'Name and flag', sel: '.cs-head' },
       { id: 'tabs', name: 'Tabs', sel: '.cs-tabs' },
       { id: 'body', name: 'Cards', sel: '.cs-body', list: true },
+      { id: 'pulls', name: 'Pulls board', sel: '.pb-list', list: true, cols: 1, tab: 'pulls' }, // what reached you (ui/pullsboard.js)
+      { id: 'pulls_empty', name: 'Pulls board (nothing yet)', sel: '.pb-empty', tab: 'pulls' },
       { id: 'close', name: 'Close', sel: '.cs-x' },
     ],
   },
