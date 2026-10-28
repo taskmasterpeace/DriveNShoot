@@ -730,6 +730,7 @@ export class Rites {
     for (const cem of this.cems.values()) if (Math.abs(cem.x - x) < R + cem.w && Math.abs(cem.z - z) < R + cem.d) out.push(cem);
     // the ring's quarters: a yard for the quarter you are in, once it has households
     if (!out.some((c) => c.ring)) { const y = this.ringYard(x, z); if (y && Math.abs(y.x - x) < R + y.w && Math.abs(y.z - z) < R + y.d) out.push(y); }
+    if (out.length > 4) out.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z)); // the nearest four
     return out.slice(0, 4);
   }
   // A ring quarter's yard: the empty lot nearest the quarter's middle (data/rites.js RING_YARD).

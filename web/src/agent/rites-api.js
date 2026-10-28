@@ -211,7 +211,7 @@ export async function ritesChecks(api, check, C) {
       const cem = S.cems.get('cem:cg-241'); // THE COURTHOUSE-SQUARE COUNTY SEAT: 206 graves by the formula, by a mesa
       if (!cem) return 'no cem:cg-241';
       await home(cem.x, cem.z - cem.d / 2 - 12); await api._step(30);
-      S.resolve(cem);
+      S.resolve(cem); await api._step(10); // (its chunks laid out again, the yard drawn)
       const L = cem.L, K = CEMETERY_KINDS[cem.kind], G = S.gravesOf(cem), lay = CEM_LAYOUT;
       // the world's scatter in every laid-out chunk round it (instance positions and static boxes) inside the wall + keep
       const s = Math.sin(cem.a), c = Math.cos(cem.a), inside = (x, z) => { const dx = x - cem.x, dz = z - cem.z; return Math.abs(dx * c - dz * s) < cem.w / 2 + lay.keep - 0.5 && Math.abs(dx * s + dz * c) < cem.d / 2 + lay.keep - 0.5; };
@@ -235,7 +235,7 @@ export async function ritesChecks(api, check, C) {
       const rich = L.plots.filter((P) => P.wealth === 2), richStone = rich.length ? rich.reduce((t, P) => t + G.slice(P.s0, P.s0 + P.k).filter((r) => r.marker === 'stone' || r.marker === 'iron').length / P.k, 0) / rich.length : 0;
       const poor = L.plots.filter((P) => P.wealth === 0), poorStone = poor.length ? poor.reduce((t, P) => t + G.slice(P.s0, P.s0 + P.k).filter((r) => r.marker === 'stone' || r.marker === 'iron').length / P.k, 0) / poor.length : 1;
       const drawn = S.drawnCems.includes(cem.id) && K.wall === 'stone' && L.trees.length === K.trees;
-      const v = { scatter: scatter.slice(0, 12), n: scatter.length, chunks, keepOut, secs: L.secs.length, cols: L.cols, paths: L.paths.length, plots: L.plots.length, fam, famBad, markers, richStone: r2(richStone), poorStone: r2(poorStone), drawn, count: G.length, formula: graveCount(cem.pop, cem.years, cem.danger) };
+      const v = { scatter: scatter.slice(0, 12), n: scatter.length, chunks, keepOut, secs: L.secs.length, cols: L.cols, paths: L.paths.length, plots: L.plots.length, fam, famBad, markers, richStone: r2(richStone), poorStone: r2(poorStone), drawn, near: S.drawnCems, count: G.length, formula: graveCount(cem.pop, cem.years, cem.danger) };
       return !scatter.length && chunks && keepOut && secsOk && plotsOk && fam > L.plots.length * 0.5 && !famBad && mixed && richStone > poorStone + 0.3 && drawn && G.length === v.formula ? true : JSON.stringify(v);
     });
 
