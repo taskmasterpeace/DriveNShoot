@@ -143,6 +143,21 @@ draw calls (one lit, one shadow, the flags) and ≈0.7 M triangles across both p
 9.03–9.91 ms / 89–92 draws. Other lanes share the CPU, so wall time swings by ±1 ms run to run; the interleaved A/B
 above is the number to trust.
 
+**Where the LSW body is visible** (the zoom ladder in the renders, `ladder-*` and `angled-*`, D = camera height in m):
+- **ANGLED view, D ≤ 7:** clearly. You see shoulders, upper arms and forearms, hands closed on the grips, the trunk and
+  belt, and the flag patch.
+- **TOPDOWN, D ≈ 9–14** (the foot camera's minimum is 9): visibly. Slimmer trunks, real arms and hands, smaller hats on
+  real heads.
+- **TOPDOWN, D 22** (CLOSE, the default) and further: a person is about 25 px tall, and the two rigs read as nearly the
+  same silhouette.
+
+The LSW body stops being worth its cost past about D 18.
+
+**Proposal: tie the near set to zoom, not only to a count.** Keep `near` = 24 below D 18, and fade it to 0 by D 24.
+Robert loses nothing he can see, and the wide views save the ≈0.45 ms. For him to actually *see* the bodies he chose, the
+lever is the camera, not this lane: a closer default foot D (12–14), or the ANGLED view. That is a camera-lane call, so
+it is left to Robert.
+
 **Not done / known limits:**
 - There is no cross-fade at the near edge. The swap is hidden by hysteresis and identical colours, but the silhouette
   changes.
