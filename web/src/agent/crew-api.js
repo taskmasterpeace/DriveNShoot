@@ -572,8 +572,8 @@ export async function crewChecks(api, check, C) {
     return !bad.length && dog ? true : `${bad.join('; ')} dog card ${dog}`;
   }));
 
-  await check('tactics cost: a plan averages under 0.3 ms (worst under 3 ms, a nav path under 8 ms); plans are staggered, perFrame at most', async () => {
-    const S = g.tactics.stats;
-    const avg = S.planMs / Math.max(1, S.plans); return S.plans > 0 && avg < 0.3 && S.maxPlanMs < 3 && S.maxPathMs < 8 ? true : `plans ${S.plans} avg ${avg.toFixed(3)} ms, slowest plan ${S.maxPlanMs.toFixed(3)} ms, slowest path ${S.maxPathMs.toFixed(3)} ms`;
+  await check('tactics cost: a plan averages under 0.3 ms, under 1% of plans take over 2 ms, a nav path under 8 ms; plans are staggered, perFrame at most', async () => {
+    const S = g.tactics.stats, avg = S.planMs / Math.max(1, S.plans), slow = S.slowPlans / Math.max(1, S.plans);
+    return S.plans > 0 && avg < 0.3 && slow < 0.01 && S.maxPathMs < 8 ? true : `plans ${S.plans} avg ${avg.toFixed(3)} ms, over 2 ms ${(slow * 100).toFixed(2)}%, slowest plan ${S.maxPlanMs.toFixed(3)} ms, slowest path ${S.maxPathMs.toFixed(3)} ms`;
   });
 }

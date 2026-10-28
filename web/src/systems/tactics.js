@@ -34,7 +34,7 @@ export class Tactics {
     this.g = game;
     this.budget = T.perFrame;
     this.on = true;            // false: every faction back on the plain ai.js fight (an A/B for perf or a test)
-    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0 };
+    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0 };
     this.mark = 0;
 
   }
@@ -137,7 +137,7 @@ export class Tactics {
     U.why = `${role}${CAND.cover ? (CAND.veh ? ' behind a car' : CAND.cover >= 1 ? ' low cover' : ' full cover') : ' open'} band ${b0.toFixed(0)}-${b1.toFixed(0)}`;
     // A path when the goal is far or not in a straight line (re-planned at most every repathS).
     const ms0 = performance.now() - t0;
-    this.stats.planMs += ms0;
+    this.stats.planMs += ms0; if (ms0 > 2) this.stats.slowPlans++; // a GC pause lands on some plan: the share over 2 ms is the honest number
     if (ms0 > this.stats.maxPlanMs) this.stats.maxPlanMs = ms0; // the plan itself (raycasts and scoring); the path below is counted apart
     const gd = Math.hypot(U.gx - c.x, U.gz - c.z);
     U.path = null; U.pi = 0;

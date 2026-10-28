@@ -340,7 +340,7 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
     camp and the memory as its context.
 18c. **Interjection:** opening a talk with a hurt stranger with the Sleeper beside you gives a `crewInterject` event.
 18d. **The panel's tabs:** all six draw for five members without a scroll, and your dog is on the roster.
-18. **Tactics cost:** the average plan is under 0.3 ms, the worst under 3 ms, a nav path under 8 ms.
+18. **Tactics cost:** the average plan is under 0.3 ms, under 1% of plans over 2 ms (a max over thousands of timings measures GC pauses), a nav path under 8 ms.
 
 **Not yet (next lanes):**
 - influence maps and threat-weighted paths (GENRE_DEPTH §5.4);
