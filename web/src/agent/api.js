@@ -2194,6 +2194,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // would drive through them: off for the battery; its own checks turn it on.
   const secWas = { auto: g.security.auto, ambient: g.security.ambient };
   g.security.auto = false; g.security.ambient = false;
+  // The pulls (systems/pulls.js) would grow road people on the I-10 round unrelated drive checks: off for the battery;
+  // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
+  const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5939,7 +5942,7 @@ async function runSelfTest(api, only = null, skip = null) {
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
-  await pullsChecks(api, check, C); // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
+  g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
   await check('no runtime errors during the battery', async () =>
