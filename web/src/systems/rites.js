@@ -452,7 +452,8 @@ export class Rites {
     const K = CEMETERY_KINDS[cem.kind], g = this.g, rec = cem.rec;
     const live = rec ? g.citygen?.live?.get(rec.id) : null;
     if (rec && !live && !cem.fixed) { cem.y = rec.y ?? this.ground(cem.x, cem.z); return; } // not built yet: provisional
-    const roads = live?.T?.roads ?? [], W = g.streamer?.W, CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
+    const roads = live?.T?.alleys?.length ? [...live.T.roads, ...live.T.alleys] : live?.T?.roads ?? [], W = // (a town's service alleys are streets too: BACK LOTS)
+      g.streamer?.W, CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
     // What is under one point: a building (the live towns' 8 m box grid), a street (the town's road rows, the island
     // grid, a corridor), water, the island's statics or the ring's lots.
     const hit = (x, z) => {

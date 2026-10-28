@@ -50,6 +50,7 @@ import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js';
 import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md) // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
+import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys, fenced back yards, docks, back doors (WEB_BACK_LOTS.md)
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -2040,6 +2041,7 @@ function buildCommands(api) {
     ...creatorCommands(api), // creator, sheet
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
+    ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...hudCommands(api, need), // hud (WEB_UI_EDITOR.md)
@@ -5966,6 +5968,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await citygenChecks({ api, g, check, C });
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
+  await backlotsChecks({ api, g, check, C }); // the back lots: alleys, yards, back doors, fences, pathing (WEB_BACK_LOTS.md §8)
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
