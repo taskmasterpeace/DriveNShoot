@@ -158,7 +158,7 @@ Uses: `engine/collision.js` (the island grid's cells and boxes, `raycast`, `hit`
 bookkeeping), `world/city.js` (`world.walls`, `world.props`, `world.buildings`), `world/surfaces.js` (`wallFinish`),
 `world/streamer.js` (`ringBuildingAt`), `systems/sky.js` (time scale, fast, rain), `water.depthAt`.
 
-Used by: `combat.hitscan` (every wall a round meets), `combat.damage` (blood on walls), `interiors.blast` (every blast),
+Used by: `combat.segment` (every wall a round meets, instantly from `combat.hitscan` or in flight from `systems/ballistics.js`, `WEB_BALLISTICS.md`), `combat.damage` (blood on walls), `interiors.blast` (every blast),
 `interiors.makeDoor` / `leafCircle` / `ray` / `nearest` / `writeLeaf` (broken doors), `throwables.startFire` (soft scorch),
 `main.js` (update), `agent/api.js` (save/load, the commands, the checks).
 
