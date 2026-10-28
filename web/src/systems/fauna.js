@@ -1069,10 +1069,13 @@ export class Fauna {
   // A shot from ch at the aim point in the sky (combat.fire): the rise it needs to meet the aim's height, and its heading.
   // A bird on the wing has moved on by the time the shot goes: the shot lands `lag` seconds of its flight behind it
   // (less with the HUNTING skill), so a single bullet misses a fast bird and a shotgun's spread is what catches it.
-  // Returns null when the aim is on the ground. One result object, reused.
-  skyShot(ch) {
+  // Returns null when the aim is on the ground, or when the shot is not going where the aim is (a `fire x= z=` from an
+  // agent, a scripted shot at someone else: the bird under a resting cursor must not take it). One result object, reused.
+  skyShot(ch, ang) {
     const aim = this.g.aim, y = aim?.y ?? 0;
     if (!(y > 2.2)) return null;
+    const toAim = Math.atan2(aim.x - ch.x, aim.z - ch.z), off = Math.atan2(Math.sin(ang - toAim), Math.cos(ang - toAim));
+    if (Math.abs(off) > 0.3) return null;
     let b = null, bd = 2.5;
     for (const a of this.live) { if (a.dead || !a.air || a.form !== 'bird') continue; const k = Math.hypot(a.x - aim.x, a.z - aim.z) + Math.abs(a.alt - y); if (k < bd) { bd = k; b = a; } }
     const lag = R.wingLag * Math.max(0.3, 1 - 0.06 * (this.g.outdoors?.lv('hunting') ?? 0));

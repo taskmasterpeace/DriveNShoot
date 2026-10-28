@@ -54,7 +54,7 @@ export class Combat {
     g.ambient?.eject(ch, ang);
     g.ambient?.onShot(ch.x, ch.z);
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)
-    const sky = ch === g.player ? g.fauna?.skyShot(ch) : null; // the mouse on a bird in the sky: the shot rises to it (systems/fauna.js skyAim)
+    const sky = ch === g.player ? g.fauna?.skyShot(ch, ang) : null; // the mouse on a bird in the sky: the shot rises to it (systems/fauna.js skyAim)
     const lift = sky ? sky.slope : 0, ang0 = sky ? sky.ang : ang;
     for (let p = 0; p < w.pellets; p++) {
       const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
