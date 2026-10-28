@@ -142,6 +142,39 @@ The sprinter's burst, the Echo's watched-freeze and the Choir's aura are unchang
 zone outfits, as behaviour): a hospital 3–7, a school with more sprinters, a church with Echoes, a warehouse with Echoes.
 v1 exposes it as `zombies occupy=<kind>`. Nothing calls it on its own yet (§5).
 
+### 3.8 The trail and the look from above (follow-up 2026-10-28, `feat/web-zombies2`)
+- **What it fixes.** A herd's trail was TRACKING's ground sign (`systems/outdoors.js`). It was drawn as untextured quads,
+  and aged sign lerped to a light tan (`#9a8a70`), so the trail read as scattered white paper. The infected also laid
+  plain `boot` prints.
+- **The sign's look** (all kinds, still ONE InstancedMesh):
+  - A 256 px print atlas drawn in code, with four cells: a boot sole with heel and tread, a scuff, a drag, a splat.
+  - A per-instance `aCell` attribute picks the cell.
+  - The material MULTIPLIES the ground: `MultiplyBlending`, tone mapping and fog off, and an unmarked texel stays white,
+    i.e. no change. A print can only darken the ground.
+  - Age fades the instance colour toward white, so an old print goes away instead of going pale.
+  - Boots, hooves, scuffs and tyres alternate left and right of the line (`stagger`, the maker's `_tks`).
+- **The infected's own sign** (rows in `data/outdoors.js` TRACK_KINDS):
+  - `scuff`: shuffling prints, the ball pressed in and the toe dragged back into a smear. One every 1.1 m.
+  - `drag`: a crawler dragging itself, hands clawing at the front. Continuous, every 0.55 m.
+  - `smear`: blood smeared by the wounded, under 60% hp or bleeding. It counts as blood for reading and for the
+    Read-the-blood talent.
+  - `scuff` and `drag` have `base: 2.5`: a herd's trampled path is plainer than one person's boots, so an untrained eye
+    reads it for about 0.9 game hours, not 0.35.
+- **Dust:** each scuff on dry ground (desert, scrub, dead sprawl, mountain dirt, plain), when it isn't raining, has a 60%
+  chance of kicking up a pale haze puff (`#e2d2b0`). It is a pooled fx particle that rises a little, settles and fades.
+- **From above, people, not a blob:**
+  - The infected wardrobe widens to 15 shirts: faded denim, a work shirt gone grey, scrubs teal, faded hi-vis, mustard,
+    black. It also has 8 trouser colours, 9 skins and 7 hair colours. Purple is out, as always.
+  - Spawned blood drops from 0.45–0.75 to 0.15–0.6, so the clothes underneath still tell one from another.
+- **Checks:**
+  - "the herd's trail is its own sign": scuffs from a walker, a drag from a crawler, smears from the wounded, no boots.
+    Multiply blending. A fresh print is dark (mean < 0.35); an aged one is > 0.3 nearer white.
+  - "a herd from above reads as people": 12 spawned wear at least 6 shirts and 4 skins, with blood ≤ 0.6.
+- **Renders:**
+  - before: `02-drawn-horde-at-the-shot.jpg` (the white paper) and `before-02-trail.jpg`;
+  - after: `after-02-trail.jpg` (the scuffed, dusty trail and the varied herd) and
+    `after-03-crawler-drag-and-smears.jpg`.
+
 ## 4. Formulas
 | Name | Formula | Example |
 |---|---|---|

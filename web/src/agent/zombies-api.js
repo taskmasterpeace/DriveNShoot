@@ -2,7 +2,9 @@
 // `zombies` command (the three breeds' rows, every mind near you - what it perceives, what it remembers and how it
 // learned it - the hordes on the move) and the lane's named selftest checks (each returns true or a JSON diagnostic).
 // The player acts through the real body (stance, the flashlight, the shot's noise); the infected, doors and fires are staged.
+import * as THREE from 'three';
 import { INFECTED, BREEDS, FOOTSTEPS, DRIFT, INSIDE, validateInfected } from '../data/infected.js';
+import { TRACK_KINDS } from '../data/outdoors.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -246,5 +248,38 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       await C('step', { seconds: 4 });
       return called && dist(s, e) < d0 - 3 ? true : JSON.stringify({ called, src: s.zm?.src ?? null, d0: r1(d0), d1: r1(dist(s, e)) });
     } finally { g.aimOverride = null; gone(e, s); g.godMode = false; }
+  }));
+  await check("infected minds: the herd's trail is its own sign - shuffling scuffs, a crawler's drag, smears from the wounded (never boot prints) - drawn dark: the sign mesh multiplies the ground, and an old print fades toward white (gone), never pale", async () => hush(async () => {
+    await flats();
+    const O = g.outdoors, KINDS = Object.keys(TRACK_KINDS), p = P();
+    if (!O?.mesh) return 'no sign mesh';
+    const walk = Z.spawn(p.x - 3, p.z + 16, false), hurt = Z.spawn(p.x, p.z + 16, false), crawl = Z.spawn(p.x + 3, p.z + 10, false);
+    try {
+      for (const c of [walk, hurt, crawl]) { c.zSpeed = 2.2; Z.remember(c, c.x, p.z, 'told'); }
+      hurt.hp = hurt.maxHp * 0.4; hurt._zhp = hurt.hp; Z.crawler(crawl, 'check');
+      for (let t = 0; t < 8; t += 0.5) await C('step', { seconds: 0.5 });
+      const of = (c) => { const n = {}; for (let i = 0; i < O.count; i++) if (O.tw[i] === c.id) { const k = KINDS[O.tk[i]]; n[k] = (n[k] ?? 0) + 1; } return n; };
+      const a = of(walk), b = of(hurt), c = of(crawl);
+      O.drawTracks();
+      const m = O.mesh, col = m.instanceColor.array, mean = (n) => (col[n * 3] + col[n * 3 + 1] + col[n * 3 + 2]) / 3;
+      const fresh = mean(0);
+      const S = O.maxAge(0, 0); // how long an untrained eye reads the newest print
+      O.lay('scuff', p.x, p.z + 2, 0, 'check-old', 'infected', S * 0.85);
+      O.drawTracks();
+      const old = mean(0);
+      const multiply = m.material.blending === THREE.MultiplyBlending && m.material.toneMapped === false;
+      const ok = a.scuff > 2 && !a.boot && c.drag > 2 && !c.boot && (b.smear ?? 0) > 0 && multiply && m.count > 0 && fresh < 0.35 && old > fresh + 0.3;
+      return ok ? true : JSON.stringify({ walk: a, hurt: b, crawl: c, multiply, drawn: m.count, fresh: r1(fresh * 100) / 100, old: r1(old * 100) / 100 });
+    } finally { gone(walk, hurt, crawl); g.godMode = false; }
+  }));
+
+  await check('infected minds: a herd from above reads as people, not one blob - twelve of them wear at least six different shirts and four different skins', async () => hush(async () => {
+    await flats();
+    const p = P(), made = [];
+    try {
+      for (let i = 0; i < 12; i++) { const c = Z.spawn(p.x + (i % 4) * 1.2, p.z + 12 + Math.floor(i / 4) * 1.2, false); if (c) { c.zSpeed = 0; made.push(c); } }
+      const shirts = new Set(made.map((c) => c.colors.shirt)), skins = new Set(made.map((c) => c.colors.skin)), blood = Math.max(...made.map((c) => c.blood));
+      return made.length === 12 && shirts.size >= 6 && skins.size >= 4 && blood <= 0.6 ? true : JSON.stringify({ n: made.length, shirts: shirts.size, skins: skins.size, blood: r1(blood) });
+    } finally { gone(...made); g.godMode = false; }
   }));
 }

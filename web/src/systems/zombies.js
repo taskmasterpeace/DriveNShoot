@@ -87,7 +87,7 @@ export class Zombies {
     c.zSpeed = SH.speed[0] + Math.random() * (SH.speed[1] - SH.speed[0]);
     c.runner = runner;
     if (runner) { c.zkind = 'sprinter'; c.zs = { state: 'dormant', t: 0 }; }
-    c.blood = 0.45 + Math.random() * 0.3;
+    c.blood = 0.15 + Math.random() * 0.45; // stained, not all soaked: the clothes underneath still tell one from another
     g.charR.paint(c);
     c.timer = Math.random() * 2; c._zhp = c.hp;
     return c;
