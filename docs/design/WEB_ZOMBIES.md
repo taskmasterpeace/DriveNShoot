@@ -199,7 +199,7 @@ v1 exposes it as `zombies occupy=<kind>`. Nothing calls it on its own yet (§5).
 | `DRIFT.perR` | 8 | 4–12 | How far a shot pulls a horde (r × perR) |
 | `DRIFT.linger` | 90 s | 30–300 | How long they stand where the shot was |
 
-## 8. Acceptance criteria (selftest, `node tools/dl.mjs selftest only=zombies`)
+## 8. Acceptance criteria (selftest, `node tools/dl.mjs selftest only="infected minds"`)
 1. **Breeds:** `validateInfected` is clean. There are exactly three breeds (shambler, sprinter, echo); choir is the only
    site special. A broken row (an Echo no better at doors) and a fourth breed are both caught.
 2. **Memory:** it sees you at 20 m, and you go out of all its senses. It reaches where it LAST saw you, never comes within

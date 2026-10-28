@@ -20,7 +20,7 @@ export function zombiesCommands(api, need) {
   };
   return {
     zombies: {
-      group: 'world', desc: "THE INFECTED's minds (docs/design/WEB_ZOMBIES.md, rows data/infected.js): three breeds (shambler, sprinter, echo; the Choir-Touched is a site special) and what each one KNOWS (law 6: only what it saw, heard or smelled; a last-known spot it walks to, searches round and forgets; never your true position). No args: the breeds' rows in short, validateInfected, the counters (remembered, forgot, thumps, doors broken, crawlers, lunges, falls, lights, fire), every mind within radius= m (sees, how, memory src/age/spot/searching, what door or window it is working, a fire it keeps from) and the hordes on the move (a drift toward a noise they heard). id=<id>: that one mind. spawn=shambler|sprinter|echo at x,z (default 14 m east of you). crawl=<id> takes its legs (a crawler). leg=<id> dmg= puts a leg hit on it as a shot would. occupy=<kind> fills a w x d box at x,z with who is inside that kind of building (INSIDE rows). rows=true: the full rows.",
+      group: 'world', desc: "THE INFECTED's minds (docs/design/WEB_INFECTED.md and its Wave 2 lane doc; rows data/infected.js): three breeds (shambler, sprinter, echo; the Choir-Touched is a site special) and what each one KNOWS (law 6: only what it saw, heard or smelled; a last-known spot it walks to, searches round and forgets; never your true position). No args: the breeds' rows in short, validateInfected, the counters (remembered, forgot, thumps, doors broken, crawlers, lunges, falls, lights, fire), every mind within radius= m (sees, how, memory src/age/spot/searching, what door or window it is working, a fire it keeps from) and the hordes on the move (a drift toward a noise they heard). id=<id>: that one mind. spawn=shambler|sprinter|echo at x,z (default 14 m east of you). crawl=<id> takes its legs (a crawler). leg=<id> dmg= puts a leg hit on it as a shot would. occupy=<kind> fills a w x d box at x,z with who is inside that kind of building (INSIDE rows). rows=true: the full rows.",
       args: { radius: { type: 'number', default: 60 }, id: { type: 'string' }, spawn: { type: 'string', enum: BREEDS }, x: { type: 'number' }, z: { type: 'number' }, crawl: { type: 'string' }, leg: { type: 'string' }, dmg: { type: 'number', default: 40 }, occupy: { type: 'string' }, w: { type: 'number', default: 10 }, d: { type: 'number', default: 10 }, rows: { type: 'boolean' } },
       run: async ({ radius, id, spawn, x, z, crawl, leg, dmg, occupy, w, d, rows }) => {
         const Z = g.zombies;
@@ -59,7 +59,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
   const gone = (...cs) => { for (const c of cs) if (c && g.chars.includes(c)) g.removeChar(c); };
   const upright = () => { const p = P(); if (p.prone) g.stance.setProne(p, false); p.proneT = 0; delete p.concealOverride; p._cnT = undefined; };
 
-  await check('zombies: the three breeds are rows (shambler, sprinter, echo) and validate; the Choir-Touched is a site special, not a breed; a broken row is caught', async () => {
+  await check('infected minds: the three breeds are rows (shambler, sprinter, echo) and validate; the Choir-Touched is a site special, not a breed; a broken row is caught', async () => {
     const bad = validateInfected();
     const special = Object.keys(INFECTED).filter((k) => INFECTED[k].site);
     const broken = validateInfected({ ...INFECTED, echo: { ...INFECTED.echo, door: { every: 2.2, dmg: 6 } } }); // an Echo no better at doors than a shambler
@@ -67,7 +67,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     return !bad.length && BREEDS.join() === 'shambler,sprinter,echo' && special.join() === 'choir' && broken.length > 0 && four.length > 0 ? true : JSON.stringify({ bad, special, broken, four });
   });
 
-  await check('zombies: memory - it sees you, you go beyond its senses; it walks to where it LAST saw you (never toward where you are), searches round that spot, and forgets', async () => hush(async () => {
+  await check('infected minds: memory - it sees you, you go beyond its senses; it walks to where it LAST saw you (never toward where you are), searches round that spot, and forgets', async () => hush(async () => {
     await flats();
     const p = P(), s = Z.spawn(p.x + 20, p.z, false);
     try {
@@ -93,7 +93,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(s); g.godMode = false; }
   }));
 
-  await check('zombies: stance - prone in grass 20 m in front of a shambler looking at you, it never picks you out; stand up on the same spot and it does', async () => hush(async () => {
+  await check('infected minds: stance - prone in grass 20 m in front of a shambler looking at you, it never picks you out; stand up on the same spot and it does', async () => hush(async () => {
     await flats();
     const p = P(), s = Z.spawn(p.x + 20, p.z, false);
     try {
@@ -110,7 +110,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { upright(); gone(s); g.godMode = false; }
   }));
 
-  await check('zombies: horde drift - a gunshot pulls a horde record 300 m away (by day, when it would sit); it WALKS there on the world clock (never a jump), arrives and stays', async () => hush(async () => {
+  await check('infected minds: horde drift - a gunshot pulls a horde record 300 m away (by day, when it would sit); it WALKS there on the world clock (never a jump), arrives and stays', async () => hush(async () => {
     await flats();
     const O = g.citygen?.overrun;
     if (!O) return 'no overrun (citygen) in this world';
@@ -138,7 +138,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { O.dematerialize(H); const i = O.hordes.indexOf(H); if (i >= 0) O.hordes.splice(i, 1); O.auto = auto; g.godMode = false; }
   }));
 
-  await check('zombies: doors - an Echo thumps a barricaded door open on its own; three shamblers smelling you behind the same door take far longer', async () => hush(async () => {
+  await check('infected minds: doors - an Echo thumps a barricaded door open on its own; three shamblers smelling you behind the same door take far longer', async () => hush(async () => {
     await stage();
     const I = g.interiors, n = g.nav.foot;
     const ok = (x, z) => n.free(x, z);
@@ -171,7 +171,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     }
   }));
 
-  await check('zombies: a leg shot past its legs makes a crawler (low, slow, still coming); the same hit to the torso does not', async () => hush(async () => {
+  await check('infected minds: a leg shot past its legs makes a crawler (low, slow, still coming); the same hit to the torso does not', async () => hush(async () => {
     await flats();
     const p = P(), a = Z.spawn(p.x + 8, p.z + 2, false), b = Z.spawn(p.x + 8, p.z - 2, false);
     try {
@@ -188,7 +188,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(a, b); g.godMode = false; }
   }));
 
-  await check('zombies: law 6 - shot from 60 m out of its senses, it knows which way the hit came from (a spot up to 20 m back along it), never the shooter\'s position', async () => hush(async () => {
+  await check('infected minds: law 6 - shot from 60 m out of its senses, it knows which way the hit came from (a spot up to 20 m back along it), never the shooter\'s position', async () => hush(async () => {
     await flats();
     const p = P(), s = Z.spawn(p.x + 60, p.z, false);
     try {
@@ -203,7 +203,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(s); g.godMode = false; }
   }));
 
-  await check('zombies: fire - a shambler coming at you round a fire patch keeps out of it (it goes round, never through)', async () => hush(async () => {
+  await check('infected minds: fire - a shambler coming at you round a fire patch keeps out of it (it goes round, never through)', async () => hush(async () => {
     await flats();
     const p = P(), s = Z.spawn(p.x + 16, p.z, false), F = { x: p.x + 8, z: p.z, r: 2.2, t: 0, dur: 30, by: null };
     g.throwables.fires.push(F);
@@ -215,7 +215,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { const i = g.throwables.fires.indexOf(F); if (i >= 0) g.throwables.fires.splice(i, 1); gone(s); g.godMode = false; }
   }));
 
-  await check('zombies: light - at night, a shambler 45 m off in the dark stays put while your flashlight is off and comes to it when you switch it on', async () => hush(async () => {
+  await check('infected minds: light - at night, a shambler 45 m off in the dark stays put while your flashlight is off and comes to it when you switch it on', async () => hush(async () => {
     await flats();
     await C('setTime', { hour: 23 });
     const p = P(), s = Z.spawn(p.x + 45, p.z, false);
@@ -234,7 +234,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { g.flashOverride = fo; gone(s); g.godMode = false; await C('setTime', { hour: 12 }); }
   }));
 
-  await check('zombies: an Echo\'s phrase calls the infected in earshot that know of nothing better to where it works', async () => hush(async () => {
+  await check('infected minds: an Echo\'s phrase calls the infected in earshot that know of nothing better to where it works', async () => hush(async () => {
     await flats();
     const p = P(), e = Z.spawnKind('echo', p.x + 40, p.z + 40), s = Z.spawn(p.x + 40 + 22, p.z + 40, false);
     try {
