@@ -534,7 +534,7 @@ export class Inventory {
   // Register a container (loot rolls the first time it's opened). kind names its LOOT table.
   place(id, kind, x, z, cap, label, seed) {
     // The dead are remembered as containers until there are too many; the oldest unsearched go first.
-    if (id.startsWith('body:')) { let n = 0; for (const k of this.boxes.keys()) if (k.startsWith('body:')) n++; if (n >= MAX_BODIES) for (const [k, b] of this.boxes) if (k.startsWith('body:') && !b.slots.length) { this.boxes.delete(k); if (--n < MAX_BODIES) break; } }
+    if (id.startsWith('body:')) { let n = 0; for (const k of this.boxes.keys()) if (k.startsWith('body:')) n++; if (n >= MAX_BODIES) for (const [k, b] of this.boxes) if (k.startsWith('body:') && b.rolled && !b.slots.length) { this.boxes.delete(k); if (--n < MAX_BODIES) break; } }
     const box = new Container(id, label ?? kind.toUpperCase(), cap, kind);
     box.x = x; box.z = z; box.seed = seed ?? hash(id); box.rolled = false;
     this.boxes.set(id, box);

@@ -256,7 +256,7 @@ export class Residents {
     let made = 0;
     this.claim(rec);
     for (const m of rec.members) {
-      if (m.c) continue;
+      if (m.c || g.rites?.gone(m)) continue; // a body the rites keep (folded, buried, burned) is drawn by systems/rites.js
       if (!this.budget(1)) { this.stats.budgetSkips++; break; }
       const pos = m.dead ? { x: m.x, z: m.z, face: m.face } : this.placeFor(rec, m);
       let c;
@@ -506,6 +506,7 @@ export class Residents {
   think(c, dt, pd) {
     const g = this.g, S = c.res, rec = S.rec, m = S.m, R = rec.R, h = g.sky.time, day = g.society?.day ?? 0, P = g.player;
     if (c.restless > 0) c.restless -= dt;
+    if (g.rites?.mourn(c, dt)) return; // a funeral: they walk to the yard, stand at the grave, then come home (systems/rites.js)
     if (pd > 150) { c.speed = 0; return; } // far: they keep still (the record knows where the clock has them)
     // Night: to their own bed and asleep (ai.toBed lies them down and wakes them for someone at the bedside).
     if (this.asleep(rec, m, h) && !(c.restless > 0)) {
