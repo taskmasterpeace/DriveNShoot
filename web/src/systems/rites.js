@@ -911,7 +911,7 @@ export class Rites {
     for (const b of s.bodies ?? []) {
       const R = { ...b, c: null, folded: true, handled: 0 };
       // a body never searched was not in the inventory save: its box again, same seed, same loot when opened
-      if (b.box && inv && !inv.boxes.has(b.box) && !b.buried && !b.burned && b.boxKind) { const box = inv.place(b.box, b.boxKind, b.x, b.z, 20, b.boxLabel, b.boxSeed); box.y = b.y; }
+      if (b.box && inv && !b.member && !inv.boxes.has(b.box) && !b.buried && !b.burned && b.boxKind) { const box = inv.place(b.box, b.boxKind, b.x, b.z, 20, b.boxLabel, b.boxSeed); box.y = b.y; }
       this.bodies.set(R.id, R);
     }
     this.graves = s.graves ?? [];
