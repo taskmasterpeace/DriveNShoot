@@ -50,7 +50,9 @@ export const BINDINGS = [
   { id: 'ride', label: 'Ride along / change seat', group: 'WORLD', code: 'KeyC', keys: ['KeyC'], pad: { foot: 'back+a', drive: 'left', ride: 'left' } },
   { id: 'hang', label: 'Hang onto a car / jump on the train', group: 'WORLD', code: 'KeyG', keys: ['KeyG'], pad: { foot: 'back+b', drive: 'back+b', ride: 'back+b' } },
   { id: 'harpoon', label: 'Harpoon / yank (the Whaler)', group: 'DRIVING', code: 'KeyH', keys: ['KeyH'], pad: { drive: 'rb' } },
-  { id: 'dropTail', label: 'Drop oil, caltrops or smoke off the tail', group: 'DRIVING', code: 'KeyB', keys: ['KeyB'], pad: { drive: 'b' } },
+  { id: 'dropTail', label: 'The tail (group 2): oil, caltrops, smoke, mines, flares, paint', group: 'DRIVING', code: 'KeyB', keys: ['KeyB'], pad: { drive: 'b' } },
+  { id: 'fireTurret', label: 'Fire the roof turret (group 3) where you aim', group: 'DRIVING', code: null, keys: ['mouse:right'], pad: { drive: 'back+rb' } },
+  { id: 'workshop', label: 'Workshop (at a garage, your car parked close)', group: 'WORLD', code: 'KeyU', keys: ['KeyU'], pad: { foot: 'back+right' } },
   { id: 'pack', label: 'Pack', group: 'WORLD', code: 'Tab', keys: ['Tab', 'KeyI'], pad: { foot: 'down', drive: 'down', ride: 'down', menu: 'b' } },
   { id: 'use', label: 'Patch up, drink or eat (what you need most)', group: 'WORLD', code: 'KeyV', keys: ['KeyV'], pad: { foot: 'right', drive: 'right', ride: 'right' } },
   { id: 'sleep', label: 'Sleep (a bed, a bedroll, a parked car)', group: 'WORLD', code: 'KeyN', keys: ['KeyN'], pad: { foot: 'back+y', drive: 'back+y' } },
@@ -69,6 +71,8 @@ export const BINDINGS = [
   { id: 'controls', label: 'Controls: every binding, press to rebind', group: 'WORLD', code: null, keys: ['F2'], pad: { foot: 'back+left' } },
   // The PACK screen on a pad: the D-pad walks the list, A uses, Y moves, X drops, B closes (above).
   { id: 'menuWear', label: 'PACK: wear or take off', group: 'MENUS', code: 'KeyF', keys: [], pad: { menu: 'rb' } },
+  // The WORKSHOP screen on a pad: the D-pad walks the rack, A fits, X takes off, Y picks the face, LB / RB the tabs, B closes.
+  { id: 'menuTabPrev', label: 'WORKSHOP: previous tab', group: 'MENUS', code: 'KeyQ', keys: [], pad: { menu: 'lb' } },
 ];
 
 // The sticks and triggers. Radial dead zones (a stick at rest reads 0 however worn), then a response curve:

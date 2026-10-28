@@ -56,7 +56,8 @@ export class VehicleDamage {
     const { lx, lz } = this.toLocal(v, wx, wz);
     const zone = this.zoneOfLocal(v, lx, lz);
     const d = v.dmg;
-    const k = kind === 'crash' ? Math.max(0, strength - 4) * 0.035 : kind === 'blast' ? strength : strength * 0.004;
+    let k = kind === 'crash' ? Math.max(0, strength - 4) * 0.035 : kind === 'blast' ? strength : strength * 0.004;
+    if (kind === 'crash' && v.plates) k *= this.g.garage?.crashMul?.(v, zone) ?? 1; // a ram plate, a cowcatcher, I-beam bumpers (data/workshop.js)
     if (k <= 0) return;
     d.zones[zone] = Math.min(1, d.zones[zone] + k);
     d.dirty = true;
@@ -79,12 +80,35 @@ export class VehicleDamage {
 
   popTyre(v, t) {
     if (!v.dmg || v.dmg.tyres[t] <= 0) return;
+    if (v.utility?.solidtyres) return; // puncture-proof: no air to lose (data/workshop.js UTILITY)
     v.dmg.tyres[t] = 0;
     v.dmg.dirty = true;
     this.g.audio.tyrePop?.(this.g.pan(v.x));
     this.g.fx.dust(v.x, v.z, 3);
     this.g.emit('tyrePopped', { vehicle: v.id, tyre: t });
     if (v.driver === this.g.player) this.g.hud.toast(`TYRE BLOWN (${t})`, 'warn');
+  }
+
+  // THE BREACH (docs/design/WEB_WORKSHOP.md §3): a hit on an armoured car's BARE face (its plate shot away, or never
+  // fitted) reaches the parts behind that face. Deterministic shares of the damage, so a breach always costs something.
+  breach(v, face, dmg, type = 'bullet') {
+    const d = v.dmg;
+    if (!d || v.dead || !(dmg > 0)) return;
+    const k = dmg * (type === 'blast' ? 1.4 : type === 'pierce' ? 1.8 : 1), cut = (x, f) => Math.max(0, x - k * f);
+    let part = null;
+    if (face === 'front') { d.engine = cut(d.engine, 0.004); d.radiator = cut(d.radiator, 0.006); part = 'engine'; }
+    else if (face === 'rear') { d.tank = cut(d.tank, 0.006); part = 'tank'; }
+    else if (face === 'under') { d.tank = cut(d.tank, 0.004); d.engine = cut(d.engine, 0.002); for (const t of TYRES) d.tyres[t] = cut(d.tyres[t], 0.004); part = 'underside'; }
+    else if (face === 'left' || face === 'right') {
+      const s = face === 'left' ? 'L' : 'R';
+      for (const t of ['F' + s, 'R' + s]) { d.tyres[t] = cut(d.tyres[t], 0.008); if (d.tyres[t] <= 0) this.popTyre(v, t); }
+      part = 'tyres';
+    }
+    if (face === 'top' || face === 'left' || face === 'right') { // the crew on that side, or everyone under the roof
+      for (const o of v.occ ?? []) if (o?.alive && (face === 'top' || v.seats?.[o.seat]?.side === face)) { this.g.combat.damage(o, k * 0.3, null, 0, 0); part ??= 'crew'; }
+    }
+    d.dirty = true;
+    this.g.emit('breachHit', { vehicle: v.id, face, part, dmg: Math.round(dmg) });
   }
 
   // Tear a panel off: its vertices collapse, a debris chunk flies.
@@ -158,6 +182,7 @@ export class VehicleDamage {
     if (!d) return { power: 1, grip: 1, pull: 0, top: 1 };
     // Engine: power falls off, misfires, smoke; 0 = dead.
     let power = d.engine <= 0 ? 0 : 0.35 + 0.65 * d.engine;
+    if ((v.empUntil ?? 0) > g.time) power = 0; // an EMP stalled it (systems/workshop.js)
     if (d.engine < 0.45 && v.throttle > 0) {
       d.misfire -= dt;
       if (d.misfire <= 0) { d.misfire = 0.4 + Math.random() * (d.engine * 3); power *= 0.1; g.audio.backfire?.(g.pan(v.x)); g.fx.smoke(v.x + Math.sin(v.h) * v.len * 0.4, 1.2, v.z + Math.cos(v.h) * v.len * 0.4, true); }
@@ -179,9 +204,10 @@ export class VehicleDamage {
     if (v.fuel <= 0) power = 0;
     // Tyres: flats cost grip, pull the steering, cap speed, throw sparks off the rim.
     let grip = 1, pull = 0, top = 1;
+    const flat = v.utility?.runflat ? 0.4 : 1; // run-flat inserts: a blown tyre still rolls (data/workshop.js UTILITY)
     for (const t of TYRES) if (d.tyres[t] <= 0) {
-      grip -= 0.16; top -= 0.12;
-      pull += (t[1] === 'L' ? 1 : -1) * 0.18; // drags toward the flat side
+      grip -= 0.16 * flat; top -= 0.12 * flat;
+      pull += (t[1] === 'L' ? 1 : -1) * 0.18 * flat; // drags toward the flat side
       if (Math.random() < dt * 10 * Math.min(1, g.vehiclesSys.speed(v) / 10)) g.fx.spawn(1, v.x, 0.3, v.z, (Math.random() - 0.5) * 4, 1, (Math.random() - 0.5) * 4, 0.25, 0.05, '#ffd060', 14);
     }
     // Lamps: one dies before the other (which one is fixed per car), both flicker once the wiring is
@@ -194,7 +220,9 @@ export class VehicleDamage {
     d.deformT -= dt;
     if (d.dirty && d.deformT <= 0) { d.deformT = 0.2; this.deform(v); }
     const fx = { power, grip: Math.max(0.35, grip), pull, top: Math.max(0.5, top), brake: 1 };
-    return g.upkeep ? g.upkeep.tick(v, dt, fx) : fx; // oil, the desert's heat, wear (systems/upkeep.js)
+    const out = g.upkeep ? g.upkeep.tick(v, dt, fx) : fx; // oil, the desert's heat, wear (systems/upkeep.js)
+    if (v.brakeMul) out.brake = (out.brake ?? 1) * v.brakeMul; // a loaded car stops longer (garage.retune, data/workshop.js PERF)
+    return out;
   }
 
   repair(v) {
