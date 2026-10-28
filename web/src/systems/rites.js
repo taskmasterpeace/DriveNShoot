@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DECAY, BODY_FOLD, GRAVE_SICKNESS, FORMULA, YEARS, DANGER, POP, BATTLE_WORDS, CEMETERY_KINDS, ARCH_BOOT_HILL, FIXED_CEMETERIES, RING_YARD,
+import { DECAY, BODY_FOLD, GRAVE_SICKNESS, FORMULA, YEARS, DANGER, POP, BATTLE_WORDS, CEMETERY_KINDS, CEM_LAYOUT, ARCH_BOOT_HILL, FIXED_CEMETERIES, RING_YARD,
   CALENDAR, CAUSES, EPITAPHS, BURIAL, RITES_ITEMS, SEXTON_LOOT, FUNERAL, DELIVERY } from '../data/rites.js';
 import { ITEMS, LOOT } from '../data/items.js';
 import { SICKNESS } from '../data/survival.js';
@@ -8,6 +8,8 @@ import { SITES_BY_ID } from '../data/sites/index.js';
 import { RES_NAMES } from '../data/ring.js';
 import { makeRng } from '../engine/rng.js';
 import { roadLines } from '../world/city.js';
+import { C as CHUNK, chunkKey } from '../world/geo.js';
+import { mesasOf, mesaNorm, MESA_REACH } from '../world/chunkgen.js';
 
 // DEATH RITES (docs/design/WEB_DEATH_RITES.md, rows in data/rites.js). Three things the dead are owed:
 //   bodies     a record for everyone who dies (not the infected's own loot: they carry none, but they rot all the same):
@@ -25,8 +27,18 @@ import { roadLines } from '../world/city.js';
 // onBuilt / onReleased (citygen.js stamp/release), gone(m) (residents.js promote), deliveries (trade.js).
 const CAP = 7000, FLY_CAP = 96, SHADE = 0.85, BLOOD = new THREE.Color('#4a0606'), IVORY = new THREE.Color('#d8d0b8');
 const _o = new THREE.Object3D(), _c = new THREE.Color(), _t = new THREE.Color();
+const _w = { x: 0, y: 0, z: 0 }, _tl = { p: 0, r: 0 }, iron0 = '#2c2a28';
+_o.rotation.order = 'YXZ'; // yaw, then the land's pitch and roll in the box's own frame (tilt())
+// A wall's runs in half-size units: x -1/1 = the sides, -2/2 = the gate's posts; z -1 front (the gate's side), 1 back.
+const WALL_SIDES = [[-1, -1, -2, -1], [2, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]];
+const CORNERS = [[-1, 1], [1, 1], [1, -1], [-1, -1]];
 const r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100;
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+// A marker from a share row { stone, cross, cairn, iron, mound } and a roll in 0..1.
+const MARKERS = ['stone', 'cross', 'cairn', 'iron', 'mound'];
+// Room past a cemetery's history for the graves the world will dig (data/rites.js CEM_LAYOUT.spare).
+const spareOf = (count) => { const [lo, hi, f] = CEM_LAYOUT.spare; return Math.max(lo, Math.min(hi, Math.ceil(count * f))); };
+const pickMarker = (mix, u) => { for (const m of MARKERS) if ((u -= mix[m] ?? 0) < 0) return m; return 'mound'; };
 const stageOf = (decay) => { const S = DECAY.stages; let i = 0; while (i < S.length - 1 && decay >= S[i + 1].at) i++; return i; };
 
 // Register this lane's items, the sexton's table and the grave sickness (new keys only: nothing that exists changes).
@@ -71,6 +83,8 @@ export class Rites {
     this.graves = [];          // every grave dug since the world began running (the pre-seeded ones are gravesOf(cem))
     this.funerals = [];        // scheduled, under way, done (the last few kept)
     this.holes = [];           // open graves waiting for a body { id, x, z, y, cem, by, at }
+    this.keep = new Map();     // 64 m cells -> placed cemeteries (the chunk generator's scatter keeps off: solid())
+    if (g.streamer?.W) g.streamer.W.rites = this;
     this.news = [];            // deaths their people have not all learned yet (body records with .news)
     this.deliveries = [];      // goods that arrived at a trader by a visible source (trade.js restock draws from these)
     this.moods = {};           // place id -> gloom 0..1 (a funeral darkens it, the days lift it)
@@ -298,9 +312,9 @@ export class Rites {
   }
 
   // ---- drawing: the folded dead, bone piles, the near cemeteries (one instanced box mesh, one for the flies) -----------
-  put(i, x, y, z, sx, sy, sz, ry, hex, k = 0, tint = null, bl = 0) {
+  put(i, x, y, z, sx, sy, sz, ry, hex, k = 0, tint = null, bl = 0, pitch = 0, roll = 0) {
     if (i >= CAP) return i;
-    _o.position.set(x, y, z); _o.rotation.set(0, ry, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
+    _o.position.set(x, y, z); _o.rotation.set(pitch, ry, roll); _o.scale.set(sx, sy, sz); _o.updateMatrix();
     this.mesh.setMatrixAt(i, _o.matrix);
     _c.set(hex); if (bl > 0) _c.lerp(BLOOD, bl); if (tint && k > 0) _c.lerp(tint, k);
     _c.multiplyScalar(SHADE); // the instanced boxes take the sun harder than the character rig: matched by eye
@@ -308,9 +322,19 @@ export class Rites {
     return i + 1;
   }
   // A box rotated about y by `ry` around the grave centre (lx along the grave's right, lz along its length).
-  putL(i, cx, cy, cz, ry, lx, ly, lz, sx, sy, sz, hex, k, tint, bl = 0) {
+  putL(i, cx, cy, cz, ry, lx, ly, lz, sx, sy, sz, hex, k, tint, bl = 0, pitch = 0, roll = 0) {
     const s = Math.sin(ry), c = Math.cos(ry), wx = cx + lx * c + lz * s, wz = cz - lx * s + lz * c;
-    return this.put(i, wx, (this.follow ? this.ground(wx, wz) : cy) + ly, wz, sx, sy, sz, ry, hex, k, tint, bl); // follow: each piece on the land under it
+    return this.put(i, wx, (this.follow ? this.ground(wx, wz) : cy) + ly, wz, sx, sy, sz, ry, hex, k, tint, bl, pitch, roll); // follow: each piece on the land under it
+  }
+  // The land's tilt under a long flat box at (x, z) turned ry (a mound, a path run, a wall run): its pitch along the
+  // box's own z (half-length hz) and roll along its x (hx), so it lies on a slope instead of stepping down it.
+  tilt(x, z, ry, hx, hz) {
+    _tl.p = 0; _tl.r = 0;
+    if (!this.follow) return _tl;
+    const s = Math.sin(ry), c = Math.cos(ry);
+    if (hz > 0) _tl.p = -Math.atan((this.ground(x + s * hz, z + c * hz) - this.ground(x - s * hz, z - c * hz)) / (2 * hz));
+    if (hx > 0) _tl.r = Math.atan((this.ground(x + c * hx, z - s * hx) - this.ground(x - c * hx, z + s * hx)) / (2 * hx));
+    return _tl;
   }
   body(i, R) {
     const S = DECAY.stages[R.stage], C = R.colors ?? { shirt: '#5a5048', pants: '#3a342c', skin: '#a07858' };
@@ -353,20 +377,36 @@ export class Rites {
   }
   drawCem(i, cem) {
     this.resolve(cem);
-    const K = CEMETERY_KINDS[cem.kind], slots = this.slots(cem), G = this.gravesOf(cem), y0 = cem.y, a = cem.a;
-    const stone = '#a8a49a', wood = '#4a3624', dirt = '#3a2c1e', fresh = '#2a1f14';
+    const K = CEMETERY_KINDS[cem.kind], slots = this.slots(cem), G = this.gravesOf(cem), y0 = cem.y, a = cem.a, sa = Math.sin(a), ca = Math.cos(a);
+    const stone = '#a8a49a', wood = '#4a3624', dirt = '#3a2c1e', fresh = '#2a1f14', iron = '#2c2a28';
     this.follow = K.at !== 'on' || !!cem.outside; // a site's yard lies on its pad; the others on the land as it falls
-    if (K.layout !== 'vault' && !this.follow) i = this.put(i, cem.x, y0 + 0.01, cem.z, cem.w - 0.5, 0.02, cem.d - 0.5, a, cem.soil ?? (cem.soil = this.soilOf(cem)), 0.5, _t.set('#5a4630')); // the yard's own worked ground
+    const soil = cem.soil ?? (cem.soil = this.soilOf(cem));
+    if (K.layout !== 'vault' && !this.follow) i = this.put(i, cem.x, y0 + 0.01, cem.z, cem.w - 0.5, 0.02, cem.d - 0.5, a, soil, 0.5, _t.set('#5a4630')); // the yard's own worked ground
     if (K.layout === 'vault') { // a concrete crypt: floor, four low walls, the niches as plaques on the floor rows
       i = this.put(i, cem.x, y0 + 0.05, cem.z, cem.w, 0.1, cem.d, a, '#6c6a64');
       for (const [lx, lz, sx, sz] of [[0, -cem.d / 2, cem.w, 0.3], [0, cem.d / 2, cem.w, 0.3], [-cem.w / 2, 0, 0.3, cem.d], [cem.w / 2, 0, 0.3, cem.d]]) i = this.putL(i, cem.x, y0, cem.z, a, lx, 0.6, lz, sx, 1.2, sz, '#7a7870');
-    } else if (K.fence) { // posts round it
-      const w = cem.w / 2, d = cem.d / 2;
-      for (let t = -w; t <= w + 0.01; t += 2.5) { i = this.putL(i, cem.x, y0, cem.z, a, t, 0.45, -d, 0.1, 0.9, 0.1, wood); i = this.putL(i, cem.x, y0, cem.z, a, t, 0.45, d, 0.1, 0.9, 0.1, wood); }
-      for (let t = -d + 2.5; t < d - 0.01; t += 2.5) { i = this.putL(i, cem.x, y0, cem.z, a, -w, 0.45, t, 0.1, 0.9, 0.1, wood); i = this.putL(i, cem.x, y0, cem.z, a, w, 0.45, t, 0.1, 0.9, 0.1, wood); }
+    }
+    if (K.wall) i = this.drawWall(i, cem, K.wall);
+    const L = cem.L;
+    if (L) { // the paths (gravel in short runs, so each lies on the land), the trees at the edge, the rich plots' kerbs
+      for (const [x0, z0, x1, z1, wd] of L.paths) {
+        const len = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(len / 3)), ry = a + Math.atan2(x1 - x0, z1 - z0);
+        for (let q = 0; q < n; q++) {
+          const t = (q + 0.5) / n, lx = x0 + (x1 - x0) * t, lz = z0 + (z1 - z0) * t, wx = cem.x + lx * ca + lz * sa, wz = cem.z - lx * sa + lz * ca;
+          const T = this.tilt(wx, wz, ry, wd / 2, len / n / 2);
+          i = this.put(i, wx, (this.follow ? this.ground(wx, wz) : y0) + 0.03, wz, wd, 0.12, len / n + 0.2, ry, '#9a8a6c', 0.3, _t.set(soil), 0, T.p, T.r);
+        }
+      }
+      for (const T of L.trees) i = this.drawTree(i, cem, T.lx, T.lz, T.h, soil);
+      for (const P of L.plots) {
+        if (!P.kerb || P.s0 + P.k > G.length) continue;
+        const A = slots[P.s0], B = slots[P.s0 + P.k - 1], cx = (A.lx + B.lx) / 2, cz = (A.lz + B.lz) / 2, half = Math.hypot(B.lx - A.lx, B.lz - A.lz) / 2 + K.sp[0] / 2 - 0.1, hl = K.sp[1] / 2 - 0.05;
+        const wx = cem.x + cx * ca + cz * sa, wz = cem.z - cx * sa + cz * ca, ry = a + (A.ra ?? 0);
+        for (const [lx, lz, sx, sz] of [[0, -hl + 0.15, half * 2, 0.16], [0, hl + 0.15, half * 2, 0.16], [-half, 0.15, 0.16, hl * 2], [half, 0.15, 0.16, hl * 2]]) i = this.putL(i, wx, y0, wz, ry, lx, 0.08, lz, sx, 0.16, sz, '#9c968a');
+      }
     }
     if (K.layout === 'trench') { // long trenches: the ground worked over, a low hump for each of the dead, a cross post every 4 m
-      const per = cem.per ?? 20, T = Math.ceil(G.length / per), soil = cem.soil ?? (cem.soil = this.soilOf(cem));
+      const per = cem.per ?? 20, T = Math.ceil(G.length / per);
       _t.set(soil);
       for (let t = 0; t < T; t++) {
         const s = slots[t * per], n = Math.min(per, G.length - t * per), len = n * K.sp[0];
@@ -376,22 +416,84 @@ export class Rites {
         for (let q = 0; q < len; q += 4) { i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.6, s.lz - 1.35, 0.12, 1.2, 0.12, wood); i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.9, s.lz - 1.35, 0.7, 0.12, 0.12, wood); }
       }
     }
-    const all = G.length + cem.added.length, soil = cem.soil ?? (cem.soil = this.soilOf(cem)), yr = CALENDAR.now;
-    for (let n = 0; n < all && i < CAP - 4; n++) {
+    const all = G.length + cem.added.length, yr = CALENDAR.now;
+    for (let n = 0; n < all && i < CAP - 10; n++) {
       const gr = n < G.length ? G[n] : cem.added[n - G.length], s = slots[n];
       if (!s) break;
       if (K.layout === 'trench' && n < G.length) continue; // the old ones lie in the trench
-      const m = gr.marker, newish = n >= G.length, h = hash(gr.id), jx = ((h & 255) / 255 - 0.5) * 0.35, jz = (((h >> 8) & 255) / 255 - 0.5) * 0.3, ja = (((h >> 16) & 255) / 255 - 0.5) * 0.12;
-      const lx = s.lx + jx, lz = s.lz + jz, aa = a + ja;
+      const m = gr.marker, newish = n >= G.length, h = hash(gr.id), jx = ((h & 255) / 255 - 0.5) * 0.3, jz = (((h >> 8) & 255) / 255 - 0.5) * 0.3, ja = (((h >> 16) & 255) / 255 - 0.5) * 0.1;
       if (K.layout === 'vault') { i = this.putL(i, cem.x, y0, cem.z, a, s.lx, 0.1, s.lz, 0.5, 0.08, 0.36, m === 'none' ? '#5a5852' : '#9a968c'); continue; }
-      // the older the grave the lower and paler its mound (sunk, grassed or sanded over); a new one is dark heaped earth
-      const old = newish ? 0 : Math.min(1, (yr - gr.died) / 60);
-      _t.set(soil); i = this.putL(i, cem.x, y0, cem.z, aa, lx, newish ? 0.16 : 0.07 - old * 0.04, lz, 0.95, newish ? 0.32 : 0.14 - old * 0.08, 2.0, newish ? fresh : dirt, newish ? 0 : 0.05 + old * 0.2, _t);
-      if (m === 'stone') { const lean = (h >> 24) % 7 === 0 ? 0.35 : 0; i = this.putL(i, cem.x, y0, cem.z, aa + lean, lx, 0.36, lz + 1.05, 0.7, 0.72, 0.28, (h >> 3) % 3 ? stone : '#a8a294'); }
-      else if (m === 'cross' && (h >> 5) % 9) { i = this.putL(i, cem.x, y0, cem.z, aa, lx, 0.55, lz + 1.05, 0.12, 1.1, 0.12, wood); i = this.putL(i, cem.x, y0, cem.z, aa, lx, 0.8, lz + 1.05, 0.62, 0.12, 0.12, wood); }
-      else if (m === 'cross') i = this.putL(i, cem.x, y0, cem.z, aa + 1.2, lx + 0.3, 0.05, lz + 0.6, 0.12, 0.1, 1.0, wood); // fallen
+      // each grave about its own middle, lying with its row (s.ra): a section's turn never shifts the far ones
+      const lx = s.lx + jx, lz = s.lz + jz, gx = cem.x + lx * ca + lz * sa, gz = cem.z - lx * sa + lz * ca, aa = a + (s.ra ?? 0) + ja;
+      // the older the grave the lower and paler its mound (grassed or sanded over); some of the oldest sunk to a hollow
+      const age = newish ? 0 : yr - gr.died, old = Math.min(1, age / 60), hollow = !newish && age > CEM_LAYOUT.sunk && (h >> 20) % 3 === 0;
+      const down = !newish && old > 0.4 && ((h >> 9) % 100) < CEM_LAYOUT.fall * 100, sink = old * 0.12;
+      _t.set(soil);
+      const T = this.tilt(gx, gz, aa, 0.45, 1.0);
+      if (hollow) i = this.putL(i, gx, y0, gz, aa, 0, 0.03, 0, 0.9, 0.06, 1.8, '#2a2016', 0.45, _t, 0, T.p, T.r);
+      else i = this.putL(i, gx, y0, gz, aa, 0, newish ? 0.16 : 0.08 - old * 0.03, 0, 0.95, newish ? 0.32 : 0.16 - old * 0.06, 2.0, newish ? fresh : dirt, newish ? 0 : 0.05 + old * 0.2, _t, 0, T.p, T.r);
+      if (m === 'stone') {
+        const tint = (h >> 3) % 3 ? stone : (h >> 4) % 2 ? '#a8a294' : '#8e8a82', tall = 0.62 + ((h >> 13) % 4) * 0.08, wide = 0.6 + ((h >> 15) % 3) * 0.08;
+        if (down) i = this.putL(i, gx, y0, gz, aa + 0.2, 0.1, 0.06, 1.25, wide, 0.12, tall, tint); // fallen flat at the head
+        else { const lean = (h >> 24) % 7 === 0 ? 0.3 : 0; i = this.putL(i, gx, y0, gz, aa + lean, 0, tall / 2 - sink, 1.05, wide, tall, 0.24, tint); }
+      } else if (m === 'cross') {
+        if (down) i = this.putL(i, gx, y0, gz, aa + 1.2, 0.3, 0.05, 0.6, 0.12, 0.1, 1.0, wood);
+        else { const lean = (h >> 22) % 5 === 0 ? 0.25 : 0; i = this.putL(i, gx, y0, gz, aa + lean, 0, 0.55 - sink, 1.05, 0.12, 1.1, 0.12, wood); i = this.putL(i, gx, y0, gz, aa + lean, 0, 0.8 - sink, 1.05, 0.62, 0.12, 0.12, wood); }
+      } else if (m === 'cairn') { // field stones heaped at the head and laid along the grave
+        const c1 = (h >> 5) % 2 ? '#8a8276' : '#7c766c';
+        i = this.putL(i, gx, y0, gz, aa + 0.3, 0, 0.12, 1.0, 0.56, 0.24, 0.46, c1);
+        i = this.putL(i, gx, y0, gz, aa - 0.4, 0.04, 0.32, 1.02, 0.38, 0.2, 0.32, '#948c80');
+        if (!down) i = this.putL(i, gx, y0, gz, aa + 0.9, -0.02, 0.48, 1.0, 0.22, 0.16, 0.2, c1);
+        i = this.putL(i, gx, y0, gz, aa + 0.5, 0.32, 0.06, -0.2, 0.24, 0.12, 0.2, '#8a8276');
+        i = this.putL(i, gx, y0, gz, aa - 0.2, -0.3, 0.06, 0.3, 0.2, 0.12, 0.24, '#7c766c');
+      } else if (m === 'iron') { // a wrought-iron cross; half of them a low railing round the grave
+        if (down) i = this.putL(i, gx, y0, gz, aa + 1.3, 0.25, 0.04, 0.7, 0.07, 0.07, 1.0, iron);
+        else { i = this.putL(i, gx, y0, gz, aa, 0, 0.55, 1.05, 0.07, 1.1, 0.07, iron); i = this.putL(i, gx, y0, gz, aa, 0, 0.82, 1.05, 0.5, 0.07, 0.07, iron); i = this.putL(i, gx, y0, gz, aa, 0, 0.82, 1.05, 0.2, 0.2, 0.04, iron); }
+        if ((h >> 7) % 2) for (const [ox, oz, sx, sz] of [[-0.55, 0, 0.04, 2.1], [0.55, 0, 0.04, 2.1], [0, -1.05, 1.1, 0.04]]) i = this.putL(i, gx, y0, gz, aa, ox, 0.2, oz, sx, 0.4, sz, iron);
+      }
     }
     this.follow = false;
+    return i;
+  }
+  // The wall or fence round a cemetery (data/rites.js CEMETERY_KINDS wall), in short runs that follow the land, with one
+  // gate in the middle of the side that faces its place (local -z): two posts (a stone wall's are piers), an iron arch
+  // bar over a town's, one leaf swung inward.
+  drawWall(i, cem, kind) {
+    const w = cem.w / 2, d = cem.d / 2, gate = CEM_LAYOUT.gate / 2, a = cem.a, sa = Math.sin(a), ca = Math.cos(a), X = cem.x, Z = cem.z, y0 = cem.y;
+    const col = kind === 'stone' ? '#8f877a' : kind === 'iron' ? '#2c2a28' : kind === 'picket' ? '#b8ae98' : '#4a3624';
+    const step = kind === 'stone' ? 3 : kind === 'iron' ? 2 : kind === 'wire' ? 4 : 2.5, thin = kind === 'iron' || kind === 'wire';
+    const at = (lx, lz) => { _w.x = X + lx * ca + lz * sa; _w.z = Z - lx * sa + lz * ca; _w.y = this.follow ? this.ground(_w.x, _w.z) : y0; return _w; };
+    for (const [x0, z0, x1, z1] of WALL_SIDES) {
+      const sx0 = x0 === 2 ? gate : x0 === -2 ? -gate : x0 * w, sx1 = x1 === 2 ? gate : x1 === -2 ? -gate : x1 * w, sz0 = z0 * d, sz1 = z1 * d;
+      const len = Math.hypot(sx1 - sx0, sz1 - sz0), n = Math.max(1, Math.round(len / step)), seg = len / n, ry = a + Math.atan2(sx1 - sx0, sz1 - sz0) + Math.PI / 2;
+      for (let q = 0; q < n; q++) {
+        const t = (q + 0.5) / n, P = at(sx0 + (sx1 - sx0) * t, sz0 + (sz1 - sz0) * t), mx = P.x, mz = P.z, gy = P.y, rl = this.tilt(mx, mz, ry, seg / 2, 0).r;
+        if (kind === 'stone') { i = this.put(i, mx, gy + 0.36, mz, seg + 0.05, 0.72, 0.42, ry, (q * 7 + n) % 3 ? col : '#857e72', 0, null, 0, 0, rl); continue; }
+        if (kind === 'wire') { for (const yy of [0.35, 0.6, 0.85]) i = this.put(i, mx, gy + yy, mz, seg, 0.02, 0.02, ry, '#5a5650', 0, null, 0, 0, rl); }
+        else for (const yy of kind === 'rail' ? [0.45, 0.85] : kind === 'iron' ? [0.12, 0.82] : [0.3, 0.7]) i = this.put(i, mx, gy + yy, mz, seg, thin ? 0.04 : 0.08, thin ? 0.04 : 0.05, ry, col, 0, null, 0, 0, rl);
+        const Q = at(sx0 + (sx1 - sx0) * (q / n), sz0 + (sz1 - sz0) * (q / n));
+        i = this.put(i, Q.x, Q.y + 0.5, Q.z, thin ? 0.07 : 0.12, 1.0, thin ? 0.07 : 0.12, ry, col); // a post
+        if (kind === 'picket' || kind === 'iron') for (let k = 1; k < 4; k++) { const tt = (q + k / 4) / n, B = at(sx0 + (sx1 - sx0) * tt, sz0 + (sz1 - sz0) * tt); i = this.put(i, B.x, B.y + 0.42, B.z, kind === 'iron' ? 0.025 : 0.09, 0.84, kind === 'iron' ? 0.025 : 0.03, ry, col); }
+      }
+    }
+    // the gate: piers or posts, the arch, one leaf open
+    const ps = kind === 'stone' ? 0.6 : 0.2, pc = kind === 'stone' ? '#7e786c' : col;
+    for (const sx of [-1, 1]) { const P = at(sx * (gate + ps / 2), -d); i = this.put(i, P.x, P.y + 0.7, P.z, ps, 1.4, ps, a, pc); }
+    if (kind === 'stone' || kind === 'iron') { const P = at(0, -d); i = this.put(i, P.x, P.y + 2.1, P.z, CEM_LAYOUT.gate + ps * 2, 0.1, 0.1, a, iron0); i = this.put(i, P.x, P.y + 1.75, P.z, CEM_LAYOUT.gate + ps * 2, 0.06, 0.06, a, iron0); i = this.put(i, P.x, P.y + 1.4, P.z, 0.06, 0.7, 0.06, a, iron0); }
+    const leaf = kind === 'stone' || kind === 'iron' ? iron0 : kind === 'wire' ? '#5a5650' : col, lw = gate * 1.9, la = 1.15; // swung in about the left post
+    const hx = -gate + (lw / 2) * Math.cos(la), hz = -d + (lw / 2) * Math.sin(la), M = at(hx, hz);
+    for (const yy of [0.3, 0.75]) i = this.put(i, M.x, M.y + yy, M.z, lw, 0.06, 0.05, a - la, leaf);
+    i = this.put(i, M.x, M.y + 0.52, M.z, 0.05, 0.5, 0.05, a - la, leaf);
+    return i;
+  }
+  // A tree at a cemetery's edge: a trunk, a limb and two crowns (a desert yard's low and sparse).
+  drawTree(i, cem, lx, lz, h, soil) {
+    const a = cem.a, wx = cem.x + lx * Math.cos(a) + lz * Math.sin(a), wz = cem.z - lx * Math.sin(a) + lz * Math.cos(a), gy = this.follow ? this.ground(wx, wz) : cem.y;
+    const dry = soil === '#c8a878', leaf = dry ? '#5a5c34' : soil === '#7a7448' ? '#4a5a2c' : '#344a26', r = (h % 628) / 100, ht = dry ? 2.6 + (h % 7) * 0.15 : 3.6 + (h % 9) * 0.2;
+    i = this.put(i, wx, gy + ht / 2, wz, 0.32, ht, 0.32, r, '#4a3a2a');
+    i = this.put(i, wx + 0.5 * Math.cos(r), gy + ht * 0.72, wz + 0.5 * Math.sin(r), 0.14, ht * 0.4, 0.14, r + 0.6, '#4a3a2a');
+    i = this.put(i, wx, gy + ht + 0.2, wz, dry ? 2.4 : 3.2, dry ? 0.8 : 1.4, dry ? 2.2 : 3.0, r, leaf);
+    i = this.put(i, wx + 0.4, gy + ht + (dry ? 0.75 : 1.1), wz - 0.3, dry ? 1.5 : 2.0, dry ? 0.6 : 1.0, dry ? 1.6 : 2.2, r + 0.5, leaf, 0.15, _t.set('#2a3a1c'));
     return i;
   }
   // The ground's own colour round a cemetery (old mounds go back to it): the island's sand, a biome's floor elsewhere.
@@ -440,11 +542,101 @@ export class Rites {
     this.cems.set(id, cem);
     return cem;
   }
-  size(cem) {
-    const K = CEMETERY_KINDS[cem.kind], n = cem.count + 24; // room for new graves
+  size(cem, maxW = Infinity) {
+    const K = CEMETERY_KINDS[cem.kind], n = cem.count + spareOf(cem.count); // room for new graves
     if (K.layout === 'trench') { const per = cem.per = Math.max(10, Math.ceil(Math.sqrt(cem.count * K.sp[1] / K.sp[0]))), T = Math.ceil(cem.count / per) + 1; cem.cols = per; cem.rows = T; cem.w = per * K.sp[0] + 4; cem.d = T * K.sp[1] + 4; return; }
+    if (K.layout === 'rows') { const L = (cem.L = this.lay(cem, maxW)); cem.w = L.w; cem.d = L.d; cem.sections = L.secs.length; cem.slotList = null; return; }
     const cols = Math.max(3, Math.ceil(Math.sqrt(n * K.sp[1] / K.sp[0]))), rows = Math.ceil(n / cols);
     cem.cols = cols; cem.rows = rows; cem.w = cols * K.sp[0] + 3; cem.d = rows * K.sp[1] + 3;
+  }
+  // A 'rows' cemetery's plan (pure: its seed and its count; data/rites.js CEM_LAYOUT). Its graves go in family plots of
+  // 2..5 with a gap between plots, plots in rows across a section, sections of at most secW x secD either side of a main
+  // path from the gate, cross paths between section rows. Each section turns a little and its rows bend (q.ra is the
+  // grave's own turn, so it lies with its row). Sections fill from the back: the spare slots (new graves) are by the gate.
+  lay(cem, maxW = Infinity) {
+    const K = CEMETERY_KINDS[cem.kind], L = CEM_LAYOUT, [sx, sz] = K.sp;
+    let rng = makeRng((cem.seed ^ 0x51ab) >>> 0);
+    const n = cem.count + spareOf(cem.count), inner = Math.max(3 * sx + L.plotGap, maxW - 2 * L.margin), area = n * sx * sz * 1.25;
+    const small = area <= L.secW * L.secD;
+    let secW = Math.min(L.secW, inner), cols = 1;
+    if (small) secW = Math.min(secW, Math.max(3 * sx + L.plotGap, Math.sqrt(area)));
+    else if (2 * secW + L.mainPath <= inner) cols = 2;
+    let rowsPer = small ? Infinity : Math.max(2, Math.floor(L.secD / sz));
+    let slots = [], plots = [], secs = [];
+    for (let pass = 0; pass < 2; pass++) {
+      if (pass) { // the rows shared evenly over the sections (the first pass's last one would be half empty)
+        const total = secs.reduce((t, q) => t + q.rows, 0);
+        if (secs.length < 2) break;
+        rowsPer = Math.ceil(total / secs.length); rng = makeRng((cem.seed ^ 0x51ab) >>> 0); slots = []; plots = []; secs = [];
+      }
+      let left = n;
+      while (left > 0) {
+        const sec = { i: secs.length, rows: 0, turn: (rng() - 0.5) * 2 * L.turn, ph: rng() * 6.283 };
+        for (let r = 0; r < rowsPer && left > 0; r++) {
+          let x = 0;
+          while (left > 0) {
+            const k = Math.min(L.plot[0] + Math.floor(rng() * (L.plot[1] - L.plot[0] + 1)), Math.floor((secW - x + 0.01) / sx), left);
+            if (k < 1) break;
+            const wv = rng(), wealth = K.uniform ? 1 : wv < L.wealth.share[0] ? 0 : wv < L.wealth.share[0] + L.wealth.share[1] ? 1 : 2;
+            plots.push({ s0: slots.length, k, wealth, kerb: wealth === 2 && rng() < L.kerb, sec: sec.i });
+            for (let q = 0; q < k; q++) slots.push({ sec: sec.i, r, x: x + (q + 0.5) * sx, plot: plots.length - 1 });
+            x += k * sx + L.plotGap; left -= k;
+          }
+          sec.rows = r + 1;
+        }
+        secs.push(sec);
+      }
+    }
+    if (secs.length === 1) cols = 1;
+    const R = Math.ceil(secs.length / cols), depth = Math.max(...secs.map((q) => q.rows)) * sz;
+    const w = cols * secW + (cols - 1) * L.mainPath + 2 * L.margin, d = R * depth + (R - 1) * L.path + 2 * L.margin + L.path;
+    for (const sec of secs) {
+      const c = sec.i % cols, row = Math.floor(sec.i / cols);
+      sec.x0 = -w / 2 + L.margin + c * (secW + L.mainPath); sec.zb = d / 2 - L.margin - row * (depth + L.path);
+      sec.cx = sec.x0 + secW / 2; sec.cz = sec.zb - depth / 2; sec.w = secW; sec.d = depth;
+    }
+    const k2 = (2 * Math.PI) / L.bendLen;
+    for (const q of slots) {
+      const sec = secs[q.sec], lx = sec.x0 + q.x, lz = sec.zb - (q.r + 0.5) * sz - 0.2 + L.bend * Math.sin(lx * k2 + sec.ph), slope = L.bend * k2 * Math.cos(lx * k2 + sec.ph);
+      const dx = lx - sec.cx, dz = lz - sec.cz, c = Math.cos(sec.turn), sn = Math.sin(sec.turn);
+      q.lx = sec.cx + dx * c + dz * sn; q.lz = sec.cz - dx * sn + dz * c; q.ra = sec.turn - Math.atan(slope);
+    }
+    // the paths: the main one from the gate up the middle (with one column of sections, only to the front section), the
+    // cross paths between section rows
+    const paths = [], front = -d / 2 + 0.4, back = cols === 2 ? d / 2 - L.margin / 2 : d / 2 - L.margin - R * depth - (R - 1) * L.path;
+    paths.push([0, front, 0, Math.max(front + 1, back), cols === 2 ? L.mainPath - 0.6 : L.path - 0.4]);
+    for (let row = 0; row < R - 1; row++) { const z = d / 2 - L.margin - (row + 1) * depth - row * L.path - L.path / 2; paths.push([-w / 2 + L.margin / 2, z, w / 2 - L.margin / 2, z, L.path - 0.6]); }
+    // a tree or two at the corners, just outside the wall (inside the keep-out ring)
+    const trees = [], c0 = Math.floor(rng() * 4);
+    for (let t = 0; t < (K.trees ?? 0); t++) { const [ux, uz] = CORNERS[(c0 + t * 2 + (t > 1 ? 1 : 0)) % 4]; trees.push({ lx: ux * (w / 2 + 1.6), lz: uz * (d / 2 + 1.6), h: Math.floor(rng() * 100000) }); }
+    return { slots, plots, secs, paths, trees, cols, w, d };
+  }
+  // The chunk generator's question (world/chunkgen.js blocked): is (x, z) inside a placed cemetery or its keep-out ring?
+  solid(x, z, r = 0) {
+    const L = this.keep.get(Math.floor(x / 64) * 100003 + Math.floor(z / 64));
+    if (!L) return false;
+    for (const cem of L) {
+      const dx = x - cem.x, dz = z - cem.z, s = Math.sin(cem.a), c = Math.cos(cem.a), lx = dx * c - dz * s, lz = dx * s + dz * c, m = CEM_LAYOUT.keep + r;
+      if (Math.abs(lx) < cem.w / 2 + m && Math.abs(lz) < cem.d / 2 + m) return true;
+    }
+    return false;
+  }
+  // A cemetery placed: into the keep-out cells, and the chunks already laid out under it are laid out again (the
+  // settlement pad's rule, systems/citygen.js stamp), so their rocks, scrub and trees come back off its ground.
+  keepOut(cem) {
+    for (const L of this.keep.values()) { const k = L.indexOf(cem); if (k >= 0) L.splice(k, 1); }
+    const R = Math.hypot(cem.w, cem.d) / 2 + CEM_LAYOUT.keep + 2;
+    for (let i = Math.floor((cem.x - R) / 64); i <= Math.floor((cem.x + R) / 64); i++) for (let j = Math.floor((cem.z - R) / 64); j <= Math.floor((cem.z + R) / 64); j++) {
+      const key = i * 100003 + j; let L = this.keep.get(key); if (!L) this.keep.set(key, (L = [])); L.push(cem);
+    }
+    const S = this.g.streamer;
+    let n = 0;
+    if (S?.layouts) for (let cx = Math.floor((cem.x - R) / CHUNK); cx <= Math.floor((cem.x + R) / CHUNK); cx++) for (let cz = Math.floor((cem.z - R) / CHUNK); cz <= Math.floor((cem.z + R) / CHUNK); cz++) {
+      const k = chunkKey(cx, cz);
+      if (S.layouts.has(k) && !S.pinned?.has(k)) { S.evict(k); n++; }
+    }
+    cem.relaid = (cem.relaid ?? 0) + n;
+    return n;
   }
   // Where it stands (the first time it is near and its place is built: off the buildings, on dry ground).
   resolve(cem) {
@@ -452,18 +644,24 @@ export class Rites {
     const K = CEMETERY_KINDS[cem.kind], g = this.g, rec = cem.rec;
     const live = rec ? g.citygen?.live?.get(rec.id) : null;
     if (rec && !live && !cem.fixed) { cem.y = rec.y ?? this.ground(cem.x, cem.z); return; } // not built yet: provisional
-    const roads = live?.T?.roads ?? [], W = g.streamer?.W, CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
+    const roads = live?.T?.roads ?? [], WL = live?.T?.wall ?? null, W = g.streamer?.W, CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
+    // the rock the chunk generator stands up near here (mesas, buttes, ridges: pure, world/chunkgen.js mesasOf)
+    const rock = [], reach = (rec ? rec.half : 200) + Math.hypot(cem.w, cem.d) + 40, ox = rec?.x ?? cem.x, oz = rec?.z ?? cem.z;
+    if (W?.reliefAt) for (let cx = Math.floor((ox - reach) / CHUNK) - 1; cx <= Math.floor((ox + reach) / CHUNK) + 1; cx++) for (let cz = Math.floor((oz - reach) / CHUNK) - 1; cz <= Math.floor((oz + reach) / CHUNK) + 1; cz++) for (const m of mesasOf(W, cx, cz)) if (Math.abs(m.x - ox) < reach + m.r * MESA_REACH && Math.abs(m.z - oz) < reach + m.r * MESA_REACH) rock.push(m);
     // What is under one point: a building (the live towns' 8 m box grid), a street (the town's road rows, the island
     // grid, a corridor), water, the island's statics or the ring's lots.
     const hit = (x, z) => {
       if (CG) for (const b of CG.cell(Math.floor(x / 8), Math.floor(z / 8))) if (x > b.minX - 1 && x < b.maxX + 1 && z > b.minZ - 1 && z < b.maxZ + 1) return true;
       for (const q of roads) if (x > q.x0 - 1.5 && x < q.x1 + 1.5 && z > q.z0 - 1.5 && z < q.z1 + 1.5) return true;
+      if (WL && x > WL.x0 - 2 && x < WL.x1 + 2 && z > WL.z0 - 2 && z < WL.z1 + 2 && Math.min(Math.abs(x - WL.x0), Math.abs(x - WL.x1), Math.abs(z - WL.z0), Math.abs(z - WL.z1)) < 2) return true; // its own wall or fence line
       if ((g.water?.depthAt?.(x, z) ?? 0) > 0.05) return true;
+      for (const m of rock) if (Math.abs(m.x - x) < m.r * MESA_REACH + 4 && Math.abs(m.z - z) < m.r * MESA_REACH + 4 && mesaNorm(m, x, z) < 1.12) return true;
       if (island(x, z)) { if (Math.abs(z) < 9 || roadLines.some((c) => Math.abs(z - c) < 9 || Math.abs(x - c) < 9)) return true; if (g.statics?.pointBlocked?.(x, z, 0.8)) return true; }
       else if (cem.fixed && !cem.ring && W?.ring?.inCity?.(x, z)) return true;
       return false;
     };
     // A footprint's score: how many of its 7 x 7 sample points land on something (0 = clear ground), and the corridor.
+    const isle = cem.fixed && island(cem.x, cem.z) ? (g.statics?.boxes ?? []).filter((b) => Math.abs(b.minX - cem.x) < 280 && Math.abs(b.minZ - cem.z) < 280) : null;
     const score = (x, z, a) => {
       if (!island(x, z) && W?.project) { const pr = W.project(x, z, 80); if (pr && pr.d < Math.max(cem.w, cem.d) / 2 + 24) return 999; }
       const sn = Math.sin(a), cs = Math.cos(a);
@@ -472,6 +670,8 @@ export class Rites {
         const lx = (u / 6 - 0.5) * cem.w, lz = (v / 6 - 0.5) * cem.d;
         if (hit(x + lx * cs + lz * sn, z - lx * sn + lz * cs)) n++;
       }
+      // on the island, its own scatter (cacti, dead trees, junk: small boxes the 7 x 7 samples step over) counts too
+      if (isle) for (const b of isle) { const dx = (b.minX + b.maxX) / 2 - x, dz = (b.minZ + b.maxZ) / 2 - z; if (Math.abs(dx * cs - dz * sn) < cem.w / 2 + CEM_LAYOUT.keep && Math.abs(dx * sn + dz * cs) < cem.d / 2 + CEM_LAYOUT.keep) n++; }
       return n;
     };
     const cands = [];
@@ -497,6 +697,7 @@ export class Rites {
     cem.outside = !!(rec && Math.max(Math.abs(cem.x - rec.x), Math.abs(cem.z - rec.z)) > rec.half - 8);
     cem.y = live && K.at === 'on' && !cem.outside ? (rec.y ?? 0) : this.ground(cem.x, cem.z); // on a site: its pad; at the edge: the land itself
     cem.resolved = true;
+    this.keepOut(cem);
     this.placeSexton(cem);
     this.g.emit('cemeteryPlaced', { id: cem.id, place: cem.place, kind: cem.kind, x: cem.x, z: cem.z, graves: cem.count, clash: bs });
   }
@@ -532,8 +733,8 @@ export class Rites {
     if (!best) return null;
     const cem = this.addFixed({ id, name: `${RG.nameAt?.(cx, cz) ?? 'THE RING'} YARD`, kind: 'lot_yard', x: best.x, z: best.z, pop: RING_YARD.pop, years: RING_YARD.years, danger: RING_YARD.danger, ring: true });
     cem.lot = best; cem.resolved = true; cem.y = this.ground(cem.x, cem.z);
-    // fit the rows to the lot
-    const K = CEMETERY_KINDS.lot_yard; cem.cols = Math.max(3, Math.floor((best.w - 3) / K.sp[0])); cem.rows = Math.ceil((cem.count + 24) / cem.cols); cem.w = cem.cols * K.sp[0] + 3; cem.d = cem.rows * K.sp[1] + 3;
+    this.size(cem, best.w); // fit the rows to the lot
+    this.keepOut(cem);
     return cem;
   }
   // The grave slots (local to the cemetery: lx across, lz along), row by row from the far side.
@@ -542,7 +743,8 @@ export class Rites {
     const K = CEMETERY_KINDS[cem.kind], out = [];
     if (K.layout === 'trench') {
       for (let t = 0; t < cem.rows; t++) for (let q = 0; q < cem.cols; q++) out.push({ lx: -cem.w / 2 + 2 + q * K.sp[0], lz: -cem.d / 2 + 2 + t * K.sp[1] + K.sp[1] / 2 });
-    } else {
+    } else if (K.layout === 'rows') return (cem.slotList = (cem.L ?? (this.size(cem), cem.L)).slots);
+    else {
       for (let r = 0; r < cem.rows; r++) for (let q = 0; q < cem.cols; q++) out.push({ lx: -cem.w / 2 + 1.5 + (q + 0.5) * K.sp[0], lz: -cem.d / 2 + 1.5 + (r + 0.5) * K.sp[1] - 0.6 });
     }
     return (cem.slotList = out);
@@ -561,13 +763,25 @@ export class Rites {
       let p = rng() * WT, ci = 0; while (ci < W.length - 1 && (p -= W[ci]) > 0) ci++;
       const died = mass && rng() < 0.85 ? battleYear : year0 + Math.floor(rng() * cem.years), age = CAUSES[ci][0] === 'old age' ? 55 + Math.floor(rng() * 35) : CAUSES[ci][0] === 'childbirth' ? 17 + Math.floor(rng() * 20) : Math.floor(rng() * 60) + 1;
       const unknown = mass ? rng() < 0.6 : rng() < 0.08;
-      const mk = rng(), marker = mk < K.mix.stone ? 'stone' : mk < K.mix.stone + K.mix.cross ? 'cross' : 'mound';
+      const marker = pickMarker(K.mix, rng());
       out.push({ id: `${cem.id}#${n}`, n, name: unknown ? 'UNKNOWN' : `${first()} ${families[Math.floor(rng() * families.length)]}`.toUpperCase(), flag: this.g.randomFlag?.(rng) ?? 'US',
         born: died - age, died, cause: mass && died === battleYear ? 'the fighting' : CAUSES[ci][0], by: null, marker: unknown && marker === 'stone' ? 'cross' : marker,
         epitaph: EPITAPHS[Math.floor(rng() * EPITAPHS.length)], cal: CALENDAR.tag });
     }
     out.sort((a, b) => a.died - b.died);
     out.forEach((r, i) => { r.n = i; r.id = `${cem.id}#${i}`; });
+    // a 'rows' yard: each family plot is one family's (their name on its graves), its markers by the family's means
+    if (K.layout === 'rows') {
+      const Lo = cem.L ?? (this.size(cem), cem.L), W = CEM_LAYOUT.wealth, pf = new Map(), roll = makeRng((cem.seed ^ 0x6d6b) >>> 0);
+      out.forEach((r, i) => {
+        const q = Lo.slots[i];
+        if (!q) return;
+        const P = Lo.plots[q.plot];
+        if (!K.uniform && r.name !== 'UNKNOWN') { if (!pf.has(q.plot)) pf.set(q.plot, fam().toUpperCase()); r.name = `${r.name.split(' ')[0]} ${pf.get(q.plot)}`; r.family = pf.get(q.plot); }
+        r.marker = pickMarker(P.wealth === 0 ? W.poor : P.wealth === 2 ? W.rich : K.mix, roll());
+        if (r.name === 'UNKNOWN' && (r.marker === 'stone' || r.marker === 'iron')) r.marker = 'cross';
+      });
+    }
     return (cem.history = out);
   }
   // The cemetery for a spot: the place you are in (or the nearest within 2 km), else the nearest one at all.

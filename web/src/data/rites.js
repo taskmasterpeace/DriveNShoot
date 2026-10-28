@@ -53,17 +53,35 @@ export const BATTLE_WORDS = /battle|massacre|siege|last stand|mass grave|slaught
 
 // ---- what a cemetery looks like, by kind --------------------------------------------------------------------------
 // at: 'edge' (outside a town's built ground), 'on' (inside a site's own footprint), 'plot' (a rural parcel's corner),
-// 'lot' (an empty ring lot). layout: 'rows' (headstone rows), 'trench' (one long mound, one post a row), 'vault' (a
-// concrete crypt: niches in a wall). mix: marker shares (stone, cross, mound only). sp: spacing [across, along] in m.
+// 'lot' (an empty ring lot). layout: 'rows' (sections of family plots in rows that follow the land), 'trench' (one long
+// mound, one post a row), 'vault' (a concrete crypt: niches in a wall). mix: a middling family's marker shares (stone,
+// wood cross, cairn, iron cross, bare mound; a rich plot leans to stone and iron, a poor one to wood, cairns and bare
+// earth: CEM_LAYOUT.wealth). sp: spacing [across, along] in m. wall: what runs round it ('stone' a low dry wall,
+// 'rail' posts and two rails, 'picket', 'iron' a low iron railing, 'wire' posts and strands), one gate on the side that
+// faces its place. trees: how many stand at its edge (0..3). uniform: every plot the same (no family names, no means).
 export const CEMETERY_KINDS = {
-  town_cemetery: { name: 'TOWN CEMETERY', at: 'edge', layout: 'rows', mix: { stone: 0.55, cross: 0.3, mound: 0.15 }, sp: [2.2, 3.0], fence: true },
-  boot_hill: { name: 'BOOT HILL', at: 'edge', layout: 'rows', mix: { stone: 0.15, cross: 0.55, mound: 0.3 }, sp: [2.0, 2.8], fence: false },
-  site_plot: { name: 'BURIAL GROUND', at: 'on', layout: 'rows', mix: { stone: 0.3, cross: 0.4, mound: 0.3 }, sp: [2.0, 2.8], fence: false },
-  mass_grave: { name: 'MASS GRAVE', at: 'on', layout: 'trench', mix: { stone: 0, cross: 0.2, mound: 0.8 }, sp: [1.0, 3.2], fence: false },
-  crypt: { name: 'BUNKER CRYPT', at: 'on', layout: 'vault', mix: { stone: 1, cross: 0, mound: 0 }, sp: [0.7, 1.0], fence: false },
-  family_plot: { name: 'FAMILY PLOT', at: 'plot', layout: 'rows', mix: { stone: 0.4, cross: 0.5, mound: 0.1 }, sp: [2.0, 2.6], fence: true },
-  war_graves: { name: 'WAR GRAVES', at: 'edge', layout: 'rows', mix: { stone: 0.1, cross: 0.9, mound: 0 }, sp: [1.8, 2.6], fence: true },
-  lot_yard: { name: 'LOT YARD', at: 'lot', layout: 'rows', mix: { stone: 0.2, cross: 0.4, mound: 0.4 }, sp: [2.0, 2.6], fence: false },
+  town_cemetery: { name: 'TOWN CEMETERY', at: 'edge', layout: 'rows', mix: { stone: 0.5, cross: 0.25, cairn: 0.05, iron: 0.08, mound: 0.12 }, sp: [2.2, 3.0], wall: 'stone', trees: 2 },
+  boot_hill: { name: 'BOOT HILL', at: 'edge', layout: 'rows', mix: { stone: 0.12, cross: 0.45, cairn: 0.18, iron: 0.02, mound: 0.23 }, sp: [2.0, 2.8], wall: 'rail', trees: 1 },
+  site_plot: { name: 'BURIAL GROUND', at: 'on', layout: 'rows', mix: { stone: 0.25, cross: 0.35, cairn: 0.12, iron: 0.03, mound: 0.25 }, sp: [2.0, 2.8], wall: 'rail', trees: 1 },
+  mass_grave: { name: 'MASS GRAVE', at: 'on', layout: 'trench', mix: { stone: 0, cross: 0.2, cairn: 0, iron: 0, mound: 0.8 }, sp: [1.0, 3.2], wall: 'wire', trees: 0 },
+  crypt: { name: 'BUNKER CRYPT', at: 'on', layout: 'vault', mix: { stone: 1, cross: 0, cairn: 0, iron: 0, mound: 0 }, sp: [0.7, 1.0], wall: null, trees: 0 },
+  family_plot: { name: 'FAMILY PLOT', at: 'plot', layout: 'rows', mix: { stone: 0.35, cross: 0.4, cairn: 0.08, iron: 0.07, mound: 0.1 }, sp: [2.0, 2.6], wall: 'picket', trees: 1 },
+  war_graves: { name: 'WAR GRAVES', at: 'edge', layout: 'rows', mix: { stone: 0.1, cross: 0.85, cairn: 0, iron: 0.05, mound: 0 }, sp: [1.8, 2.6], wall: 'iron', trees: 2, uniform: true },
+  lot_yard: { name: 'LOT YARD', at: 'lot', layout: 'rows', mix: { stone: 0.15, cross: 0.35, cairn: 0.15, iron: 0.0, mound: 0.35 }, sp: [2.0, 2.6], wall: 'wire', trees: 0 },
+};
+// How a 'rows' cemetery is laid out (systems/rites.js lay()). Its grave count stays the formula's; this only decides
+// where they lie. A section is at most secW x secD metres; a big cemetery is split into sections either side of a main
+// path from the gate, with cross paths between section rows. Graves go in family plots of plot[0]..plot[1] with a
+// gap between plots; rows bend with the land (bend m over bendLen m) and each section turns a little (turn rad).
+// keep: metres round the wall where the world's scatter (rocks, scrub, trees) stays off. wealth: plot shares
+// [poor, middling, rich] and the marker shares a poor and a rich plot use (a middling plot uses its kind's mix).
+// spare: room for new graves past the history [min, max, share of the count].
+// sunk: past this many years an old mound has sunk to a hollow (some of them); fall: share of old markers down.
+export const CEM_LAYOUT = {
+  secW: 26, secD: 22, path: 2.4, mainPath: 3.2, margin: 1.8, plot: [2, 5], plotGap: 0.7, bend: 0.7, bendLen: 18, turn: 0.06,
+  keep: 4, spare: [6, 24, 0.25], gate: 3.2,
+  wealth: { share: [0.4, 0.45, 0.15], poor: { stone: 0.03, cross: 0.42, cairn: 0.25, iron: 0, mound: 0.3 }, rich: { stone: 0.62, cross: 0.06, cairn: 0, iron: 0.3, mound: 0.02 } },
+  sunk: 40, fall: 0.14, kerb: 0.6,
 };
 export const ARCH_BOOT_HILL = ['walled_stronghold', 'oasis_ring', 'badlands_crossroads', 'boom_strip', 'refinery_town', 'interstate_exit'];
 
@@ -136,7 +154,7 @@ export const LOOT_LAW = [
 export const DELIVERY = { sources: ['courier', 'caravan', 'producer', 'player'] };
 
 // ---- the check -------------------------------------------------------------------------------------------------------
-export const RITES_ROWS = { DECAY, BODY_FOLD, FORMULA, YEARS, DANGER, POP, CEMETERY_KINDS, FIXED_CEMETERIES, RING_YARD, CAUSES, BURIAL, RITES_ITEMS, FUNERAL, LOOT_LAW };
+export const RITES_ROWS = { DECAY, BODY_FOLD, FORMULA, YEARS, DANGER, POP, CEMETERY_KINDS, CEM_LAYOUT, FIXED_CEMETERIES, RING_YARD, CAUSES, BURIAL, RITES_ITEMS, FUNERAL, LOOT_LAW };
 
 export function validateRites(rows = RITES_ROWS) {
   const bad = [];
@@ -151,9 +169,18 @@ export function validateRites(rows = RITES_ROWS) {
   for (const [k, c] of Object.entries(rows.CEMETERY_KINDS ?? {})) {
     if (!['edge', 'on', 'plot', 'lot'].includes(c.at)) bad.push(`${k}.at`);
     if (!['rows', 'trench', 'vault'].includes(c.layout)) bad.push(`${k}.layout`);
-    const m = c.mix ?? {}, t = (m.stone ?? 0) + (m.cross ?? 0) + (m.mound ?? 0);
+    const m = c.mix ?? {}, t = (m.stone ?? 0) + (m.cross ?? 0) + (m.cairn ?? 0) + (m.iron ?? 0) + (m.mound ?? 0);
+    if (c.wall && !['stone', 'rail', 'picket', 'iron', 'wire'].includes(c.wall)) bad.push(`${k}.wall ${c.wall}`);
+    if (!(c.trees >= 0 && c.trees <= 3)) bad.push(`${k}.trees`);
     if (Math.abs(t - 1) > 0.01) bad.push(`${k}.mix sums to ${t}`);
     if (!(c.sp?.[0] > 0 && c.sp?.[1] > 0)) bad.push(`${k}.sp`);
+  }
+  const L = rows.CEM_LAYOUT;
+  if (L) {
+    if (!(L.spare?.[0] >= 1 && L.spare[1] >= L.spare[0])) bad.push('CEM_LAYOUT.spare');
+    if (!(L.secW >= 8 && L.secD >= 6 && L.path > 0 && L.mainPath > 0 && L.keep >= 0 && L.plot[0] >= 1 && L.plot[1] >= L.plot[0])) bad.push('CEM_LAYOUT sizes');
+    if (Math.abs(L.wealth.share.reduce((a, b) => a + b, 0) - 1) > 0.01) bad.push('CEM_LAYOUT.wealth.share sums to 1');
+    for (const w of ['poor', 'rich']) { const m = L.wealth[w]; if (Math.abs(m.stone + m.cross + m.cairn + m.iron + m.mound - 1) > 0.01) bad.push(`CEM_LAYOUT.wealth.${w} sums to 1`); }
   }
   for (const f of rows.FIXED_CEMETERIES ?? []) if (!rows.CEMETERY_KINDS?.[f.kind]) bad.push(`fixed ${f.id}: kind ${f.kind}`);
   for (const c of rows.CAUSES ?? []) if (!(typeof c[0] === 'string' && c[1] > 0)) bad.push(`cause ${c[0]}`);

@@ -2,10 +2,11 @@
 // api.js spreads these into COMMANDS (help, the CLI, the MCP tools and docs/COMMANDS.md see them); ritesChecks is the
 // selftest share. Every verb is honest by default: you must stand within reach of the body, the grave or the funeral
 // (force=true only in tests).
-import { DECAY, FORMULA, CEMETERY_KINDS, LOOT_LAW, FUNERAL, BURIAL, RITES_ROWS, validateRites } from '../data/rites.js';
+import { DECAY, FORMULA, CEMETERY_KINDS, CEM_LAYOUT, LOOT_LAW, FUNERAL, BURIAL, RITES_ROWS, validateRites } from '../data/rites.js';
 import { cemeteryInputs, graveCount } from '../systems/rites.js';
+import { C as CHUNK } from '../world/geo.js';
 
-const r1 = (v) => Math.round(v * 10) / 10;
+const r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100;
 const ACTIONS = ['summary', 'bodies', 'graves', 'cemetery', 'funeral', 'report', 'drag', 'drop', 'dig', 'bury', 'burn', 'mark', 'wait', 'law', 'validate'];
 
 // Move the real game clock on by `hours` (6 h hops with a short step between, so the day rolls the way the world sees it:
@@ -203,6 +204,39 @@ export async function ritesChecks(api, check, C) {
       // spot-check the history of a few: as many graves as the formula says, names, years in range, causes
       const hist = [...S.cems.values()].filter((c) => !c.ring).slice(0, 12).filter((c) => { const G = S.gravesOf(c); return G.length !== c.count || G.some((r) => !r.name || !r.cause || r.died > 100 || r.died < 100 - c.years - 1); }).map((c) => c.id);
       return !bad.length && !missing.length && !hist.length && sites >= 200 && kinds.mass_grave && kinds.crypt && kinds.family_plot ? true : JSON.stringify({ bad, missing: missing.slice(0, 8), hist, sites, kinds });
+    });
+
+    await check('rites: a town cemetery is laid out like one and keeps the wild off it - inside its keep-out ring no rock, scrub, cactus or tree of the chunk scatter, a wall round it with a gate on its town side, its graves in sections no wider than the cap either side of a path, in family plots that share a name, with mixed markers (stone, wood, cairn, iron) by the family\'s means', async () => {
+      S.plan();
+      const cem = S.cems.get('cem:cg-241'); // THE COURTHOUSE-SQUARE COUNTY SEAT: 206 graves by the formula, by a mesa
+      if (!cem) return 'no cem:cg-241';
+      await home(cem.x, cem.z - cem.d / 2 - 12); await api._step(30);
+      S.resolve(cem);
+      const L = cem.L, K = CEMETERY_KINDS[cem.kind], G = S.gravesOf(cem), lay = CEM_LAYOUT;
+      // the world's scatter in every laid-out chunk round it (instance positions and static boxes) inside the wall + keep
+      const s = Math.sin(cem.a), c = Math.cos(cem.a), inside = (x, z) => { const dx = x - cem.x, dz = z - cem.z; return Math.abs(dx * c - dz * s) < cem.w / 2 + lay.keep - 0.5 && Math.abs(dx * s + dz * c) < cem.d / 2 + lay.keep - 0.5; };
+      const scatter = [], R = Math.hypot(cem.w, cem.d) / 2 + lay.keep;
+      let chunks = 0;
+      for (const Lc of g.streamer.layouts.values()) {
+        if (Lc.cx * CHUNK > cem.x + R || (Lc.cx + 1) * CHUNK < cem.x - R || Lc.cz * CHUNK > cem.z + R || (Lc.cz + 1) * CHUNK < cem.z - R) continue;
+        chunks++;
+        for (const [name, r] of Object.entries(Lc.inst ?? {})) for (let k = 0; k < r.n; k++) if (inside(r.m[k * 16 + 12], r.m[k * 16 + 14])) scatter.push(name);
+        for (const b of Lc.boxes ?? []) if (inside((b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2)) scatter.push(b.tag);
+      }
+      const keepOut = S.solid(cem.x, cem.z) && S.solid(cem.x + cem.w / 2 + lay.keep - 1, cem.z) && !S.solid(cem.x + cem.w / 2 + lay.keep + 6, cem.z + cem.d / 2 + lay.keep + 6) && g.streamer.W.rites === S;
+      // the yard: sections under the cap, a main path from the gate, plots of 2..5 sharing a family name, mixed markers
+      const secsOk = L.secs.length >= 2 && L.secs.every((q) => q.w <= lay.secW + 0.01) && L.paths.length >= 2 && L.paths[0][1] < -cem.d / 2 + 1;
+      const plotsOk = L.plots.every((P) => P.k >= 1 && P.k <= lay.plot[1]) && L.plots.filter((P) => P.k >= lay.plot[0]).length > L.plots.length * 0.7;
+      let fam = 0, famBad = 0;
+      for (const P of L.plots) { const names = new Set(); for (let q = P.s0; q < P.s0 + P.k && q < G.length; q++) if (G[q].family) names.add(G[q].family); if (names.size === 1) fam++; if (names.size > 1) famBad++; }
+      const markers = {};
+      for (const r of G) markers[r.marker] = (markers[r.marker] ?? 0) + 1;
+      const mixed = ['stone', 'cross', 'cairn', 'iron'].every((m) => markers[m] > 0);
+      const rich = L.plots.filter((P) => P.wealth === 2), richStone = rich.length ? rich.reduce((t, P) => t + G.slice(P.s0, P.s0 + P.k).filter((r) => r.marker === 'stone' || r.marker === 'iron').length / P.k, 0) / rich.length : 0;
+      const poor = L.plots.filter((P) => P.wealth === 0), poorStone = poor.length ? poor.reduce((t, P) => t + G.slice(P.s0, P.s0 + P.k).filter((r) => r.marker === 'stone' || r.marker === 'iron').length / P.k, 0) / poor.length : 1;
+      const drawn = S.drawnCems.includes(cem.id) && K.wall === 'stone' && L.trees.length === K.trees;
+      const v = { scatter: scatter.slice(0, 12), n: scatter.length, chunks, keepOut, secs: L.secs.length, cols: L.cols, paths: L.paths.length, plots: L.plots.length, fam, famBad, markers, richStone: r2(richStone), poorStone: r2(poorStone), drawn, count: G.length, formula: graveCount(cem.pop, cem.years, cem.danger) };
+      return !scatter.length && chunks && keepOut && secsOk && plotsOk && fam > L.plots.length * 0.5 && !famBad && mixed && richStone > poorStone + 0.3 && drawn && G.length === v.formula ? true : JSON.stringify(v);
     });
 
     await check('rites: burying makes a grave row - drag the body (hold), dig with a shovel (loud, 18 s), bury it: a grave row with who/when/how/by whom, its things in the grave box, a chronicle row, the body gone from the street', async () => {
