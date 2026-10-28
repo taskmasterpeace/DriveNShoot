@@ -696,7 +696,7 @@ export class Bases {
   spotRange(s) {
     const g = this.g, P = g.player, R = BASE_RULES, v = P.inVehicle;
     let range = lerp(R.spotDay, R.spotNight, g.sky.night);
-    if (v) range *= R.vehicleMul; else if (P.crouch) range *= R.crouchMul;
+    if (v) range *= R.vehicleMul; else if (P.prone && g.stance) range = g.stance.seenRange(P, range, R.crouchMul, s.x ?? s.cx, s.z ?? s.cz); else if (P.crouch) range *= R.crouchMul; // prone: systems/stance.js (D2)
     if (this.lit(s, v ? v.x : P.x, v ? v.z : P.z)) range = Math.max(range, R.spotLit);
     return range;
   }

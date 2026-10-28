@@ -484,7 +484,7 @@ export class Fauna {
       if (!c.alive || c.hidden || c.inVehicle || Math.abs(c.x - a.x) > look || Math.abs(c.z - a.z) > look) continue;
       if (c.hf || c.fauna) continue; // the hot ground's own, and a region's animals (systems/regions.js)
       let d = Math.hypot(c.x - a.x, c.z - a.z);
-      const crouch = c === P ? ((P.crouch || P.crouched) ? 0.55 : 1) * (g.outdoors?.fx.preyNoticeMul ?? 1) : 1; // the still hunter's talent (systems/outdoors.js)
+      const crouch = c === P ? (P.prone && g.stance ? g.stance.seenRange(P, sight, 0.55, a.x, a.z) / (sight || 1) : (P.crouch || P.crouched) ? 0.55 : 1) * (g.outdoors?.fx.preyNoticeMul ?? 1) : 1; // the still hunter's talent (systems/outdoors.js); prone: systems/stance.js
       const seen = d < sight * crouch && g.statics.lineOfSight(a.x, a.z, c.x, c.z, RAY_SOLID);
       const smelt = d < smell * 0.5 * crouch;
       if (!seen && !smelt) continue;

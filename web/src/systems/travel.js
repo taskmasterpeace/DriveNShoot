@@ -34,7 +34,7 @@ const clock = (h) => { const d = Math.floor(h / 24), t = ((h % 24) + 24) % 24, h
 // under the roof; the driver up front, the guard on the step with the shotgun.
 const BUS_SEATS = [{ id: 'driver', side: 'left', row: 0, at: [0.62, 1.25, 4.3] }, { id: 'guard', side: 'right', row: 0, at: [-0.62, 1.25, 4.0] }];
 for (let r = 0; r < 4; r++) for (const sd of [1, -1]) BUS_SEATS.push({ id: `row${r + 1}${sd > 0 ? 'L' : 'R'}`, side: sd > 0 ? 'left' : 'right', row: r + 1, at: [sd * 0.62, 1.25, 2.6 - r * 1.5] });
-VEHICLES.bus ??= { name: 'TRUNDLE', base: 'bus', len: 11.2, wid: 2.6, tall: 3.2, maxSpeed: 27, accel: 8, turn: 1.15, grip: 6.4, mass: 5.2, hp: 700, armor: 0.12, fuelCap: 300, springs: 'rig', seats: BUS_SEATS };
+VEHICLES.bus ??= { name: 'TRUNDLE', base: 'bus', len: 11.2, wid: 2.6, tall: 3.2, maxSpeed: 27, accel: 8, turn: 1.15, grip: 6.4, mass: 5.2, hp: 700, armor: 0.12, fuelCap: 300, springs: 'rig', seats: BUS_SEATS, deck: 'busAisle', roofDeck: 'busRoof' }; // walk the aisle, ride the roof (data/decks.js)
 
 export class Travel {
   constructor(game) {
