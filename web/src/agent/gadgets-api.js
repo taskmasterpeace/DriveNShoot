@@ -246,8 +246,12 @@ export async function gadgetsChecks(api, check, C) {
     await check('drones: a scout drone flown past its range loses the signal, flies itself home and lands back in the pack; it marks the raiders it flies over', async () => {
       clean(); await home(S.x, S.z);
       const raider = g.spawnRaider(S.x + S.fx * 30, S.z + S.fz * 30, Math.random, 'pistol'); raider.gadgetTest = true; raider.hold = true; raider.weapon = null;
-      await C('drone', { action: 'launch', kind: 'scout', give: true });
-      const D = g.drones, R = D.d.def.range;
+      const kept = g.inventory.carried.slots.splice(0); // an empty pack: a battery's worth of loot leaves no room for it
+      try {
+      const L = await C('drone', { action: 'launch', kind: 'scout', give: true });
+      const D = g.drones;
+      if (!D.d) return `launch: ${L.error ?? JSON.stringify(L).slice(0, 200)}`;
+      const R = D.d.def.range;
       if (!D.piloting) return 'not piloting after launch';
       const camOn = g.droneCam.active || (await C('step', { seconds: 0.1 }), g.droneCam.active);
       await C('drone', { action: 'fly', x: S.x + S.fx * 30, z: S.z + S.fz * 30 });
@@ -259,6 +263,7 @@ export async function gadgetsChecks(api, check, C) {
       for (let k = 0; k < 70 && D.d; k++) { await C('step', { seconds: 0.5 }); if (D.d) { maxD = Math.max(maxD, Math.hypot(D.d.x - P().x, D.d.z - P().z)); if (D.d.why === 'signal lost') lost = true; } }
       const back = !D.d && g.inventory.carried.count('drone_scout') === 1;
       return camOn && marked && lost && back && maxD <= R + 20 ? true : `cam=${camOn} marked=${marked} lost=${lost} back=${back} maxD=${r1(maxD)} range=${R} state=${D.d?.state}`;
+      } finally { g.inventory.spend('drone_scout', g.inventory.carried.count('drone_scout')); g.inventory.carried.slots.push(...kept); g.inventory.changed(); }
     });
 
     await check('security: a theft a town bull saw raises a star and brings the run-down patrol car from the station to you', async () => {
