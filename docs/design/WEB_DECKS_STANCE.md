@@ -178,7 +178,8 @@ you look while your driver keeps it on the road.
 - **Other lanes:**
   - BALLISTICS owns `combat.js`. A prone target's 0.45 m height is in `STANCES.prone.body.h` for its projectile/height
     hit test to read. Not wired here.
-  - LSW-BODIES (Wave 3) shares the pose code: prone lives in `characters.js` `pose()`, behind the `prone` flag.
+  - LSW-BODIES (Wave 3) shares the pose code: prone lives in `characters.js` `pose()`, behind the `prone` flag. Shipped
+    (`WEB_LSW_BODIES.md`): the 24 nearest people's LSW bodies are driven from these same prone, crouch and deck joints.
 
 ## 7. Tuning knobs (safe ranges)
 
