@@ -18,6 +18,10 @@ export function buildBacklots(T, out, box) {
     vis((A.x0 + A.x1) / 2, 0.045, (A.z0 + A.z1) / 2, A.x1 - A.x0, 0.05, A.z1 - A.z0, R.edge);
     const L = A.lane;
     vis((L.x0 + L.x1) / 2, 0.06, (L.z0 + L.z1) / 2, L.x1 - L.x0, 0.05, L.z1 - L.z0, R.color);
+    if (A.row !== 'paved') for (const o of [-0.85, 0.85]) { // two wheel ruts down an unpaved lane (it reads as a lane from above)
+      const ax = A.axis === 'x', c = ax ? (L.z0 + L.z1) / 2 + o : (L.x0 + L.x1) / 2 + o;
+      vis(ax ? (L.x0 + L.x1) / 2 : c, 0.07, ax ? c : (L.z0 + L.z1) / 2, ax ? L.x1 - L.x0 : 0.45, 0.05, ax ? 0.45 : L.z1 - L.z0, '#6a5a44');
+    }
   }
   // ---- docks: apron, platform, bumpers, pallets ----
   for (const D of T.docks ?? []) {
