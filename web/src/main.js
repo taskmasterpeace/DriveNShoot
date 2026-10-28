@@ -17,6 +17,7 @@ import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
+import { Ballistics } from './systems/ballistics.js';
 import { Arms } from './systems/arms.js';
 import { Gunpoint } from './systems/gunpoint.js';
 import { Melee } from './systems/melee.js';
@@ -165,6 +166,7 @@ class Game {
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
     this.vehicles = [];
     this.combat = new Combat(this);
+    this.ballistics = new Ballistics(this, this.scene); // rounds in flight (docs/design/WEB_BALLISTICS.md)
     this.arms = new Arms(this);         // stance, grip, fire modes, recoil (WEB_CONTROLLER §3.2-3.4)
     this.gunpoint = new Gunpoint(this); // a raised gun held on a person is a state (§3.5)
     this.melee = new Melee(this);       // shove, strike, kick (§3.6)
@@ -1280,6 +1282,7 @@ class Game {
       this.ambient.update(simDt);
       this.gunpoint.update(simDt); // after ambient: the held keep their hands up
       this.carCombat.update(simDt);
+      this.ballistics.update(simDt); // rounds in the air fly on and meet what is in their way
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
