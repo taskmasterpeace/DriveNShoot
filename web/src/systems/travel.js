@@ -8,6 +8,9 @@ import { randomName } from '../data/npcs.js';
 import { RAIL } from '../world/rail.js';
 import { TravelPanel } from '../ui/travelpanel.js';
 import { VATS, CLONE_KEEPS } from '../data/clones.js';
+import { Journeys, hash as jhash, rngOf as jrng } from './journeys.js';
+import { JOURNEY_RULES } from '../data/journeys.js';
+import { POLICIES } from '../data/insurance.js';
 
 // THE TRAVEL NETWORK (docs/design/WEB_CLONE_TRAVEL.md, rows in data/travel.js): how you get back to your husk.
 //   - the TRUNDLE (bus) runs I-10 pole to pole on a timetable on the game clock. Near you it is a real vehicle on the road
@@ -48,6 +51,7 @@ export class Travel {
     this.realT = 0;
     this.eventT = 0;
     this.lastCard = null;
+    this.j = new Journeys(game, this); // incidents, the planner, the hitch (systems/journeys.js, WEB_INSURANCE_JOURNEYS.md)
   }
 
   get W() { return this.g.streamer?.W ?? null; }
@@ -136,7 +140,7 @@ export class Travel {
     return 0;
   }
   fare(L, a, b, flight = null) {
-    if (L.kind === 'air') return flight?.fare ?? 0;
+    if (L.kind === 'air' || L.kind === 'haul') return flight?.fare ?? 0;
     return Math.round(L.fare.base + L.fare.perMile * this.milesBetween(L, a, b));
   }
   // The iron runs south (+z) down the line and loops back in from the north off the map.
@@ -165,7 +169,9 @@ export class Travel {
     for (let d = Math.floor(now / 24); d < Math.floor(now / 24) + 3 * f.everyDays + 2; d++) if (d % f.everyDays === 0 && d * 24 + f.dep >= now - 1e-6) return d * 24 + f.dep;
     return null;
   }
-  flightsFrom(nodeId) { const A = this.line('air'); return A.flights.map((f, i) => ({ ...f, i })).filter((f) => f.from === nodeId); }
+  flightsFrom(nodeId, lineId = 'air') { const A = this.line(lineId); return (A.flights ?? A.routes).map((f, i) => ({ ...f, i })).filter((f) => f.from === nodeId); }
+  // A flight or a long-haul run: the line's rows (both are timetabled legs past the dust).
+  legRows(L) { return L.flights ?? L.routes ?? []; }
 
   // ---- punches (tickets) ------------------------------------------------------------------------------------------------
   // Buy a punch at the pole / station / field you stand at (or `from` with force, for agents staging). Returns the punch.
@@ -179,9 +185,10 @@ export class Travel {
     const stops = L.stops ?? L.fields;
     if (!stops.includes(from)) return { ok: false, why: `${L.name} does not stop at ${this.nodeName(from)}` };
     let fl = null, dir = 0;
-    if (L.kind === 'air') {
-      fl = flight !== null ? L.flights[flight] : L.flights.find((f) => f.from === from && f.to === to);
-      if (!fl || fl.from !== from) return { ok: false, why: `no ${L.name} flight from ${this.nodeName(from)} to ${this.nodeName(to)}; from here: ${this.flightsFrom(from).map((f) => this.nodeName(f.to)).join(', ') || 'none'}` };
+    if (L.kind === 'air' || L.kind === 'haul') {
+      const R = this.legRows(L);
+      fl = flight !== null ? R[flight] : R.find((f) => f.from === from && f.to === to);
+      if (!fl || fl.from !== from) return { ok: false, why: `no ${L.name} run from ${this.nodeName(from)} to ${this.nodeName(to)}; from here: ${this.flightsFrom(from, L.id).map((f) => this.nodeName(f.to)).join(', ') || 'none'}` };
       to = fl.to;
     } else {
       if (!stops.includes(to) || to === from) return { ok: false, why: `${L.name} from ${this.nodeName(from)} goes to: ${stops.filter((x) => x !== from).join(', ')}` };
@@ -190,7 +197,7 @@ export class Travel {
     if (this.punches.length >= VB.punchMax) return { ok: false, why: `you hold ${VB.punchMax} punches already` };
     const fare = this.fare(L, from, to, fl);
     if (!g.spend(fare)) return { ok: false, why: `the fare is $${fare}; you have $${g.cash}` };
-    const p = { id: `P${++this.nPunch}`, line: L.id, from, to, dir, fare, bought: +this.hours().toFixed(2), flight: fl ? L.flights.indexOf(fl) : null };
+    const p = { id: `P${++this.nPunch}`, line: L.id, from, to, dir, fare, bought: +this.hours().toFixed(2), flight: fl ? this.legRows(L).indexOf(fl) : null };
     this.punches.push(p);
     g.emit('punchBought', { ...p });
     g.hud?.toast?.(`${L.kind === 'air' ? 'SKY TICKET' : 'PUNCH'} · ${L.name} · ${this.nodeName(from)} TO ${this.nodeName(to)} · $${fare}`, 'job');
@@ -236,8 +243,8 @@ export class Travel {
         }
       } else if (L.kind === 'rail') {
         for (const to of L.stops) if (to !== nodeId) { const eta = this.ironEta(nodeId); rows.push({ line: L.id, kind: L.kind, to, dir: 1, dep: now + eta, arr: now + eta + this.ironHours(L, nodeId, to), fare: this.fare(L, nodeId, to), miles: r1(this.milesBetween(L, nodeId, to)) }); }
-      } else if (L.kind === 'air') {
-        for (const f of this.flightsFrom(nodeId)) { const d = this.nextFlight(f, now); rows.push({ line: L.id, kind: L.kind, to: f.to, flight: f.i, dep: d, arr: d + f.hours, fare: f.fare, hours: f.hours, offMap: !this.node(f.to)?.onMap }); }
+      } else if (L.kind === 'air' || L.kind === 'haul') {
+        for (const f of this.flightsFrom(nodeId, L.id)) { const d = this.nextFlight(f, now); rows.push({ line: L.id, kind: L.kind, to: f.to, flight: f.i, dep: d, arr: d + f.hours, fare: f.fare, hours: f.hours, offMap: !this.node(f.to)?.onMap }); }
       }
     }
     return rows;
@@ -250,17 +257,17 @@ export class Travel {
       const shown = rows.slice(0, 9);
       const lines = [...new Set(rows.map((r) => this.line(r.line).name))].join(' · ');
       return {
-        kind: n.knot ? 'TRAVEL KNOT' : n.air ? 'FIVE CITY AIR' : n.rail ? 'THE IRON LINE' : 'THE TRUNDLE',
+        kind: n.knot ? 'TRAVEL KNOT' : n.air ? 'FIVE CITY AIR' : n.rail ? 'THE IRON LINE' : n.haul ? 'THE LONG HAUL' : 'THE TRUNDLE',
         title: n.name, sub: `${lines} · NOW ${fmt(now)}`,
-        note: this.away ? null : this.punches.length ? `YOUR PUNCHES: ${this.punches.map((p) => `${this.line(p.line).name} TO ${this.nodeName(p.to)}`).join(' · ')}` : null,
+        note: this.away ? null : [this.punches.length ? `YOUR PUNCHES: ${this.punches.map((p) => `${this.line(p.line).name} TO ${this.nodeName(p.to)}`).join(' · ')}` : null, this.homeNote()].filter(Boolean).join(' · ') || null,
         head: ['TO', 'LEAVES', 'ARRIVES', 'FARE'],
-        rows: shown.map((r, k) => ({ key: String(k + 1), cols: [`${r.kind === 'bus' ? this.dirLabel(r.line, r.dir) : r.kind === 'air' ? '✈ ' : '▸ '}${this.nodeName(r.to)}${r.offMap ? ' (PAST THE DUST)' : ''}`, fmt(r.dep), fmt(r.arr), `$${r.fare}`],
+        rows: shown.map((r, k) => ({ key: String(k + 1), cols: [`${r.kind === 'bus' ? this.dirLabel(r.line, r.dir) : r.kind === 'air' ? '✈ ' : r.kind === 'haul' ? 'LONG HAUL ▸ ' : '▸ '}${this.nodeName(r.to)}${r.offMap ? ' (PAST THE DUST)' : ''}`, fmt(r.dep), fmt(r.arr), `$${r.fare}`],
           mark: this.punches.some((p) => p.line === r.line && p.from === nodeId && p.to === r.to) ? 'PUNCHED' : '', hot: this.punches.some((p) => p.line === r.line && p.from === nodeId && p.to === r.to) })),
         foot: [['1-9', 'Buy a punch'], ['N', 'Sleep through the trip (the clock runs)'], ['ESC', 'Wait here in real time']],
         onKey: (code) => {
           const k = /^Digit([1-9])$/.exec(code)?.[1];
           if (k) { const r = shown[+k - 1]; if (r) this.buy(r.line, r.to, { flight: r.flight ?? null }); return true; }
-          if (code === 'KeyN') { const p = this.punches.find((q) => q.from === nodeId); if (!p) { this.g.hud?.toast?.('BUY A PUNCH FIRST', 'warn'); return true; } this.ui.close(); this.skip({ punch: p.id }); return 'close'; }
+          if (code === 'KeyN') { const p = this.punches.find((q) => q.from === nodeId); if (!p) { this.g.hud?.toast?.('BUY A PUNCH FIRST', 'warn'); return true; } this.ui.close(); const r = this.skip({ punch: p.id }); return r?.pending ? true : 'close'; } // an incident card up: leave it up
           return false;
         },
       };
@@ -271,25 +278,30 @@ export class Travel {
   // vatId: opened by the vat's keeper (Doc Reyes takes you through to her back room from her counter).
   openVat(vatId = null) {
     const C = this.g.clone, ui = this.ui, force = !!vatId;
+    // LIFE INSURANCE at the counter (WEB_INSURANCE_JOURNEYS.md): the three policies to sign (a pressing with terms), the brine
+    // book that pays the premiums. A small town's office scans and sells, but its bodies grow at the home centre.
     const build = () => {
-      const row = vatId ? C.vat(vatId) : C.vatHere(4), P = C.pressingView(), price = C.price(row);
+      const row = vatId ? C.vat(vatId) : C.vatHere(4), P = C.pressingView(), I = C.ins, home = row ? C.vat(I.homeFor(row.id)) : null;
+      const pols = Object.values(POLICIES);
       return {
-        kind: 'THE BRINE ROOM', title: row?.name ?? 'THE BRINE ROOM', showBank: true,
-        sub: P ? `PRESSED AT ${VATS.find((v) => v.id === P.vat)?.short} · ${r1(P.staleHours)} H AGO · BRINE MONEY $${C.due()}/DAY${C.owed ? ` · ${C.owed} DAY(S) OWED` : ''}` : 'NO PRESSING IN THE BRINE: DIE NOW AND YOU DIE FLAT',
-        note: `A RERUN KEEPS: ${CLONE_KEEPS.keeps.slice(0, 3).join(', ')}. IT LOSES: ${CLONE_KEEPS.loses.slice(0, 3).join(', ')}.`,
-        head: ['', 'WHAT', 'COST'],
+        kind: row?.major ? 'CLONING CENTRE · LIFE INSURANCE' : 'PRESSING OFFICE · LIFE INSURANCE', title: row?.name ?? 'THE BRINE ROOM', showBank: true,
+        sub: P ? `${POLICIES[P.policy]?.name ?? 'COVERED'} · PRESSED AT ${VATS.find((v) => v.id === P.vat)?.short} ${r1(P.staleHours)} H AGO${P.cold ? ' · COLD' : ''} · $${C.due()}/DAY${C.owed ? ` · ${C.owed} DAY(S) BEHIND` : ''}` : 'UNINSURED: DIE NOW AND YOU DIE FLAT',
+        note: row?.major ? `PREMIUMS COME OUT OF THE BRINE BOOK EACH DAY. FALL BEHIND PAST THE GRACE AND IT LAPSES. A RERUN LOSES: ${CLONE_KEEPS.loses.slice(0, 2).join(', ')}.`
+          : `THIS OFFICE GROWS NO BODIES: YOUR PRESSING IS FILED WITH ${home?.name ?? 'THE NEAREST CITY'} (${home?.short ?? ''}). YOU WOULD COME UP THERE.`,
+        head: ['', 'POLICY', 'COST'],
         rows: [
-          { key: '1', cols: ['GET PRESSED', `A scan in the chair (an hour). Skills as they are now${P ? '; replaces the one you hold' : ''}`, `$${price}`], hot: !P },
-          { key: '2', cols: ['BRINE BOOK: PUT IN $100', 'Scrip in the book outlives you; brine money comes out of it', '$100'] },
-          { key: '3', cols: ['BRINE BOOK: TAKE OUT $100', '', '+$100'] },
+          ...pols.map((pol, k) => ({ key: String(k + 1), cols: [`${pol.name} · $${Math.round(pol.premium * (row?.upkeepMul ?? 1))}/DAY`, `${pol.blurb} Grace ${pol.graceDays} d.`, `$${row ? I.signPrice(pol.id, row) : '-'}`], hot: P?.policy === pol.id, mark: P?.policy === pol.id ? 'YOURS' : '' })),
+          { key: '4', cols: ['BRINE BOOK: PUT IN $100', 'Scrip in the book outlives you; the premiums come out of it', '$100'] },
+          { key: '5', cols: ['BRINE BOOK: TAKE OUT $100', '', '+$100'] },
         ],
-        foot: [['1', 'Press'], ['2', 'Deposit'], ['3', 'Withdraw'], ['ESC', 'Leave']],
+        foot: [['1-3', 'Sign (an hour in the chair)'], ['4', 'Deposit'], ['5', 'Withdraw'], ['ESC', 'Leave']],
         onKey: (code) => {
           let r = null;
-          if (code === 'Digit1') r = C.press(row?.id ?? null, { force });
-          else if (code === 'Digit2') r = C.deposit(100, { force });
-          else if (code === 'Digit3') r = C.withdraw(100, { force });
-          else return false;
+          const k = /^Digit([1-5])$/.exec(code)?.[1];
+          if (!k) return false;
+          if (+k <= pols.length) r = C.press(row?.id ?? null, { force, policy: pols[+k - 1].id });
+          else if (k === '4') r = C.deposit(100, { force });
+          else r = C.withdraw(100, { force });
           if (r && !r.ok) this.g.hud?.toast?.(r.why.toUpperCase(), 'warn');
           return true;
         },
@@ -320,13 +332,13 @@ export class Travel {
         hall: true, showBank: true, kind: 'ARRIVALS HALL · PAST THE DUST', title: n?.name ?? 'SOMEWHERE OFF THE MAP',
         sub: `${n?.short ?? ''} · NOW ${fmt(now)} · THIS CITY IS NOT ON THE MAP YET: BUY YOUR WAY BACK`,
         note: A.why === 'wake' ? 'YOU CAME UP IN THIS CITY\'S BRINE. YOUR HUSK IS A LONG WAY WEST.' : null,
-        head: ['FLIGHT', 'LEAVES', 'LANDS', 'FARE'],
-        rows: [...rows.map((r, k) => ({ key: String(k + 1), cols: [`✈ ${this.nodeName(r.to)}${r.offMap ? ' (PAST THE DUST)' : ''}`, fmt(r.dep), fmt(r.arr), `$${r.fare}`] })),
+        head: ['FLIGHT OR COACH', 'LEAVES', 'ARRIVES', 'FARE'],
+        rows: [...rows.map((r, k) => ({ key: String(k + 1), cols: [`${r.kind === 'haul' ? 'LONG HAUL ▸ ' : '✈ '}${this.nodeName(r.to)}${r.offMap ? ' (PAST THE DUST)' : ''}`, fmt(r.dep), fmt(r.arr), `$${r.fare}`] })),
           ...(vat ? [{ key: 'P', cols: [`GET PRESSED · ${vat.name}`, '', '', `$${C.price(vat)}`] }] : [])],
-        foot: [['1-9', 'Buy the sky ticket and fly'], ...(vat ? [['P', 'Press here']] : [])],
+        foot: [['1-9', 'Buy the ticket and go'], ...(vat ? [['P', 'Press here']] : [])],
         onKey: (code) => {
           const k = /^Digit([1-9])$/.exec(code)?.[1];
-          if (k) { const r = rows[+k - 1]; if (!r) return false; const b = this.buy('air', r.to, { flight: r.flight }); if (!b.ok) { this.g.hud?.toast?.(b.why.toUpperCase(), 'warn'); return true; } this.skip({ punch: b.punch.id }); return this.away ? true : 'close'; }
+          if (k) { const r = rows[+k - 1]; if (!r) return false; const b = this.buy(r.line, r.to, { flight: r.flight }); if (!b.ok) { this.g.hud?.toast?.(b.why.toUpperCase(), 'warn'); return true; } this.skip({ punch: b.punch.id }); return this.away ? true : 'close'; }
           if (code === 'KeyP' && vat) { const r = C.press(vat.id); if (!r.ok) this.g.hud?.toast?.(r.why.toUpperCase(), 'warn'); return true; }
           return false;
         },
@@ -362,8 +374,11 @@ export class Travel {
   }
 
   // ---- what the road turns up ---------------------------------------------------------------------------------------------
-  // One roll for a trip (seeded): { id, text, ...amounts } or null.
-  roll(L, miles, depHour, seed) {
+  // One roll for a trip (seeded). The trundle and the long haul roll an INCIDENT (systems/journeys.js: the stretch's danger,
+  // who holds it, the hour, the weather; ctx from j.ctxFor), returned flat (what its default choice does) with the incident
+  // on it; the iron and the air roll the old EN_ROUTE rows. { id, text, ...amounts } or null.
+  roll(L, miles, depHour, seed, ctx = null) {
+    if (L.kind === 'bus' || L.kind === 'haul') return this.j.flat(this.j.roll(ctx ?? this.j.ctxFor(L, null, null, depHour, { miles }), seed));
     const rng = rngOf(seed);
     const hh = ((depHour % 24) + 24) % 24, night = hh >= 20 || hh < 5;
     let p = L.kind === 'air' ? L.risk.perFlight : 1 - (1 - L.risk.perMile) ** miles;
@@ -380,9 +395,11 @@ export class Travel {
 
   // ---- sleeping through a trip (the skip) ------------------------------------------------------------------------------
   // punch: which (default: one from where you stand, or the one you ride on). The clock runs the wait and the trip, the road
-  // rolls once, and you step off at the far end (or into its arrivals hall). seed: the roll's seed (agents, tests).
-  skip({ punch = null, seed = null, force = false } = {}) {
+  // rolls once, and you step off at the far end (or into its arrivals hall). seed: the roll's seed (agents, tests). choice:
+  // what you do if the road turns something up (an incident's choice id; else the card asks you, or an agent gets the first).
+  skip({ punch = null, seed = null, force = false, choice = null } = {}) {
     const g = this.g, p = g.player, now = this.hours();
+    if (this.j.pending) return { ok: false, why: 'something on the road is waiting for you to choose (travel action=incident choose=)' };
     const aboard = this.ride && this.bus && p.inVehicle && p.inVehicle.id === this.bus.vid ? this.ride : null;
     let P = punch ? this.punches.find((q) => q.id === punch) ?? (aboard?.punch?.id === punch ? aboard.punch : null) : aboard?.punch ?? null;
     const here = this.away?.node ?? this.nodeHere()?.id ?? null;
@@ -390,11 +407,13 @@ export class Travel {
     if (!P) return { ok: false, why: here ? `no punch from ${this.nodeName(here)}: buy one at its board` : 'not at a pole, station or field, and not riding' };
     const L = this.line(P.line);
     if (!aboard && !force && P.from !== here) return { ok: false, why: `that punch starts at ${this.nodeName(P.from)}; you are ${here ? `at ${this.nodeName(here)}` : 'not at a board'}` };
-    let waitH = 0, rideH = 0, miles = 0, from = P.from;
+    let waitH = 0, rideH = 0, miles = 0, leg = null, s0 = null;
+    const from = P.from;
     if (L.kind === 'bus') {
       const st = L.stops, i = st.indexOf(P.from), j = st.indexOf(P.to);
       if (aboard) {
         const v = p.inVehicle, s = this.roadOf(L).project(v.x, v.z, 600).s, sj = this.node(P.to).s;
+        s0 = s;
         miles = Math.abs(sj - s) / MILE;
         const left = Math.max(0, (sj - s) * P.dir);
         let stops = 0; for (let k = i + P.dir; k !== j && k >= 0 && k < st.length; k += P.dir) if ((this.node(st[k]).s - s) * P.dir > 0) stops++;
@@ -404,44 +423,88 @@ export class Travel {
         waitH = Math.max(0, nb.at - now);
         rideH = this.busHours(L, i, j, P.dir);
         miles = this.milesBetween(L, P.from, P.to);
+        s0 = this.node(P.from).s;
       }
     } else if (L.kind === 'rail') {
       waitH = aboard ? 0 : this.ironEta(P.from);
       rideH = this.ironHours(L, P.from, P.to);
       miles = this.milesBetween(L, P.from, P.to);
     } else {
-      const f = L.flights[P.flight];
-      const d = this.nextFlight(f, now);
-      waitH = Math.max(0, d - now); rideH = f.hours;
+      leg = this.legRows(L)[P.flight];
+      const d = this.nextFlight(leg, now);
+      waitH = Math.max(0, d - now); rideH = leg.hours; miles = leg.miles ?? 0;
     }
     const sd = seed ?? hash(`${P.id}:${Math.floor(now * 60)}`);
-    const ev = this.roll(L, miles, now + waitH, sd);
-    let to = P.to, cashLost = 0, hurt = 0, toll = 0;
+    const incidental = L.kind === 'bus' || L.kind === 'haul';
+    const inc = incidental ? this.j.roll(this.j.ctxFor(L, P.from, P.to, now + waitH, { miles, danger: leg?.danger, routeMiles: leg?.miles }), sd) : null;
+    const ev = incidental ? null : this.roll(L, miles, now + waitH, sd);
+    if (aboard) this.endRide('slept');
+    this.usePunch(P);
+    if (this.bus && !this.bus.keep) this.despawnBus();
+    const T0 = { P, L, from, waitH, rideH, miles, sd, ev, inc, now, s0, leg, ranH: 0 };
+    if (!inc) return this.finishSkip(T0, null);
+    // The road turned something up: the clock runs to it, the card asks (an agent's choice=, or the default), then the rest.
+    const toInc = waitH + inc.at * rideH;
+    this.advanceHours(toInc, `${L.id}:${P.from}->${P.to}:to-incident`);
+    T0.ranH = toInc;
+    if (choice) this.j.agentChoice = choice;
+    let out = null;
+    const asked = this.j.ask(inc, (res) => { out = this.finishSkip(T0, res); }, { where: `${this.nodeName(P.from)} TO ${this.nodeName(P.to)}` });
+    this.j.agentChoice = null;
+    if (asked?.pending) return { ok: true, pending: true, incident: inc };
+    return out;
+  }
+  // The rest of a slept trip once the incident (if any) is settled: the clock, the consequences, the step off.
+  finishSkip(T0, res) {
+    const g = this.g, p = g.player, { P, L, from, waitH, miles, sd, inc } = T0;
+    let rideH = T0.rideH, ev = T0.ev;
+    let to = P.to, cashLost = 0, hurt = 0, toll = 0, roadside = null;
     if (ev) {
       rideH += ev.delay;
       if (ev.cashShare) { cashLost = Math.floor(g.cash * ev.cashShare); g.cash -= cashLost; }
       if (ev.hurt) hurt = ev.hurt;
-      if (ev.toll) {
-        if (g.cash >= ev.toll) { g.cash -= ev.toll; toll = ev.toll; }
-        else if (L.kind === 'bus') { // cannot pay: put off at the pole before your stop (or where you got on)
-          const st = L.stops, j = st.indexOf(P.to), back = j - P.dir;
-          if (back >= 0 && back < st.length && st[back] !== P.from) { const r = rideH; rideH = this.busHours(L, st.indexOf(P.from), back, P.dir); to = st[back]; ev.putOff = true; ev.savedHours = r1(r - rideH); }
-        }
-      }
     }
-    if (aboard) this.endRide('slept');
-    this.usePunch(P);
+    if (res) {
+      ev = { ...this.j.flat(inc, res.choice), delay: res.delay, hurt: res.hurt, putOff: res.putOff };
+      cashLost = Math.max(0, res.cashLost); toll = res.paid; hurt = res.hurt;
+      if (res.putOff) {
+        if (L.kind === 'bus' && T0.s0 !== null && this.node(P.to)?.onMap) {
+          // Left at the roadside where it happened: the walk is yours.
+          const RD = this.roadOf(L), sTo = this.node(P.to).s, s = T0.s0 + (sTo - T0.s0) * inc.at, q = this.stopPoint(s, P.dir, RD), f = RD.at(s), u = P.dir * JOURNEY_RULES.cord.side;
+          roadside = { x: q.x + f.nx * u, z: q.z + f.nz * u };
+          to = null;
+        } else rideH += (1 - inc.at) * rideH * 2 + res.delay; // a long haul's walk: the rest of the way on foot, three times as long
+      } else rideH += res.delay;
+    }
     const total = waitH + rideH;
-    this.advanceHours(total, `${L.id}:${P.from}->${to}`);
-    if (hurt) { p.hp = Math.max(Math.min(p.hp, 10), p.hp - hurt); g.hud?.shake?.(0.6); }
-    if (this.bus && !this.bus.keep) this.despawnBus();
-    const arrived = this.arrive(to, L, { dir: P.dir || 1 });
-    const trip = { line: L.id, from, to, wanted: P.to, kind: L.kind, waitHours: r1(waitH), rideHours: r1(rideH), hours: r1(total), miles: r1(miles), fare: P.fare, event: ev, cashLost, toll, hurt, seed: sd, onMap: arrived.onMap, at: +this.hours().toFixed(2) };
+    if (roadside) this.advanceHours(Math.max(0, res?.delay ?? 0), `${L.id}:roadside`);
+    else this.advanceHours(Math.max(0, total - T0.ranH), `${L.id}:${P.from}->${to}`);
+    if (hurt && !res) { p.hp = Math.max(Math.min(p.hp, 10), p.hp - hurt); g.hud?.shake?.(0.6); }
+    const arrived = roadside ? this.arriveAt(roadside) : this.arrive(to, L, { dir: P.dir || 1 });
+    const hours = roadside ? r1(T0.ranH + (res?.delay ?? 0)) : r1(total);
+    const trip = { line: L.id, from, to: to ?? 'roadside', wanted: P.to, kind: L.kind, waitHours: r1(waitH), rideHours: r1(rideH), hours, miles: r1(miles), fare: P.fare, event: ev, choice: res?.choice ?? null, cashLost, toll, hurt, seed: sd, onMap: arrived.onMap, at: +this.hours().toFixed(2), roadside: roadside ? { x: r1(roadside.x), z: r1(roadside.z) } : null, lost: res?.lost ?? [], seized: res?.seized ?? [] };
     this.log.push(trip); if (this.log.length > 20) this.log.shift();
     g.emit('arrived', { ...trip, event: ev?.id ?? null });
     const c = clock(this.hours());
-    this.card('arrive', { name: NODES[to]?.name, line: L.name, hours: r1(total), when: `DAY ${c.day} ${c.text}`, event: ev, cashLost, toll, hurt });
+    this.card('arrive', { name: roadside ? `THE ROADSIDE · ${this.g.clone?.placeName?.(roadside.x, roadside.z) ?? ''}` : NODES[to]?.name, line: L.name, hours, when: `DAY ${c.day} ${c.text}`, event: ev, cashLost, toll, hurt });
     return { ok: true, trip };
+  }
+  // Set down at a point (the roadside: a cord, an incident's walk).
+  arriveAt(q) {
+    const g = this.g, p = g.player;
+    if (this.away) this.leaveHall();
+    if (p.inVehicle) g.exitVehicle(true);
+    const t = { x: q.x, z: q.z };
+    g.streamer?.ensureHot(t.x, t.z, 'load');
+    g.statics.resolveCircle(t, 0.5);
+    p.x = t.x; p.z = t.z; p.gy = 0; p.storey = null; g.standOn?.(p);
+    g.camLook.x = p.x; g.camLook.z = p.z;
+    return { onMap: true, x: r1(p.x), z: r1(p.z) };
+  }
+  // The board's note: the pole nearest your base and the walk from it (the planner's answer, in one line).
+  homeNote() {
+    const base = this.g.clone?.ins?.baseXZ?.(), np = base && this.j.nearestPole(base);
+    return np ? `NEAREST POLE TO YOUR BASE: ${np.name} · ${np.km} KM WALK` : null;
   }
 
   // Step off at a node: its pole (the side you were travelling on), its counter, or its arrivals hall off the map.
@@ -466,7 +529,7 @@ export class Travel {
     else if (kind === 'flat') { title = 'YOU DIED FLAT'; lines = [`NO PRESSING IN THE BRINE: ${d.name} IS OVER`, d.fresh ? `A NEW DRIFTER WALKS IN FROM THE FLATS: ${d.fresh}` : 'THIS CHARACTER IS GONE FROM THE SHARD']; }
     else {
       title = `ARRIVED · ${d.name}`;
-      lines = [`${d.line} · ${d.hours} H ON THE CLOCK · ${d.when}`, d.event ? `${d.event.text}${d.cashLost ? ` · -$${d.cashLost}` : ''}${d.toll ? ` · TOLL $${d.toll}` : ''}${d.hurt ? ` · -${d.hurt} HP` : ''}${d.event.delay ? ` · +${d.event.delay} H` : ''}${d.event.putOff ? ' · PUT OFF SHORT' : ''}` : 'A QUIET RIDE'];
+      lines = [`${d.line} · ${d.hours} H ON THE CLOCK · ${d.when}`, d.event ? `${d.event.text}${d.event.choice ? ` (${d.event.choice.toUpperCase()})` : ''}${d.cashLost ? ` · -$${d.cashLost}` : ''}${d.toll ? ` · TOLL $${d.toll}` : ''}${d.hurt ? ` · -${d.hurt} HP` : ''}${d.event.delay ? ` · +${d.event.delay} H` : ''}${d.event.putOff ? ' · PUT OFF SHORT' : ''}` : 'A QUIET RIDE'];
     }
     this.lastCard = { kind, title, lines };
     this.ui.card(kind, title, lines, kind === 'flat' ? 7 : 5);
@@ -495,7 +558,9 @@ export class Travel {
       g.seats.board(ch, v, c.seat);
       crew.push(ch.id);
     }
-    this.bus = { vid: v.id, crew, line: L.id, dir, next, state: atStop ? 'dwell' : 'drive', dwellT: atStop ? L.dwell : 0, k, s0: s, broke: 0, rolledM: 0 };
+    // Passengers: people with names, flags and factions in the coach's rows (systems/journeys.js), seeded by the run.
+    const pax = this.j.seatPassengers(v, jrng(jhash(`${L.id}:${k ?? 'x'}:${dir}`)));
+    this.bus = { vid: v.id, crew, pax, line: L.id, dir, next, state: atStop ? 'dwell' : 'drive', dwellT: atStop ? L.dwell : 0, k, s0: s, broke: 0, rolledM: 0, actors: [] };
     g.emit('trundleSpawned', { vehicle: v.id, line: L.id, dir: dir > 0 ? 'east' : 'west', at: this.nodeName(st[next].id), crew: crew.length });
     return v;
   }
@@ -504,7 +569,8 @@ export class Travel {
     const g = this.g, B = this.bus;
     if (!B) return;
     const v = this.busVehicle();
-    for (const id of B.crew) { const c = g.chars.find((x) => x.id === id); if (c) { if (c.inVehicle) g.seats.leave(c, true); g.removeChar(c); } }
+    for (const id of [...B.crew, ...(B.pax ?? []), ...(B.actors ?? [])]) { const c = g.chars.find((x) => x.id === id); if (c) { if (c.inVehicle) g.seats.leave(c, true); g.removeChar(c); } }
+    if (this.j.pending?.where === 'aboard') this.j.choose(null);
     if (v) for (let i = 0; i < (v.occ?.length ?? 0); i++) if (v.occ[i] && v.occ[i] !== g.player && !g.chars.includes(v.occ[i])) v.occ[i] = null; // seats of crew a load already took
     if (v && !v.occ?.includes(g.player)) g.vehiclesSys.remove(v);
     this.bus = null;
@@ -573,6 +639,22 @@ export class Travel {
     if (!v.driver || !v.driver.alive || B.state === 'dead') { v.throttle = 0; v.steer = 0; v.handbrake = sp < 2; if (B.state !== 'dead' && B.state !== 'stranded') { B.state = 'stranded'; g.emit('trundleStranded', { vehicle: v.id }); if (aboard) g.hud?.toast?.('THE TRUNDLE IS DEAD IN THE ROAD · [F] GET OFF, OR TAKE THE WHEEL', 'hot'); } return; }
     // The guard: shoots at anything coming for the coach.
     this.guard(v, dt);
+    // The cord: brake where you are and let you down at the roadside (not a pole).
+    if (B.cord) {
+      v.throttle = sp > 0.4 ? -1 : 0; v.handbrake = sp < 1.5; v.steer *= 0.5;
+      if (sp < JOURNEY_RULES.cord.stopSpeed) { B.cord = false; if (aboard) this.dropRoadside(v, 'cord'); }
+      return;
+    }
+    // Something on the road (an incident staged on the map): brake to a stop short of it, then the card asks.
+    if (B.halt) {
+      const along = (B.halt.s - s) * B.dir;
+      const want = Math.max(0, Math.min(L.speed, Math.sqrt(2 * 3.2 * Math.max(0, along - 4))));
+      const ap = g.streamer.autopilot(v, B.dir, 1, want, RD === this.W ? null : RD);
+      v.steer = ap.steer; v.throttle = want < 0.5 ? (sp > 0.4 ? -1 : 0) : ap.throttle; v.handbrake = want < 0.5 && sp < 1.2;
+      if (sp < 1.2 && along < 10 && !B.halt.asked) { B.halt.asked = true; this.askOnMap(B.halt.inc, L, v); }
+      return;
+    }
+    if (B.fightT > 0) { B.fightT -= dt; v.throttle = sp > 0.5 ? -1 : 0; v.handbrake = true; v.steer = 0; if (!(B.actors ?? []).some((id) => g.chars.find((c) => c.id === id)?.alive)) B.fightT = 0; return; }
     if (B.broke > 0) { B.broke -= dt; v.throttle = sp > 1 ? -1 : 0; v.handbrake = sp < 1.5; v.steer = 0; return; }
     if (B.state === 'dwell') {
       v.throttle = sp > 0.5 ? -1 : 0; v.handbrake = true; v.steer = 0;
@@ -622,6 +704,15 @@ export class Travel {
       if (free !== undefined) { if (free !== 1) B.passS = s + B.dir * (blocked[B.lane] + 20); B.lane = free; } // hold the lane until well past it
     }
     if (blocked[B.lane] < 30) want = Math.min(want, Math.max(0, (blocked[B.lane] - 9) * 0.8));
+    // The freight on (or nearly at) the Route 66 level crossing: wait short of the tracks, never stop on them. The lane
+    // rays see statics and vehicles, not the train: a trundle once drove into it there, lost its engine and sat dead at
+    // the Iron Crossing pole.
+    const Tr = g.train;
+    if (Tr?.near && Math.abs(v.z) < 40 && RD === this.W) {
+      const ahead = (RAIL.x - v.x) * (Math.sin(v.h) >= 0 ? 1 : -1), half = 6.5;
+      if (ahead > half + 1.5 && ahead < 70 && Tr.near(0, 45)) { want = Math.min(want, Math.max(0, (ahead - half - 7) * 0.6)); if (!B.trainWait) { B.trainWait = true; g.emit('trundleWaitsForTrain', { vehicle: v.id }); } }
+      else B.trainWait = false;
+    }
     if (B.lane !== 1) want = Math.min(want, 9); // easy round it
     // Anyone on foot in its path: stop and lean on the horn.
     const fx = Math.sin(v.h), fz = Math.cos(v.h);
@@ -633,12 +724,15 @@ export class Travel {
     // En route with you aboard: a mile of road can turn something up.
     if (aboard && this.ride) {
       B.rolledM += sp * dt;
-      if (B.rolledM > 200) { B.rolledM -= 200; this.rollRealtime(L, v); }
+      if (B.rolledM > JOURNEY_RULES.rollEveryM) { B.rolledM -= JOURNEY_RULES.rollEveryM; this.rollRealtime(L, v); }
     }
   }
+  // The guard and every armed passenger: shoot from the windows at anything coming for the coach.
   guard(v, dt) {
-    const g = this.g, gd = (v.occ ?? []).find((o) => o && o.trundle === 'guard' && o.alive);
-    if (!gd?.weapon) return;
+    for (const o of v.occ ?? []) if (o && o.alive && o.weapon && (o.trundle === 'guard' || o.trundle === 'passenger')) this.shootFrom(v, o, dt);
+  }
+  shootFrom(v, gd, dt) {
+    const g = this.g;
     gd.cool = (gd.cool ?? 0) - dt;
     if (gd.cool > 0) return;
     let best = null, bd = 34;
@@ -647,24 +741,97 @@ export class Travel {
     gd.cool = 0.9 + Math.random() * 0.6;
     g.carCombat.fireFromVehicle(gd, v, gd.weapon, Math.atan2(best.x - v.x, best.z - v.z) + (Math.random() - 0.5) * 0.15);
   }
-  // A real-time ride's roll every 200 m (one thing per ride at most): Dustwolves come for the coach, it throws a belt, ...
+  // A real-time ride's roll every rollEveryM of road (one incident per ride): an INCIDENT row played out on the map with
+  // the real coach (systems/journeys.js rolls it, seeded by the punch and the stretch of road).
   rollRealtime(L, v) {
-    const g = this.g, R = this.ride;
+    const R = this.ride;
     if (!R || R.event) return;
-    const hh = g.sky.time, night = hh >= 20 || hh < 5;
-    const p = (1 - (1 - L.risk.perMile) ** (200 / MILE)) * (night ? L.risk.night : 1);
-    if (Math.random() >= p) return;
-    const pool = EN_ROUTE.filter((e) => e.kinds.includes('bus'));
-    let w = Math.random() * pool.reduce((a, e) => a + e.weight, 0), ev = pool[0];
-    for (const e of pool) if ((w -= e.weight) < 0) { ev = e; break; }
-    R.event = ev.id;
-    g.emit('enRoute', { event: ev.id, vehicle: v.id });
-    g.hud?.toast?.(ev.text, 'hot');
-    const B = this.bus, RD = this.roadOf(L), f = RD.at(RD.project(v.x, v.z, 600).s + B.dir * 240);
-    if (ev.id === 'ambush') { for (let k = 0; k < 3; k++) { const c = g.spawnRaider?.(f.x + (k - 1) * 4, f.z + (k - 1) * 3, Math.random, k ? 'pistol' : 'smg'); if (c) { c.target = g.player; c.grudge = g.player; } } }
-    else if (ev.id === 'breakdown') B.broke = 20;
-    else if (ev.id === 'toll') { B.broke = 8; const t = 15; if (g.cash >= t) { g.cash -= t; g.hud?.toast?.(`TOLL PAID · $${t}`, 'warn'); } }
-    else if (ev.id === 'herd') g.zombies?.horde?.(f.x, f.z, 6, 0.2);
+    R.seg = (R.seg ?? 0) + 1;
+    const ctx = this.j.ctxFor(L, R.punch.from, R.punch.to, this.hours());
+    const p = this.j.odds({ ...ctx, miles: JOURNEY_RULES.rollEveryM / MILE }) * JOURNEY_RULES.realMul;
+    const inc = this.j.roll(ctx, jhash(`${R.punch.id}:rt:${R.seg}`), { p });
+    if (inc) this.stageIncident(inc, L, v);
+  }
+  // Put an incident on the map: the coach brakes for a roadblock or the bulls' checkpoint ahead (and the card asks when it
+  // stops), stops dead for a breakdown or a crash, meets the dead coming out of the brush; a thief is one of the passengers.
+  stageIncident(inc, L, v) {
+    const g = this.g, B = this.bus, R = this.ride, RD = this.roadOf(L), s = RD.project(v.x, v.z, 600).s;
+    if (!B || !R) return null;
+    R.event = inc.id; B.inc = inc;
+    g.emit('enRoute', { event: inc.id, vehicle: v.id, onMap: true });
+    g.hud?.toast?.(inc.title, 'hot');
+    const ahead = (m, lane = 0) => { const q = this.stopPoint(s + B.dir * m, B.dir, RD), f = RD.at(s + B.dir * m); return { x: q.x + f.nx * lane, z: q.z + f.nz * lane }; };
+    if (inc.id === 'roadblock' || inc.id === 'checkpoint') {
+      B.halt = { s: s + B.dir * 70, inc, asked: false };
+      if (inc.id === 'checkpoint') for (let k = 0; k < 2; k++) { const q = ahead(76, B.dir * (5 + k * 2)), c = g.addChar({ x: q.x, z: q.z, faction: 'warden', weapon: 'shotgun', name: `Town Bull ${k + 1}`, flag: g.randomFlag ? g.randomFlag(Math.random) : 'US', colors: outfit('warden') }); if (c) { c.hold = true; c.trundle = 'bull'; B.actors.push(c.id); } }
+    } else if (inc.id === 'breakdown' || inc.id === 'crash') {
+      if (inc.id === 'crash') { v.hp = Math.max(1, v.hp - v.maxHp * 0.45); g.hud?.shake?.(1); }
+      B.halt = { s: s + B.dir * 12, inc, asked: false };
+    } else {
+      if (inc.id === 'infected' && g.zombies?.enabled) { const q = ahead(150); g.zombies.horde?.(q.x, q.z, 6, 0.2); }
+      this.askOnMap(inc, L, v);
+    }
+    return inc;
+  }
+  askOnMap(inc, L, v) {
+    this.j.ask(inc, (res) => this.afterIncident(res, inc, L, v), { where: 'aboard' });
+  }
+  // What a choice does on the map: the coach goes on, waits, fights, or you are walking.
+  afterIncident(res, inc, L, v) {
+    const g = this.g, B = this.bus, RD = this.roadOf(L);
+    if (!B) return;
+    B.halt = null;
+    const wait = (h) => { B.broke = Math.min(30, (h ?? 0) / this.ts); };
+    if (inc.id === 'roadblock' && res.choice === 'fight') {
+      // Out of the wrecks they come, shooting; the guard and the armed passengers shoot back from the windows.
+      const s = RD.project(v.x, v.z, 600).s, f = RD.at(s + B.dir * 40);
+      for (let k = 0; k < 4; k++) { const c = g.spawnRaider?.(f.x + (k - 1.5) * 3, f.z + (k - 1.5) * 2, Math.random, k ? 'pistol' : 'smg'); if (c) { c.target = g.player; c.grudge = g.player; B.actors.push(c.id); } }
+      B.fightT = 60;
+    } else if (inc.id === 'thief' && res.choice === 'accuse' && res.won === false) {
+      const th = (B.pax ?? []).map((id) => g.chars.find((c) => c.id === id)).find((c) => c?.alive);
+      if (th) { g.seats.leave(th, true); th.hold = false; th.flee = 14; th.fleeX = v.x; th.fleeZ = v.z; th.trundle = null; B.pax = B.pax.filter((id) => id !== th.id); }
+    }
+    if (res.putOff) { if (inc.id === 'crash') B.state = 'stranded'; this.dropRoadside(v, inc.id); return; }
+    if (inc.id === 'crash') B.state = 'stranded';
+    wait(res.delay);
+    g.emit('incidentOnMap', { id: inc.id, choice: res.choice, vehicle: v.id });
+  }
+  // Pull the cord (F aboard a moving coach, or riding a stranger's car): stop where you are. False when there is nothing to
+  // pull (on foot, at a pole: F is the old F).
+  cord() {
+    const g = this.g, p = g.player, Lf = this.j.lift, lv = this.j.liftVehicle();
+    if (Lf && lv && p.inVehicle === lv && Lf.state === 'driving') { Lf.cord = true; g.hud?.toast?.('YOU ASK TO BE LET OUT HERE', 'job'); g.emit('cordPulled', { vehicle: lv.id, lift: true }); return true; }
+    const v = this.busVehicle();
+    if (!this.ride || !v || p.inVehicle !== v || !this.bus) return false;
+    if (this.bus.state === 'dwell' || g.vehiclesSys.speed(v) < JOURNEY_RULES.cord.stopSpeed) return false;
+    if (this.bus.cord) return true;
+    this.bus.cord = true;
+    g.emit('cordPulled', { vehicle: v.id });
+    g.hud?.toast?.('YOU PULL THE CORD · THE DRIVER PULLS OVER HERE', 'job');
+    return true;
+  }
+  // Set down beside a vehicle at the roadside (the cord, an incident's walk, a hitch's end): the outer shoulder side.
+  dropRoadside(v, why) {
+    const g = this.g, p = g.player, R = this.ride, L = this.line(R?.line ?? this.bus?.line);
+    const RD = (this.j.lift && this.j.lift.vid === v.id ? this.j.lift.cor : null) ?? (L ? this.roadOf(L) : this.W);
+    const pr = RD.project(v.x, v.z, 600), f = RD.at(pr.s), side = pr.side || 1, off = (v.wid ?? 2.4) / 2 + JOURNEY_RULES.cord.side * 0.5;
+    const at = { x: v.x, z: v.z };
+    if (R) this.endRide(why);
+    if (p.inVehicle) g.exitVehicle(true);
+    const t = { x: v.x + f.nx * side * off, z: v.z + f.nz * side * off };
+    g.statics.resolveCircle(t, 0.5);
+    p.x = t.x; p.z = t.z; p.gy = 0; p.storey = null; g.standOn?.(p);
+    const dist = r1(Math.hypot(p.x - at.x, p.z - at.z));
+    if (R) {
+      const trip = { line: R.line, from: R.punch.from, to: 'roadside', wanted: R.punch.to, kind: R.kind, hours: r1(this.hours() - R.at), fare: R.punch.fare, realtime: true, event: R.event ?? null, cord: why === 'cord', at: +this.hours().toFixed(2), onMap: true, roadside: { x: r1(p.x), z: r1(p.z) }, mile: r1(pr.s / MILE) };
+      this.log.push(trip); if (this.log.length > 20) this.log.shift();
+      g.emit('arrived', { ...trip });
+      const c = clock(this.hours());
+      this.card('arrive', { name: `THE ROADSIDE · MILE ${trip.mile}`, line: L?.name ?? '', hours: trip.hours, when: `DAY ${c.day} ${c.text}` });
+    }
+    this.lastDrop = { x: r1(p.x), z: r1(p.z), vx: r1(at.x), vz: r1(at.z), dist, why, mile: r1(pr.s / MILE) };
+    g.emit('droppedRoadside', { ...this.lastDrop });
+    return this.lastDrop;
   }
   // The trundle stopped at a pole: your stop? off you get.
   atPole(nodeId, v) {
@@ -726,6 +893,13 @@ export class Travel {
       }
     }
     this.updateIron();
+    this.j.updateHitch(dt);
+    // Aboard the coach: U for THE PASSENGERS. On foot: O thumbs out (or gets into the car that stopped for you).
+    const I = g.input;
+    if (I?.hit && !this.ui.open && p.alive) {
+      if (I.hit('KeyU') && this.ride?.kind === 'bus') this.j.openPassengers();
+      else if (I.hit('KeyO')) this.j.key();
+    }
   }
   // The iron: riding the freight off the island completes the trip (a fade): your halt, or a stowaway's luck.
   updateIron() {
@@ -873,7 +1047,8 @@ export class Travel {
       ride: this.ride ? { line: this.ride.line, kind: this.ride.kind, to: this.ride.punch.to, from: this.ride.from, since: this.ride.at, event: this.ride.event } : null,
       bus: this.bus ? { ...this.bus, x: v ? r1(v.x) : null, z: v ? r1(v.z) : null, speed: v ? r1(g.vehiclesSys.speed(v)) : 0, next: this.line(this.bus.line).stops[this.bus.next], hp: v ? Math.round(v.hp) : 0, driver: v?.driver?.id ?? null } : null,
       board: here ? this.boardRows(here).map((r) => ({ ...r, dep: r1(r.dep), arr: r1(r.arr), toName: this.nodeName(r.to) })) : null,
-      log: this.log.slice(-6), now: r1(this.hours()), lastCard: this.lastCard,
+      log: this.log.slice(-6), now: r1(this.hours()), lastCard: this.lastCard, journeys: this.j.view(), lastDrop: this.lastDrop ?? null,
+      pax: this.bus ? (this.bus.pax ?? []).map((id) => this.g.chars.find((c) => c.id === id)).filter(Boolean).map((c) => ({ id: c.id, name: c.name, flag: c.flag, faction: c.faction, weapon: c.weapon ?? null })) : [],
     };
   }
   nodesView() {

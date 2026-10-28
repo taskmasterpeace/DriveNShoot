@@ -11,6 +11,8 @@
 // A node whose town the map has not built is OFF THE MAP: a line may still run there (the airline does), and arriving
 // holds you in its arrivals hall until you buy your way back onto the map.
 
+import { HAUL } from './journeys.js';
+
 export const TRAVEL_RULES = {
   poleOffset: 3.2,        // a pole stands this far off the road's outer shoulder (m)
   boardR: 14,             // you can buy a punch within this many metres of a pole or a counter
@@ -35,6 +37,7 @@ export const NODES = {
   las_palmas:    { name: 'LAS PALMAS POLE', short: 'LAS PALMAS', at: { exit: 'LAS PALMAS STRIP' } },
   paso_knot:     { name: 'EL PASO KNOT', short: 'EL PASO', at: { town: 'elpaso' }, town: 'elpaso', knot: true },
   // THE SALT LINE (Florida's I-95, south to north: its arc length is miles from Miami). Knot: Meridian, the start.
+  miami_knot:    { name: 'MIAMI KNOT', short: 'MIAMI', at: { s: 160, road: 'I-95' }, town: 'miami', knot: true }, // mile 0: the cloning centre's door
   little_river:  { name: 'LITTLE RIVER POLE', short: 'LITTLE RIVER', at: { exit: 'LITTLE RIVER', road: 'I-95' } },
   meridian_knot: { name: 'MERIDIAN KNOT', short: 'MERIDIAN', at: { exit: 'MERIDIAN', road: 'I-95' }, town: 'meridian', knot: true },
   sebastian:     { name: 'SEBASTIAN POLE', short: 'SEBASTIAN', at: { exit: 'SEBASTIAN', road: 'I-95' } },
@@ -51,6 +54,8 @@ export const NODES = {
   ny_field:      { name: 'NEW YORK HARBOR FIELD', short: 'NEW YORK', town: 'newyork', air: true },
   ohio_field:    { name: 'OHIO RIVER FIELD', short: 'OHIO', town: 'cincinnati', air: true },
   nola_field:    { name: 'NEW ORLEANS LEVEE FIELD', short: 'NEW ORLEANS', town: 'neworleans', air: true },
+  // THE LONG HAUL (data/journeys.js HAUL): overland coaches between the big cities past the dust.
+  houston_depot: { name: 'HOUSTON COACH DEPOT', short: 'HOUSTON', town: 'houston', haul: true },
 };
 
 // ---- lines -------------------------------------------------------------------------------------------------------------
@@ -72,7 +77,7 @@ export const LINES = [
   {
     // Florida's trundle: the same rules on I-95 (WEB_FLORIDA.md), Meridian's knot in the middle of it. dir +1 = north.
     id: 'salt', kind: 'bus', name: 'SALT LINE', road: 'I-95', dirs: ['NORTH', 'SOUTH'], slang: 'the trundle',
-    stops: ['little_river', 'meridian_knot', 'sebastian', 'daytona', 'rosewood', 'st_augustine'], // in order up the road (Rosewood's exit is short of St. Augustine's)
+    stops: ['miami_knot', 'little_river', 'meridian_knot', 'sebastian', 'daytona', 'rosewood', 'st_augustine'], // in order up the road (Rosewood's exit is short of St. Augustine's)
     first: 7, every: 8,
     speed: 21, dwell: 14,
     fare: { base: 5, perMile: 1.0 },
@@ -108,6 +113,10 @@ export const LINES = [
     risk: { perFlight: 0.06 },
   },
 ];
+
+// THE LONG HAUL (docs/design/WEB_INSURANCE_JOURNEYS.md): its routes are rows in data/journeys.js; as a line its stops are
+// every node a route touches. Bought and slept through like a flight (its incidents are cards: it runs past the dust).
+LINES.push({ ...HAUL, stops: [...new Set(HAUL.routes.flatMap((r) => [r.from, r.to]))] });
 
 // ---- what the road turns up (a ride's risk roll picks one by weight; `kinds` limits it to some lines) ---------------------
 export const EN_ROUTE = [
