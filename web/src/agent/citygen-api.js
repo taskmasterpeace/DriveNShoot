@@ -304,7 +304,7 @@ export async function citygenChecks({ api, g, check, C }) {
     const B = R.B, S = R.S, y4 = S.Y[3];
     // a window on the front wall, floor 4: the band box of that storey with holes on the front side
     const fixed = B.front === 'N' ? B.z0 : B.front === 'S' ? B.z1 : B.front === 'W' ? B.x0 : B.x1, horiz = B.front === 'N' || B.front === 'S';
-    const band = T0.built.boxes.find((b) => b.tag === 'cg-wall' && Math.abs(b.base - y4) < 0.01 && b.holes && (horiz ? Math.abs((b.minZ + b.maxZ) / 2 - fixed) < 0.05 : Math.abs((b.minX + b.maxX) / 2 - fixed) < 0.05));
+    const band = T0.built.boxes.find((b) => b.tag === 'cg-wall' && Math.abs(b.base - (y4 - (S.y0 ?? 0))) < 0.01 && b.holes && (horiz ? Math.abs((b.minZ + b.maxZ) / 2 - fixed) < 0.05 : Math.abs((b.minX + b.maxX) / 2 - fixed) < 0.05));
     if (!band) return 'no front window on floor 4';
     const wc = (band.holes[0] + band.holes[1]) / 2, out = B.front === 'N' || B.front === 'W' ? -1 : 1;
     const inX = horiz ? wc : fixed - out * 0.7, inZ = horiz ? fixed - out * 0.7 : wc;

@@ -67,7 +67,7 @@ export class Interiors {
     const door = {
       id: row.id, row, kind: row.kind, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width,
       material: row.material, mat, color: row.color, locked: !!row.locked, lockHp: mat.lockHp, kicks: mat.kicks,
-      bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [],
+      bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [], y: row.y, // y: a door on raised ground (a settlement's pad, WEB_SITES_TERRAIN) or below the street
       broken: !!this.g.materials?.brokenDoors.has(row.id), // off its hinges for good (systems/materials.js)
     };
     const half = row.width / 2;
@@ -95,7 +95,7 @@ export class Interiors {
   makeWindow(row, reg, slot) {
     const ux = row.axis === 'x' ? 1 : 0, uz = row.axis === 'x' ? 0 : 1;
     const W = {
-      kind: 'window', id: row.id, row, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width, half: row.width / 2,
+      kind: 'window', id: row.id, row, x: row.x, z: row.z, y: row.y ?? 0, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width, half: row.width / 2,
       ax: row.x - ux * row.width / 2, az: row.z - uz * row.width / 2, state: row.state, hp: row.state === 'intact' ? WINDOW.hp : 0,
       boardHp: row.state === 'boarded' ? WINDOW.boardHp : 0, boardSide: row.boardSide ?? -1, hits: 0, slot, bi: row.b, planks: row.state === 'boarded' ? 3 : 0,
       roll: [frac(row.x * 7.3 + row.z * 3.1) * 0.3 - 0.15, frac(row.x * 1.7 + row.z * 9.7) * 0.3 - 0.15, frac(row.x * 5.1 + row.z * 2.3) * 0.3 - 0.15], // planks nailed up crooked
@@ -398,7 +398,7 @@ export class Interiors {
     dx /= dl; dz /= dl;
     for (let i = 0; i < 22; i++) {
       const a = (Math.random() - 0.5) * W.width;
-      g.fx.spawn(1, W.x + W.ux * a, WINDOW.sill + Math.random() * (WINDOW.top - WINDOW.sill), W.z + W.uz * a, dx * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.5 + Math.random() * 3, dz * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.9, 0.06, Math.random() < 0.5 ? '#cfe6ee' : '#9fc2d0', 18);
+      g.fx.spawn(1, W.x + W.ux * a, W.y + WINDOW.sill + Math.random() * (WINDOW.top - WINDOW.sill), W.z + W.uz * a, dx * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.5 + Math.random() * 3, dz * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.9, 0.06, Math.random() < 0.5 ? '#cfe6ee' : '#9fc2d0', 18);
     }
     for (const k of [0.7, -0.5]) g.fx.decal(W.x + dx * k, W.z + dz * k, 0.55, '#8f9ea4'); // glass on the floor
     g.audio.glass?.(g.pan(W.x));
@@ -728,7 +728,7 @@ export class Interiors {
     const L = WINDOW_LOOK, b = W.bi >= 0 ? this.g.world.buildings[W.bi] : null, town = b?.district === 'town';
     const hash = (k) => frac(W.x * (3.7 + k) + W.z * (1.3 + k * 2.1));
     // A box in the window's own frame: a along the wall from its centre, y up, n out of the wall.
-    const put = (a, y, n, sa, sy, sn, color, roll = 0) => items.push({ x: W.x + W.ux * a + W.nx * n, y, z: W.z + W.uz * a + W.nz * n, sa, sy, sn, color, yaw: W.axis === 'x' ? 0 : Math.PI / 2, roll });
+    const put = (a, y, n, sa, sy, sn, color, roll = 0) => items.push({ x: W.x + W.ux * a + W.nx * n, y: W.y + y, z: W.z + W.uz * a + W.nz * n, sa, sy, sn, color, yaw: W.axis === 'x' ? 0 : Math.PI / 2, roll });
     const wallH = W.row.wallH ?? b?.h ?? WINDOW.top, T = W.row.t ?? 0.5;
     const pal = town ? L.frame.town : L.frame.ruins, frame = pal[Math.floor(hash(0) * pal.length)];
     const oh = WINDOW.top - WINDOW.sill, fw = L.frame.w;
@@ -754,7 +754,7 @@ export class Interiors {
   }
 
   placeGlass(W, boot = false) {
-    _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z);
+    _o.position.set(W.x, W.y + (WINDOW.sill + WINDOW.top) / 2, W.z);
     _o.rotation.set(0, W.axis === 'x' ? 0 : Math.PI / 2, 0);
     _o.scale.set(W.width - 0.04, WINDOW.top - WINDOW.sill, 0.1);
     _o.updateMatrix();
@@ -767,9 +767,9 @@ export class Interiors {
     const L = WINDOW_LOOK.bars, oh = WINDOW.top - WINDOW.sill, on = W.state !== 'shattered' ? 1 : 0;
     const yaw = W.axis === 'x' ? 0 : Math.PI / 2;
     _o.rotation.set(0, yaw, 0);
-    _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z); _o.scale.set(L.w * on, oh * on, 0.12 * on); _o.updateMatrix();
+    _o.position.set(W.x, W.y + (WINDOW.sill + WINDOW.top) / 2, W.z); _o.scale.set(L.w * on, oh * on, 0.12 * on); _o.updateMatrix();
     this.barMesh.setMatrixAt(W.slot * 2, _o.matrix);
-    _o.position.set(W.x, WINDOW.sill + oh * L.transom, W.z); _o.scale.set(W.width * on, L.w * on, 0.12 * on); _o.updateMatrix();
+    _o.position.set(W.x, W.y + WINDOW.sill + oh * L.transom, W.z); _o.scale.set(W.width * on, L.w * on, 0.12 * on); _o.updateMatrix();
     this.barMesh.setMatrixAt(W.slot * 2 + 1, _o.matrix);
     if (!boot) this.barMesh.instanceMatrix.needsUpdate = true;
   }
@@ -782,7 +782,7 @@ export class Interiors {
       const up = W.state === 'boarded' ? Math.ceil(3 * W.boardHp / WINDOW.boardHp) : 0;
       for (let k = 0; k < up; k++) {
         const off = W.boardSide * 0.32;
-        _o.position.set(W.x + W.nx * off, WINDOW.sill + 0.3 + k * 0.5, W.z + W.nz * off);
+        _o.position.set(W.x + W.nx * off, W.y + WINDOW.sill + 0.3 + k * 0.5, W.z + W.nz * off);
         _o.rotation.set(0, yaw(W), W.roll[k]);
         _o.scale.set(W.width + 0.5, 0.3, 0.12);
         _o.updateMatrix();
@@ -817,7 +817,7 @@ export class Interiors {
   syncLock(door, boot = false) {
     if (door.lockSlot < 0) return; // a ring door: never locked, no padlock slot
     if (door.locked) {
-      _o.position.set(door.x + door.nx * 0.32, 1.15, door.z + door.nz * 0.32);
+      _o.position.set(door.x + door.nx * 0.32, (door.y ?? 0) + 1.15, door.z + door.nz * 0.32);
       _o.rotation.set(0, door.axis === 'x' ? 0 : Math.PI / 2, 0);
       _o.scale.set(door.width + 0.5, 0.16, 0.14);
       _o.updateMatrix();
@@ -887,10 +887,10 @@ export class Interiors {
     const rows = [];
     geo.doors.forEach((d, k) => {
       if (d.kind === 'bay' || d.barricade) return;
-      rows.push({ id: `${id}:d${k}`, kind: d.kind, x: d.x, z: d.z, axis: d.nx ? 'z' : 'x', width: d.w - 0.1, nx: d.nx, nz: d.nz,
+      rows.push({ id: `${id}:d${k}`, kind: d.kind, x: d.x, z: d.z, y: lot.y, axis: d.nx ? 'z' : 'x', width: d.w - 0.1, nx: d.nx, nz: d.nz,
         leaves: d.kind === 'front' && d.w >= 2.3 ? 2 : 1, inner: false });
     });
-    (geo.innerDoors ?? []).forEach((d, k) => rows.push({ id: `${id}:i${k}`, kind: 'inner', x: d.x, z: d.z, axis: d.axis, width: d.w - 0.1,
+    (geo.innerDoors ?? []).forEach((d, k) => rows.push({ id: `${id}:i${k}`, kind: 'inner', x: d.x, z: d.z, y: lot.y, axis: d.axis, width: d.w - 0.1,
       nx: d.axis === 'x' ? 0 : 1, nz: d.axis === 'x' ? 1 : 0, leaves: 1, inner: true }));
     for (const r of rows) {
       if (this.freeLeaf.length < r.leaves) break; // the pool is full: these stay gaps
@@ -913,7 +913,7 @@ export class Interiors {
     geo.windows.forEach((w, k) => {
       if (!this.freeWin.length) return;
       const mix = WINDOW_MIX[w.ruined ? 'ruined' : 'ruins'], q = h01(w.x, w.z, 9);
-      const row = { ...w, id: `${id}:w${k}`, state: q < mix[0] ? 'intact' : q < mix[0] + mix[1] ? 'shattered' : 'boarded', boardSide: h01(w.x, w.z, 10) < 0.75 ? -1 : 1, b: -1 };
+      const row = { ...w, y: lot.y ?? w.y, id: `${id}:w${k}`, state: q < mix[0] ? 'intact' : q < mix[0] + mix[1] ? 'shattered' : 'boarded', boardSide: h01(w.x, w.z, 10) < 0.75 ? -1 : 1, b: -1 };
       const W = this.makeWindow(row, reg, this.freeWin.pop());
       W.ring = id;
       const v = this.ringState.get(row.id);

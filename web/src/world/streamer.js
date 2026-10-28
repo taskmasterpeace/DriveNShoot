@@ -528,11 +528,14 @@ export class Streamer {
     if (!!on === !!W.terrain) return { on: !!W.terrain, changed: false };
     let T = null;
     if (on) {
-      const { loadTerrain, RealTerrain } = await import('./realterrain.js');
-      this.terrainAsset ??= await loadTerrain(new URL('../data/terrain/i10.bin', import.meta.url).href);
-      T = new RealTerrain(this.terrainAsset, W);
+      const { loadTerrain, RealTerrain, PACK_FILES } = await import('./realterrain.js');
+      // The strip and the sheet packs (docs/design/WEB_SITES_TERRAIN.md §3.3), fetched once, in parallel.
+      [this.terrainAsset, this.terrainPacks] = await Promise.all([this.terrainAsset ?? loadTerrain(new URL('../data/terrain/i10.bin', import.meta.url).href),
+        this.terrainPacks ?? Promise.all(PACK_FILES.map((f) => loadTerrain(new URL(`../data/terrain/${f}.bin`, import.meta.url).href)))]);
+      T = new RealTerrain(this.terrainAsset, W, this.terrainPacks);
     }
     W.terrain = T;
+    this.g.citygen?.onTerrain?.(T); // settlements stand on their pads (systems/citygen.js): live ones are stamped again
     W.mesaCache?.clear(); // mesas read the biome, which reads the landcover now
     // L1 water sits in the land now (its surfaces and beds from the real heights); L2 plans its decks again (a river far
     // below a road on a fill is a gorge: a deck, not a culvert).
