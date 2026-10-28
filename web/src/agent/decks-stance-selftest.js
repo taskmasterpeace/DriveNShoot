@@ -31,6 +31,8 @@ export async function decksStanceChecks(api, check, C, H) {
     standUp(); wvClean([]);
     const parked = [];
     for (const b of g.vehicles) if (b.type === 'gunboat' && b.ai) { parked.push([b, b.ai]); b.ai = null; b.throttle = 0; } // the lake's patrol charges anyone afloat
+    const moved = []; // idle boats an earlier check left on the lake: off it for the run (one ram at speed throws anyone)
+    for (const b of g.vehicles) if (b.boat && !b.occ?.some(Boolean) && Math.hypot(b.x - LAKE.x, b.z - LAKE.z) < LAKE.r + 4) { moved.push([b, b.x, b.z]); b.x = LAKE.x + 300; b.z = LAKE.z + 300; b.vx = b.vz = 0; }
     const { v, d } = crewed('airboat', LAKE.x - 20, LAKE.z, Math.PI / 2);
     try {
       await api._step(10);
@@ -38,8 +40,10 @@ export async function decksStanceChecks(api, check, C, H) {
       g.crouchOverride = true;
       const h0 = v.h, F = v.deck.floor, r = DECK_RULES.radius;
       let off = 0, outside = 0, low = 0, maxSp = 0, turned = 0, chop = 0, footSeen = 0, prev = v.h;
+      const seq = g.eventSeq;
       for (let f = 0; f < 60 * 14; f++) {
-        v.throttle = 1; v.steer = f > 90 ? 0.7 : 0; // up to speed, then hard over
+        const sNow = g.vehiclesSys.speed(v);
+        v.throttle = sNow < 14 ? 1 : 0.2; v.steer = f > 90 ? 0.75 : 0; // ~14 m/s (30 mph), then hard over: a tight circle on the lake
         await api._step(1);
         const o = P().onDeck;
         if (o?.v !== v) { off++; break; }
@@ -51,8 +55,9 @@ export async function decksStanceChecks(api, check, C, H) {
         if (turned > Math.PI * 2) break;
       }
       v.throttle = 0; v.steer = 0;
-      return !off && !outside && !low && maxSp > 8 && turned > Math.PI && chop > 0 && footSeen > 0 ? true : JSON.stringify({ off, outside, low, maxSp: r2(maxSp), turned: r2(turned), chop: r2(chop), footSeen, h0: r2(h0) });
-    } finally { g.crouchOverride = false; for (const [b, ai] of parked) b.ai = ai; wvClean([v, d]); }
+      const why = g.events.filter((e) => e.seq > seq && /deck|thrown|crash|collide/.test(e.type)).slice(-3);
+      return !off && !outside && !low && maxSp > 8 && turned > Math.PI && chop > 0 && footSeen > 0 ? true : JSON.stringify({ off, outside, low, maxSp: r2(maxSp), turned: r2(turned), chop: r2(chop), footSeen, h0: r2(h0), at: [r2(v.x - LAKE.x), r2(v.z - LAKE.z)], why });
+    } finally { g.crouchOverride = false; for (const [b, ai] of parked) b.ai = ai; for (const [b, x, z] of moved) { b.x = x; b.z = z; } wvClean([v, d]); }
   }));
 
   await check('decks-stance: the trundle\'s aisle - walk in its kerb door and down the aisle between the benches to the luggage at the back on held keys (the roof cuts away; never inside a bench, never off the floor)', async () => hush(async () => {
