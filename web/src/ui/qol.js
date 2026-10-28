@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { HALF, locationName } from '../world/city.js';
+import { layerMesh } from '../engine/depthlayers.js';
 import { snapshot, restore } from '../agent/api.js';
 import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
@@ -156,7 +157,7 @@ export class QOL {
     // Interaction ring under whatever E/F would act on.
     const ring = new THREE.RingGeometry(0.75, 0.95, 40); ring.rotateX(-Math.PI / 2);
     this.ring = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({ color: '#f5b21a', transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }));
-    this.ring.renderOrder = 5;
+    layerMesh(this.ring, 'ring'); // engine/depthlayers.js
     this.ring.visible = false;
     game.scene.add(this.ring);
     this.apply();
@@ -557,7 +558,7 @@ export class QOL {
     if (!target) { this.ring.visible = false; return; }
     this.ring.visible = true;
     const s = target.len ? target.len * 0.45 : 1;
-    this.ring.position.set(target.x, 0.18, target.z);
+    this.ring.position.set(target.x, (this.g.fx?.ground?.(target.x, target.z) ?? 0) + 0.18, target.z); // on the land under it
     this.ring.scale.setScalar(s * (1 + Math.sin(performance.now() * 0.006) * 0.06));
   }
 

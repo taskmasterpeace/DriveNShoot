@@ -937,7 +937,7 @@ class Game {
     // QOL: slow regen to 60% after 6s without taking damage.
     p.sinceHit = (p.sinceHit ?? 99) + dt;
     if (p.sinceHit > 6 && p.hp < 60) p.hp = Math.min(60, p.hp + dt * 4 * this.needs.healMul); // healMul: hunger, cold, gloom, an infection (survival.js)
-    if (p.bleed > 0) { p.bleed = Math.max(0, p.bleed - dt * 0.05); if (Math.random() < dt * 5 * p.bleed) this.fx.decal(p.x, p.z, 0.2 + Math.random() * 0.25, '#5a0606'); }
+    if (p.bleed > 0) { p.bleed = Math.max(0, p.bleed - dt * 0.05); if (Math.random() < dt * 5 * p.bleed) this.fx.decal(p.x, p.z, 0.2 + Math.random() * 0.25, '#5a0606', undefined, this.fx.onFloor(p)); } // on their floor (engine/depthlayers.js)
     if (sprint && len && Math.random() < dt * 6) this.fx.dust(p.x, p.z, 1);
 
     // Weapon select.

@@ -5934,6 +5934,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await citygenChecks({ api, g, check, C });
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
+  await zfightChecks({ g, check, C }); // the depth layers: no flicker at six spots, blood shows from the widest zoom (WEB_DEPTH_LAYERS.md §8)
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)

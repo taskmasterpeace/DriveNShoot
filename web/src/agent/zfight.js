@@ -9,7 +9,7 @@
 //
 // Pure reading: nothing in the scene is touched. An agent command (tens of ms), never per frame.
 import * as THREE from 'three';
-import { DEPTH } from '../engine/depthlayers.js';
+import { DEPTH, LAYERS, nearFor } from '../engine/depthlayers.js';
 
 const _m = new THREE.Matrix4(), _mi = new THREE.Matrix4(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
 const _s = new THREE.Sphere();
@@ -84,15 +84,17 @@ export function zfightScan(g, { x, z, r = 24, spacing = 0.5, minNy = -0.25, deca
   const D = { v: [], n: [], bb: [], tag: [], flip: false }; // decals
   const tags = []; // { o, inst, label, off, m }
   let meshes = 0;
+  // People are not layers: two standing on one spot (a body over a body) overlap for as long as they do (systems/characters.js).
+  const actors = new Set(Object.values(g.charR?.meshes ?? {}));
   const nearS = (sph) => sph.center.x + sph.radius >= box.x0 && sph.center.x - sph.radius <= box.x1 && sph.center.z + sph.radius >= box.z0 && sph.center.z - sph.radius <= box.z1;
   scene.traverse((o) => {
-    if (!o.isMesh || o.isSkinnedMesh || !visibleUp(o)) return;
+    if (!o.isMesh || o.isSkinnedMesh || actors.has(o) || !visibleUp(o)) return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
     if (!m || m.visible === false || m.colorWrite === false || m.depthTest === false) return;
     if (m.blending === THREE.AdditiveBlending) return; // glows: light, not a surface
     const geo = o.geometry; if (!geo?.attributes?.position) return;
     if (!geo.boundingSphere) geo.computeBoundingSphere();
-    const decal = isDecal(m), into = decal ? D : (m.transparent ? null : S);
+    const decal = isDecal(m) && (m.polygonOffset || LAYERS[o.userData?.depthLayer]?.write === false), into = decal ? D : (m.transparent ? null : S); // (a decal says so: its layer row or its polygonOffset; glass and smoke do not)
     if (!into) return; // a see-through sheet that still writes depth (glass, water): sorted after the opaque world
     const off = offKey(m), label = labelOf(o);
     meshes++;
@@ -238,4 +240,71 @@ export function zfightCommands(api) {
   };
 }
 
-export async function zfightChecks() {}
+// The spots the battery scans (docs/design/WEB_DEPTH_LAYERS.md §8): a Phoenix street, a ring house you stand inside (its
+// roof cut away), the Phoenix ring's densest blocks, Meridian (Florida, a holdout on real terrain), the interstate in the
+// Arizona hills, and a stamped Florida county seat's police station and its roofs.
+export const ZFIGHT_SPOTS = [
+  { id: 'phoenix street', at: { x: 0, z: -70 } },
+  { id: 'ring house interior (cutaway)', at: { x: 598, z: 300 } },
+  { id: 'ring dense blocks', at: { x: -896, z: -384 } },
+  { id: 'meridian (florida)', at: { town: 'meridian' } },
+  { id: 'i-10 mile 30 (real terrain)', at: { mile: 30, dir: 'east' } },
+  { id: 'county seat police station + roofs', stamp: { archetype: 'county_seat', at: '222600,56160' }, at: { x: 222582, z: 56160 } },
+];
+
+export async function zfightChecks({ g, check, C }) {
+  const home = { x: g.player.x, z: g.player.z };
+  await check("zfight: no two visible, depth-writing, up-facing faces share a plane (closer than the depth gap, no polygonOffset between them) at six spots - a Phoenix street, a ring house interior with its roof cut away, the ring's densest blocks, Meridian on Florida's real terrain, I-10 in the Arizona hills, a stamped county seat's police station and roofs - and no ground decal is buried under the floor it lies on", async () => {
+    const out = {};
+    let bad = 0;
+    for (const S of ZFIGHT_SPOTS) {
+      let stamp = null;
+      if (S.stamp) { await C('teleport', S.at); stamp = await C('citygen', { action: 'stamp', ...S.stamp }); }
+      await C('teleport', S.at); await C('step', { seconds: 0.6 });
+      const z = zfightScan(g, { x: g.player.x, z: g.player.z, r: 40 });
+      out[S.id] = { up: z.fights, walls: z.wallFights, buried: z.decals.buried, tris: z.tris, worst: z.pairs.find((q) => q.facing === 'up')?.pair };
+      if (z.fights || z.decals.buried) bad++;
+      if (stamp?.id) await C('citygen', { action: 'remove', id: stamp.id });
+    }
+    await C('teleport', home);
+    return bad ? JSON.stringify(out) : true;
+  });
+
+  await check("zfight: blood shows on a ring shop's floor and on open sand from the widest game zoom (a red decal changes the pixel under it from 140 m up; hidden, it does not), and the camera's near plane follows the boom (>= 6x the old 1 m at the widest zoom)", async () => {
+    const THREEv = (await import('three'));
+    const W = 384, H = 216, rt = new THREEv.WebGLRenderTarget(W, H), buf = new Uint8Array(W * H * 4), cam = g.camera;
+    const near0 = cam.near, pos0 = cam.position.clone(), q0 = cam.quaternion.clone(), asp0 = cam.aspect;
+    const res = {};
+    try {
+      await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
+      for (const [id, at] of [['ring floor', { x: 598, z: 300 }], ['open sand', { x: 300, z: 640 }]]) {
+        await C('teleport', at); await C('step', { seconds: 0.5 });
+        const x = g.player.x + 2.5, z = g.player.z + 2.5, gy = g.fx.ground ? g.fx.ground(x, z) : 0;
+        const i = g.fx.decal(x, z, 2.2, '#ff0000', 0);
+        const shot = (vis) => {
+          g.fx.dMesh.visible = vis; const h = 140;
+          cam.near = nearFor(h); cam.aspect = W / H; cam.position.set(x, gy + h, z + h * 0.14); cam.lookAt(x, gy, z); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+          g.renderer.setRenderTarget(rt); g.renderer.render(g.scene, cam); g.renderer.setRenderTarget(null);
+          g.renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+          // the reddest pixel inside the decal's footprint on screen (a splat has gaps; furniture can stand on part of it)
+          const c = new THREEv.Vector3(x, gy, z).project(cam), e = new THREEv.Vector3(x + 1, gy, z).project(cam);
+          const px = (c.x / 2 + 0.5) * W, py = (c.y / 2 + 0.5) * H, rp = Math.max(1, Math.abs(e.x - c.x) / 2 * W);
+          let best = -999;
+          for (let yy = Math.floor(py - rp); yy <= py + rp; yy++) for (let xx = Math.floor(px - rp); xx <= px + rp; xx++) {
+            if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+            const k = (yy * W + xx) * 4; best = Math.max(best, buf[k] - buf[k + 1]);
+          }
+          return best;
+        };
+        const on = shot(true), off = shot(false);
+        g.fx.dMesh.visible = true; g.fx.dMesh.setMatrixAt(i, new THREEv.Matrix4().makeScale(0, 0, 0)); g.fx.dMesh.instanceMatrix.needsUpdate = true;
+        res[id] = { on, off, redder: on - off, near: +nearFor(140).toFixed(2) };
+      }
+    } finally {
+      cam.near = near0; cam.aspect = asp0; cam.position.copy(pos0); cam.quaternion.copy(q0); cam.updateProjectionMatrix(); rt.dispose();
+      await C('teleport', home);
+    }
+    const ok = Object.values(res).every((r) => r.redder > 30) && nearFor(175) >= 6;
+    return ok ? true : JSON.stringify(res);
+  });
+}

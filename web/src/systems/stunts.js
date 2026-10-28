@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { layerMesh } from '../engine/depthlayers.js';
 import { RAMPS, PROPS, JUMPS, SITES, STUNT } from '../data/stunts.js';
 import { radialGlow } from '../world/textures.js';
 import { makeRng } from '../engine/rng.js';
@@ -344,7 +345,7 @@ export class Stunts {
   }
 
   initShadows(scene) {
-    const mat = new THREE.MeshBasicMaterial({ map: radialGlow(), color: '#000000', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const mat = new THREE.MeshBasicMaterial({ map: radialGlow(), color: '#000000', transparent: true });
     // Instance colour is the blob's strength: alpha *= r. (Black stays black.)
     // (Instance colours reach the fragment shader as USE_COLOR / vColor; USE_INSTANCING_COLOR is vertex-only.)
     mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n#ifdef USE_COLOR\n  diffuseColor.a *= vColor.r;\n#endif'); };
@@ -353,7 +354,7 @@ export class Stunts {
     this.shadows.setColorAt(0, _c.setScalar(1));
     this.shadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.shadows.instanceColor.setUsage(THREE.DynamicDrawUsage);
-    this.shadows.count = 0; this.shadows.visible = false; this.shadows.frustumCulled = false; this.shadows.renderOrder = 2;
+    this.shadows.count = 0; this.shadows.visible = false; this.shadows.frustumCulled = false; layerMesh(this.shadows, 'shadowBlob'); // engine/depthlayers.js
     scene.add(this.shadows);
   }
 

@@ -55,6 +55,12 @@ export function ribbonRank(rb, tx, tz) {
   return 2 + Math.min(2, Math.floor(h / (Math.PI / 3)));
 }
 
+// Where a decal on the ground lies: DECAL_Y over the ground under it (or over the floor a character stands on upstairs),
+// above every opaque floor layer a building lays on its pad (the ring's slab 0.12, its finishes 0.132, rugs to 0.15),
+// so blood on a shop floor, a rug and the sand outside all lie on top. TRACK_Y: tyre tracks and skids, over every road
+// rank and town step (0.078) and the stop-line paint (0.09), under the decals.
+export const DECAL_Y = 0.16, TRACK_Y = 0.095;
+
 // Apply a decal row to a material (and its mesh's renderOrder): the one call every decal layer makes.
 export function decalMaterial(mat, layer) {
   const L = LAYERS[layer];

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
+import { STEP } from '../engine/depthlayers.js';
 import { Hasher } from './geo.js';
 import { STOREY, FLIGHT, RAIL, WINDOWS, LEVEL, RISE, UPSTAIRS, QUARTERS } from '../data/storeys.js';
 import { ROOMS, SCATTER } from '../data/floorplans.js';
@@ -264,7 +265,7 @@ export class Storeys {
     // ---- floors: a slab over the footprint with the arriving flight's hole left open (visual; the deck is heightAt).
     const slabCol = b.district === 'town' ? '#6b5543' : '#5a524a'; // boards in town, concrete in the ruins: a floor, not more wall
     for (let k = 1; k <= n; k++) {
-      const hole = S.flights[k - 1], y = Y[k] - STOREY.slab / 2;
+      const hole = S.flights[k - 1], y = Y[k] - STOREY.slab / 2 + STEP / 2; // drawn half a depth step proud of the wall tops it overlaps, under the floor finishes (engine/depthlayers.js)
       const x0 = S.ix0, x1 = S.ix1, z0 = S.iz0, z1 = S.iz1;
       const rect = (a, bb, c, d) => { if (bb - a > 0.05 && d - c > 0.05) vis((a + bb) / 2, y, (c + d) / 2, bb - a, STOREY.slab, d - c, slabCol, k); };
       rect(x0, x1, z0, hole.minZ); rect(x0, x1, hole.maxZ, z1);
