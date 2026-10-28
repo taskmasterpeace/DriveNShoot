@@ -25,7 +25,8 @@ const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const CAND = { x: 0, z: 0, s: -1e9, cover: 0, veh: false };
 const NEAR = [];  // the boxes round a search (reused: no allocation per plan)
-const NEAR_MAX = 10;
+const NEAR_MAX = 6;
+const MATES = []; // squadmates' tactic units for a plan's crowd test (reused)
 const P = { x: 0, z: 0 };
 
 export class Tactics {
@@ -158,12 +159,15 @@ export class Tactics {
     const tf = t.inVehicle ? t.inVehicle.h : t.face ?? 0;
     const base = g.stunts?.heightAt ? g.stunts.heightAt(c.x, c.z, 0) : 0;
     CAND.s = -1e9; CAND.x = ax; CAND.z = az; CAND.cover = 0; CAND.veh = false;
+    // The squadmates' chosen spots, once per plan (not once per candidate x every character).
+    const mates = MATES; mates.length = 0;
+    for (const o of g.chars) { const ot = o.tac; if (o === c || !ot?.goal || !o.alive || o.faction !== c.faction) continue; if (Math.abs(ot.gx - ax) > r + 20 || Math.abs(ot.gz - az) > r + 20) continue; mates.push(ot); }
     const score = (px, pz, cover, veh, stay) => {
       const dT = Math.hypot(px - tx, pz - tz);
       const bandFit = clamp(1 - Math.abs(dT - mid) / half, -3, 1); // out of band counts more the further out
       const walk = Math.hypot(px - c.x, pz - c.z);
       let crowd = 0;
-      for (const o of g.chars) { if (o === c || !o.tac?.goal || !o.alive || o.faction !== c.faction) continue; if (Math.abs(o.tac.gx - px) < 1.6 && Math.abs(o.tac.gz - pz) < 1.6) { crowd = 1; break; } }
+      for (let k = 0; k < mates.length; k++) if (Math.abs(mates[k].gx - px) < 1.6 && Math.abs(mates[k].gz - pz) < 1.6) { crowd = 1; break; }
       let flankFit = 0;
       if (role === 'flank') { const off = Math.abs(angDiff(Math.atan2(px - tx, pz - tz), tf)) / DEG; flankFit = off >= T.flank.minDeg && off <= T.flank.maxDeg ? 1 : -Math.min(1, Math.min(Math.abs(off - T.flank.minDeg), Math.abs(off - T.flank.maxDeg)) / 45); }
       let rise = 0;

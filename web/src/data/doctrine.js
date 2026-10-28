@@ -26,11 +26,11 @@ export const DOCTRINE = {
 export const BANDS = { none: [1, 3], pistol: [7, 18], auto: [8, 20], smg: [9, 22], shotgun: [3, 9], pump: [3, 10], rifle: [25, 45] };
 
 export const TACTICS = {
-  thinkHz: 5,            // each unit re-plans this often...
-  perFrame: 6,           // ...and no more than this many plan in one frame (staggered)
+  thinkHz: 3,            // each unit re-plans this often...
+  perFrame: 3,           // ...and no more than this many plan in one frame (staggered)
   squadR: 30,            // allies this close fighting the same target are one squad
   coverR: 14,            // how far a unit looks for cover
-  probes: 10,            // directions tried per plan (fixed: no allocation)
+  probes: 8,             // directions tried per plan (fixed: no allocation)
   crouchY: 0.6, standY: 1.4, // the heights a cover point is tested at: covered crouched, and able to shoot standing (low cover)
   w: { exposure: 3, band: 1.5, travel: 0.05, elevation: 0.6, crowd: 1.2, vehicle: 0.4, flank: 2.5, stay: 0.6 },
   suppress: { coneDeg: 10, r: 45, add: 0.3, decay: 0.4, aimMul: 1.6, hugAt: 0.55, fireMul: 1.6 },
