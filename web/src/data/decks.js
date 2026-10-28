@@ -21,6 +21,12 @@
 //   cover     0..1: a crouched rider's chance that the bed's side takes a round meant for them
 //   camp      true: parked, it makes camp (the awning, the stove works) - systems/decks.js CAMP
 //   tank      litres the water tank holds (drink at the sink; rain tops it up while camped)
+//   ceil      clear height over the floor (a cabin): lower than a stance's body.h (data/stance.js) and the rider stoops
+//   ladders   [{ id, at: [x, z], top: [x, z] }]: a ladder up to THIS deck (a roof). `at` is the foot of it on the ground
+//             outside, `top` where you step off at the top. E at either end climbs (systems/decks.js); a roof deck is
+//             named by its vehicle row's `roofDeck`
+//   throwMul  every throw-out line times this (a bare roof is worse to ride than a bed with sides: < 1)
+//   chop      boats: m/s^2 of felt rocking per m/s of speed on the water (the hull slaps the chop); spray: spray at the bow
 export const DECKS = {
   // A pickup's bed: open, low rails all round, the cab's back wall in front, a crossover toolbox at the cab end.
   pickupBed: {
@@ -42,7 +48,7 @@ export const DECKS = {
     fixtures: [{ id: 'bench', kind: 'seat', box: [0.56, 1.0, -0.95, 0.35], h: 0.45 }],
     containers: [{ id: 'locker', label: 'LOCKER', box: [0.5, 1.0, -2.56, -1.72], h: 1.25, cap: 160, loot: null }],
     beds: [{ id: 'mattress', box: [-1.0, -0.12, -2.56, -0.95], h: 0.16, at: [-0.56, -1.75], face: 0 }],
-    wheel: [0.45, 0.62], seatsInside: true,
+    wheel: [0.45, 0.62], seatsInside: true, ceil: 1.4,
   },
   // An RV: a cab up front, then a coach you live in. The bed across the back, a wardrobe, a kitchenette down the
   // driver's side (stove, sink over the water tank, cupboards), a dinette across from it, a locker by the door. The
@@ -65,9 +71,85 @@ export const DECKS = {
       { id: 'locker', label: 'LOCKER', box: [0.66, 1.15, 0.05, 0.62], h: 1.8, cap: 140, loot: 'garage' },
     ],
     beds: [{ id: 'bed', box: [-1.15, 1.15, -3.88, -2.42], h: 0.55, at: [0, -3.15], face: Math.PI / 2 }],
-    wheel: [0.55, 1.5], seatsInside: true, camp: true, tank: 60,
+    wheel: [0.55, 1.5], seatsInside: true, camp: true, tank: 60, ceil: 2.1,
+  },
+
+  // ---- boats (WEB_DECKS_STANCE.md §3.1): open decks that rock and throw spray ------------------------------------------
+  // An airboat's flat deck in front of the raised driver's seat; the fan cage fills the stern. A gunwale you could step
+  // over (a dive goes over it, into the water). The driver stands up out of the seat onto the deck (seatsInside).
+  airboatDeck: {
+    open: true, y: 0.67, floor: [-1.1, 1.1, -1.05, 1.55],
+    edges: { front: { h: 0.12 }, rear: { h: 0.9 }, left: { h: 0.12 }, right: { h: 0.12 } },
+    doors: [],
+    fixtures: [{ id: 'chair', kind: 'seat', box: [-0.45, 0.45, -0.85, 0.05], h: 0.9 }],
+    containers: [{ id: 'cooler', label: 'COOLER', box: [0.62, 1.1, -1.05, -0.62], h: 0.4, cap: 40, loot: 'kitchen' }],
+    beds: [],
+    wheel: [0, 0.32], seatsInside: true, cover: 0.2, chop: 0.55, spray: true,
+  },
+  // A raider gunboat's aft deck behind the steel wheelhouse (a solid block: you take the wheel at its back door), fuel
+  // drums lashed at the stern. Waist-high bulwarks: a crouched rider is behind steel most of the time.
+  gunboatDeck: {
+    open: true, y: 0.7, floor: [-1.3, 1.3, -3.4, -0.62],
+    edges: { front: { h: 1.6 }, rear: { h: 0.45 }, left: { h: 0.45 }, right: { h: 0.45 } },
+    doors: [],
+    fixtures: [{ id: 'drums', kind: 'drums', box: [-0.4, 0.4, -3.3, -2.5], h: 0.6 }],
+    containers: [{ id: 'lockbox', label: 'LOCKBOX', box: [0.75, 1.3, -1.4, -0.75], h: 0.5, cap: 90, loot: 'garage' }],
+    beds: [],
+    wheel: [0, -0.8], seatsInside: true, cover: 0.8, chop: 0.4, spray: true,
+  },
+
+  // ---- the trundle (systems/travel.js bus row): the aisle between four rows of benches, the kerb door up front ---------
+  busAisle: {
+    open: false, y: 0.65, floor: [-1.22, 1.22, -5.2, 4.95],
+    edges: { front: { h: 1.6 }, rear: { h: 2.2 }, left: { h: 2.2 }, right: { h: 2.2 } },
+    doors: [{ id: 'door', edge: 'right', span: [3.4, 4.45] }],
+    windows: { left: [[-5.0, 4.6]], right: [[-5.0, 3.3]], rear: [[-0.8, 0.8]], front: [[-1.0, 1.0]] },
+    fixtures: [
+      { id: 'driver', kind: 'seat', box: [0.3, 1.22, 4.0, 4.95], h: 1.0 },
+      ...[2.6, 1.1, -0.4, -1.9].flatMap((z, k) => [
+        { id: `bench${k + 1}L`, kind: 'seat', box: [0.36, 1.22, z - 0.32, z + 0.32], h: 0.5 },
+        { id: `bench${k + 1}R`, kind: 'seat', box: [-1.22, -0.36, z - 0.32, z + 0.32], h: 0.5 },
+      ]),
+    ],
+    containers: [{ id: 'racks', label: 'LUGGAGE', box: [-1.22, 1.22, -5.2, -4.3], h: 0.9, cap: 260, loot: null }],
+    beds: [],
+    wheel: [0.0, 3.75], seatsInside: true, ceil: 2.25,
+  },
+
+  // ---- roofs (climb by the ladder) ------------------------------------------------------------------------------------
+  // Nothing to hold onto but the rack: open, no sides, the throw lines lower (throwMul) than a pickup bed's.
+  vanRoof: {
+    open: true, y: 2.04, floor: [-1.05, 1.05, -2.62, 1.6],
+    edges: { front: { h: 0.06 }, rear: { h: 0.06 }, left: { h: 0.15 }, right: { h: 0.15 } },
+    doors: [],
+    fixtures: [{ id: 'bags', kind: 'cargo', box: [-0.6, 0.15, -1.6, -0.9], h: 0.43 }],
+    containers: [], beds: [],
+    ladders: [{ id: 'ladder', at: [1.75, -2.2], top: [0.72, -2.2] }],
+    wheel: null, cover: 0.15, throwMul: 0.75,
+  },
+  rvRoof: {
+    open: true, y: 3.16, floor: [-1.2, 1.2, -3.92, 1.9],
+    edges: { front: { h: 0.06 }, rear: { h: 0.06 }, left: { h: 0.06 }, right: { h: 0.06 } },
+    doors: [], fixtures: [], containers: [], beds: [],
+    ladders: [{ id: 'ladder', at: [0.75, -4.6], top: [0.75, -3.55] }],
+    wheel: null, cover: 0.1, throwMul: 0.75,
+  },
+  busRoof: {
+    open: true, y: 3.04, floor: [-1.25, 1.25, -5.45, 5.2],
+    edges: { front: { h: 0.06 }, rear: { h: 0.06 }, left: { h: 0.18 }, right: { h: 0.18 } },
+    doors: [],
+    fixtures: [
+      { id: 'bagA', kind: 'cargo', box: [-1.15, -0.25, -3.85, -3.35], h: 0.45 }, { id: 'bagB', kind: 'cargo', box: [0.1, 0.8, -3.6, -3.0], h: 0.4 },
+      { id: 'bagC', kind: 'cargo', box: [-0.8, 0.0, -2.35, -1.85], h: 0.35 }, { id: 'bagD', kind: 'cargo', box: [0.3, 0.9, -1.75, -1.05], h: 0.4 },
+      { id: 'bagE', kind: 'cargo', box: [-0.95, -0.25, -0.03, 0.43], h: 0.5 }, { id: 'bagF', kind: 'cargo', box: [0.1, 0.9, 0.62, 1.18], h: 0.42 },
+      { id: 'bagG', kind: 'cargo', box: [-0.8, -0.2, 1.6, 2.2], h: 0.38 },
+    ],
+    containers: [], beds: [],
+    ladders: [{ id: 'ladder', at: [0.8, -6.25], top: [0.8, -5.0] }],
+    wheel: null, cover: 0.3, throwMul: 0.8,
   },
 };
+for (const k in DECKS) DECKS[k].key = k; // a deck knows its own name (systems/decks.js: which of a vehicle's decks a rider is on)
 
 // A row's deck: the name of one above, or a layout object of the same shape (a content pack's own).
 export const deckOf = (d) => (typeof d === 'string' ? DECKS[d] ?? null : d ?? null);
@@ -93,7 +175,41 @@ export const DECK_RULES = {
   throwT: 1.4,       // seconds on your back after being thrown out
   throwHurt: [5, 1.6], // hp = a + b * speed (the player takes 0.7 of it)
   filter: 12,        // 1/s: how fast the felt acceleration follows the real one (one-frame spikes don't throw anyone)
+  ladderReach: 1.0,  // E climbs a ladder from this near its foot (or its top)
+  ladderSafe: 2.0,   // the vehicle must be slower than this to climb on or off by the ladder
+  footingShow: 0.35, // the HUD shows your footing on an open deck once the floor pulls this share of your throw line
 };
+
+// TURRET SEAT (WEB_DECKS_STANCE.md §3.4): a passenger mans a vehicle's roof turret (the workshop's `top` mount, trigger
+// group 3) and aims and fires it on their own while the driver drives. ONE owner at a time (v.turretBy, a character id:
+// shard-shaped - the owner's client aims and fires it; everyone else sees its yaw and its rounds), released when they
+// leave the seat, die, or the vehicle is wrecked. The driver fires it only while nobody else mans it.
+export const TURRET_SEAT = {
+  crewRange: 40,          // m: a crew member on the turret engages hostiles this near
+  crewCool: [0.12, 0.25], // s between a crew gunner's pulls (the mount's own rate still caps it)
+  crewSpread: 0.05,       // rad either way: a crew gunner's aim error
+};
+
+// The deck rows' shape, for the World Forge (and the selftest). [] = valid.
+export function validateDecks(rows = DECKS) {
+  const bad = [];
+  const inF = (D, x, z) => x >= D.floor[0] - 1e-6 && x <= D.floor[1] + 1e-6 && z >= D.floor[2] - 1e-6 && z <= D.floor[3] + 1e-6;
+  for (const [k, D] of Object.entries(rows)) {
+    const f = D.floor;
+    if (!Array.isArray(f) || f.length !== 4 || !(f[1] - f[0] > 2 * DECK_RULES.radius) || !(f[3] - f[2] > 2 * DECK_RULES.radius)) { bad.push(`${k}: floor`); continue; }
+    if (!(D.y > 0 && D.y < 4)) bad.push(`${k}: y out of 0..4`);
+    for (const e of ['front', 'rear', 'left', 'right']) if (!(D.edges?.[e]?.h >= 0)) bad.push(`${k}: edge ${e}`);
+    for (const b of [...(D.fixtures ?? []), ...(D.containers ?? []), ...(D.beds ?? [])]) if (!(b.box?.[1] > b.box?.[0] && b.box[3] > b.box[2])) bad.push(`${k}: box ${b.id}`);
+    for (const d of D.doors ?? []) if (!(d.span?.[1] > d.span?.[0])) bad.push(`${k}: door ${d.id}`);
+    if (D.wheel && !inF(D, D.wheel[0], D.wheel[1])) bad.push(`${k}: wheel off the floor`);
+    for (const L of D.ladders ?? []) { if (!inF(D, L.top[0], L.top[1])) bad.push(`${k}: ladder ${L.id} top off the floor`); if (inF(D, L.at[0], L.at[1])) bad.push(`${k}: ladder ${L.id} foot on the floor`); }
+    if (D.ceil !== undefined && !(D.ceil > 1 && D.ceil < 3.5)) bad.push(`${k}: ceil out of 1..3.5`);
+    if (D.throwMul !== undefined && !(D.throwMul > 0.3 && D.throwMul <= 1.5)) bad.push(`${k}: throwMul out of 0.3..1.5`);
+    if (D.chop !== undefined && !(D.chop >= 0 && D.chop < 2)) bad.push(`${k}: chop out of 0..2`);
+    if (!D.open && D.ladders?.length) bad.push(`${k}: a ladder goes up to an open roof, not a cabin`);
+  }
+  return bad;
+}
 
 // Walkable vehicles the world starts with (systems/decks.js placeWorld, on the first frame: after everything else, so no
 // other vehicle's id moves). An RV left in the middle of nowhere with its cupboards still full: whoever lived in it is

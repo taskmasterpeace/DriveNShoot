@@ -80,7 +80,8 @@ export class Grapevine {
   // ---- what the pack perceives (each scan) -------------------------------------------------------------------------
   sightOf(c) {
     const g = this.g, n = g.sky?.night ?? 0, lit = n > 0.3 && g.flashMat?.opacity > 0;
-    return (GV.sightDay * (1 - n) + GV.sightNight * n) * (lit ? GV.lit : 1) * (g.player.crouch ? 0.75 : 1);
+    const base = (GV.sightDay * (1 - n) + GV.sightNight * n) * (lit ? GV.lit : 1), P = g.player;
+    return P.prone && g.stance ? g.stance.seenRange(P, base, 0.75, c.x, c.z, c) : base * (P.crouch ? 0.75 : 1); // prone: systems/stance.js (D2)
   }
   seesPlayer(c) {
     const g = this.g, P = g.player;

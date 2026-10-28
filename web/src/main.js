@@ -67,6 +67,7 @@ import { Travel } from './systems/travel.js'; // the trundle, the iron, the one 
 const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
+import { Stance } from './systems/stance.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Gadgets } from './systems/gadgets.js';
 import { Audio } from './systems/audio.js';
@@ -174,6 +175,7 @@ class Game {
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
+    this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
     this.throwables = new Throwables(this);
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
@@ -456,6 +458,15 @@ class Game {
   }
   // Can person a see person b: on their floor, and nothing in the way at its height. Outside the storeyed buildings,
   // exactly the old flat line of sight.
+  // THE FOOTING line on the HUD prompt while you ride an open deck (WEB_DECKS_STANCE.md §3.3): the band (SURE FOOTING ..
+  // GOING OVER), your stance and its footing multiplier (QUICKNESS x brace), and how to brace harder.
+  footingText(p) {
+    const H = this.decks.hud, d = p.onDeck;
+    if (!d?.D.open || !H.show || H.v !== d.v) return null;
+    const st = this.stance.kind(p), hot = H.share >= 0.8;
+    return `<b${hot ? ' class="warn"' : ''}>FOOTING · ${H.word}</b> ${st.toUpperCase()} ×${H.footing.toFixed(2)}${p.prone ? '' : st === 'crouch' ? ' · <kbd>ALT</kbd> prone' : ' · <kbd>CTRL</kbd> brace · <kbd>ALT</kbd> prone'}`;
+  }
+
   sees(a, b) {
     if (!this.storeys.sameFloor(a, b)) return false;
     return this.losAt(a.x, a.z, b.x, b.z, a.storey || b.storey || a.ug ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0); // below the street: that level's walls
@@ -783,7 +794,8 @@ class Game {
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
       if (I.hit('KeyB') && driving) this.garage.drop(v); // the tail: oil, caltrops, smoke, mines, flares, paint (group 2)
-      if (driving && v.mounts && this.controls.held('fireTurret')) this.workshop.fireMount(v, 3, Math.atan2(this.aim.x - v.x, this.aim.z - v.z), p); // the roof turret (group 3)
+      if (v.mounts && this.controls.held('fireTurret') && this.seats.turretFor(p, v)) this.workshop.fireMount(v, 3, Math.atan2(this.aim.x - v.x, this.aim.z - v.z), p); // the roof turret (group 3): the driver's, or a passenger's who mans it (seats.turretFor)
+      else if (!driving && v.mounts?.top && !this.seats.turretOwner(v)) this.hud.prompt('<kbd>RMB</kbd> Man the roof turret');
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       p.aiming = this.arms.stance === 'raised'; // a rider (bike saddle, truck bed) shows the gun up only when it is
@@ -825,15 +837,18 @@ class Game {
     const pm = this.controls.move, tilt = !mx && !mz && pm.mag ? Math.max(PAD.walkMin, pm.mag) : 1; // the left stick: a light tilt creeps
     if (pm.mag) { mx += pm.x; mz += pm.z; }
     if (this.cam.yaw) { const w = this.cam.toWorld(mx, mz); mx = w.x; mz = w.z; } // ISO/CHASE: W is up the screen
-    p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
+    p.crouch = (I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride) && !p.prone;
+    if (this.controls.hit('prone')) { const r = this.stance.setProne(p, !p.prone); if (!r.ok) this.hud.toast(`CAN'T GO PRONE · ${r.why.toUpperCase()}`, 'warn'); } // data/stance.js PRONE (D2)
+    if (p.proneT > 0) p.proneT -= dt; // getting down or up: no shooting, no crawl
     p.stamina = p.stamina ?? 1;
-    const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
+    const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch && !p.prone;
     const sprint = wantSprint && p.stamina > 0.04 && !this.skills.overloaded; // over your carry weight: no sprinting
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
     p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul * this.arms.sprintDrain() : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
-    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); this.startDive(p, w.x, w.z); }
+    if (I.hit('Space') && p.prone) this.stance.setProne(p, false); // Space from prone: up, not a dive
+    else if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); this.startDive(p, w.x, w.z); }
     p.diveCool = (p.diveCool ?? 0) - dt;
     if (p.dive > 0) {
       p.dive -= dt;
@@ -851,6 +866,7 @@ class Game {
     const wet = this.water.stateAt(p.x, p.z, p.gy); // gy: up on a river's bridge deck you are dry (world/rivers.js)
     p.swim = wet === 'swim';
     p.breath = p.breath ?? 1;
+    if (p.prone && wet !== 'dry') this.stance.setProne(p, false); // into the water: up on your feet
     p.underwater = p.swim && p.crouch;
     if (p.underwater) {
       p.breath = Math.max(0, p.breath - dt / 20);
@@ -859,7 +875,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -889,7 +905,7 @@ class Game {
     const px = p.x, pz = p.z;
     if (len) {
       const t = { x: p.x + (mx / len) * speed * dt, z: p.z + (mz / len) * speed * dt };
-      this.statics.resolveBody(t, p.radius, p); // doors swing open ahead of you; broken windows get climbed
+      this.statics.resolveBody(t, this.stance.radius(p), p, p.prone ? null : p); // doors swing open ahead of you; broken windows get climbed (a crawl pushes no door)
       p.x = t.x; p.z = t.z;
       this.standOn(p); // up a stair, onto a floor, down off a ramp
       if (p.vault) return;
@@ -913,7 +929,8 @@ class Game {
     }
     const wk = this.arms.work; // hands busy at something (systems/arms.js): face it, not the aim
     const aimAng = wk ? Math.atan2(wk.x - p.x, wk.z - p.z) : Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
-    p.face = angleLerp(p.face, aimAng, Math.min(1, dt * 18));
+    if (p.prone) { p.face = this.stance.steer(p, aimAng, len && p.speed > 0.05 ? Math.atan2(mx, mz) : null, dt); if (!p.onDeck) this.stance.fitNow(p); } // the body crawls round; the gun stays in its arc; no head through a wall
+    else p.face = angleLerp(p.face, aimAng, Math.min(1, dt * 18));
     p.aiming = true;
     // QOL: slow regen to 60% after 6s without taking damage.
     p.sinceHit = (p.sinceHit ?? 99) + dt;
@@ -930,7 +947,7 @@ class Game {
     if (I.hit('KeyR')) this.reload();
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
     this.updateThrowAim(dt, I);
-    if (!p.swim) this.handleShooting(dt, p.face);
+    if (!p.swim && !(p.proneT > 0)) this.handleShooting(dt, p.face);
     p.aiming = !p.swim && this.arms.stance === 'raised'; // lowered or holstered: no aim pose (systems/arms.js)
 
     // Interactions. A person held at gunpoint takes E first (hand it over, open the door, walk with me).
@@ -955,6 +972,7 @@ class Game {
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
+    const foot = this.footingText(p); // riding an open deck: how near the floor is to throwing you (systems/decks.js feel)
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
     const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
@@ -974,12 +992,12 @@ class Game {
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
-    else if (dk) this.hud.prompt(dk.text);
+    else if (dk) this.hud.prompt(foot ? `${dk.text} · ${foot}` : dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op && !ugI) this.hud.prompt(null);
+    else if (!op && !ugI) this.hud.prompt(foot);
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }

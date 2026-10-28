@@ -99,6 +99,8 @@ export class BrushField {
     o.strokes = list.filter((s) => x >= s.x0 && x <= s.x1 && z >= s.z0 && z <= s.z1 && dist(s, x, z) < s.r).map((s) => s.id);
     return o;
   }
+  // One layer at a point, no allocation (systems/stance.js: how hidden a prone body is).
+  layerAt(layer, x, z) { const list = this.byChunk.get(keyOf(Math.floor(x / C), Math.floor(z / C))); return list ? sampleList(list, layer, x, z, 0) : 0; }
   radAt(x, z) { const list = this.byChunk.get(keyOf(Math.floor(x / C), Math.floor(z / C))); return list ? sampleList(list, 'rad', x, z, 0) : 0; }
   ruinAt(x, z) { const list = this.byChunk.get(keyOf(Math.floor(x / C), Math.floor(z / C))); return list ? sampleList(list, 'ruin', x, z, null) : null; }
   // The chunks a set of strokes touches (the forge's push: lay out only what changed).

@@ -210,7 +210,9 @@ export class AI {
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
       // A coat that breaks your outline (systems/gear.js seenMul): they have to be closer to pick you out.
-      if (d < bd * (o.crouch ? 0.6 : 1) * (o === this.g.player ? this.g.gear?.seenMul() ?? 1 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
+      // Prone (systems/stance.js, D2): 0.25x in the open, unseen past 12 m in grass or cover, never past a deck's rail.
+      const seenAt = o.prone && this.g.stance ? this.g.stance.seenRange(o, bd, 0.6, c.x, c.z, c) : bd * (o.crouch ? 0.6 : 1);
+      if (d < seenAt * (o === this.g.player ? this.g.gear?.seenMul() ?? 1 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
     }
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
   }
@@ -227,7 +229,10 @@ export class AI {
     }
 
     for (const c of chars) {
-      if (c === g.player || c.inVehicle) continue;
+      if (c === g.player) continue;
+      // A follower riding as a passenger: their window (or the roof turret, data/decks.js TURRET_SEAT). The driver is the
+      // vehicle AI's; everyone else in a seat just rides.
+      if (c.inVehicle) { if (c.follower && c.alive && c.inVehicle.driver !== c && !c.crewRec) g.seats.followThink(c, dt); continue; }
       if (!c.alive) {
         c.deadTime += dt;
         if (c.downedT > 0 && (c.downedT -= dt) <= 0) {

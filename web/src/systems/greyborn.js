@@ -277,7 +277,8 @@ export class Greyborn {
     S.look = 0.25;
     if (!P.alive || P.hidden || P.underwater) { S.seeT = 0; return; }
     const night = g.sky?.night ?? 0, lit = night > 0.3 && g.flashMat?.opacity > 0;
-    const eye = GREYBORN.watchR * (rec.alert ? 1.5 : 1) * (lit ? 1 : 1 - 0.55 * night) * (P.crouch ? 0.7 : 1);
+    const eye0 = GREYBORN.watchR * (rec.alert ? 1.5 : 1) * (lit ? 1 : 1 - 0.55 * night);
+    const eye = P.prone && g.stance ? g.stance.seenRange(P, eye0, 0.7, c.x, c.z, c) : eye0 * (P.crouch ? 0.7 : 1); // prone: systems/stance.js (D2)
     const px = P.inVehicle ? P.inVehicle.x : P.x, pz = P.inVehicle ? P.inVehicle.z : P.z, d = Math.hypot(px - c.x, pz - c.z);
     if (d < eye && (P.inVehicle ? g.los(c.x, c.z, px, pz) : g.sees(c, P))) {
       S.seeT += 0.25;

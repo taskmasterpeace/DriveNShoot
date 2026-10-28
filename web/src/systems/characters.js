@@ -15,6 +15,7 @@ export const MAX_CHARS = 160;
 
 // ---- the body, in metres --------------------------------------------------------------------------
 const HIP_X = 0.125, HIP_Y = 0.92, THIGH = 0.44, SHIN = 0.4, ANKLE_Y = 0.08;
+const PRONE_HIP = 0.2, PRONE_LEAN = 1.42; // prone (data/stance.js): the hips 0.2 m up, the chest leant almost flat forward
 const WAIST_UP = 0.08, SHOULDER_X = 0.33, SHOULDER_UP = 0.56, UPPER = 0.3, FORE = 0.3, HEAD_UP = 0.86;
 const AIM_Y = 0.55; // hands and gun when aiming: above the waist, so 1.55 m standing
 
@@ -410,7 +411,7 @@ export class CharacterRenderer {
       _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
       _root.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
     } else if (alive) {
-      _root.makeRotationY(ch.face).setPosition(ch.x, gy, ch.z);
+      _root.makeRotationY(ch.prone && !(ch.knockT > 0) ? ch.proneH ?? ch.face : ch.face).setPosition(ch.x, gy, ch.z); // prone: the body's own heading
       if (ch.knockT > 0) {
         // Knocked down (a door to the face): over backwards fast, flat on the floor, up at the end.
         const lie = Math.min(1, ((ch.knockMax ?? 1.5) - ch.knockT) / 0.2, ch.knockT / 0.45);
@@ -456,7 +457,8 @@ export class CharacterRenderer {
 
     const v = moving ? ch.speed : 0;
     const k = clamp01(v / 1.2), run = clamp01((v - 3.2) / 3.2);
-    const crouch = alive && !sp && !downed && (ch.crouch || ch.vault) ? 1 : 0;
+    const prone = alive && !sp && !downed && !ch.swim && !ch.dive && ch.prone ? 1 : 0; // data/stance.js: flat on the belly, gun forward
+    const crouch = alive && !sp && !downed && !prone && (ch.crouch || ch.vault || ch.stoop) ? 1 : 0; // stoop: a cabin lower than you stand
     const aim = alive && !!gm && ch.aiming && !ch.handsUp && !(infected) && !downed && !ch.vault;
     const limp = infected ? (ch.limp ?? (i % 5 < 2 ? (i % 2 ? 1 : -1) : 0)) : 0; // ~40% of the infected drag a leg
     const phase = ch.walk * dirSign;
@@ -490,13 +492,19 @@ export class CharacterRenderer {
     if (lying) {
       tgt[0].set(0.2, ANKLE_Y, 0.02); tgt[1].set(-0.12, 0.34, 0.32); // one knee up
     }
+    if (prone) { // the legs out flat behind the hips, a crawl's knee drawn up on alternate sides
+      hipY = PRONE_HIP;
+      const cr = moving ? Math.sin(ch.walk * 1.6) * 0.18 : 0;
+      tgt[0].set(0.11, ANKLE_Y * 0.6, -0.8 + Math.max(0, cr)); tgt[1].set(-0.09, ANKLE_Y * 0.6, -0.82 + Math.max(0, -cr));
+      footPitch[0] = footPitch[1] = 1.2;
+    }
     if (ch.swim || ch.underwater) {
       const kick = Math.sin(ch.walk * 3) * 0.12;
       tgt[0].set(0.14, ANKLE_Y + 0.05, kick); tgt[1].set(-0.14, ANKLE_Y + 0.05, -kick);
     }
     // The pelvis rides on the stance leg: it dips when the feet are far apart, so a planted boot
     // stays planted instead of floating at the end of each stride.
-    if (moving && !crouch) hipY = Math.min(hipY, ANKLE_Y + Math.sqrt(Math.max(0, 0.832 * 0.832 - stanceZ * stanceZ)));
+    if (moving && !crouch && !prone) hipY = Math.min(hipY, ANKLE_Y + Math.sqrt(Math.max(0, 0.832 * 0.832 - stanceZ * stanceZ)));
     _pole.set(0, 0, 1);
     for (let s = 0; s < 2; s++) {
       const side = SIDE[s];
@@ -525,6 +533,7 @@ export class CharacterRenderer {
     if (bike && aim && sp) twist = wrap(ch.face - sp.h); // the rider turns at the waist to shoot any way
     if (sp?.twist) twist += sp.twist;   // shooting from the saddle: the upper body turns, the legs stay on the machine
     if (ch.swim || ch.underwater) lean = 0;
+    if (prone) { lean = PRONE_LEAN; twist = wrap(ch.face - (ch.proneH ?? ch.face)); headTilt = 0; } // the chest on the ground, turned to the gun
     _U.makeTranslation(0, hipY + WAIST_UP, 0);
     if (twist) _U.multiply(_r.makeRotationY(twist));
     if (lean) _U.multiply(_r.makeRotationX(lean));
