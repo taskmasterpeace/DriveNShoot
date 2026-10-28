@@ -168,7 +168,9 @@ export async function voiceStatsChecks(api, check, C) {
     // On foot with no radio you hear nothing; with a portable radio in the pack you tune it.
     const slots = g.inventory.carried.slots, had = slots.some((s) => s?.id === RADIO.item);
     if (!had && R.canHear() && !g.player.inVehicle) bad.push('heard a radio with none');
-    if (!had) g.inventory.add(g.inventory.carried, RADIO.item, 1);
+    // A full pack (late in the battery) takes no more bulk: the radio goes in its own slot for the check either way.
+    if (!had && !g.inventory.add(g.inventory.carried, RADIO.item, 1)) slots.push({ id: RADIO.item, n: 1 });
+    if (!g.player.alive) return 'the player is down (an earlier check left them so)';
     try {
       if (!R.canHear()) bad.push('the portable radio is not heard');
       const S = R.tune(STATIONS.findIndex((s) => s.id === 'kdst'));
