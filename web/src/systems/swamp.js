@@ -63,7 +63,7 @@ export class Swamp {
         for (let k = 0; k < n && np < S.pads; k++) {
           const px = x0 + (hsh(gx, gz, 10 + k) - 0.5) * 2.4, pz = z0 + (hsh(gx, gz, 20 + k) - 0.5) * 2.4, sc = 0.55 + hsh(gx, gz, 30 + k) * 0.8;
           _p.set(px, y0 + 0.03, pz); _q.setFromEuler(_e.set(0, hsh(gx, gz, 40 + k) * TAU, 0)); _s.set(sc, 1, sc); _m.compose(_p, _q, _s);
-          this.pads.setMatrixAt(np, _m); this.pads.setColorAt(np, this.cols[(k + gx) % this.cols.length]); np++;
+          this.pads.setMatrixAt(np, _m); this.pads.setColorAt(np, this.cols[(((k + gx) % this.cols.length) + this.cols.length) % this.cols.length]); np++;
         }
       }
       if (w.kind === 'swamp' && r > 1 - S.kneeChance && nk < S.knees) {
