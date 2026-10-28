@@ -55,6 +55,7 @@ import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js'; // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { qolChecks } from './qol-selftest.js';
+import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 
@@ -619,6 +620,7 @@ function buildCommands(api) {
           if (car ? g.carCombat.fireFromVehicle(p, car, k, p.face) : g.combat.fire(p, k, p.face)) { g.inv.mag[k]--; g.inventory.shot(k); }
           await api._step(Math.max(1, Math.round(w.rate * 60)));
         }
+        for (let k = 0; k < 120 && g.ballistics?.inFlight(p); k++) await api._step(1); // the last rounds land (WEB_BALLISTICS.md)
         killed = g.stats.kills - before;
         return { killed, mag: g.inv.mag[g.inv.current], reserve: g.inv.ammo[WEAPONS[g.inv.current].ammo], cond: +g.inventory.cond(g.inv.current).toFixed(3), jammed: !!g.inv.jam[g.inv.current] };
       },
@@ -2017,6 +2019,7 @@ function buildCommands(api) {
     ...crewCommands(api, need),
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
+    ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
   };
 }
 
@@ -2779,6 +2782,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // ---- what things are made of: rounds through wood and not block, ricochets, a breached door, blood on a wall,
   // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
+  await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
@@ -3118,7 +3122,9 @@ async function runSelfTest(api, only = null, skip = null) {
       g.sky.time = 12; g.sky.update?.(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); // noon: an earlier check's night makes the aim wilder
       let fired = 0; const hs = g.combat.hitscan; g.combat.hitscan = function (s, ...a) { if (s === g.player) fired++; return hs.call(this, s, ...a); };
       try {
-      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
+      // The round carries the pickup's speed (WEB_BALLISTICS.md: a moving shooter's round inherits it): aim behind him by that much, as a player learns to.
+      const lead = () => { const tf = g.ballistics.flightTime('pistol', Math.hypot(t.x - g.player.x, t.z - g.player.z)) ?? 0; return { x: t.x - v.vx * tf, z: t.z - v.vz * tf }; };
+      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = lead(); g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
       } finally { g.combat.hitscan = hs; }
       return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck, fired, gun: g.inv.current, mag: g.inv.mag[g.inv.current], dist: +Math.hypot(t.x - g.player.x, t.z - g.player.z).toFixed(1), tAlive: t.alive, inChars: g.chars.includes(t), spread: +(g.skills.spreadMul ?? 1).toFixed(2), stance: g.arms?.stance });
     } finally { wvClean([v, d, t]); }

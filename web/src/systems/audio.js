@@ -292,6 +292,9 @@ export class Audio {
   backfire(pan = 0) { this.count('backfire'); this.burst({ dur: 0.18, freq: 600, vol: 0.5, decay: 0.15, pitchDrop: 0.4, pan }); }
   whiz(pan = 0) {
     this.count('whiz'); if (this.sample('common', 'whiz', { dist: 2, pan })) return; this.burst({ dur: 0.18, freq: 2600, type: 'bandpass', q: 8, vol: 0.35, decay: 0.16, pitchDrop: 0.4, pan }); }
+  // A round faster than sound passing close (systems/ballistics.js): a short sharp snap, before the shot's own report.
+  crack(pan = 0) {
+    this.count('crack'); if (this.sample('common', 'crack', { dist: 2, pan })) return; this.burst({ dur: 0.05, freq: 4200, type: 'highpass', q: 1.5, vol: 0.42, decay: 0.035, pitchDrop: 0.15, pan }); }
   ricochet(pan = 0, dist = 0) {
     this.count('ricochet'); if (this.sample('common', 'ricochet', { dist, pan, range: SPATIAL.range.impact })) return; const v = Math.max(0, 0.18 * (1 - dist / 60)); if (v > 0.01) this.tone(1800 + Math.random() * 1600, 0.22, v, 'sine', 0.35, pan); }
   step(surface = 'sand', pan = 0) {

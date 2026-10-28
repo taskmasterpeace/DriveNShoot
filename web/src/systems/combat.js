@@ -1,6 +1,9 @@
 import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision.js';
 import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
+import { BALLISTICS as BL } from '../data/ballistics.js';
+
+const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, nobody's floor
 
 // Data-driven weapons. Add a row, get a gun.
 // modes (docs/design/WEB_CONTROLLER.md §3.4): the fire modes or alternate uses the weapon bar raises above the slot.
@@ -14,7 +17,7 @@ export const WEAPONS = {
   smg:     { name: 'RUST-9 SMG', short: 'SMG', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15, mode: 'auto',
     modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.12, spread: 0.6, kick: 0.22 }, { id: 'burst', name: 'BURST', burst: 3, rate: 0.065, spread: 0.85, kick: 0.2, after: 0.3 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.075, spread: 1, kick: 0.18 }] },
   shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6,
-    modes: [{ id: 'buck', name: 'BUCK', burst: 1, rate: 0.75, spread: 1, kick: 0.8 }, { id: 'slug', name: 'SLUG', burst: 1, rate: 0.85, spread: 0.11, kick: 1.0, dmg: 82, pellets: 1, range: 40 }] },
+    modes: [{ id: 'buck', name: 'BUCK', burst: 1, rate: 0.75, spread: 1, kick: 0.8 }, { id: 'slug', name: 'SLUG', burst: 1, rate: 0.85, spread: 0.11, kick: 1.0, dmg: 82, pellets: 1, range: 40, round: 'slug' }] },
   // The Federal Remnant's issue rifle (systems/bases.js arms its sentries): reaches further and hits harder than the
   // SMG, fires slower. Generic by design: no make, no model.
   rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22, mode: 'auto',
@@ -29,11 +32,14 @@ export const WEAPONS = {
 export class Combat {
   constructor(game) {
     this.g = game;
+    this.seg = { x: 0, z: 0, dx: 0, dz: 0, dmg: 0, energy: 0, kind: null }; // segment()'s answer, reused
+    this.inFlight = null; // the round (systems/ballistics.js) segment() is resolving: its speed picks the crack or the whiz
   }
 
   // Fire `wkey` from character `ch` along angle `ang`. Returns true if a shot left the barrel. `w`: the row as fired (the
-  // player's fire mode, grip and recoil folded in by systems/arms.js); the table's row when not given.
-  fire(ch, wkey, ang, w = WEAPONS[wkey]) {
+  // player's fire mode, grip and recoil folded in by systems/arms.js); the table's row when not given. seed: replay a
+  // recorded pull (systems/ballistics.js record: a remote page flies the same pellets); a new seed per pull otherwise.
+  fire(ch, wkey, ang, w = WEAPONS[wkey], seed = null) {
     const g = this.g;
     if (ch.onDeck && !g.decks.muzzleClear(ch, ang)) return false; // inside a van or an RV: out of a window or a door only
     const fx = Math.sin(ang), fz = Math.cos(ang);
@@ -64,99 +70,126 @@ export class Combat {
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)
     const sky = ch === g.player ? g.fauna?.skyShot(ch, ang) : null; // the mouse on a bird in the sky: the shot rises to it (systems/fauna.js skyAim)
     const lift = sky ? sky.slope : 0, ang0 = sky ? sky.ang : ang;
+    // The pull's seed (systems/ballistics.js): every pellet's spread and reach rolls from it, so the record replays it.
+    const B = g.ballistics, round = B ? B.rowKey(w) : w.ammo;
+    if (B) { if (seed !== null) B.reseed(seed); else B.seed(ch, w.ammo, round, hug ? ch.x : ox, hug ? ch.z : oz, ang0, w.pellets); }
     for (let p = 0; p < w.pellets; p++) {
       const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
-      const a = ang0 + (Math.random() - 0.5) * 2 * sp;
-      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg, w.ammo, lift ? lift + (Math.random() - 0.5) * 2 * sp : 0);
+      const a = ang0 + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp;
+      const reach = w.range * (0.85 + (B ? B.rand() : Math.random()) * 0.15), rise = lift ? lift + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp : 0;
+      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, w.ammo, rise, round);
     }
     return true;
   }
 
-  // ammo: what the round is (data/materials.js PUNCH: how hard it carries through things). A round that meets a wall goes
-  // on through it, glances off it or stops in it by what the wall is made of (systems/materials.js); whatever it reaches
-  // after that it reaches with what is left. People, cars, dogs and the train stop it.
+  // The shot's entry, one per pellet. ammo: what the round is (data/materials.js PUNCH: how hard it carries through
+  // things); round: its flight row (data/ballistics.js ROUNDS; the ammo by default). A round with a row FLIES
+  // (systems/ballistics.js: muzzle velocity, drag, drop, the shooter's car under it) and meets what is in its way when it
+  // gets there, through segment() below. Without one (a vehicle mount, a shot up at a bird, ballistics off) it lands now,
+  // segment by segment: a round that meets a wall goes on through it, glances off it or stops in it by what the wall is
+  // made of (systems/materials.js); whatever it reaches after that it reaches with what is left.
   // slope: a round aimed up into the sky (m up a m out): it passes over people, cars and dogs once above head height.
-  hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null, slope = 0) {
-    const g = this.g, M = g.materials, over = slope > 0 ? 1.15 / slope : Infinity;
-    // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
-    const fy = shooter.storey || shooter.ug ? shooter.gy ?? 0 : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
-    const down = up && fy > 0.5 && !shooter.ug; // up a building: its walls stop the round unless it leaves by a window hole or over the parapet
+  hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null, slope = 0, round = ammo) {
+    const g = this.g, M = g.materials;
+    if (g.ballistics?.takes(round, slope)) { g.ballistics.launch(shooter, ox, oz, dx, dz, range, dmg, ammo, round); return; }
     let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
     for (let seg = 0; seg < 4; seg++) {
-      let best = g.statics.raycast(ox, oz, dx, dz, left, RAY_BULLET, up ? fy + 1.3 : -1);
-      const box = g.statics.hit.box, wnx = g.statics.hit.nx, wnz = g.statics.hit.nz;
-      let target = null, kind = null;
-      for (const c of g.chars) {
-        if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
-        if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
-        if (c.underwater) continue;                          // bullets don't reach under water
-        // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
-        // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
-        if (!g.storeys.sameFloor(shooter, c) && !(down && (c.gy ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== shooter.storey)) continue;
-        const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-        if (t >= 0 && t < best && t < over) { best = t; target = c; kind = 'char'; }
-      }
-      for (const v of g.vehicles) {
-        if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
-        if (target?.onDeck?.v === v && !g.decks.covered(v, target)) continue;   // a rider standing in its open bed: above its sides
-        for (const s of [-1, 1]) {
-          const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
-          const t = rayCircle(ox, oz, dx, dz, cx, cz, v.wid * 0.62, best);
-          if (t >= 0 && t < best && t < over) { best = t; target = v; kind = 'veh'; }
-        }
-      }
-      // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
-      const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, Math.min(best, over)) : null;
-      if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
-      const fh = !up && g.fauna ? g.fauna.raycast(ox, oz, dx, dz, best, slope) : null; // an animal (systems/fauna.js); a bird in the sky at its height
-      if (fh) { best = fh.t; target = fh.animal; kind = 'fauna'; }
-      if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
-        const th = g.train.raycast(ox, oz, dx, dz, best);
-        if (th) { best = th.t; target = th.car; kind = 'train'; }
-      }
-      const hx = ox + dx * best, hz = oz + dz * best;
-      // Near miss on the player: whiz.
-      if (shooter !== g.player && target !== g.player && g.player.alive) {
-        const px = g.player.x - ox, pz = g.player.z - oz, along = px * dx + pz * dz;
-        if (along > 0 && along < best && Math.abs(px * dz - pz * dx) < 1.6) g.audio.whiz(g.pan(g.player.x + dx));
-      }
-      g.fx.tracer(ox, oz, hx, hz, 1.45 + fy);
-      let o = null;
-      if (kind === 'char') {
-        this.damage(target, dmg, shooter, dx, dz);
-        if (shooter === g.player) g.skillsSys?.onHit();
-      } else if (kind === 'veh') {
-        g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
-        if (!g.garage?.absorb(target, hx, hz, dmg)) { // a plated face takes the round; a bare one lets it through
-          g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
-          g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
-          g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
-        }
-        if (shooter === g.player) g.qol.hit(false);
-      } else if (kind === 'dog') {
-        g.dogs.hurt(target, dmg, shooter, dx, dz, 'bullet');
-      } else if (kind === 'fauna') {
-        g.fauna.hurt(target, dmg, shooter, dx, dz, 'bullet');
-        if (shooter === g.player) { g.qol.hit(!target.alive); g.skillsSys?.onHit(); }
-      } else if (kind === 'train') {
-        g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
-        g.train.hitCar(target, dmg, shooter);
-      } else if (box?.op) {
-        g.interiors.onBullet(box.op, hx, hz, dx, dz, dmg, shooter); // cracks glass, splinters boards, shoots locks
-        // A door leaf is wood or steel: a round may go on through it (windows keep their own rules: they stop it).
-        if (box.op.kind === 'leaf' && M) o = M.throughLeaf(box.op, ox, oz, dx, dz, best, g.interiors.nx, g.interiors.nz, dmg, energy, shooter, 1.4 + fy);
-      } else if (box && M) {
-        o = M.bullet(box, ox, oz, dx, dz, best, wnx, wnz, dmg, energy, shooter, 1.4 + fy, up ? fy + 1.3 : -1); // through, off or into it
-      } else if (box) {
-        g.fx.sparks(hx, 1.4 + fy, hz, wnx, wnz, 4);
-        if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
-        if (!up && Math.random() < 0.3) g.fx.decal(hx + wnx * 0.2, hz + wnz * 0.2, 0.3, '#1a1714');
-      }
-      if (!o) return;
+      if (this.segment(shooter, shooter, ox, oz, dx, dz, left, dmg, energy, ammo, slope, true) !== 2) return;
+      const o = this.seg;
       left -= Math.hypot(o.x - ox, o.z - oz);
       if (left < 0.5) return;
       ox = o.x; oz = o.z; dx = o.dx; dz = o.dz; dmg = o.dmg; energy = o.energy;
     }
+  }
+
+  // One straight run of a round, `left` m from (ox, oz) along (dx, dz): the first thing on it takes it. F: the floor it
+  // was fired on (the shooter at the trigger; a round in flight keeps a copy). Returns 0 when it meets nothing (this.seg
+  // at the run's end), 1 when it stops (this.seg: where, and seg.kind char | veh | dog | fauna | train | wall), 2 when it
+  // goes on through or off a wall (this.seg: from where, which way, with what damage and energy).
+  segment(shooter, F, ox, oz, dx, dz, left, dmg, energy, ammo = null, slope = 0, tracer = true) {
+    const g = this.g, M = g.materials, over = slope > 0 ? 1.15 / slope : Infinity, out = this.seg;
+    shooter = shooter ?? NOBODY; F = F ?? NOBODY;
+    // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
+    const fy = F.storey || F.ug ? F.gy ?? 0 : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
+    const down = up && fy > 0.5 && !F.ug; // up a building: its walls stop the round unless it leaves by a window hole or over the parapet
+    let best = g.statics.raycast(ox, oz, dx, dz, left, RAY_BULLET, up ? fy + 1.3 : -1);
+    const box = g.statics.hit.box, wnx = g.statics.hit.nx, wnz = g.statics.hit.nz;
+    let target = null, kind = null;
+    for (const c of g.chars) {
+      if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
+      if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
+      if (c.underwater) continue;                          // bullets don't reach under water
+      // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
+      // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
+      if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey)) continue;
+      const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
+      if (t >= 0 && t < best && t < over) { best = t; target = c; kind = 'char'; }
+    }
+    for (const v of g.vehicles) {
+      if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
+      if (target?.onDeck?.v === v && !g.decks.covered(v, target)) continue;   // a rider standing in its open bed: above its sides
+      for (const s of [-1, 1]) {
+        const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
+        const t = rayCircle(ox, oz, dx, dz, cx, cz, v.wid * 0.62, best);
+        if (t >= 0 && t < best && t < over) { best = t; target = v; kind = 'veh'; }
+      }
+    }
+    // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
+    const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, Math.min(best, over)) : null;
+    if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
+    const fh = !up && g.fauna ? g.fauna.raycast(ox, oz, dx, dz, best, slope) : null; // an animal (systems/fauna.js); a bird in the sky at its height
+    if (fh) { best = fh.t; target = fh.animal; kind = 'fauna'; }
+    if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
+      const th = g.train.raycast(ox, oz, dx, dz, best);
+      if (th) { best = th.t; target = th.car; kind = 'train'; }
+    }
+    const hx = ox + dx * best, hz = oz + dz * best;
+    out.x = hx; out.z = hz; out.dx = dx; out.dz = dz; out.dmg = dmg; out.energy = energy; out.kind = kind;
+    // Near miss on the player: a round faster than sound CRACKS past (audio.crack), a slower one whispers (the whiz).
+    if (shooter !== g.player && target !== g.player && g.player.alive) {
+      const px = g.player.x - ox, pz = g.player.z - oz, along = px * dx + pz * dz;
+      if (along > 0 && along < best && Math.abs(px * dz - pz * dx) < BL.nearMiss) {
+        const P = this.inFlight, pan = g.pan(g.player.x + dx);
+        if (P && P.sp > BL.sound && g.audio.crack) { g.ballistics.stats.cracks++; g.audio.crack(pan); }
+        else { if (P) g.ballistics.stats.whispers++; g.audio.whiz(pan); }
+      }
+    }
+    if (tracer) g.fx.tracer(ox, oz, hx, hz, 1.45 + fy);
+    let o = null;
+    if (kind === 'char') {
+      this.damage(target, dmg, shooter === NOBODY ? null : shooter, dx, dz);
+      if (shooter === g.player) g.skillsSys?.onHit();
+    } else if (kind === 'veh') {
+      g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
+      if (!g.garage?.absorb(target, hx, hz, dmg)) { // a plated face takes the round; a bare one lets it through
+        g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
+        g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
+        g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
+      }
+      if (shooter === g.player) g.qol.hit(false);
+    } else if (kind === 'dog') {
+      g.dogs.hurt(target, dmg, shooter, dx, dz, 'bullet');
+    } else if (kind === 'fauna') {
+      g.fauna.hurt(target, dmg, shooter, dx, dz, 'bullet');
+      if (shooter === g.player) { g.qol.hit(!target.alive); g.skillsSys?.onHit(); }
+    } else if (kind === 'train') {
+      g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
+      g.train.hitCar(target, dmg, shooter);
+    } else if (box?.op) {
+      g.interiors.onBullet(box.op, hx, hz, dx, dz, dmg, shooter); // cracks glass, splinters boards, shoots locks
+      // A door leaf is wood or steel: a round may go on through it (windows keep their own rules: they stop it).
+      if (box.op.kind === 'leaf' && M) o = M.throughLeaf(box.op, ox, oz, dx, dz, best, g.interiors.nx, g.interiors.nz, dmg, energy, shooter, 1.4 + fy);
+    } else if (box && M) {
+      o = M.bullet(box, ox, oz, dx, dz, best, wnx, wnz, dmg, energy, shooter, 1.4 + fy, up ? fy + 1.3 : -1); // through, off or into it
+    } else if (box) {
+      g.fx.sparks(hx, 1.4 + fy, hz, wnx, wnz, 4);
+      if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
+      if (!up && Math.random() < 0.3) g.fx.decal(hx + wnx * 0.2, hz + wnz * 0.2, 0.3, '#1a1714');
+    }
+    if (!kind && !box) return 0;
+    if (!o) { if (!kind) out.kind = 'wall'; return 1; }
+    out.x = o.x; out.z = o.z; out.dx = o.dx; out.dz = o.dz; out.dmg = o.dmg; out.energy = o.energy; out.kind = 'wall';
+    return 2;
   }
 
   // part: the body part the hit lands on (head | torso | arms | legs), else rolled from the cause (data/gear.js HIT_ODDS).
