@@ -1,0 +1,122 @@
+/* THE HUD LAYOUT (ui/hudedit.js, data/hudlayout.js): every HUD element hangs in its own wrapper, placed by transform from
+   its row. Inside a wrapper an element sits in flow (its old cluster offsets and per-piece --s scales are off: the wrapper
+   carries the scale). The editor (F6) outlines and names them. No purple: groups are gold, red, bone, green, sand, rust. */
+
+.hl { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: flex; flex-direction: column; pointer-events: none; --k: 1; }
+.hl[data-ax="0"] { align-items: flex-start; }
+.hl[data-ax="0.5"] { align-items: center; }
+.hl[data-ax="1"] { align-items: flex-end; }
+.hl[data-ay="0"] { justify-content: flex-start; }
+.hl[data-ay="0.5"] { justify-content: center; }
+.hl[data-ay="1"] { justify-content: flex-end; }
+.hl.hl-off, .reticle.hl-off { display: none !important; }
+.hl > .hl-name, .hl > .hl-grip { display: none; }
+.hud.talking .hl.talk-hide { opacity: 0; transition: opacity 0.2s; }
+
+/* the elements, lifted out of their clusters */
+.hl > .sign, .hl > .status, .hl > .needs-plate, .hl > .mm, .hl > .flagpatch, .hl > .roles, .hl > .ailments, .hl > .breath-tab { position: relative; left: auto; right: auto; top: auto; bottom: auto; flex: none; }
+.hl > .prompt, .hl > .footing, .hl > .fb-compass, .hl > .tt-rail, .hl > .wbar, .hl > .subtitle { position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none; flex: none; }
+.hl > .subtitle { font-size: 19px; max-width: 900px; }
+.hl > .cash-plate { margin-right: 0; }
+.hl > .kill-slot { margin-top: 0; }
+.hl > .feed { margin: 0; }
+.hl > .obj-slot .objective { margin-top: 8px; }
+
+/* ---- edit mode ---- */
+.hle { position: fixed; inset: 0; z-index: 9000; pointer-events: none; font-family: var(--body); color: var(--bone); }
+.hle.hidden { display: none; }
+.hle-back { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, oklch(0.8 0.16 75 / 0.05) 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, oklch(0.8 0.16 75 / 0.05) 0 1px, transparent 1px 40px), transparent; z-index: 1; }
+.hle.panel-mode .hle-back { display: none; }
+#ui.hud-edit .hl { pointer-events: auto; cursor: move; z-index: 2; --gc: var(--gold); outline: calc(1.5px / var(--k)) dashed var(--gc); outline-offset: calc(2px / var(--k)); background: oklch(0.16 0.012 60 / 0.22); }
+#ui.hud-edit .hl * { pointer-events: none; }
+#ui.hud-edit .hl[data-group="navigation"] { --gc: oklch(0.8 0.16 75); }
+#ui.hud-edit .hl[data-group="vitals"] { --gc: oklch(0.64 0.2 28); }
+#ui.hud-edit .hl[data-group="combat"] { --gc: oklch(0.9 0.02 85); }
+#ui.hud-edit .hl[data-group="social"] { --gc: oklch(0.74 0.15 145); }
+#ui.hud-edit .hl[data-group="messages"] { --gc: oklch(0.84 0.07 80); }
+#ui.hud-edit .hl[data-group="vehicle"] { --gc: oklch(0.72 0.15 50); }
+#ui.hud-edit .hl:hover { background: oklch(0.8 0.16 75 / 0.1); }
+#ui.hud-edit .hl.hl-sel { outline-style: solid; outline-width: calc(2.5px / var(--k)); background: oklch(0.8 0.16 75 / 0.14); z-index: 3; }
+#ui.hud-edit .hl.hl-ghost > :not(.hl-name):not(.hl-grip) { opacity: 0.28; filter: grayscale(1); }
+#ui.hud-edit .hl.hl-ghost { outline-color: oklch(0.6 0.02 70); }
+#ui.hud-edit .hl > .hl-name { display: block; position: absolute; left: 0; top: 0; z-index: 5; padding: calc(2px / var(--k)) calc(7px / var(--k)); font: 700 calc(12px / var(--k)) var(--display); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: oklch(0.16 0.012 60); background: var(--gc); z-index: 9; box-shadow: calc(2px / var(--k)) calc(2px / var(--k)) 0 rgba(0, 0, 0, 0.55); }
+#ui.hud-edit .hl[data-ax="1"] > .hl-name { left: auto; right: 0; }
+#ui.hud-edit .hl.hl-ghost > .hl-name::after { content: ' · HIDDEN'; }
+#ui.hud-edit .hl.hl-sel > .hl-grip { display: block; position: absolute; right: calc(-7px / var(--k)); bottom: calc(-7px / var(--k)); width: calc(14px / var(--k)); height: calc(14px / var(--k)); pointer-events: auto; cursor: nwse-resize; background: var(--gc); border: calc(2px / var(--k)) solid oklch(0.16 0.012 60); z-index: 10; }
+#ui.hud-edit .reticle { display: none; }
+.hle.nopanel .hle-panel, .hle.nopanel .hle-back { display: none; }
+#ui.hud-edit.nopanel .hl { background: none; }
+
+.hle-guide { position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; background: oklch(0.72 0.16 50); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.hle-gx { width: 1px; height: 100%; }
+.hle-gy { width: 100%; height: 1px; }
+.hle-guide.hidden { display: none; }
+
+/* the panel: a riveted steel card in the middle of the screen, where the HUD never goes */
+.hle-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; width: min(600px, 92vw); max-height: 70vh; overflow: auto; pointer-events: auto; cursor: default; padding: 12px 16px 14px; display: grid; gap: 9px;
+  background: var(--speckle, linear-gradient(transparent, transparent)), linear-gradient(172deg, oklch(0.28 0.008 70 / 0.97), oklch(0.18 0.008 70 / 0.97)); border: 1px solid oklch(0.1 0.01 60); border-top-color: oklch(0.45 0.012 70); border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255, 250, 235, 0.08), 6px 8px 0 rgba(0, 0, 0, 0.5); font: 13px var(--body); color: var(--bone); }
+.hle-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid oklch(0.1 0.01 60); box-shadow: 0 1px 0 oklch(0.4 0.012 70 / 0.5); padding-bottom: 6px; }
+.hle-head b { font: 800 22px var(--display); letter-spacing: 0.04em; color: var(--gold); white-space: nowrap; }
+.hle-head span { flex: 1; font: 600 11px var(--display); letter-spacing: 0.06em; color: var(--muted); }
+.hle-head kbd { font-size: 0.9em; }
+.hle-x { all: unset; cursor: pointer; font: 700 18px var(--display); color: oklch(0.7 0.16 30); padding: 0 4px; transition: color 0.2s; }
+.hle-x:hover { color: oklch(0.8 0.18 30); }
+.hle-row { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 8px; }
+.hle-k { font: 700 11px var(--display); letter-spacing: 0.2em; color: var(--gold); }
+.hle-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.hle-panel button { all: unset; cursor: pointer; font: 700 12px var(--display); letter-spacing: 0.07em; padding: 4px 10px 3px; color: var(--bone); background: linear-gradient(oklch(0.33 0.008 70), oklch(0.24 0.008 70)); border: 1px solid oklch(0.1 0.01 60); box-shadow: inset 0 1px 0 rgba(255, 250, 235, 0.1), 2px 2px 0 rgba(0, 0, 0, 0.5); transition: background 0.2s, transform 0.2s; text-transform: uppercase; }
+.hle-panel button:hover:not(:disabled) { background: linear-gradient(oklch(0.42 0.04 75), oklch(0.3 0.03 70)); transform: translateY(-1px); }
+.hle-panel button:disabled { opacity: 0.4; cursor: default; }
+.hle-panel button.on, .hle-panel .hle-done { color: var(--ink); background: linear-gradient(oklch(0.86 0.14 85), oklch(0.72 0.15 72)); }
+.hle-pick { width: 100%; background: oklch(0.2 0.01 60); color: var(--bone); border: 1px solid oklch(0.1 0.01 60); border-radius: 2px; padding: 4px 6px; font: 13px var(--body); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
+.hle-el { display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: center; padding: 8px 10px; background: oklch(0.14 0.01 60 / 0.75); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); }
+.hle-el.off { opacity: 0.35; pointer-events: none; }
+.hle-anchor { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 84px; height: 66px; }
+.hle-anchor button { padding: 0; }
+.hle-fields { display: grid; gap: 6px; }
+.hle-fields label { display: flex; align-items: center; gap: 8px; font: 600 12px var(--display); letter-spacing: 0.08em; }
+.hle-fields input[type=range] { flex: 1; accent-color: oklch(0.8 0.16 75); }
+.hle-fields input[type=checkbox] { accent-color: oklch(0.8 0.16 75); width: 15px; height: 15px; }
+.hle-sv { min-width: 44px; text-align: right; font: 700 14px var(--road); color: var(--gold); }
+.hle-fields button { justify-self: start; }
+.hle-foot { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+
+.hle-modal { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; background: rgba(8, 6, 4, 0.6); pointer-events: auto; }
+.hle-modal.hidden { display: none; }
+.hle-mcard { width: min(720px, 92vw); padding: 16px 18px; display: grid; gap: 8px; background: linear-gradient(172deg, oklch(0.28 0.008 70), oklch(0.18 0.008 70)); border: 1px solid oklch(0.1 0.01 60); box-shadow: 6px 8px 0 rgba(0, 0, 0, 0.5); }
+.hle-mcard h3 { margin: 0; font: 800 22px var(--display); color: var(--gold); letter-spacing: 0.04em; }
+.hle-mcard p { margin: 0; font: 400 13px/1.4 var(--type); color: oklch(0.86 0.02 82); }
+.hle-mcard textarea { height: 300px; resize: vertical; background: oklch(0.13 0.01 60); color: var(--bone); border: 1px solid oklch(0.1 0.01 60); font: 12px ui-monospace, monospace; padding: 8px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); }
+.hle-msay { min-height: 16px; font: 700 12px var(--display); letter-spacing: 0.08em; color: oklch(0.72 0.16 40); }
+.hle-mbtns { display: flex; gap: 6px; justify-content: flex-end; }
+.hle-mbtns button { all: unset; cursor: pointer; font: 700 13px var(--display); letter-spacing: 0.08em; padding: 6px 14px; background: linear-gradient(oklch(0.33 0.008 70), oklch(0.24 0.008 70)); border: 1px solid oklch(0.1 0.01 60); box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.5); transition: background 0.2s; }
+.hle-mbtns button:hover { background: linear-gradient(oklch(0.42 0.04 75), oklch(0.3 0.03 70)); }
+.hle-mbtns button.hidden { display: none; }
+
+/* ---- the panels (ui/paneledit.js): the editor card docks to the side, every region of the open panel is outlined and named ---- */
+.hle:not(.panel-mode) .hle-panonly, .hle.panel-mode .hle-hudonly { display: none !important; }
+.hle.panel-mode .hle-panel { left: auto; right: 12px; top: 12px; transform: none; width: min(380px, 40vw); max-height: calc(100vh - 24px); }
+.hle-regs { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.hle.panel-mode .hle-regs { pointer-events: auto; cursor: move; }
+.hle-rbox { position: absolute; left: 0; top: 0; outline: 1.5px dashed oklch(0.8 0.16 75); outline-offset: -1px; background: oklch(0.8 0.16 75 / 0.05); pointer-events: none; }
+.hle-rbox.list { outline-color: oklch(0.74 0.15 145); }
+.hle-rbox.off { outline-color: oklch(0.6 0.02 70); background: repeating-linear-gradient(45deg, oklch(0.4 0.01 70 / 0.25) 0 6px, transparent 6px 12px); }
+.hle-rbox.sel { outline: 2.5px solid oklch(0.8 0.16 75); background: oklch(0.8 0.16 75 / 0.12); }
+.hle-rbox b { position: absolute; left: 0; top: 0; padding: 1px 6px; font: 700 11px var(--display); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: oklch(0.16 0.012 60); background: oklch(0.8 0.16 75); box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55); }
+.hle-rbox.list b { background: oklch(0.74 0.15 145); }
+.hle-rbox.off b { background: oklch(0.6 0.02 70); }
+.hle-pe { display: grid; gap: 7px; padding: 8px 10px; background: oklch(0.14 0.01 60 / 0.75); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); }
+.hle-pe .hle-k { display: block; margin-bottom: 2px; }
+.hle-pe label { display: grid; grid-template-columns: 70px 1fr 44px; align-items: center; gap: 8px; font: 600 12px var(--display); letter-spacing: 0.08em; }
+.hle-pe label.chk { grid-template-columns: auto 1fr; }
+.hle-pe input[type=range] { accent-color: oklch(0.8 0.16 75); }
+.hle-pe input[type=checkbox] { accent-color: oklch(0.8 0.16 75); width: 15px; height: 15px; }
+.hle-pe b.v { text-align: right; font: 700 13px var(--road); color: var(--gold); }
+.hle-pe .off { opacity: 0.35; pointer-events: none; }
+.hle-pe .hle-rname { font: 800 17px var(--display); color: var(--gold); letter-spacing: 0.03em; }
+.hle-pe .hle-rnone { font: 400 13px var(--type); color: var(--muted); }
+/* the card folds to its title bar (▾) so it never has to sit on the panel you are editing */
+.hle-panel.min > :not(.hle-head) { display: none !important; }
+.hle-panel.min { width: auto !important; }
+.hle-min { all: unset; cursor: pointer; font: 700 14px var(--display); color: var(--muted); padding: 0 4px; transition: color 0.2s; }
+.hle-min:hover { color: var(--gold); }

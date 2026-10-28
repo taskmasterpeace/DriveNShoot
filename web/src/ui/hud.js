@@ -2,6 +2,8 @@ import { HALF, locationName, districtName } from '../world/city.js';
 import { WEAPONS } from '../systems/combat.js';
 import * as ART from './hudart.js';
 import { NEEDS } from '../data/survival.js';
+import { HudLayout, HudEditor } from './hudedit.js';
+import { PanelLayout } from './panellayout.js';
 
 const NEED_WORDS = Object.fromEntries(Object.entries(NEEDS).map(([k, v]) => [k, v.words])); // the ailments' words: one source
 
@@ -27,7 +29,7 @@ const SEG = 15;           // health / stamina segments
 const SEG_SMALL = 10;     // breath, fuel, hull
 const TIER_CLASS = { hunted: 't-bad', hostile: 't-bad', wary: 't-wary', neutral: 't-neutral', friendly: 't-good', allied: 't-good' };
 const DASH = [5, 3.5], SOLID = [];
-const STATUS_W = { needs: 670, bare: 432 }; // three dials (food, water, rest) on the plate
+const STATUS_W = 432, NEEDS_W = 262; // the vitals plate; the needs plate beside it carries three dials (food, water, rest)
 const segs = (cls, n) => `<div class="seg ${cls}">${'<i></i>'.repeat(n)}</div>`;
 const gauge = (cls, label) => `<div class="gauge ${cls}"><span class="g-label">${label}</span><div class="g-dial"><canvas></canvas><i class="g-needle"></i><b class="g-hub"></b></div></div>`;
 
@@ -54,8 +56,8 @@ export class HUD {
               <div class="st-row"><span class="st-label">HEALTH</span><b class="hp-num">100</b></div>${segs('seg-hp', SEG)}
               <div class="st-row"><span class="st-label">STAMINA</span></div>${segs('seg-stam', SEG)}
             </div>
-            <div class="needs hidden">${gauge('g-food', 'FOOD')}${gauge('g-water', 'WATER')}${gauge('g-rest', 'REST')}</div>
           </div>
+          <div class="needs-plate hidden"><canvas class="tex"></canvas><div class="needs">${gauge('g-food', 'FOOD')}${gauge('g-water', 'WATER')}${gauge('g-rest', 'REST')}</div></div>
           <div class="flagpatch"><canvas></canvas></div>
           <div class="ailments"></div>
           <div class="roles"></div>
@@ -87,6 +89,7 @@ export class HUD {
           </div>
         </div>
         <div class="prompt hidden"></div>
+        <div class="footing hidden"></div>
         <div class="subtitle hidden"></div>
         <div class="vignette"></div>
         <div class="hurt"></div>
@@ -106,7 +109,7 @@ export class HUD {
       wxPlate: q('.wx-plate canvas'), time: q('.clock-time'), sub: q('.clock-sub'), wx: q('.wx-icon'), wanted: q('.wanted'), stars: qa('.wanted i'),
       respect: q('.respect'), cashPlate: q('.cash-plate canvas'), cash: q('.cash'),
       status: q('.status'), statusTex: q('.status canvas'), hpNum: q('.hp-num'), hpSegs: qa('.seg-hp i'), stamSegs: qa('.seg-stam i'),
-      needs: q('.needs'), foodDial: q('.g-food canvas'), waterDial: q('.g-water canvas'), foodNeedle: q('.g-food .g-needle'), waterNeedle: q('.g-water .g-needle'), restDial: q('.g-rest canvas'), restNeedle: q('.g-rest .g-needle'),
+      needs: q('.needs-plate'), needsTex: q('.needs-plate canvas'), foodDial: q('.g-food canvas'), waterDial: q('.g-water canvas'), foodNeedle: q('.g-food .g-needle'), waterNeedle: q('.g-water .g-needle'), restDial: q('.g-rest canvas'), restNeedle: q('.g-rest .g-needle'),
       ailments: q('.ailments'), tired: q('.tired'), sleep: q('.sleep-screen'), slClock: q('.sl-clock'), slRest: q('.sl-rest em'), slRestT: q('.sl-rest b'), blackout: q('.blackout'),
       flag: q('.flagpatch'), flagTex: q('.flagpatch canvas'), roles: q('.hud-bl .roles'),
       breathRow: q('.breath-tab'), breathTex: q('.breath-tab canvas'), breathSegs: qa('.seg-breath i'),
@@ -116,7 +119,7 @@ export class HUD {
       wthrow: q('.w-throw'), tIcon: q('.w-ticon'), tCount: q('.w-tcount'), tName: q('.w-tname'),
       speedo: q('.speedo'), spTex: q('.speedo canvas'), spDial: q('.sp-dial canvas'), spNeedle: q('.sp-needle'), sNum: q('.speedo-num'), sName: q('.speedo-name'), spHint: q('.sp-hint'),
       winDiagram: q('.win-diagram'), vehLabel: q('.veh-label'), hullSegs: qa('.seg-hull i'), fuelSegs: qa('.seg-fuel i'),
-      prompt: q('.prompt'), subtitle: q('.subtitle'), hurt: q('.hurt'), vignette: q('.vignette'), dead: q('.dead-screen'), flash: q('.flashbang'), under: q('.underwater'),
+      prompt: q('.prompt'), footing: q('.footing'), subtitle: q('.subtitle'), hurt: q('.hurt'), vignette: q('.vignette'), dead: q('.dead-screen'), flash: q('.flashbang'), under: q('.underwater'),
       stats: q('.stats'), reticle: q('.reticle'),
     };
     this.mmCtx = this.el.mm.getContext('2d');
@@ -145,6 +148,10 @@ export class HUD {
       this.paint(true); this.s.loc = this.s.cash = undefined;
       if (this.g.player && this.g.paused) this.update(0); // the plates under the title show the real moment, not placeholders
     });
+    // Every element hangs from its row (data/hudlayout.js); F6 or EDIT HUD in the pause menu opens the editor (ui/hudedit.js).
+    this.layout = new HudLayout(this);
+    this.panels = new PanelLayout(game); // the full screens' regions (data/panellayout.js), edited in the same editor
+    this.editor = new HudEditor(this);
     this.rescale();
     addEventListener('resize', () => this.rescale());
   }
@@ -154,6 +161,7 @@ export class HUD {
     const k = Math.max(0.62, Math.min(1.35, Math.min(innerWidth / 1600, innerHeight / 900))) * (Number(this.g.qol?.settings?.hudScale) || 1); // x the HUD size setting (ui/qol.js)
     this.root.style.setProperty('--s', k.toFixed(3));
     this.scaleK = k;
+    this.layout?.apply();
   }
 
   // Static art. Text-bearing faces (bezel numbers, gauge labels) repaint once the webfonts land.
@@ -183,10 +191,12 @@ export class HUD {
     target.getContext('2d').drawImage(painted, 0, 0);
   }
   paintStatus(needs) {
-    const w = needs ? STATUS_W.needs : STATUS_W.bare;
-    ART.paintPlate(w, 132, { seed: 15, chamfer: 9, cut: { tr: 30 }, rust: 0.85, scratch: 50, screws: [[w - 22, 38, 6.5], [w - 18, 112, 6.5], [58, 114, 6.5]] }, this.el.statusTex);
-    this.el.status.style.width = `${w}px`;
-    this.el.flag.style.left = `${200 + w - 86}px`;
+    const w = STATUS_W, n = NEEDS_W;
+    if (!this.s.statusPainted) {
+      this.s.statusPainted = true;
+      ART.paintPlate(w, 132, { seed: 15, chamfer: 9, cut: { tr: 30 }, rust: 0.85, scratch: 50, screws: [[w - 22, 38, 6.5], [w - 18, 112, 6.5], [58, 114, 6.5]] }, this.el.statusTex);
+      ART.paintPlate(n, 132, { seed: 16, chamfer: 9, cut: { tl: 18 }, rust: 0.8, scratch: 30, screws: [[n - 16, 18, 6], [n - 16, 114, 6]] }, this.el.needsTex);
+    }
     this.el.needs.classList.toggle('hidden', !needs);
     this.s.hasNeeds = needs;
   }
@@ -207,6 +217,13 @@ export class HUD {
   flashbang(secs) { this.flashT = Math.max(this.flashT ?? 0, secs); this.flashMax = this.flashT; }
   hurt(dmg) { this.hurtV = Math.min(1, this.hurtV + dmg / 40); this.shake(Math.min(0.5, dmg / 60)); }
   shake(v) { this.shakeV = Math.max(this.shakeV, v); }
+  // Riding an open deck: how near the floor is to throwing you (main.js footingText; systems/decks.js). Its own chip, so
+  // the prompt above stays the one verb you can do.
+  footing(text) {
+    if (!text) { if (this.s.footing !== null) { this.el.footing.classList.add('hidden'); this.s.footing = null; } return; }
+    if (text !== this.s.footing) { this.el.footing.innerHTML = text; this.s.footing = text; }
+    this.el.footing.classList.remove('hidden');
+  }
   prompt(text) {
     if (!text) { if (this.s.prompt !== null) { this.el.prompt.classList.add('hidden'); this.s.prompt = null; } return; }
     if (text !== this.s.prompt) { this.el.prompt.innerHTML = text; this.s.prompt = text; }
@@ -345,6 +362,7 @@ export class HUD {
     if (code !== s.flag) this.paintFlag(code);
     this.updateRespect();
     this.updateRoles();
+    this.layout.tick(); // late elements bind, the situation (on foot, driving, a deck, dead...) picks what shows
   }
 
   // What the world calls you (systems/roles.js): stitched cloth tapes on the status plate beside the street sign, one per role you are known

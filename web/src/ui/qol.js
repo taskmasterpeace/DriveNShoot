@@ -69,6 +69,7 @@ export class QOL {
           <button data-a="photo">Photo mode <kbd>K</kbd></button>
           <button data-a="map">Map <kbd>M</kbd></button>
           <button data-a="hud">Hide HUD <kbd>F1</kbd></button>
+          <button data-a="hudedit">Edit HUD layout <kbd>F6</kbd></button>
         </div>
         <div class="pm-section">THIS RUN</div>
         <div class="pm-run"></div>
@@ -118,6 +119,7 @@ export class QOL {
       if (a === 'autoload') { this.quickLoad(AUTO_KEY); this.toggleMenu(false); }
       if (a === 'photo') { this.toggleMenu(false); this.togglePhoto(true); }
       if (a === 'hud') { this.toggleMenu(false); this.toggleHud(true); }
+      if (a === 'hudedit') { this.toggleMenu(false); game.hud.editor?.show(); } // the HUD layout editor (ui/hudedit.js)
       if (a === 'reset') { this.settings = { ...DEFAULTS }; this.saveSettings(); this.syncInputs(); this.apply(); game.hud.toast('Settings reset to defaults'); }
     });
     this.syncInputs();
@@ -495,6 +497,7 @@ export class QOL {
     if (on) { this.toggleMap(false); this.renderRoles(); this.renderRun(); this.renderLog(); this.renderAgo(); this.showTab(this.tab ?? 'game'); }
     this.el.menu.classList.toggle('hidden', !on);
     this.g.paused = on || this.mapOpen;
+    this.g.hud?.layout?.refresh(); // the HUD's 'menu' situation (data/hudlayout.js)
   }
 
   // What the world calls you (systems/roles.js), drawn when the menu opens: each role you are known for (or on your
@@ -529,6 +532,7 @@ export class QOL {
     this.el.map.classList.toggle('hidden', !on);
     if (on) { this.routeT = 0; this.updateRoute(0); this.drawBigMap(); }
     this.g.paused = on || this.menuOpen;
+    this.g.hud?.layout?.refresh();
   }
 
   quickSave() {
@@ -563,6 +567,9 @@ export class QOL {
 
   // Keys that work even while paused. Returns nothing; flips g.paused.
   input(I) {
+    const E = this.g.hud?.editor; // the HUD layout editor owns the keys while it is open (its own Esc / F6 close it)
+    if (E?.open) return;
+    if (E && this.g.controls?.hit('hudEdit') && !document.querySelector('.title') && !this.photo) { E.show(); return; }
     if (I.hit('Escape') && !this.g.dialogue.active && !this.photo && !this.g.invUI?.open) { if (this.mapOpen) this.toggleMap(false); else this.toggleMenu(); }
     if (I.hit('KeyP')) this.toggleMenu();
     if (this.menuOpen && (I.hit('KeyQ') || I.hit('KeyE'))) { const i = this.tabs.indexOf(this.tab ?? 'game'), n = this.tabs.length; this.showTab(this.tabs[(i + (I.hit('KeyE') ? 1 : n - 1)) % n]); }
@@ -638,6 +645,7 @@ export class QOL {
 
   update(dt) {
     if (this.photo) { this.updatePhoto(dt, this.g.input); return; }
+    this.g.hud?.layout?.situate(); // a panel opening pauses the world: the HUD still steps out of its way (data/hudlayout.js 'panel')
     // Autosave on a timer, never mid-fight, in a car crash or while dead.
     const g = this.g;
     if (!g.paused && !document.querySelector('.title')) {
