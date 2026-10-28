@@ -68,6 +68,28 @@ The **HUD editor** (F6, or EDIT HUD LAYOUT in the pause menu) pauses the game an
 
 **3.6 Saving.** A player's layout is `{ preset, edits }` in `localStorage['dsoa.hudlayout']` (wrapped in try/catch). Edits hold only the fields that differ from the preset (`diffLayout`). EXPORT also includes `rows`, which is the full resolved `HUD_LAYOUT` shape.
 
+**3.8 Panels (phase 2).** Robert, on the Workshop: *"screens like this, I need to be able to improve as well... we got to be able to not necessarily change the size of the whole thing, right? But we do got to be able to improve it."*
+
+- **Rows:** `web/src/data/panellayout.js` `PANELS` describes 8 full screens, each as a root plus named regions:
+  - **workshop:** head, chassis, tabs, parts (list, 2 columns), detail, buttons, stats, say, keys
+  - **pack:** head, doll, dogs, columns (list), detail, buttons, say, keys
+  - **sheet:** head, tabs, body (list), close
+  - **crew:** head, cards (list), foot
+  - **dialogue:** portrait, head, text, choices (list)
+  - **travel:** title, sub, cash, note, table (list), foot
+  - **creator:** top, panel, card, points, foot
+  - **pause:** title, tabs, buttons (list), settings (list, on the *settings* tab), keys (on the *controls* tab)
+- **A region edit** can set `visible`, `scale` (0.5-2, the whole region), `text` (0.6-1.8, only its text), `dx/dy` (a nudge in px), `anchor` (flow, or pinned to a corner or edge of the panel: tl tc tr bl bc br), `cols` (1-4, lists only) and `density` (0.5-1.6, lists only). Each panel also has its own scale (0.6-1.4). You never need it, because each region can be improved on its own.
+- **Presets:** Default, Compact (lists denser, text 92%) and Large text (every region's text at 120%). A player's edits ride on top.
+- **Live:** `web/src/ui/panellayout.js` turns the layout into **one generated `<style>`** keyed on the root and region selectors, never inline styles. A panel that rebuilds its rows on every render keeps the layout. Text scale zooms only the leaf elements of a region.
+- **Saving:** per player in `localStorage['dsoa.panellayout']`. Export and import use `{ preset, edits }`.
+- **Editor:** the F6 editor's **SCREEN** strip has HUD plus the 8 panels. Picking a panel opens it on the paused world (staging what it needs: a car beside you for the Workshop, the nearest NPC for dialogue, a sample timetable for the travel board). It then outlines and names every region on an overlay above the panel, so the panel's own buttons don't fire. The card docks to the side, can be dragged by its title bar and folds to that bar (▾).
+- **Editor controls:** click a region to pick it (the smallest box under the pointer). Drag to nudge it, use the wheel or `=`/`-` to size it, the arrows to nudge it, and H to hide it. The inspector has the anchor, SIZE, TEXT, COLUMNS, DENSITY, Visible, RESET REGION / RESET PANEL and the PANEL scale. Tabbed regions get SHOW TAB buttons. The undo stack is shared with the HUD.
+- **The HUD gets out of a panel's way:** a new situation, `panel` (the workshop, pack, sheet, crew or a travel board is open), shows no HUD row unless the row lists `panel`. It is read every frame from `qol.update` (cheap, change-only), because a panel pauses the world.
+- **Workshop "LOCKED" fix:** what read as a LOCKED strike was the slanted cyan **PRE-WAR / SCARCE rarity stamp**, together with a 9 px reason squeezed at the row's edge. The rarity is now a flat chip after the name. A row you can't take here is dimmed and gets a **padlock and the reason in 11 px words, in its own column**, so it never crosses the name or the weight/size/faces line. The scrip label also no longer overlaps the scrip number.
+- **Agent:** the `panelLayout` command (list, open, close, set, preset, reset, export, import, audit, edit).
+- **Sheet:** `web/tools/panel-sheet.mjs` writes `docs/renders/web/ui-editor/panels/`: each panel's before and after shots, the after shots at 1280×720 and 2560×1440, the `-names` shots with regions labelled, and `audit-<tag>.json`. It exits 1 if any text crosses at any size.
+
 **3.7 Multiplayer.** A layout is per player and local. It is never sent to the shard, and no other player sees it. What *is* shared is the standard: the row ids, the names, and the Default positions everyone starts from. That is how "people get used to seeing certain things, certain places" holds across a co-op session. The `situations` follow your own seat, so a passenger sees their gun plate and the dash while the driver beside them sees the dash only.
 
 ## 4. Formulas
@@ -140,5 +162,14 @@ Named selftest checks (`selftest only=hud`, 9 checks), each returning true or a 
 7. **hud editor: opens paused with every element named, a drag moves one, undo puts it back, Esc closes.** This also checks that the wheel resizes and that the pause state is restored.
 8. **hud editor: changing the anchor keeps the element where it is on screen.**
 9. **hud: the hudLayout command lists, sets, presets, previews a situation and resets.**
+
+Panels (phase 2), 7 more checks:
+10. **panels: the region rows validate, every preset is legal, and a bad panel edit is named.**
+11. **panels: every region of every panel maps to a live element when the panel opens.** A tabbed region only has to exist.
+12. **panels: no text run crosses another in any panel.** Each text node is clipped to its overflow ancestors and measured one line box at a time. This runs at the page's size; `tools/panel-sheet.mjs` runs the same audit at 1600×900, 1280×720 and 2560×1440.
+13. **panels: the workshop's unavailable rows stay readable.** Each has a padlock and words, the reason never crosses the name, no stamp is slanted, and there is no crossing text in the rack.
+14. **panels: a panel layout round-trips export/import and reaches the stylesheet.** The parts grid shows 3 columns, the key hints are hidden, the detail text is at 130%, and a bad import is refused and changes nothing.
+15. **panels: the HUD steps out of a panel's way.**
+16. **panel editor: the workshop's regions are outlined and named; a click picks one, the wheel sizes it, undo puts it back.**
 
 The full battery must stay green twice on fresh pages, `scenario name=stress` must not regress, and ip-lint must report 0 deny. The sheet `docs/renders/web/ui-editor/` (INDEX.md) has edit mode with names on for each preset and each situation, the editor panel, the live HUD before and after, the live HUD driving, and the layout at 1280×720 and 2560×1440.
