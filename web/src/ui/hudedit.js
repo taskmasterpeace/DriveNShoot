@@ -1,4 +1,6 @@
 import './hudedit.css';
+import { PanelEditMode } from './paneledit.js';
+import { PANELS, PANEL_IDS } from '../data/panellayout.js';
 import { HUD_PRESETS, PRESET_IDS, SITUATIONS, SITUATION_IDS, ANCHORS, placeRect, offsetFor, resolveLayout, diffLayout, validateHudLayout, layoutScale, SCALE_MIN, SCALE_MAX, EDIT_FIELDS } from '../data/hudlayout.js';
 
 // THE HUD LAYOUT, live (docs/design/WEB_UI_EDITOR.md). Every HUD element named in data/hudlayout.js is lifted into its own
@@ -16,12 +18,13 @@ import { HUD_PRESETS, PRESET_IDS, SITUATIONS, SITUATION_IDS, ANCHORS, placeRect,
 const STORE = 'dsoa.hudlayout';
 const SAMPLE = { prompt: '<kbd>E</kbd> OPEN TRUNK', subtitle: 'Subtitles: what people say out loud.', footing: '<b>FOOTING · STEADY</b> STAND ×1.00 · <kbd>CTRL</kbd> brace' };
 
-// What the player is doing, for the HUD: first match wins.
+// What the player is doing, for the HUD: first match wins (data/hudlayout.js SITUATIONS).
 export function situationOf(g) {
   const p = g.player;
   if (!p) return 'on_foot';
   if (!p.alive) return 'dead';
-  if (g.qol?.menuOpen || g.qol?.mapOpen || g.invUI?.open) return 'menu';
+  if (g.qol?.menuOpen || g.qol?.mapOpen) return 'menu';
+  if (g.workshopUI?.open || g.invUI?.open || g.charSheet?.open || g.crewUI?.open || g.travel?.ui?.open) return 'panel';
   const v = p.inVehicle;
   if (v) return v.driver === p ? 'driving' : 'passenger';
   if (p.onDeck) return 'deck';
@@ -238,16 +241,21 @@ export class HudEditor {
   constructor(hud) {
     this.hud = hud; this.g = hud.g; this.lay = hud.layout;
     this.open = false; this.selId = null; this.undoS = []; this.redoS = []; this.drag = null; this.wheelT = 0;
-    hud.root.insertAdjacentHTML('beforeend', `
+    this.scr = 'hud';
+    // On the body, above every panel (the sheet and the creator live outside #ui), so the editor works on top of them.
+    document.body.insertAdjacentHTML('beforeend', `
       <div class="hle hidden">
         <div class="hle-back"></div>
         <div class="hle-guide hle-gx hidden"></div><div class="hle-guide hle-gy hidden"></div>
         <div class="hle-panel">
-          <div class="hle-head"><b>HUD LAYOUT</b><span>Drag to move · corner or wheel to size · <kbd>SHIFT</kbd> no snap · arrows nudge · <kbd>H</kbd> hide · <kbd>ESC</kbd> done</span><button class="hle-x" data-a="close" title="Done (Esc)">✕</button></div>
-          <div class="hle-row"><span class="hle-k">PRESET</span><div class="hle-pills" data-g="preset">${PRESET_IDS.map((id) => `<button data-v="${id}" title="${HUD_PRESETS[id].blurb}">${HUD_PRESETS[id].name}</button>`).join('')}</div></div>
-          <div class="hle-row"><span class="hle-k">SITUATION</span><div class="hle-pills" data-g="sit"><button data-v="auto" title="what you're doing right now">Live</button>${SITUATION_IDS.map((id) => `<button data-v="${id}" title="${SITUATIONS[id].blurb}">${SITUATIONS[id].name}</button>`).join('')}</div></div>
-          <div class="hle-row"><span class="hle-k">ELEMENT</span><select class="hle-pick"></select></div>
-          <div class="hle-el">
+          <div class="hle-head"><b>HUD LAYOUT</b><span>Drag to move · corner or wheel to size · <kbd>SHIFT</kbd> no snap · arrows nudge · <kbd>H</kbd> hide · <kbd>ESC</kbd> done</span><button class="hle-min" data-a="min" title="Fold the card to its title bar">▾</button><button class="hle-x" data-a="close" title="Done (Esc)">✕</button></div>
+          <div class="hle-row"><span class="hle-k">SCREEN</span><div class="hle-pills" data-g="screen"><button data-v="hud">HUD</button>${PANEL_IDS.map((id) => `<button data-v="${id}">${PANELS[id].name}</button>`).join('')}</div></div>
+          <div class="hle-row hle-hudonly"><span class="hle-k">PRESET</span><div class="hle-pills" data-g="preset">${PRESET_IDS.map((id) => `<button data-v="${id}" title="${HUD_PRESETS[id].blurb}">${HUD_PRESETS[id].name}</button>`).join('')}</div></div>
+          <div class="hle-row hle-panonly"><span class="hle-k">PRESET</span><div class="hle-pills" data-g="ppreset"></div></div>
+          <div class="hle-row hle-hudonly"><span class="hle-k">SITUATION</span><div class="hle-pills" data-g="sit"><button data-v="auto" title="what you're doing right now">Live</button>${SITUATION_IDS.map((id) => `<button data-v="${id}" title="${SITUATIONS[id].blurb}">${SITUATIONS[id].name}</button>`).join('')}</div></div>
+          <div class="hle-row hle-hudonly"><span class="hle-k">ELEMENT</span><select class="hle-pick"></select></div>
+          <div class="hle-pe hle-panonly"></div>
+          <div class="hle-el hle-hudonly">
             <div class="hle-anchor" title="The corner or edge it hangs from: it stays there whatever the window's size">${ANCHOR_ORDER.map((a) => `<button data-anchor="${a}" title="${ANCHORS[a].name}"></button>`).join('')}</div>
             <div class="hle-fields">
               <label>SIZE <input type="range" class="hle-size" min="${SCALE_MIN}" max="${SCALE_MAX}" step="0.05"><b class="hle-sv"></b></label>
@@ -260,7 +268,7 @@ export class HudEditor {
         </div>
         <div class="hle-modal hidden"><div class="hle-mcard"><h3></h3><p></p><textarea spellcheck="false"></textarea><div class="hle-msay"></div><div class="hle-mbtns"><button data-m="copy">COPY</button><button data-m="apply">APPLY</button><button data-m="close">CLOSE</button></div></div></div>
       </div>`);
-    const r = hud.root, q = (s) => r.querySelector(s);
+    const q = (s) => document.querySelector(s);
     this.el = { root: q('.hle'), panel: q('.hle-panel'), pick: q('.hle-pick'), size: q('.hle-size'), sv: q('.hle-sv'), vis: q('.hle-vis'), insit: q('.hle-insit'), sitname: q('.hle-sitname'),
       gx: q('.hle-gx'), gy: q('.hle-gy'), modal: q('.hle-modal'), mTitle: q('.hle-mcard h3'), mText: q('.hle-mcard p'), mArea: q('.hle-mcard textarea'), mSay: q('.hle-msay'), elBox: q('.hle-el') };
     this.el.root.addEventListener('click', (e) => this.click(e));
@@ -274,8 +282,10 @@ export class HudEditor {
     host.addEventListener('pointerup', (e) => this.up(e));
     host.addEventListener('pointercancel', (e) => this.up(e));
     host.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
-    this.el.root.querySelector('.hle-back').addEventListener('pointerdown', () => this.select(null));
+    this.el.root.querySelector('.hle-head').addEventListener('pointerdown', (e) => this.dragCard(e));
+    addEventListener('pointerdown', (e) => { if (this.open && this.scr === 'hud' && !e.target.closest?.('.hl, .hle-panel, .hle-modal')) this.select(null); }, true);
     addEventListener('keydown', (e) => this.key(e), true);
+    this.pe = new PanelEditMode(this);
   }
 
   // ---- open / close -------------------------------------------------------------------------------------------------
@@ -293,12 +303,15 @@ export class HudEditor {
     this.lay.force(this.lay.sit ?? 'on_foot');
     this.forcedByMe = true;
     this.liveSit = null;
+    this.scr = 'hud';
     this.render();
   }
   hide() {
     if (!this.open) return;
     this.open = false;
     this.drag = null;
+    this.pe.leave(true);
+    this.scr = 'hud';
     this.lay.editing = false;
     this.lay.preview(false);
     this.lay.force(null);
@@ -314,6 +327,11 @@ export class HudEditor {
   // ---- the panel ----------------------------------------------------------------------------------------------------
   render() {
     const L = this.lay, el = this.el;
+    el.root.classList.toggle('panel-mode', this.scr !== 'hud');
+    for (const b of el.root.querySelectorAll('[data-g="screen"] button')) b.classList.toggle('on', b.dataset.v === this.scr);
+    el.root.querySelector('[data-a="undo"]').disabled = !this.undoS.length;
+    el.root.querySelector('[data-a="redo"]').disabled = !this.redoS.length;
+    if (this.scr !== 'hud') { this.pe.render(); return; }
     for (const b of el.root.querySelectorAll('[data-g="preset"] button')) b.classList.toggle('on', b.dataset.v === L.preset);
     const sit = L.forced ?? 'auto';
     for (const b of el.root.querySelectorAll('[data-g="sit"] button')) b.classList.toggle('on', b.dataset.v === sit);
@@ -331,27 +349,48 @@ export class HudEditor {
     el.root.querySelector('[data-a="redo"]').disabled = !this.redoS.length;
     for (const b of L.boxes) b.wrap?.classList.toggle('hl-sel', b.id === this.selId);
   }
+  // SCREEN: the HUD, or one of the panels (data/panellayout.js), opened for editing on top of the paused world.
+  screen(id) {
+    if (id !== 'hud' && !PANELS[id]) return false;
+    if (id === this.scr) return true;
+    if (id === 'hud') { this.pe.leave(true); this.scr = 'hud'; this.lay.force(this.lay.sit === 'panel' ? 'on_foot' : this.lay.sit); }
+    else { this.select(null, false); if (!this.pe.enter(id)) { this.render(); return false; } this.scr = id; this.lay.force('panel'); }
+    this.render();
+    return true;
+  }
+  // The editor card moves out of the way by its title bar.
+  dragCard(e) {
+    if (e.target.closest('button')) return;
+    const c = this.el.panel, b = c.getBoundingClientRect(), sx = e.clientX - b.left, sy = e.clientY - b.top;
+    const mv = (ev) => { c.style.left = `${Math.max(0, Math.min(innerWidth - 60, ev.clientX - sx))}px`; c.style.top = `${Math.max(0, Math.min(innerHeight - 40, ev.clientY - sy))}px`; c.style.transform = 'none'; };
+    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up);
+    e.preventDefault();
+  }
   select(id, draw = true) { this.selId = id && this.lay.byId[id] ? id : null; if (draw && this.open) this.render(); else for (const b of this.lay.boxes) b.wrap?.classList.remove('hl-sel'); }
 
   click(e) {
     const t = e.target.closest('button');
     if (!t) return;
     const g = t.closest('[data-g]')?.dataset.g;
+    if (g === 'screen') { this.screen(t.dataset.v); return; }
+    if (this.scr !== 'hud' && this.pe.click(t, g)) return;
     if (g === 'preset') { this.push(); this.lay.setPreset(t.dataset.v); this.lay.force(this.lay.forced ?? this.lay.sit); this.render(); return; }
     if (g === 'sit') { this.situation(t.dataset.v); return; }
     if (t.dataset.anchor && this.selId) { this.setAnchor(this.selId, t.dataset.anchor); return; }
     const m = t.dataset.m;
     if (m === 'close') { this.el.modal.classList.add('hidden'); return; }
     if (m === 'copy') { this.el.mArea.select(); navigator.clipboard?.writeText(this.el.mArea.value).then(() => { this.el.mSay.textContent = 'Copied.'; }, () => { this.el.mSay.textContent = 'Select the text and copy it (Ctrl C).'; }); return; }
-    if (m === 'apply') { this.push(); const bad = this.lay.importLayout(this.el.mArea.value); if (bad.length) { this.undoS.pop(); this.el.mSay.textContent = bad.slice(0, 4).join(' · '); } else { this.el.modal.classList.add('hidden'); this.render(); this.hud.toast('HUD layout imported'); } return; }
+    if (m === 'apply') { this.push(this.snapState(this.importKind ?? 'H')); const bad = (this.importKind === 'P' ? this.hud.panels : this.lay).importLayout(this.el.mArea.value); if (bad.length) { this.undoS.pop(); this.el.mSay.textContent = bad.slice(0, 4).join(' · '); } else { this.el.modal.classList.add('hidden'); this.render(); this.hud.toast('HUD layout imported'); } return; }
     switch (t.dataset.a) {
       case 'close': this.hide(); break;
+      case 'min': this.el.panel.classList.toggle('min'); break;
       case 'undo': this.undo(); break;
       case 'redo': this.redo(); break;
       case 'resetone': if (this.selId) { this.push(); this.lay.reset(this.selId); this.render(); } break;
       case 'resetall': this.push(); this.lay.reset(); this.render(); this.hud.toast('HUD layout reset · UNDO brings it back'); break;
-      case 'export': this.modal('EXPORT', 'Your layout as JSON. Rows are in data/hudlayout.js\'s shape: paste them over HUD_LAYOUT to make this the standard.', JSON.stringify(this.lay.exportLayout(), null, 1), false); break;
-      case 'import': this.modal('IMPORT', 'Paste a layout ({ preset, edits } or { rows }) and APPLY. A layout with problems is refused and named.', '', true); break;
+      case 'export': this.importKind = 'H'; this.modal('EXPORT', 'Your layout as JSON. Rows are in data/hudlayout.js\'s shape: paste them over HUD_LAYOUT to make this the standard.', JSON.stringify(this.lay.exportLayout(), null, 1), false); break;
+      case 'import': this.importKind = 'H'; this.modal('IMPORT', 'Paste a layout ({ preset, edits } or { rows }) and APPLY. A layout with problems is refused and named.', '', true); break;
       default:
     }
   }
@@ -393,18 +432,21 @@ export class HudEditor {
   }
 
   // ---- undo -------------------------------------------------------------------------------------------------------
-  push(s = this.lay.snapshot()) { this.undoS.push(s); if (this.undoS.length > 60) this.undoS.shift(); this.redoS.length = 0; }
-  undo() { const s = this.undoS.pop(); if (!s) return false; this.redoS.push(this.lay.snapshot()); this.lay.setState(JSON.parse(s)); this.render(); return true; }
-  redo() { const s = this.redoS.pop(); if (!s) return false; this.undoS.push(this.lay.snapshot()); this.lay.setState(JSON.parse(s)); this.render(); return true; }
+  // One stack for both: an entry is 'H|' + the HUD layout or 'P|' + the panel layout, put back by its kind.
+  snapState(kind = this.scr === 'hud' ? 'H' : 'P') { return `${kind}|${kind === 'H' ? this.lay.snapshot() : this.hud.panels.snapshot()}`; }
+  restoreSnap(s) { const st = JSON.parse(s.slice(2)); if (s[0] === 'H') this.lay.setState(st); else this.hud.panels.setState(st); }
+  push(s = this.snapState()) { this.undoS.push(s); if (this.undoS.length > 60) this.undoS.shift(); this.redoS.length = 0; }
+  undo() { const s = this.undoS.pop(); if (!s) return false; this.redoS.push(this.snapState(s[0])); this.restoreSnap(s); this.render(); return true; }
+  redo() { const s = this.redoS.pop(); if (!s) return false; this.undoS.push(this.snapState(s[0])); this.restoreSnap(s); this.render(); return true; }
 
   // ---- the mouse ----------------------------------------------------------------------------------------------------
   down(e) {
-    if (!this.open || e.button !== 0) return;
+    if (!this.open || this.scr !== 'hud' || e.button !== 0) return;
     const w = e.target.closest('.hl');
     if (!w) return;
     const b = w.__hl;
     this.select(b.id);
-    this.drag = { b, grip: !!e.target.closest('.hl-grip'), sx: e.clientX, sy: e.clientY, x0: b.x, y0: b.y, w: b.sw, h: b.sh, scale0: b.row.scale, before: this.lay.snapshot(), moved: false };
+    this.drag = { b, grip: !!e.target.closest('.hl-grip'), sx: e.clientX, sy: e.clientY, x0: b.x, y0: b.y, w: b.sw, h: b.sh, scale0: b.row.scale, before: this.snapState('H'), moved: false };
     try { w.setPointerCapture(e.pointerId); } catch { /* synthetic events have no capture */ }
     e.preventDefault();
   }
@@ -434,7 +476,7 @@ export class HudEditor {
     if (d.moved) { this.push(d.before); this.lay.save(); this.render(); }
   }
   wheel(e) {
-    if (!this.open) return;
+    if (!this.open || this.scr !== 'hud') return;
     const w = e.target.closest('.hl');
     if (!w) return;
     e.preventDefault();
@@ -469,6 +511,7 @@ export class HudEditor {
     if (!this.open) return;
     if (e.target?.tagName === 'TEXTAREA') { if (e.code === 'Escape') { this.el.modal.classList.add('hidden'); e.stopImmediatePropagation(); } else e.stopImmediatePropagation(); return; }
     const id = this.selId, b = id && this.lay.byId[id], step = e.shiftKey ? 10 : 1;
+    if (this.scr !== 'hud' && !e.ctrlKey && !e.metaKey && e.code !== 'Escape' && e.code !== 'F6') { if (this.pe.key(e)) { e.preventDefault(); e.stopImmediatePropagation(); } else e.stopImmediatePropagation(); return; }
     let done = true;
     if (e.code === 'Escape' || e.code === 'F6') { if (!this.el.modal.classList.contains('hidden')) this.el.modal.classList.add('hidden'); else this.hide(); }
     else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') { if (e.shiftKey) this.redo(); else this.undo(); }
