@@ -34,7 +34,7 @@ export class Tactics {
     this.g = game;
     this.budget = T.perFrame;
     this.on = true;            // false: every faction back on the plain ai.js fight (an A/B for perf or a test)
-    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0 };
+    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0, slowPaths: 0 };
     this.mark = 0;
 
   }
@@ -145,7 +145,7 @@ export class Tactics {
       U.pathAt = g.time;
       const t1 = performance.now(), p = g.nav.foot.find(c.x, c.z, U.gx, U.gz, 1500); // a tactical move is short: a small search budget
       this.stats.paths++;
-      const pm = performance.now() - t1; if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm;
+      const pm = performance.now() - t1; if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm; if (pm > 8) this.stats.slowPaths++;
       if (p && p.length) { U.path = p; U.pi = 0; }
     }
   }
