@@ -5,7 +5,7 @@
 //   fences    E at a fence panel: hold to CLIMB it (slow, its climbNoise heard), tap to KICK it (a picket or board panel
 //             breaks after its kicks, loud; chain-link and adobe do not give)
 //   pathing   navOverlay: the live towns' ground colliders go into the foot and car nav windows (engine/nav.js overlay), so
-//             walkers route round buildings, through doors and gates, and down the alleys
+//             people route round buildings, through doors and gates, and down the alleys
 // One instance: main.js constructs it after citygen; update(dt) every frame (cheap: a scan every 0.5 s), interact() in the
 // E chain after the interiors and citygen's bays.
 import { FENCES, GATES, LOCKS, KIND_CLASS } from '../data/backlots.js';

@@ -32,7 +32,7 @@ The fence is **picket, board privacy, chain-link, adobe or split rail**, chosen 
 - A concrete apron down to the lane.
 - A dumpster on the verge.
 
-At runtime, the yard gates hang as real leaves from the interiors pool, so you can kick, pick or pry them. A share of the gates and back doors are locked, by data rows. A fence panel can be **climbed** (hold E: slow, heard a little) or **kicked down** (tap E: loud; pickets and boards give, chain-link and adobe don't). The town's walls and fences go into the foot and car **nav grids**, so walkers route round buildings, through doors and gates, and down the alleys.
+At runtime, the yard gates hang as real leaves from the interiors pool, so you can kick, pick or pry them. A share of the gates and back doors are locked, by data rows. A fence panel can be **climbed** (hold E: slow, heard a little) or **kicked down** (tap E: loud; pickets and boards give, chain-link and adobe don't). The town's walls and fences go into the foot and car **nav grids**, so people on foot route round buildings, through doors and gates, and down the alleys.
 
 | File | What |
 |---|---|
@@ -192,7 +192,7 @@ Every piece is an item in citygen's one instanced mesh (no new draw call):
 |---|---|---|
 | 1 | **the rows validate** | Every row is whole: lane ≥ 4.5 m, every fence climbable, every breakable fence heard, lock odds for every kind's class, kick > pry > pick, no purple, every tag ruled in materials. |
 | 2 | **every town block has an alley a car can drive** | In 10 archetypes × 2 seeds, every block except a green has an alley, and a 1.1 m car circle drives each end to end on the town's real colliders. |
-| 3 | **a person can walk a loop round every building of a test town** | With every door and bay plugged, a 0.4 m walker from each building's front step reaches all 4 sides and 4 corners (550 buildings in 4 towns). |
+| 3 | **a person can walk a loop round every building of a test town** | With every door and bay plugged, a 0.4 m person on foot from each building's front step reaches all 4 sides and 4 corners (550 buildings in 4 towns). |
 | 4 | **every house has a fenced yard with a gate** | Every yard home on a res/farm lot (10 archetypes) has fence panels and an alley gate. With the gates shut, the yard reaches neither lane nor street; with the gates open, it reaches the alley. |
 | 5 | **back doors face the alley** | Every building has a back door or bay, and on a block it faces the block's alley (> 600 buildings, > 50 docks). |
 | 6 | **kicking a back door is louder than picking it** | Live, on a locked back door: kick heard 30 m > bar 18 m > picks 0. The lock odds come from the rows (holding > overrun; the law > homes). |
