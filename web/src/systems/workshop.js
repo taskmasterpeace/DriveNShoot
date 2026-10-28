@@ -52,7 +52,8 @@ export class Workshop {
         const h = g.baseGarage?.(); // the home base's garage (whichever system owns your base hands this over)
         if (h && Math.hypot(h.x - x, h.z - z) < S.r) return { id, ...S };
       } else if (S.x !== undefined && Math.hypot(S.x - x, S.z - z) < S.r) {
-        if (S.needStanding && (g.society?.factions?.standing?.('remnant') ?? 0) < S.needStanding) continue;
+        const F = g.society?.factions, fi = F?.index?.remnant; // standing is a Float32Array; reading(i) is what a faction acts on
+        if (S.needStanding && (fi === undefined ? 0 : F.reading(fi)) < S.needStanding) continue;
         return { id, ...S };
       }
     }
