@@ -95,12 +95,16 @@ export const MATERIAL_RULES = {
     sandbags: 'sandbags',
     barrier: 'concrete', pool: 'concrete', storey: 'concrete', building: { finish: true }, // a solid block: by its finish
     tree: 'timber', cactus: 'timber',
+    soundwall: 'concrete', windmill: 'steel', homestead: 'wood', barn: 'wood', // the roadscape (world/roadscape.js; its billboards share the roadside's 'billboard' row below)
     husk: 'timber', drum: 'sheet_metal', hut: 'wood', // the hot ground's dead trunks and rusted drums, a Greyborn settlement's huts (they stand up at runtime)
     rock: 'rock', boulder: 'rock',
     // below the street (systems/underground.js): a bunker's poured walls, a cave's living rock, a fallen roof, the stairs'
     // flanks, the lift's gate, the collar round an open hatch, a pool's lip
     'ug-wall': 'concrete', 'ug-rock': 'rock', 'ug-rubble': 'rock', 'ug-flank': 'concrete', 'ug-endblock': 'concrete', 'ug-rail': 'steel',
     'ug-gate': 'steel', 'ug-collar': 'concrete', 'ug-water': 'rock', 'ug-door': 'steel',
+    // THE ROADSIDE (world/roadside.js): a pylon's lattice, a hulk, a silo, a billboard's legs, a canal's lining, the dam,
+    // a substation's chain-link.
+    pylon: 'steel', hulk: 'carbody', silo: 'sheet_metal', billboard: 'wood', canal: 'concrete', dam: 'concrete', wirefence: 'chainlink',
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },

@@ -70,6 +70,7 @@ export const POOLS = {
   trunks: 3000, boulders: 3600, shrubs: 9000,
   signs: 256, rails: 9000, barrels: 600, glows: 800,
   signsfl: 256, // a region's signs (Florida's own atlas: docs/design/WEB_FLORIDA.md §3.1)
+  bills: 128,   // the roadside's billboards and price boards (world/roadside.js; a handful a chunk at most)
 };
 
 // Biomes (usmap legend letters) as rows: ground tint, scatter per hectare (10,000 m2), how much rock.
