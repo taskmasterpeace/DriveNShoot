@@ -26,6 +26,8 @@ import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
 import { Garage } from './systems/garage.js';
+import { Workshop } from './systems/workshop.js';
+import { WorkshopUI } from './ui/workshop.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
@@ -165,6 +167,7 @@ class Game {
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
+    this.workshop = new Workshop(this); // THE WORKSHOP: six faces, mounts with arcs, the counter (data/workshop.js, WEB_WORKSHOP.md)
     this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
     // Caves, bunker levels, the secret facilities (docs/design/WEB_UNDERGROUND.md): levels below the street on their own
     // StaticWorld, promoted near you; after the interiors (their doors hang its leaves).
@@ -199,6 +202,7 @@ class Game {
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.workshopUI = new WorkshopUI(this, ui); // the WORKSHOP screen (U at a garage, or Kenji)
     this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
@@ -708,6 +712,8 @@ class Game {
       return;
     }
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
+    if (this.workshopUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.workshopUI.input(I); return; }
+    if (I.hit('KeyU')) { this.workshopUI.toggle(true); return; }
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
     if (I.hit('KeyN')) { if (!this.travel.napRide()) this.trySleep(); return; } // on the trundle with a punch: sleep through the trip
@@ -743,7 +749,8 @@ class Game {
       if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
-      if (I.hit('KeyB') && driving) this.garage.drop(v); // oil, caltrops or smoke off the tail
+      if (I.hit('KeyB') && driving) this.garage.drop(v); // the tail: oil, caltrops, smoke, mines, flares, paint (group 2)
+      if (driving && v.mounts && this.controls.held('fireTurret')) this.workshop.fireMount(v, 3, Math.atan2(this.aim.x - v.x, this.aim.z - v.z), p); // the roof turret (group 3)
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       p.aiming = this.arms.stance === 'raised'; // a rider (bike saddle, truck bed) shows the gun up only when it is
@@ -1007,7 +1014,7 @@ class Game {
     p.cool -= dt;
     // At the wheel of a car with a hood gun: aim ahead and the gun fires; aim aside and you shoot out of the window.
     const car = p.inVehicle;
-    if (car?.mounts?.front && car.driver === p && I.mouse.left && this.garage.fireFront(car, p, ang)) return;
+    if (car?.mounts && car.driver === p && I.mouse.left && this.garage.fireFront(car, p, ang)) return; // group 1: hood + pods, whichever arc holds the aim
     if (p.reloading > 0) {
       p.reloading -= dt;
       if (p.reloading <= 0) {
@@ -1186,7 +1193,7 @@ class Game {
   frame(dt) {
     const I = this.input;
     this.controls.poll(dt); // the pad's buttons become the codes below; its sticks the analog move, aim and drive
-    this.qol.input(I);
+    if (!this.workshopUI.open) this.qol.input(I); // the WORKSHOP screen is modal: its Esc closes it, not the pause menu
     if (I.hit('F3')) { this.showStats = !this.showStats; this.hud.el.stats.classList.toggle('hidden', !this.showStats); }
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
     if (I.hit('KeyT') && !this.survival.sleep) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
@@ -1216,6 +1223,7 @@ class Game {
       this.skillsSys.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
       this.garage.update(simDt);
+      this.workshop.update(simDt); // rockets in flight, seeker locks, power, nitrous, the fire bottles
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
       this.travel.update(simDt); this.nanGuard('travel'); // the trundle on the road, the iron's riders, the boards
@@ -1268,6 +1276,7 @@ class Game {
     this.weaponBar.update(dt);
     this.qol.update(dt);
     this.invUI.update(dt);
+    this.workshopUI.update(dt);
     this.feedback.update(dt);
     this.recorder.tick(); // a time check; 4 times a game second, one sample into preallocated arrays
     I.endFrame();
