@@ -86,7 +86,9 @@ In the pause menu (SETTINGS → People), Robert can flip between LSW bodies and 
 - **Dead:** the sprawl pose, which `ik` solves, so the hands are exact. **Knocked down, asleep, swimming, diving:** the
   classic root frame carries the whole body.
 - **Lefties:** the grip side follows `ch.hand`. **Zombies** wear LSW bodies too: their infected skin and torn clothes
-  come through the same colours.
+  come through the same colours. The ZOMBIES lane's poses all ride existing solver flags, so they carry over with no
+  extra code: the crawler is `prone`, the fall and get-up is `knockT`, overheating is `crouch`, and the lunge is a speed
+  burst on the walk cycle.
 - **Photo mode, paused:** `sync(chars, 0)` still runs the pose pass, so photos show LSW bodies.
 
 ## 6. Dependencies, both ways
@@ -131,9 +133,11 @@ In the pause menu (SETTINGS → People), Robert can flip between LSW bodies and 
 6. **Flags.** One patch per LSW body, each showing that person's own flag from the atlas.
 7. **Budget.** With 160 people, draw calls stay under 150, the LSW bodies add at most 5, 24 are drawn, and the skinned
    CPU cost is under 2 ms per frame.
-8. **Decay.** A bloated body (rot 0.6) wears exactly the classic rig's rotted shirt, trousers and skin colours, and the
+8. **The infected.** A crawler, a fallen one getting up, an overheated one and a shambler: legs on the solver within
+   3 cm.
+9. **Decay.** A bloated body (rot 0.6) wears exactly the classic rig's rotted shirt, trousers and skin colours, and the
    tint really changes them.
-9. **Classic restore.** classic → lsw → classic gives byte-identical classic instance matrices and colours, the LSW meshes
+10. **Classic restore.** classic → lsw → classic gives byte-identical classic instance matrices and colours, the LSW meshes
    and patches are gone, and the `bodies` command and setting both switch it.
 
 **Measured** (stress scene, 160 people, 24 near, A/B interleaved in one session with `gl.finish`): pose pass 1.42 → 1.74 ms,

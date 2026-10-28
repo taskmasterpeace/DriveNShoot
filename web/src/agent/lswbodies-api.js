@@ -178,6 +178,22 @@ export async function lswBodiesChecks(api, check, C) {
     return bad.length ? bad.slice(0, 5).join('; ') : true;
   }));
 
+  await check('lsw-bodies: the infected keep LSW bodies through their own poses (systems/zombies.js) - a crawler (prone), one fallen and getting up (knockT), one overheated (crouch), one shambling: hips, knees and ankles on the solver within 3 cm', () => stage(async () => {
+    const out = [], Z = [];
+    for (let k = 0; k < 4; k++) { const z = g.zombies.spawn(STAGE.x - 1.5 + k * 1.2, STAGE.z + 1.5, false); if (z) { z.hold = true; staged.push(z); Z.push(z); } }
+    if (Z.length < 4) return `spawned ${Z.length} infected`;
+    const [crawl, fall, hot, walk] = Z;
+    g.zombies.crawler(crawl, 'legs');
+    fall.knockT = fall.knockMax = 2; hot.crouch = true; walk.speed = 1.4; walk.walk = 0.8;
+    frame();
+    for (const [c, n] of [[crawl, 'crawler'], [fall, 'fallen'], [hot, 'overheated'], [walk, 'shambler']]) {
+      const gp = gaps(c);
+      if (!gp) out.push(`${n}: no LSW body`); else if (!(gp.legs < 0.03)) out.push(`${n}: legs ${r2(gp.legs)} m`);
+    }
+    if (!crawl.prone) out.push('the crawler is not prone');
+    return out.length ? out.join('; ') : true;
+  }));
+
   await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {
     const c = add('drifter', 0.5, 1.5, { name: 'Three Days' });
     c.hp = 0; c.alive = false; c.deadTime = 0; c.rot = 0.6; g.charR.paint(c);
