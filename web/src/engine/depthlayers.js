@@ -41,6 +41,11 @@ export const LAYERS = {
 export const STEP = 0.012;
 export const TOWN = { yard: STEP * 1, lot: STEP * 2, walkX: STEP * 3, walkZ: STEP * 4, streetX: STEP * 5, streetZ: STEP * 6 };
 
+// Two streets of one axis that run into each other (a holdout's main street meeting its landing road) overlap where they
+// join: each street's name picks a half step (FNV of the name, its low bit), so the two of a pair differ half the time
+// by design and the detector lists the rest.
+export function tieLift(name) { let v = 2166136261; for (let i = 0; i < name.length; i++) { v ^= name.charCodeAt(i); v = Math.imul(v, 16777619); } return (v & 1) * STEP / 2; }
+
 // Road ribbons share one mesh too (world/chunkgen.js): a ribbon rides RIBBON_STEP x its rank over the ground under it. The
 // interstate is rank 0, a ramp 1 (it merges along the mainline), every other road 2 + its heading's third of the
 // compass (0-60, 60-120, 120-180 degrees): two roads crossing at 60 degrees or more are never in one third, so a town's

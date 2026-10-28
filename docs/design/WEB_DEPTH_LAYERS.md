@@ -44,7 +44,9 @@ from their row. Measured from the code (audit 2026-10-28):
 | chunk ground | `world/streamer.js` + `chunkgen.js` | Std + vertex colours | - | 0 | the land G(x, z) (8 m grid) |
 | chunk road ribbons | `chunkgen.js` road layer | Std | - | 0 | land + **RIBBON_BASE 0.03 + 0.012 x rank** (interstate 0, ramp 1, others 2 + heading third) |
 | stop lines | `chunkgen.js` | road layer | - | 0 | land + **PAINT_LIFT 0.09** |
-| town yard / lot / walk x / walk z / street x / street z | `chunkgen.js` (ring + holdouts) | road layer | - | 0 | land + **TOWN rows 0.012 ... 0.072** (STEP 0.012) |
+| town yard / lot / walk x / walk z / street x / street z | `chunkgen.js` (ring + holdouts) | road layer | - | 0 | land + **TOWN rows 0.012 ... 0.072** (STEP 0.012); a street + `tieLift(name)` (0 or STEP/2) where two of one axis join |
+| cemetery yards, mounds, plots (death rites) | `systems/rites.js` | Std (one InstancedMesh `rites`) | - | 0 | the land under each piece + 0.01-0.1 (scanned: no fights) |
+| ballistics ground scuffs | `systems/ballistics.js` -> `fx.decal` | fx dMesh | blood | 3 | ground + DECAL_Y |
 | chunk rock (fills) | `chunkgen.js` | Std, DoubleSide | - | 0 | land + fill profile |
 | chunk water | `world/water.js` streamMat | Std, opaque | - | 1 | region sheet 0.015 / river surfaces |
 | island river, lake | `world/water.js` | Std, opaque | - | 1 | 0.015 |
@@ -127,8 +129,8 @@ The `screenshot` command's zoom shots set the near plane the same way.
 
 - `zfight x z r` lists every coplanar pair round a spot (up faces fail, walls reported), decals buried, the gap.
 - Selftest `zfight: no two visible, depth-writing, up-facing faces share a plane ...`: 0 up-face fights and 0 buried
-  decals at six spots (Phoenix street, a ring house interior with the roof cut away, the ring's densest blocks,
-  Meridian, I-10 mile 30, a stamped county seat's police station and roofs).
+  decals at seven spots (Phoenix street, a ring house interior with the roof cut away, the ring's densest blocks,
+  Meridian, I-10 mile 30, Meridian's town cemetery, a stamped county seat's police station and roofs).
 - Selftest `zfight: blood shows on a ring shop's floor and on open sand from the widest game zoom`: a red decal changes
   the reddest pixel in its footprint from 140 m up, on a floor and on sand; near plane >= 6 m at the widest zoom.
 - Survey (17 spots, before -> after, up-face fight samples): ring house 6338 -> 0, ring dense 4690 -> 0, Meridian 3628 -> 0

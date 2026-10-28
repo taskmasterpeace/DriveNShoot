@@ -242,19 +242,20 @@ export function zfightCommands(api) {
 
 // The spots the battery scans (docs/design/WEB_DEPTH_LAYERS.md §8): a Phoenix street, a ring house you stand inside (its
 // roof cut away), the Phoenix ring's densest blocks, Meridian (Florida, a holdout on real terrain), the interstate in the
-// Arizona hills, and a stamped Florida county seat's police station and its roofs.
+// Arizona hills, Meridian's town cemetery (death rites' plots), and a stamped Florida county seat's police station and roofs.
 export const ZFIGHT_SPOTS = [
   { id: 'phoenix street', at: { x: 0, z: -70 } },
   { id: 'ring house interior (cutaway)', at: { x: 598, z: 300 } },
   { id: 'ring dense blocks', at: { x: -896, z: -384 } },
   { id: 'meridian (florida)', at: { town: 'meridian' } },
   { id: 'i-10 mile 30 (real terrain)', at: { mile: 30, dir: 'east' } },
+  { id: 'meridian town cemetery (death rites)', at: { x: 222692, z: 55845 } },
   { id: 'county seat police station + roofs', stamp: { archetype: 'county_seat', at: '222600,56160' }, at: { x: 222582, z: 56160 } },
 ];
 
 export async function zfightChecks({ g, check, C }) {
   const home = { x: g.player.x, z: g.player.z };
-  await check("zfight: no two visible, depth-writing, up-facing faces share a plane (closer than the depth gap, no polygonOffset between them) at six spots - a Phoenix street, a ring house interior with its roof cut away, the ring's densest blocks, Meridian on Florida's real terrain, I-10 in the Arizona hills, a stamped county seat's police station and roofs - and no ground decal is buried under the floor it lies on", async () => {
+  await check("zfight: no two visible, depth-writing, up-facing faces share a plane (closer than the depth gap, no polygonOffset between them) at seven spots - a Phoenix street, a ring house interior with its roof cut away, the ring's densest blocks, Meridian on Florida's real terrain, I-10 in the Arizona hills, Meridian's cemetery, a stamped county seat's police station and roofs - and no ground decal is buried under the floor it lies on", async () => {
     const out = {};
     let bad = 0;
     for (const S of ZFIGHT_SPOTS) {

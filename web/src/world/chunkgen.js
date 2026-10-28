@@ -9,7 +9,7 @@ import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted densi
 import { regionWater, WK } from './regions.js';
 import { WATER } from '../data/water.js';
 import { clearEdge, roadscapeStage } from './roadscape.js'; // THE ROADSCAPE: per-class clear zones and the roadside scenes (docs/design/WEB_ROADSCAPE.md)
-import { TOWN, RIBBON_BASE, RIBBON_STEP, PAINT_LIFT, ribbonRank } from '../engine/depthlayers.js'; // THE DEPTH LAYERS: one law for flat things on flat things (docs/design/WEB_DEPTH_LAYERS.md)
+import { TOWN, tieLift, RIBBON_BASE, RIBBON_STEP, PAINT_LIFT, ribbonRank } from '../engine/depthlayers.js'; // THE DEPTH LAYERS: one law for flat things on flat things (docs/design/WEB_DEPTH_LAYERS.md)
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -1062,12 +1062,12 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     pause(); const w0 = work; resume();
     // A flat quad of the road layer clipped to this chunk; u along `axis` in metres / per, v across the band from the
     // rect's own edge (so a strip clipped at a chunk seam carries on in the neighbour without a jump).
-    const quad = (x0, z0, x1, z1, y, band, axis, per, lay = band) => {
+    const quad = (x0, z0, x1, z1, y, band, axis, per, lay = band, tie = 0) => {
       const a0 = Math.max(x0, ox), a1 = Math.min(x1, X1), b0 = Math.max(z0, oz), b1 = Math.min(z1, Z1);
       if (a1 - a0 < 0.05 || b1 - b0 < 0.05 || !R.room(4, 6)) return;
       const v0 = BAND[band][0] + 0.002, v1 = BAND[band][1] - 0.002; // two texels in: no bleed from the next band
       const vx = (x, z) => v0 + (v1 - v0) * (axis === 'z' ? (x - x0) / (x1 - x0) : (z - z0) / (z1 - z0));
-      const vtx = (x, z) => R.lift(R.v(x - ox, y, z - oz, 0, 1, 0, (axis === 'z' ? z : x) / per, vx(x, z)), TOWN[lay] - y); // drawn at its depth layer
+      const vtx = (x, z) => R.lift(R.v(x - ox, y, z - oz, 0, 1, 0, (axis === 'z' ? z : x) / per, vx(x, z)), TOWN[lay] + tie - y); // drawn at its depth layer
       const p0 = vtx(a0, b0), p1 = vtx(a1, b0), p2 = vtx(a1, b1), p3 = vtx(a0, b1);
       R.tri(p0, p3, p2); R.tri(p0, p2, p1); // wound to face up
     };
@@ -1082,7 +1082,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const rgStreets = RG.streets(ox, oz, X1, Z1);
     ringStreets = ringStreets ? ringStreets.concat(rgStreets) : rgStreets;
     for (const s of rgStreets) {
-      quad(s.x0, s.z0, s.x1, s.z1, s.axis === 'z' ? 0.036 : 0.032, 'street', s.axis, 21, s.axis === 'z' ? 'streetZ' : 'streetX'); rs.streets++; // drawn at TOWN's: a crossing never shares a plane
+      quad(s.x0, s.z0, s.x1, s.z1, s.axis === 'z' ? 0.036 : 0.032, 'street', s.axis, 21, s.axis === 'z' ? 'streetZ' : 'streetX', tieLift(String(s.line))); rs.streets++; // drawn at TOWN's: a crossing never shares a plane
       // Seams: a street that runs on over an edge (not one that starts there) is named on it.
       if (s.axis === 'z') { if (s.open0) crossings.n.push(`ring:z${s.line}`); if (s.open1) crossings.s.push(`ring:z${s.line}`); }
       else { if (s.open0) crossings.w.push(`ring:x${s.line}`); if (s.open1) crossings.e.push(`ring:x${s.line}`); }
