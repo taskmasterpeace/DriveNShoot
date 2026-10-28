@@ -17,7 +17,7 @@ export const WRECK_TYPES = { sedan: 5, pickup: 3, van: 2, interceptor: 1 };
 //   sag       m the body sits lower than whole
 export const WRECK_STATES = {
   rusted:   { name: 'rusted, abandoned', fade: 0.5, rust: 0.38, rustCol: '#6e3c1e', glass: false, tyres: 'flat', doors: true, hood: 0, char: 0, sag: 0.07 },
-  burned:   { name: 'burned out', fade: 1, rust: 0.18, rustCol: '#5a3220', glass: false, tyres: 'gone', doors: true, hood: 0, char: 0.88, ash: '#5e5a54', charCol: '#1b1917', scorch: 1.2, sag: 0.34 },
+  burned:   { name: 'burned out', fade: 1, rust: 0.12, rustCol: '#3a2014', glass: false, tyres: 'gone', doors: true, hood: 0, char: 1, ash: '#26221e', charCol: '#0a0908', scorch: 0.55, sag: 0.34 },
   crushed:  { name: 'crushed flat', fade: 0.55, rust: 0.3, rustCol: '#6e3c1e', glass: false, tyres: 'flat', doors: true, hood: 0, char: 0, sag: 0, squash: 0.46 }, // a show's flattened car (systems/stunts.js)
   stripped: { name: 'stripped, on blocks', fade: 0.35, rust: 0.22, rustCol: '#6e3c1e', glass: true, tyres: 'blocks', doors: false, hood: 1.05, char: 0, sag: 0, blockCol: '#8a847a' },
 };

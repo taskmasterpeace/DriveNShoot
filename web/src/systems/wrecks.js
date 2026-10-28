@@ -43,6 +43,9 @@ export class Wrecks {
       const geo = deadBody(spec, VEHICLES[type] ? type : 'sedan', S);
       id = this.mesh.addGeometry(geo);
       geo.dispose();
+      // a body added after the batch's first upload: send the whole buffers again (r170 uploads only the update ranges,
+      // and a range added after the first upload was seen to leave the colours stale); at most one per type x state
+      for (const a of Object.values(this.mesh.geometry.attributes)) { a.clearUpdateRanges(); a.needsUpdate = true; }
       this.geo.set(k, id); this.counts.bodies++;
     }
     return id;

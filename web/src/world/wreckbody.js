@@ -10,6 +10,7 @@
 //   scorch    a burned patch on the ground under a burned-out car
 // Returns a non-indexed BufferGeometry with position, normal and color only (one layout for every batch entry).
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildBody, PART } from '../systems/vehiclebodies.js';
 
 export const WRECK_BASE = '#b8b0a0';
@@ -23,7 +24,8 @@ const cell = (x, y, z, s, k) => {
 };
 
 export function deadBody(spec, type, S) {
-  const src = buildBody(spec, type, WRECK_BASE);
+  const built = {}, body = buildBody(spec, type, WRECK_BASE, built);
+  const src = built.roof ? mergeGeometries([body, built.roof]) : body; // a van's roof is built apart (its cargo deck): a dead one keeps it
   const P = src.attributes.position.array, N = src.attributes.normal.array, C = src.attributes.color.array, part = src.attributes.part.array;
   const base = new THREE.Color(WRECK_BASE), rust = new THREE.Color(S.rustCol), char = new THREE.Color(S.charCol ?? '#1b1917'), ash = new THREE.Color(S.ash ?? '#5e5a54');
   const drop = new Set([...(S.tyres !== 'flat' ? WHEELS : []), ...(S.doors ? [] : DOORS), ...(S.glass ? [] : [PART.glass])]);
@@ -68,7 +70,7 @@ export function deadBody(spec, type, S) {
       else v.multiplyScalar(0.82).lerp(rust, S.rust * 0.35 * cell(vx, vy, vz, 0.6, 5)); // chrome and trim gone dull
       if (S.char) {
         v.lerp(char, S.char * (0.85 + 0.15 * cell(vx, vy, vz, 0.5, 7)));
-        if (up > 0.6) v.lerp(ash, 0.55 * Math.max(0, Math.min(1, (0.6 - cell(vx, vy, vz, 0.5, 8)) / 0.15)));
+        if (up > 0.6) v.lerp(ash, 0.4 * Math.max(0, Math.min(1, (0.45 - cell(vx, vy, vz, 0.45, 8)) / 0.15))); // ash in patches on the tops
         else if (skin) { const r2 = cell(vx, vy, vz, 0.4, 9); if (r2 < S.rust) v.lerp(rust, 0.6 * Math.min(1, (S.rust - r2) / 0.1)); }
       }
       pos.push(x, y, z); nor.push(nx, ny, nz); col.push(v.r, v.g, v.b);
@@ -81,7 +83,12 @@ export function deadBody(spec, type, S) {
     for (let i = 0; i < a.length; i += 3) { pos.push(a[i], a[i + 1], a[i + 2]); nor.push(n[i], n[i + 1], n[i + 2]); col.push(cc.r, cc.g, cc.b); }
   };
   if (S.tyres === 'blocks') { const bc = new THREE.Color(S.blockCol); for (const w of wc.values()) { const x = w.x / w.n, z = w.z / w.n; box(x - 0.24, x + 0.24, 0, 0.42, z - 0.22, z + 0.22, bc); } }
-  if (S.scorch) { quad(minX - S.scorch, maxX + S.scorch, minZ - S.scorch * 0.7, maxZ + S.scorch * 0.7, 0.025, new THREE.Color('#171512')); quad(minX - S.scorch * 0.4, maxX + S.scorch * 1.4, minZ + 0.4, maxZ - 0.3, 0.03, new THREE.Color('#0f0e0c')); }
+  if (S.scorch) { // a burned patch, ragged: three offset quads (over a town's lot ground, 0.04 m)
+    const sc = S.scorch, dk = new THREE.Color('#1c1814'), dd = new THREE.Color('#100e0c');
+    quad(minX - sc * 0.6, maxX + sc * 0.3, minZ - sc, maxZ + sc * 0.5, 0.075, dk);
+    quad(minX + 0.2, maxX + sc, minZ - sc * 0.4, maxZ - 0.6, 0.078, dd);
+    quad(minX - sc, maxX - 0.8, minZ + 0.6, maxZ + sc, 0.077, dk);
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
