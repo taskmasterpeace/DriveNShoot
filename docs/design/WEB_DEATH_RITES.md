@@ -58,20 +58,36 @@ Out in the ring, the family whose son you killed buries him tomorrow at ten. You
 
 | kind | used by | where | layout |
 |---|---|---|---|
-| town_cemetery | towns | edge (outside the built ground, off its streets) | headstone rows, fence posts, sexton's box |
-| boot_hill | walled, strip, crossroads, refinery and exit towns; Rust Haven | edge | crosses and mounds, sexton's box |
-| site_plot | sites | on site (inside the footprint, off buildings) | rows |
-| mass_grave | battle sites (`BATTLE_WORDS` in shape/notes/landmarks, or kind `fort`) | on site | trenches of 20, a cross post every 4 m |
+| town_cemetery | towns | edge (outside the built ground, off its streets) | sections of family plots, a low stone wall with gate piers and an iron arch, two trees, sexton's box |
+| boot_hill | walled, strip, crossroads, refinery and exit towns; Rust Haven | edge | crosses, cairns and mounds, a post-and-rail fence, a tree, sexton's box |
+| site_plot | sites | on site (inside the footprint, off buildings) | rows, a rail fence |
+| mass_grave | battle sites (`BATTLE_WORDS` in shape/notes/landmarks, or kind `fort`) | on site | trenches of 20, a cross post every 4 m, a wire fence |
 | crypt | bunkers (kind `military`, stamp `bunker`) | on site | a concrete vault: floor, walls, plaque rows |
-| family_plot | homesteads | the parcel's corner | rows, fence, sexton's box |
-| war_graves | military bases | edge | crosses |
-| lot_yard | Phoenix-ring quarters | the quarter's empty lot nearest its middle | rows fitted to the lot |
+| family_plot | homesteads | the parcel's corner | rows, a picket fence, a tree, sexton's box |
+| war_graves | military bases | edge | crosses in uniform plots (no family names), an iron railing |
+| lot_yard | Phoenix-ring quarters | the quarter's empty lot nearest its middle | rows across the lot's full width with a 1 m margin, so it stays inside the lot (28 × 20 m in a 28.5 × 20 m lot), a wire fence |
 
 A cemetery's position is provisional until its place is built.
 **Placement score:** a candidate footprint (both orientations) is sampled at 7 × 7 points, and every point on a building (the live towns' 8 m box grid), a street (town road rows, the island's 80 m grid, within 24 m of a corridor), water or a ring lot counts against it. The lowest score wins (`clash` in the view; 0 is clear ground).
 - Candidates for a town ring its edge.
 - A site tries its own blocks, and falls back outside its walls when it is built solid (the Coquina Star's mass grave lies by the shore past its fort).
-- Edge and plot cemeteries follow the land: every mound, marker and post stands on the ground under it. A site's yard lies on its pad. On `citygen.stamp`, `rites.onBuilt` places it against the built boxes, the town's road rows, water at its corners, the corridors and the island grid.
+- Edge and plot cemeteries follow the land: every mound, marker and post stands on the ground under it, and the long flat pieces (mounds, path runs, wall runs) tilt with the slope (`tilt()`: pitch and roll from the ground at their ends) instead of stepping down it. A site's yard lies on its pad. On `citygen.stamp`, `rites.onBuilt` places it against the built boxes, the town's road rows, its own wall or fence line, water at its corners, the corridors and the island grid.
+- Rock counts against a candidate too: the chunk generator's mesas, buttes and ridges near the place (`mesasOf`, pure), sampled with their lobed outline. On the island, its own scatter (cacti, dead trees, junk: `statics.boxes`) counts box by box, because the 7 × 7 samples step over a cactus.
+
+**The keep-out** (the follow-up from the first renders, where a boulder sat on the graves):
+- A placed cemetery goes into `rites.keep` (64 m cells), and `rites.solid(x, z, r)` answers the chunk generator's `blocked()`: inside the wall plus `CEM_LAYOUT.keep` = 4 m, no rock, scrub, cactus or tree is scattered.
+- When a cemetery is placed, the chunks already laid out under it that have scatter on its ground (`scatterIn`) are evicted and laid out again (the settlement pad's rule in `citygen.stamp`), so the scatter comes back off it. `cem.relaid` counts them. A chunk with nothing there is left alone, and a ring lot yard never evicts: its neighbours' walls and planting crowd the keep-out ring, and evicting the ring's chunks as a car drives past was a cross stall (the streaming check caught it).
+- The island is built once at boot (its RNG is pinned by the golden hash), so Rust Haven's yard is placed clear of the island's scatter rather than clearing it.
+
+**The yard's layout** (`lay()`, pure from the seed and the count; rows in `CEM_LAYOUT`; kinds with `layout: 'rows'`):
+- The count stays the formula's. Room for new graves past it: `spare` = clamp(⌈count × 0.25⌉, 6, 24).
+- Graves go in **family plots** of 2–5 with a 0.7 m gap between plots. Each plot is one family: its graves carry one surname (`r.family`), and its **means** (poor 40% / middling 45% / rich 15%) pick its markers: a poor plot's are mostly wood crosses, cairns and bare mounds, a rich plot's stones and iron crosses, and 60% of rich plots get a low stone kerb.
+- Plots run in rows across a **section** of at most `secW` × `secD` = 26 × 22 m. A big cemetery is split into sections, two columns either side of a **main path** from the gate, with **cross paths** between section rows. The rows are shared evenly over the sections, so none is left half empty. A small one is one section sized to it.
+- Each section turns a little (±0.06 rad) and its rows bend with the land (0.7 m over 18 m); each grave lies with its row.
+- Sections fill from the back, oldest first, so the spare slots (the next burials, the funerals' graves) are by the gate.
+- **Markers:** stone (three sizes and shades, some leaning), wood cross, cairn (field stones heaped at the head), iron cross (half with a low railing round the grave), or a bare mound. The older the grave, the lower and paler its mound; past `sunk` = 40 years a third of the oldest have sunk to a hollow, and `fall` = 14% of old markers are down (a stone flat at the head, a cross in the grass).
+- **The wall** (`CEMETERY_KINDS[].wall`): a low dry-stone wall, post and rail, picket, iron railing or wire, in short runs that follow the land. One **gate** in the middle of the side facing the place: two posts (a stone wall's are piers), an iron arch over a stone or iron one, one leaf swung in.
+- **Trees** (`trees`, 0–3): at the corners just outside the wall, inside the keep-out ring. A desert yard's are low and sparse.
 
 **What the living know** (law 6, `WEB_DEPTH_PLAN.md` §0):
 - A family death is **news** (`R.news`).
@@ -102,6 +118,11 @@ A cemetery's position is provisional until its place is built.
 - **years_settled:** a town by archetype age (colonial 100, victorian 95, 1920s 85, postwar 70, sprawl 55); a site by kind (holdout 80, fort 90, trade 60, camp 12, station 45, ruin 100, military 100, industrial 50, landmark 70, farm 75); rural 40; then a seeded ±15% jitter per place.
 - **danger:** a town is `damage × 0.6 + (1 − defense) × 0.4`; a site is its kind (ruin 0.5 … farm 0.15) plus 0.15 per hazard; rural 0.3; a base 0.5. Capped at 1.
 
+**The yard's size** (`lay()`): with `n` = count + spare, spacing `sx` × `sz` m (`CEMETERY_KINDS[].sp`):
+- area = n × sx × sz × 1.25 (the plot gaps and kerbs). If area ≤ secW × secD (572 m²), one section of width max(3·sx + gap, √area); else sections of secW, two columns when they fit, rows per section = ⌈total rows ÷ sections⌉.
+- w = cols × secW + (cols − 1) × mainPath + 2 × margin; d = R × depth + (R − 1) × path + 2 × margin + path (the apron inside the gate), with R = ⌈sections ÷ cols⌉ and depth = rows × sz.
+- Worked example, the COURTHOUSE-SQUARE COUNTY SEAT (206 graves, town_cemetery 2.2 × 3.0 m): spare = 24 (52 capped), n = 230, area = 1898 m² > 572, so sections of 26 m, two columns; 4 sections of 6 rows (depth 18 m); w = 2 × 26 + 3.2 + 3.6 = 58.8 m, d = 2 × 18 + 2.4 + 3.6 + 2.4 = 44.4 m. A 14-grave family plot: spare 6, n = 20, one section, 15.0 × 16.4 m.
+
 **Worked example: THE SILVER STRIP** (site `tombstone-allen-st`, a holdout).
 - pop [60, 110] → 85.
 - years: holdout 80, before jitter.
@@ -125,6 +146,9 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 - **Burned before the funeral:** the family still gathers. No burial happens, and the mood still darkens.
 - **The infected's bodies:** have records (they rot and smell) but no box (they never had loot).
 - **Named NPCs** (`c.npc`): out of scope. They are downed, not dead (`combat.kill` keeps them).
+- **A cemetery on a mesa or a fence:** the mesa's outline and the place's own wall line count against the footprint, so it moves off them (the county seat's larger yard is kept off the 65 m mesa beside it; the trailer park's family plot moved off its chainlink).
+- **A chunk under the player when a cemetery is placed:** it is evicted and laid out again like any LRU eviction (a `teleport` stall at worst); pinned chunks are left alone.
+- **Graves past the slots:** a grave beyond the last slot isn't drawn (the spare room is 6–24 graves; the funeral spot clamps to the last slot).
 - **A cemetery that won't fit:** the candidate search falls back to its first candidate, so it may overlap a street. Rust Haven's 292 graves don't fit inside the island grid (roads every 80 m), which is why its row is set outside it.
 - **Places off the map** (30 site rows abroad, in Alaska or Hawaii, the Keys): no world record, so no cemetery until the map grows to them. The `beyond` records (199) do have theirs.
 
@@ -134,15 +158,20 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 - 03 bloated and folded (swollen, blood-soaked)
 - 04 rotting
 - 05 bones
-- 06 a county seat's cemetery at the town's edge
-- 07 the same, close
+- 06 a county seat's cemetery at the town's edge: four sections either side of a main path, family plots, the stone wall and gate, two trees outside the corners (06b: before, one rigid grid with a boulder on the graves)
+- 07 the same at the gate from a low game camera: piers, iron arch, a leaf swung in, kerbed and railed plots, mixed markers (07b: before)
 - 08 the Coquina Star's mass grave in trenches outside the fort
 - 09 a funeral (two of the Balogun family kneel at the grave the body was dragged to; the smear runs back to the house)
 - 10 the same ring lot yard
+- 11 a boot hill: rows bending with the land, cairns, a post-and-rail fence
+- 12 a trailer park's family plot: a picket fence, off the park's chainlink
+- 13 Rust Haven's boot hill (292 graves, five sections), clear of the island's cacti
+- 14 a burial ground on a site's pad (two sections, wire fence)
+- 15 a rich family's kerbed plot, close
 
 **Known look issues (follow-ups):**
-- The chunk generator's boulders and trees can stand inside a cemetery, because its scatter keeps off a settlement's half-size but not the cemetery's own rectangle.
-- Mounds on a steep slope tilt with the land per piece, but each box itself stays level.
+- Markers stand upright on a slope (right for a headstone); a kerb's four sides each sit at their own ground height.
+- The mass grave's trench layout is unchanged (only its wire fence is new).
 - The funeral spot is chosen when the funeral is planned, so the grave row can land a few slots along.
 
 ## 6. Dependencies (both ways)
@@ -154,7 +183,7 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 | file | hook |
 |---|---|
 | `src/main.js` | import + `this.rites = new Rites(this)`; `rites.input(I)` after `crew.input`; `rites.update(simDt)` after `gadgets.update`; `rites.onDeath(c, attacker, cause)` at the end of `onKill`; `rites.fold(c)` in `removeChar` for the dead; one comment line in `updatePopulation` |
-| `src/agent/api.js` | import; `...ritesCommands(api, need)`; `await ritesChecks(...)` before `qolChecks`; `rites:` in the save; `g.rites.load` in restore before the crew |
+| `src/agent/api.js` | import; `...ritesCommands(api, need)`; `await ritesChecks(...)` last of the systems' checks; `rites:` in the save; `g.rites.load` in restore before the crew |
 | `src/systems/citygen.js` | `g.rites?.onBuilt(t)` in `stamp`, `g.rites?.onReleased(t)` in `release` |
 | `src/systems/inventory.js` | `MAX_BODIES` prunes only searched-and-empty body boxes (`b.rolled &&`) |
 | `src/systems/crew.js` | `g.rites?.graveFromCrew(...)` in `bury` |
@@ -163,6 +192,9 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 | `src/systems/residents.js` | `promote` skips `g.rites.gone(m)` (bones, buried, burned: a folded body still comes back as the household's own character); `think` calls `g.rites.mourn(c, dt)` before the far-keep-still line |
 | `src/systems/grapevine.js` | `eat` hands the body to `rites.eaten` (bones, box kept) instead of deleting the box |
 | `src/systems/characters.js` | `paint` lerps the dead toward `_rot` by `ch.rot` |
+| `src/world/chunkgen.js` | `blocked()`: `if (W.rites?.solid(x, z, r)) return true;` (one line, after the roadside's) |
+
+**Rites reads (layout):** `world/chunkgen.js` `mesasOf`, `mesaNorm`, `MESA_REACH` (pure), `streamer.layouts/pinned/evict`, `statics.boxes` (the island's), `citygen.live[].T.wall`. **Chunkgen reads rites:** `W.rites.solid` (set in the Rites constructor, like `W.citygen`).
 
 **Others read rites:** the observer events (`bodyStage`, `bodyDegraded`, `buried`, `bodyBurned`, `funeralScheduled/Started/Done`, `mournerArrived`, `graveSickness`, `delivered`), and the chronicle verbs `buried`, `burned`, `funeral`.
 
@@ -188,6 +220,14 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 | `BURIAL.stoneCost` | $40 | 20–100 | a stone at a funeral |
 | `FUNERAL.delay` | 24–48 h | must stay within 24–48 (the validator) | when |
 | `FUNERAL.standing` | −8 / +3 / +4 / +6 | ±15 | what the town thinks |
+| `CEM_LAYOUT.secW / secD` | 26 / 22 m | 14–40 / 12–30 | the width cap of a section; smaller = more sections and paths |
+| `CEM_LAYOUT.plot / plotGap` | 2–5 / 0.7 m | 1–8 / 0.3–1.5 | family plot size and the gap between them |
+| `CEM_LAYOUT.bend / turn` | 0.7 m / 0.06 rad | 0–1.5 / 0–0.15 | how far rows wave and sections turn (0 = a rigid grid) |
+| `CEM_LAYOUT.keep` | 4 m | 2–10 | scatter-free ring round the wall |
+| `CEM_LAYOUT.spare` | 6 / 24 / 0.25 | min 3–12, max 12–48 | room for new graves |
+| `CEM_LAYOUT.wealth.share` | 0.4 / 0.45 / 0.15 | sums to 1 (the validator) | poor / middling / rich plots |
+| `CEM_LAYOUT.sunk / fall` | 40 yr / 0.14 | 20–80 / 0–0.3 | how worn the old graves look |
+| `CEMETERY_KINDS[].wall / trees` | per kind | stone, rail, picket, iron, wire / 0–3 (the validator) | the look of the edge |
 
 ## 8. Acceptance criteria (the selftest checks; `node tools/dl.mjs selftest only=rites:`)
 
@@ -196,6 +236,7 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 3. **heat faster than cold:** the same 12 h at 35 °C ages a body 18 h; at 0 °C it ages 6 h. *Proves the climate multipliers.*
 4. **far body survives 2 km:** a body is left, you go 2 km away in 400 m teleport legs (the streamer pages), stay 100 s (past the 90 s fold), and come back. The record is there with the same box contents and is drawn by the rites mesh. *Proves the far fold replaced the delete.* (Teleport legs, not a drive: the fold doesn't care how you left.)
 5. **cemetery for every place:** every one of the 305 plan records has a cemetery whose count equals the formula, of the right kind (bunker → crypt, battle → mass grave, rural → family plot). Every planned or beyond site row has one, and the history has that many graves with names, causes and years in range. *Proves "burial stuff everywhere in each one of those places".*
+5b. **a yard laid out like one, the wild kept off:** at the county seat (206 graves): no chunk-scatter instance or static box (rock, scrub, cactus, tree) inside the wall plus the keep-out; `rites.solid` answers inside and not outside; at least 2 sections, none wider than `secW`, a main path from the front; plots of 1–5 (most 2+), each plot one family's surname, never two; stone, wood, cairn and iron all present; rich plots carry stone or iron at least 0.3 more often than poor ones; it is drawn with its stone wall and two trees; the count still equals the formula. *Proves the boulder fix and the broken-up layout.*
 6. **burial writes a grave row:** drag, dig with a shovel (a `digStart`), bury. The row has who, when, how, by whom and a cross marker; the body's things are in the grave box; there is a `buried` chronicle row; the body is gone from the street.
 7. **law 6 + funeral + walking mourners:**
    - A ring family member is staged 150 m from home with nobody watching and killed. After 3 game hours there is no funeral, and the death is in `unreported`.

@@ -442,6 +442,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
     if (W.citygen && W.citygen.solid(x, z, r)) return true; // a generated settlement's footprint (systems/citygen.js)
     if (W.roadside?.solid(x, z, r)) return true; // the roadside's sites, fields, towers and billboards (world/roadside.js)
+    if (W.rites?.solid(x, z, r)) return true; // a placed cemetery and its keep-out ring (systems/rites.js)
     return false;
   };
   yield;
