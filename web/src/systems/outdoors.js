@@ -40,7 +40,7 @@ export class Outdoors {
     // The track pool: structure of arrays, a ring (the oldest go first). t is the game hour it was laid.
     const N = TRACKS.pool;
     this.tx = new Float32Array(N); this.tz = new Float32Array(N); this.tf = new Float32Array(N); this.tt = new Float64Array(N);
-    this.tk = new Uint8Array(N); this.th = new Float32Array(N); this.tw = new Array(N).fill(null); this.ts = new Array(N).fill(null);
+    this.tk = new Uint8Array(N); this.tside = new Int8Array(N); this.th = new Float32Array(N); this.tw = new Array(N).fill(null); this.ts = new Array(N).fill(null);
     this.head = 0; this.count = 0;
     this.layT = 0; this.drawT = 0; this.slowT = 0; this.fxT = 0;
     this.fx = { ...FX0 };
@@ -49,7 +49,9 @@ export class Outdoors {
     this.stats = { laid: 0, reads: 0, birdsDowned: 0, casts: 0, fish: 0, trash: 0, missed: 0, foraged: 0, snared: 0, fishTrapped: 0, dogTrails: 0, fetched: 0, dried: 0, built: 0, trailed: 0 };
     if (game.scene) {
       const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-      this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.62, depthWrite: false, fog: true }), TRACKS.draw);
+      this.cell = new THREE.InstancedBufferAttribute(new Float32Array(TRACKS.draw), 1);
+      geo.setAttribute('aCell', this.cell);
+      this.mesh = new THREE.InstancedMesh(geo, printMaterial(), TRACKS.draw);
       this.mesh.count = 0; this.mesh.visible = false; this.mesh.frustumCulled = false; layerMesh(this.mesh, 'groundDecal'); // engine/depthlayers.js
       this.mesh.setColorAt(0, _c.set('#000000'));
       game.scene.add(this.mesh);
@@ -82,10 +84,10 @@ export class Outdoors {
   // ---- tracks ---------------------------------------------------------------------------------------------------------
   // One print into the pool. ageH: laid that many game hours ago (staging). life: x its lifetime (the ground's hold,
   // a pathfinder's own sign).
-  lay(kind, x, z, face, who, sp, ageH = 0, life = null) {
+  lay(kind, x, z, face, who, sp, ageH = 0, life = null, side = 0) {
     const i = this.head;
     this.head = (i + 1) % TRACKS.pool; if (this.count < TRACKS.pool) this.count++;
-    this.tx[i] = x; this.tz[i] = z; this.tf[i] = face; this.tt[i] = this.hours() - ageH; this.tk[i] = KIDX[kind] ?? 0;
+    this.tx[i] = x; this.tz[i] = z; this.tf[i] = face; this.tt[i] = this.hours() - ageH; this.tk[i] = KIDX[kind] ?? 0; this.tside[i] = side;
     this.th[i] = life ?? (GROUND_HOLD[this.biomeAt(x, z)] ?? 1);
     this.tw[i] = who; this.ts[i] = sp;
     this.stats.laid++;
@@ -93,14 +95,16 @@ export class Outdoors {
   }
   // A mover since its last print: one more every `every` metres; blood drops by their own spacing while it bleeds.
   // The marker fields live on the mover (_tkx, _tkz, _tkb): no allocation.
-  maker(o, kind, who, sp, bleed, life = null) {
+  maker(o, kind, who, sp, bleed, life = null, bloodKind = 'blood') {
     if (o._tkx === undefined) { o._tkx = o.x; o._tkz = o.z; o._tkb = 0; return; }
     const dx = o.x - o._tkx, dz = o.z - o._tkz, d = Math.hypot(dx, dz);
     if (d > 25) { o._tkx = o.x; o._tkz = o.z; return; } // a teleport, a ride: no line of prints across the map
     const K = TRACK_KINDS[kind];
     if (d >= K.every) {
-      this.lay(kind, o.x, o.z, Math.atan2(dx, dz), who, sp, 0, life === null ? null : life * (GROUND_HOLD[this.biomeAt(o.x, o.z)] ?? 1));
-      if (bleed) { o._tkb += d; if (o._tkb >= TRACK_KINDS.blood.every) { o._tkb = 0; this.lay('blood', o.x + (Math.random() - 0.5) * 0.3, o.z + (Math.random() - 0.5) * 0.3, Math.atan2(dx, dz), who, sp); } }
+      o._tks = o._tks > 0 ? -1 : 1; // left foot, right foot
+      this.lay(kind, o.x, o.z, Math.atan2(dx, dz), who, sp, 0, life === null ? null : life * (GROUND_HOLD[this.biomeAt(o.x, o.z)] ?? 1), K.stagger ? o._tks : 0);
+      if (bleed) { o._tkb += d; if (o._tkb >= TRACK_KINDS[bloodKind].every) { o._tkb = 0; this.lay(bloodKind, o.x + (Math.random() - 0.5) * 0.3, o.z + (Math.random() - 0.5) * 0.3, Math.atan2(dx, dz), who, sp); } }
+      if (kind === TRACK_OF.infected && !this.raining() && DUSTY.includes(this.biomeAt(o.x, o.z)) && Math.random() < 0.6) this.g.fx?.spawn(2, o.x - dx / d * 0.3 + (Math.random() - 0.5) * 0.4, 0.2, o.z - dz / d * 0.3 + (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.6, 0.35 + Math.random() * 0.3, (Math.random() - 0.5) * 0.6, 1.4 + Math.random() * 0.8, 0.7 + Math.random() * 0.5, '#e2d2b0', -0.05); // a pale haze kicked up behind the shuffle, settling as it fades
       o._tkx = o.x; o._tkz = o.z;
     }
   }
@@ -109,7 +113,8 @@ export class Outdoors {
     if (P.alive && !P.inVehicle && !P.swim && !((P.gy ?? 0) > 0.5)) this.maker(P, 'boot', P.id, 'person', (P.bleed ?? 0) > 0.05, this.fx.ownTrackMul !== 1 ? this.fx.ownTrackMul : null);
     for (const c of g.chars) {
       if (c === P || !c.alive || c.inVehicle || c.hidden || c.swim || (c.gy ?? 0) > 0.5 || !near(c)) continue;
-      this.maker(c, 'boot', c.id, c.faction === 'zombie' ? 'infected' : 'person', (c.bleed ?? 0) > 0.05);
+      if (c.faction === 'zombie') { this.maker(c, c.crawl ? TRACK_OF.infectedCrawl : TRACK_OF.infected, c.id, 'infected', (c.bleed ?? 0) > 0.05 || c.hp < (c.maxHp ?? 75) * 0.6, null, TRACK_OF.infectedBlood); continue; }
+      this.maker(c, 'boot', c.id, 'person', (c.bleed ?? 0) > 0.05);
     }
     for (const d of g.dogs?.dogs ?? []) if (!d.dead && !d.ride && near(d)) this.maker(d, 'paw', d.id, 'dog', d.downed || d.hp < (d.p?.hp ?? 50) * 0.5);
     for (const a of g.fauna?.live ?? []) {
@@ -125,7 +130,7 @@ export class Outdoors {
   }
   // How old a print may be and still be seen by a reader of tracking level L (game hours). Blood reads longer.
   maxAge(i, L, extraH = 0) {
-    const K = TRACK_KINDS[KINDS[this.tk[i]]], blood = KINDS[this.tk[i]] === 'blood';
+    const K = TRACK_KINDS[KINDS[this.tk[i]]], blood = !!K.blood;
     const skill = (TRACKS.ageH + TRACKS.perLevelH * L + extraH) * K.base * (blood ? TRACKS.bleedFresh + 1 : 1) * (blood ? this.fx.bloodAgeMul : 1);
     return Math.min(K.lifeH, skill) * this.th[i] * (this.raining() ? TRACKS.rainMul : 1);
   }
@@ -142,7 +147,7 @@ export class Outdoors {
       let m = by.get(who);
       if (!m) by.set(who, (m = { who, sp: this.ts[n], kind: null, prints: 0, blood: 0, t: -Infinity, t0: Infinity, f: 0, x: 0, z: 0 }));
       const k = KINDS[this.tk[n]];
-      if (k === 'blood') m.blood++;
+      if (TRACK_KINDS[k].blood) m.blood++;
       else { m.kind = k; m.prints++; }
       if (this.tt[n] > m.t) { m.t = this.tt[n]; m.f = this.tf[n]; m.x = this.tx[n]; m.z = this.tz[n]; }
       m.t0 = Math.min(m.t0, this.tt[n]);
@@ -197,14 +202,16 @@ export class Outdoors {
       const max = this.maxAge(i, L), age = now - this.tt[i];
       if (age > max) continue;
       const K = TRACK_KINDS[KINDS[this.tk[i]]], fade = 1 - (age / Math.max(1e-3, max)) * 0.75;
-      _o.position.set(x, DECAL_Y + (ground ? ground(x, z) : 0), z); // over a building's floor and rugs too (engine/depthlayers.js) _o.rotation.set(0, this.tf[i], 0);
-      _o.scale.set(K.size * (KINDS[this.tk[i]] === 'tyre' ? 0.35 : 0.6), 1, K.size); _o.updateMatrix();
+      const f = this.tf[i], side = this.tside[i] * (K.stagger ?? 0), px = x + Math.cos(f) * side, pz = z - Math.sin(f) * side;
+      _o.position.set(px, DECAL_Y + (ground ? ground(px, pz) : 0), pz); _o.rotation.set(0, f, 0); // over a building's floor and rugs too (engine/depthlayers.js)
+      _o.scale.set(K.w ?? K.size * 0.6, 1, K.size); _o.updateMatrix();
       m.setMatrixAt(n, _o.matrix);
-      m.setColorAt(n, _c.set(K.colour).multiplyScalar(0.6 + 0.4 * (1 - fade)).lerp(_c2.set('#9a8a70'), 1 - fade));
+      m.setColorAt(n, _c.set(K.colour).lerp(_c2.set('#ffffff'), (1 - fade) * 1.1)); // it multiplies the ground: white is no mark at all, so an old print fades away, never pale
+      this.cell.setX(n, K.cell ?? 0);
       n++;
     }
     m.count = n; m.visible = n > 0;
-    if (n) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    if (n) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; this.cell.needsUpdate = true; }
   }
 
   // ---- hunters and skip tracers: anybody told to trail someone follows their sign ----------------------------------------
@@ -707,3 +714,56 @@ export class Outdoors {
   }
 }
 const _c2 = new THREE.Color();
+// Dry ground a shuffle kicks dust up off (usmap biome letters: desert, scrub, dead sprawl, mountain dirt, open plain).
+const DUSTY = ['d', 'a', 'u', '.', 'm', 'p'];
+
+// THE PRINT ATLAS: four shapes on one 256 px canvas (2 x 2 cells of 128), the mask in red (0 no mark .. 1 full). In a
+// cell the bottom is the FRONT of the print (the way it went), the top its back. 0 a boot sole (heel and tread),
+// 1 a shuffling scuff (the ball of the foot, the toe dragged back into a streak), 2 a long drag or smear (a crawler's
+// belly, hands clawing at the front; a tyre; blood), 3 a round splat (drops, paws, hooves). Drawn once, in code.
+function printAtlas() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0, 0, 256, 256);
+  const cell = (k, fn) => { x.save(); x.translate((k % 2) * 128, 128 - Math.floor(k / 2) * 128); x.beginPath(); x.rect(0, 0, 128, 128); x.clip(); fn(); x.restore(); };
+  const blob = (cx, cy, rx, ry, a, blur = 6) => { x.save(); x.filter = `blur(${blur}px)`; x.globalAlpha = a; x.fillStyle = '#fff'; x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); x.fill(); x.restore(); };
+  cell(0, () => { // boot: forefoot at the front (bottom), a waist, the heel at the back; tread lines lighter
+    blob(64, 86, 30, 34, 0.85, 4); blob(64, 58, 22, 22, 0.55, 5); blob(64, 30, 24, 20, 0.8, 4);
+    x.save(); x.globalCompositeOperation = 'source-atop'; x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 4;
+    for (let y = 70; y < 116; y += 10) { x.beginPath(); x.moveTo(40, y); x.lineTo(88, y); x.stroke(); }
+    for (let y = 18; y < 44; y += 9) { x.beginPath(); x.moveTo(44, y); x.lineTo(84, y); x.stroke(); }
+    x.restore();
+  });
+  cell(1, () => { // scuff: a whole sole pressed in unevenly (the ball heavy, the heel light), the toe dragged back into a smear
+    blob(64, 96, 26, 26, 0.95, 3); blob(64, 66, 18, 16, 0.6, 4); blob(62, 44, 20, 16, 0.5, 4);
+    const gr = x.createLinearGradient(0, 100, 0, 4); gr.addColorStop(0, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.save(); x.filter = 'blur(4px)'; x.fillStyle = gr; x.beginPath(); x.moveTo(50, 104); x.quadraticCurveTo(54, 50, 58, 4); x.lineTo(70, 4); x.quadraticCurveTo(76, 50, 80, 104); x.fill(); x.restore();
+  });
+  cell(2, () => { // drag: a long streak, heavier at the front, with claw lines where the hands dug in
+    const gr = x.createLinearGradient(0, 124, 0, 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.75, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0.25)');
+    x.save(); x.filter = 'blur(4px)'; x.fillStyle = gr; x.beginPath(); x.ellipse(64, 64, 36, 62, 0, 0, Math.PI * 2); x.fill(); x.restore();
+    x.save(); x.filter = 'blur(1.5px)'; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 4;
+    for (const dx of [-26, -12, 12, 26]) { x.beginPath(); x.moveTo(64 + dx, 124); x.lineTo(64 + dx * 0.8, 92); x.stroke(); }
+    x.restore();
+  });
+  cell(3, () => { // splat: a few overlapping soft drops
+    for (const [cx, cy, r, a] of [[64, 64, 30, 0.85], [44, 52, 14, 0.7], [84, 76, 12, 0.7], [70, 40, 10, 0.6], [50, 84, 9, 0.6]]) blob(cx, cy, r, r * 0.9, a, 4);
+  });
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
+  return t;
+}
+// The sign's material: a print MULTIPLIES the ground under it (a print can only darken it, never read as paper), the
+// shape from the atlas cell the instance names (aCell). One material, one draw call; fog and tone mapping off so an
+// unmarked texel stays exactly white (= no change to the ground).
+function printMaterial() {
+  const m = new THREE.MeshBasicMaterial({ color: '#ffffff', map: typeof document !== 'undefined' ? printAtlas() : null, transparent: true, premultipliedAlpha: true, blending: THREE.MultiplyBlending, depthWrite: false, fog: false, toneMapped: false });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aCell;\nvarying vec2 vCellUv;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvCellUv = (uv + vec2(mod(aCell, 2.0), floor(aCell / 2.0))) * 0.5;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vCellUv;')
+      .replace('#include <map_fragment>', '')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n#ifdef USE_MAP\ndiffuseColor.rgb = mix(vec3(1.0), diffuseColor.rgb, texture2D(map, vCellUv).r);\n#endif');
+  };
+  return m;
+}

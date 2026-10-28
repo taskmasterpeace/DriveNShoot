@@ -65,21 +65,30 @@ for (const [sp, rows] of Object.entries(MORE_YIELDS)) { const B = SPECIES[sp]?.b
 if (SPECIES.vulture && !SPECIES.vulture.butcher) SPECIES.vulture.butcher = { time: 3, yields: [['feathers', 2, 4], ['bone', 1, 1]] };
 
 // ---- 2. tracks: the sign everything leaves (systems/outdoors.js keeps them in one pool, drawn as one decal mesh) ------
-//   size      the decal's footprint (m); colour its tint; every  a print every this many metres of travel
-//   base      how readable it is fresh (1 = plain as day; a snake's drag in the sand is faint)
+//   size      the decal's length along the way it went (m); w its width (m); colour how dark it darkens the ground
+//             (the decal MULTIPLIES the ground: it can only darken it, and an old print fades toward white, i.e. away)
+//   every     a print every this many metres of travel; stagger  m a boot's left and right feet sit either side of the line
+//   cell      which shape in the print atlas (systems/outdoors.js printAtlas): 0 a boot sole, 1 a shuffling scuff (toe
+//             dragged), 2 a long drag or smear, 3 a round splat (drops, paws, hooves)
+//   base      how readable it is fresh (1 = plain as day; a snake's drag in the sand is faint; a herd's trampled path, 2.5,
+//             is plainer than plain); blood  it is blood (read longer, and the Read-the-blood talent reads it)
 //   lifeH     game hours it lasts on good ground in dry weather before it is gone to anybody
 export const TRACK_KINDS = {
-  boot: { name: 'boot prints', size: 0.32, colour: '#3a3026', every: 1.5, base: 1, lifeH: 18 },
-  paw: { name: 'paw prints', size: 0.2, colour: '#3e342a', every: 1.3, base: 0.8, lifeH: 12 },
-  hoof: { name: 'hoof prints', size: 0.24, colour: '#3a2e24', every: 1.8, base: 0.9, lifeH: 16 },
-  claw: { name: 'a belly drag and claw marks', size: 0.6, colour: '#32301e', every: 1.6, base: 1, lifeH: 14 },
-  slither: { name: 'a snake\'s wavy drag', size: 0.3, colour: '#4a4030', every: 1.2, base: 0.55, lifeH: 6 },
-  bird: { name: 'bird feet', size: 0.12, colour: '#40382c', every: 0.8, base: 0.5, lifeH: 4 },
-  tyre: { name: 'tyre tracks', size: 0.9, colour: '#2a2620', every: 3, base: 1, lifeH: 30 },
-  blood: { name: 'blood drops', size: 0.18, colour: '#5a0a08', every: 2, base: 1, lifeH: 10 },
+  boot: { name: 'boot prints', size: 0.3, w: 0.13, colour: '#4a3a2c', every: 1.5, base: 1, lifeH: 18, cell: 0, stagger: 0.11 },
+  paw: { name: 'paw prints', size: 0.14, w: 0.12, colour: '#4e4032', every: 1.3, base: 0.8, lifeH: 12, cell: 3 },
+  hoof: { name: 'hoof prints', size: 0.16, w: 0.13, colour: '#4a3a2c', every: 1.8, base: 0.9, lifeH: 16, cell: 3, stagger: 0.12 },
+  claw: { name: 'a belly drag and claw marks', size: 0.6, w: 0.35, colour: '#423a28', every: 1.6, base: 1, lifeH: 14, cell: 2 },
+  slither: { name: "a snake's wavy drag", size: 0.5, w: 0.12, colour: '#5a4e3a', every: 1.2, base: 0.55, lifeH: 6, cell: 2 },
+  bird: { name: 'bird feet', size: 0.1, w: 0.08, colour: '#504636', every: 0.8, base: 0.5, lifeH: 4, cell: 3 },
+  tyre: { name: 'tyre tracks', size: 2.6, w: 0.24, colour: '#3e3428', every: 3, base: 1, lifeH: 30, cell: 2, stagger: 0.75 },
+  blood: { name: 'blood drops', size: 0.18, w: 0.18, colour: '#6a0c08', every: 2, base: 1, lifeH: 10, cell: 3, blood: true },
+  // The infected (WEB_ZOMBIES.md): they shuffle, toes dragging; a crawler drags itself, hands clawing; the wounded smear.
+  scuff: { name: 'shuffling prints, the toes dragged', size: 0.75, w: 0.34, colour: '#2a1c10', every: 1.1, base: 2.5, lifeH: 18, cell: 1, stagger: 0.13 },
+  drag: { name: 'something dragging itself, hands clawing', size: 1.0, w: 0.55, colour: '#2a1c10', every: 0.55, base: 2.5, lifeH: 20, cell: 2 },
+  smear: { name: 'smeared blood', size: 0.8, w: 0.3, colour: '#6a0a06', every: 1.2, base: 1, lifeH: 12, cell: 2, blood: true },
 };
 // Which kind of print a maker leaves (fauna form / species; people; dogs; vehicles).
-export const TRACK_OF = { quad: 'hoof', snake: 'slither', bird: 'bird', gator: 'claw', crawler: 'paw', paws: ['coyote', 'panther', 'twinback'] };
+export const TRACK_OF = { quad: 'hoof', snake: 'slither', bird: 'bird', gator: 'claw', crawler: 'paw', paws: ['coyote', 'panther', 'twinback'], infected: 'scuff', infectedCrawl: 'drag', infectedBlood: 'smear' };
 // How well the ground holds a print (usmap biome letters): sand and mud hold, rock and pavement barely.
 export const GROUND_HOLD = { d: 1, f: 0.9, m: 0.5, p: 0.9, w: 1.25, a: 1.1, u: 0.35, s: 1.2, F: 0.9, '.': 0.7 };
 export const TRACKS = {

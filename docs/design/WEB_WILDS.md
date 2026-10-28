@@ -29,6 +29,10 @@ rows over one system:
 - **Tracks.** Every mover leaves sign - boots, paws, hooves, a belly drag, a snake's wave, bird feet, tyres - and every
   wounded thing leaves blood. One pooled ring of 640 records, drawn as **one** instanced decal mesh. What you can read is
   your TRACKING level against the sign's age, the ground (sand and mud hold, rock and pavement barely) and the rain.
+  The decals (WEB_ZOMBIES.md §3.8, 2026-10-28) are shapes from a four-cell print atlas: a boot sole, a scuff, a drag
+  and a splat. They MULTIPLY the ground, so a print can only darken it, and an old print fades toward white (away),
+  never pale. Boots and tyres alternate left and right. The infected leave their own kinds: `scuff`, a crawler's
+  `drag`, the wounded's `smear`. Blood kinds carry `blood: true`.
 - **Fishing.** A rod, a hook and bait; cast at water (the water authority says river, lake, creek, canal, swamp or sea),
   wait for the bite, strike inside the window. Fish by water and region; now and then a boot. Fish traps and gill nets
   fill on the game clock.

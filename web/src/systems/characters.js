@@ -732,13 +732,16 @@ const STYLE = {
   player: { hats: ['cap'], gear: ['vest'], acc: ['none'], bare: 0 },
 };
 // The infected wear what they turned in: civilian, worker and soldier clothes, torn and stained.
-const INFECTED_SHIRTS = ['#4a4038', '#3d4248', '#5a4a3a', '#6a5a4a', '#7a5a2a', '#4a4f38', '#6b6048', '#5a3a3a'];
+// From above a herd must read as people, not one brown blob: a spread of values and hues (faded denim, a white work shirt
+// gone grey, hospital scrubs, a faded hi-vis vest, mustard, black), never purple.
+const INFECTED_SHIRTS = ['#4a4038', '#3d4248', '#5a4a3a', '#7a5a2a', '#4a4f38', '#5a3a3a', '#5b7088', '#8a95a0', '#b8b2a4', '#4f8a84', '#a8742a', '#b0a052', '#262422', '#c46a2a', '#6a7a5a'];
+const INFECTED_PANTS = ['#2e2c28', '#3a3630', '#3e4a52', '#4a4f38', '#4f6680', '#8a7a5a', '#5a5248', '#1e1c1a'];
 
 export function outfit(faction, rng = Math.random) {
   const pick = (a) => a[Math.floor(rng() * a.length)];
   if (faction === 'zombie') return {
-    skin: pick(['#8a9a74', '#7d8a6a', '#9a9f86', '#6f7a5e', '#a3a08a', '#8a8070']), hair: pick(['#2a2a24', '#4a463c', '#6a665a', '#1b1410']),
-    shirt: pick(INFECTED_SHIRTS), pants: pick(['#2e2c28', '#3a3630', '#3e4a52', '#4a4f38']), boots: pick(BOOTS),
+    skin: pick(['#8a9a74', '#7d8a6a', '#9a9f86', '#6f7a5e', '#a3a08a', '#8a8070', '#6a5a4a', '#4f4236', '#b0a898']), hair: pick(['#2a2a24', '#4a463c', '#6a665a', '#1b1410', '#8a7a5a', '#a09a8a', '#5a3a22']),
+    shirt: pick(INFECTED_SHIRTS), pants: pick(INFECTED_PANTS), boots: pick(BOOTS),
     hat: pick(['#3a3630', '#4a4f38']), hatStyle: pick(['short', 'short', 'long', 'bald', 'beanie', 'cap', 'helmet']), gearStyle: pick(['none', 'none', 'none', 'none', 'pack']), gear: '#2a2622',
     accStyle: 'none', sleeves: rng() < 0.6 ? 'short' : 'long',
   };

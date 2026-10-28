@@ -185,8 +185,15 @@ export class Security {
     const men = A.resp.men.filter((c) => c.alive);
     if (!men.length) { this.arrest = null; return; }
     if (!P.alive) { this.arrest = null; return; }
-    // Hurt one of them, or run: it is a fight.
-    if (A.resp.men.some((c, i) => c.hp < A.hp0[i] - 0.5 || !c.alive)) { this.shootout('you hurt one of them'); return; }
+    // Hurt one of them, or run: it is a fight. Only YOUR hit counts (law 6): a bite from the infected or someone else's
+    // round is not you, so they take the new hp as it is and keep the arrest (their own AI answers whoever did it).
+    for (let i = 0; i < A.resp.men.length; i++) {
+      const c = A.resp.men[i];
+      if (A.hp0[i] <= 0 || !(c.hp < A.hp0[i] - 0.5 || !c.alive)) continue; // a man already gone from the count
+      if (c.lastAttacker === P) { this.shootout('you hurt one of them'); return; }
+      g.emit('bullHurtNotByYou', { id: c.id, by: c.lastAttacker?.id ?? null, byFaction: c.lastAttacker?.faction ?? null });
+      A.hp0[i] = c.alive ? c.hp : 0;
+    }
     let nd = Infinity;
     for (const c of men) {
       const dx = P.x - c.x, dz = P.z - c.z, d = Math.hypot(dx, dz);
