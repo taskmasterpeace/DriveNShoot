@@ -916,7 +916,7 @@ class Game {
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
+    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
     const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).

@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { layoutTown, layoutRural, layoutBase } from '../world/citygen/layout.js';
 import { layoutSite } from '../world/citygen/site.js';
 import { buildTown, hashStr } from '../world/citygen/build.js';
-import { ARCHETYPES, RURAL, PLACE, ROADS, MILITARY, OVERRUN } from '../data/citygen.js';
-import { SITES, SITES_BY_ID } from '../data/sites/index.js';
-import { ATLAS_BASES, ATLAS_XZ } from '../data/atlas.js';
+import { ARCHETYPES, RURAL, PLACE, ROADS, MILITARY, OVERRUN, MAJOR_CITIES } from '../data/citygen.js';
+import { SITES, SITES_BY_ID, BUNKER_REGIONS } from '../data/sites/index.js';
+import { SITES_XZ, BUNKER_XZ } from '../data/sites/xz.js';
+import { respectful } from '../world/citygen/site.js';
 import GOLDEN from '../data/golden.json';
 import { makeRng } from '../engine/rng.js';
 import { Overrun } from './overrun.js';
+import { RING_OPENINGS as RO } from '../data/interiors.js';
 
 // PROCEDURAL CITIES (docs/design/WEB_CITYGEN.md): the settlements of the streamed country, planned once at boot from the
 // corridors (a pure, seeded plan: towns of every archetype by biome, homesteads along the roads, real sites, military bases
@@ -84,8 +86,23 @@ export function planWorld(W, seed = 0xc17e) {
     for (const [dx, dz] of [[0, 0], [-half, -half], [half, -half], [-half, half], [half, half]]) if ((W.depthAt?.(x + dx, z + dz, 0) ?? 0) > 0.05) return false; // dry ground
     return true;
   };
-  const sitesByRegion = { arizona: SITES.filter((s) => s.real.state === 'AZ' && s.kind !== 'military'), florida: SITES.filter((s) => s.real.state === 'FL' && s.kind !== 'military') };
-  const siteUsed = new Set();
+  // the major cities first (their cloning centers): a metro district 2.5-5 km from the real town, on free ground
+  const near = (x0, z0, half, from = 0, to = 1500) => { for (let d = from; d <= to; d += 250) for (let a = 0; a < 12; a++) { const x = Math.round(x0 + Math.cos((a / 12) * Math.PI * 2) * d), z = Math.round(z0 + Math.sin((a / 12) * Math.PI * 2) * d); if (free(x, z, half)) return { x, z }; } return null; };
+  for (const M of MAJOR_CITIES) {
+    const t = (W.towns ?? []).find((q) => q.id === M.town);
+    if (!t || !W.inWorld(t.x, t.z, -1000)) continue;
+    const A = ARCHETYPES[M.arch], half = A.sizeM[1] / 2 + 30, at = near(t.x, t.z, half, 2500, 5000);
+    if (!at) continue;
+    out.push({ kind: 'town', arch: M.arch, biome: M.biome, half, x: at.x, z: at.z, seed: hashStr(M.town) ^ seed, id: `cg-${out.length}`, name: `${M.city.toUpperCase()} METRO`, major: M.city, town: M.town });
+  }
+  // the SITE rows at their real anchors (data/sites/xz.js: the atlas projection), on free ground within 1.5 km of it
+  for (const row of SITES) {
+    const v = SITES_XZ[row.id];
+    if (!v || !W.inWorld(v[0], v[1], -300)) continue;
+    const half = Math.max(...row.footprint) / 2 + 20, at = near(v[0], v[1], half);
+    if (!at) continue;
+    out.push({ kind: row.kind === 'military' ? 'site' : 'site', site: row.id, arch: row.layout, biome: row.biome, half, x: at.x, z: at.z, seed: hashStr(row.id) ^ seed, id: `cg-${out.length}`, name: row.name, anchor: [v[0], v[1]], respect: respectful(row) });
+  }
   for (const cor of corridors) {
     const L = cor.L ?? 0;
     if (!(L > 2000)) continue;
@@ -96,18 +113,10 @@ export function planWorld(W, seed = 0xc17e) {
       side = -side;
       const f = cor.at(s), off = cs.range(PLACE.cityOff[0], PLACE.cityOff[1]);
       const x = Math.round(f.x + f.nx * side * off), z = Math.round(f.z + f.nz * side * off);
-      const biome = biomeFor(W, x, z), R = W.regionOf?.(x, z), rid = R?.id ?? 'arizona';
-      const pool = (sitesByRegion[rid] ?? []).filter((r) => !siteUsed.has(r.id));
-      let rec;
-      if (pool.length && cs() < 0.35) {
-        const row = pool[Math.floor(cs() * pool.length)];
-        rec = { kind: 'site', site: row.id, arch: row.layout, biome: row.biome, half: Math.max(...row.footprint) / 2 + 20, name: row.name };
-      } else {
-        const arch = archFor(cs, biome), A = ARCHETYPES[arch];
-        rec = { kind: 'town', arch, biome, half: A.sizeM[1] / 2 + 30, name: A.name.toUpperCase() };
-      }
+      const biome = biomeFor(W, x, z);
+      const arch = archFor(cs, biome), A = ARCHETYPES[arch];
+      const rec = { kind: 'town', arch, biome, half: A.sizeM[1] / 2 + 30, name: A.name.toUpperCase() };
       if (!free(x, z, rec.half)) continue;
-      if (rec.kind === 'site') siteUsed.add(rec.site);
       out.push({ ...rec, id: `cg-${out.length}`, x, z, seed: hashStr(`${cor.id}:${Math.round(s)}`) ^ seed, cor: cor.id, s: Math.round(s) });
     }
     // homesteads: living outside a city, along the road
@@ -124,21 +133,17 @@ export function planWorld(W, seed = 0xc17e) {
       out.push({ kind: 'rural', arch: kind, biome, half, x, z, seed: hashStr(`${cor.id}:r${Math.round(s)}`) ^ seed, front, id: `cg-${out.length}`, name: R.name.toUpperCase(), cor: cor.id, s: Math.round(s) });
     }
   }
-  // military bases: at real base anchors inside the streamed world, far apart (MILITARY.spacing)
+  // military bases with their vast vaults: only at the BUNKER_REGIONS anchors (data/sites/index.js; data/sites/xz.js)
+  // inside the streamed world, 900 m off the anchor on free ground, never two within MILITARY.spacing
   const bases = [];
-  for (const B of ATLAS_BASES ?? []) {
-    const xz = ATLAS_XZ?.bases?.[B.id];
-    if (!xz) continue;
-    let [x, z] = xz;
-    if (!W.inWorld(x, z, -400)) continue;
-    // the base stands beside its anchor (the underground's own bunker stays on the anchor): 900 m off, on free ground
-    let ok = false;
-    for (let a = 0; a < 8 && !ok; a++) { const xx = Math.round(x + Math.cos(a * Math.PI / 4) * 900), zz = Math.round(z + Math.sin(a * Math.PI / 4) * 900); if (free(xx, zz, MILITARY.size[0] / 2 + 20)) { x = xx; z = zz; ok = true; } }
-    if (!ok) continue;
-    if (bases.some((b) => Math.hypot(b.x - x, b.z - z) < MILITARY.spacing)) continue;
-    const rec = { kind: 'base', arch: 'military_base', biome: biomeFor(W, x, z), half: MILITARY.size[0] / 2 + 20, x, z, seed: hashStr(B.id) ^ seed, id: `cg-${out.length}`, name: `${B.name.toUpperCase()} RESERVATION`, anchor: B.id };
+  BUNKER_REGIONS.forEach((B, i) => {
+    const v = BUNKER_XZ[i];
+    if (!v || !W.inWorld(v[0], v[1], -400)) return;
+    const half = MILITARY.size[0] / 2 + 20, at = near(v[0], v[1], half, 900, 2400);
+    if (!at || bases.some((b) => Math.hypot(b.x - at.x, b.z - at.z) < MILITARY.spacing)) return;
+    const rec = { kind: 'base', arch: 'military_base', biome: biomeFor(W, at.x, at.z), half, x: at.x, z: at.z, seed: hashStr(B.real_base) ^ seed, id: `cg-${out.length}`, name: `${B.real_base.split(/[(/]/)[0].trim().toUpperCase()} RESERVATION`, anchor: B.real_base };
     bases.push(rec); out.push(rec);
-  }
+  });
   for (const r of out) {
     const A = ARCHETYPES[r.arch];
     r.infestation = 0; r.state = 'holding';
@@ -236,6 +241,7 @@ export class CityGen {
   release(id) {
     const t = this.live.get(id);
     if (!t) return;
+    for (const R of t.blds) if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; }
     this.overrun.depopulate(t);
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
@@ -281,7 +287,7 @@ export class CityGen {
   place(i, on) {
     const it = this.items[i], M = this.mesh;
     _o.position.set(it.cx, it.cy, it.cz); _o.rotation.set(0, 0, 0);
-    if (on) _o.scale.set(it.sx, it.sy, it.sz); else _o.scale.set(0, 0, 0);
+    if (on && !(it.rollup && !it.down)) _o.scale.set(it.sx, it.sy, it.sz); else _o.scale.set(0, 0, 0); // a roll-up door's panel only while it is down
     _o.updateMatrix();
     M.setMatrixAt(i, _o.matrix);
     M.setColorAt(i, this.colorOf(it.col));
@@ -357,11 +363,74 @@ export class CityGen {
       for (const [id, t] of this.live) if (!t.rec.pinned && Math.hypot(t.rec.x - px, t.rec.z - pz) > PLACE.releaseR + t.rec.half) this.release(id);
       const want = this.near(px, pz, PLACE.attachR).filter((r) => !this.live.has(r.id)).sort((a, b) => Math.hypot(a.x - px, a.z - pz) - Math.hypot(b.x - px, b.z - pz));
       if (want.length && this.live.size < PLACE.maxLive) this.stamp(want[0]); // one a scan: a hitch never stacks
+      this.openings(px, pz);
       // cars feel the street they are on
       for (const v of g.vehicles) v.roadGrip = this.live.size ? this.gripAt(v.x, v.z) : 1;
     }
   }
   onNoise(x, z, r) { this.overrun.onNoise(x, z, r); }
+
+  // ---- doors, windows and roll-up bays (systems/interiors.js) ----------------------------------------------------------
+  // A generated building near you gets its street storey's doors (real leaves: kick, pick, pry, lock; a share of back doors
+  // start locked in a holding town) and windows (glass to smash, climb through, board up) from the interiors pool, the way
+  // the ring's buildings do (attachRing); far ones give theirs back. Upper storeys keep open window holes.
+  openings(px, pz) {
+    const I = this.g.interiors;
+    if (!I?.attachRing) return;
+    for (const t of this.live.values()) {
+      const near = Math.abs(t.rec.x - px) < t.rec.half + RO.far && Math.abs(t.rec.z - pz) < t.rec.half + RO.far;
+      for (const R of t.blds) {
+        const B = R.B, dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ), d2 = dx * dx + dz * dz;
+        if (R.open && (!near || d2 > RO.far * RO.far)) { I.detachRing(R.open); R.open = null; continue; }
+        if (R.open || !near || d2 > RO.near * RO.near) continue;
+        const id = `cg:${B.id}`;
+        const doors = t.built.doors.filter((d) => d.b === B.id && d.kind === 'door').map((d) => ({ x: d.x, z: d.z, w: d.w, nx: d.side === 'E' ? 1 : d.side === 'W' ? -1 : 0, nz: d.side === 'S' ? 1 : d.side === 'N' ? -1 : 0, kind: d.side === B.front ? 'front' : 'back' }));
+        const windows = t.built.windows.filter((w) => w.b === B.id).map((w) => ({ ...w, ruined: B.ruined }));
+        I.attachRing(id, { x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ruined: B.ruined }, { doors, innerDoors: [], windows });
+        R.open = id;
+        // locks: a holding town keeps some back doors locked (a claimed home: its owner's call)
+        const rec = I.ringOpen.get(id);
+        if (rec) for (const door of rec.doors) if (door.kind === 'back' && t.rec.state !== 'overrun' && ((hashStr(door.id) % 100) / 100) < 0.35) I.setLocked(door, true);
+      }
+    }
+  }
+  bayAt(x, z, r = 2.6) {
+    for (const t of this.live.values()) for (const b of t.built.bays) if (Math.abs(b.x - x) < b.w / 2 + r && Math.abs(b.z - z) < b.w / 2 + r && Math.hypot(b.x - x, b.z - z) < b.w / 2 + r) return { t, b };
+    return null;
+  }
+  setBay(t, b, open, locked = b.locked) {
+    b.open = open; b.locked = locked;
+    b.box.base = open ? 99 : 0;            // rolled up: everything passes under; down: a wall
+    const it = t.built.items[b.panel]; it.down = !open;
+    if (it.idx !== undefined) { this.place(it.idx, true); this.mesh.instanceMatrix.needsUpdate = true; }
+    this.g.noise?.(b.x, b.z, 18, 'rollup');
+    return b;
+  }
+  // E at a roll-up bay (main.js, after the interiors' own doors and windows): up or down; a locked one is picked with
+  // lockpicks (hold E) or stays shut. Returns the ring to draw, or null when no bay is in reach.
+  bayInteract(p, I, dt = 1 / 60) {
+    if (p.storey && (p.gy ?? 0) > 1) return null;
+    const q = this.bayAt(p.x, p.z);
+    if (!q) { this.bayHold = 0; return null; }
+    const { t, b } = q, g = this.g, hud = g.hud, down = I.key('KeyE'), hit = I.hit('KeyE');
+    const ring = { x: b.x, z: b.z, len: Math.min(4, b.w) };
+    if (b.locked && !b.open) {
+      const picks = g.inventory?.carried.slots.find((s) => s.id === 'lockpicks' && s.left > 0);
+      if (picks && down) {
+        this.bayHold = (this.bayHold ?? 0) + dt;
+        const k = this.bayHold / 2.6;
+        hud?.prompt?.(`Picking the lock… ${Math.round(Math.min(1, k) * 100)}%`);
+        if (k >= 1) { if (--picks.left <= 0) g.inventory.take(g.inventory.carried, g.inventory.carried.slots.indexOf(picks), 1); this.setBay(t, b, false, false); this.bayHold = 0; }
+        return ring;
+      }
+      this.bayHold = 0;
+      hud?.prompt?.(picks ? 'Locked roll-up door · hold <kbd>E</kbd> Pick the lock' : 'Locked roll-up door');
+      return ring;
+    }
+    hud?.prompt?.(b.open ? '<kbd>E</kbd> Roll the door down' : '<kbd>E</kbd> Roll the door up');
+    if (hit) this.setBay(t, b, !b.open);
+    return ring;
+  }
 
   // ---- for agents -------------------------------------------------------------------------------------------------------
   // Stamp a settlement anywhere (the `citygen` / `site` commands): an ad-hoc plan record, pinned until removed.
@@ -393,9 +462,30 @@ export class CityGen {
     const T = t.T, b = t.built;
     return { id: t.rec.id, name: t.rec.name, kind: t.rec.kind, arch: t.rec.arch, biome: T.biome, x: t.rec.x, z: t.rec.z, size: T.size, buildings: T.buildings.length, storeyed: b.blds.filter((R) => R.S).length, tallest: Math.max(0, ...T.buildings.map((B) => B.n)),
       driveIns: b.blds.filter((R) => R.B.drive).length, roofs: b.blds.filter((R) => R.S && R.S.n === R.B.n).length, escapes: b.blds.filter((R) => R.E).length, bridges: b.bridges.length, wall: T.wall?.type ?? 'none', gates: T.gates.length,
-      boxes: b.boxes.length, items: b.items.length, loot: b.loot.length, cover: b.cover.length / 7, claimable: b.blds.filter((R) => R.B.claimable).length, vault: t.rec.vault ?? null, state: t.rec.state, infestation: +t.rec.infestation.toFixed(3), defense: +(t.rec.defense ?? 0).toFixed(2), residents: t.chars.filter((c) => c.alive).length };
+      boxes: b.boxes.length, items: b.items.length, loot: b.loot.length, cover: b.cover.length / 7, claimable: b.blds.filter((R) => R.B.claimable).length, vault: t.rec.vault ?? null, state: t.rec.state, infestation: +t.rec.infestation.toFixed(3), level: this.overrun.level(t.rec), levelName: this.overrun.levelName(t.rec), heat: +(t.rec.heat ?? 0).toFixed(1), defense: +(t.rec.defense ?? 0).toFixed(2), residents: t.chars.filter((c) => c.alive).length };
   }
-  marks() { return this.plan.map((r) => ({ id: r.id, name: r.name, kind: r.kind, x: r.x, z: r.z, state: r.state, infestation: +r.infestation.toFixed(2) })); }
+  // CLONING CENTERS (the lead's respawn-city picker, systems/clone.js): one per major city. Its tower and lobby door come
+  // from the town's own plan (pure, cached), whether or not it is built now; a major city outside the streamed world is
+  // listed at its real town with door null.
+  cloneCenters() {
+    const out = [];
+    for (const M of MAJOR_CITIES) {
+      const rec = this.plan.find((r) => r.major === M.city);
+      if (!rec) { const t = (this.W?.towns ?? []).find((q) => q.id === M.town); out.push({ city: M.city, id: null, x: t ? Math.round(t.x) : null, z: t ? Math.round(t.z) : null, door: null, inWorld: false, live: false }); continue; }
+      const T = this.live.get(rec.id)?.T ?? (rec.planT ??= this.layoutOf(rec));
+      const B = T.cloneCenter, d = B?.doors.find((q) => q.kind === 'door');
+      out.push({ city: M.city, id: rec.id, x: B ? (B.x0 + B.x1) / 2 : rec.x, z: B ? (B.z0 + B.z1) / 2 : rec.z, door: d ? (d.side === 'N' ? [d.at, B.z0 - 1.5] : d.side === 'S' ? [d.at, B.z1 + 1.5] : d.side === 'W' ? [B.x0 - 1.5, d.at] : [B.x1 + 1.5, d.at]) : null, storeys: B?.n ?? 0, building: B?.id ?? null, inWorld: true, live: this.live.has(rec.id) });
+    }
+    for (const t of this.live.values()) if (t.T.cloneCenter && !t.rec.major) { const B = t.T.cloneCenter; out.push({ city: t.rec.name, id: t.rec.id, x: (B.x0 + B.x1) / 2, z: (B.z0 + B.z1) / 2, door: null, storeys: B.n, building: B.id, inWorld: true, live: true, adhoc: true }); }
+    return out;
+  }
+  // The law's stations (the gadgets lane's patrol cars park in their bays): every live town's police station.
+  securityStations() {
+    const out = [];
+    for (const t of this.live.values()) { const B = t.T.police; if (!B) continue; out.push({ town: t.rec.id, building: B.id, x: (B.x0 + B.x1) / 2, z: (B.z0 + B.z1) / 2, bays: B.doors.filter((d) => d.kind === 'bay').map((d) => ({ side: d.side, at: d.at, w: d.w })) }); }
+    return out;
+  }
+  marks() { return this.plan.map((r) => ({ id: r.id, name: r.name, kind: r.kind, x: r.x, z: r.z, state: r.state, infestation: +r.infestation.toFixed(2), level: this.overrun.level(r), levelName: this.overrun.levelName(r), heat: +(r.heat ?? 0).toFixed(1) })); }
   // The deed hook: claim a claimable building as your home (base building itself is a later lane).
   claim(R) { if (!R?.B?.claimable) return false; R.B.owner = 'player'; this.g.emit?.('deedClaimed', { building: R.B.id, kind: R.B.kind, town: R.rec?.id }); return true; }
 }

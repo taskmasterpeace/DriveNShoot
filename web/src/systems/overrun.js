@@ -20,8 +20,15 @@ export class Overrun {
     this.t = 0; this.nid = 0;
     this.auto = true;          // migrating hordes rise on their own at dusk (the battery and tests switch it off)
     this.autoT = 60;
-    this.counts = { falls: 0, retakes: 0, hordes: 0, bodies: 0, killedInTowns: 0 };
+    this.counts = { falls: 0, retakes: 0, hordes: 0, bodies: 0, killedInTowns: 0, spreads: 0, recoveries: 0, sieges: 0 };
+    this.heatT = 0;
+    this.lastDay = null;
+    this.nextSiege = null;     // the game day of the next siege night (7 +- 1 days on)
+    this.warned = -1;
   }
+  day() { return this.g.society?.day ?? Math.floor((this.g.time ?? 0) / 1440); }
+  level(rec) { return Math.min(5, Math.floor(rec.infestation * 5 + 1e-9)); }
+  levelName(rec) { return OVERRUN.levels[this.level(rec)]; }
 
   night() { const h = this.g.sky?.time ?? 12; return h >= OVERRUN.dusk || h < OVERRUN.dawn; }
 
@@ -66,7 +73,7 @@ export class Overrun {
   }
   spawnHorde({ x, z, size = 60, toward = null, force = false }) {
     const target = toward ? this.cg.byId.get(toward) : this.nearestTown(x, z);
-    const H = { id: `horde-${++this.nid}`, x, z, strength: Math.max(1, Math.round(size)), size0: Math.round(size), target: target?.id ?? null, state: 'walk', bodies: [], force, born: this.g.time ?? 0, sieged: 0 };
+    const H = { pinned: !!toward, id: `horde-${++this.nid}`, x, z, strength: Math.max(1, Math.round(size)), size0: Math.round(size), target: target?.id ?? null, state: 'walk', bodies: [], force, born: this.g.time ?? 0, sieged: 0 };
     this.hordes.push(H);
     this.counts.hordes++;
     this.g.emit?.('hordeRisen', { id: H.id, x: Math.round(x), z: Math.round(z), size: H.strength, toward: H.target });
@@ -78,9 +85,11 @@ export class Overrun {
     return best;
   }
   onNoise(x, z, r) {
-    if (r < 20) return;
+    if (r < 6) return;
     const rec = this.cg.recAt(x, z, 20);
     if (!rec) return;
+    rec.heat = Math.min(OVERRUN.heat.cap, (rec.heat ?? 0) + r * OVERRUN.heat.per); // Layer A: the settlement's heat
+    if (r < 20) return;
     for (const H of this.hordes) if (H.state === 'walk' && Math.hypot(H.x - x, H.z - z) < OVERRUN.noise.draw) H.target = rec.id;
   }
 
@@ -171,6 +180,22 @@ export class Overrun {
       rec.infestation = Math.min(1, rec.infestation + Math.max(0, H.strength - held) * HO.press * tick);
       if (rec.infestation >= O.overrun) this.fall(rec, H.id);
     }
+    // Layer A: heat decays; a walking horde turns toward the hottest settlement within reach of it
+    this.heatT -= tick;
+    if (this.heatT <= 0) {
+      this.heatT = O.heat.every;
+      for (const rec of this.cg.plan) if (rec.heat) { rec.heat *= O.heat.decay; if (rec.heat < 0.05) rec.heat = 0; }
+      for (const H of this.hordes) {
+        if (H.state !== 'walk' || H.pinned) continue;
+        let best = null, bh = 5;
+        for (const r of this.cg.near(H.x, H.z, O.heat.pull)) if ((r.heat ?? 0) > bh && r.state !== 'overrun') { bh = r.heat; best = r; }
+        if (best) H.target = best.id;
+      }
+    }
+    // Layer C, once a game day: spread from level 3+, recovery, the siege-night clock
+    const day = this.day();
+    if (this.lastDay === null) { this.lastDay = day; this.nextSiege ??= day + O.siege.every + Math.round((Math.random() * 2 - 1) * O.siege.jitter); }
+    while (this.lastDay < day) { this.lastDay++; if (this.auto) this.daily(this.lastDay); } // the world clock runs the days only while hordes rise on their own (off for tests)
     // migrating hordes rise by themselves at dusk, out on the road toward a settlement near you
     if (this.auto && night && !g.society?.director?.paused) {
       this.autoT -= tick;
@@ -183,6 +208,55 @@ export class Overrun {
         }
       }
     }
+  }
+  // One game day: SPREAD (level >= 3 gives +1 level to neighbours by chance), RECOVERY (quiet ones drop a level every
+  // recoverDays), and the SIEGE NIGHT clock (warn, then the horde).
+  daily(day, rng = Math.random) {
+    const O = OVERRUN, S = O.spread;
+    const plan = this.cg.plan, adds = new Map();
+    for (const rec of plan) {
+      const L = this.level(rec);
+      if (L < 3) continue;
+      for (const n of this.cg.near(rec.x, rec.z, S.reach)) {
+        if (n === rec || n.state === 'overrun') continue;
+        let p = S.chance * (L - 2);
+        if ((n.defense ?? 0) >= S.defended) p *= 0.5;
+        if (rng() < p) adds.set(n, (adds.get(n) ?? 0) + 0.2);
+      }
+    }
+    for (const [n, a] of adds) { this.setLevel(n, Math.min(1, n.infestation + a)); this.counts.spreads++; this.g.emit?.('infestationSpread', { id: n.id, level: this.level(n) }); }
+    for (const rec of plan) {
+      if (rec.state === 'overrun' || rec.infestation <= 0 || adds.has(rec)) continue;
+      if (this.hordes.some((H) => H.target === rec.id)) continue;
+      rec.quiet = (rec.quiet ?? 0) + 1;
+      if (rec.quiet >= S.recoverDays) { rec.quiet = 0; rec.infestation = Math.max(0, rec.infestation - 0.2); this.counts.recoveries++; }
+    }
+    if (this.nextSiege !== null && day >= this.nextSiege - O.siege.warn && this.warned !== this.nextSiege) {
+      this.warned = this.nextSiege;
+      this.g.emit?.('siegeNightSoon', { day: this.nextSiege, in: this.nextSiege - day });
+      this.g.hud?.toast?.(`SIEGE NIGHT IN ${this.nextSiege - day} DAY${this.nextSiege - day === 1 ? '' : 'S'}`);
+    }
+    if (this.nextSiege !== null && day >= this.nextSiege) { this.siegeNight(day); this.nextSiege = day + O.siege.every + Math.round((rng() * 2 - 1) * O.siege.jitter); }
+  }
+  // size = 20 + 6 x week + 0.4 x wealth/100 + 8 x crew, x difficulty; 3 waves from 2-3 directions (the hottest sides first)
+  siegeSize(day, wealth = this.g.player?.cash ?? 0, crew = this.g.crew?.members?.length ?? this.g.seats?.crew?.length ?? 1) {
+    const Q = OVERRUN.siege, week = Math.max(1, Math.ceil((day + 1) / 7));
+    return Math.round((Q.base + Q.perWeek * week + Q.wealth * wealth / 100 + Q.perCrew * crew) * Q.difficulty);
+  }
+  siegeNight(day, target = null) {
+    const P = this.g.player, Q = OVERRUN.siege;
+    const rec = target ?? this.cg.recAt(P.x, P.z, 50) ?? this.cg.near(P.x, P.z, 3000).filter((r) => r.state !== 'overrun').sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0];
+    if (!rec) return null;
+    const size = this.siegeSize(day), dirs = 2 + Math.floor(Math.random() * 2), a0 = Math.random() * Math.PI * 2, out = [];
+    for (let w = 0; w < Q.waves; w++) {
+      const a = a0 + ((w % dirs) / dirs) * Math.PI * 2, d = rec.half + Q.from + w * 120;
+      out.push(this.spawnHorde({ x: rec.x + Math.cos(a) * d, z: rec.z + Math.sin(a) * d, size: Math.round(size / Q.waves), toward: rec.id }));
+    }
+    for (const H of out) H.pinned = true; // a siege does not wander off after other heat
+    this.counts.sieges++;
+    this.g.emit?.('siegeNight', { town: rec.id, size, waves: out.length, day });
+    this.g.hud?.toast?.(`SIEGE NIGHT: ${size} OF THEM ON ${rec.name}`);
+    return { town: rec.id, size, hordes: out.map((H) => H.id) };
   }
   materialize(H) {
     const g = this.g, Z = g.zombies, HO = OVERRUN.horde;
@@ -201,5 +275,5 @@ export class Overrun {
     H.bodies.length = 0;
   }
   clear() { for (const H of this.hordes) this.dematerialize(H); this.hordes.length = 0; }
-  view() { return this.hordes.map((H) => ({ id: H.id, x: Math.round(H.x), z: Math.round(H.z), strength: Math.round(H.strength), size0: H.size0, target: H.target, state: H.state, bodies: H.bodies.filter((c) => c.alive).length })); }
+  view() { return this.hordes.map((H) => ({ pinned: !!H.pinned, id: H.id, x: Math.round(H.x), z: Math.round(H.z), strength: Math.round(H.strength), size0: H.size0, target: H.target, state: H.state, bodies: H.bodies.filter((c) => c.alive).length })); }
 }

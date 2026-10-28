@@ -34,7 +34,8 @@ export function makeBuilding(rng, kindId, x0, z0, x1, z1, front, o = {}) {
   const doors = [];
   const bays = K.bays ? K.bays : null;
   if (bays) {
-    const [cnt, bw, bh] = bays, gap = (len - cnt * bw) / (cnt + 1);
+    let [cnt, bw, bh] = bays, gap = (len - cnt * bw) / (cnt + 1);
+    while (cnt > 1 && gap < 1.2) { cnt--; gap = (len - cnt * bw) / (cnt + 1); } // a narrow lot: fewer bays
     if (gap >= 1.2) {
       for (let i = 0; i < cnt; i++) {
         const c = (along === 'x' ? x0 : z0) + gap * (i + 1) + bw * (i + 0.5);
@@ -54,7 +55,7 @@ export function makeBuilding(rng, kindId, x0, z0, x1, z1, front, o = {}) {
     id: o.id ?? null, kind: kindId, name: K.name, zone: o.zone ?? K.zone[0], x0: r1(x0), z0: r1(z0), x1: r1(x1), z1: r1(z1), front, n, h0, Y,
     top: Y[n], roof: K.roof, roofAccess, parapet: ruined ? 0.7 : (roofAccess ? Math.max(0.6, K.parapet || 0.9) : 0), ruined, doors, escape,
     color: o.color ?? '#a89a82', roofColor: o.roofColor ?? '#6a5a4a', claimable: !!K.claimable, loot: K.loot, cover: K.cover,
-    drive: !!bays, open: !!K.open, steeple: !!K.steeple, canopy: !!K.canopy, stilts: K.stilts ?? 0, wealth: o.wealth ?? 0.4,
+    drive: !!bays, open: !!K.open, fortified: !!K.fortified, steeple: !!K.steeple, canopy: !!K.canopy, stilts: K.stilts ?? 0, wealth: o.wealth ?? 0.4,
   };
 }
 
@@ -183,6 +184,23 @@ export function layoutTown(opts) {
     if (n > B.n) Object.assign(B, makeBuilding(makeRng(opts.seed ^ 0x7a11), B.kind, B.x0, B.z0, B.x1, B.z1, B.front, { ...B, storeys: n, ruined: false }));
   }
 
+  // the law (a police station with patrol bays) in every town of size, and the cloning center in a major city: each
+  // takes the lot of the building nearest the middle that can hold it (a civic/commercial one for the law, a core one
+  // for the tower), exactly once
+  const swap = (kind, zones, o = {}) => {
+    const K = KINDS[kind];
+    const fits = (B, m) => !B.hero && Math.min(B.x1 - B.x0, B.z1 - B.z0) >= m && Math.max(B.x1 - B.x0, B.z1 - B.z0) >= K.w[0] - 2;
+    const byD = (a, b) => Math.hypot((a.x0 + a.x1) / 2 - cx, (a.z0 + a.z1) / 2 - cz) - Math.hypot((b.x0 + b.x1) / 2 - cx, (b.z0 + b.z1) / 2 - cz);
+    // the right zone at its size first; then any zone; then any lot big enough to stand it smaller (the law has to be somewhere)
+    const lot = T.buildings.filter((B) => zones.includes(B.zone) && fits(B, K.d[0] - 2)).sort(byD)[0]
+      ?? T.buildings.filter((B) => fits(B, K.d[0] - 2)).sort(byD)[0] ?? T.buildings.filter((B) => !B.hero && Math.min(B.x1 - B.x0, B.z1 - B.z0) >= 10).sort(byD)[0];
+    if (!lot) return null;
+    Object.assign(lot, makeBuilding(rng, kind, lot.x0, lot.z0, lot.x1, lot.z1, lot.front, { ...lot, ruined: false, storeys: o.storeys, id: lot.id }));
+    lot.hero = kind;
+    return lot;
+  };
+  if (A.major) T.cloneCenter = swap('cloning_center', ['core', 'commercial', 'civic'], { storeys: Math.min(6, Math.max(4, A.storeys.core?.[1] ?? 5)) });
+  if (T.buildings.length >= 30) T.police = swap('police_station', ['civic', 'commercial', 'core']);
   clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null);
 
   // ---- bridges between roofs ----

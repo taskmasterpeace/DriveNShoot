@@ -1,10 +1,10 @@
 // PROCEDURAL CITIES for agents (docs/design/WEB_CITYGEN.md): the `citygen`, `site`, `overrun` and `cover` commands (the
 // `horde` command's size=/toward= raise a migrating horde: agent/api.js), and the selftest's citygen checks (run inside
 // runSelfTest with its check() and command caller; every check returns true or a JSON diagnostic).
-import { ARCHETYPES, RURAL, KINDS, ROADS, MILITARY, OVERRUN, validateCitygen } from '../data/citygen.js';
-import { SITES, SITES_BY_ID } from '../data/sites/index.js';
+import { ARCHETYPES, RURAL, KINDS, ROADS, MILITARY, OVERRUN, MAJOR_CITIES, validateCitygen } from '../data/citygen.js';
+import { SITES, SITES_BY_ID, validateSites as validateSiteRows } from '../data/sites/index.js';
 import { layoutTown } from '../world/citygen/layout.js';
-import { layoutSite, validateSites } from '../world/citygen/site.js';
+import { layoutSite, validateSites, kindOf, respectful } from '../world/citygen/site.js';
 import { buildTown } from '../world/citygen/build.js';
 import { auditTown, TownProbe, auditBuilding } from '../world/citygen/audit.js';
 import { genLevel } from '../world/undergen.js';
@@ -86,15 +86,17 @@ export function citygenCommands(api, need) {
     },
     overrun: {
       group: 'world',
-      desc: 'A settlement\'s INFESTATION (systems/overrun.js; knobs data/citygen.js OVERRUN). town=<id> (default the nearest) level=<0..1>: set it - at 0.75 or more the town FALLS (gates open, residents run or turn, loot picked over, the map marks it), under 0.2 a fallen one is RETAKEN. No level: its state, infestation, defense and the hordes walking at it. hordes=off|on: the dusk hordes that rise on their own.',
-      args: { town: { type: 'string' }, level: { type: 'number' }, hordes: { type: 'string', enum: ['on', 'off'] } },
-      run: async ({ town, level, hordes }) => {
+      desc: 'A settlement\'s INFESTATION (systems/overrun.js; knobs data/citygen.js OVERRUN; docs/research/GENRE_DEPTH.md §4): read as a level 0-5 (CLEAR, STIRRING, INFESTED, SWARMED, OVERRUN, DEAD ZONE) with its noise HEAT. day=true runs one game day (spread from level 3+, recovery, the siege clock); siege=true brings a SIEGE NIGHT now (20 + 6 x week + 0.4 x wealth/100 + 8 x crew, 3 waves). town=<id> (default the nearest) level=<0..1>: set it - at 0.8 (level 4) or more the town FALLS (gates open, residents run or turn, loot picked over, the map marks it), under 0.2 a fallen one is RETAKEN. No level: its state, infestation, defense and the hordes walking at it. hordes=off|on: the dusk hordes that rise on their own.',
+      args: { town: { type: 'string' }, level: { type: 'number' }, hordes: { type: 'string', enum: ['on', 'off'] }, day: { type: 'boolean', default: false }, siege: { type: 'boolean', default: false } },
+      run: async ({ town, level, hordes, day, siege }) => {
         const C = CG(), O = C.overrun;
         if (hordes) O.auto = hordes === 'on';
+        if (day) O.daily(++O.lastDay);
+        if (siege) { const r = O.siegeNight(O.day(), town ? C.byId.get(town) : null); need(r, 'no settlement near you for a siege'); return { siege: r, hordes: O.view() }; }
         const rec = town ? C.byId.get(town) : C.plan.reduce((b, r) => (!b || Math.hypot(r.x - P().x, r.z - P().z) < Math.hypot(b.x - P().x, b.z - P().z) ? r : b), null);
         need(rec, `no settlement "${town}"`);
         if (level !== undefined) O.setLevel(rec, level);
-        return { id: rec.id, name: rec.name, state: rec.state, infestation: +rec.infestation.toFixed(3), defense: rec.defense ?? null, live: C.live.has(rec.id), hordes: O.view().filter((H) => H.target === rec.id), auto: O.auto, counts: O.counts };
+        return { id: rec.id, name: rec.name, state: rec.state, infestation: +rec.infestation.toFixed(3), level: O.level(rec), levelName: O.levelName(rec), heat: +(rec.heat ?? 0).toFixed(1), defense: rec.defense ?? null, nextSiege: O.nextSiege, today: O.day(), live: C.live.has(rec.id), hordes: O.view().filter((H) => H.target === rec.id), auto: O.auto, counts: O.counts };
       },
     },
     cover: {
@@ -163,6 +165,65 @@ export async function citygenChecks({ api, g, check, C }) {
     let ring = 0;
     for (let k = 1; k <= row.levels; k++) { const L = genLevel(row, k); if (!L.proof.ok) bad.push(`vault level ${k}: ${L.proof.unreached.join(',')}`); if (L.rooms.some((r) => r.type === 'ringroom')) ring++; }
     return !bad.length && claim >= 7 && row.levels >= 5 && row.levels <= 8 && ring >= 1 && T.wall?.gates.length >= 2 && T.runway ? true : JSON.stringify({ bad: bad.slice(0, 6), claim, levels: row.levels, ring });
+  });
+
+  await check('citygen: 20 random SITE rows of the location bible (data/sites/*.js, 263 rows) stamp headless with 0 errors and pass the walkability audit; every row validates; a sacred, burial or living place (its `respect` note) carries no loot', async () => {
+    const problems = validateSiteRows(SITES), bad = [], seen = [];
+    let n = 0, h = 2166136261;
+    for (let i = 0; i < 20; i++) {
+      h = Math.imul(h ^ (i + 7), 16777619) >>> 0;
+      const row = SITES[h % SITES.length];
+      try {
+        const T = layoutSite(row, { x: 40000 + i * 900, z: 40000, seed: 17 + i }), B = buildTown(T), A = auditTown(B, T);
+        n += A.audited; seen.push(`${row.id}:${T.buildings.length}`);
+        if (!A.ok) bad.push(`${row.id}: ${A.bad.slice(0, 2).join(' | ')}`);
+        if (!T.buildings.length) bad.push(`${row.id}: empty`);
+      } catch (e) { bad.push(`${row.id}: threw ${e.message}`); }
+    }
+    const sacred = SITES.find((r) => respectful(r));
+    let sacredLoot = null;
+    if (sacred) { const T = layoutSite(sacred, { x: 0, z: 0, seed: 3 }); sacredLoot = buildTown(T).loot.length; }
+    const unmapped = new Set(); for (const r of SITES) for (const st of r.structures) if (kindOf(st.kind) === undefined) unmapped.add(st.kind);
+    return !problems.length && !bad.length && n > 50 && sacredLoot === 0 ? true : JSON.stringify({ problems: problems.slice(0, 4), bad: bad.slice(0, 6), audited: n, sacred: sacred?.id, sacredLoot, seen: seen.slice(0, 8) });
+  });
+
+  await check('citygen: the law and the clone - towns of size have a police station (three in four with patrol bays a car drives into), every major-city archetype exactly one cloning center (4-6 storeys, fortified); citygen.cloneCenters() lists Los Angeles, Miami, Houston, New York and Chicago', async () => {
+    const bad = [];
+    let police = 0, withBays = 0;
+    for (const a of Object.keys(ARCHETYPES)) {
+      const T = layoutTown({ arch: a, seed: 404, x: 0, z: 0 }), cc = T.buildings.filter((B) => B.kind === 'cloning_center');
+      if (ARCHETYPES[a].major && (cc.length !== 1 || cc[0].n < 4 || cc[0].n > 6 || !cc[0].fortified)) bad.push(`${a}: clone ${cc.length}`);
+      if (!ARCHETYPES[a].major && cc.length) bad.push(`${a}: a clone center in a minor town`);
+      const ps = T.buildings.find((B) => B.kind === 'police_station');
+      if (T.buildings.length >= 30 && !ps) bad.push(`${a}: no police station`);
+      if (ps) { police++; if (ps.doors.some((d) => d.kind === 'bay')) withBays++; } // a bay walled up for want of room parks at the curb
+    }
+    const list = CGs.cloneCenters(), cities = new Set(list.map((c) => c.city));
+    const allCities = MAJOR_CITIES.every((M) => cities.has(M.city));
+    const inWorldOk = list.filter((c) => c.inWorld).every((c) => c.door && Number.isFinite(c.x));
+    return !bad.length && allCities && inWorldOk && withBays >= police * 0.75 ? true : JSON.stringify({ bad: bad.slice(0, 6), police, withBays, list });
+  });
+
+  await check('citygen: overrun levels - infestation reads as a level 0-5 (CLEAR..DEAD ZONE, falls at 4); a level-4 town spreads to a neighbour over the days; a quiet one recovers; a siege night sizes by the formula (20 + 6 x week + 0.4 x wealth/100 + 8 x crew) in 3 waves', async () => {
+    const O = CGs.overrun, plan = CGs.plan.filter((r) => !r.adhoc);
+    let a = null, b = null;
+    for (const r of plan) { const n = CGs.near(r.x, r.z, OVERRUN.spread.reach).find((q) => q !== r && !q.adhoc && (q.defense ?? 0) < OVERRUN.spread.defended); if (n) { a = r; b = n; break; } }
+    if (!a) return 'no neighbours in the plan';
+    const keep = plan.map((r) => [r, r.infestation, r.state, r.quiet]);
+    const names = [0, 0.2, 0.4, 0.6, 0.8, 1].map((v) => { a.infestation = v; return O.levelName(a); });
+    a.infestation = 0.8; a.state = 'holding'; O.setLevel(a, 0.85);
+    const b0 = b.infestation;
+    for (let d = 0; d < 12 && b.infestation <= b0; d++) O.daily(1000 + d, () => 0.01); // a sure roll each day
+    const spread = b.infestation > b0;
+    O.setLevel(a, 0.1); b.infestation = 0.4; b.state = 'holding'; b.quiet = 0;
+    for (let d = 0; d < 2; d++) O.daily(2000 + d, () => 0.99); // no rolls land: b is quiet two days
+    const recovered = b.infestation < 0.4;
+    const sz = O.siegeSize(13, 3000, 5), want = Math.round(20 + 6 * 2 + 0.4 * 30 + 8 * 5);
+    const sn = O.siegeNight(14, a);
+    const waves = sn?.hordes.length ?? 0;
+    O.clear();
+    for (const [r, inf, st, q] of keep) { r.infestation = inf; r.state = st; r.quiet = q; }
+    return names.join(',') === OVERRUN.levels.join(',') && spread && recovered && sz === want && waves === 3 ? true : JSON.stringify({ names, spread, recovered, sz, want, waves });
   });
 
   await check('citygen: the country\'s plan - settlements along every streamed corridor (towns of several archetypes, homesteads to live in outside a city, real sites), off the interstate and the island, none overlapping; military bases only at real base anchors and never closer than 40 km', async () => {
@@ -318,6 +379,28 @@ export async function citygenChecks({ api, g, check, C }) {
     g.exitVehicle(true);
     const vv = g.vehicles.find((q) => q.id === car.id); if (vv) g.vehiclesSys.remove?.(vv);
     return inside && through && (gr === null || gr < 1) ? true : JSON.stringify({ inside, through, car: [r1(v.x), r1(v.z)], box: [B.x0, B.z0, B.x1, B.z1], bay: d, grip, gr });
+  });
+
+  await check('citygen: doors, windows and roll-ups - a generated building near you hangs real doors (some back doors locked: kick, pick or pry) and glass windows (smash, climb, board) from the interiors pool; a roll-up bay rolls down (a car stops at it), up (it drives through), locks and picks open', async () => {
+    if (!T0) return 'no town';
+    const t = T0, R = t.blds.find((q) => q.B.doors.some((d) => d.kind === 'door') && t.built.windows.some((w) => w.b === q.B.id));
+    if (!R) return 'no building with windows';
+    await stand((R.minX + R.maxX) / 2, R.maxZ + 12);
+    CGs.openings(p.x, p.z); // (the scan runs in update while settlements build themselves; the battery holds that off)
+    await api._step(2);
+    const rec = g.interiors.ringOpen.get(R.open), doors = rec?.doors.length ?? 0, wins = rec?.windows.length ?? 0;
+    let locked = 0; for (const q of t.blds) { const r2 = q.open && g.interiors.ringOpen.get(q.open); if (r2) locked += r2.doors.filter((d) => d.locked).length; }
+    // a bay: down, the box is solid; up, it passes; lock + pick
+    const q = t.built.bays[0];
+    if (!q) return 'no bay';
+    CGs.setBay(t, q, false);
+    const blockedDown = g.statics.pointBlocked(q.x, q.z, 0.4);
+    CGs.setBay(t, q, true);
+    const clearUp = !g.statics.pointBlocked(q.x + q.nx * 0.0, q.z + q.nz * 0.0, 0.3) || q.box.base > 10;
+    CGs.setBay(t, q, false, true);
+    const lockedNow = q.locked && !q.open;
+    CGs.setBay(t, q, true, false);
+    return doors >= 1 && wins >= 1 && locked >= 1 && blockedDown && clearUp && lockedNow ? true : JSON.stringify({ attached: !!rec, doors, wins, locked, blockedDown, clearUp, lockedNow });
   });
 
   await check('citygen: overrun - set a town\'s infestation past 0.75 and it falls (gates open, an event, the mark), drop it under 0.2 and it is retaken; a migrating horde record walks to a town and besieges it, standing bodies in the street only near you', async () => {

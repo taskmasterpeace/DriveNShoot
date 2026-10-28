@@ -92,6 +92,11 @@ export const KINDS = {
   apartment: K({ name: 'apartment block', w: [16, 24], d: [14, 20], storeys: [3, 6], h0: 3.8, zone: ['core', 'res'], loot: 'house', escape: 0.85, claimable: true }),
   office: K({ name: 'office block', w: [18, 26], d: [18, 24], storeys: [3, 6], h0: 4.4, zone: ['core', 'commercial'], loot: 'office', escape: 0.5 }),
   hotel: K({ name: 'hotel', w: [20, 28], d: [16, 22], storeys: [4, 6], h0: 4.6, zone: ['core'], loot: 'house', escape: 0.9 }),
+  // the town's law: a police / security station with a garage of patrol bays (the gadgets lane parks its cars there)
+  police_station: K({ name: 'police station', w: [16, 22], d: [14, 18], storeys: [1, 2], h0: 4.4, zone: ['civic', 'core', 'commercial'], bays: [2, 4.4, 3.6], loot: 'military', cover: 2 }),
+  // CLONING CENTER (systems/clone.js: the lead's respawn picker reads citygen.cloneCenters()): a fortified medical tower,
+  // only in the major cities (ARCHETYPES.*.major), exactly once each; a guarded lobby, a blast-wall ring with one gate
+  cloning_center: K({ name: 'cloning center', w: [24, 30], d: [20, 24], storeys: [4, 6], h0: 5, zone: ['core'], loot: 'medical', escape: 0.5, fortified: true, cover: 3 }),
   // military (the base's own)
   barracks: K({ name: 'barracks', w: [24, 32], d: [10, 12], storeys: [2, 3], h0: 3.6, zone: ['military'], loot: 'military', escape: 0.7 }),
   hq: K({ name: 'headquarters', w: [24, 30], d: [18, 22], storeys: [2, 3], h0: 4.2, zone: ['military'], loot: 'military' }),
@@ -137,7 +142,7 @@ export const VERT = {
 // defense   0..1: how well it holds against the dead (walls add WALLS[type].defense)
 const A = (o) => ({ walls: 'none', wealth: 0.4, damage: 0.4, age: 'postwar', defense: 0.25, pop: [20, 60], ...o });
 export const ARCHETYPES = {
-  sonoran_sprawl: A({ name: 'Sonoran sprawl', biome: ['desert_sonoran', 'desert_mojave'], sizeM: [420, 600], blocks: 'grid', blockM: [70, 96], layout: 'grid_downtown',
+  sonoran_sprawl: A({ major: true, name: 'Sonoran sprawl', biome: ['desert_sonoran', 'desert_mojave'], sizeM: [420, 600], blocks: 'grid', blockM: [70, 96], layout: 'grid_downtown',
     zoning: { core: 0.12, commercial: 0.2, res: 0.48, industrial: 0.12, civic: 0.08 }, storeys: { core: [3, 6], commercial: [1, 2], res: [1, 1], industrial: [1, 1], civic: [1, 3] },
     kinds: { core: { office: 3, hotel: 2, apartment: 3, parking: 1 }, commercial: { shop: 4, gas_station: 2, auto_shop: 2, diner: 1, motel: 1 }, res: { house: 6, bungalow: 3, garage: 1 }, industrial: { warehouse: 3, auto_shop: 1 }, civic: { school: 1, clinic: 1, fire_station: 1, church: 1 } },
     density: { core: 0.85, edge: 0.4 }, age: 'sprawl', damage: 0.5, roads: ['blacktop4', 'blacktop2', 'dirt'], pop: [60, 140], defense: 0.2 }),
@@ -149,7 +154,7 @@ export const ARCHETYPES = {
     zoning: { commercial: 0.25, res: 0.45, rail: 0.15, farm: 0.15 }, storeys: { commercial: [1, 2], res: [1, 2], rail: [4, 6], farm: [1, 1] },
     kinds: { commercial: { shop: 4, saloon: 1, gas_station: 1, diner: 1 }, res: { house: 6, garage: 1 }, rail: { grain_elevator: 3, warehouse: 2 }, farm: { barn: 2, farmhouse: 1 } },
     density: { core: 0.7, edge: 0.35 }, age: '1920s', damage: 0.35, roads: ['blacktop2', 'gravel', 'dirt'], pop: [25, 60] }),
-  rustbelt_mill: A({ name: 'rust-belt mill town', biome: ['great_lakes_rust', 'temperate_forest', 'appalachian'], sizeM: [380, 520], blocks: 'grid', blockM: [60, 84], layout: 'mill_town_river',
+  rustbelt_mill: A({ major: true, name: 'rust-belt mill town', biome: ['great_lakes_rust', 'temperate_forest', 'appalachian'], sizeM: [380, 520], blocks: 'grid', blockM: [60, 84], layout: 'mill_town_river',
     zoning: { core: 0.12, commercial: 0.15, res: 0.4, industrial: 0.25, civic: 0.08 }, storeys: { core: [3, 5], commercial: [2, 3], res: [2, 3], industrial: [2, 5], civic: [2, 3] },
     kinds: { core: { office: 2, apartment: 3, hotel: 1 }, commercial: { shop: 4, saloon: 1, auto_shop: 1 }, res: { rowhouse: 6, house: 2 }, industrial: { mill: 3, warehouse: 3, auto_shop: 1 }, civic: { church: 2, school: 1, fire_station: 1 } },
     density: { core: 0.9, edge: 0.5 }, age: 'victorian', damage: 0.6, wealth: 0.3, roads: ['brick', 'blacktop2', 'gravel'], pop: [50, 120] }),
@@ -201,7 +206,7 @@ export const ARCHETYPES = {
     zoning: { res: 0.82, commercial: 0.12, civic: 0.06 }, storeys: { res: [1, 2], commercial: [1, 1], civic: [1, 2] },
     kinds: { res: { house: 7, bungalow: 3, garage: 2 }, commercial: { shop: 2, gas_station: 1 }, civic: { school: 1, church: 1 } },
     density: { core: 0.7, edge: 0.55 }, age: 'sprawl', damage: 0.65, wealth: 0.45, roads: ['blacktop2', 'blacktop2', 'gravel'], pop: [10, 40], defense: 0.1 }),
-  port_wharf: A({ name: 'port wharf', biome: ['gulf_coast', 'atlantic_coast', 'pacific_rain', 'great_lakes_rust'], sizeM: [300, 420], blocks: 'grid', blockM: [56, 80], layout: 'port_wharf',
+  port_wharf: A({ major: true, name: 'port wharf', biome: ['gulf_coast', 'atlantic_coast', 'pacific_rain', 'great_lakes_rust'], sizeM: [300, 420], blocks: 'grid', blockM: [56, 80], layout: 'port_wharf',
     zoning: { core: 0.12, commercial: 0.18, res: 0.25, industrial: 0.4, rail: 0.05 }, storeys: { core: [3, 5], commercial: [1, 2], res: [2, 3], industrial: [1, 2], rail: [1, 1] },
     kinds: { core: { office: 2, hotel: 1, apartment: 2 }, commercial: { saloon: 2, shop: 3, diner: 1 }, res: { rowhouse: 4, apartment: 1 }, industrial: { warehouse: 6, auto_shop: 1 }, rail: { warehouse: 1 } },
     density: { core: 0.85, edge: 0.5 }, age: '1920s', damage: 0.5, walls: 'container', roads: ['blacktop4', 'brick', 'gravel'], pop: [50, 120], defense: 0.45 }),
@@ -237,7 +242,7 @@ export const ARCHETYPES = {
     zoning: { core: 0.25, commercial: 0.25, res: 0.4, civic: 0.1 }, storeys: { core: [2, 4], commercial: [1, 2], res: [1, 2], civic: [1, 2] },
     kinds: { core: { courthouse: 1, hotel: 1, saloon: 1, apartment: 1 }, commercial: { shop: 4, auto_shop: 1, saloon: 1 }, res: { house: 4, rowhouse: 2 }, civic: { clinic: 1, church: 1 } },
     density: { core: 0.9, edge: 0.6 }, age: 'postwar', damage: 0.2, wealth: 0.6, walls: 'container', roads: ['blacktop2', 'gravel', 'dirt'], pop: [60, 140], defense: 0.7 }),
-  boom_strip: A({ name: 'casino strip', biome: ['desert_mojave', 'desert_sonoran', 'salt_flat'], sizeM: [300, 420], blocks: 'linear', blockM: [80, 110], layout: 'main_street_strip',
+  boom_strip: A({ major: true, name: 'casino strip', biome: ['desert_mojave', 'desert_sonoran', 'salt_flat'], sizeM: [300, 420], blocks: 'linear', blockM: [80, 110], layout: 'main_street_strip',
     zoning: { core: 0.4, commercial: 0.35, res: 0.15, industrial: 0.1 }, storeys: { core: [4, 6], commercial: [1, 2], res: [1, 2], industrial: [1, 1] },
     kinds: { core: { hotel: 4, parking: 2, office: 1 }, commercial: { shop: 3, motel: 2, diner: 1, gas_station: 1 }, res: { apartment: 1, trailer: 2 }, industrial: { warehouse: 2, auto_shop: 1 } },
     density: { core: 0.8, edge: 0.35 }, age: 'sprawl', damage: 0.4, wealth: 0.7, walls: 'car_husk', roads: ['blacktop4', 'blacktop2', 'gravel'], pop: [60, 150], defense: 0.5 }),
@@ -293,7 +298,21 @@ export const MILITARY = {
 //   noise         a gunshot/blast in a settlement draws hordes within `draw` m toward it
 //   dusk          the hour hordes wake and start to walk (game hours); dawn: they stop and dig in
 export const OVERRUN = {
-  start: [0.0, 0.25], overrun: 0.75, retake: 0.2, perKill: 0.004, decay: 0.002,
+  start: [0.0, 0.25], overrun: 0.8, retake: 0.2, perKill: 0.004, decay: 0.002,
+  // LEVELS (docs/research/GENRE_DEPTH.md §4.2 Layer C): infestation 0..1 read as a level 0-5 = floor(inf * 5), 1.0 is 5.
+  // A settlement FALLS at level 4 (Overrun, inf >= 0.8); level 5 is a Dead Zone.
+  levels: ['CLEAR', 'STIRRING', 'INFESTED', 'SWARMED', 'OVERRUN', 'DEAD ZONE'],
+  // HEAT (Layer A): noise in a settlement heats it (r/6 per event, capped 100), decaying x0.97 every 2 s (half-life ~45 s);
+  // a hot settlement pulls walking hordes within `pull` m
+  heat: { per: 1 / 6, cap: 100, decay: 0.97, every: 2, pull: 1500 },
+  // SPREAD (Layer C, daily): a settlement at level >= 3 gives +1 level (+0.2) to each neighbour within `reach` m with
+  // probability 0.15 x (level - 2); a defended neighbour (defense >= 0.6) rolls at half. RECOVERY: a quiet settlement
+  // (no siege, no hot neighbour) drops a level every 2 days unless it has fallen.
+  spread: { reach: 4000, chance: 0.15, defended: 0.6, recoverDays: 2 },
+  // SIEGE NIGHTS: every 7 +- 1 days (warned from 2 days before), a horde of
+  // size = 20 + 6 x week + 0.4 x wealth/100 + 8 x crew (x difficulty) walks on the settlement you are in or nearest you,
+  // in 3 waves from 2-3 directions. Week 1, 2 crew, poor: 20 + 6 + 0 + 16 = 42.
+  siege: { every: 7, jitter: 1, warn: 2, base: 20, perWeek: 6, wealth: 0.4, perCrew: 8, waves: 3, from: 900, difficulty: 1 },
   horde: { speed: 1.4, seek: 6000, bodyR: 160, bodies: 40, tick: 2, kill: 9, press: 0.0006, arrive: 60, hold: 300 },
   noise: { draw: 900 },
   dusk: 19, dawn: 6,
@@ -306,6 +325,16 @@ export const OVERRUN = {
 //   clear       a settlement keeps this far from the Phoenix island + ring (m from 0,0), holdouts and exit communities
 //   attachR / releaseR   a settlement is built (geometry + colliders) inside attachR of the player, torn down past releaseR
 //   maxLive     at most this many settlements built at once (the nearest)
+// THE MAJOR CITIES (the lead, 2026-10-27): cloning is only at a cloning center in the biggest, densest cities. Each is a
+// real usmap town (its id) given a major archetype; the plan stands that metro district beside the town.
+export const MAJOR_CITIES = [
+  { city: 'Los Angeles', town: 'losangeles', arch: 'sonoran_sprawl', biome: 'desert_mojave' },
+  { city: 'Miami', town: 'miami', arch: 'port_wharf', biome: 'gulf_coast' },
+  { city: 'Houston', town: 'houston', arch: 'port_wharf', biome: 'gulf_coast' },
+  { city: 'New York', town: 'newyork', arch: 'rustbelt_mill', biome: 'atlantic_coast' },
+  { city: 'Chicago', town: 'chicago', arch: 'rustbelt_mill', biome: 'great_lakes_rust' },
+];
+
 export const PLACE = { cityEvery: 9000, cityOff: [380, 640], clear: { island: 2200, holdout: 900, exit: 700 }, attachR: 760, releaseR: 1050, maxLive: 3 };
 
 // ---- the check ---------------------------------------------------------------------------------------------------------

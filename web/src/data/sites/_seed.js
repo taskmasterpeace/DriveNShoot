@@ -8,6 +8,7 @@ export const SEED_SITES = [
   {
     id: 'tombstone-allen-st', name: 'THE SILVER STRIP',
     real: { place: 'Tombstone (Allen Street historic district)', state: 'AZ', lat: 31.7129, lon: -110.0676, refs: ['https://en.wikipedia.org/wiki/Tombstone,_Arizona'] },
+    region: 'SW', source: { book: [], anchor: 'regional_pick' },
     shape: 'a boom-town main street of saloons and boardwalks under a strongman', biome: 'desert_sonoran', kind: 'holdout',
     footprint: [360, 220], layout: 'main_street_strip', terrain: { relief: 0.1, water: [], cliffs: false },
     structures: [
@@ -25,6 +26,7 @@ export const SEED_SITES = [
   {
     id: 'bisbee-old-town', name: 'COPPER HOLLOW',
     real: { place: 'Bisbee (Old Bisbee, Tombstone Canyon)', state: 'AZ', lat: 31.4482, lon: -109.9284, refs: ['https://en.wikipedia.org/wiki/Bisbee,_Arizona'] },
+    region: 'SW', source: { book: [], anchor: 'regional_pick' },
     shape: 'a mining town stacked up a canyon wall over an open pit', biome: 'high_plateau', kind: 'ruin',
     footprint: [300, 200], layout: 'canyon_stack', terrain: { relief: 0.8, water: [], cliffs: true },
     structures: [
@@ -41,6 +43,7 @@ export const SEED_SITES = [
   {
     id: 'jerome-cleopatra', name: 'THE SLIDING TOWN',
     real: { place: 'Jerome (Cleopatra Hill)', state: 'AZ', lat: 34.7489, lon: -112.1138, refs: ['https://en.wikipedia.org/wiki/Jerome,_Arizona'] },
+    region: 'SW', source: { book: [], anchor: 'regional_pick' },
     shape: 'a hillside ghost town whose jail slid downhill', biome: 'high_plateau', kind: 'ruin',
     footprint: [240, 200], layout: 'canyon_stack', terrain: { relief: 0.9, water: [], cliffs: true },
     structures: [
@@ -55,6 +58,7 @@ export const SEED_SITES = [
   {
     id: 'ajo-plaza', name: 'THE PLAZA OF THE PIT',
     real: { place: 'Ajo (Town plaza)', state: 'AZ', lat: 32.3717, lon: -112.8604, refs: ['https://en.wikipedia.org/wiki/Ajo,_Arizona'] },
+    region: 'SW', source: { book: [], anchor: 'regional_pick' },
     shape: 'a company town built round a Spanish-revival plaza beside an open-pit mine', biome: 'desert_sonoran', kind: 'trade',
     footprint: [320, 260], layout: 'company_town', terrain: { relief: 0.2, water: [], cliffs: false },
     structures: [
@@ -70,6 +74,7 @@ export const SEED_SITES = [
   {
     id: 'titan-missile-sahuarita', name: 'THE SILO UNDER THE CREOSOTE',
     real: { place: 'Titan Missile Museum (Complex 571-7, Sahuarita)', state: 'AZ', lat: 31.9028, lon: -110.9989, refs: ['https://en.wikipedia.org/wiki/Titan_Missile_Museum'] },
+    region: 'SW', source: { book: [], anchor: 'regional_pick' },
     shape: 'a sealed missile complex under a fenced desert pad', biome: 'desert_sonoran', kind: 'military',
     footprint: [220, 180], layout: 'missile_field', terrain: { relief: 0.0, water: [], cliffs: false },
     structures: [
@@ -84,6 +89,7 @@ export const SEED_SITES = [
   {
     id: 'winslow-depot', name: 'THE RAILHEAD HOTEL',
     real: { place: 'Winslow (La Posada and the Santa Fe depot)', state: 'AZ', lat: 35.0242, lon: -110.6974, refs: ['https://en.wikipedia.org/wiki/La_Posada_Hotel'] },
+    region: 'SW', source: { book: [], anchor: 'regional_pick' },
     shape: 'a railroad hotel town on the old highway, rails and a grand hacienda hotel', biome: 'high_plateau', kind: 'station',
     footprint: [380, 220], layout: 'rail_yard', terrain: { relief: 0.1, water: [], cliffs: false },
     structures: [
@@ -98,6 +104,7 @@ export const SEED_SITES = [
   {
     id: 'castillo-st-augustine', name: 'THE COQUINA STAR',
     real: { place: 'St. Augustine (Castillo de San Marcos and the old town)', state: 'FL', lat: 29.8977, lon: -81.3114, refs: ['https://en.wikipedia.org/wiki/Castillo_de_San_Marcos'] },
+    region: 'FL', source: { book: [], anchor: 'regional_pick' },
     shape: 'a tyrant town round a star fort on the bay', biome: 'atlantic_coast', kind: 'fort',
     footprint: [360, 300], layout: 'star_fort', terrain: { relief: 0.0, water: ['bay'], cliffs: false },
     structures: [
@@ -114,6 +121,7 @@ export const SEED_SITES = [
   {
     id: 'key-west-old-town', name: 'THE LAST KEY',
     real: { place: 'Key West (Duval Street and the harbour)', state: 'FL', lat: 24.5551, lon: -81.7800, refs: ['https://en.wikipedia.org/wiki/Key_West,_Florida'] },
+    region: 'FL', source: { book: [], anchor: 'regional_pick' },
     shape: 'an island wharf town at the end of a long causeway', biome: 'gulf_coast', kind: 'trade',
     footprint: [400, 300], layout: 'port_wharf', terrain: { relief: 0.0, water: ['sea'], cliffs: false },
     structures: [
@@ -129,6 +137,7 @@ export const SEED_SITES = [
   {
     id: 'cedar-key', name: 'THE STILT KEY',
     real: { place: 'Cedar Key (Dock Street)', state: 'FL', lat: 29.1386, lon: -83.0349, refs: ['https://en.wikipedia.org/wiki/Cedar_Key,_Florida'] },
+    region: 'FL', source: { book: [], anchor: 'regional_pick' },
     shape: 'a stilt village on a gulf key reached by causeway', biome: 'gulf_coast', kind: 'camp',
     footprint: [240, 180], layout: 'stilt_village', terrain: { relief: 0.0, water: ['sea'], cliffs: false },
     structures: [{ kind: 'stilt_house', count: [10, 16], storeys: [1, 2], plan: [9, 9], material: 'wood', roof: 'tin', condition: 0.4 }, { kind: 'warehouse', count: 1, storeys: [1, 1], plan: [24, 20], material: 'tin', roof: 'gable', condition: 0.4 }],
@@ -139,6 +148,7 @@ export const SEED_SITES = [
   {
     id: 'ybor-city', name: 'THE CIGAR BLOCKS',
     real: { place: 'Ybor City (Tampa)', state: 'FL', lat: 27.9601, lon: -82.4357, refs: ['https://en.wikipedia.org/wiki/Ybor_City'] },
+    region: 'FL', source: { book: [], anchor: 'regional_pick' },
     shape: 'a brick factory district with iron balconies, held by a cartel', biome: 'gulf_coast', kind: 'industrial',
     footprint: [400, 320], layout: 'grid_downtown', terrain: { relief: 0.0, water: [], cliffs: false },
     structures: [
@@ -154,6 +164,7 @@ export const SEED_SITES = [
   {
     id: 'cape-canaveral-lc', name: 'THE LAUNCH COAST',
     real: { place: 'Cape Canaveral (launch complexes and industrial area)', state: 'FL', lat: 28.4889, lon: -80.5778, refs: ['https://en.wikipedia.org/wiki/Cape_Canaveral_Space_Force_Station'] },
+    region: 'FL', source: { book: [], anchor: 'regional_pick' },
     shape: 'a fenced launch range of gantries and hangars over sealed control bunkers', biome: 'atlantic_coast', kind: 'military',
     footprint: [520, 400], layout: 'military_base_grid', terrain: { relief: 0.0, water: ['sea'], cliffs: false },
     structures: [{ kind: 'quonset', count: [2, 4], storeys: [1, 1], plan: [22, 30], material: 'steel', roof: 'arch', condition: 0.5 }, { kind: 'hq', count: 1, storeys: [3, 3], plan: [28, 20], material: 'concrete', roof: 'flat', condition: 0.5 }],
@@ -165,6 +176,7 @@ export const SEED_SITES = [
   {
     id: 'fort-jefferson', name: 'THE HEX FORT',
     real: { place: 'Fort Jefferson (Dry Tortugas)', state: 'FL', lat: 24.6285, lon: -82.8732, refs: ['https://en.wikipedia.org/wiki/Fort_Jefferson,_Florida'] },
+    region: 'FL', source: { book: [], anchor: 'regional_pick' },
     shape: 'a brick sea fort on a lonely key, a moat round it', biome: 'gulf_coast', kind: 'fort',
     footprint: [260, 260], layout: 'bastion_fort', terrain: { relief: 0.0, water: ['sea', 'moat'], cliffs: false },
     structures: [{ kind: 'fort_curtain', count: 1, storeys: [3, 3], plan: [80, 80], material: 'brick', roof: 'flat_parapet', condition: 0.6 }, { kind: 'barracks', count: [1, 2], storeys: [2, 2], plan: [28, 10], material: 'brick', roof: 'flat', condition: 0.4 }],

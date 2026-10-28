@@ -242,6 +242,8 @@ export function buildBuilding(B, out, T, rng) {
         // cover: along the outside face at the street storey (a wall to put your back to), the half walls of a ruin
         if (k === 0 || ruinTop) for (let p = a + 1; p < b2 - 0.5; p += 2.5) { const x = sd.horiz ? p : sd.fixed + sd.nx * (IN + 0.5), z = sd.horiz ? sd.fixed + sd.nz * (IN + 0.5) : p; coverPt(x, z, y0, sd.nx, sd.nz, ruinTop ? 'half' : 'full', ruinTop ? 2 : 1); }
         for (let i = 0; i < holes.length; i += 2) { const c = (holes[i] + holes[i + 1]) / 2, x = sd.horiz ? c : sd.fixed - sd.nx * (IN + 0.5), z = sd.horiz ? sd.fixed - sd.nz * (IN + 0.5) : c; coverPt(x, z, y0, -sd.nx, -sd.nz, 'full', 3); }
+        // the street storey's windows are real (systems/interiors.js: glass, smash, climb through, board up), attached near you
+        if (k === 0 && !ruinTop) for (let i = 0; i < holes.length; i += 2) { const c = (holes[i] + holes[i + 1]) / 2; out.windows.push({ b: B.id, x: sd.horiz ? c : sd.fixed, z: sd.horiz ? sd.fixed : c, axis: sd.horiz ? 'x' : 'z', width: holes[i + 1] - holes[i], nx: sd.nx, nz: sd.nz }); }
       }
       // lintels over the gaps (a door: people pass under; a bay: a car does)
       for (const g of gaps) {
@@ -250,8 +252,13 @@ export function buildBuilding(B, out, T, rng) {
         if (sd.horiz) add(g.a, sd.fixed - IN, g.b, sd.fixed + IN, 'cg-wall', yTop, lb); else add(sd.fixed - IN, g.a, sd.fixed + IN, g.b, 'cg-wall', yTop, lb);
         const mid = (g.a + g.b) / 2;
         if (!ruinTop) { if (sd.horiz) vis(mid, (lb + yTop) / 2, sd.fixed, g.b - g.a, yTop - lb, WALL, shade(col, 0.92), k); else vis(sd.fixed, (lb + yTop) / 2, mid, WALL, yTop - lb, g.b - g.a, shade(col, 0.92), k); }
-        if (k === 0 && g.h > 3) { // a roll-up door, half up (a dark band at its top: drawn, never solid)
+        if (k === 0 && g.h > 3) { // a roll-up door: rolled up (a dark band at its top) or down (a panel and a collider)
           if (sd.horiz) vis(mid, lb - 0.3, sd.fixed, g.b - g.a, 0.6, WALL * 0.6, '#3e3a34', k); else vis(sd.fixed, lb - 0.3, mid, WALL * 0.6, 0.6, g.b - g.a, '#3e3a34', k);
+          const bx = sd.horiz ? add(g.a, sd.fixed - 0.12, g.b, sd.fixed + 0.12, 'cg-rollup', y0 + g.h, 99) : add(sd.fixed - 0.12, g.a, sd.fixed + 0.12, g.b, 'cg-rollup', y0 + g.h, 99);
+          const panel = out.items.length;
+          if (sd.horiz) vis(mid, g.h / 2, sd.fixed, g.b - g.a, g.h, 0.16, '#6a6458', 0); else vis(sd.fixed, g.h / 2, mid, 0.16, g.h, g.b - g.a, '#6a6458', 0);
+          out.items[panel].rollup = true;
+          out.bays.push({ id: `${B.id}:bay:${sd.s}:${mid.toFixed(1)}`, b: B.id, side: sd.s, at: mid, x: sd.horiz ? mid : sd.fixed, z: sd.horiz ? sd.fixed : mid, w: g.b - g.a, h: g.h, nx: sd.nx, nz: sd.nz, box: bx, panel, open: true, locked: false });
         }
       }
     }
@@ -272,6 +279,20 @@ export function buildBuilding(B, out, T, rng) {
     const rc = B.roofColor;
     if (core && m === n) slab(n, top - VERT.slab / 2, rc, n); else vis((ox0 + ox1) / 2, top + 0.15, (oz0 + oz1) / 2, ox1 - ox0 + 0.3, 0.3, oz1 - oz0 + 0.3, rc, n);
     R.roofLv = n;
+  }
+  if (B.fortified) { // a blast wall along the front, 3 m out, its one gate at the lobby door (side yards stay open: neighbours)
+    const g = 3, t = 0.6, h = 2.2, fd = B.doors.find((d) => d.kind === 'door' && d.side === B.front);
+    const ring = [['N', ox0 - g, oz0 - g - t, ox1 + g, oz0 - g], ['S', ox0 - g, oz1 + g, ox1 + g, oz1 + g + t], ['W', ox0 - g - t, oz0 - g, ox0 - g, oz1 + g], ['E', ox1 + g, oz0 - g, ox1 + g + t, oz1 + g]];
+    for (const [sd, a0, b0, a1, b1] of ring) {
+      if (sd !== B.front) continue;
+      const horiz = sd === 'N' || sd === 'S', gap = fd && fd.side === sd ? [fd.at - 2.5, fd.at + 2.5] : null;
+      const segs = !gap ? [[horiz ? a0 : b0, horiz ? a1 : b1]] : [[horiz ? a0 : b0, gap[0]], [gap[1], horiz ? a1 : b1]];
+      for (const [p0, p1] of segs) {
+        const bx = horiz ? add(p0, b0, p1, b1, 'cg-townwall', h) : add(a0, p0, a1, p1, 'cg-townwall', h);
+        vis((bx.minX + bx.maxX) / 2, h / 2, (bx.minZ + bx.maxZ) / 2, bx.maxX - bx.minX, h, bx.maxZ - bx.minZ, '#6a6a5e', 0);
+      }
+    }
+    R.lobby = fd ? doorXZ(B, fd) : null;
   }
   if (B.steeple) vis((ix0 + ix1) / 2, top + 5, iz0 + 2.5, 3, 10, 3, shade(B.color, 0.9), n);
   if (B.canopy) { // a gas station's canopy over the pumps, in front: four posts and a lid
@@ -343,7 +364,7 @@ export function buildBuilding(B, out, T, rng) {
   const busy = (x, z) => (core && x > core.area.minX - 2 && x < core.area.maxX + 2 && z > core.area.minZ - 2 && z < core.area.maxZ + 2) // a walker's way round the core's landings
     || B.doors.some((d) => { const [dx, dz] = doorXZ(B, d); return Math.abs(dx - x) < (d.kind === 'bay' ? d.w / 2 + 1.5 : 1.8) && Math.abs(dz - z) < (d.kind === 'bay' ? d.w / 2 + 1.5 : 1.8); })
     || (B.drive && B.doors.some((d) => d.kind === 'bay' && ((d.side === 'N' || d.side === 'S') ? Math.abs(x - d.at) < d.w / 2 + 1.4 : Math.abs(z - d.at) < d.w / 2 + 1.4)));
-  for (let k = 0; k < Math.min(floors, n); k++) {
+  for (let k = 0; k < (B.noLoot ? 0 : Math.min(floors, n)); k++) {
     const y = Y[k], cnt = Math.min(4, Math.max(1, Math.floor(area / LK.per)));
     for (let i = 0; i < cnt; i++) {
       const x = Math.round(rng.range(ix0 + 1.2, ix1 - 1.2) * 2) / 2, z = Math.round(rng.range(iz0 + 1.2, iz1 - 1.2) * 2) / 2;
@@ -356,7 +377,7 @@ export function buildBuilding(B, out, T, rng) {
       coverPt(x, z + 1, y, 0, 1, 'half', 6);
     }
   }
-  if (core && m === n && rng.chance(FLOOR_LOOT.roofCrate)) {
+  if (core && m === n && !B.noLoot && rng.chance(FLOOR_LOOT.roofCrate)) {
     const x = Math.round(((ix0 + ix1) / 2) * 2) / 2, z = Math.round((core.area.minZ > (iz0 + iz1) / 2 ? iz0 + 2 : iz1 - 2) * 2) / 2;
     if (!busy(x, z)) { add(x - 0.5, z - 0.5, x + 0.5, z + 0.5, 'crate', top + 1, top); vis(x, top + 0.5, z, 1, 1, 1, '#5e5a3a', n); out.loot.push({ id: `cg:${B.id}:roof`, table: FLOOR_LOOT.roofTable, x, z, y: top, cap: 60, label: `ROOF · ${B.name.toUpperCase()}`, b: B.id, k: n }); }
   }
@@ -396,7 +417,7 @@ function buildBridge(br, out) {
 // ---- the whole town ------------------------------------------------------------------------------------------------------
 export function buildTown(T) {
   const rng = makeRng((T.seed ^ 0xb1d6) >>> 0);
-  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [] };
+  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [] };
   const BI = BIOMES[T.biome] ?? BIOMES.desert_sonoran;
   // ground: the town's lots, then the streets (and their walks) on top
   for (const b of T.blocks) out.items.push({ cx: (b.x0 + b.x1) / 2, cy: 0.02, cz: (b.z0 + b.z1) / 2, sx: b.x1 - b.x0, sy: 0.04, sz: b.z1 - b.z0, col: b.green ? '#6a7448' : BI.ground, lv: 0, R: null });
