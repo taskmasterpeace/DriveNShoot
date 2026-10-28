@@ -344,6 +344,7 @@ export class Decks {
       felt = Math.hypot(v._dkAx, v._dkAz);
       impact = Math.max(0, v.impact ?? 0);
       if (ref.air && !v.air) landing = Math.max(0, -(ref.vy ?? 0));
+      if (v.waveLand) { landing = Math.max(landing, v.waveLand); v.waveLand = 0; } // a hull back in off a crest (world/waves.js)
     }
     v.group.updateMatrix();
     const dh = ref ? v.h - ref.h : 0, sp = g.vehiclesSys.speed(v);
@@ -363,7 +364,7 @@ export class Decks {
       c.stoop = !c.prone && !!D.ceil && STANCES.stand.body.h > D.ceil;
       if (!c.alive) { const body = g.inventory?.boxes.get(`body:${c.id}`); if (body) { body.x = c.x; body.z = c.z; body.y = c.gy; } continue; }
       if (c.knockT > 0 || c.sleeping) continue;
-      this.feel(v, c, felt + (D.chop ?? 0) * v._dkChop, impact, landing, sp, ref);
+      this.feel(v, c, felt + (D.chop ?? 0) * v._dkChop + (afloat ? v.waveFelt ?? 0 : 0), impact, landing, sp, ref); // + the swell under the hull (world/waves.js)
     }
     v._dk = { x: v.x, z: v.z, h: v.h, vx: v.vx, vz: v.vz, air: v.air, vy: v.vy };
     // Boxes ride along (the PACK screen and E find them where they are now), on the deck's floor.

@@ -225,3 +225,6 @@ Measured on this machine (RTX 4090, headless Chrome, shared with other agents' h
 6. `selftest` **150/150 twice in a row on proved-fresh pages** (game.time under 40 s, day 0) on the final tree (328 s and 367 s); `node tools/ip-lint.mjs` 0 deny. The selftest budget is now 900 s (the battery outgrew 300 s on this busy machine). Seen flaky on other runs, not tied to Florida: the single-shot Mateo memory check (a miss), and a battery run on a reused page.
 7. Screenshots in `docs/renders/web/florida/` at the game camera and from above, by noon and at dusk: Meridian, I-95
    through the swamp, the coast.
+
+
+**Used by WEB_WATER_LIFE (2026-10-28):** the Atlantic and the lagoon carry the swell, sharks, bait and gulls; THE DEEP WATER, THE DROWNED BLOCKS and GULL KEY are placed off Meridian's coast through `shoreAt()`; the ocean's region colour is now teal (data/water.js).

@@ -434,7 +434,7 @@ export class CharacterRenderer {
         _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
       }
       if (ch.underwater) _root.multiply(_t.makeTranslation(0, -1.6, 0));
-      else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.95, 0)).multiply(_r.makeRotationX(1.2));
+      else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.5 + (ch.waveY ?? 0), 0)).multiply(_r.makeRotationX(1.2)); // waveY: on the swell (systems/sealife.js scanPeople)
     } else {
       // Lying on the back, head away from the killer.
       lying = true;

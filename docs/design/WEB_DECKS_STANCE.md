@@ -226,3 +226,6 @@ you look while your driver keeps it on the road.
    passenger takes the free turret and fires it at a raider.
 
 Screenshots from the game camera: `docs/renders/web/decks-stance/`.
+
+
+**Used by WEB_WATER_LIFE (2026-10-28):** a boat's deck riders also feel the swell (`v.waveFelt`, world/waves.js ride) added to the felt force, and a waterbike/airboat back in off a crest (`v.waveLand`) counts as a landing. New deck rows: `raftDeck`, `ferryDeck` (the cable ferry, systems/waterplace.js).

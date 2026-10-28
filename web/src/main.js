@@ -8,6 +8,11 @@ import { buildWorld, TOWN, roadLines, HALF, OUTSIDE } from './world/city.js';
 import { Streamer } from './world/streamer.js';
 import { buildTerrain, drawTerrainOnMinimap } from './world/terrain.js';
 import { Water, WATER_AVOID, DOCK, LAKE } from './world/water.js';
+import { Waves } from './world/waves.js';
+import { Sealife } from './systems/sealife.js';
+import { WaterPlace } from './systems/waterplace.js';
+import { Diving } from './systems/diving.js';
+import { Swamp } from './systems/swamp.js';
 import { RAIL_AVOID } from './world/rail.js';
 import { Train } from './systems/train.js';
 import { Convoy } from './systems/convoy.js';
@@ -140,6 +145,7 @@ class Game {
     // Mountains (outer desert ring) and water (east river → lake), before the nav grids.
     this.terrain = buildTerrain(this.scene, this.statics, { avoid: [...this.world.spawns.camps.map((c) => ({ x: c.x, z: c.z, r: 34 })), ...WATER_AVOID, ...RAIL_AVOID] });
     this.water = new Water(this);
+    this.waves = new Waves(this); // the surface moving: swell, chop, whitecaps, surf, wakes; boats ride it (world/waves.js, WEB_WATER_LIFE.md)
     drawTerrainOnMinimap(this.world.minimap, this.terrain, HALF);
     this.water.drawOnMinimap(this.world.minimap, HALF);
     // Ramps, dunes and the Thrill Show (data/stunts.js): drivable relief, built before the nav grids see its solids.
@@ -243,6 +249,7 @@ class Game {
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
+    this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
@@ -497,7 +504,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); this.sealife?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -886,14 +893,16 @@ class Game {
     p.breath = p.breath ?? 1;
     if (p.prone && wet !== 'dry') this.stance.setProne(p, false); // into the water: up on your feet
     p.underwater = p.swim && p.crouch;
+    this.waves.swimmer(p, wet, dt); // the current carries a swimmer, a kick leaves a wake, going in splashes
+    this.diving.step(p, dt, wet); // how deep: the view darkens and closes, sound goes thick, a gasp coming up (systems/diving.js)
     if (p.underwater) {
-      p.breath = Math.max(0, p.breath - dt / 20);
+      p.breath = Math.max(0, p.breath - dt / 20 * this.diving.drainMul(p)); // deeper drains faster
       if (p.breath <= 0) this.combat.damage(p, 9 * dt, null, 0, 0, 'drown');
     } else p.breath = Math.min(1, p.breath + dt / 4);
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1) * (p.swampSlow ?? 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -1301,6 +1310,10 @@ class Game {
       this.rites.update(simDt); // the dead age on the clock, the cemeteries near you, funerals (systems/rites.js)
       this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
+      this.waves.update(simDt);
+      this.waterplace.update(simDt); // the drowned blocks, the key, the ferry (systems/waterplace.js)
+      this.sealife.update(simDt);    // sharks, the deep one, piranhas, bait and gulls (systems/sealife.js)
+      this.swamp.update(simDt);      // the nasty water: pads, knees, weed, fog, rot; filth in an open wound (systems/swamp.js)
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.dogs.update(simDt);

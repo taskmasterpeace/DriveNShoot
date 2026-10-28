@@ -158,6 +158,8 @@ export class Audio {
     return true;
   }
   count(k) { this.counts[k] = (this.counts[k] ?? 0) + 1; }
+  // hz: the cutoff the world is heard through (0 = open: above the water).
+  muffle(hz) { if ((hz || 0) === (this.muffleHz ?? 0)) return; this.muffleHz = hz || 0; if (this.muffleF && this.ctx) this.muffleF.frequency.setTargetAtTime(hz > 0 ? hz : 22000, this.ctx.currentTime, 0.08); }
 
   start() {
     if (this.ctx) return;
@@ -166,7 +168,9 @@ export class Audio {
     this.master = ctx.createGain();
     this.master.gain.value = 0.55;
     const comp = ctx.createDynamicsCompressor();
-    this.master.connect(comp).connect(ctx.destination);
+    // Under the water the whole world goes thick (systems/diving.js muffle): a lowpass on everything, wide open above.
+    this.muffleF = ctx.createBiquadFilter(); this.muffleF.type = 'lowpass'; this.muffleF.frequency.value = 22000; this.muffleF.Q.value = 0.4;
+    this.master.connect(this.muffleF).connect(comp).connect(ctx.destination);
     const len = ctx.sampleRate * 2;
     this.noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
