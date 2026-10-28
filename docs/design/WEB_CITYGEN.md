@@ -229,6 +229,7 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 | `systems/zombies.js` (`WEB_INFECTED.md`) | horde bodies (`spawn`, `AMBIENT_RESERVE`) | — |
 | `data/atlas.js` | real base anchors | — |
 | `WEB_LOCATION_BIBLE.md` | the SITE / ARCHETYPE schema | it names `world/citygen/` as consumer |
+| `WEB_SITES_TERRAIN.md` (`agent/sites-api.js`, `world/realterrain.js`) | every SITE row planned (in the world or beyond it), `siteRows`, `stampOf`, `liftBuilt`: each settlement on its real-terrain pad (`rec.y`) | the plan records (one pad each), `layoutSite`, `buildTown` |
 | `WEB_DEATHLANDS_GAP.md` G4/G7/G8 | the plan this lane answers | — |
 | Camera lane (`main.js updateCamera`, `data/camera.js`) | consumes `floorTags` / `hideAbove` | listed in hand-back |
 | `systems/interiors.js` | `attachRing`/`detachRing`/`setLocked` for generated openings | — |

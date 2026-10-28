@@ -17,5 +17,20 @@
     "157,59": "08b1274e",
     "-80,-30": "f9df869f",
     "150,30": "6ee3a5b1"
+  },
+  "p1ChunksRealNote": "The same twelve P1 chunks laid out on real terrain, the default since 2026-10-28 (docs/design/WEB_SITES_TERRAIN.md): every chunk off Phoenix pad moves with the land, the strata, the outcrops and the forest stands; -2,-4 sits on the pad and keeps its flat hash. p1Chunks stays the ?terrain=flat golden.",
+  "p1ChunksReal": {
+    "-8,-8": "e29483da",
+    "-7,-7": "99233a69",
+    "-6,0": "c73f5102",
+    "-2,-4": "e8f3fb63",
+    "3,-4": "be976e1d",
+    "7,7": "3d6bb24c",
+    "-128,-21": "9904763e",
+    "-25,-4": "67dd917e",
+    "102,38": "3af03416",
+    "157,59": "1323a855",
+    "-80,-30": "e11b8ea2",
+    "150,30": "481ed0c2"
   }
 }

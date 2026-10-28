@@ -106,6 +106,8 @@ export function layoutSite(row, { x, z, seed = 1 } = {}) {
     Object.assign(lot, makeBuilding(rng, w.k, lot.x0, lot.z0, lot.x1, lot.z1, lot.front, { ...lot, storeys: st, ruined: false, id: lot.id }));
     lot.hero = w.s.kind;
   }
+  // A ruin (kind 'ruin', WEB_SITES_TERRAIN §3.1): more than half of what is not a hero building is cut off and open to the sky.
+  if (row.kind === 'ruin') for (const B of T.buildings) if (!B.hero && !B.ruined && rng.chance(0.55)) Object.assign(B, makeBuilding(rng, B.kind, B.x0, B.z0, B.x1, B.z1, B.front, { ...B, ruined: true, storeys: Math.max(1, B.n - 1), id: B.id }));
   if (T.respect) for (const B of T.buildings) B.noLoot = true; // a sacred, burial or living place: nothing to take
   clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null);
   T.bridges = roofBridges(rng, T.buildings, T.id);

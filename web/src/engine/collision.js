@@ -186,7 +186,7 @@ export class StaticWorld {
   // mover: who pushes doors (the person by default; null for a shove in a crowd, where a door is as solid as a wall).
   resolveBody(p, r, c, mover = c) {
     if (c?.ug && this.under) { const u = c.gy ?? 0; return this.under.resolveCircle(p, r, mover, u + 0.25, null, u + 2.4); } // underground: the level's own walls at its own height
-    const y = c?.storey ? c.gy ?? 0 : 0;
+    const y = c?.storey ? (c.gy ?? 0) - (c.storey.y0 ?? 0) : 0; // a building's boxes stand on its own floor (y0: raised ground)
     return y > 0.5 ? this.resolveCircle(p, r, mover, y + 0.25, null, y + 2.4) : this.resolveCircle(p, r, mover);
   }
 

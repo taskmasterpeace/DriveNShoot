@@ -82,7 +82,8 @@ export const BIOMES = {
   p: { name: 'plains', tint: [0.98, 0.95, 0.84], shrubs: 40, cacti: 1, boulders: 1.5, trees: 1.2, rock: 0.4 },
   a: { name: 'farmland', tint: [0.94, 0.92, 0.8], shrubs: 26, cacti: 0.2, boulders: 0.5, trees: 1.5, rock: 0.1 },
   w: { name: 'dry riverbed', tint: [0.84, 0.82, 0.8], shrubs: 14, cacti: 0, boulders: 6, trees: 2, rock: 0.2 },
-  F: { name: 'forest', tint: [0.86, 0.9, 0.78], shrubs: 60, cacti: 0, boulders: 2, trees: 6, rock: 0.5 },
+  F: { name: 'forest', tint: [0.68, 0.74, 0.56], // needle litter under the pines (was 0.86, 0.9, 0.78: read as sand; WEB_SITES_TERRAIN)
+      shrubs: 60, cacti: 0, boulders: 2, trees: 6, rock: 0.5 },
   s: { name: 'swamp', tint: [0.82, 0.86, 0.76], shrubs: 50, cacti: 0, boulders: 0.5, trees: 4, rock: 0 },
   '.': { name: 'coast', tint: [0.95, 0.93, 0.88], shrubs: 8, cacti: 0, boulders: 2, trees: 0.2, rock: 0.2 },
 };
