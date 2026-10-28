@@ -16,7 +16,10 @@ Each lane gets its own branch `feat/web-<lane>`, its own session, its own design
 4. **The world is our own.** It takes the *problems* of the genre: poisoned ground and bad water, acid weather, ammo and fuel scarcity, mutated beasts, warlord-run walled towns, slavers, cannibals and buried pre-war bunkers.
    Never its names, slang, characters or plot. `ip-lint` must report 0 deny.
 5. **Multiplayer first.** Everything new is shard-shaped: who owns it, what gets saved, and what another player sees.
-6. **Tooling over hand-tuning.** Every new system ships as data rows, a `validate*` function, and a forge/editor surface where Robert can change it.
+6. **Nobody knows what they weren't told** (Robert, 2026-10-28). An NPC knows something only if it saw it, heard it, or was told it, through a person, the radio, a letter, the grapevine or a board.
+   Every fact an NPC acts on carries its source and its age. A rumour can be stale or wrong. A bounty hunter tracks you from sightings and tips, never from your true position.
+   The same law applies to the player: the pulls board shows only what reached you.
+7. **Tooling over hand-tuning.** Every new system ships as data rows, a `validate*` function, and a forge/editor surface where Robert can change it.
 
 ## 1. What exists vs what's missing (audit 2026-10-28)
 | Ask | Exists | Missing |
@@ -41,6 +44,16 @@ Each lane gets its own branch `feat/web-<lane>`, its own session, its own design
 | Models | DSOA: one instanced procedural rig for all 160 people (cheap, <150 draw calls) | Robert prefers the LSW skinned GLB bodies (§4) |
 
 ## 2. The lanes
+### The loop these lanes serve (Robert, 2026-10-28)
+| Timescale | What happens |
+|---|---|
+| Seconds | Move, look, decide, act. Every move costs something (noise, fuel, a round, your footing on a truck bed) |
+| One run (minutes to an hour) | Need → plan → travel → get in → take it → get out → spend. Coming home stronger opens up a harder target |
+| Long arc (persistent server) | The base and crew grow, and losing any of them hurts. The world remembers. Scarcity pushes you further out. Other players are allies, rivals, or the reason a town fell |
+
+The engine underneath is **scarcity + distance + consequence**. Every lane must say which of the three it makes bite harder.
+**Order:** Wave 1 → Wave 2 → Wave 3 → then everything else in this doc. Robert: "when complete, build EVERYTHING".
+
 ### WAVE 1 (start now; no two lanes touch the same files)
 | Lane | Where | Owns | Proof |
 |---|---|---|---|
@@ -58,6 +71,30 @@ Each lane gets its own branch `feat/web-<lane>`, its own session, its own design
 - **UNDERSTREET**: storm drains and sewers under every town, joined to the street seamlessly (manholes, outfalls, culverts under roads).
 - **SITE-STORIES + BOUNTY GUILD**: each site gets an owner, a problem and a clock. Sites send traders, raiders and refugees to each other. A bounty-hunter guild posts boards in towns, and its hunters are real NPCs who travel (law 1).
 - **ZOMBIES**: the 3 breeds (D1), plus what Project Zomboid teaches: hearing and sight memory, hordes that drift toward noise, breaking windows and doors, crawlers, lunges, fear of fire.
+
+**NPC source (Robert, 2026-10-28) for ROLES-DIVERSITY, SITE-STORIES and the bounty guild.** These are local lanes only; the paths are on Robert's PC:
+- `C:/Users/taskm/pzvr-work/ui-release/docs/NPC-SOURCE-MAP.md` lists 33 verified locations: behaviour, personality, memory, establishments, driving, dialogue, voices and tests.
+- `C:/Users/taskm/pzvr-work/ui-release/AGENTS.md` and `CURRENT.md`.
+- The original NPC engine: `D:/steam/steamapps/workshop/content/108600/3803984183/mods/ProjectALifeNPCs`.
+- Memory, social life and residents: `D:/steam/steamapps/workshop/content/108600/3806944055/mods/ProjectALifeJimmy`.
+- Robert's own FairWorld and COF mods: `C:/Users/taskm/pzvr-work/ui-release/mods/`.
+
+Learn the *behaviour* and re-write it as DSOA rows and systems. Never copy third-party mod code or assets into this repo. See also `D:/git/alife-study`.
+
+- **PULLS ("why go out today")**: many pulls, one surface. Each pull is a real person or event in the world, and you only hear of it through a channel (law 7):
+  - **Bars and saloons**: a barkeep and drinkers who trade rumours for a drink, a job board on the wall, card games, hired guns for sale, and fights.
+  - **People on the road**: hitchhikers (give a ride, and they may pay, talk, or rob you), stranded drivers, a broken-down caravan, refugees walking between towns, a lone trader's cart, a body by a wreck with a note on it.
+  - **Radio**: distress calls, medic calls (role calls), caravan escort runs, bounty postings, weather warnings.
+  - **Town boards**: the bounty guild, work orders and missing persons.
+  - **Your own needs**: low fuel, ammo, meds and parts, read off your base.
+
+  The **pulls board** (journal tab plus HUD chip) lists only the pulls that reached you, each with where you heard it, how old it is, and how far it is.
+  A pull runs on the world clock: the hitchhiker walks on, the caravan gets hit without you, the patient dies.
+- **MILITARY BASES**: one large base per state at its real-world shape, plus the big ones by real footprint. Shapes only, never names that tie to the books; real public locations are fine.
+  - Each base is a fenced perimeter with gates, guard towers, barracks, a motor pool, hangars or an airfield, an armory, fuel farms, housing, a hospital and a command bunker. It joins `underground.js` base bunkers.
+  - Each base has a state of its own: overrun (an infected horde inside), held by a faction (with patrols and a quartermaster who trades), or sealed (a power and code puzzle, the CAROUSEL pattern).
+  - The best loot in the world sits there and does not regenerate (law 2), so bases are the long-arc goal.
+  - Data rows per state in `web/src/data/milbases.js`, stamped by citygen, built on the existing `BASES` rows (`data/bases.js`) and the 100-plus military site rows already in `data/sites/`.
 
 ### WAVE 3
 - **LSW-BODIES** (§4), **SIM-CORE / persistent shard** (law 3; `WEB_PERSISTENT_WORLD_PLAN.md` M3), the room-scan base (`D:/git/little-big-home`).
