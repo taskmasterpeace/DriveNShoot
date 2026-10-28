@@ -7,19 +7,19 @@ export function hudCommands(api, need) {
   const g = api.g, L = () => g.hud.layout, E = () => g.hud.editor;
   const out = (extra = {}) => ({ ok: true, preset: L().preset, situation: L().sit, forced: L().forced, editing: !!E()?.open, layoutScale: +L().L.toFixed(3), ...extra });
   return {
-    hud: {
+    hudLayout: {
       group: 'meta',
       desc: 'The HUD layout (data/hudlayout.js, docs/design/WEB_UI_EDITOR.md): every HUD element as a named row anchored to a corner or edge. action=list (rows + where each sits on screen) | set id=<row> [x= y= anchor=tl|tc|tr|ml|mc|mr|bl|bc|br scale= visible= situations=a,b] | preset name=default|compact|streamer|controller | reset [id=] | export | import json=<layout JSON> | situation name=<on_foot|driving|passenger|deck|prone|menu|night|dead|auto> (preview what that situation shows) | edit on=true|false [panel=false hides the editor panel, names stay]. A player\'s layout is saved on this machine.',
       args: { action: { type: 'string' }, id: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, anchor: { type: 'string' }, scale: { type: 'number' }, visible: { type: 'boolean' }, situations: { type: 'string' }, name: { type: 'string' }, json: { type: 'string' }, on: { type: 'boolean' }, panel: { type: 'boolean' } },
       run: async ({ action = 'list', id, x, y, anchor, scale, visible, situations, name, json, on, panel } = {}) => {
         const lay = L();
         need(lay, 'the HUD layout is not up (no HUD on this page)');
-        const fail = (bad) => ({ ok: false, error: bad[0], problems: bad, hint: 'hud action=list shows the rows; anchors tl tc tr ml mc mr bl bc br; scale 0.4..2.5' });
+        const fail = (bad) => ({ ok: false, error: bad[0], problems: bad, hint: 'hudLayout action=list shows the rows; anchors tl tc tr ml mc mr bl bc br; scale 0.4..2.5' });
         switch (action) {
           case 'list':
             return out({ rows: lay.list(), presets: Object.fromEntries(PRESET_IDS.map((p) => [p, { name: HUD_PRESETS[p].name, scale: HUD_PRESETS[p].scale, blurb: HUD_PRESETS[p].blurb }])), situations: SITUATIONS, anchors: Object.keys(ANCHORS), bad: validateHudLayout(lay.rows) });
           case 'set': {
-            need(id, 'set needs id=<row> (hud action=list)');
+            need(id, 'set needs id=<row> (hudLayout action=list)');
             const f = {};
             if (x !== undefined) f.x = Number(x);
             if (y !== undefined) f.y = Number(y);
@@ -33,7 +33,7 @@ export function hudCommands(api, need) {
           case 'preset': { const bad = lay.setPreset(name ?? id); E()?.open && E().render(); return bad.length ? fail(bad) : out(); }
           case 'reset': { const bad = lay.reset(id ?? null); E()?.open && E().render(); return bad.length ? fail(bad) : out(); }
           case 'export': return out({ layout: lay.exportLayout(), json: JSON.stringify(lay.exportLayout()) });
-          case 'import': { need(json, 'import needs json=<a layout from hud action=export>'); const bad = lay.importLayout(json); return bad.length ? fail(bad) : out(); }
+          case 'import': { need(json, 'import needs json=<a layout from hudLayout action=export>'); const bad = lay.importLayout(json); return bad.length ? fail(bad) : out(); }
           case 'situation': {
             const s = name ?? id ?? 'auto';
             need(s === 'auto' || s in SITUATIONS, `no situation '${s}' (${SITUATION_IDS.join(' ')} auto)`);
@@ -178,7 +178,7 @@ export async function hudChecks({ api, g, check }) {
   });
 
   await check('hud: the command lists, sets, presets, previews a situation and resets', async () => {
-    const C = (a) => api.call('hud', a);
+    const C = (a) => api.call('hudLayout', a);
     const l = await C({ action: 'list' }), s = await C({ action: 'set', id: 'clock', scale: 0.8 }), p = await C({ action: 'preset', name: 'streamer' });
     const sit = await C({ action: 'situation', name: 'driving' }), bad = await C({ action: 'set', id: 'nope', x: 1 });
     const back = await C({ action: 'situation', name: 'auto' });

@@ -1,7 +1,7 @@
 # WEB UI EDITOR: the HUD as named rows, and the editor to move them
 
 **Lane:** UI-EDITOR (`feat/web-ui-editor`), 2026-10-28. **Spec:** `docs/design/WEB_DEPTH_PLAN.md` §8.
-**Rows:** `web/src/data/hudlayout.js` · **Live layout + editor:** `web/src/ui/hudedit.js`, `hudedit.css` · **Agent:** `hud` command, `web/src/agent/hudlayout-api.js` · **Sheet:** `web/tools/hud-sheet.mjs` → `docs/renders/web/ui-editor/`
+**Rows:** `web/src/data/hudlayout.js` · **Live layout + editor:** `web/src/ui/hudedit.js`, `hudedit.css` · **Agent:** `hudLayout` command, `web/src/agent/hudlayout-api.js` · **Sheet:** `web/tools/hud-sheet.mjs` → `docs/renders/web/ui-editor/`
 **Reference:** the LSW touch-layout editor Robert already likes (`docs/reference/lsw/touch-layout.js`).
 
 Robert, 2026-10-28: *"a lot of the stuff that you got right now is too big on the screen... have an interactive UI editor. So I can slide stuff around where it should be, but you got to be able to also allow me to change the situation... and then you got to name the different stuff. Like, we want to standardize the UI and people get used to seeing certain things, certain places. And because it's going to be multiplayer, we have to keep in mind how things are."*
@@ -139,6 +139,6 @@ Named selftest checks (`selftest only=hud`, 9 checks), each returning true or a 
 6. **hud layout: each situation shows its elements and hides the rest.** All 8 situations, all 23 rows.
 7. **hud editor: opens paused with every element named, a drag moves one, undo puts it back, Esc closes.** This also checks that the wheel resizes and that the pause state is restored.
 8. **hud editor: changing the anchor keeps the element where it is on screen.**
-9. **hud: the command lists, sets, presets, previews a situation and resets.**
+9. **hud: the hudLayout command lists, sets, presets, previews a situation and resets.**
 
 The full battery must stay green twice on fresh pages, `scenario name=stress` must not regress, and ip-lint must report 0 deny. The sheet `docs/renders/web/ui-editor/` (INDEX.md) has edit mode with names on for each preset and each situation, the editor panel, the live HUD before and after, the live HUD driving, and the layout at 1280×720 and 2560×1440.

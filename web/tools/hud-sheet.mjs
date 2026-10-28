@@ -29,7 +29,7 @@ const until = async (expr, ms = 90000) => { for (let t = 0; t < ms; t += 250) { 
 const call = async (cmd, args = {}) => JSON.parse(await D.eval(`(async () => JSON.stringify(await game.api.call(${JSON.stringify(cmd)}, ${JSON.stringify(args)})))()`));
 const shots = [];
 const shot = async (name, caption) => { await sleep(800); const f = join(OUT, `${name}.png`); await D.shot(f); shots.push([name, caption]); console.log('wrote', f); };
-const hud = (args) => call('hud', args);
+const hud = (args) => call('hudLayout', args);
 
 try {
   await until('window.game && game.hud && game.hud.layout');
