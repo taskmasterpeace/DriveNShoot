@@ -46,7 +46,8 @@ import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
-import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
+import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js';
+import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md) // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
@@ -2041,6 +2042,7 @@ function buildCommands(api) {
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
+    ...hudCommands(api, need), // hud (WEB_UI_EDITOR.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -5967,6 +5969,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
+  await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
