@@ -115,22 +115,26 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     const O = g.citygen?.overrun;
     if (!O) return 'no overrun (citygen) in this world';
     const auto = O.auto; O.auto = false;
-    const p = P(), H = O.spawnHorde({ x: p.x, z: p.z + 300, size: 12 }); // south over dry flats (east of x 290 is the island's lake: the dead don't swim)
+    // South over dry flats (east of x 290 is the island's lake: the dead don't swim). The shot goes off here; then you go
+    // 450 m north, so the horde stays a RECORD the whole way (no bodies stand up near you): the off-screen walk itself.
+    const p = P(), H = O.spawnHorde({ x: p.x, z: p.z + 300, size: 12 });
     try {
       await C('step', { seconds: 4 });
       const sat = dist(H, { x: p.x, z: p.z + 300 }) < 2; // by day a horde with no reason digs in
       const shot = { x: p.x, z: p.z };
       g.noise(p.x, p.z, 45, p); // the shot's noise (combat.js: every round fired is a 45 m noise)
       const heard = !!H.drift;
+      await C('teleport', { x: shot.x, z: shot.z - 450 });
       let prev = { x: H.x, z: H.z }, maxJump = 0, arrived = false, t = 0;
       const d0 = dist(H, p);
       for (; t < 280 && !arrived; t += 2) {
         await C('step', { seconds: 2 });
         maxJump = Math.max(maxJump, dist(H, prev)); prev = { x: H.x, z: H.z };
         arrived = dist(H, shot) < DRIFT.arrive + 5;
+        if (H.bodies.length) break; // bodies stood up: not the record's walk any more
       }
       const d1 = dist(H, shot);
-      return sat && heard && arrived && d0 > 290 && d1 < DRIFT.arrive + 10 && maxJump < 18 ? true : JSON.stringify({ sat, heard, arrived, d0: r1(d0), d1: r1(d1), maxJump: r1(maxJump), t, state: H.state, bodies: H.bodies.length });
+      return sat && heard && arrived && d0 > 290 && d1 < DRIFT.arrive + 10 && maxJump < 4.5 && !H.bodies.length ? true : JSON.stringify({ sat, heard, arrived, d0: r1(d0), d1: r1(d1), maxJump: r1(maxJump), t, state: H.state, bodies: H.bodies.length });
     } finally { O.dematerialize(H); const i = O.hordes.indexOf(H); if (i >= 0) O.hordes.splice(i, 1); O.auto = auto; g.godMode = false; }
   }));
 

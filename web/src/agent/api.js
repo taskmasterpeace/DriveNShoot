@@ -3356,6 +3356,7 @@ async function runSelfTest(api, only = null, skip = null) {
     N.rest = 0.3;
     const lay = S.sleepAt('ground');
     const z = g.zombies.spawn(p.x + 20, p.z, false);
+    z.ztarget = p; // it comes up the street toward you (survival.js's prowler does the same: one told fix; a sleeper lies too low to be seen at 20 m, WEB_ZOMBIES.md §3.1)
     for (let i = 0; i < 60 && S.sleep; i++) await C('step', { seconds: 0.25 });
     const woken = !!lay.ok && !S.sleep && /infected/.test(S.lastWake?.why ?? '') && S.lastWake.full === false;
     g.removeChar(z);

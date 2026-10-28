@@ -94,7 +94,8 @@ export class Overrun {
       // A horde already drawn turns to a new noise only if it is as loud, or nearer than the one it is walking to.
       if (H.drift && r < H.drift.r * 0.8 && Math.hypot(H.x - x, H.z - z) > Math.hypot(H.x - H.drift.x, H.z - H.drift.z)) continue;
       if (!H.drift) { H.drift = { x, z, r, t: 0, at: null }; this.counts.drifts = (this.counts.drifts ?? 0) + 1; this.g.emit?.('hordeHeard', { id: H.id, x: Math.round(x), z: Math.round(z), dist: Math.round(Math.hypot(H.x - x, H.z - z)) }); }
-      H.drift.x = x; H.drift.z = z; H.drift.r = r; H.drift.t = this.g.time ?? 0; H.drift.at = null;
+      if (Math.hypot(H.drift.x - x, H.drift.z - z) > DRIFT.arrive) H.drift.at = null; // somewhere new: walk again (another shot where it already stands changes nothing)
+      H.drift.x = x; H.drift.z = z; H.drift.r = r; H.drift.t = this.g.time ?? 0;
     }
     const rec = this.cg.recAt(x, z, 20);
     if (!rec) return;

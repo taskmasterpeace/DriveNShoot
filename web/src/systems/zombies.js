@@ -197,7 +197,7 @@ export class Zombies {
       for (const door of I?.doors ?? []) if (door.locked) { const d = Math.hypot(door.x - post.x, door.z - post.z); if (d < bd) { bd = d; c.work = { door, x: door.x + door.nx * 0.9, z: door.z + door.nz * 0.9 }; } }
     }
     const tx = c.work ? c.work.x : post.x, tz = c.work ? c.work.z : post.z, d = Math.hypot(tx - c.x, tz - c.z);
-    if (d > 0.4) { c.handsUp = false; g.ai.move(c, tx - c.x, tz - c.z, 1.1, dt); return; }
+    if (d > (c.work ? 1.5 : 0.4)) { c.handsUp = false; g.ai.move(c, tx - c.x, tz - c.z, 1.1, dt); return; } // within arm's reach of what it works (a frame can hold it a metre off)
     c.speed = 0;
     c.handsUp = !!c.work; // at its window or door: hands on it
     if (!c.work) return;
@@ -292,17 +292,17 @@ export class Zombies {
   seekLight(c, R) {
     const g = this.g, L = R.light;
     if (!L || (g.sky?.night ?? 0) <= 0.55) return false;
-    let bx = 0, bz = 0, bd = L;
-    const P = g.player;
-    const consider = (x, z) => { const d = Math.hypot(x - c.x, z - c.z); if (d < bd && d > 3 && g.los(c.x, c.z, x, z)) { bd = d; bx = x; bz = z; } };
-    if (P.alive && !P.inVehicle && !P.ug && (g.flashMat?.opacity ?? 0) > 0.05 && Math.abs(P.x - c.x) < L && Math.abs(P.z - c.z) < L) consider(P.x + Math.sin(P.face) * 6, P.z + Math.cos(P.face) * 6); // the beam's pool, a little ahead
-    for (const v of g.vehicles) if (v.driver && !v.dead && Math.abs(v.x - c.x) < L && Math.abs(v.z - c.z) < L) consider(v.x, v.z);
-    for (const p of g.gadgets?.list ?? []) if (p.lit > 0 && Math.abs(p.x - c.x) < L && Math.abs(p.z - c.z) < L) consider(p.x, p.z);
-    for (const f of g.throwables?.fires ?? []) if (Math.abs(f.x - c.x) < L && Math.abs(f.z - c.z) < L) consider(f.x, f.z);
-    if (bd >= L) return false;
-    this.remember(c, bx, bz, 'light'); this.counts.lights++;
+    const P = g.player, Q = this._lq ?? (this._lq = { x: 0, z: 0, d: 0 });
+    Q.d = L;
+    if (P.alive && !P.inVehicle && !P.ug && (g.flashMat?.opacity ?? 0) > 0.05 && Math.abs(P.x - c.x) < L && Math.abs(P.z - c.z) < L) this.lightAt(c, P.x + Math.sin(P.face) * 6, P.z + Math.cos(P.face) * 6); // the beam's pool, a little ahead
+    for (const v of g.vehicles) if (v.driver && !v.dead && Math.abs(v.x - c.x) < L && Math.abs(v.z - c.z) < L) this.lightAt(c, v.x, v.z);
+    for (const p of g.gadgets?.list ?? []) if (p.lit > 0 && Math.abs(p.x - c.x) < L && Math.abs(p.z - c.z) < L) this.lightAt(c, p.x, p.z);
+    for (const f of g.throwables?.fires ?? []) if (Math.abs(f.x - c.x) < L && Math.abs(f.z - c.z) < L) this.lightAt(c, f.x, f.z);
+    if (Q.d >= L) return false;
+    this.remember(c, Q.x, Q.z, 'light'); this.counts.lights++;
     return true;
   }
+  lightAt(c, x, z) { const Q = this._lq, d = Math.hypot(x - c.x, z - c.z); if (d < Q.d && d > 3 && this.g.los(c.x, c.z, x, z)) { Q.d = d; Q.x = x; Q.z = z; } }
   // The nearest fire it keeps from (patches, burning cars), refreshed on the sense tick: c.zfire = {x,z,r} or null.
   nearFire(c, R) {
     const g = this.g, pad = R.fire ?? 0;

@@ -3,6 +3,8 @@
 **Status:** v1 BUILT (2026-10-22): `web/src/systems/zombies.js`, rows in `web/src/data/infected.js`. The canon is
 `docs/design/THE_INFECTED.md` (the Godot game's taxonomy, rulings 0.1-0.20, the counterplay matrix §3.4); this doc is
 how much of it the web engine carries and how. Never "zombies" on screen.
+**Wave 2 (2026-10-28): `docs/design/WEB_ZOMBIES.md`** - the three breeds as rows (D1), senses with memory (law 6), horde
+drift to noise, door thumping, crawlers, lunges, falls, fire fear and light. This doc's §3 rules still hold; that one adds to them.
 **The kinds that kept something** (the Greyborn, the Grapevine), their traps and the hot ground's creatures:
 `docs/design/WEB_GREYBORN_GRAPEVINE.md` (2026-10-23).
 
