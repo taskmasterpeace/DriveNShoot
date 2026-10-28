@@ -493,9 +493,11 @@ export async function crewChecks(api, check, C) {
   }));
 
   await check('tactics cover: a pinned raider picks a cover point the player cannot see crouched, behind the crate stack', () => stage(async (at) => {
-    const pieces = [(await C('build', { kind: 'sandbags', x: at.x + 6, z: at.z - 16, axis: 'x', len: 3 })).id];
+    // The sandbags mid-band for a pistol (7-18 m): cover there costs the band nothing, so a Dustwolf takes it (at the band's
+    // edge their low cover preference made it a coin toss: doctrine, not a bug).
+    const pieces = [(await C('build', { kind: 'sandbags', x: at.x + 4, z: at.z - 12, axis: 'x', len: 3 })).id];
     await C('teleport', at); g.player.face = Math.PI;
-    const r = raider(at.x + 4, at.z - 20, 'pistol');
+    const r = raider(at.x + 4, at.z - 17, 'pistol');
     await steps(6);
     const U = r.tac, covered = U && U.cover > 0 && !g.statics.lineOfSight(g.player.x, g.player.z, U.gx, U.gz, 1, 0.6);
     for (const id of pieces) g.materials.unbuild(id);
