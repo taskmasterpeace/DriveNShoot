@@ -23,7 +23,7 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
 // killFeed, dmgNumbers.
 const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
-  autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true };
+  autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw' };
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
 const FOOT_MPS = 4.2;   // the ORDERS tag's on-foot ETA: a walk with some running
 const AGENT_TAB = (() => { try { return new URLSearchParams(location.search).has('agent'); } catch { return false; } })();
@@ -84,6 +84,7 @@ export class QOL {
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
+        <label>People <select data-s="bodies"><option value="lsw">LSW bodies (the nearest 24)</option><option value="classic">Classic rig</option></select></label>
         <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
         <label>Steering <select data-s="steer"><option value="screen">Left is screen-left (whichever way the car points)</option><option value="car">Left is the car's left (classic top-down)</option></select></label>
         <label><input type="checkbox" data-s="autoReload"> Auto-reload when empty</label>
@@ -233,6 +234,7 @@ export class QOL {
   apply() {
     const g = this.g, s = this.settings;
     g.sky.sun.castShadow = !!s.shadows;
+    g.charR.lsw?.setMode(s.bodies); // LSW-BODIES (systems/lswbodies.js)
     g.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * s.renderScale);
     g.renderer.setSize(innerWidth, innerHeight);
     if (g.audio.master) g.audio.master.gain.value = s.volume;

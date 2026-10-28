@@ -1174,6 +1174,7 @@ class Game {
     const S = inside?.storey ?? null;
     this.storeys.setView(S, p.gy ?? 0);
     this.charR.cullAbove = S ? { b: inside, y: (p.gy ?? 0) + LEVEL.same } : null;
+    this.charR.lsw.focus = p; // LSW-BODIES: the people nearest you wear the LSW bodies (systems/lswbodies.js)
     if (inside !== this.insideBuilding) {
       if (this.insideBuilding) this.world.setRoofVisible(this.insideBuilding, true);
       if (inside) {
