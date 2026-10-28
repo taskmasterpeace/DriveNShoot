@@ -26,13 +26,14 @@ What exists now:
 | Piece | What it does |
 |---|---|
 | 26 city archetypes | Sonoran sprawl, adobe pueblo on a mesa, plains grain town, rust-belt mill town, Appalachian hollow, gulf stilt town, swamp ferry town, New England green, Pacific timber port, alpine mining stack, interstate exit cluster, courthouse-square county seat, company town, college town, military base town, dead suburb, port wharf, refinery town, oasis ring, frozen outpost, badlands crossroads, salt works, delta river town, hot-zone ruin, walled stronghold, casino strip — covering all 19 biomes; 8 walled, 18 open |
-| 35 building kinds | houses, rowhouses, adobe blocks, stilt houses, cabins, trailers, shops, saloons, diners, gas stations, **auto shops / garages / parking structures / warehouses / quonsets / barns / fire stations / truck stops with roll-up bays you drive into (and through)**, motels, churches, schools, clinics, hospitals, courthouses, apartment blocks, offices, hotels (to 6 storeys), grain elevators, mills, barracks, HQ, guardhouses, farmhouses, ranch houses |
+| 37 building kinds | houses, rowhouses, adobe blocks, stilt houses, cabins, trailers, shops, saloons, diners, gas stations, **auto shops / garages / parking structures / warehouses / quonsets / barns / fire stations / truck stops with roll-up bays you drive into (and through)**, motels, churches, schools, clinics, hospitals, courthouses, apartment blocks, offices, hotels (to 6 storeys), grain elevators, mills, barracks, HQ, guardhouses, farmhouses, ranch houses, **police stations** (patrol bays for the security lane's cars), **cloning centers** (fortified 4–6 storey medical towers, once per major city) |
 | Storeys to 6, anywhere | every storeyed building is a world/storeys.js record: switchback stairs to every floor and to the ROOF (bulkhead), parapets to shoot over, fire escapes (outside stairs with a door into every floor), plank bridges between roofs, ruins cut off at a lower floor and open to the sky (half walls), per-floor loot, cover points |
 | Roads by biome | 8 road rows with grip (dirt track 0.72, gravel 0.80, switchback 0.84, boardwalk 0.86, brick 0.90, causeway 0.92, blacktop/divided 1.0); a car's grip follows the row under it |
 | The country's plan | at boot, along every streamed corridor: towns of the biome's archetypes, real SITE rows, homesteads you can live in outside a city (farmsteads, ranches, roadside motels, cabins, trailer parks, truck stops, stilt camps), military bases only at real base anchors and ≥ 40 km apart; built only within 760 m of you |
 | Military bases | fence + gates + towers, a runway with hangars, a housing grid, the HQ, and under it **a VAULT of 6–8 levels** (entry, security, barracks, labs, storage + power, the sealed ring-platform room) on the underground lane's levels |
-| Overrun | every settlement has an infestation; migrating hordes are records that walk at dusk and stand up to 40 bodies in the street near you; a siege is defense vs strength; past 0.75 the town FALLS (gates open, residents run or turn, loot picked over, map marked); clear it and it is RETAKEN |
-| Seed SITE rows | 12 real Arizona and Florida places (Tombstone, Bisbee, Jerome, Ajo, the Titan silo, Winslow, St. Augustine's star fort, Key West, Cedar Key, Ybor City, Cape Canaveral, Fort Jefferson), our names, real layout notes; the stamper is generic for the hundreds the lead adds |
+| Doors, windows, bays | street-storey doors and windows join `systems/interiors.js` near you (leaves you kick, pick or pry; back doors locked in a holding town; glass you smash, climb through, board up); roll-up bays roll down (a wall), up (drive through), lock and pick open |
+| Overrun | every settlement has an infestation read as a LEVEL 0–5 (CLEAR → DEAD ZONE, falls at 4) and a noise HEAT that pulls hordes; it spreads to neighbours from level 3, recovers when quiet; SIEGE NIGHTS every 7±1 days by the study's formula in 3 waves (`docs/research/GENRE_DEPTH.md` §4); migrating hordes are records that walk at dusk and stand up to 40 bodies in the street near you; a siege is defense vs strength; past 0.75 the town FALLS (gates open, residents run or turn, loot picked over, map marked); clear it and it is RETAKEN |
+| SITE rows | the location bible's 263 rows (`data/sites/*.js`, merged from `feat/web-sites`) at their real anchors (`tools/sites-project.mjs` bakes the atlas projection into `data/sites/xz.js`), plus 12 hand-written seed rows: real Arizona and Florida places (Tombstone, Bisbee, Jerome, Ajo, the Titan silo, Winslow, St. Augustine's star fort, Key West, Cedar Key, Ybor City, Cape Canaveral, Fort Jefferson), our names, real layout notes; the stamper is generic for the hundreds the lead adds |
 
 ## 2. Player Fantasy
 
@@ -98,6 +99,15 @@ road toward the county seat — you can help hold it, or come back next week and
 - **Cover**: points with facing and height — wall faces at street level (full), window frames inside (full), ruin half
   walls, parapets, pumps, crates (half), town walls (full), wrecks (half).
 
+### 3.3b Openings (doors, windows, roll-ups)
+A live building within 110 m of you (the ring's RING_OPENINGS.near) takes its street-storey doors and windows from the
+interiors pool through `Interiors.attachRing` and gives them back past 150 m or when released: doors are real leaves
+(kick, pick with lockpicks, pry with a bar; 35 % of back doors in a holding town start locked), windows are glass
+(smash, climb through, board up from inside; the WINDOW_MIX of a ruin when the building is ruined). Upper storeys keep
+open window holes (interiors ops have no floor height: a later pass). Each roll-up bay is a box that floats out of the
+way while it is up (base 99: people, cars, sight and rounds pass) and drops to the floor when it is down; E rolls it,
+a locked one is picked (hold E, 2.6 s, one pick). `citygen.setBay(t, bay, open, locked)` for scripts.
+
 ### 3.4 Living outside a city
 Homesteads along every corridor at 1.1–2.1 km steps, a RURAL row whose biome matches, 110–220 m off the road with a
 gravel drive pointing back at it. Every main building is `claimable`: `citygen action=claim` (or `CityGen.claim(R)`)
@@ -112,20 +122,36 @@ power, 6 the RING PLATFORM behind a blast door, 7 deep stores, 8 a second platfo
 and proved by the underground lane's generator. A SITE row of kind `military` (the Titan silo, Cape Canaveral) brings
 its own vault (`underground.levels`).
 
+### 3.5b Major cities and the law
+`MAJOR_CITIES` (Los Angeles, Miami, Houston, New York, Chicago): a metro district of a major archetype (sonoran sprawl,
+port wharf, rust-belt mill; `ARCHETYPES.*.major`) stands 2.5–5 km from the real usmap town when it is in the streamed
+world. Every major archetype puts exactly one CLONING CENTER on its central core lot (4–6 storeys, a blast wall with one
+gate at the lobby door). `citygen.cloneCenters()` → `[{ city, id, x, z, door, storeys, building, inWorld, live }]`
+(computed from the plan, built or not; a city outside the streamed world is listed at its real town with door null) —
+the lead's life-insurance / respawn picker reads it (systems/clone.js is not touched here). Every town of 30+ buildings
+has a POLICE STATION (two roll-up patrol bays when its lot has room; three in four do): `citygen.securityStations()`.
+
 ### 3.6 Overrun (`systems/overrun.js`)
-- Infestation 0..1 on every plan record; quiet settlements heal (`decay`/s).
+- Infestation 0..1 on every plan record, read as a LEVEL `floor(inf·5)`: 0 CLEAR, 1 STIRRING, 2 INFESTED, 3 SWARMED,
+  4 OVERRUN (the fall), 5 DEAD ZONE. Quiet settlements heal (`decay`/s).
+- HEAT (GENRE_DEPTH §4.2 layer A): every noise inside a settlement adds `r/6` (cap 100), ×0.97 every 2 s; a walking horde
+  without an explicit target turns to the hottest settlement within 1.5 km.
+- Daily (layer C; while hordes rise on their own): a settlement at level ≥ 3 gives +1 level to each neighbour within 4 km
+  with probability `0.15·(level−2)` (half for a defended one, defense ≥ 0.6); a quiet one drops a level every 2 days.
+- SIEGE NIGHTS every 7 ± 1 days (warned 2 days ahead: `siegeNightSoon`): `size = 20 + 6·week + 0.4·wealth/100 + 8·crew`
+  × difficulty, split over 3 waves from 2–3 directions, pinned on the settlement you are in or nearest you.
 - A HORDE is a record `{ x, z, strength, target, state }`. It walks at 1.4 m/s at dusk (19:00–06:00; `force` by day)
   toward its target (a noisy settlement's gunfire retargets hordes within 900 m; otherwise the nearest). Within 160 m of
   you it stands up to 40 real infected (never past the 160-character cap less the ambient reserve); the rest stays
   strength; a body killed takes 1 off.
 - Siege (each s, at the edge): kills = defense × 9; infestation += max(0, strength − defense × 300) × 0.0006.
-- FALL at 0.75: gates open, 60 % of residents run, the rest turn where they stand, unsearched boxes switch to the dead's
+- FALL at 0.8 (level 4): gates open, 60 % of residents run, the rest turn where they stand, unsearched boxes switch to the dead's
   table, `settlementOverrun` event, HUD toast, `marks()` says overrun.
 - RETAKE: infected killed inside drain 0.004 each; under 0.2 with none left inside → `retaken`, gates shut.
 - Residents: a holding town has up to 6 townsfolk (wardens when walled) at its doors.
 
 ### 3.7 Lifecycle and cost
-Planned once at boot (74 settlements in the current world: 10 towns, 9 sites, 53 homesteads, 2 bases). Within 760 m:
+Planned once at boot from the corridors, the SITE anchors, the major cities and the bunker anchors (no bunker anchor lies inside today's streamed world: bases appear as regions stream in). Within 760 m:
 built (one per 0.5 s scan, nearest first, at most 3); past 1050 m + its half-size: released. Build ≈ 5–50 ms per town.
 One InstancedMesh (cap 90 000) draws every live settlement: **1 draw call** (+ its shadow pass). The chunk generator keeps
 its wild scatter out of every planned footprint (`W.citygen.solid`); no planned footprint touches a pinned P1 chunk.
@@ -142,7 +168,7 @@ its wild scatter out of every planned footprint (`W.citygen.solid`); no planned 
 
 ### 3.9 Commands
 `citygen` (list | stamp archetype= seed= at= [biome walls size defense] | info | audit | remove | release | claim |
-marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off), `horde size= at= toward= force=` (the old
+marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true, siege=true), `horde size= at= toward= force=` (the old
 `horde` without size= is unchanged), `cover x= z= r= y=`. Scenario `overrun-test`.
 
 ## 4. Formulas
@@ -198,6 +224,11 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off), `horde s
 | `WEB_LOCATION_BIBLE.md` | the SITE / ARCHETYPE schema | it names `world/citygen/` as consumer |
 | `WEB_DEATHLANDS_GAP.md` G4/G7/G8 | the plan this lane answers | — |
 | Camera lane (`main.js updateCamera`, `data/camera.js`) | consumes `floorTags` / `hideAbove` | listed in hand-back |
+| `systems/interiors.js` | `attachRing`/`detachRing`/`setLocked` for generated openings | — |
+| `systems/clone.js` (lead) | consumes `cloneCenters()` | listed in hand-back |
+| Gadgets/security lane | consumes `securityStations()` | listed in hand-back |
+| `data/sites/*.js`, `tools/sites-project.mjs` | SITE rows and their projected anchors | `WEB_LOCATION_BIBLE.md` §9 |
+| `docs/research/GENRE_DEPTH.md` §4 | the overrun levels, heat, spread, siege nights | — |
 | Tactics lane (`systems/tactics.js`) | consumes `coverNear` + box tags | listed in hand-back |
 
 ## 7. Tuning Knobs
@@ -237,12 +268,18 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off), `horde s
 11. **Overrun levers**: ≥ 0.75 falls (event, mark), < 0.2 retaken; a horde record walks to a town and besieges it with no
     bodies when you are far.
 12. **overrun-test resolves**: the open county seat falls to 200 at dusk, the walled stronghold holds.
-13. **Living outside a city**: a homestead builds when you come near, its home is claimable (`deedClaimed`), it is
+13. **20 random SITE rows** of the bible stamp and pass the audit; every row validates; a `respect` row carries no loot.
+14. **Police and cloning centers**: police in every town of size (3/4 with bays), one fortified cloning center per major
+    archetype, `cloneCenters()` lists the five cities.
+15. **Levels, spread, recovery, siege night** sized by the formula in 3 waves.
+16. **Doors, windows, roll-ups**: attached from the interiors pool, some back doors locked, a bay down blocks, up passes,
+    locks.
+17. **Living outside a city**: a homestead builds when you come near, its home is claimable (`deedClaimed`), it is
     released when you leave.
 
 **Omissions (the next pass):** settlements sit on the flat datum when real terrain is on; NPC pathing inside generated
 towns uses steer + collision (no nav grid of their own; `moveTo` for agents works on the street); AI sight between floors
 (snipers on roofs seeing the street) is the tactics/AI lane's; stilt houses are drawn on the ground (no raised deck);
 parking decks are drive-in at the street level only (upper decks on foot); the HUD/map marks are data (`marks()`) for
-the lead's HUD pass; real-coordinate placement of SITE rows waits for the atlas projection of the research rows (today
-sites take town slots along their region's corridors).
+the lead's HUD pass; real-coordinate placement of SITE rows waits for the atlas projection of the research rows (done: `data/sites/xz.js`). Nests and hives (§4.2), the car body build-up rule and the full 17-source heat table are
+not built yet.

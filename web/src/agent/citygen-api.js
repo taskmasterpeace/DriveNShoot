@@ -245,7 +245,7 @@ export async function citygenChecks({ api, g, check, C }) {
 
   // ---- live: a town stamped in the streamed world ----
   const T0 = await stampTown();
-  await check('citygen: a stamped city stands in the streamed world - its buildings are solid (a walker meets their walls), its storeyed buildings are the storeys law\'s (heightAt lifts you on a flight, a floor holds you upstairs), its loot sits floor by floor, its cover points exist', async () => {
+  await check('citygen: a stamped city stands in the streamed world - its buildings are solid (a person meets their walls), its storeyed buildings are the storeys law\'s (heightAt lifts you on a flight, a floor holds you upstairs), its loot sits floor by floor, its cover points exist', async () => {
     if (!T0) return 'no free ground for a stamp';
     const t = T0, R = t.blds.find((q) => q.S && q.S.n >= 3);
     if (!R) return JSON.stringify(CGs.liveView(t));
@@ -270,7 +270,7 @@ export async function citygenChecks({ api, g, check, C }) {
     return perf.drawCalls < 150 && CGs.mesh.count > 1000 ? true : JSON.stringify({ drawCalls: perf.drawCalls, instances: CGs.mesh.count });
   });
 
-  await check('citygen: climb a generated building to its roof on held keys (the storeys law\'s steer finds every flight, as a zombie would) and stand behind the parapet', async () => {
+  await check('citygen: climb a generated building to its roof on held keys (the storeys law\'s steer finds every flight, as the infected would) and stand behind the parapet', async () => {
     if (!T0) return 'no town';
     const R = T0.blds.filter((q) => q.S && q.S.n === q.B.n && q.S.n >= 2 && !q.B.ruined).sort((a, b) => a.S.n - b.S.n)[0];
     if (!R) return 'no roof';
