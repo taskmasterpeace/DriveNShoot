@@ -12,6 +12,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `start` | `(none)` | Dismiss the title screen and unpause (needed once after page load unless ?agent=1). |
 | `pause` | `on?:boolean` | Pause or resume the realtime loop. |
 | `step` | `seconds?:number dt?:number` | Advance the simulation deterministically by N seconds at a fixed 60Hz step (runs even if tab hidden). Returns state + new events. |
+| `qol` | `set?:string value?:string hud?:boolean` | The quality-of-life layer: settings, THIS RUN totals, the RECENT log, save times. set=<setting> value=<v> changes one setting for this session (hudScale, nameTags aim\|near\|off, killFeed, dmgNumbers, autosaveMin, pauseOnBlur, muteOnBlur, ...); hud=true\|false hides/shows the HUD (F1). |
 
 ## observe
 
