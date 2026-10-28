@@ -1,17 +1,17 @@
-// ROADSIDE (docs/design/WEB_ROADSIDE.md; rows in data/roadside.js): what stands beside the open road, placed by the
+// THE ROADSCAPE (docs/design/WEB_ROADSCAPE.md; rows in data/roadscape.js): what stands beside the open road, placed by the
 // research's slot cadence (docs/reference/lsw/road-kit-roadside.js) on both sides of every corridor and county road.
 //
 //   placeRoadside(...)   PURE: road runs (centreline arc length -> point and tangent, paved half-width, skip spans) +
 //                        a road-biome lookup + a distance-to-town lookup -> instance placements. No THREE, no W, no
 //                        stream: every roll is a hash of (seed, road, side, slot, what), so a slot's scenes and every prop
 //                        in it are the same whichever chunk asks, in any order (a chunk keeps the props that stand in it).
-//   roadsideStage(...)   the chunk generator's hook (world/chunkgen.js): builds this chunk's road runs from the world,
+//   roadscapeStage(...)  the chunk generator's hook (world/chunkgen.js): builds this chunk's road runs from the world,
 //                        drops what lands in a road, a clear zone, water or a settlement, and writes the rest into the
 //                        chunk's instance pools and collision. Layout time only: nothing here runs per frame.
 //
 // LOCALITY: a slot is 64 m of road on one side, a block 8 slots (scenes are chosen greedily inside it), a super-block 3
 // blocks (the "nothing for a while" roll and the service stop). The same seed gives the same roadside byte for byte.
-import { CADENCE, ROAD_CLASSES, ROAD_BIOMES, BIOME_MAP, SCENES, LOOK, DEFAULT_KNOBS, CLASS_OF, MAX_REACH } from '../data/roadside.js';
+import { CADENCE, ROAD_CLASSES, ROAD_BIOMES, BIOME_MAP, SCENES, LOOK, DEFAULT_KNOBS, CLASS_OF, MAX_REACH } from '../data/roadscape.js';
 
 // ---- rolls: an integer hash to [0, 1) (no strings, no allocation) -------------------------------------------------------
 const mix = (h, v) => { h = Math.imul(h ^ (v | 0), 0x5bd1e995); return h ^ (h >>> 15); };
@@ -181,7 +181,7 @@ function emitScene(ctx, R, def, sc, side, props, own) {
             const s = sA + (i + 0.5) * sp + (r(i, j * 8 + 1) - 0.5) * sp * 0.9;
             if (roll(seed, R.salt, side, Math.floor(s / 16), R_PROP * 4096 + 77) < 0.07 && j > 0) continue; // a clearing
             if (r(i, j * 8 + 2) > keepP) continue;
-            const past = set + j * sp * 0.9 + r(i, j * 8 + 3) * sp * (j ? 0.7 : 0.55) + (j ? 0 : r(i, j * 8 + 4) * 2.2);
+            const past = set + j * sp * 0.9 + r(i, j * 8 + 3) * sp * (j ? 0.7 : 0.3) + (j ? 0 : r(i, j * 8 + 4) * 1.2);
             place(s, past);
             treeOf(W.x, W.z, r(i, j * 8 + 5), r(i, j * 8 + 6), r(i, j * 8 + 7) * TAU, 0.82 + 0.22 * r(i, j * 8 + 5), past);
             if (j === 0 && r(i, 99) < p.understory) {
@@ -482,8 +482,8 @@ export function ribbonRun(W, rb) {
     },
   };
 }
-// Debug (the roadside command's audits): keep each chunk's placed props (kind, x, z, radius) on its layout.
-export const RS_DEBUG = { keep: false };
+// Debug (the roadscape command's audits): keep each chunk's placed props (kind, x, z, radius) on its layout.
+export const RSC_DEBUG = { keep: false };
 // This chunk's road runs: every corridor whose roadside can reach it, and every county ribbon nearby.
 export function chunkRoads(W, cx, cz, C, featuresOf) {
   const ox = cx * C, oz = cz * C, mx = ox + C / 2, mz = oz + C / 2, R0 = C * 0.7072 + MAX_REACH, roads = [];
@@ -509,8 +509,8 @@ export function chunkRoads(W, cx, cz, C, featuresOf) {
 }
 
 // The stage: place, keep out, write. ctx = { W, cx, cz, C, INST, addBox, addOriented, blocked, wet, plant, specH, pause,
-// resume, featuresOf, out }. Returns its stats (the chunk's out.roadside).
-export function* roadsideStage(ctx) {
+// resume, featuresOf, out }. Returns its stats (the chunk's out.roadscape).
+export function* roadscapeStage(ctx) {
   const { W, cx, cz, C, INST, addBox, addOriented, blocked, wet, plant, specH } = ctx;
   const roads = chunkRoads(W, cx, cz, C, ctx.featuresOf);
   const st = { roads: roads.map((r) => `${r.id}:${r.cls}`), scenes: {}, placed: 0, dropped: { blocked: 0, wet: 0, pool: 0 }, kinds: {} };
@@ -532,7 +532,7 @@ export function* roadsideStage(ctx) {
       else addBox(p.x - p.box.r, p.z - p.box.r, p.x + p.box.r, p.z + p.box.r, p.tag, p.h);
     }
     st.placed++; st.kinds[p.kind] = (st.kinds[p.kind] ?? 0) + 1;
-    if (RS_DEBUG.keep) (st.kept ??= []).push({ kind: p.kind, scene: p.scene, x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: p.kind === 'wire' ? 0 : Math.min(rr, 2), lat: +p.lat.toFixed(2), edge: +p.edge.toFixed(2) });
+    if (RSC_DEBUG.keep) (st.kept ??= []).push({ kind: p.kind, scene: p.scene, x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: p.kind === 'wire' ? 0 : Math.min(rr, 2), lat: +p.lat.toFixed(2), edge: +p.edge.toFixed(2) });
     if ((++k & 255) === 255) { ctx.pause(); yield; ctx.resume(); }
   }
   return st;

@@ -1,8 +1,8 @@
-// ROADSIDE for agents (docs/design/WEB_ROADSIDE.md; rows data/roadside.js, placer world/roadside.js): the `roadside`
+// THE ROADSCAPE for agents (docs/design/WEB_ROADSCAPE.md; rows data/roadscape.js, placer world/roadscape.js): the `roadscape`
 // command (what stands beside the road here and why, a stretch's statistics, the keep-out audit, the rows) and the
 // selftest's named checks for the lane (each returns true or a JSON diagnostic).
-import { validateRoadside, ROAD_CLASSES, ROAD_BIOMES, SCENES, CADENCE, CLASS_OF } from '../data/roadside.js';
-import { placeRoadside, superInfo, resolveBlock, corridorRun, ribbonRun, chunkRoads, roadBiomeAtOf, cityDistOf, nothingChance, saltOf, clearEdge, RS_DEBUG } from '../world/roadside.js';
+import { validateRoadside, ROAD_CLASSES, ROAD_BIOMES, SCENES, CADENCE, CLASS_OF } from '../data/roadscape.js';
+import { placeRoadside, superInfo, resolveBlock, corridorRun, ribbonRun, chunkRoads, roadBiomeAtOf, cityDistOf, nothingChance, saltOf, clearEdge, RSC_DEBUG } from '../world/roadscape.js';
 import { FLORA_KINDS } from '../world/flora.js';
 import { regionWater } from '../world/regions.js';
 import { STREAM } from '../data/streaming.js';
@@ -34,13 +34,13 @@ export function keepOutWhy(W, x, z, r = 0) {
   return null;
 }
 
-export function roadsideCommands(api, need) {
+export function roadscapeCommands(api, need) {
   const g = api.g, P = () => g.player, S = () => g.streamer, Wd = () => g.streamer.W;
   const corById = (id) => { const W = Wd(); return (W.corridors ?? [W.i10]).find((c) => (c.id ?? 'I-10').toLowerCase() === String(id).toLowerCase()); };
   return {
-    roadside: {
+    roadscape: {
       group: 'world', budget: 120,
-      desc: 'THE ROADSIDE (docs/design/WEB_ROADSIDE.md; rows data/roadside.js, placer world/roadside.js): what stands beside the open road by road class (interstate, divided, two-lane, rural, dirt: clear zone, ditch, nothing and service chances) and road biome (Florida flatwoods, swamp, forest hills, farm belt, plains, scrub, desert, mountains, snowy north, dead sprawl). action=at (default): at x,z (or you) the nearest road, its class and clear-zone edge, the road biome, metres to the nearest town, this super-block\'s nothing roll and the scenes of the slots here on both sides, and what the chunk placed. stats road=<I-10|I-95|I-75> from= to= (metres along it; default all; scene=<id> lists where that scene stands): the scenes along that stretch, the nothing fraction against the expected NOTHING chance per biome, prop counts by kind (pure placer, no layout). audit r=<chunks round you, default 1>: every roadside prop the resident chunks placed, checked against the world (a road or its clear zone, water, a settlement or the ring, a building) - bad ones listed. rows: the validator\'s report and the row counts.',
+      desc: 'THE ROADSCAPE (docs/design/WEB_ROADSCAPE.md; rows data/roadscape.js, placer world/roadscape.js; the authored sites - stations, junkyards, farms, the dam - are the `roadside` command): what stands beside the open road by road class (interstate, divided, two-lane, rural, dirt: clear zone, ditch, nothing and service chances) and road biome (Florida flatwoods, swamp, forest hills, farm belt, plains, scrub, desert, mountains, snowy north, dead sprawl). action=at (default): at x,z (or you) the nearest road, its class and clear-zone edge, the road biome, metres to the nearest town, this super-block\'s nothing roll and the scenes of the slots here on both sides, and what the chunk placed. stats road=<I-10|I-95|I-75> from= to= (metres along it; default all; scene=<id> lists where that scene stands): the scenes along that stretch, the nothing fraction against the expected NOTHING chance per biome, prop counts by kind (pure placer, no layout). audit r=<chunks round you, default 1>: every roadside prop the resident chunks placed, checked against the world (a road or its clear zone, water, a settlement or the ring, a building) - bad ones listed. rows: the validator\'s report and the row counts.',
       args: { action: { type: 'string', default: 'at', enum: ['at', 'stats', 'audit', 'rows'] }, x: { type: 'number' }, z: { type: 'number' }, road: { type: 'string', default: 'I-10' }, from: { type: 'number' }, to: { type: 'number' }, r: { type: 'number', default: 1 }, seed: { type: 'number' }, scene: { type: 'string' } },
       run: async ({ action = 'at', x, z, road = 'I-10', from, to, r = 1, seed, scene }) => {
         const W = Wd(), px = x ?? P().x, pz = z ?? P().z, C = STREAM.C;
@@ -64,7 +64,7 @@ export function roadsideCommands(api, need) {
           return { road: run.id, cls: run.cls, from: Math.round(sA), to: Math.round(sB), km: r1((sB - sA) / 1000), nothingByBiome: byBiome, scenes, props: res.props.length, kinds, hash: placementHash(res.props), where };
         }
         if (action === 'audit') {
-          RS_DEBUG.keep = true;
+          RSC_DEBUG.keep = true;
           const cx0 = Math.floor(px / C), cz0 = Math.floor(pz / C), bad = [], kinds = {};
           let n = 0, chunks = 0;
           try {
@@ -74,9 +74,9 @@ export function roadsideCommands(api, need) {
               const tiles = { foot: { a: new Uint8Array(65536), any: false }, car: { a: new Uint8Array(16384), any: false } };
               const gen = layoutChunk(W, cx, cz, tiles, null, sc); let q; do q = gen.next(); while (!q.done);
               chunks++;
-              for (const p of q.value.roadside?.kept ?? []) { n++; kinds[p.kind] = (kinds[p.kind] ?? 0) + 1; const why = keepOutWhy(W, p.x, p.z, p.r); if (why) bad.push({ ...p, why }); }
+              for (const p of q.value.roadscape?.kept ?? []) { n++; kinds[p.kind] = (kinds[p.kind] ?? 0) + 1; const why = keepOutWhy(W, p.x, p.z, p.r); if (why) bad.push({ ...p, why }); }
             }
-          } finally { RS_DEBUG.keep = false; }
+          } finally { RSC_DEBUG.keep = false; }
           return { at: { x: r1(px), z: r1(pz) }, chunks, props: n, kinds, bad: bad.slice(0, 20), badCount: bad.length };
         }
         // at
@@ -94,25 +94,25 @@ export function roadsideCommands(api, need) {
             skipped: run.skip(best.s), slot: A, superBlock: { id: sup, biome: I.biome, nothing: I.nothing, chance: +I.chance.toFixed(3) }, scenes: sides };
         }
         const L = S().layouts.get(`${Math.floor(px / C)},${Math.floor(pz / C)}`);
-        return { at: { x: r1(px), z: r1(pz) }, biome: biomeAt(px, pz), townM: Math.round(cityDistAt(px, pz)), nearest: here, chunkRoads: roads.map((q) => `${q.id} (${q.cls})`), chunk: L ? { key: L.key, hash: L.hash, roadside: L.roadside ? { placed: L.roadside.placed, scenes: L.roadside.scenes, kinds: L.roadside.kinds, dropped: L.roadside.dropped } : null } : null };
+        return { at: { x: r1(px), z: r1(pz) }, biome: biomeAt(px, pz), townM: Math.round(cityDistAt(px, pz)), nearest: here, chunkRoads: roads.map((q) => `${q.id} (${q.cls})`), chunk: L ? { key: L.key, hash: L.hash, roadscape: L.roadscape ? { placed: L.roadscape.placed, scenes: L.roadscape.scenes, kinds: L.roadscape.kinds, dropped: L.roadscape.dropped } : null } : null };
       },
     },
   };
 }
 
-// ---- the named checks (WEB_ROADSIDE.md §8) --------------------------------------------------------------------------------
-export async function roadsideChecks({ api, g, check, C }) {
+// ---- the named checks (WEB_ROADSCAPE.md §8) --------------------------------------------------------------------------------
+export async function roadscapeChecks({ api, g, check, C }) {
   const W = g.streamer.W, seed = W.seed;
   const synth = (bio, cls, half, city = 1e9, sd = seed, L = 12000) => placeRoadside({ seed: sd, roads: [straightRun(`synthetic ${bio} ${cls}`, cls, half, L)], ox: 0, oz: 0, C: 0, all: true, biomeAt: () => bio, cityDistAt: () => city });
   const I10 = W.i10, run10 = (sA, sB) => corridorRun(W, I10, sA, sB);
 
-  await check('roadside: the rows validate (classes, road biomes, scenes, setbacks within reach, real flora species, no purple) and every DSOA biome letter maps to a road biome', async () => {
+  await check('roadscape: the rows validate (classes, road biomes, scenes, setbacks within reach, real flora species, no purple) and every DSOA biome letter maps to a road biome', async () => {
     const v = validateRoadside(undefined, FLORA_KINDS);
     const letters = ['d', 'f', 'u', 'm', 'p', 'a', 'w', 'F', 's', '.'], unmapped = letters.filter((L) => !ROAD_BIOMES[roadBiomeAtOf({ biomeAt: () => L, regionOf: () => null, stateAt: () => null })(0, 0)]);
     return v.ok && !unmapped.length && v.counts.scenes >= 14 && v.counts.biomes >= 9 ? true : JSON.stringify({ errors: v.errors.slice(0, 6), unmapped });
   });
 
-  await check('roadside: a forest two-lane has a tree wall near its clear zone (Appalachian hills and Florida flatwoods: most slots walled on both sides, the front rank within 2.5 m of the clear zone\'s edge, nothing inside it)', async () => {
+  await check('roadscape: a forest two-lane has a tree wall near its clear zone (Appalachian hills and Florida flatwoods: most slots walled on both sides, the front rank within 2.5 m of the clear zone\'s edge, nothing inside it)', async () => {
     const out = {};
     for (const bio of ['forest-hills', 'pine-flat']) {
       const res = synth(bio, 'two-lane', 4.6), trees = res.props.filter((p) => p.kind === 'tree'), walls = res.scenes.filter((s) => s.scene === 'tree-wall');
@@ -127,7 +127,7 @@ export async function roadsideChecks({ api, g, check, C }) {
     return ok ? true : JSON.stringify(out);
   });
 
-  await check('roadside: an interstate near a town has sound walls (I-10 just outside the Phoenix ring), far from every town none (the open desert, and the pure placer at 30 km)', async () => {
+  await check('roadscape: an interstate near a town has sound walls (I-10 just outside the Phoenix ring), far from every town none (the open desert, and the pure placer at 30 km)', async () => {
     const cd = cityDistOf(W), near = [], far = [];
     // walk I-10 east and west of Phoenix: stretches whose centreline is 100-900 m from a town's edge, and 3 km+
     const res = placeRoadside({ seed, roads: [run10(0, I10.L)], ox: 0, oz: 0, C: 0, all: true, biomeAt: roadBiomeAtOf(W), cityDistAt: cd });
@@ -136,7 +136,7 @@ export async function roadsideChecks({ api, g, check, C }) {
     return near.length >= 20 && far.length === 0 && synthFar === 0 && synthNear > 100 ? true : JSON.stringify({ near: near.length, far: far.length, farMin: far.length ? Math.round(Math.min(...far)) : null, synthNear, synthFar });
   });
 
-  await check('roadside: a desert interstate has its nothing-stretches at about NOTHING_CHANCE (I-10\'s desert super-blocks empty at 0.50 x 1.15, within the sampling error; an empty super-block carries no scene but a service stop)', async () => {
+  await check('roadscape: a desert interstate has its nothing-stretches at about NOTHING_CHANCE (I-10\'s desert super-blocks empty at 0.50 x 1.15, within the sampling error; an empty super-block carries no scene but a service stop)', async () => {
     const ctx = { seed, biomeAt: roadBiomeAtOf(W), cityDistAt: cityDistOf(W), knobs: { nothing: 1 }, P: { x: 0, z: 0, tx: 0, tz: 1 } };
     const n = CADENCE.slot * CADENCE.blockSlots * CADENCE.superBlocks, want = nothingChance('desert', 'interstate');
     let sup = 0, empty = 0, leak = 0;
@@ -155,14 +155,14 @@ export async function roadsideChecks({ api, g, check, C }) {
     return sup > 150 && Math.abs(f - want) < err && leak === 0 ? true : JSON.stringify({ supers: sup, empty, fraction: +f.toFixed(3), want: +want.toFixed(3), tolerance: +err.toFixed(3), leak });
   });
 
-  await check('roadside: farmland has field fences (posts and rails at the field edge, a crop in rows behind them) on its two-lanes and its interstates, and the plains keep a windmill and stock tank', async () => {
+  await check('roadscape: farmland has field fences (posts and rails at the field edge, a crop in rows behind them) on its two-lanes and its interstates, and the plains keep a windmill and stock tank', async () => {
     const tl = synth('farmland', 'two-lane', 4.6), it = synth('farmland', 'interstate', 12.2), pl = synth('grassland', 'two-lane', 4.6);
     const c = (res, k) => res.props.filter((p) => p.kind === k).length;
     const o = { tlPosts: c(tl, 'fencepost'), tlRails: c(tl, 'fencerail'), tlCrop: c(tl, 'crop'), itPosts: c(it, 'fencepost'), windmills: c(pl, 'windmilldeck'), tanks: c(pl, 'stocktank') };
     return o.tlPosts > 100 && o.tlRails > 100 && o.tlCrop > 200 && o.itPosts > 30 && o.windmills > 0 && o.tanks > 0 ? true : JSON.stringify(o);
   });
 
-  await check('roadside: the same seed gives the same placements (twice over I-10 and a synthetic forest road, any chunk order: a chunk built sliced matches its resident hash), another seed a different roadside', async () => {
+  await check('roadscape: the same seed gives the same placements (twice over I-10 and a synthetic forest road, any chunk order: a chunk built sliced matches its resident hash), another seed a different roadside', async () => {
     const a = placeRoadside({ seed, roads: [run10(0, I10.L)], ox: 0, oz: 0, C: 0, all: true, biomeAt: roadBiomeAtOf(W), cityDistAt: cityDistOf(W) });
     const b = placeRoadside({ seed, roads: [run10(0, I10.L)], ox: 0, oz: 0, C: 0, all: true, biomeAt: roadBiomeAtOf(W), cityDistAt: cityDistOf(W) });
     const f1 = synth('forest-hills', 'two-lane', 4.6), f2 = synth('forest-hills', 'two-lane', 4.6), f3 = synth('forest-hills', 'two-lane', 4.6, 1e9, seed + 1);
@@ -181,7 +181,7 @@ export async function roadsideChecks({ api, g, check, C }) {
     return ok ? true : JSON.stringify({ a: placementHash(a.props), b: placementHash(b.props), n: a.props.length, f: [placementHash(f1.props), placementHash(f2.props), placementHash(f3.props)], order: p1 === p2, part: p1.length, fresh: ch.fresh });
   });
 
-  await check('roadside: nothing stands in a road, a clear zone, water or a settlement (every prop the chunks placed, audited against the world: I-10 by the Phoenix ring, the open desert, I-95 by Meridian and its canal, Alligator Alley)', async () => {
+  await check('roadscape: nothing stands in a road, a clear zone, water or a settlement (every prop the chunks placed, audited against the world: I-10 by the Phoenix ring, the open desert, I-95 by Meridian and its canal, Alligator Alley)', async () => {
     const spots = [I10.at(Math.min(I10.L - 400, (W.ring ? 0 : 0) + I10.L * 0.62)), I10.at(I10.L * 0.85)];
     const I95 = W.corridors.find((c) => c.id === 'I-95'), I75 = W.corridors.find((c) => c.id === 'I-75'), M = W.holdouts?.[0];
     if (I95) { const X9 = I95.exits.find((X) => X.number === 9); spots.push(I95.at((X9?.s ?? 15000) + 1400)); spots.push(I95.at(I95.L * 0.5)); }
@@ -191,14 +191,14 @@ export async function roadsideChecks({ api, g, check, C }) {
     let props = 0, bad = 0;
     for (const p of spots) {
       await C('teleport', { x: p.x + 40, z: p.z + 40 });
-      const a = await C('roadside', { action: 'audit', x: p.x, z: p.z, r: 1 });
+      const a = await C('roadscape', { action: 'audit', x: p.x, z: p.z, r: 1 });
       props += a.props ?? 0; bad += a.badCount ?? 1;
       res.push({ at: a.at, props: a.props, bad: a.bad?.slice(0, 3), error: a.error });
     }
     return props > 800 && bad === 0 ? true : JSON.stringify({ props, bad, res: res.filter((q) => q.bad?.length || q.error) });
   });
 
-  await check('roadside: the real-terrain grading cuts a ditch beside an interstate\'s bed and raises the bed in the desert (and neither at an interchange)', async () => {
+  await check('roadscape: the real-terrain grading cuts a ditch beside an interstate\'s bed and raises the bed in the desert (and neither at an interchange)', async () => {
     const T = W.terrain;
     if (!T) return true; // ?terrain=flat: no grading to cut
     const R = T.roads[0], cl = R.cl, X = (W.exits ?? []).filter((q) => !q.cor || q.cor === W.i10);

@@ -34,7 +34,7 @@ export const SPECIES = {
   oak: { h: 9.0, cap: 9000, chunk: 900 },
   // Florida (docs/design/WEB_FLORIDA.md §3.2): the cabbage palm, the flatwoods' slash pine, the swamp's bald cypress,
   // the lagoon's red mangrove, the live oak with its moss. Streamed chunks only (the island never plants them).
-  sabal: { h: 9.0, cap: 4800, chunk: 600 },     // (ROADSIDE: the flatwoods' tree walls beside the road, WEB_ROADSIDE.md)
+  sabal: { h: 9.0, cap: 4800, chunk: 600 },     // (THE ROADSCAPE: the flatwoods' tree walls beside the road, WEB_ROADSCAPE.md)
   slashpine: { h: 16.0, cap: 6000, chunk: 900 },
   cypress: { h: 13.0, cap: 6000, chunk: 900 }, // the swamp's bald cypress, and the BRUSH's cypress woods (one species)
   mangrove: { h: 4.5, cap: 2400 },

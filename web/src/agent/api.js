@@ -44,7 +44,7 @@ import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
-import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // the roadside: tree walls, fences, sound walls by road class and biome (WEB_ROADSIDE.md)
+import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { materialCommands, materialChecks } from './materials-api.js';
@@ -1987,7 +1987,7 @@ function buildCommands(api) {
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
-    ...roadsideCommands(api, need), // roadside (WEB_ROADSIDE.md)
+    ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -5888,7 +5888,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
-  await roadsideChecks({ api, g, check, C }); // the roadside (WEB_ROADSIDE.md §8)
+  await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)

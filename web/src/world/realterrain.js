@@ -19,9 +19,9 @@
 import { TERRAIN, BIOME_CODES } from '../data/terrain.js';
 import { BIOMES } from '../data/streaming.js';
 import { C, chunkId } from './geo.js';
-import { ROAD_CLASSES, ROAD_BIOMES, CLASS_OF } from '../data/roadside.js';
-import { roadBiomeOf } from './roadside.js';
-const DITCH = ROAD_CLASSES[CLASS_OF.corridor].ditch; // ROADSIDE: the ditch beside an interstate's bed (docs/design/WEB_ROADSIDE.md)
+import { ROAD_CLASSES, ROAD_BIOMES, CLASS_OF } from '../data/roadscape.js';
+import { roadBiomeOf } from './roadscape.js';
+const DITCH = ROAD_CLASSES[CLASS_OF.corridor].ditch; // THE ROADSCAPE: the ditch beside an interstate's bed (docs/design/WEB_ROADSCAPE.md)
 
 const STEP = 8, N_G = C / STEP + 1, PB = 2048; // pad buckets (m)
 const sm = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -280,7 +280,7 @@ export class RealTerrain {
       for (const X of exits) k = Math.max(k, sm((T.formationXs + 100 - Math.abs(cl.s[i] - X.s)) / 100));
       wf[i] = T.formation + (T.formationX - T.formation) * k;
     }
-    // ROADSIDE (data/roadside.js): the road biome's raised bed (relief.js BED) and the weight of the ditch beside it, both
+    // THE ROADSCAPE (data/roadscape.js): the road biome's raised bed (relief.js BED) and the weight of the ditch beside it, both
     // eased to nothing through an interchange, a pinned pad and wherever water is near (a crossing keeps its own levels).
     const dkR = new Float64Array(n), bedR = new Float64Array(n);
     for (let i = 0; i < n; i++) {
@@ -357,7 +357,7 @@ export class RealTerrain {
     const dd = d - wf;
     if (dd <= 0) return yr;
     const lim = this.m * dd, df = h - yr, g = df > lim ? yr + lim : df < -lim ? yr - lim : h;
-    // ROADSIDE: the ditch just past the bed (a cut's foot, a fill's toe), where the survey left it its weight
+    // THE ROADSCAPE: the ditch just past the bed (a cut's foot, a fill's toe), where the survey left it its weight
     const t = (dd - DITCH.at) / DITCH.width, k = R.dk ? R.dk[bi] : 0;
     return t > 0 && t < 1 && k > 0 ? g - DITCH.depth * Math.sin(Math.PI * t) * k : g;
   }

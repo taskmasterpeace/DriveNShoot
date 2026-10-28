@@ -8,7 +8,7 @@ import { SPECIES, FLORA_KINDS, P1_FLORA, poolName, floraVariant, floraHash, crow
 import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted density rows (docs/design/WEB_FORGE.md §3.4)
 import { regionWater, WK } from './regions.js';
 import { WATER } from '../data/water.js';
-import { clearEdge, roadsideStage } from './roadside.js'; // ROADSIDE: per-class clear zones and the roadside scenes (docs/design/WEB_ROADSIDE.md)
+import { clearEdge, roadscapeStage } from './roadscape.js'; // THE ROADSCAPE: per-class clear zones and the roadside scenes (docs/design/WEB_ROADSCAPE.md)
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -37,7 +37,7 @@ const HILLSHADE = 0.24;            // real terrain (flag): how much a slope at t
 // Real terrain past the strip (docs/design/WEB_SITES_TERRAIN.md §7): canyon strata on steep ground (bands of STRATA_M
 // metres of height, STRATA_K of the colour), a conifer stand in forest (pines a chunk), rock outcrops on slopes past
 // OUTCROP_SLOPE (tries a chunk).
-// ROADSIDE (data/roadside.js ROAD_CLASSES): scatter keeps out of each road's clear zone. An interstate's is measured from
+// THE ROADSCAPE (data/roadscape.js ROAD_CLASSES): scatter keeps out of each road's clear zone. An interstate's is measured from
 // its paved edge (the mainline cross-section), a county road's from its ribbon's edge.
 const EDGE_I = clearEdge('interstate', STREAM.median / 2 + STREAM.shoulderIn + 2 * STREAM.lane + STREAM.shoulderOut), CLEAR_COUNTY = clearEdge('two-lane', 0);
 const STRATA_M = 7, STRATA_K = 0.24, FOREST_PINES = 220, OUTCROP_TRIES = 36, OUTCROP_SLOPE = 0.11;
@@ -1293,9 +1293,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
   }
   } // (the desert)
-  // ROADSIDE (world/roadside.js, data/roadside.js): tree walls, fences, poles, billboards, sound walls, farms and the rest
+  // THE ROADSCAPE (world/roadscape.js, data/roadscape.js): tree walls, fences, poles, billboards, sound walls, farms and the rest
   // beside every corridor and county road, by road class and road biome (position-hashed: no draws on rng).
-  out.roadside = yield* roadsideStage({ W, cx, cz, C, INST, addBox, addOriented, blocked, wet: (x, z) => depthNear(x, z) > 0, featuresOf: (a, b) => W.featuresOf(a, b), pause, resume,
+  out.roadscape = yield* roadscapeStage({ W, cx, cz, C, INST, addBox, addOriented, blocked, wet: (x, z) => depthNear(x, z) > 0, featuresOf: (a, b) => W.featuresOf(a, b), pause, resume,
     specH: (k) => SPECIES[k].h, plant: (k, x, z, sc, rot, sh) => { const b = INST[poolName(k)], i = b.push(x, 0, z, rot, sc, sc, sc, sh, sh, sh); if (i >= 0) b.e[i] = floraVariant(x, z); return i; } });
   // THE BRUSH (world/brush.js): woods, undergrowth and hot zones where strokes reach (its own random stream).
   if (BR) out.brush = yield* brushStage(BR, { INST, addBox, blocked, boxes, ox, oz, cx, cz, seed, state, pause, resume });

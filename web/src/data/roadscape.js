@@ -1,4 +1,4 @@
-// ROADSIDE (docs/design/WEB_ROADSIDE.md, WEB_DEPTH_PLAN.md §7): what stands beside the open road between the towns, by
+// THE ROADSCAPE (docs/design/WEB_ROADSCAPE.md, WEB_DEPTH_PLAN.md §7): what stands beside the open road between the towns, by
 // road class and by where in the country you are. Ported from Robert's road research (docs/reference/lsw/:
 // ROAD-BIOMES-2026-09-21.md, between-cities.js ROAD_CLASSES/BIOME_ROAD, road-kit.js SHOULDER, road-kit-roadside.js SCENES /
 // NOTHING_CHANCE / SERVICE_CHANCE, relief.js ROLL/DITCH/BED). LSW counts in 0.19 m units: every number below is METRES,
@@ -8,7 +8,9 @@
 // depending on where you are in the country". The main road itself is not wild: a clear zone beside every class stays
 // empty (the chunk scatter keeps to it too: world/chunkgen.js), and the ambush ground lives off the road, behind it.
 //
-// Everything is data: change a row, not world/roadside.js. validateRoadside() is what the World Forge and the selftest
+// Everything is data: change a row, not world/roadscape.js. (The authored roadside SITES - the downed tower, the
+// stations, junkyards, farms and the dam - are data/roadside.js, docs/design/WEB_ROADSIDE.md: they stand on the same roads,
+// and this layer keeps off them through the chunk's keep-out.) validateRoadside() is what the World Forge and the selftest
 // run. No purple (hue 270-320 is banned), no brand names on anything.
 
 export const LSW_UNIT = 0.19;                  // metres per LSW unit (the conversion every row below has had)
@@ -100,7 +102,7 @@ export const BIOME_MAP = {
 //   span       slots (1-2); side: 'one' (a hashed side) | 'both'
 //   weights    per road biome; byClass per road class; nearCity: metres from a town's edge where it ramps up (x up to
 //              1 + nearBoost at the edge, default 2; and, for cityOnly, the only place it stands); chance: a prop's own odds
-//   props      kind (world/roadside.js draws each), n [min,max] or a strip, set [min,max] setback, depth [min,max]
+//   props      kind (world/roadscape.js draws each), n [min,max] or a strip, set [min,max] setback, depth [min,max]
 const W = (o, d = 0) => Object.fromEntries(Object.keys(ROAD_BIOMES).map((b) => [b, o[b] ?? d]));
 export const SCENES = {
   'tree-wall': { label: 'Woods close to the road', group: 'nature', span: 2, side: 'both',
