@@ -183,9 +183,9 @@ ditch(dd)     = depth × sin(π (dd − at) / width) × weight(s)              (
 | `slot` / `blockSlots` / `superBlocks` / `emptyWeight` | CADENCE | 64 / 8 / 3 / 6 | 48-96 / 6-12 / 2-5 / 3-12 |
 | scene `weights`, `byClass`, `nearCity`, `nearBoost` | SCENES | research | weights 0-10 |
 | `DEFAULT_KNOBS` (`density`, `nothing`, the group knobs) | data | 1 | 0-3 |
-| prop `set`, `depth`, `spacing`, `n` | SCENES props | research converted | `validateRoadside` keeps reach ≤ 140 m |
+| prop `set`, `depth`, `spacing`, `n` | SCENES props | research converted | `validateRoadscape` keeps reach ≤ 140 m |
 
-`validateRoadside(rows, species)` rejects:
+`validateRoadscape(rows, species)` rejects:
 
 - unknown biomes, classes or prop kinds
 - reversed ranges

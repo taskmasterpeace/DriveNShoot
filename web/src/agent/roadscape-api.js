@@ -1,7 +1,7 @@
 // THE ROADSCAPE for agents (docs/design/WEB_ROADSCAPE.md; rows data/roadscape.js, placer world/roadscape.js): the `roadscape`
 // command (what stands beside the road here and why, a stretch's statistics, the keep-out audit, the rows) and the
 // selftest's named checks for the lane (each returns true or a JSON diagnostic).
-import { validateRoadside, ROAD_CLASSES, ROAD_BIOMES, SCENES, CADENCE, CLASS_OF } from '../data/roadscape.js';
+import { validateRoadscape, ROAD_CLASSES, ROAD_BIOMES, SCENES, CADENCE, CLASS_OF } from '../data/roadscape.js';
 import { placeRoadside, superInfo, resolveBlock, corridorRun, ribbonRun, chunkRoads, roadBiomeAtOf, cityDistOf, nothingChance, saltOf, clearEdge, RSC_DEBUG } from '../world/roadscape.js';
 import { FLORA_KINDS } from '../world/flora.js';
 import { regionWater } from '../world/regions.js';
@@ -44,7 +44,7 @@ export function roadscapeCommands(api, need) {
       args: { action: { type: 'string', default: 'at', enum: ['at', 'stats', 'audit', 'rows'] }, x: { type: 'number' }, z: { type: 'number' }, road: { type: 'string', default: 'I-10' }, from: { type: 'number' }, to: { type: 'number' }, r: { type: 'number', default: 1 }, seed: { type: 'number' }, scene: { type: 'string' } },
       run: async ({ action = 'at', x, z, road = 'I-10', from, to, r = 1, seed, scene }) => {
         const W = Wd(), px = x ?? P().x, pz = z ?? P().z, C = STREAM.C;
-        if (action === 'rows') return { ...validateRoadside(undefined, FLORA_KINDS), classes: Object.fromEntries(Object.entries(ROAD_CLASSES).map(([k, c]) => [k, { clearZone: c.clearZone, ditch: c.ditch, nothing: c.nothing, service: c.service }])), biomes: Object.fromEntries(Object.entries(ROAD_BIOMES).map(([k, b]) => [k, { label: b.label, nothing: b.nothing, bed: b.bed }])), scenes: Object.keys(SCENES), cadence: CADENCE };
+        if (action === 'rows') return { ...validateRoadscape(undefined, FLORA_KINDS), classes: Object.fromEntries(Object.entries(ROAD_CLASSES).map(([k, c]) => [k, { clearZone: c.clearZone, ditch: c.ditch, nothing: c.nothing, service: c.service }])), biomes: Object.fromEntries(Object.entries(ROAD_BIOMES).map(([k, b]) => [k, { label: b.label, nothing: b.nothing, bed: b.bed }])), scenes: Object.keys(SCENES), cadence: CADENCE };
         const biomeAt = roadBiomeAtOf(W), cityDistAt = cityDistOf(W);
         if (action === 'stats') {
           const cor = corById(road), rb = cor ? null : W.ribbons.find((q) => q.id === road && q.kind === 'county');
@@ -107,7 +107,7 @@ export async function roadscapeChecks({ api, g, check, C }) {
   const I10 = W.i10, run10 = (sA, sB) => corridorRun(W, I10, sA, sB);
 
   await check('roadscape: the rows validate (classes, road biomes, scenes, setbacks within reach, real flora species, no purple) and every DSOA biome letter maps to a road biome', async () => {
-    const v = validateRoadside(undefined, FLORA_KINDS);
+    const v = validateRoadscape(undefined, FLORA_KINDS);
     const letters = ['d', 'f', 'u', 'm', 'p', 'a', 'w', 'F', 's', '.'], unmapped = letters.filter((L) => !ROAD_BIOMES[roadBiomeAtOf({ biomeAt: () => L, regionOf: () => null, stateAt: () => null })(0, 0)]);
     return v.ok && !unmapped.length && v.counts.scenes >= 14 && v.counts.biomes >= 9 ? true : JSON.stringify({ errors: v.errors.slice(0, 6), unmapped });
   });

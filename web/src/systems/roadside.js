@@ -57,9 +57,11 @@ export class RoadsideSys {
     const R = this.R;
     if (!R || p.inVehicle || !p.alive) return null;
     let best = null, bd = Infinity;
+    const W = this.g.streamer?.W;
     for (const sp of R.spots) {
       const d = Math.hypot(sp.x - p.x, sp.z - p.z);
-      if (d > sp.r || d >= bd || Math.abs((p.gy ?? 0) - (sp.y ?? 0)) > 2) continue;
+      // sp.y is measured from the ground (real terrain is the default: the ground under the spot, not 0)
+      if (d > sp.r || d >= bd || Math.abs((p.gy ?? 0) - (sp.y ?? 0) - (W?.groundAt?.(sp.x, sp.z) ?? 0)) > 2) continue;
       best = sp; bd = d;
     }
     if (!best) return null;

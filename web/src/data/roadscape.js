@@ -10,7 +10,7 @@
 //
 // Everything is data: change a row, not world/roadscape.js. (The authored roadside SITES - the downed tower, the
 // stations, junkyards, farms and the dam - are data/roadside.js, docs/design/WEB_ROADSIDE.md: they stand on the same roads,
-// and this layer keeps off them through the chunk's keep-out.) validateRoadside() is what the World Forge and the selftest
+// and this layer keeps off them through the chunk's keep-out.) validateRoadscape() is what the World Forge and the selftest
 // run. No purple (hue 270-320 is banned), no brand names on anything.
 
 export const LSW_UNIT = 0.19;                  // metres per LSW unit (the conversion every row below has had)
@@ -181,7 +181,7 @@ const hueOf = (hex) => {
   return (h * 60 + 360) % 360;
 };
 export const MAX_REACH = 140; // metres from the road's centreline a roadside may reach (the placer scans this far)
-export function validateRoadside(rows = { ROAD_CLASSES, ROAD_BIOMES, BIOME_MAP, SCENES, LOOK, CADENCE }, species = null) {
+export function validateRoadscape(rows = { ROAD_CLASSES, ROAD_BIOMES, BIOME_MAP, SCENES, LOOK, CADENCE }, species = null) {
   const errors = [], warnings = [];
   const cls = Object.keys(rows.ROAD_CLASSES), bio = Object.keys(rows.ROAD_BIOMES);
   const num = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
