@@ -76,8 +76,9 @@ export async function waterChecks(api, check, C) {
           if (!rec) bad.push(`${b.id} crosses I-10 at mile ${(s / 1609.344).toFixed(2)} with no crossing`);
         }
       }
+      // (on real terrain, the default since WEB_SITES_TERRAIN, every small crossing is a gorge under a fill: a deck, not a culvert)
       const n = (k) => R.bridges.filter((B) => B.kind === k).length;
-      return !bad.length && lines >= 8 && n('deck') >= 4 && n('culvert') + n('ford') >= 3 ? true : JSON.stringify({ bad: bad.slice(0, 6), lines, decks: n('deck'), culverts: n('culvert'), fords: n('ford') });
+      return !bad.length && lines >= 8 && n('deck') >= 4 && n('culvert') + n('ford') >= (WI.terrain ? 0 : 3) ? true : JSON.stringify({ bad: bad.slice(0, 6), lines, decks: n('deck'), culverts: n('culvert'), fords: n('ford') });
     });
 
     await check('water: a car crosses the Colorado bridge flat out (up the approach fill, over the deck above the river, down the other side: never in the water, never airborne, never below the deck)', async () => {
@@ -189,9 +190,9 @@ export async function waterChecks(api, check, C) {
       return ok ? true : JSON.stringify({ sync: fs.matches, sliced: fl.matches, east: [a.edges.e, e.edges.w], south: [a.edges.s, s.edges.n], water: a.surfaces.water });
     });
 
-    await check('water: with real terrain on, the rivers lie in their valleys (the Colorado deep below I-10) and every crossing is still bridged (no lane over water or a gorge off a deck); off again, the flat world comes back', async () => {
+    await check('water: with real terrain on, the rivers lie in their valleys (the Colorado deep below I-10) and every crossing is still bridged (no lane over water or a gorge off a deck); back to how it was after (real terrain is the default now: WEB_SITES_TERRAIN), the world as it was', async () => {
       await home();
-      const t = await C('terrain', { on: true });
+      const was = !!WI.terrain, t = await C('terrain', { on: true });
       try {
         const bad = [];
         for (let s = 0; s < WI.cl.L && bad.length < 6; s += 6) for (const dir of [1, -1]) {
@@ -206,7 +207,7 @@ export async function waterChecks(api, check, C) {
         const m = midRiver('colorado', 2, 300, D), under = road - b.Y[bi]; // the river's own surface where the deck spans it
         return t.on && !bad.length && D && under > WATER.gorge && m ? true : JSON.stringify({ on: t.on, bad, deck: !!D, under: r2(under), mid: !!m });
       } finally {
-        await C('terrain', { on: false });
+        await C('terrain', { on: was });
         await home();
       }
     });
