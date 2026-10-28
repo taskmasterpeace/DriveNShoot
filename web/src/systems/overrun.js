@@ -262,6 +262,7 @@ export class Overrun {
     const g = this.g, Z = g.zombies, HO = OVERRUN.horde;
     if (!Z) return;
     const want = Math.min(HO.bodies, Math.round(H.strength)) - H.bodies.length;
+    if (want > 0) g.population?.make(want); // far ambient people fold to make the street's room (systems/population.js)
     for (let i = 0; i < want; i++) {
       if ((g.freeSlots?.length ?? 0) <= AMBIENT_RESERVE + 4) break;
       const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 14;

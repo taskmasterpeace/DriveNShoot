@@ -11,6 +11,7 @@ export default async function (DL, game) {
   const note = (m) => log.push(m);
   const g = game, T = g.travel;
   const at = () => ({ x: Math.round(g.player.x), z: Math.round(g.player.z) });
+  const was = { zombies: g.zombies.enabled, raiderTimer: g.raiderTimer, convoyNext: g.convoy?.next }; // put back at the end
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy?.despawn?.(); if (g.convoy) g.convoy.next = 1e9;
   await DL.call('god', { on: false });
   if (!g.player.alive) { g.respawnT = 0; await DL.call('step', { seconds: 0.5 }); }
@@ -74,6 +75,7 @@ export default async function (DL, game) {
     if (r.ok === false) { why = r.error ?? r.why ?? ''; break; }
   }
   const left = Math.hypot(g.player.x - camp.x, g.player.z - camp.z);
+  g.zombies.enabled = was.zombies; g.raiderTimer = was.raiderTimer; if (g.convoy && was.convoyNext !== undefined) g.convoy.next = was.convoyNext; // no state leaks past the scenario
   note(`Walked to camp in ${hops} legs: ${Math.round(left)} m left.${why ? ` (${why})` : ''}`);
   return { ok: !!(d.alive && bd.aboard && inc.result && cord.ok && left < 400), home: left < 60, metersFromCamp: Math.round(left), log };
 }

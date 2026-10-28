@@ -198,8 +198,15 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 - **A fire escape that would stand on a street or another building**: not built.
 - **A bridge whose roofs did not both get a core to the roof**: not built (its parapet gaps stay: an open roof edge).
 - **A gas-station canopy that would clash with another building or the town wall**: not built (no pumps either).
-- **Character budget full**: residents and horde bodies are skipped (the horde keeps its strength as a number); the
-  ambient reserve is never taken.
+- **Character budget full**: far ambient people fold first (the FAR FOLD, `systems/population.js`): anyone tagged
+  `amb` (the island's boot drifters, wardens and Dustwolves, the camps' top-ups) who stands more than `FOLD.far` 400 m
+  from every eye (you, a drone you fly) folds into a record, farthest first, whenever free slots drop under `FOLD.floor`
+  40, and whenever a horde needs street bodies (`population.make(n)`: room for n above the ambient reserve + 4). Within
+  `FOLD.ret` 300 m of a record, with `floor + room` 48 slots free, they walk back out as they were (name, flag, clothes,
+  weapon, wounds). Never folded: named people (`npc`), residents (`res`), crew and crew candidates, horde bodies, anyone
+  seated or on a deck, anyone a check holds, anyone not tagged `amb` (a base garrison, a holdout, a director's event,
+  a scenario's spawn). If nothing can fold, residents and horde bodies are skipped (the horde keeps its strength as a
+  number); the ambient reserve is never taken. The battery holds the fold off (its own check turns it on).
 - **You leave a settlement mid-siege**: it is released (geometry, loot, residents gone); its plan record keeps its
   infestation and state; the horde record keeps walking/sieging.
 - **A stamp on top of the island or ring** (agents only): allowed; the island's own boxes still stand (testing tool).
@@ -246,6 +253,7 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 | `OVERRUN.overrun` / `retake` | " | 0.6–0.9 / 0.1–0.3 | how easily towns fall / come back |
 | `OVERRUN.horde.kill`, `hold`, `press` | " | 5–15, 200–400, 0.0003–0.001 | siege outcome |
 | `OVERRUN.horde.bodies`, `bodyR` | " | 10–40, 100–200 m | street bodies (character budget) |
+| `FOLD.far` / `ret` / `floor` | systems/population.js | 250–800 / far−50..far−150 / 24–60 | how soon people left behind give their slots back; street-body room |
 | `MILITARY.spacing` | " | 40 000–60 000 m | how far apart bases are |
 | `FLOOR_LOOT.richPerFloor` | " | 0–0.3 | upstairs reward |
 
@@ -276,6 +284,9 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
     locks.
 17. **Living outside a city**: a homestead builds when you come near, its home is claimable (`deedClaimed`), it is
     released when you leave.
+18. **A full pool still sieges**: the pool filled to 2 free slots with ambient people 600 m+ behind you, a 120-strong
+    horde at a gate 51 m off stands ≥ 20 bodies in the street near you; a non-ambient far person and every named NPC
+    stay; walking back to a folded record unfolds it with the same name, flag and clothes.
 
 **Omissions (the next pass):** settlements sit on the flat datum when real terrain is on; NPC pathing inside generated
 towns uses steer + collision (no nav grid of their own; `moveTo` for agents works on the street); AI sight between floors

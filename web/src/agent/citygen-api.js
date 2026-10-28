@@ -420,6 +420,40 @@ export async function citygenChecks({ api, g, check, C }) {
     return fell && back && siege && bodies === 0 ? true : JSON.stringify({ fell, state: rec.state, back, siege, horde: O.view(), bodies });
   });
 
+  await check('citygen: a full pool still sieges - the 160 slots held by ambient people 600 m behind you, a 120-strong horde at the gate 51 m off still stands bodies in the street near you (far ambient people fold into records, farthest first); someone not ambient is never folded; walk back and they unfold as they were', async () => {
+    if (!T0) return 'no town';
+    const rec = T0.rec, O = CGs.overrun, POP = g.population, popWas = POP.enabled;
+    const gate = { x: rec.x, z: rec.z + rec.half + 12 };
+    await stand(gate.x, gate.z + 51);
+    const far = { x: rec.x + 700, z: rec.z + rec.half + 400 };
+    const keep = g.addChar({ x: far.x + 30, z: far.z, faction: 'drifter', name: 'Pool Keeper', flag: 'MX' }); // no amb: some system's own
+    const fill = [];
+    while (g.freeSlots.length > 2) {
+      const c = g.addChar({ x: far.x + (Math.random() - 0.5) * 60, z: far.z + (Math.random() - 0.5) * 60, faction: 'drifter', name: 'Far Drifter', flag: 'CA' });
+      if (!c) break;
+      c.amb = true; c.cgPoolFill = true; fill.push(c);
+    }
+    const npcs0 = g.chars.filter((c) => c.npc).length, free0 = g.freeSlots.length, s0 = { ...POP.stats };
+    POP.enabled = true;
+    const H = O.spawnHorde({ x: gate.x, z: gate.z, size: 120, toward: rec.id, force: true });
+    for (let i = 0; i < 6; i++) await api._step(30);
+    const near = H.bodies.filter((c) => c.alive && Math.hypot(c.x - p.x, c.z - p.z) < OVERRUN.horde.bodyR).length;
+    const folded = POP.stats.folded - s0.folded, keptAlive = g.chars.includes(keep), npcs1 = g.chars.filter((c) => c.npc).length;
+    // clear the horde, walk back: the far drifters unfold (room allowing), named, flagged and dressed as they left
+    O.clear();
+    const r0 = POP.recs[POP.recs.length - 1]; // the last folded: nearest of the batch
+    if (r0) await stand(r0.x, r0.z + 20);
+    for (let i = 0; i < 4; i++) await api._step(30);
+    const unfolded = POP.stats.unfolded - s0.unfolded;
+    const back = r0 && g.chars.find((c) => c.amb && c.name === r0.name && c.flag === r0.flag && c.colors === r0.colors && Math.hypot(c.x - r0.x, c.z - r0.z) < 3);
+    for (const c of [...g.chars]) if (c.amb && c.name === 'Far Drifter') g.removeChar(c);
+    POP.recs = POP.recs.filter((r) => r.name !== 'Far Drifter');
+    if (g.chars.includes(keep)) g.removeChar(keep);
+    POP.enabled = popWas; rec.infestation = 0; rec.state = 'holding';
+    return free0 <= 2 && near >= 20 && folded >= 20 && keptAlive && npcs1 === npcs0 && unfolded >= 1 && !!back
+      ? true : JSON.stringify({ free0, near, bodies: H.bodies.length, folded, keptAlive, npcs0, npcs1, unfolded, back: !!back, pop: POP.view() });
+  });
+
   await check('citygen: the overrun-test scenario resolves - a mid-size town without walls falls to a 200-strong horde at dusk, a walled stronghold of the same size holds', async () => {
     const mod = await import('../scenarios/overrun-test.js');
     const r = await mod.default(api.bind ? api.bind() : null, g, { api });

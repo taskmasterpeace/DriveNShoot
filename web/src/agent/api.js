@@ -2140,6 +2140,8 @@ async function runSelfTest(api, only = null, skip = null) {
   // Generated settlements (systems/citygen.js) would build themselves round unrelated checks out on I-10: they stay
   // unbuilt for the battery; their own checks stamp what they need.
   const citygenWas = g.citygen.enabled;
+  // The far fold (systems/population.js) holds still too: checks that stage people far off keep them; its own check turns it on.
+  const foldWas = g.population.enabled; g.population.enabled = false;
   g.citygen.enabled = false; g.citygen.overrun.auto = false;
   // Town security (systems/security.js) would send bulls after every star an unrelated check raises, and its patrol car
   // would drive through them: off for the battery; its own checks turn it on.
@@ -5881,6 +5883,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
   g.citygen.enabled = citygenWas;
+  g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)

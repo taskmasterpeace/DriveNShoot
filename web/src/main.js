@@ -52,6 +52,7 @@ import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
+import { Population } from './systems/population.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
@@ -187,6 +188,7 @@ class Game {
     this.stunts.under = this.under;
     this.materials = new Materials(this); // what everything is made of: rounds through it, blasts, fire, rams, breaking; blood on walls (this.blood)
     this.zombies = new Zombies(this);
+    this.population = new Population(this); // the far fold: ambient people left far behind hand their slots back (systems/population.js)
     this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -330,12 +332,12 @@ class Game {
           gearStyle: p.gear === 'bandolier' ? 'bandolier' : n.faction === 'warden' ? 'vest' : 'none', gear: '#3a3128',
           accStyle: { goggles: 'goggles', bandana: 'mask', eyepatch: 'eyepatch' }[p.gear] ?? 'none', mask: '#6a2a1e', sleeves: 'long' } });
     }
-    for (const w of S.wardens) this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+    for (const w of S.wardens) { const c = this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) }); if (c) c.amb = true; }
     for (const d of S.drifters) {
       for (let k = 0; k < (Math.max(Math.abs(d.x), Math.abs(d.z)) < TOWN ? 2 : 1); k++)
-        this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+        { const c = this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) }); if (c) c.amb = true; } // amb: may fold far away (systems/population.js)
     }
-    for (const r of S.raiders) this.spawnRaider(r.x, r.z, rng);
+    for (const r of S.raiders) { const c = this.spawnRaider(r.x, r.z, rng); if (c) c.amb = true; }
 
     // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
@@ -1153,6 +1155,7 @@ class Game {
       const c = this.chars[i];
       if (!c.alive && c !== this.player && !c.npc && !c.res && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
     }
+    this.population.update(dt); // far ambient people fold when the pool runs low, unfold when you come back
     // Dustwolves keep coming.
     this.raiderTimer -= dt;
     if (this.raiderTimer <= 0) {
@@ -1163,7 +1166,7 @@ class Game {
       if (alive < cap && this.freeSlots.length > AMBIENT_RESERVE && this.time > ARRIVAL_QUIET) { // leave the director room (systems/director.js needs 10 free)
         const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
-        if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
+        if (camp) for (let k = 0; k < 2; k++) { const c = this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10); if (c) c.amb = true; }
       }
     }
     // Wanted level cools off.
