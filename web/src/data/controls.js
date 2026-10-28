@@ -66,6 +66,8 @@ export const BINDINGS = [
   { id: 'menuPause', label: 'Pause menu (alternate)', group: 'WORLD', code: 'KeyP', keys: ['KeyP'], pad: {} },
   { id: 'save', label: 'Quick save', group: 'WORLD', code: 'F5', keys: ['F5'], pad: { foot: 'back+start' } },
   { id: 'load', label: 'Quick load', group: 'WORLD', code: 'F9', keys: ['F9'], pad: {} },
+  { id: 'radioNext', label: 'Radio: next station (in a car, or with a portable radio)', group: 'WORLD', code: null, keys: ['Period'], pad: {} },
+  { id: 'radioPrev', label: 'Radio: previous station', group: 'WORLD', code: null, keys: ['Comma'], pad: {} },
   { id: 'charsheet', label: 'Character sheet and journal', group: 'WORLD', code: null, keys: ['Backquote'], pad: {} },
   { id: 'controls', label: 'Controls: every binding, press to rebind', group: 'WORLD', code: null, keys: ['F2'], pad: { foot: 'back+left' } },
   // The PACK screen on a pad: the D-pad walks the list, A uses, Y moves, X drops, B closes (above).

@@ -9,6 +9,7 @@ import { BARK_LINES, COMBAT_KEYS } from '../data/barks.js';
 import { ARCHETYPE_OF } from '../data/voices.js';
 import { journal } from '../systems/journal.js';
 import { outfit } from '../systems/characters.js';
+import { STATIONS, MUSIC_MANIFEST, MUSIC_BASE, RADIO } from '../data/radio.js';
 
 export async function voiceStatsChecks(api, check, C) {
   const g = api.g, D = () => g.deep;
@@ -137,6 +138,68 @@ export async function voiceStatsChecks(api, check, C) {
       if (offered) return 'offered talk-a-while with the model down';
       return topics >= 3 ? true : `authored topics missing (${topics})`;
     } finally { L().reachable = en; L().endpoint = ep; g.removeChar(c); }
+  });
+
+  await check('llm: a crew member talks as crew - grounded in their trust and traits, through the same validator', () => llmStage('good', async (c) => {
+    c.crew = true; c.trust = 42;
+    const a = await L().crewTalk(c);
+    const f = L().lastPrompt?.facts;
+    c.crew = false;
+    if (!a) return `no answer: ${JSON.stringify(L().log.at(-1))}`;
+    if (!f?.crew || f.crew.trust !== 42 || !f.crew.traits?.length || !/crew/.test(f.role)) return `not grounded as crew: ${JSON.stringify(f?.crew)} ${f?.role}`;
+    return true;
+  }));
+
+  // ---- radio ------------------------------------------------------------------------------------------------------------
+  await check('radio: every station resolves, its music is served and decodes, the dial tunes in mid-song', async () => {
+    g.audio.start();
+    const bad = [], R = g.radio;
+    for (const S of STATIONS.filter((s) => s.playlist)) {
+      const T = R.playlist(S);
+      if (!T.length) { bad.push(`${S.id} has no songs`); continue; }
+      const r = await fetch(`/${MUSIC_BASE}${T[0].f}`); if (!r.ok) { bad.push(`${T[0].f} ${r.status}`); continue; }
+      const buf = await g.audio.ctx.decodeAudioData(await r.arrayBuffer()).catch(() => null);
+      if (!(buf?.duration > 30)) bad.push(`${T[0].f} did not decode (${buf?.duration})`);
+      const t = 1.7e9, a = R.position(S, t), b = R.position(S, t + 5);
+      if (a.index === b.index && Math.abs(b.offset - a.offset - 5) > 1e-6) bad.push(`${S.id} clock drifts`);
+    }
+    if ((MUSIC_MANIFEST.bytes ?? 0) > 60 * 1048576) bad.push('music over 60 MB');
+    for (const S of STATIONS) if (S.ids) { const { denyHits } = await import(/* @vite-ignore */ `${location.origin}/tools/ip-terms.mjs`); const h = denyHits(S.ids.join(' / ')); if (h.length) bad.push(`${S.id}: ${h.map((x) => x.term)}`); }
+    // On foot with no radio you hear nothing; with a portable radio in the pack you tune it.
+    const slots = g.inventory.carried.slots, had = slots.some((s) => s?.id === RADIO.item);
+    if (!had && R.canHear() && !g.player.inVehicle) bad.push('heard a radio with none');
+    if (!had) g.inventory.add(g.inventory.carried, RADIO.item, 1);
+    try {
+      if (!R.canHear()) bad.push('the portable radio is not heard');
+      const S = R.tune(STATIONS.findIndex((s) => s.id === 'kdst'));
+      if (R.track?.station !== 'kdst') bad.push(`tuned but no song: ${JSON.stringify(R.view().track)}`);
+      R.say(S, R.stationId(S)); if (!R.lastLine?.text) bad.push('no station ID');
+      R.tune(0);
+      if (R.track) bad.push('off still playing');
+    } finally { if (!had) { const i = slots.findIndex((s) => s?.id === RADIO.item); if (i >= 0) g.inventory.take(g.inventory.carried, i, 1); } }
+    return bad.length ? bad.join('; ') : true;
+  });
+
+  await check('radio: the news reads the chronicle, the emergency shelter is seeded by the day, and a lure springs raiders', async () => {
+    const R = g.radio, bad = [];
+    const h = R.headline();
+    if (g.society.chronicle.query({ limit: 40 }).some((r) => r.a === 'player' && r.src !== 'rumor') && !h) bad.push('a deed on record but no headline');
+    R.shelter = null; const s1 = R.shelterNow(), s2 = R.shelterNow();
+    if (s1 !== s2 || !s1.name) bad.push('the shelter is not stable within a day');
+    const line = R.stationId(STATIONS.find((s) => s.kind === 'emergency'));
+    if (!line.includes(s1.name)) bad.push(`the broadcast does not name the shelter: ${line}`);
+    const p = g.player, px = p.x, pz = p.z;
+    s1.trap = true; s1.sprung = false; s1.x = px + 300; s1.z = pz;
+    const before = g.chars.filter((c) => c.faction === 'raider').length;
+    R.update(0);
+    if (s1.sprung) bad.push('sprung from 300 m');
+    p.x = s1.x + 5; p.z = s1.z;
+    R.update(0);
+    const spawned = g.chars.filter((c) => c.faction === 'raider' && c.alive && Math.hypot(c.x - s1.x, c.z - s1.z) < 30);
+    if (!s1.sprung || spawned.length !== RADIO.trapCount) bad.push(`lure: sprung ${s1.sprung}, ${spawned.length} raiders (had ${before})`);
+    for (const c of spawned) g.removeChar(c);
+    p.x = px; p.z = pz; R.shelter = null;
+    return bad.length ? bad.join('; ') : true;
   });
 
   // ---- 3. the deep sheet ------------------------------------------------------------------------------------------------

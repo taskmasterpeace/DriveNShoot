@@ -18,8 +18,10 @@ Four layers, each data first, each with commands and selftest checks:
 | **Local-model talk** — strangers' small talk from qwen3.5 on the studio Mac Mini | prompt + validator in `systems/llmtalk.js` | `vite.config.js` `/llm` proxy, `ui/dialogue.js` "Talk a while." | `llm` |
 | **The deep sheet** — 7 attributes, 21 derived stats, 36 skills, 288 perks, 44 traits, 24 conditions, 6 body zones × 7 injury types, stress, morale, 4 reputation axes | `data/stats.js` | `systems/stats.js` (`g.deep`), `ui/charsheet.js` (\` key) | `deep`, `perk`, `check`, `charsheet` |
 | **Dialogue checks + journal** (G5) | `data/quests.js` | `ui/dialogue.js` gate, `systems/journal.js` | `journal`, `check` |
+| **Radio + music** — 5 stations, original music composed by code | `data/radio.js`, `data/music-manifest.json`, `public/music/<station>/<n>.ogg` | `systems/radio.js` (`,` / `.` walk the dial) | `radio` |
 
-The tool that feeds the first layer: `tools/audio-pick.mjs` (`plan` / `build [--only re]` / `size`).
+The tools: `tools/audio-pick.mjs` (`plan` / `build [--only re]` / `size`) feeds the sound sets; `tools/radio-compose.mjs`
+(`build [--only station]` / `size`) composes the stations' music.
 
 ## 2. Player Fantasy
 
@@ -129,8 +131,39 @@ drive by driving. Your sheet says who you are, and every number on it changes so
 - **Reputation axes:** mercy, fame, road law, fear — moved by your own deeds' verbs (the chronicle's last record, actor
   `player`).
 - **`live`:** false holds stress/conditions/injuries/morale out of the fold (the selftest battery runs with it off).
-- **Character sheet** (\` Backquote, a new `charsheet` row in `data/controls.js`): SHEET / SKILLS (click to pick a perk) /
-  BODY / JOURNAL; your flag is the backdrop. The pause menu gains JOURNAL and LOCAL TALK buttons (injected at runtime).
+- **Character sheet** (\` Backquote, a new `charsheet` row in `data/controls.js`): tabs, never a scroll (Robert's rule) -
+  ATTRIBUTES / SKILLS / PERKS (click to pick) / TRAITS / BODY / STANDING / JOURNAL, in the HUD's stamped-steel language;
+  your flag is the backdrop. The pause menu gets a JOURNAL tab and a SOUND & TALK tab through `g.qol.addTab` when the
+  tabbed pause menu (feat/web-qol) is merged, and plain buttons on the older menu.
+
+### 3.6 Radio and music
+- **Where you hear it:** in any vehicle, or anywhere with a **portable radio** (item `radio_portable`; not yet in a loot
+  table, a content call) in your pack. **`.` next station, `,` previous** (rows `radioNext` / `radioPrev` in
+  data/controls.js; pad unbound). Volume: the pause menu's SOUND & TALK tab (when the tabbed pause menu is there) or
+  `radio volume=`; persists in `localStorage dsoa.radio.vol`.
+- **Stations (rows in data/radio.js):** KDST 98.1 FM *Dust Country* (5 songs), THE RELAY 104.5 FM *night blues* (4), VOICE
+  OF THE REMNANT 1220 AM (*propaganda*: 3 marches + recruiting/curfew lines), STATIC 1660 AM (*news*: hiss and a headline
+  every 30 s read off the chronicle in data/events.js radio_news lines, your deeds first), EMERGENCY BROADCAST 162.5 (an
+  alert tone every 8 s, and a shelter at a real place).
+- **Music:** composed by code (`tools/radio-compose.mjs`): Karplus-Strong plucked guitar, an additive organ and brass,
+  a triangle bass, synthesized drums; a seeded chord progression per genre (dust: boom-chick in a major key; relay: minor,
+  slow, organ under an arpeggio; march: brass over a snare that never stops) and a pentatonic lead that returns to its
+  motif. 12 tracks, 7.6 MB, stereo Opus 48 kb/s, about -16 LUFS. Ours outright (no samples, no model, no license).
+  No commercial song; the NAS holds no royalty-free music (its "Musical" category is instrument one-shots), and the
+  studio's music skills route to paid Suno/Replicate APIs, which this lane did not spend on.
+- **Playback:** two `<audio>` elements through MediaElementSource -> band filter (AM 320-3200 Hz; FM top cut 9 kHz) ->
+  a volume gain -> the master bus; songs crossfade over 2.5 s; a station keeps its own clock (playlist position = wall
+  clock + the station's seed, mod its length), so you tune in mid-song. Between songs a station ID: the stinger sample,
+  the music ducked to 35 %, the line on the subtitle (and through `voice.radio` once the forge renders it).
+- **The lure:** the emergency shelter is seeded by the game day: an honest day names Rust Haven; on a trap day (40 %) it
+  names "the old filling station <dir> of the highway" 220-900 m off, and walking within 36 m of it springs 4 raiders.
+  The station, the shelter and whether it was sprung ride the save.
+
+### 3.7 Crew talk
+- `g.llmtalk.crewTalk(c, topic = 'camp talk')`: the same grounded, validated path for one of YOUR crew (`c.crew` or
+  `c.follower`): the facts add `crew: { trust, card, traits, mood }` (traits from `c.sheet` or `g.deep.sheetFor(c)`
+  until the crew lane hands over its own sheet) and the prompt asks for a companion's honesty about you. A crew member
+  with no authored tree also gets "Talk a while." in the dialogue panel.
 
 ### 3.5 Dialogue checks and the journal (G5)
 - A choice may carry `check: { skill, stat, trait, item, trust, crew }` (or a `req` *object*; a `req` *function* keeps its
@@ -236,3 +269,8 @@ drive by driving. Your sheet says who you are, and every number on it changes so
 13. `deep sheet: skills grow by doing, tiers offer perks, a perk moves the fold`.
 14. `dialogue checks: a skill-gated choice greys out with its reason, then opens`.
 15. `journal: quest rows read g.quests (live objective), loose ends listed, the chronicle about you`.
+16. `llm: a crew member talks as crew - grounded in their trust and traits, through the same validator`.
+17. `radio: every station resolves, its music is served and decodes, the dial tunes in mid-song` (no radio on foot
+    without the portable; off stops the music; station IDs IP-clean; music <= 60 MB).
+18. `radio: the news reads the chronicle, the emergency shelter is seeded by the day, and a lure springs raiders` (not
+    from 300 m; exactly 4 raiders at 5 m).

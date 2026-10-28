@@ -29,6 +29,7 @@ import { Stats } from './systems/stats.js';
 import { Soundscape } from './systems/soundscape.js';
 import { LlmTalk } from './systems/llmtalk.js';
 import { CharSheet } from './ui/charsheet.js';
+import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
@@ -196,6 +197,7 @@ class Game {
     this.soundscape = new Soundscape(this); // the sound sets heard: beds, the engine you drive, the fight's barks
     this.llmtalk = new LlmTalk(this); // strangers' small talk through the local model, grounded in the live world (offline: authored)
     this.charSheet = new CharSheet(this); // ` the character sheet
+    this.radio = new Radio(this); // the stations: in a car or with a portable radio, , and . walk the dial
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
@@ -1257,6 +1259,7 @@ class Game {
     this.fauna.draw(dt);
     const pv = p.inVehicle;
     this.soundscape.update(dt);
+    this.radio.update(dt);
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.weaponBar.update(dt);

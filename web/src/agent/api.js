@@ -2084,6 +2084,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // The deep sheet (systems/stats.js) holds still through the battery: its stress, conditions and wounds never shake
   // another system's numbers. Its own checks (voicestats-selftest.js) turn it on in a stage of their own.
   const deepLive = g.deep.live; g.deep.reset(); g.deep.live = false; g.deep.recompute();
+  const llmOn = g.llmtalk.enabled; g.llmtalk.enabled = false; // strangers' topics stay the authored three; the llm checks mock it
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5809,7 +5810,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
-  g.deep.live = deepLive;
+  g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
   g.fauna.enabled = faunaWas;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
@@ -5842,6 +5843,7 @@ export function snapshot(g) {
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
     gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
+    radio: g.radio?.save(), // the station you had on, and today's emergency shelter (a lure or not, sprung or not)
     deep: g.deep?.save(), // the deep sheet: attributes, skills, perks, traits, stress, morale, reputation, wounds by zone
     fauna: g.fauna?.save(), // the animals' chunk records (who lives where, hurt, dead, butchered) and the gunfire heat
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
@@ -5916,6 +5918,7 @@ export function restore(g, s) {
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
   if (s.deep) g.deep?.load(s.deep);
+  if (s.radio) g.radio?.load(s.radio);
   if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again

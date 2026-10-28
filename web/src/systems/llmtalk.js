@@ -66,6 +66,10 @@ export class LlmTalk {
     out.sells = safe(() => (g.trade?.stockFor?.(c) ?? []).slice(0, 5).map((s) => s.name ?? s.id)) ?? [];
     out.known_as = safe(() => g.roles?.lineFor?.(c)?.line) ?? null;
     out.you = { cash: g.cash ?? 0, hurt: g.player?.hp < (g.player?.maxHp ?? 100) * 0.5, armed: !!g.player?.weapon, fame: Math.round(g.deep?.rep?.fame ?? 0), mercy: Math.round(g.deep?.rep?.mercy ?? 0) };
+    // One of YOUR crew (the crew lane's flags: c.crew / c.follower, trust, a card id): they talk as a companion who has
+    // an opinion of you, from their own sheet's traits (g.deep.sheetFor) until the crew lane hands over its own.
+    out.crew = c.crew || c.follower ? { trust: c.trust ?? c.crewTrust ?? null, card: c.crewId ?? c.card ?? null, traits: c.sheet?.traits ?? safe(() => g.deep?.sheetFor?.(c, c.slot ?? 0)?.traits) ?? [], mood: c.morale ?? null } : null;
+    if (out.crew) out.role = 'one of the stranger\'s own crew, riding with them';
     out.quests = Object.fromEntries(Object.entries(g.quests ?? {}).filter(([, v]) => typeof v === 'string').slice(0, 6));
     return out;
   }
@@ -74,8 +78,9 @@ export class LlmTalk {
       `You are ${facts.name}, ${facts.role} of ${facts.faction}, in the DIVIDED STATES OF AMERICA: a broken country a generation after the collapse. Desert roads, ruined towns, the infected (sick, living people who hunt by smell), raiders.`,
       'Speak as this person to the stranger in front of you: 1 or 2 short plain sentences (under 40 words), in character, no narration, no emoji.',
       'Use ONLY the facts given, in your own words (never repeat a fact word for word); never invent named people or places. Never use names from books, films or other games.',
-      'Answer with STRICT JSON only: {"line": string, "mood": one of ' + MOODS.join('|') + ', "choices": [up to 3 of {"t": what the stranger may say next (under 70 chars), "effect": null or ONE of {"toast": string} | {"setQuest": {"key": "value"}} | {"ifQuest": {"key": "value"}} | {"cost": number up to 50} | {"give": {"cash": number up to 20}}}]}.',
+      'Answer with STRICT JSON only: {"line": string, "mood": one of ' + MOODS.join('|') + ', "choices": [up to 3 of {"t": what the stranger may say next (under 70 chars), "effect": null or ONE of {"toast": string} | {"setQuest": {"<short_favour_name>": "offered"}} | {"ifQuest": {"<short_favour_name>": "offered"}} | {"cost": number up to 50} | {"give": {"cash": number up to 20}}}]}.',
       'Most choices need effect null. Offer setQuest only for a small favour this person could really ask for.',
+      facts.crew ? 'You ride with the stranger as their crew: talk like a companion at the fire, honest about how you feel about them (crew.trust runs -100 to 100) and what they have done.' : '',
     ].join(' ');
     const user = `Topic: ${topic}.\nFacts: ${JSON.stringify(facts)}`;
     return [{ role: 'system', content: sys }, { role: 'user', content: user }];
@@ -155,6 +160,9 @@ export class LlmTalk {
     this.g.emit('llmTalk', { npc: c.id, topic, ok: !!out, why, ms });
     return out;
   }
+
+  // A crew member's talk (camp talk, a word on the road): the same grounded, validated path. The crew lane calls this.
+  crewTalk(c, topic = 'camp talk') { return this.ask(c, topic); }
 
   // An answer's choices as dialogue choices (ui/dialogue.js): ifQuest filters, the effect runs on the pick.
   choicesFor(ans) {

@@ -12,9 +12,10 @@ import { spatial } from '../systems/audio.js';
 import { COMBAT_KEYS } from '../data/barks.js';
 import { ATTRIBUTES, SKILLS, TRAITS } from '../data/stats.js';
 import { journal } from '../systems/journal.js';
+import { STATIONS, RADIO } from '../data/radio.js';
 
 export function voiceStatsCommands(api, need) {
-  const g = api.g;
+  const g = api.g, C = (cmd, a) => api.call(cmd, a);
   const P = () => g.player;
   const byId = (id) => (id === 'player' || id === 'c1' ? g.player : g.chars.find((c) => c.id === id || c.npc?.id === id || c.name === id) ?? null);
   const nearest = (pred) => { let b = null, bd = Infinity; for (const c of g.chars) { if (!c.alive || c === P() || !pred(c)) continue; const d = Math.hypot(c.x - P().x, c.z - P().z); if (d < bd) { bd = d; b = c; } } return b; };
@@ -128,9 +129,28 @@ export function voiceStatsCommands(api, need) {
       args: { open: { type: 'boolean' } },
       run: async ({ open }) => { if (open) g.charSheet?.toggle(true, 'journal'); return journal(g); },
     },
+    radio: {
+      group: 'world', desc: `The radio (data/radio.js, systems/radio.js; , and . on the keyboard): ${STATIONS.filter((s) => s.freq).map((s) => `${s.id} ${s.freq}`).join(', ')}. No args: what is on (station, the song and where in it, the last line on the air, today's emergency shelter and whether it is a lure, counts). station=<id|off> tunes; next=true / prev=true walk the dial; volume=0..1 (persists). portable=true puts a portable radio in your pack (you hear it on foot). spring=true walks the lure: puts you at today's shelter (forcing a trap with trap=true) and runs a frame.`,
+      args: { station: { type: 'string' }, next: { type: 'boolean' }, prev: { type: 'boolean' }, volume: { type: 'number' }, portable: { type: 'boolean' }, spring: { type: 'boolean' }, trap: { type: 'boolean' } },
+      run: async ({ station, next, prev, volume, portable, spring, trap }) => {
+        const Rd = g.radio;
+        if (portable) g.inventory.add(g.inventory.carried, RADIO.item, 1);
+        if (volume !== undefined) Rd.setVolume(volume);
+        if (!g.audio.ctx) g.audio.start();
+        if (station) { const i = STATIONS.findIndex((s) => s.id === station); need(i >= 0, `station: ${STATIONS.map((s) => s.id).join(', ')}`); need(Rd.canHear() || i === 0, 'no radio here', 'get in a vehicle, or portable=true'); Rd.tune(i); }
+        if (next) Rd.step(1); if (prev) Rd.step(-1);
+        let sprung = null;
+        if (spring) {
+          const s = Rd.shelterNow(); if (trap) { s.trap = true; s.sprung = false; }
+          await C('teleport', { x: Math.round(s.x), z: Math.round(s.z) });
+          Rd.update(0); sprung = { trap: s.trap, sprung: s.sprung, raiders: g.chars.filter((c) => c.alive && c.faction === 'raider' && Math.hypot(c.x - s.x, c.z - s.z) < 30).length };
+        }
+        return { ...Rd.view(), sprung };
+      },
+    },
     charsheet: {
-      group: 'player', desc: 'Open or close the character sheet (the ` key): open=true|false, tab=sheet|skills|body|journal.',
-      args: { open: { type: 'boolean', default: true }, tab: { type: 'string', default: 'sheet', enum: ['sheet', 'skills', 'body', 'journal'] } },
+      group: 'player', desc: 'Open or close the character sheet (the ` key): open=true|false, tab=attributes|skills|perks|traits|body|standing|journal.',
+      args: { open: { type: 'boolean', default: true }, tab: { type: 'string', default: 'attributes', enum: ['attributes', 'skills', 'perks', 'traits', 'body', 'standing', 'journal'] } },
       run: async ({ open, tab }) => ({ open: g.charSheet?.toggle(open, tab) ?? false, tab }),
     },
   };

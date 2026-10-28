@@ -5,8 +5,8 @@ import { ATTRIBUTES, ATTR_MIN, ATTR_MAX, rankToAttr, DERIVED, SKILLS, SKILL_MAX,
 // traits, conditions, injuries, stress, morale and reputation, folded every half second into g.deep.fx: the flat
 // object of multipliers and adds that the engine's single consumers read (the list is the top of data/stats.js).
 // The fold is neutral for an ordinary, untrained, calm, unhurt survivor: every multiplier 1, every add 0.
-//   live      false: transient state (stress, conditions, injuries) stops moving the fold (the selftest battery runs
-//             with it off so its gunfire never shakes another system's numbers; the stats checks turn it on)
+//   live      false: the sheet holds still - the fold is exactly neutral and nothing is learned or suffered (the
+//             selftest battery runs with it off so no other check's numbers move; the stats checks turn it on)
 //   check(req) the dialogue/quest gate (skill: stat: trait: item: trust: crew:) -> { ok, why }
 //   sheetFor(c) a crew member's sheet, same rows (the crew lane: c.sheet = stats.sheetFor(c) when it hires them)
 const MUL = ['spreadMul', 'reloadMul', 'sprintDrainMul', 'speedMul', 'priceMul', 'seenMul', 'drainMul', 'wakeMul', 'healMul', 'meleeMul', 'handling', 'noiseMul', 'lockMul', 'scentMul', 'damageMul', 'xpMul'];
@@ -60,7 +60,7 @@ export class Stats {
   // ---- learning ----------------------------------------------------------------------------------------------------
   gain(id, amount, why = '') {
     const d = SKILLS[id];
-    if (!d || !(amount > 0) || this.skill[id] >= SKILL_MAX) return 0;
+    if (!d || !(amount > 0) || this.skill[id] >= SKILL_MAX || !this.live) return 0; // held still: nothing is learned
     const v0 = this.skill[id], tag = this.tags.includes(id) ? TAGS.xpMul : 1;
     const add = (amount * this.fx.xpMul * tag) / (1 + v0 / XP_CURVE);
     this.skill[id] = Math.min(SKILL_MAX, v0 + add);
@@ -274,6 +274,7 @@ export class Stats {
     const F = this.fx, W = this.why;
     for (const k of MUL) F[k] = 1; for (const k of ADD) F[k] = 0;
     for (const k in W) W[k].length = 0;
+    if (!this.live) { this.conditions(); this.g.skillsSys?.recompute?.(); return F; } // held still (the battery): the fold is exactly neutral
     const put = (fx, src, scale = 1) => {
       if (!fx) return;
       for (const k in fx) {
