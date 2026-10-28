@@ -195,7 +195,7 @@ export async function citygenChecks({ api, g, check, C }) {
       if (ARCHETYPES[a].major && (cc.length !== 1 || cc[0].n < 4 || cc[0].n > 6 || !cc[0].fortified)) bad.push(`${a}: clone ${cc.length}`);
       if (!ARCHETYPES[a].major && cc.length) bad.push(`${a}: a clone center in a minor town`);
       const ps = T.buildings.find((B) => B.kind === 'police_station');
-      if (T.buildings.length >= 30 && !ps) bad.push(`${a}: no police station`);
+      if (T.buildings.filter((B) => !B.outbuilding).length >= 30 && !ps) bad.push(`${a}: no police station`); // (a yard's garage is not a lot: BACK LOTS)
       if (ps) { police++; if (ps.doors.some((d) => d.kind === 'bay')) withBays++; } // a bay walled up for want of room parks at the curb
     }
     const list = CGs.cloneCenters(), cities = new Set(list.map((c) => c.city));

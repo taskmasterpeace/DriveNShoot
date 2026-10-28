@@ -3,6 +3,7 @@
 // wall, and its STRUCTURES the hero buildings (the real ones, miniaturised: plans scale by sqrt(s) so they stay walkable,
 // storeys as the row says, capped at 6). Military rows get the base layout and its vault. Pure.
 import { layoutTown, layoutBase, makeBuilding, roofBridges, clearBays } from './layout.js';
+import { reconcileBacklots, finishBacklots } from './backlots.js';
 import { ARCHETYPES, KINDS, BIOMES, WALLS } from '../../data/citygen.js';
 import { makeRng } from '../../engine/rng.js';
 
@@ -109,7 +110,9 @@ export function layoutSite(row, { x, z, seed = 1 } = {}) {
   // A ruin (kind 'ruin', WEB_SITES_TERRAIN §3.1): more than half of what is not a hero building is cut off and open to the sky.
   if (row.kind === 'ruin') for (const B of T.buildings) if (!B.hero && !B.ruined && rng.chance(0.55)) Object.assign(B, makeBuilding(rng, B.kind, B.x0, B.z0, B.x1, B.z1, B.front, { ...B, ruined: true, storeys: Math.max(1, B.n - 1), id: B.id }));
   if (T.respect) for (const B of T.buildings) B.noLoot = true; // a sacred, burial or living place: nothing to take
+  reconcileBacklots(T); // BACK LOTS: a hero on a yard home's lot takes the lot whole
   clearBays(T.buildings, T.wall ? { x0: T.wall.x0 + T.wall.t, z0: T.wall.z0 + T.wall.t, x1: T.wall.x1 - T.wall.t, z1: T.wall.z1 - T.wall.t } : null);
+  finishBacklots(rng, T);
   T.bridges = roofBridges(rng, T.buildings, T.id);
   return T;
 }
