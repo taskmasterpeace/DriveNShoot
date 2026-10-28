@@ -647,6 +647,7 @@ export class QOL {
 
   update(dt) {
     if (this.photo) { this.updatePhoto(dt, this.g.input); return; }
+    this.g.hud?.layout?.situate(); // a panel opening pauses the world: the HUD still steps out of its way (data/hudlayout.js 'panel')
     // Autosave on a timer, never mid-fight, in a car crash or while dead.
     const g = this.g;
     if (!g.paused && !document.querySelector('.title')) {

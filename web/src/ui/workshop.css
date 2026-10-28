@@ -11,7 +11,7 @@
   background: linear-gradient(178deg, oklch(0.93 0.035 85), oklch(0.82 0.05 78)); transform: rotate(-1.5deg); box-shadow: 2px 3px 0 rgba(0,0,0,0.55);
   clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%); }
 .ws-scrip::before { content: ''; position: absolute; left: 7px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: oklch(0.2 0.01 60); box-shadow: inset 0 1px 1px rgba(255,255,255,0.3); }
-.ws-scrip span { font: 700 10px var(--display); letter-spacing: 0.2em; }
+.ws-scrip span { font: 700 10px var(--display); letter-spacing: 0.2em; line-height: 1.2; margin-bottom: 2px; }
 .ws-scrip b { font: 700 22px var(--road); letter-spacing: 0.02em; line-height: 1; }
 
 .ws-body { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
@@ -41,11 +41,17 @@
 .ws-rack li.no .nm { color: var(--muted); }
 .ws-rack .nm { flex: 1; min-width: 0; display: grid; font: 700 14px var(--display); letter-spacing: 0.03em; color: var(--bone); line-height: 1.1; }
 .ws-rack .nm small { font: 600 10.5px var(--road); color: var(--muted); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ws-rack .why { font: 700 9px var(--display); letter-spacing: 0.12em; color: oklch(0.68 0.17 35); white-space: nowrap; }
+.ws-rack .why { flex: none; max-width: 118px; display: flex; align-items: center; gap: 5px; font: 700 11px/1.1 var(--display); letter-spacing: 0.04em; color: oklch(0.76 0.15 45); text-align: right; text-shadow: 1px 1px 0 #000; }
+/* a row you can't take here: dimmed, a padlock, and the reason in words in its own column (never drawn across the text) */
+.ws-rack li.no { background: linear-gradient(172deg, oklch(0.21 0.006 70), oklch(0.17 0.006 70)); }
+.ws-rack li.no .nm > span:first-child { color: oklch(0.7 0.02 75); }
+.ws-rack .lock { flex: none; width: 13px; height: 13px; color: oklch(0.76 0.15 45); }
 .ws-rack .tag { flex: none; font: 700 12px var(--road); color: oklch(0.24 0.03 60); padding: 2px 8px 2px 12px; transform: rotate(-2deg);
   background: linear-gradient(178deg, oklch(0.93 0.035 85), oklch(0.8 0.05 78)); clip-path: polygon(7px 0, 100% 0, 100% 100%, 7px 100%, 0 50%); box-shadow: 1px 2px 0 rgba(0,0,0,0.5); }
 .ws-rack li.no .tag { filter: saturate(0.3) brightness(0.75); }
-.ws-rack .stamp { display: inline-block; margin-left: 6px; font: 800 9px var(--stencil); letter-spacing: 0.08em; padding: 0 4px; transform: rotate(-4deg); border: 1.5px solid currentColor; vertical-align: 2px; }
+/* rarity: a flat chip after the name (it read as a LOCKED strike when it was a slanted outline) */
+.ws-rack .stamp { display: inline-block; margin-left: 7px; font: 700 9.5px var(--display); font-style: normal; letter-spacing: 0.1em; line-height: 1; padding: 2px 5px 1px; border-radius: 2px; vertical-align: 1px; color: oklch(0.18 0.01 60); background: currentColor; }
+.ws-rack .stamp b { color: oklch(0.16 0.012 60); font: inherit; }
 .ws-rack .stamp.r-prewar { color: oklch(0.72 0.13 200); }
 .ws-rack .stamp.r-uncommon { color: var(--brass); }
 .ws-rack .ws-sw { width: 22px; height: 22px; flex: none; border: 1px solid oklch(0.1 0.01 60); box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 1px 2px 0 rgba(0,0,0,0.5); }
