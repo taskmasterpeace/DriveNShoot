@@ -57,9 +57,14 @@ In the pause menu (SETTINGS → People), Robert can flip between LSW bodies and 
    at the hand-off. The fragment shader cuts the cloth regions in bind space per fragment (waist, boot tops, neck, wrists,
    elbows; LSW's anti-sawtooth rule). It adds cloth cues: a belt, hems, a collar, a fine weave, matte cloth against
    slightly glossy skin. A shirt's normal leans to a smooth barrel, so the source's sculpted chest doesn't read as bare.
-6. **Breath.** An idle, living chest rises 1.2% at 0.25 Hz. This is the one thing DSOA had no pose for. No LSW motion clip
+6. **The dead decay on the LSW body** (DEATH-RITES, `systems/rites.js`). LSW keeps the dead; nothing is handed back to
+   the classic rig. While a corpse is still a Character, rites sets `c.rot` and `paint()` lerps the classic instance colours
+   toward the rot tint. LSW reads those colours, so a fresh, bloated or rotting body looks the same on either rig. The
+   *swell* exists only on the far **folded** body, which rites draws as its own boxes, never as a Character. At the bones
+   stage (3), rites removes the Character for its bone pile. Neither rig draws a skeleton.
+7. **Breath.** An idle, living chest rises 1.2% at 0.25 Hz. This is the one thing DSOA had no pose for. No LSW motion clip
    is used (see `PROVENANCE.md` for why and each clip's licence).
-7. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
+8. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
    set. The next frame is byte-identical to the classic rig (a check proves it).
 
 ## 4. Formulas, with an example
@@ -86,7 +91,7 @@ In the pause menu (SETTINGS → People), Robert can flip between LSW bodies and 
 
 ## 6. Dependencies, both ways
 - **Reads:** `systems/characters.js` (the solver's frames and joints, the classic instance colours, `hideSlot`),
-  `data/voices.js` (`VOICES`, `genderOf`), `ui/portrait.js` (`FLAGS`, `FLAG_KEYS`), `ui/qol.js` (the `bodies` setting),
+  `data/voices.js` (`VOICES`, `genderOf`), `systems/rites.js` (indirectly: the rot tint arrives through `paint()`), `ui/portrait.js` (`FLAGS`, `FLAG_KEYS`), `ui/qol.js` (the `bodies` setting),
   `main.js` (`charR.lsw.focus = player`).
 - **Read by:** `CharacterRenderer` (owns one `LswBodies`, calls `choose`, `drive` and `finish`), the agent (`bodies`
   command), the selftest.
@@ -126,7 +131,9 @@ In the pause menu (SETTINGS → People), Robert can flip between LSW bodies and 
 6. **Flags.** One patch per LSW body, each showing that person's own flag from the atlas.
 7. **Budget.** With 160 people, draw calls stay under 150, the LSW bodies add at most 5, 24 are drawn, and the skinned
    CPU cost is under 2 ms per frame.
-8. **Classic restore.** classic → lsw → classic gives byte-identical classic instance matrices and colours, the LSW meshes
+8. **Decay.** A bloated body (rot 0.6) wears exactly the classic rig's rotted shirt, trousers and skin colours, and the
+   tint really changes them.
+9. **Classic restore.** classic → lsw → classic gives byte-identical classic instance matrices and colours, the LSW meshes
    and patches are gone, and the `bodies` command and setting both switch it.
 
 **Measured** (stress scene, 160 people, 24 near, A/B interleaved in one session with `gl.finish`): pose pass 1.42 → 1.74 ms,

@@ -178,6 +178,19 @@ export async function lswBodiesChecks(api, check, C) {
     return bad.length ? bad.slice(0, 5).join('; ') : true;
   }));
 
+  await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {
+    const c = add('drifter', 0.5, 1.5, { name: 'Three Days' });
+    c.hp = 0; c.alive = false; c.deadTime = 0; c.rot = 0.6; g.charR.paint(c);
+    await api._step(1); frame();
+    const B = L.bodies[L.meshOf[c.slot]], k = L.instOf[c.slot], M = g.charR.meshes;
+    if (!L.drawn[c.slot]) return 'the dead body is not wearing an LSW body';
+    const same = (attr, mesh, idx) => [0, 1, 2].every((j) => Math.abs(attr.array[k * 3 + j] - mesh.instanceColor.array[idx * 3 + j]) < 1e-6);
+    const ok = same(B.inst.iShirt, M.torso, c.slot) && same(B.inst.iPants, M.hips, c.slot) && same(B.inst.iSkin, M.head, c.slot);
+    c.rot = 0; g.charR.paint(c);
+    const fresh = M.torso.instanceColor.array[c.slot * 3 + 1];
+    return ok && Math.abs(fresh - B.inst.iShirt.array[k * 3 + 1]) > 1e-4 ? true : `colours ${ok ? 'match but the tint did nothing' : 'differ from the classic rig'}`;
+  }));
+
   await check('lsw-bodies: draw calls stay under 150 with 160 people (24 LSW bodies cost at most 5 draws: two meshes, their shadows, the flag patches) and the skinned cost per frame is measured', () => stage(async () => {
     const room = 160 - g.chars.length;
     for (let k = 0; k < room; k++) add(k % 2 ? 'drifter' : 'warden', ((k % 16) - 8) * 1.4, 2 + Math.floor(k / 16) * 1.6, {}, k % 2 ? null : 'smg');
