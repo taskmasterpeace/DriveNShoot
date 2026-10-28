@@ -23,7 +23,7 @@ import { roadLines } from '../world/city.js';
 //              Standing toward the killer drops; attending, digging and paying for a stone each count.
 // What other lanes see: g.rites.onDeath / fold (main.js), graveFromCrew (crew.js), mourn (residents.js think),
 // onBuilt / onReleased (citygen.js stamp/release), gone(m) (residents.js promote), deliveries (trade.js).
-const CAP = 7000, FLY_CAP = 96, IVORY = new THREE.Color('#d8d0b8');
+const CAP = 7000, FLY_CAP = 96, SHADE = 0.85, BLOOD = new THREE.Color('#4a0606'), IVORY = new THREE.Color('#d8d0b8');
 const _o = new THREE.Object3D(), _c = new THREE.Color(), _t = new THREE.Color();
 const r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100;
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -138,8 +138,8 @@ export class Rites {
     this.g.emit('deathLearned', { body: R.id, name: R.name, house: N.house, ...fact });
     return fact;
   }
-  // Once a second: does anyone of theirs learn it? By seeing the body (in sight, 25 m), finding it at home (the record
-  // tier, an hour on), or being told by someone who saw the killing (a witness, FUNERAL.toldAfter hours on).
+  // Once a second: does anyone of theirs learn it? By seeing the body (in sight, 25 m), finding it in their own house
+  // (half an hour on: they live there), or being told by someone who saw the killing (a witness, FUNERAL.toldAfter hours on).
   hear() {
     const g = this.g, h = this.hours(), st = g.statics;
     for (let i = this.news.length - 1; i >= 0; i--) {
@@ -153,7 +153,7 @@ export class Rites {
           if (Math.hypot(c.x - bx, c.z - bz) < 25 && (!st?.lineOfSight || st.lineOfSight(c.x, c.z, bx, bz))) { this.learn(R, { source: 'saw the body', who: m.name }); break; }
         }
       }
-      if (!N.learned && !rec.members.some((m) => m.c) && h - N.at >= 1 && bx > rec.x0 - 6 && bx < rec.x1 + 6 && bz > rec.z0 - 6 && bz < rec.z1 + 6) this.learn(R, { source: 'found at home', who: rec.members.find((m) => !m.dead)?.name });
+      if (!N.learned && h - N.at >= 0.5 && rec.members.some((m) => !m.dead) && bx > rec.x0 - 6 && bx < rec.x1 + 6 && bz > rec.z0 - 6 && bz < rec.z1 + 6) this.learn(R, { source: 'found at home', who: rec.members.find((m) => !m.dead)?.name });
       if (!N.told && N.w.length && h - N.at >= FUNERAL.toldAfter) {
         N.told = true;
         const w = g.chars.find((c) => c.id === N.w[0]);
@@ -298,37 +298,38 @@ export class Rites {
   }
 
   // ---- drawing: the folded dead, bone piles, the near cemeteries (one instanced box mesh, one for the flies) -----------
-  put(i, x, y, z, sx, sy, sz, ry, hex, k = 0, tint = null) {
+  put(i, x, y, z, sx, sy, sz, ry, hex, k = 0, tint = null, bl = 0) {
     if (i >= CAP) return i;
     _o.position.set(x, y, z); _o.rotation.set(0, ry, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
     this.mesh.setMatrixAt(i, _o.matrix);
-    _c.set(hex); if (tint && k > 0) _c.lerp(tint, k);
+    _c.set(hex); if (bl > 0) _c.lerp(BLOOD, bl); if (tint && k > 0) _c.lerp(tint, k);
+    _c.multiplyScalar(SHADE); // the instanced boxes take the sun harder than the character rig: matched by eye
     this.mesh.setColorAt(i, _c);
     return i + 1;
   }
   // A box rotated about y by `ry` around the grave centre (lx along the grave's right, lz along its length).
-  putL(i, cx, cy, cz, ry, lx, ly, lz, sx, sy, sz, hex, k, tint) {
-    const s = Math.sin(ry), c = Math.cos(ry);
-    return this.put(i, cx + lx * c + lz * s, cy + ly, cz - lx * s + lz * c, sx, sy, sz, ry, hex, k, tint);
+  putL(i, cx, cy, cz, ry, lx, ly, lz, sx, sy, sz, hex, k, tint, bl = 0) {
+    const s = Math.sin(ry), c = Math.cos(ry), wx = cx + lx * c + lz * s, wz = cz - lx * s + lz * c;
+    return this.put(i, wx, (this.follow ? this.ground(wx, wz) : cy) + ly, wz, sx, sy, sz, ry, hex, k, tint, bl); // follow: each piece on the land under it
   }
   body(i, R) {
     const S = DECAY.stages[R.stage], C = R.colors ?? { shirt: '#5a5048', pants: '#3a342c', skin: '#a07858' };
     _t.set(S.tint);
-    const y = (R.y ?? 0) + 0.06, a = R.face ?? 0, x = R.x, z = R.z;
+    const y = (R.y ?? 0) + 0.06, a = (R.face ?? 0) + Math.PI, x = R.x, z = R.z; // head away from the shooter, as the death sprawl lies
     if (R.stage >= 3) { // the bone pile: skull, ribs, the long bones scattered a little
       const rng = makeRng(hash(R.id));
-      i = this.putL(i, x, y, z, a, 0, 0.06, 0.62, 0.18, 0.16, 0.2, '#e2dac4');
-      i = this.putL(i, x, y, z, a, 0, 0.03, 0.15, 0.34, 0.07, 0.42, '#d4cbb2');
-      for (let k = 0; k < 4; k++) i = this.putL(i, x, y, z, a + (rng() - 0.5) * 0.6, (k % 2 ? 0.18 : -0.18) + (rng() - 0.5) * 0.15, 0.02, k < 2 ? -0.45 : 0.2, 0.05, 0.05, k < 2 ? 0.5 : 0.36, '#cfc6ad');
+      i = this.putL(i, x, y, z, a, 0, 0.06, 0.62, 0.18, 0.16, 0.2, '#cfc4a4');
+      i = this.putL(i, x, y, z, a, 0, 0.03, 0.15, 0.34, 0.07, 0.42, '#c2b796');
+      for (let k = 0; k < 4; k++) i = this.putL(i, x, y, z, a + (rng() - 0.5) * 0.6, (k % 2 ? 0.18 : -0.18) + (rng() - 0.5) * 0.15, 0.02, k < 2 ? -0.45 : 0.2, 0.05, 0.05, k < 2 ? 0.5 : 0.36, '#bdb190');
       return i;
     }
     const sw = S.swell, k = S.k;
-    i = this.putL(i, x, y, z, a, 0, 0.11 * sw, 0.05, 0.42 * Math.min(1.35, sw), 0.22 * sw, 0.62, C.shirt, k, _t);       // torso
-    i = this.putL(i, x, y, z, a, 0, 0.1, 0.52, 0.22, 0.2, 0.22, C.skin, Math.min(1, k * 1.3), _t);                     // head
-    i = this.putL(i, x, y, z, a, -0.13, 0.07, -0.62, 0.14, 0.13 * Math.max(1, sw * 0.9), 0.8, C.pants, k, _t);          // legs
-    i = this.putL(i, x, y, z, a, 0.13, 0.07, -0.62, 0.14, 0.13 * Math.max(1, sw * 0.9), 0.8, C.pants, k, _t);
-    i = this.putL(i, x, y, z, a + 0.5, -0.36, 0.06, 0.1, 0.1, 0.1, 0.55, C.shirt, k, _t);                               // arms flung
-    i = this.putL(i, x, y, z, a - 0.4, 0.36, 0.06, 0.12, 0.1, 0.1, 0.55, C.shirt, k, _t);
+    i = this.putL(i, x, y, z, a, 0, 0.11 * sw, 0.05, 0.42 * Math.min(1.35, sw), 0.22 * sw, 0.62, C.shirt, k, _t, 0.6);       // torso
+    i = this.putL(i, x, y, z, a, 0, 0.1, 0.52, 0.22, 0.2, 0.22, C.skin, Math.min(1, k * 1.3), _t, 0.35);                     // head
+    i = this.putL(i, x, y, z, a, -0.13, 0.07, -0.62, 0.14, 0.13 * Math.max(1, sw * 0.9), 0.8, C.pants, k, _t, 0.5);          // legs
+    i = this.putL(i, x, y, z, a, 0.13, 0.07, -0.62, 0.14, 0.13 * Math.max(1, sw * 0.9), 0.8, C.pants, k, _t, 0.5);
+    i = this.putL(i, x, y, z, a + 0.5, -0.36, 0.06, 0.1, 0.1, 0.1, 0.55, C.shirt, k, _t, 0.6);                               // arms flung
+    i = this.putL(i, x, y, z, a - 0.4, 0.36, 0.06, 0.12, 0.1, 0.1, 0.55, C.shirt, k, _t, 0.6);
     return i;
   }
   draw(px, pz) {
@@ -353,8 +354,9 @@ export class Rites {
   drawCem(i, cem) {
     this.resolve(cem);
     const K = CEMETERY_KINDS[cem.kind], slots = this.slots(cem), G = this.gravesOf(cem), y0 = cem.y, a = cem.a;
-    const stone = '#8e8a82', wood = '#4a3624', dirt = '#3a2c1e', fresh = '#2a1f14';
-    if (K.layout !== 'vault') i = this.put(i, cem.x, y0 + 0.01, cem.z, cem.w - 0.5, 0.02, cem.d - 0.5, a, cem.soil ?? (cem.soil = this.soilOf(cem)), 0.5, _t.set('#5a4630')); // the yard's own worked ground
+    const stone = '#a8a49a', wood = '#4a3624', dirt = '#3a2c1e', fresh = '#2a1f14';
+    this.follow = K.at !== 'on' || !!cem.outside; // a site's yard lies on its pad; the others on the land as it falls
+    if (K.layout !== 'vault' && !this.follow) i = this.put(i, cem.x, y0 + 0.01, cem.z, cem.w - 0.5, 0.02, cem.d - 0.5, a, cem.soil ?? (cem.soil = this.soilOf(cem)), 0.5, _t.set('#5a4630')); // the yard's own worked ground
     if (K.layout === 'vault') { // a concrete crypt: floor, four low walls, the niches as plaques on the floor rows
       i = this.put(i, cem.x, y0 + 0.05, cem.z, cem.w, 0.1, cem.d, a, '#6c6a64');
       for (const [lx, lz, sx, sz] of [[0, -cem.d / 2, cem.w, 0.3], [0, cem.d / 2, cem.w, 0.3], [-cem.w / 2, 0, 0.3, cem.d], [cem.w / 2, 0, 0.3, cem.d]]) i = this.putL(i, cem.x, y0, cem.z, a, lx, 0.6, lz, sx, 1.2, sz, '#7a7870');
@@ -363,13 +365,15 @@ export class Rites {
       for (let t = -w; t <= w + 0.01; t += 2.5) { i = this.putL(i, cem.x, y0, cem.z, a, t, 0.45, -d, 0.1, 0.9, 0.1, wood); i = this.putL(i, cem.x, y0, cem.z, a, t, 0.45, d, 0.1, 0.9, 0.1, wood); }
       for (let t = -d + 2.5; t < d - 0.01; t += 2.5) { i = this.putL(i, cem.x, y0, cem.z, a, -w, 0.45, t, 0.1, 0.9, 0.1, wood); i = this.putL(i, cem.x, y0, cem.z, a, w, 0.45, t, 0.1, 0.9, 0.1, wood); }
     }
-    if (K.layout === 'trench') { // long mounds, a post every few
-      const per = 20, T = Math.ceil(G.length / per);
+    if (K.layout === 'trench') { // long trenches: the ground worked over, a low hump for each of the dead, a cross post every 4 m
+      const per = cem.per ?? 20, T = Math.ceil(G.length / per), soil = cem.soil ?? (cem.soil = this.soilOf(cem));
+      _t.set(soil);
       for (let t = 0; t < T; t++) {
-        const s = slots[t * per], len = Math.min(per, G.length - t * per) * K.sp[0];
+        const s = slots[t * per], n = Math.min(per, G.length - t * per), len = n * K.sp[0];
         if (!s) break;
-        i = this.putL(i, cem.x, y0, cem.z, a, s.lx + len / 2 - K.sp[0] / 2, 0.16, s.lz, len, 0.32, 2.2, dirt);
-        for (let q = 0; q < len; q += 4) { i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.5, s.lz - 1.2, 0.08, 1, 0.08, wood); i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.75, s.lz - 1.2, 0.5, 0.08, 0.08, wood); }
+        i = this.putL(i, cem.x, y0, cem.z, a, s.lx + len / 2 - K.sp[0] / 2, 0.03, s.lz, len + 0.6, 0.06, 2.6, dirt, 0.35, _t);
+        for (let q = 0; q < n; q++) { const h = hash(`${cem.id}:${t}:${q}`); i = this.putL(i, cem.x, y0, cem.z, a + ((h & 15) - 7) * 0.01, s.lx + q * K.sp[0], 0.1, s.lz + ((h >> 4) & 7) * 0.03, 0.82, 0.16 + ((h >> 8) & 7) * 0.012, 1.9, dirt, 0.15 + ((h >> 12) & 7) * 0.04, _t); }
+        for (let q = 0; q < len; q += 4) { i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.6, s.lz - 1.35, 0.12, 1.2, 0.12, wood); i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.9, s.lz - 1.35, 0.7, 0.12, 0.12, wood); }
       }
     }
     const all = G.length + cem.added.length, soil = cem.soil ?? (cem.soil = this.soilOf(cem)), yr = CALENDAR.now;
@@ -387,6 +391,7 @@ export class Rites {
       else if (m === 'cross' && (h >> 5) % 9) { i = this.putL(i, cem.x, y0, cem.z, aa, lx, 0.55, lz + 1.05, 0.12, 1.1, 0.12, wood); i = this.putL(i, cem.x, y0, cem.z, aa, lx, 0.8, lz + 1.05, 0.62, 0.12, 0.12, wood); }
       else if (m === 'cross') i = this.putL(i, cem.x, y0, cem.z, aa + 1.2, lx + 0.3, 0.05, lz + 0.6, 0.12, 0.1, 1.0, wood); // fallen
     }
+    this.follow = false;
     return i;
   }
   // The ground's own colour round a cemetery (old mounds go back to it): the island's sand, a biome's floor elsewhere.
@@ -437,7 +442,7 @@ export class Rites {
   }
   size(cem) {
     const K = CEMETERY_KINDS[cem.kind], n = cem.count + 24; // room for new graves
-    if (K.layout === 'trench') { const T = Math.ceil(cem.count / 20) + 2; cem.cols = 20; cem.rows = T; cem.w = 20 * K.sp[0] + 4; cem.d = T * K.sp[1] + 4; return; }
+    if (K.layout === 'trench') { const per = cem.per = Math.max(10, Math.ceil(Math.sqrt(cem.count * K.sp[1] / K.sp[0]))), T = Math.ceil(cem.count / per) + 1; cem.cols = per; cem.rows = T; cem.w = per * K.sp[0] + 4; cem.d = T * K.sp[1] + 4; return; }
     const cols = Math.max(3, Math.ceil(Math.sqrt(n * K.sp[1] / K.sp[0]))), rows = Math.ceil(n / cols);
     cem.cols = cols; cem.rows = rows; cem.w = cols * K.sp[0] + 3; cem.d = rows * K.sp[1] + 3;
   }
@@ -447,32 +452,53 @@ export class Rites {
     const K = CEMETERY_KINDS[cem.kind], g = this.g, rec = cem.rec;
     const live = rec ? g.citygen?.live?.get(rec.id) : null;
     if (rec && !live && !cem.fixed) { cem.y = rec.y ?? this.ground(cem.x, cem.z); return; } // not built yet: provisional
-    const r = Math.hypot(cem.w, cem.d) / 2;
-    const boxes = live?.built?.boxes ?? [], roads = live?.T?.roads ?? [], W = g.streamer?.W, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
-    // off the buildings, off the streets (a town's road rows, the island's grid, the corridors), dry at its corners
-    const blocked = (x, z) => {
-      for (const b of boxes) if (x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ) return true;
-      for (const q of roads) if (x + r > q.x0 && x - r < q.x1 && z + r > q.z0 && z - r < q.z1) return true;
-      for (const [dx, dz] of [[0, 0], [-r, -r], [r, -r], [-r, r], [r, r]]) if ((g.water?.depthAt?.(x + dx, z + dz) ?? 0) > 0.05) return true;
-      if (island(x, z) && (roadLines.some((c) => Math.abs(z - c) < r + 8 || Math.abs(x - c) < r + 8) || Math.abs(z) < r + 8)) return true;
-      if (!island(x, z) && W?.project) { const pr = W.project(x, z, r + 40); if (pr && pr.d < r + 30) return true; }
-      if (cem.fixed && (g.statics?.pointBlocked?.(x, z, r * 0.9) || (!cem.ring && W?.ring?.inCity?.(x, z, r)))) return true;
+    const roads = live?.T?.roads ?? [], W = g.streamer?.W, CG = g.statics?.cg, island = (x, z) => Math.abs(x) <= 464 && Math.abs(z) <= 464;
+    // What is under one point: a building (the live towns' 8 m box grid), a street (the town's road rows, the island
+    // grid, a corridor), water, the island's statics or the ring's lots.
+    const hit = (x, z) => {
+      if (CG) for (const b of CG.cell(Math.floor(x / 8), Math.floor(z / 8))) if (x > b.minX - 1 && x < b.maxX + 1 && z > b.minZ - 1 && z < b.maxZ + 1) return true;
+      for (const q of roads) if (x > q.x0 - 1.5 && x < q.x1 + 1.5 && z > q.z0 - 1.5 && z < q.z1 + 1.5) return true;
+      if ((g.water?.depthAt?.(x, z) ?? 0) > 0.05) return true;
+      if (island(x, z)) { if (Math.abs(z) < 9 || roadLines.some((c) => Math.abs(z - c) < 9 || Math.abs(x - c) < 9)) return true; if (g.statics?.pointBlocked?.(x, z, 0.8)) return true; }
+      else if (cem.fixed && !cem.ring && W?.ring?.inCity?.(x, z)) return true;
       return false;
     };
+    // A footprint's score: how many of its 7 x 7 sample points land on something (0 = clear ground), and the corridor.
+    const score = (x, z, a) => {
+      if (!island(x, z) && W?.project) { const pr = W.project(x, z, 80); if (pr && pr.d < Math.max(cem.w, cem.d) / 2 + 24) return 999; }
+      const sn = Math.sin(a), cs = Math.cos(a);
+      let n = 0;
+      for (let u = 0; u < 7; u++) for (let v = 0; v < 7; v++) {
+        const lx = (u / 6 - 0.5) * cem.w, lz = (v / 6 - 0.5) * cem.d;
+        if (hit(x + lx * cs + lz * sn, z - lx * sn + lz * cs)) n++;
+      }
+      return n;
+    };
     const cands = [];
-    if (cem.fixed) { for (let d = 0; d <= 200; d += 8) for (let k = 0; k < 16; k++) cands.push([cem.x + Math.cos(k * 0.3927) * d, cem.z + Math.sin(k * 0.3927) * d]); }
+    if (cem.fixed) { for (let d = 0; d <= 200; d += 8) for (let k = 0; k < 16; k++) cands.push([cem.x + Math.cos(k * 0.3927) * d, cem.z + Math.sin(k * 0.3927) * d, cem.a ?? 0]); }
     else {
-      const half = rec.half, base = (cem.seed % 8) * 0.785;
-      const radii = K.at === 'edge' ? [half - r * 0.4, half + r * 0.2, half - r] : K.at === 'plot' ? [half * 0.55, half * 0.75, half * 0.35] : [half * 0.5, half * 0.3, half * 0.7, half * 0.15, 0];
-      for (const rr of radii) for (let k = 0; k < 16; k++) { const ang = base + k * 0.3927; cands.push([rec.x + Math.cos(ang) * rr, rec.z + Math.sin(ang) * rr]); }
+      const half = rec.half, base = (cem.seed % 8) * 0.785, r = Math.hypot(cem.w, cem.d) / 2;
+      const radii = K.at === 'edge' ? [half - r * 0.4, half + r * 0.2, half - r, half + r * 0.8] : K.at === 'plot' ? [half * 0.55, half * 0.75, half * 0.35] : [half * 0.5, half * 0.3, half * 0.7, half * 0.15, 0];
+      for (const rr of radii) for (let k = 0; k < 16; k++) {
+        const ang = base + k * 0.3927, x = rec.x + Math.cos(ang) * rr, z = rec.z + Math.sin(ang) * rr, a = Math.round(Math.atan2(x - rec.x, z - rec.z) / (Math.PI / 2)) * (Math.PI / 2);
+        cands.push([x, z, a], [x, z, a + Math.PI / 2]);
+      }
+      if (K.at === 'on') for (const B of live?.T?.blocks ?? []) cands.push([B.cx, B.cz, 0], [B.cx, B.cz, Math.PI / 2]); // a site's own blocks
     }
-    let at = cands.find(([x, z]) => !blocked(x, z)) ?? cands[0];
-    cem.x = Math.round(at[0]); cem.z = Math.round(at[1]);
-    cem.a = cem.fixed ? cem.a : Math.round(Math.atan2(cem.x - rec.x, cem.z - rec.z) / (Math.PI / 2)) * (Math.PI / 2);
-    cem.y = live ? (rec.y ?? 0) : this.ground(cem.x, cem.z);
+    let best = cands[0], bs = Infinity;
+    for (const c of cands) { const sc = score(c[0], c[1], c[2]); if (sc < bs) { bs = sc; best = c; if (!sc) break; } }
+    // a site built solid: outside its walls instead (where the dead of a siege were put)
+    if (bs > 2 && rec && K.at === 'on') for (const rr of [rec.half - 6, rec.half + 10, rec.half + 30]) for (let k = 0; k < 16 && bs; k++) {
+      const ang = k * 0.3927, x = rec.x + Math.cos(ang) * rr, z = rec.z + Math.sin(ang) * rr;
+      for (const a of [0, Math.PI / 2]) { const sc = score(x, z, a); if (sc < bs) { bs = sc; best = [x, z, a]; } }
+    }
+    cem.x = Math.round(best[0]); cem.z = Math.round(best[1]); cem.a = best[2]; cem.clash = bs; // clash: sample points still on something (0 = clear)
+    cem.slotList = null;
+    cem.outside = !!(rec && Math.max(Math.abs(cem.x - rec.x), Math.abs(cem.z - rec.z)) > rec.half - 8);
+    cem.y = live && K.at === 'on' && !cem.outside ? (rec.y ?? 0) : this.ground(cem.x, cem.z); // on a site: its pad; at the edge: the land itself
     cem.resolved = true;
     this.placeSexton(cem);
-    this.g.emit('cemeteryPlaced', { id: cem.id, place: cem.place, kind: cem.kind, x: cem.x, z: cem.z, graves: cem.count });
+    this.g.emit('cemeteryPlaced', { id: cem.id, place: cem.place, kind: cem.kind, x: cem.x, z: cem.z, graves: cem.count, clash: bs });
   }
   // The sexton's box (a shovel, a cross or two) at a town cemetery: rolled once like any box, never refills.
   placeSexton(cem) {
@@ -771,9 +797,11 @@ export class Rites {
       if (F.state === 'done' || !F.mourners.includes(m.key)) continue;
       const at = this.funeralSpot(F);
       if (!at) continue;
-      const travel = Math.hypot(at.x - c.x, at.z - c.z) / FUNERAL.walk / 60; // game hours on foot (a game hour is 60 s)
-      if (h < F.start - travel - 0.25 || h > F.end) continue;
       const R = this.bodies.get(F.body), bx = R ? (R.c ? R.c.x : R.x) : at.x, bz = R ? (R.c ? R.c.z : R.z) : at.z;
+      // game hours on foot (a game hour is 60 s); whoever fetches the body walks to it first and drags it back slower
+      const fetch = !F.carrier || F.carrier === m.key, far = R && !R.buried && !R.burned && Math.hypot(bx - at.x, bz - at.z) > 3;
+      const travel = (fetch && far ? Math.hypot(bx - c.x, bz - c.z) / FUNERAL.walk + Math.hypot(at.x - bx, at.z - bz) / (FUNERAL.walk * 0.8) : Math.hypot(at.x - c.x, at.z - c.z) / FUNERAL.walk) / 60;
+      if (h < F.start - travel - 0.25 || h > F.end + (F.waited || this.drag?.id === F.body ? FUNERAL.wait : 0)) continue;
       const res = this.g.residents;
       // the first of them fetches the body (if it still lies anywhere but the grave) and drags it there
       if (R && !R.buried && !R.burned && R.stage < 3 && (!F.carrier || F.carrier === m.key) && Math.hypot(bx - at.x, bz - at.z) > 3) {
@@ -800,6 +828,8 @@ export class Rites {
       const at = this.funeralSpot(F);
       if (at && P.alive && Math.hypot(P.x - at.x, P.z - at.z) < FUNERAL.attendR && !F.attended) { F.attended = true; this.standing(F, FUNERAL.standing.attended, 'came to the funeral'); if (g.needs?.mood) g.needs.mood.gloom = Math.min(1, (g.needs.mood.gloom ?? 0) + FUNERAL.mood.gloom); g.emit('funeralAttended', { id: F.id }); }
       if (h < F.end) continue;
+      // the body still on its way in someone's arms: they wait for it (up to FUNERAL.wait hours)
+      if (this.drag?.id === F.body && this.drag.dragBy?.res && h < F.end + FUNERAL.wait) { F.waited = true; continue; }
       this.finish(F);
     }
   }
@@ -852,7 +882,7 @@ export class Rites {
   cemView(cem, full = false) {
     this.resolve(cem);
     const G = this.gravesOf(cem);
-    const v = { id: cem.id, place: cem.place, name: `${cem.placeName} · ${CEMETERY_KINDS[cem.kind].name}`, kind: cem.kind, placeKind: cem.placeKind, x: cem.x, z: cem.z, y: r1(cem.y), w: r1(cem.w), d: r1(cem.d), resolved: cem.resolved,
+    const v = { id: cem.id, place: cem.place, name: `${cem.placeName} · ${CEMETERY_KINDS[cem.kind].name}`, kind: cem.kind, placeKind: cem.placeKind, x: cem.x, z: cem.z, y: r1(cem.y), w: r1(cem.w), d: r1(cem.d), resolved: cem.resolved, clash: cem.clash ?? null,
       pop: cem.pop, years: cem.years, danger: cem.danger, formula: `max(${FORMULA.min}, ceil(${cem.pop} x ${cem.years} x ${FORMULA.rate} x (1 + ${cem.danger})))`, graves: cem.count, expected: graveCount(cem.pop, cem.years, cem.danger), history: G.length, added: cem.added.length, battle: cem.battle, mood: r2(this.moods[cem.id] ?? 0) };
     if (full) { v.oldest = G.slice(0, 5); v.newest = [...G.slice(-3), ...cem.added.slice(-5)]; v.causes = {}; for (const r of G) v.causes[r.cause] = (v.causes[r.cause] ?? 0) + 1; }
     return v;

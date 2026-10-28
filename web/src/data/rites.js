@@ -11,8 +11,8 @@
 export const DECAY = {
   stages: [
     { id: 'fresh', at: 0, tint: '#6a2a20', k: 0.1, swell: 1, smell: 0, flies: 0, sick: 0 },
-    { id: 'bloated', at: 24, tint: '#5f6a3a', k: 0.45, swell: 1.45, smell: 30, flies: 6, sick: 0.12 },
-    { id: 'rotting', at: 72, tint: '#3e3424', k: 0.7, swell: 1.15, smell: 42, flies: 9, sick: 0.25 },
+    { id: 'bloated', at: 24, tint: '#3c4426', k: 0.5, swell: 1.45, smell: 30, flies: 6, sick: 0.12 },
+    { id: 'rotting', at: 72, tint: '#2a2218', k: 0.72, swell: 1.15, smell: 42, flies: 9, sick: 0.25 },
     { id: 'bones', at: 240, tint: '#d8d0b8', k: 1, swell: 0, smell: 0, flies: 0, sick: 0 },
   ],
   // the climate: air above hot (C) runs the clock x heat, below cold x cold; a body in water (depth > wet m) x water
@@ -111,6 +111,7 @@ export const SEXTON_LOOT = { rolls: [1, 2], none: 0, rows: [['shovel', 6, 1, 1],
 // and standing toward the killer (the player: standing with the dead's faction) move by these.
 export const FUNERAL = {
   delay: [24, 48], hour: 10, length: 2, walk: 1.4, attendR: 18,
+  wait: 2,      // game hours a funeral waits past its end for a body that is being carried there
   toldAfter: 2, // game hours before a witness of the killing has carried the word to the family (law 6: only what they were told)
   standing: { killer: -8, attended: 3, dug: 4, stone: 6 },
   mood: { gloom: 0.15 },
