@@ -13,6 +13,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `pause` | `on?:boolean` | Pause or resume the realtime loop. |
 | `step` | `seconds?:number dt?:number` | Advance the simulation deterministically by N seconds at a fixed 60Hz step (runs even if tab hidden). Returns state + new events. |
 | `qol` | `set?:string value?:string hud?:boolean` | The quality-of-life layer: settings, THIS RUN totals, the RECENT log, save times. set=<setting> value=<v> changes one setting for this session (hudScale, nameTags aim\|near\|off, killFeed, dmgNumbers, autosaveMin, pauseOnBlur, muteOnBlur, ...); hud=true\|false hides/shows the HUD (F1). |
+| `hudLayout` | `action?:string id?:string x?:number y?:number anchor?:string scale?:number visible?:boolean situations?:string name?:string json?:string on?:boolean panel?:boolean` | The HUD layout (data/hudlayout.js, docs/design/WEB_UI_EDITOR.md): every HUD element as a named row anchored to a corner or edge. action=list (rows + where each sits on screen) \| set id=<row> [x= y= anchor=tl\|tc\|tr\|ml\|mc\|mr\|bl\|bc\|br scale= visible= situations=a,b] \| preset name=default\|compact\|streamer\|controller \| reset [id=] \| export \| import json=<layout JSON> \| situation name=<on_foot\|driving\|passenger\|deck\|prone\|menu\|night\|dead\|auto> (preview what that situation shows) \| edit on=true\|false [panel=false hides the editor panel, names stay]. A player's layout is saved on this machine. |
 
 ## observe
 

@@ -985,6 +985,7 @@ class Game {
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     const foot = this.footingText(p); // riding an open deck: how near the floor is to throwing you (systems/decks.js feel)
+    this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
     const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
@@ -1005,12 +1006,12 @@ class Game {
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
-    else if (dk) this.hud.prompt(foot ? `${dk.text} · ${foot}` : dk.text);
+    else if (dk) this.hud.prompt(dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op && !ugI) this.hud.prompt(foot);
+    else if (!op && !ugI) this.hud.prompt(null);
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
