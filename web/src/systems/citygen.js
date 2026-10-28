@@ -280,6 +280,7 @@ export class CityGen {
     }
     if (T.bunker) this.bunkerFor(rec, T);
     this.overrun.populate(t);
+    this.g.rites?.onBuilt(t); // its cemetery stands off its buildings now (systems/rites.js)
     const ms = performance.now() - t0;
     this.counts.stamped++; this.counts.buildMs = +ms.toFixed(1); this.counts.maxMs = Math.max(this.counts.maxMs, +ms.toFixed(1));
     this.g.emit?.('settlementBuilt', { id: rec.id, name: rec.name, arch: rec.arch, buildings: T.buildings.length, ms: Math.round(ms) });
@@ -290,6 +291,7 @@ export class CityGen {
     if (!t) return;
     for (const R of t.blds) if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; }
     this.overrun.depopulate(t);
+    this.g.rites?.onReleased(t);
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);
