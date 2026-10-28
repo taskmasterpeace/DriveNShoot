@@ -24,6 +24,7 @@ const MOUNT_NAME = { front: 'HOOD', rear: 'TAIL', left: 'LEFT POD', right: 'RIGH
 const PARTS = ['engine', 'radiator', 'tank', 'lights', 'tyres', 'body'];
 const BP = { w: 340, h: 480 };
 const MS_TO_MPH = 2.237;
+const LOCK = '<svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>'; // a row you can't take here
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export class WorkshopUI {
@@ -220,9 +221,9 @@ export class WorkshopUI {
     this.sel = Math.min(this.sel, Math.max(0, rows.length - 1));
     E.rack.className = `ws-rack t-${TABS[this.tab].id}`;
     E.rack.innerHTML = rows.map((r, i) => `<li data-i="${i}" class="${i === this.sel ? 'sel' : ''}${r.ok ? '' : ' no'}${r.fitted ? ' fitted' : ''}">
-        ${r.swatch ? `<i class="ws-sw" style="background:${r.swatch}"></i>` : ''}<span class="nm"><span>${esc(r.name)}${r.rare ? `<em class="stamp r-${r.rare}">${r.rare === 'prewar' ? 'PRE-WAR' : 'SCARCE'}</em>` : ''}</span><small>${esc(r.sub)}</small>
+        ${r.swatch ? `<i class="ws-sw" style="background:${r.swatch}"></i>` : ''}<span class="nm"><span>${esc(r.name)}${r.rare ? `<em class="stamp r-${r.rare}"><b>${r.rare === 'prewar' ? 'PRE-WAR' : 'SCARCE'}</b></em>` : ''}</span><small>${esc(r.sub)}</small>
         ${r.meter !== undefined ? `<i class="ws-meter"><em style="width:${Math.round(Math.max(0, Math.min(1, r.meter)) * 100)}%"></em></i>` : ''}</span>
-        ${r.why ? `<b class="why">${esc(r.why)}</b>` : ''}${r.price ? `<span class="tag">$${esc(r.price)}</span>` : ''}</li>`).join('');
+        ${r.why ? `<b class="why">${r.ok ? '' : LOCK}<span>${esc(r.why)}</span></b>` : ''}${r.price ? `<span class="tag">$${esc(r.price)}</span>` : ''}</li>`).join('');
     const row = rows[this.sel];
     E.dname.textContent = row?.name ?? '';
     E.desc.textContent = row?.desc ?? '';
