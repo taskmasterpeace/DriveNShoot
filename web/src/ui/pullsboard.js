@@ -1,8 +1,8 @@
 // THE PULLS BOARD (docs/design/WEB_PULLS.md §3.4): only what reached you. Each row is a copy you hold (systems/knowledge.js):
 // what it is, who told you and how (the channel), how old the news is, how far its spot is from you, and the window it
 // was told with running out, then EXPIRED. What you have since learned of how it went shows under it.
-//   chip   one HUD row in the top-right column (.hud-tr): PULLS n · the nearest, with its distance and bearing.
-//          Refreshed on the pulls tick (twice a second), never per frame. UI-EDITOR: register it as the `pulls` row.
+//   chip   the `pulls` row of the HUD layout (data/hudlayout.js; ui/hudedit.js places it, F6 moves it): PULLS n · the
+//          nearest, with its distance and bearing. Refreshed twice a second, and only when its text changes.
 //   tab    PULLS in the character sheet (`): the whole board, freshest first, expired at the bottom.
 const CSS = `
 .pulls-chip{display:flex;align-items:center;gap:8px;min-width:170px;max-width:284px;padding:5px 10px 5px 8px;cursor:pointer;pointer-events:auto;color:var(--bone,#efe6d2);font:700 13px var(--display,system-ui);letter-spacing:.04em;
@@ -38,7 +38,7 @@ const P = {
   news: '<path d="M4 22h16a2 2 0 0 0 2-2V4H8v16a2 2 0 0 1-4 0V9h4"/><path d="M12 8h6M12 12h6M12 16h4"/>',
   pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
 };
-const ICON = { hitchhiker: 'thumb', stranded: 'car', caravan: 'wagon', refugees: 'people', trader: 'cart', wreck: 'wreck', medic: 'cross', distress: 'radio', bounty: 'skull', work: 'board', missing: 'eye', weather: 'cloud', need: 'need', outcome: 'news', place: 'pin' };
+const ICON = { hitchhiker: 'thumb', stranded: 'car', caravan: 'wagon', refugees: 'people', trader: 'cart', wreck: 'wreck', medic: 'cross', funeral: 'news', distress: 'radio', bounty: 'skull', work: 'board', missing: 'eye', weather: 'cloud', need: 'need', outcome: 'news', place: 'pin' };
 const svg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[ICON[k]] ?? P.pin}</svg>`;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const km = (m) => (m === null || m === undefined ? '' : m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`);
@@ -51,10 +51,9 @@ export class PullsBoard {
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     this.chipEl = document.createElement('div');
     this.chipEl.className = 'pulls-chip none';
-    this.chipEl.dataset.hud = 'pulls';
     this.chipEl.innerHTML = `<b>0</b><span class="pc-t"><span class="pc-k">PULLS</span><span class="pc-n">nothing has reached you</span></span>`;
     this.chipEl.onclick = () => g.charSheet?.toggle(true, 'pulls');
-    (ui?.querySelector?.('.hud-tr') ?? ui ?? document.body).appendChild(this.chipEl);
+    (ui ?? document.body).appendChild(this.chipEl); // the layout lifts it into its row's wrapper (bind)
     this.timer = setInterval(() => this.refresh(), 500);
   }
   bearing(from, to) { const a = Math.atan2(to.x - from.x, -(to.z - from.z)); return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][(Math.round(a / (Math.PI / 4)) + 8) % 8]; }

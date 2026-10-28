@@ -233,6 +233,29 @@ export async function pullsChecks(api, check, C) {
       return ok && fresh === 0 && !minted ? true : JSON.stringify({ r, keepHeld, copy: copy?.source, stock: [stock0, bar.stock], till: [till0, bar.till], cash: [cash0, g.cash], fresh, minted });
     });
 
+    await check('pulls: a death is news through the death rites - nothing in town before the family learns it; once they do (told by a neighbour), their town holds it as said, the funeral is word in town with its own end, and the next town has it only by the grapevine', async () => {
+      const RS = g.residents, RT = g.rites;
+      if (!RS || !RT) return 'no residents or rites';
+      const pickRec = () => [...RS.recs.values()].find((r) => r.kind === 'family' && r.members?.some((m) => !m.dead)) ?? [...RS.recs.values()].find((r) => r.members?.some((m) => !m.dead));
+      let rec = pickRec();
+      for (const [hx, hz] of [[620, 40], [-640, 60], [40, 620]]) { if (rec) break; await stand(hx, hz); await C('step', { seconds: 3 }); rec = pickRec(); } // the ring's households are on record once their chunks are hot
+      if (!rec) return `no household on record (${RS.recs.size})`;
+      const now = S.hours(), x = (rec.x0 + rec.x1) / 2 + 40, z = (rec.z0 + rec.z1) / 2;
+      const R = { id: 'pulls-test-body', name: 'Wes Hollis', flag: 'US', x, z, y: 0, at: now, stage: 0, decay: 0, c: null, by: 'unknown', place: null, house: rec.id, member: null,
+        news: { house: rec.id, facts: [], learned: null, w: [], named: false, at: now, told: false, standing: false } };
+      RT.bodies.set(R.id, R); RT.news.push(R);
+      const n = S.nearestNode(x, z), town = `town:${n.id}`;
+      const before = !K.holds(town, `death:${R.id}`);
+      const r = RT.tell(R, 'a neighbour');
+      const copy = K.copyOf(town, `death:${R.id}`), F = RT.funerals.find((q) => q.body === R.id), fc = F && K.copyOf(town, F.id);
+      const other = S.neighbours(n)[0], otherBefore = other ? !K.holds(`town:${other.id}`, `death:${R.id}`) : true;
+      await waitHours(g, 1.05, 0.05);
+      const w = K.wireQ.find((q) => q.fid === `death:${R.id}`);
+      const ok = before && r.ok && copy?.source.channel === 'said' && copy.source.fromName === 'a neighbour' && F && fc && fc.ends === F.end && otherBefore && (!other || (w && w.at > S.hours()));
+      RT.bodies.delete(R.id); RT.news = RT.news.filter((q) => q !== R); RT.funerals = RT.funerals.filter((q) => q !== F);
+      return ok ? true : JSON.stringify({ before, r: r.ok ?? r.why, copy: copy?.source, F: !!F, fc: fc && { ends: fc.ends, F: F?.end }, other: other?.id, otherBefore, w: w && { at: w.at, now: S.hours() } });
+    });
+
     await check('pulls: rewards come out of real stock - a trader\'s cart sells from its own count into your pack, your cash into their purse; the board and the HUD chip show what reached you', async () => {
       await atRoad(stageS, -1, 8);
       const tr = born(S.birth('trader', { seed: 2323, force: true })).rec;

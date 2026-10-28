@@ -28,7 +28,9 @@ const roll = (rng, [a, b]) => a + rng() * (b - a);
 const iroll = (rng, [a, b]) => Math.floor(a + rng() * (b - a + 1));
 const BIRTH_W = [['hitchhiker', 3], ['stranded', 1.6], ['caravan', 1], ['refugees', 1.3], ['trader', 1.3], ['wreck', 1]];
 const MILE = 1609;
-const FURN_CAP = 480; // bar furniture boxes, every bar near you (one instanced draw call)
+const FURN_CAP = 1600, GLOW_CAP = 64; // bar furniture boxes and lamp glows, every bar near you (two instanced draw calls)
+// A 3x5 pixel font for the sign over a saloon's door (rows top to bottom).
+const GLYPH = { S: ['111', '100', '111', '001', '111'], A: ['010', '101', '111', '101', '101'], L: ['100', '100', '100', '100', '111'], O: ['111', '101', '101', '101', '111'], N: ['1001', '1101', '1011', '1001', '1001'] }; // N needs four columns to read as N
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 
 export class Pulls {
@@ -679,7 +681,7 @@ export class Pulls {
   }
   promoteBar(bar) {
     const g = this.g;
-    const L = this.layout(bar), len = Math.min(L.width * 0.6, 7.5);
+    const L = this.layout(bar);
     const faceIn = Math.atan2(L.inX, L.inZ);
     if (!bar.keepDead && !bar.keep.c) {
       const q = L.at(1.85, 0); // behind the counter, back to the shelf
@@ -688,12 +690,10 @@ export class Pulls {
     }
     for (const d of bar.drinkers) {
       if (d.c || d.dead || d.hired) continue;
-      // two on the stools at the counter, the rest round the card table
-      const tbl = L.at(Math.min(L.depth - 3, 6.2), L.width * 0.22);
-      const q = d.n < 2 ? L.at(3.8, -len / 3 + d.n * len / 3) : { x: tbl.x + (d.n === 2 ? 1.05 : -1.05), z: tbl.z };
+      const st = this.seatOf(bar, d.n), q = st.q; // two on the stools, the rest at the tables (plan)
       const c = g.addChar({ x: q.x, z: q.z, faction: 'drifter', weapon: null, hp: d.gun ? BAR.gun.hp : 100, colors: outfit('drifter', rngOf(d.seed)), name: d.name, flag: d.flag });
       if (!c) break;
-      c.barRole = d.gun ? 'gun' : 'drinker'; c.barId = bar.id; c.barN = d.n; c.home = { ...q }; c.face = d.n < 2 ? faceIn + Math.PI : Math.atan2(tbl.x - q.x, tbl.z - q.z); g.standOn?.(c); d.c = c;
+      c.barRole = d.gun ? 'gun' : 'drinker'; c.barId = bar.id; c.barN = d.n; c.home = { ...q }; c.face = st.face; c.crouch = st.seated; g.standOn?.(c); d.c = c; // seated: knees folded on the chair
       // a drinker knows a little of the town's talk (a copy, said over a glass)
       const hid = `d:${bar.id}:${d.n}`, H = this.k.holder(hid, { name: d.name, x: q.x, z: q.z }), town = this.k.holders.get(`town:${bar.town}`);
       if (town) for (const f of town.facts.slice(-3)) this.k.tell(town.id, hid, f.id, 'said', { force: true });
@@ -709,9 +709,8 @@ export class Pulls {
     bar.live = false;
     this.furnish();
   }
-  // ---- the furniture: a counter, the back shelf and its bottles, stools, a card table, the board on the wall ----------
-  // Laid out from the building's own front: the counter faces the door, the shelf against the back wall. One instanced
-  // mesh for every bar near you; rebuilt only when a bar opens or closes (never per frame).
+  // ---- the furniture --------------------------------------------------------------------------------------------------
+  // Laid out from the building's own front: the counter faces the door, the shelf against the back wall.
   layout(bar) {
     const B = { x0: bar.x - bar.w / 2, x1: bar.x + bar.w / 2, z0: bar.z - bar.d / 2, z1: bar.z + bar.d / 2 }, f = bar.front ?? 'N';
     // back wall point and the inward direction (toward the door), the width axis along the back wall
@@ -721,41 +720,116 @@ export class Pulls {
     const at = (din, dw) => ({ x: backX + inX * din + ax * dw, z: backZ + inZ * din + az * dw });
     return { at, inX, inZ, ax, az, width, depth, along: inZ ? 0 : Math.PI / 2 };
   }
+  // The room's plan (pure, from the bar's own id): where the counter, the tables, the piano and the darts stand. The
+  // furniture and the seating both read it, so a drinker's chair is where the chair is drawn.
+  plan(bar) {
+    if (bar.plan) return bar.plan;
+    const L = this.layout(bar), rng = rngOf(hash32(bar.id.length * 17, Math.round(bar.x), 0x524f4f4d));
+    const len = Math.min(L.width * 0.6, 7.5), tables = [];
+    const n = iroll(rng, BAR.room.tables), rows = [];
+    for (let din = 6.4; din <= L.depth - 3.2 && rows.length < 3; din += 3.4) rows.push(din);
+    const dwOf = (side) => side * Math.min(L.width / 2 - 2.2, Math.max(2.4, L.width / 4 + 0.6));
+    for (const din of rows) for (const side of [-1, 1]) if (tables.length < n) tables.push({ din, dw: dwOf(side) });
+    const piano = rng() < BAR.room.piano ? { din: Math.min(L.depth - 2.2, 4.8), dw: L.width / 2 - 0.55 } : null;
+    const darts = rng() < BAR.room.darts ? { din: Math.max(5, L.depth - 4), dw: -L.width / 2 + 0.08 } : null;
+    bar.plan = { len, tables, piano, darts };
+    return bar.plan;
+  }
+  // Where drinker n sits: two on the stools at the counter, the rest round the tables (a chair each, in turn).
+  seatOf(bar, n) {
+    const L = this.layout(bar), P = this.plan(bar);
+    if (n < 2) return { q: L.at(3.8, -P.len / 3 + n * P.len / 3), face: Math.atan2(L.inX, L.inZ) + Math.PI, seated: false };
+    const k = n - 2, T = Math.max(1, P.tables.length), t = P.tables[k % T] ?? { din: 6.4, dw: 0 }, side = Math.floor(k / T) % 2 ? -1 : 1;
+    const c = L.at(t.din, t.dw), q = { x: c.x + L.ax * side * 1.0, z: c.z + L.az * side * 1.0 };
+    return { q, face: Math.atan2(c.x - q.x, c.z - q.z), seated: true };
+  }
+  // Two instanced meshes for every bar near you, rebuilt only when a bar opens, closes or loses a bottle (never per frame):
+  // `furn` (lit boxes: a plank floor, the counter and the back shelf with what is left on it, stools, tables and chairs,
+  // a rug, a piano, a dartboard, the board, the sign on the awning over the door) and `glow` (unlit, additive: the warm
+  // pools under the hanging lamps and the lamps themselves; light without a light, so the light count stays fixed).
   furnish() {
     const g = this.g;
     if (!this.furn) {
       this.furn = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.04 }), FURN_CAP);
       this.furn.name = 'pulls-bars'; this.furn.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FURN_CAP * 3).fill(1), 3);
       this.furn.castShadow = true; this.furn.receiveShadow = true; this.furn.frustumCulled = false; this.furn.count = 0;
-      g.scene?.add(this.furn);
+      this.glow = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 20), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), GLOW_CAP);
+      this.glow.name = 'pulls-bar-lamps'; this.glow.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(GLOW_CAP * 3).fill(1), 3);
+      this.glow.frustumCulled = false; this.glow.count = 0; this.glow.renderOrder = 2;
+      g.scene?.add(this.furn); g.scene?.add(this.glow);
     }
-    let n = 0;
+    let n = 0, m = 0;
     const box = (p, y, sx, sy, sz, rot, col) => {
       if (n >= FURN_CAP) return;
       _o.position.set(p.x, y + sy / 2, p.z); _o.rotation.set(0, rot, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
       this.furn.setMatrixAt(n, _o.matrix); this.furn.setColorAt(n, _c.set(col)); n++;
     };
+    const disc = (p, y, r, h, col) => {
+      if (m >= GLOW_CAP) return;
+      _o.position.set(p.x, y + h / 2, p.z); _o.rotation.set(0, 0, 0); _o.scale.set(r * 2, h, r * 2); _o.updateMatrix();
+      this.glow.setMatrixAt(m, _o.matrix); this.glow.setColorAt(m, _c.set(col)); m++;
+    };
+    const wood = '#4b3020', dark = '#2e1e14', top = '#6a4a2e', plank = '#5a3a22', seam = '#3e2716', pool = '#2a1606', core = '#3a2008', bulb = '#ffb050';
+    const bottles = ['#7a4a12', '#3f5a2a', '#8a6a2a', '#5a2e14', '#2f4a3a', '#9a7a3a'];
     for (const bar of this.bars.values()) {
       if (!bar.live) continue;
-      const L = this.layout(bar), y = bar.y ?? 0, len = Math.min(L.width * 0.6, 7.5), rot = L.along;
-      const wood = '#4b3020', dark = '#2e1e14', top = '#6a4a2e';
-      box(L.at(2.9, 0), y, len, 1.05, 0.7, rot, wood);                 // the counter
-      box(L.at(2.9, 0), y + 1.05, len + 0.2, 0.06, 0.85, rot, top);     // its top
-      box(L.at(0.75, 0), y, len, 1.3, 0.5, rot, dark);                  // the back shelf
-      const bottles = ['#7a4a12', '#3f5a2a', '#8a6a2a', '#5a2e14', '#2f4a3a', '#9a7a3a'];
-      for (let i = 0; i < Math.min(14, bar.stock); i++) box(L.at(0.75, -len / 2 + 0.4 + i * (len - 0.8) / 13), y + 1.3, 0.14, 0.36, 0.14, rot, bottles[i % bottles.length]); // what is left on it
-      for (let i = 0; i < 3; i++) box(L.at(3.75, -len / 3 + i * len / 3), y, 0.42, 0.72, 0.42, rot, dark); // stools
-      const tbl = L.at(Math.min(L.depth - 3, 6.2), L.width * 0.22);
-      box(tbl, y, 1.5, 0.76, 1.5, rot, wood); box(tbl, y + 0.76, 1.6, 0.05, 1.6, rot, '#2e4a2e'); // the card table and its baize
-      for (const [dx, dz] of [[1.05, 0], [-1.05, 0], [0, 1.05], [0, -1.05]]) box({ x: tbl.x + dx, z: tbl.z + dz }, y, 0.45, 0.5, 0.45, rot, dark);
+      const L = this.layout(bar), P = this.plan(bar), y = bar.y ?? 0, len = P.len, rot = L.along;
+      const sx = (a, b) => (L.inZ ? a : b), sz = (a, b) => (L.inZ ? b : a); // a along the back wall, b toward the door
+      // the plank floor: one dark board over the ground, the seams between the planks running front to back
+      box(L.at(L.depth / 2, 0), y + 0.03, sx(L.width - 0.5, L.depth - 0.5), 0.025, sz(L.width - 0.5, L.depth - 0.5), 0, plank);
+      for (let w = -L.width / 2 + 0.9; w < L.width / 2 - 0.4; w += 0.9) box(L.at(L.depth / 2, w), y + 0.055, sx(0.05, L.depth - 0.6), 0.012, sz(0.05, L.depth - 0.6), 0, seam);
+      // the counter, its top, and the back shelf with the bottles that are left on it
+      box(L.at(2.9, 0), y, len, 1.05, 0.7, rot, wood);
+      box(L.at(2.9, 0), y + 1.05, len + 0.2, 0.06, 0.85, rot, top);
+      box(L.at(0.75, 0), y, len, 1.3, 0.5, rot, dark);
+      for (let i = 0; i < Math.min(14, bar.stock); i++) box(L.at(0.75, -len / 2 + 0.4 + i * (len - 0.8) / 13), y + 1.3, 0.14, 0.36, 0.14, rot, bottles[i % bottles.length]);
+      for (let i = 0; i < 2; i++) box(L.at(2.9, -len / 4 + i * len / 2), y + 1.11, 0.12, 0.16, 0.12, rot, '#c9b27a'); // glasses on the counter
+      for (let i = 0; i < 4; i++) box(L.at(3.75, -len * 0.42 + i * len * 0.28), y, 0.42, 0.72, 0.42, rot, dark); // stools
+      // the rug between the stools and the tables: a deep red field in a cream border
+      const rugL = Math.min(len, 5.5);
+      box(L.at(5.0, 0), y + 0.07, sx(rugL, 1.7), 0.012, sz(rugL, 1.7), 0, '#d9c49a');
+      box(L.at(5.0, 0), y + 0.08, sx(rugL - 0.3, 1.4), 0.012, sz(rugL - 0.3, 1.4), 0, '#7a2418');
+      // tables: the first is the card table (green baize, cards dealt), the rest plain wood with a bottle and a glass;
+      // four chairs each, and a lamp over each with its warm pool on the floor
+      P.tables.forEach((t, i) => {
+        const c = L.at(t.din, t.dw);
+        box(c, y, 1.4, 0.76, 1.4, rot, wood); box(c, y + 0.76, 1.5, 0.05, 1.5, rot, i === 0 ? '#2e4a2e' : top);
+        if (i > 0) { box({ x: c.x + 0.2, z: c.z - 0.15 }, y + 0.81, 0.13, 0.34, 0.13, 0, bottles[i % bottles.length]); box({ x: c.x - 0.25, z: c.z + 0.2 }, y + 0.81, 0.1, 0.13, 0.1, 0, '#c9b27a'); }
+        else for (let k = 0; k < 3; k++) box({ x: c.x - 0.3 + k * 0.3, z: c.z + (k % 2) * 0.2 }, y + 0.81, 0.18, 0.012, 0.26, 0, '#efe6d2');
+        for (const [dx, dz] of [[1.0, 0], [-1.0, 0], [0, 1.0], [0, -1.0]]) box({ x: c.x + dx, z: c.z + dz }, y, 0.45, 0.48, 0.45, rot, dark);
+        disc(c, y + 0.1, 2.4, 0.02, pool); disc(c, y + 0.11, 1.3, 0.02, core); disc(c, y + 2.6, 0.16, 0.16, bulb); // falloff: a faint ring, a warmer core
+      });
+      for (const w of [-len / 4, len / 4]) { const q = L.at(2.9, w); disc(q, y + 1.12, 1.8, 0.02, pool); disc(q, y + 1.13, 1.0, 0.02, core); disc(q, y + 2.7, 0.15, 0.15, bulb); } // over the counter
+      // the piano against a side wall, keys toward the room, its stool
+      if (P.piano) {
+        box(L.at(P.piano.din, P.piano.dw), y, sx(0.6, 1.6), 1.3, sz(0.6, 1.6), 0, '#1e1410');
+        box(L.at(P.piano.din, P.piano.dw - 0.38), y + 0.75, sx(0.18, 1.4), 0.05, sz(0.18, 1.4), 0, '#efe6d2');
+        box(L.at(P.piano.din, P.piano.dw - 1.0), y, 0.5, 0.5, 0.5, 0, dark);
+      }
+      // the dartboard on the other side wall: a cork ring, a dark face, the bull
+      if (P.darts) { const q = L.at(P.darts.din, P.darts.dw + 0.04); for (const [s, col] of [[0.62, '#a8834a'], [0.48, '#1c1a16'], [0.16, '#a8442a']]) box(q, y + 1.55 - s / 2, sx(0.05, s), s, sz(0.05, s), 0, col); }
       // the board: a plank on the side wall with its papers
       const side = L.at(Math.min(L.depth - 2, 4.5), -L.width / 2 + 0.12);
-      box(side, y + 1.2, L.inZ ? 0.08 : 1.6, 1.0, L.inZ ? 1.6 : 0.08, 0, '#5a4028');
-      for (let i = 0; i < 3; i++) { const q = { x: side.x + (L.inZ ? 0.06 : -0.55 + i * 0.5), z: side.z + (L.inZ ? -0.55 + i * 0.5 : 0.06) }; box(q, y + 1.45 - (i % 2) * 0.3, L.inZ ? 0.03 : 0.36, 0.42, L.inZ ? 0.36 : 0.03, 0, '#e8dcc0'); }
+      box(side, y + 1.2, sx(0.08, 1.6), 1.0, sz(0.08, 1.6), 0, '#5a4028');
+      for (let i = 0; i < 3; i++) { const q = L.at(Math.min(L.depth - 2, 4.5) - 0.55 + i * 0.5, -L.width / 2 + 0.18); box(q, y + 1.45 - (i % 2) * 0.3, sx(0.03, 0.36), 0.42, sz(0.03, 0.36), 0, '#e8dcc0'); }
+      // the sign: an awning plank over the front door, SALOON in bone letters on its top (read from above)
+      const signW = 4.6, px = 0.15, word = 'SALOON';
+      box(L.at(L.depth + 0.9, 0), y + 3.0, sx(signW, 1.5), 0.08, sz(signW, 1.5), 0, '#3a2618');
+      let total = -1; for (const ch of word) total += GLYPH[ch][0].length + 1;
+      for (let ci = 0, pen = 0; ci < word.length; pen += GLYPH[word[ci]][0].length + 1, ci++) {
+        const G = GLYPH[word[ci]];
+        for (let r = 0; r < 5; r++) for (let col = 0; col < G[r].length; col++) {
+          if (G[r][col] !== '1') continue;
+          // along the wall (dw) the letters run left to right as the camera sees them; rows run toward the door
+          const a = (pen + col - (total - 1) / 2) * px, b = (r - 2) * px;
+          box(L.at(L.depth + 0.9 + b * (L.inZ || L.inX), a * (L.inZ ? 1 : L.inX)), y + 3.08, px * 0.9, 0.03, px * 0.9, 0, '#efe6d2');
+        }
+      }
     }
-    this.furn.count = n;
+    this.furn.count = n; this.glow.count = m;
     this.furn.instanceMatrix.needsUpdate = true; if (this.furn.instanceColor) this.furn.instanceColor.needsUpdate = true;
-    this.furn.visible = n > 0;
+    this.glow.instanceMatrix.needsUpdate = true; if (this.glow.instanceColor) this.glow.instanceColor.needsUpdate = true;
+    this.furn.visible = n > 0; this.glow.visible = m > 0;
   }
   barTalk(c) {
     const bar = this.bars.get(c.barId); if (!bar) return null;
@@ -846,6 +920,30 @@ export class Pulls {
     if (T.purse < rec.pay) return { ok: false, why: 'the town cannot pay' };
     T.purse -= rec.pay; g.cash += rec.pay; rec.state = 'done'; this.stats.paid += rec.pay;
     return { ok: true, paid: rec.pay };
+  }
+
+  // ---- a death is news (death rites: systems/rites.js learn calls this) ------------------------------------------------
+  // The rites decide WHEN a household learns a death (saw it, saw the body, found it at home, told by a witness or by
+  // you); this only carries what they learned into the knowledge model: a copy in their town's talk (so its barkeep and
+  // the grapevine pass it on) and, once a funeral is set, the funeral as word in the town and on the town's set.
+  deathNews(R, f) {
+    const g = this.g, k = this.k;
+    const n = this.nearestNode(R.c ? R.c.x : R.x, R.c ? R.c.z : R.z); if (!n) return null;
+    this.nodes();
+    const town = `town:${n.id}`, ch = /^saw|found/.test(f.source ?? '') ? 'saw' : 'said';
+    const killer = f.killer ? (f.killer === 'player' ? ', and they say you did it' : `; ${f.killer} did it`) : '';
+    let d = k.fact(`death:${R.id}`);
+    if (!d) d = k.record({ id: `death:${R.id}`, what: 'outcome', subject: `death:${R.id}`, text: `${R.name} is dead${killer}`, where: { x: R.c ? R.c.x : R.x, z: R.c ? R.c.z : R.z, place: n.name }, who: R.name, when: R.at ?? this.hours() });
+    k.put(town, d, { channel: ch, from: `house:${R.news?.house ?? '?'}`, fromName: f.who ?? 'the family' }, ch === 'saw' ? 1 : CHANNELS.said.conf, 1);
+    const F = g.rites?.funerals?.find((q) => q.body === R.id);
+    if (F && !k.fact(F.id)) {
+      const cem = F.cem ? g.rites.cems?.get(F.cem) : null, at = cem ? { x: cem.x, z: cem.z } : { x: R.x, z: R.z };
+      const day = `on day ${Math.floor(F.start / 24)} at ${String(Math.floor(F.start % 24)).padStart(2, '0')}:00`; // a date, not 'tomorrow': word is passed on later
+      const ff = k.record({ id: F.id, what: 'funeral', subject: F.id, text: `${F.houseName} bury ${R.name} ${day}, at ${F.cemName ?? 'the yard'}. Come if you knew them`, where: { ...at, place: F.cemName ?? n.name }, who: R.name, life: Math.max(1, F.end - this.hours()), ends: F.end });
+      k.put(town, ff, { channel: 'said', from: `house:${F.house}`, fromName: F.houseName }, CHANNELS.said.conf, 1);
+      k.broadcast(ff, n.x, n.z, CHANNELS.radio.range, `${n.name}'s set`); // the town's set reads it out inside its range
+    }
+    return d;
   }
 
   // ---- the radio's town broadcasts and the weather ----------------------------------------------------------------------

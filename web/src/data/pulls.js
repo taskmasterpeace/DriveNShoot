@@ -39,6 +39,7 @@ export const FACT_KINDS = {
   missing:    { name: 'Missing person', pull: true, life: 30, icon: 'eye' },
   weather:    { name: 'Weather warning', pull: true, life: 10, icon: 'cloud' },
   need:       { name: 'Your own need', pull: true, life: 999, icon: 'need' },
+  funeral:    { name: 'Funeral', pull: true, life: 48, icon: 'news' },   // death rites' funerals, carried as word (systems/rites.js learn)
   outcome:    { name: 'What happened', pull: false, life: 999, icon: 'news' },
   place:      { name: 'A place', pull: false, life: 999, icon: 'pin' },
 };
@@ -92,7 +93,8 @@ export const PULL_KINDS = {
 export const BAR = {
   drink: 'rotgut', price: 6, stock: [10, 24],          // the bar's own bottles
   purse: [60, 200],                                    // the till: cards and bounties are paid out of it
-  drinkers: [2, 3], drinkerPurse: [10, 60],
+  drinkers: [4, 6], drinkerPurse: [10, 60],          // two on the stools, the rest seated at the tables
+  room: { tables: [3, 5], piano: 0.7, darts: 0.8 },   // how a bar is dressed (systems/pulls.js plan, furnish)
   cards: { stake: [5, 25], skill: 'luck' },            // a hand of cards against a drinker: the stake comes out of their purse
   gun: { share: 0.5, price: [40, 90], weapon: 'pistol', hp: 120 }, // a drinker who sells their gun hand by the day
   fight: { after: 2, chance: 0.35 },                  // a drinker you have beaten at cards this many times takes a swing

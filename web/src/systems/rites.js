@@ -136,6 +136,7 @@ export class Rites {
     if (!N.learned && rec) { N.learned = fact; this.schedule(R, rec, fact); }
     if (fact.killer === 'player' && !N.standing && rec) { N.standing = true; this.g.society?.factions?.add(rec.fid, FUNERAL.standing.killer); this.g.emit('killerKnown', { body: R.id, house: N.house, source: fact.source }); }
     this.g.emit('deathLearned', { body: R.id, name: R.name, house: N.house, ...fact });
+    this.g.pulls?.deathNews?.(R, fact); // the death as word in their town's talk, and the funeral when one is set (systems/pulls.js, law 6)
     return fact;
   }
   // Once a second: does anyone of theirs learn it? By seeing the body (in sight, 25 m), finding it in their own house
