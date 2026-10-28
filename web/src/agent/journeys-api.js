@@ -199,6 +199,25 @@ export async function journeyChecks(api, check, C) {
       const ok = refused === 0 && odds > 0.8 && h?.ok && h.aboard && sp > 8 && c?.ok && c.dropped && c.dist < JOURNEY_RULES.cord.dropR && !g.player.inVehicle;
       return ok ? true : JSON.stringify({ refused, odds, h, sp: r1(sp), c });
     });
+    await check('travel: the trundle waits short of the Route 66 level crossing while the freight is on it, and crosses once it has gone', async () => {
+      await out();
+      const L = LINES.find((l) => l.id === 'sun'), Tr = g.train, near0 = Tr.near, RX = -360;
+      if (TR.bus) TR.despawnBus();
+      await C('teleport', { x: RX - 40, z: -14 }); await C('step', { seconds: 0.2 }); quiet(); // watch from the verge, nobody on the road
+      const v = TR.spawnBus(L, L.stops.indexOf('iron_crossing'), 1); // 700 m up the road, westbound side of the tracks, heading east
+      let held = false, minAhead = 1e9, crossed = false;
+      try {
+        Tr.near = () => true; // staged: the freight standing across the crossing (the documented exception)
+        for (let t = 0; t < 70 && !held; t += 0.5) { await C('step', { seconds: 0.5 }); const sp = g.vehiclesSys.speed(v); minAhead = Math.min(minAhead, RX - v.x); held = sp < 0.4 && RX - v.x > 6.5 && RX - v.x < 25; }
+        if (held) await C('step', { seconds: 3 });
+        const stillShort = RX - v.x > 6.5;
+        Tr.near = near0;
+        for (let t = 0; t < 60 && !crossed; t += 0.5) { await C('step', { seconds: 0.5 }); crossed = v.x > RX + 8; }
+        const waited = g.events.some((e) => e.type === 'trundleWaitsForTrain' && e.vehicle === v.id);
+        TR.despawnBus();
+        return held && stillShort && crossed && waited ? true : JSON.stringify({ held, stillShort, crossed, waited, minAhead: r1(minAhead), x: r1(v.x) });
+      } finally { Tr.near = near0; }
+    });
   } finally {
     if (TR.ui.open) TR.ui.close();
     TR.leaveHall(); TR.despawnBus(); J.endLift?.('check');

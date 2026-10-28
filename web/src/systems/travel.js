@@ -704,6 +704,15 @@ export class Travel {
       if (free !== undefined) { if (free !== 1) B.passS = s + B.dir * (blocked[B.lane] + 20); B.lane = free; } // hold the lane until well past it
     }
     if (blocked[B.lane] < 30) want = Math.min(want, Math.max(0, (blocked[B.lane] - 9) * 0.8));
+    // The freight on (or nearly at) the Route 66 level crossing: wait short of the tracks, never stop on them. The lane
+    // rays see statics and vehicles, not the train: a trundle once drove into it there, lost its engine and sat dead at
+    // the Iron Crossing pole.
+    const Tr = g.train;
+    if (Tr?.near && Math.abs(v.z) < 40 && RD === this.W) {
+      const ahead = (RAIL.x - v.x) * (Math.sin(v.h) >= 0 ? 1 : -1), half = 6.5;
+      if (ahead > half + 1.5 && ahead < 70 && Tr.near(0, 45)) { want = Math.min(want, Math.max(0, (ahead - half - 7) * 0.6)); if (!B.trainWait) { B.trainWait = true; g.emit('trundleWaitsForTrain', { vehicle: v.id }); } }
+      else B.trainWait = false;
+    }
     if (B.lane !== 1) want = Math.min(want, 9); // easy round it
     // Anyone on foot in its path: stop and lean on the horn.
     const fx = Math.sin(v.h), fz = Math.cos(v.h);
