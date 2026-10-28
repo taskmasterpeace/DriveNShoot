@@ -10,6 +10,7 @@ import GOLDEN from '../data/golden.json';
 import { makeRng } from '../engine/rng.js';
 import { Overrun } from './overrun.js';
 import { RING_OPENINGS as RO } from '../data/interiors.js';
+import { ALLEYS } from '../data/backlots.js';
 
 // PROCEDURAL CITIES (docs/design/WEB_CITYGEN.md): the settlements of the streamed country, planned once at boot from the
 // corridors (a pure, seeded plan: towns of every archetype by biome, homesteads along the roads, real sites, military bases
@@ -394,6 +395,7 @@ export class CityGen {
       const T = t.T;
       if (x < T.x0 - 70 || x > T.x1 + 70 || z < T.z0 - 70 || z > T.z1 + 70) continue;
       for (const r of T.roads) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return ROADS[r.row].grip;
+      for (const A of T.alleys ?? EMPTY) if (x > A.lane.x0 && x < A.lane.x1 && z > A.lane.z0 && z < A.lane.z1) return ALLEYS[A.row].grip; // a back lane (BACK LOTS)
       return t.rec.kind === 'rural' ? 0.8 : 0.85; // a town's yards and lots: packed dirt
     }
     return 1;
@@ -439,7 +441,8 @@ export class CityGen {
         R.open = id;
         // locks: a holding town keeps some back doors locked (a claimed home: its owner's call)
         const rec = I.ringOpen.get(id);
-        if (rec) for (const door of rec.doors) if (door.kind === 'back' && t.rec.state !== 'overrun' && ((hashStr(door.id) % 100) / 100) < 0.35) I.setLocked(door, true);
+        const odds = this.g.backlots?.backLock(B, t.rec) ?? (t.rec.state !== 'overrun' ? 0.35 : 0); // BACK LOTS: data/backlots.js LOCKS
+        if (rec) for (const door of rec.doors) if (door.kind === 'back' && ((hashStr(door.id) % 100) / 100) < odds) I.setLocked(door, true);
       }
     }
   }
