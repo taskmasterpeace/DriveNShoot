@@ -27,4 +27,5 @@ export const PRICE_TIER = {
 // reach      - how near the trader must be (m) for their shelves to be a counter rather than something to steal from
 // restock    - a box of theirs holding fewer things than this is stocked again on a new day (the first look after it)
 // deedEvery  - seconds between the `trade` deeds a run of deals with one trader records (standing grows by dealing)
-export const TRADE = { reach: 9, restock: 3, deedEvery: 30 };
+// law       - 'delivery' (the loot law, WEB_DEPTH_PLAN §0.2: shelves fill only from deliveries) | 'mint' (the old daily roll)
+export const TRADE = { reach: 9, restock: 3, deedEvery: 30, law: 'delivery' };
