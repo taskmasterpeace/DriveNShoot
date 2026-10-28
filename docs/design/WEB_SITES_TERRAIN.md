@@ -189,6 +189,7 @@ on the north pack (g 0.15) m_p = 0.25; a 40 m gap reaches 400 m + 40 m past the 
 | WEB_STREAMING.md (`world/streamer.js`) | `setTerrain` loads the packs, `citygen.onTerrain` | chunk eviction for an ad-hoc pad |
 | WEB_RIVERS.md (`world/rivers.js`) | `landAt` now answers past the strip | nothing new |
 | WEB_ATLAS.md (`tools/atlas-project.mjs`) | `tools/usmap-proj.mjs` is its fit without the state law | the city list (kept equal by hand) |
+| WEB_ROADSCAPE.md (`world/roadscape.js`, `data/roadscape.js`) | the corridor survey: the road biome's raised bed is added to `R.yr`, a ditch is cut past the bed in `roadClamp` (`R.dk`, `R.bed`) | the pinned pads and `wf` (where the bed and ditch fade out) |
 
 ## 7. Tuning Knobs
 

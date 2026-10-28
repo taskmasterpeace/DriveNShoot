@@ -14,7 +14,8 @@ import { Decks } from './decks.js';
 // can be shot / grabbed directly.
 const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
-// `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed,
+// `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed, the
+// boats' decks; `roofDeck`: a roof you climb onto by its ladder),
 // the van's cargo box, the RV's coach; systems/decks.js carries the people on it) - a walkable vehicle is a row.
 export const VEHICLES = {
   rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, reverse: 11, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
@@ -27,14 +28,14 @@ export const VEHICLES = {
   pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, tall: 1.95, maxSpeed: 36, reverse: 13, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80, seats: S2, deck: 'pickupBed' },
   sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, tall: 1.8, maxSpeed: 40, reverse: 14, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
   // Two seats up front, then a cargo box you walk round in (data/decks.js vanCargo): a bench, a locker, a mattress.
-  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, reverse: 12, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75, seats: S2, deck: 'vanCargo' },
+  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, reverse: 12, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75, seats: S2, deck: 'vanCargo', roofDeck: 'vanRoof' },
   // A home on wheels (data/decks.js rvCoach): slow, heavy, tall, and somewhere to live. Parked, it makes camp.
-  rv:          { name: 'RV', len: 8.0, wid: 2.5, tall: 3.3, maxSpeed: 27, reverse: 10, accel: 10, turn: 1.35, grip: 5.4, mass: 3.6, hp: 380, armor: 0.22, fuelCap: 200, springs: 'rig', seats: S2, deck: 'rvCoach' },
+  rv:          { name: 'RV', len: 8.0, wid: 2.5, tall: 3.3, maxSpeed: 27, reverse: 10, accel: 10, turn: 1.35, grip: 5.4, mass: 3.6, hp: 380, armor: 0.22, fuelCap: 200, springs: 'rig', seats: S2, deck: 'rvCoach', roofDeck: 'rvRoof' },
   airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, tall: 2.2, maxSpeed: 34, reverse: 7, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
-                 seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }] },
+                 seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }], deck: 'airboatDeck' },
   jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, reverse: 5, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
+  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4, deck: 'gunboatDeck' },
   // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
   atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, reverse: 12, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },

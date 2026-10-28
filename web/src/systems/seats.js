@@ -1,8 +1,12 @@
+import { TURRET_SEAT } from '../data/decks.js';
+
 // Seats & followers.
 //  - Every vehicle has seat rows (driver, shotgun, back rows, exposed bed/pillion spots).
 //  - Anyone can board a specific seat; seat 0 is the wheel (v.driver stays in sync).
 //  - Followers (faction 'ally') walk with you, board when you board, shoot out of their
 //    own window, and take the wheel when you slide over (chauffeur mode → GPS waypoint).
+//  - THE TURRET SEAT (data/decks.js TURRET_SEAT): a passenger mans the roof turret (the workshop's `top` mount, group 3)
+//    and aims and fires it on their own while the driver drives; one owner at a time (v.turretBy, a character id).
 
 export class Seats {
   constructor(game) { this.g = game; }
@@ -45,6 +49,7 @@ export class Seats {
     if (v.occ[seat] === c) v.occ[seat] = null;
     if (v.driver === c) { v.driver = null; v.parked = true; } // getting out of the driver's seat leaves it braked (vehicles.js)
     c.inVehicle = null; c.seat = null; c.seatPose = null;
+    if (v.turretBy === c.id) this.releaseTurret(v, 'left');
     if (inside && this.g.decks?.fromSeat(c, v, seat)) { if (!silent) this.g.emit('leftVehicle', { id: c.id, vehicle: v.id, to: 'deck' }); return; }
     const p = this.doorPos(v, seat, 1.0);
     const t = { x: p.x, z: p.z };
@@ -101,6 +106,56 @@ export class Seats {
     }
   }
 
+  // ---- the turret seat ---------------------------------------------------------------------------------------------
+  // Who mans v's roof turret, or null. An owner who has left the vehicle, died, or a wrecked vehicle frees it.
+  turretOwner(v) {
+    if (!v?.turretBy) return null;
+    const c = this.g.chars.find((o) => o.id === v.turretBy);
+    if (!c || !c.alive || c.inVehicle !== v || v.dead || !v.mounts?.top) { this.releaseTurret(v, !c?.alive ? 'down' : 'gone'); return null; }
+    return c;
+  }
+  // May c fire v's turret right now? A passenger takes it if nobody mans it; the driver fires it only while it's free
+  // (a passenger on it owns its aim). Shard-shaped: the claim is v.turretBy, which a save and the agent view carry.
+  turretFor(c, v) {
+    if (!v?.mounts?.top || c.inVehicle !== v || v.dead) return false;
+    const own = this.turretOwner(v);
+    if (own) return own === c || (c === this.g.player && own.follower && this.takeTurret(c, v).ok);
+    if (v.driver === c) return true; // free: the driver works it from the wheel, as before
+    return this.takeTurret(c, v).ok;
+  }
+  takeTurret(c, v) {
+    if (!v?.mounts?.top) return { ok: false, why: 'no roof turret on it (the workshop fits one: a top mount)' };
+    if (c.inVehicle !== v) return { ok: false, why: 'not aboard' };
+    if (v.driver === c) return { ok: false, why: 'the driver cannot man it and drive (it fires from the wheel only while nobody mans it)' };
+    const own = this.turretOwner(v);
+    if (own && own !== c && !(c === this.g.player && own.follower)) return { ok: false, why: `${own.npc?.name ?? own.name ?? own.id} is on it` }; // your own crew gives it up to you
+    if (own !== c) { v.turretBy = c.id; this.g.emit('turretSeat', { id: c.id, vehicle: v.id, on: true }); if (c === this.g.player) this.g.hud.toast('ON THE ROOF TURRET · AIM AND HOLD RMB', 'job'); }
+    return { ok: true, by: c.id };
+  }
+  releaseTurret(v, why = 'released') {
+    if (!v?.turretBy) return;
+    const id = v.turretBy;
+    v.turretBy = null;
+    this.g.emit('turretSeat', { id, vehicle: v.id, on: false, why });
+  }
+  // A crew passenger on the turret: the nearest hostile in range, through the mount's own rate (systems/workshop.js).
+  crewTurret(c, v, dt) {
+    const g = this.g, T = TURRET_SEAT;
+    c.turretCool = (c.turretCool ?? 0) - dt;
+    if (c.turretCool > 0) return true;
+    let best = null, bd = T.crewRange;
+    for (const o of g.chars) {
+      if (!o.alive || o.inVehicle === v || o.onDeck?.v === v || !g.ai.hostile(c, o)) continue;
+      const d = Math.hypot(o.x - v.x, o.z - v.z);
+      if (d < bd && g.statics.lineOfSight(v.x, v.z, o.x, o.z)) { bd = d; best = o; }
+    }
+    if (!best) { c.turretCool = 0.3; return false; }
+    const ang = Math.atan2(best.x - v.x, best.z - v.z) + (Math.random() - 0.5) * 2 * T.crewSpread;
+    g.workshop.fireMount(v, 3, ang, c);
+    c.turretCool = T.crewCool[0] + Math.random() * (T.crewCool[1] - T.crewCool[0]);
+    return true;
+  }
+
   occupants(v) { return (v.occ ?? []).map((c, i) => (c ? { id: c.id, name: c.npc?.name ?? c.name, seat: v.seats[i].id, faction: c.faction } : null)).filter(Boolean); }
 
   // Followers: allies follow the player, board/leave with them, shoot from windows.
@@ -123,6 +178,13 @@ export class Seats {
       c.cool -= dt;
       const v = c.inVehicle;
       if (v.driver === c) return; // chauffeur handled by vehicle AI
+      // A roof turret nobody mans: the crew passenger takes it (you keep it if you're on it); else the window.
+      const gunner = v.mounts?.top && !v.dead ? this.turretOwner(v) : null;
+      if (v.mounts?.top && !v.dead && (gunner === c || (!gunner && this.takeTurret(c, v).ok))) {
+        this.crewTurret(c, v, dt);
+        if (!p.inVehicle && v.driver !== c) this.leave(c);
+        return true;
+      }
       if (!c.weapon || c.cool > 0) return;
       let best = null, bd = 32;
       for (const o of g.chars) {
