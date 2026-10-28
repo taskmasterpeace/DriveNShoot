@@ -10,7 +10,7 @@ import { WATER } from '../data/water.js';
 const OUT = 464; // the island rectangle (world/geo.js ISLAND)
 const outside = (x, z) => x > OUT || x < -OUT || z > OUT || z < -OUT;
 
-const RIVER = [[418, -452], [424, -360], [410, -280], [428, -190], [414, -110], [420, -40], [416, 0], [412, 60], [428, 150], [418, 240], [406, 320], [399, 348]]; // ends at the lake shore (no overlap → no z-fighting)
+export const RIVER = [[418, -452], [424, -360], [410, -280], [428, -190], [414, -110], [420, -40], [416, 0], [412, 60], [428, 150], [418, 240], [406, 320], [399, 348]]; // ends at the lake shore (no overlap → no z-fighting)
 const RIVER_HALF = 11;
 export const LAKE = { x: 390, z: 398, r: 52, depth: 7 };
 export const BRIDGE = { x: 416, z: 0, halfW: 7.6, halfL: 16 };
@@ -20,10 +20,10 @@ export const DOCK = { x: 360, z: 382 };
 // rows (rivers, washes, canals, lakes: data/water.js) and a region's own water (Florida's sea, lagoon, canals and
 // sloughs: world/regions.js), the deeper of the two, a river bridge's deck dry for whoever is up on it.
 // depth(x, z, y, ignoreDeck); surface(x, z) -> the water's surface height, or NaN. The island's own water is untouched.
-export const EXT = { depth: null, surface: null };
+export const EXT = { depth: null, surface: null, dry: null }; // dry(x, z): dry ground standing in the water (a key: systems/waterplace.js)
 // Standalone so world generation can keep props out of the water before the Water object exists.
 export function waterDepth(x, z, ignoreBridge = false) {
-  if (EXT.depth && outside(x, z)) return EXT.depth(x, z, undefined, ignoreBridge);
+  if (EXT.depth && outside(x, z)) return EXT.dry?.(x, z) ? 0 : EXT.depth(x, z, undefined, ignoreBridge);
   if (x < 300 || z < -460) return 0; // fast reject: all water is on the east side
   if (!ignoreBridge && Math.abs(z - BRIDGE.z) < BRIDGE.halfW && Math.abs(x - BRIDGE.x) < BRIDGE.halfL) return 0; // on the deck
   let d = 0;
@@ -177,9 +177,11 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
   // y (optional, absolute): how high the asker is. Past the island a bridge deck counts only for someone up on it (a
   // swimmer under it is still in the river); without y a deck is dry ground (the 2-D question, as on the island).
   depthAt(x, z, ignoreBridge = false, y) {
-    if (outside(x, z)) return EXT.depth ? EXT.depth(x, z, y, ignoreBridge) : 0; // THE authority past the island (see EXT)
+    if (outside(x, z)) return EXT.dry?.(x, z) ? 0 : EXT.depth ? EXT.depth(x, z, y, ignoreBridge) : 0; // THE authority past the island (see EXT)
     return waterDepth(x, z, ignoreBridge);
   }
+  // How the surface over that depth is moving (world/waves.js: heave, slopes, whitecap pinch); boats ride it.
+  waveAt(x, z, t, out) { return this.g.waves ? this.g.waves.waveAt(x, z, t, out) : { h: 0, sx: 0, sz: 0, j: 1, vy: 0, amp: 0 }; }
   // The water's surface height at (x, z) (absolute; the island's is 0), or `fallback` where there is none.
   surfaceAt(x, z, fallback = 0) {
     if (!outside(x, z)) return 0;

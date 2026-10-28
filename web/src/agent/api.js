@@ -33,6 +33,7 @@ import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
 import { waterCommands } from './water-api.js';
 import { waterChecks } from './water-selftest.js';
+import { sealifeCommands, sealifeChecks } from './sealife-api.js';
 import { decksStanceChecks } from './decks-stance-selftest.js';
 import { journeyCommands, journeyChecks } from './journeys-api.js'; // life insurance, the city picker, risky journeys (WEB_INSURANCE_JOURNEYS.md)
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
@@ -2061,6 +2062,7 @@ function buildCommands(api) {
     // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
     // row above, same answers there), rivers, bridges.
     ...waterCommands(api, need),
+    ...sealifeCommands(api, need),
     ...workshopCommands(api), // workshop, mount, arena (agent/workshop-api.js; docs/design/WEB_WORKSHOP.md)
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
@@ -2195,6 +2197,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  // Sharks and the ferry (systems/sealife.js, systems/waterplace.js) likewise: off for the battery, on for their own checks.
+  const seaWas = g.sealife.enabled, ferryWas = g.waterplace.enabled;
+  g.sealife.enabled = false; g.sealife.clear(); g.waterplace.enabled = false;
   // The deep sheet (systems/stats.js) holds still through the battery: its stress, conditions and wounds never shake
   // another system's numbers. Its own checks (voicestats-selftest.js) turn it on in a stage of their own.
   const deepLive = g.deep.live; g.deep.reset(); g.deep.live = false; g.deep.recompute();
@@ -4807,6 +4812,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await streamHome();
     return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
   });
+  await sealifeChecks(api, check, C); // waves, sea life, diving, water places (src/agent/sealife-api.js, docs/design/WEB_WATER_LIFE.md)
   await waterChecks(api, check, C); // L1 water and its L2 crossings, out on the corridor (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   // ---- the Phoenix ring, R1 (docs/design/WEB_STREAMING.md §1.3): the city itself, enterable and worth searching ----
   const RG = WI.ring;
@@ -5956,6 +5962,7 @@ async function runSelfTest(api, only = null, skip = null) {
   g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
   await outdoorsChecks(api, check, C); // THE WILDS: birds out of the sky, tracks, fishing, foraging, traps, the camp (src/agent/outdoors-selftest.js)
   g.fauna.enabled = faunaWas;
+  g.sealife.enabled = seaWas; g.waterplace.enabled = ferryWas;
   // The underground (docs/design/WEB_UNDERGROUND.md §8): agent/underground-api.js.
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.

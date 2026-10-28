@@ -36,6 +36,12 @@ export const VEHICLES = {
   jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, reverse: 5, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
   gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4, deck: 'gunboatDeck' },
+  // Water-place (docs/design/WEB_WATER_LIFE.md): a log-and-drum raft you pole across (it goes where the current takes it
+  // unless you push), and a cable ferry that shuttles a river by itself (systems/waterplace.js); both decks you stand on.
+  raft:        { name: 'RAFT', len: 4.4, wid: 2.8, tall: 0.6, maxSpeed: 3.2, reverse: 1.6, accel: 1.4, turn: 0.9, grip: 1.2, mass: 0.9, hp: 90, armor: 0.7, fuelCap: 0, open: true, boat: true, shallow: true, noEngine: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'stand', at: [0.4, 0.42, -1.4] }], deck: 'raftDeck' },
+  ferry:       { name: 'RIVER FERRY', len: 8.4, wid: 4.6, tall: 1.6, maxSpeed: 4, reverse: 4, accel: 1.2, turn: 0.4, grip: 1.5, mass: 6, hp: 600, armor: 0.3, fuelCap: 0, open: true, boat: true, shallow: true, noEngine: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'stand', at: [1.6, 0.55, -3.2] }], deck: 'ferryDeck' },
   // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
   atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, reverse: 12, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
@@ -742,10 +748,13 @@ export class Vehicles {
         // the ground when beached. v.y follows, so a deck and the piers know where the hull is.
         const wy = g.water.surfaceAt ? g.water.surfaceAt(v.x, v.z, NaN) : 0, base = Number.isFinite(wy) ? wy : (g.stunts?.ext && g.stunts.outside(v.x, v.z) ? g.stunts.heightAt(v.x, v.z) : 0);
         if (afloat || g.stunts?.outside?.(v.x, v.z)) { v.y = base; v.gy = base; }
-        v.group.position.y = afloat ? base - 0.18 + Math.sin(t * 2.1) * 0.06 : base + 0.05;
-        v.group.rotation.x = afloat ? Math.sin(t * 1.7) * 0.03 - Math.min(0.12, this.speed(v) * 0.004) : 0;
-        v.group.rotation.z = afloat ? Math.sin(t * 1.3) * 0.04 + clamp(-v.av * this.speed(v) * 0.01, -0.2, 0.2) : 0.06;
-        v.lean = v.group.rotation.z; v.wheelie = -v.group.rotation.x;
+        if (g.waves) g.waves.ride(v, dt, base, afloat); // heave, pitch and roll off the real swell; a waterbike flies a crest (world/waves.js)
+        else {
+          v.group.position.y = afloat ? base - 0.18 + Math.sin(t * 2.1) * 0.06 : base + 0.05;
+          v.group.rotation.x = afloat ? Math.sin(t * 1.7) * 0.03 - Math.min(0.12, this.speed(v) * 0.004) : 0;
+          v.group.rotation.z = afloat ? Math.sin(t * 1.3) * 0.04 + clamp(-v.av * this.speed(v) * 0.01, -0.2, 0.2) : 0.06;
+          v.lean = v.group.rotation.z; v.wheelie = -v.group.rotation.x;
+        }
         const sp = this.speed(v);
         if (afloat && sp > 3 && Math.random() < dt * (10 + sp)) {
           const bx = v.x - Math.sin(v.h) * v.len * 0.5, bz = v.z - Math.cos(v.h) * v.len * 0.5;

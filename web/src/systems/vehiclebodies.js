@@ -101,6 +101,7 @@ export function buildBody(s, type, paint, out = null) {
   else if (base === 'bike') bikeBody(parts, s, paint);
   else if (base === 'atv') atvBody(parts, s, paint);
   else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
+  else if (base === 'raft' || base === 'ferry') raftBody(parts, s, base);
   else if (base === 'patrol') patrolBody(parts, s, paint);
   else if (base === 'apc') apcBody(parts, s, paint);
   else if (base === 'bus') busBody(parts, s, paint);
@@ -694,6 +695,22 @@ function boatBody(parts, s, base, paint) {
   }
 }
 
+// A raft: logs lashed over oil drums, a pole; a ferry: a plank deck on two steel pontoons, rails, the cable post.
+function raftBody(parts, s, base) {
+  const L = s.len, W = s.wid;
+  if (base === 'raft') {
+    for (let i = 0; i < 6; i++) parts.push(coloredBox(W / 6 - 0.04, 0.3, L * (0.94 + (i % 2) * 0.05), -W / 2 + (i + 0.5) * (W / 6), 0.22, 0, i % 2 ? '#6b5236' : '#7a5e3e'));
+    for (const z of [-L * 0.32, L * 0.32]) parts.push(coloredBox(W * 1.02, 0.08, 0.16, 0, 0.39, z, '#4a3a28'));
+    for (const [x, z] of [[-0.8, -1.3], [0.8, -1.3], [-0.8, 1.3], [0.8, 1.3]]) parts.push(coloredBox(0.6, 0.5, 0.6, x, 0.0, z, '#3d4a44'));
+    parts.push(coloredBox(0.07, 0.07, 3.6, 0.7, 0.5, -0.2, '#8a7458', PART.frame)); // the pole
+  } else {
+    for (const sd of [-1, 1]) parts.push(coloredBox(0.9, 0.7, L * 0.98, sd * (W / 2 - 0.5), 0.1, 0, '#4b4f4a'));
+    parts.push(coloredBox(W, 0.14, L, 0, 0.48, 0, '#7d6446'));
+    for (const sd of [-1, 1]) { parts.push(coloredBox(0.08, 0.08, L, sd * (W / 2 - 0.05), 1.4, 0, '#6a6660', PART.frame)); for (let z = -L / 2 + 0.3; z <= L / 2; z += 1.6) parts.push(coloredBox(0.08, 0.9, 0.08, sd * (W / 2 - 0.05), 0.98, z, '#6a6660', PART.frame)); }
+    parts.push(coloredBox(0.3, 1.8, 0.3, W / 2 - 0.3, 1.4, -L / 2 + 0.4, '#5a5650', PART.frame)); // the cable post
+  }
+}
+
 // ---- lamps ------------------------------------------------------------------------------------------
 
 function lenses(parts, s, type) {
@@ -710,6 +727,7 @@ export function lampAnchors(s, type) {
   const car = { beamW: 6 + W * 2.4, beamL: 15 + W * 2, halo: 1.15 };
   if (base === 'bike') return { head: [[0, 0.98, L / 2 - 0.42]], tail: [[0, 0.82, -L / 2 + 0.2]], beamW: 7, beamL: 16, halo: 0.8 };
   if (base === 'jetski') return { head: [[0, 0.75, L / 2 - 0.45]], tail: [], beamW: 5, beamL: 20, halo: 0.7 };
+  if (base === 'raft' || base === 'ferry') return { head: [], tail: [], beamW: 4, beamL: 8, halo: 0.5 };
   if (base === 'airboat' || base === 'gunboat') return { head: [[0, 0.95, L / 2 - 0.75]], tail: [[0, 0.9, -L / 2 + 0.25]], beamW: 6, beamL: 26, halo: 1 };
   if (base === 'rig') return { head: pair(W / 2 - 0.35, 1.3, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.22, -L / 2 + 0.18), ...car };
   if (base === 'buggy') return { head: pair(0.3, 0.72, L / 2 - 0.02), tail: pair(0.32, 1.02, -L / 2 + 0.22), ...car };

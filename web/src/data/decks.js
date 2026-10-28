@@ -86,6 +86,21 @@ export const DECKS = {
     beds: [],
     wheel: [0, 0.32], seatsInside: true, cover: 0.2, chop: 0.55, spray: true,
   },
+  // A raft: logs over drums, nothing to hold on to (data/sealife.js; docs/design/WEB_WATER_LIFE.md). A ferry: a plank
+  // deck between rails, room for a car's worth of people.
+  raftDeck: {
+    open: true, y: 0.42, floor: [-1.3, 1.3, -2.1, 2.1],
+    edges: { front: { h: 0 }, rear: { h: 0 }, left: { h: 0 }, right: { h: 0 } },
+    doors: [], fixtures: [], containers: [], beds: [],
+    wheel: [0.4, -1.4], seatsInside: true, cover: 0, chop: 0.7, spray: false, throwMul: 0.85,
+  },
+  ferryDeck: {
+    open: true, y: 0.55, floor: [-2.2, 2.2, -4.1, 4.1],
+    edges: { front: { h: 0.2 }, rear: { h: 0.2 }, left: { h: 0.95 }, right: { h: 0.95 } },
+    doors: [], fixtures: [{ id: 'post', kind: 'post', box: [1.9, 2.2, -4.1, -3.7], h: 1.8 }],
+    containers: [{ id: 'fares', label: 'FARE BOX', box: [-2.2, -1.7, -4.1, -3.6], h: 0.8, cap: 20, loot: 'kitchen' }], beds: [],
+    wheel: [1.6, -3.2], seatsInside: true, cover: 0.15, chop: 0.3, spray: false,
+  },
   // A raider gunboat's aft deck behind the steel wheelhouse (a solid block: you take the wheel at its back door), fuel
   // drums lashed at the stern. Waist-high bulwarks: a crouched rider is behind steel most of the time.
   gunboatDeck: {
