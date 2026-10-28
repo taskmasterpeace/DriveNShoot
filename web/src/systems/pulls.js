@@ -284,6 +284,12 @@ export class Pulls {
     this.see(me, now);
     if (this.needT >= R.needEvery) { this.needT = 0; this.needs(); }
     this.ride(step);
+    // a hired gun's days are up: they say so and go back to their bar's town (the pay stays theirs)
+    for (const b of this.bars.values()) for (const d of b.drinkers) if (d.hired && now >= d.until) {
+      d.hired = false;
+      if (d.c?.alive) { g.seats.dismiss(d.c); d.c.home = { x: b.x, z: b.z }; g.hud?.subtitle?.(`${d.name}: "That is the days you paid for."`, 4); if (b.live) d.c.barRole = 'gun'; else { if (g.chars.includes(d.c)) g.removeChar(d.c); d.c = null; } }
+      g.emit('hireEnded', { bar: b.id, n: d.n });
+    }
     // the gone are forgotten by the world (their facts live on in whoever holds them)
     for (let i = this.list.length - 1; i >= 0; i--) if (this.list[i].state === 'gone' && !this.list[i].live) this.list.splice(i, 1);
   }
@@ -382,10 +388,12 @@ export class Pulls {
     for (const rec of this.list) {
       if (!rec.live || !rec.fact) continue;
       for (const q of rec.people) {
-        const c = q.c; if (!c) continue;
+        let c = q.c;
+        if (!c && q.dead && q.riteId) { const Rb = g.rites?.bodies?.get(q.riteId); if (Rb) c = Rb.c ?? { x: Rb.x, z: Rb.z, alive: false, rite: true }; } // a folded body is still there to be found
+        if (!c) continue;
         const d = Math.hypot(c.x - me.x, c.z - me.z);
         if (d > range) continue;
-        if (!(p.inVehicle ? g.los(me.x, me.z, c.x, c.z) : g.sees(p, c))) continue;
+        if (!(p.inVehicle || c.rite ? g.los(me.x, me.z, c.x, c.z) : g.sees(p, c))) continue;
         // the living: where they are now; the dead: how it ended (a corpse never renews a call)
         if (c.alive || rec.kind === 'wreck') { const f = this.k.fact(rec.fact); if (f) this.k.see('player', f, { x: c.x, z: c.z }); }
         else if (rec.outcome) { const o = this.k.fact(rec.outcome); if (o && !this.k.holds('player', o.id)) this.k.see('player', o, { x: c.x, z: c.z }); }
@@ -420,11 +428,12 @@ export class Pulls {
     }
     for (const p of rec.people) {
       if (p.c) continue;
+      if (p.dead && p.riteId && g.rites?.bodies?.has(p.riteId)) continue; // the dead are the rites' record now (systems/rites.js draws and ages them)
       const o = p.n * 1.4, dir = rec.dir ?? 1, q = { x: rec.x - tz * o * dir * 0.6 + tx * o * 0.3, z: rec.z + tx * o * dir * 0.6 + tz * o * 0.3 }; // a party stands in a loose line on the shoulder
       const c = g.addChar({ x: q.x, z: q.z, faction: 'drifter', weapon: null, hp: 100, colors: outfit('drifter', rngOf(p.seed)), name: p.name, flag: p.flag });
       if (!c) break;
       c.pullRec = rec.id; c.pullN = p.n; c.home = { x: q.x, z: q.z }; c.hp = Math.max(1, p.hp);
-      if (p.dead) { c.alive = false; c.hp = 0; c.deadTime = 1; c.blood = 0.7; g.charR.paint(c); this.layBody(rec, p, c); }
+      if (p.dead) { c.alive = false; c.hp = 0; c.deadTime = 1; c.blood = 0.7; g.charR.paint(c); this.layBody(rec, p, c); const Rb = g.rites?.onDeath?.(c, null, rec.kind === 'wreck' ? 'vehicle' : 'bleed'); if (Rb) { Rb.at = rec.deadline ?? rec.born; p.riteId = Rb.id; } } // died off screen: the body goes on the rites' clock from when it happened
       else if (rec.kind === 'medic' || rec.kind === 'missing') { c.bleed = 0.25; c.blood = 0.5; g.charR.paint(c); }
       g.standOn?.(c);
       p.c = c;
@@ -439,6 +448,7 @@ export class Pulls {
       const c = p.c; if (!c) continue;
       if (c.inVehicle) continue;
       p.hp = c.alive ? Math.round(c.hp) : 0; if (!c.alive && !p.dead) { p.dead = true; }
+      if (!c.alive && c.riteId) p.riteId = c.riteId; // the rites keep the body (folded when it leaves the world)
       if (c.follower) { p.c = null; continue; } // a hired hand goes with you, not back onto the record
       if (g.chars.includes(c)) g.removeChar(c);
       p.c = null;
