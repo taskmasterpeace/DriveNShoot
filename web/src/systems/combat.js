@@ -174,6 +174,7 @@ export class Combat {
     if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
     if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
+    if (attacker === g.player && c !== g.player) g.feedback?.damage(c, dmg, part); // damage numbers (ui/feedback.js, a setting)
     c.lastAttacker = attacker;
     c.bleed = Math.min(1, c.bleed + dmg / 120);
     c.blood = Math.min(1, c.blood + dmg / 140);

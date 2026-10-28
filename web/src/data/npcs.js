@@ -133,6 +133,7 @@ export const NPCS = [
         choices: [
           { t: 'How does the harpoon work?', next: 'harpoon' },
           { t: 'Armor up my ride.', next: 'garage', req: (g) => !!nearCar(g) },
+          { t: 'Open the workshop. I want to build it myself.', req: (g) => !!nearCar(g), end: true, do: (g) => g.workshopUI?.toggle(true) },
           { t: `Repair my last ride (${money(60)})`, deed: { v: 'trade' }, req: (g) => worn(g.lastVehicle), next: 'fixed', do: (g) => { if (g.spend(60)) g.vehDamage.repair(g.lastVehicle); } },
           { t: 'Got anything for a stunt driver?', role: 'stuntdriver', from: 'known', req: (g) => !!g.roles?.jobOpen('wreck_show'), next: 'show' },
           { t: 'Wreck Row, clean. Your cousins saw it.', role: 'stuntdriver', from: 'known', req: (g) => !!g.roles?.jobReady('wreck_show'), next: 'showPaid', do: (g) => g.roles.jobPay('wreck_show') },

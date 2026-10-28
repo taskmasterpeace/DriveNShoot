@@ -421,8 +421,9 @@ export class Vehicles {
         g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
         for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
         if (-rv > 6) {
-          this.damage(o, -rv * 1.6 * (v.mass / o.mass), v.driver);
-          this.damage(v, -rv * 1.6 * (o.mass / v.mass), o.driver);
+          const G = g.garage; // a ram plate, a cowcatcher or spikes on the face that hit hand out more (data/workshop.js ARMOR ram)
+          this.damage(o, -rv * 1.6 * (v.mass / o.mass) * (v.plates ? G.ramMul(v, best.px, best.pz) : 1), v.driver);
+          this.damage(v, -rv * 1.6 * (o.mass / v.mass) * (o.plates ? G.ramMul(o, best.px, best.pz) : 1), o.driver);
           g.fx.sparks(best.px, 1, best.pz, nx, nz, 10);
           if (v.driver === g.player || o.driver === g.player) { g.hud.shake(Math.min(1, -rv / 20)); g.audio.crash(-rv / 25); }
         }
@@ -549,6 +550,8 @@ export class Vehicles {
       const want = Math.atan2(tx - v.x, tz - v.z);
       const diff = angleLerp(v.h, want, 1) - v.h;
       v.steer = clamp(diff * 2.5, -1, 1);
+      if ((v.blindUntil ?? 0) > g.time) v.steer = clamp(v.steer + Math.sin(g.time * 7.3 + v.x) * 0.9, -1, 1); // painted glass: driving blind (systems/workshop.js)
+      if (v.mounts) g.workshop?.aiFire(v, tx, tz, dt); // its own guns, rockets and droppers, through their arcs
       v.throttle = d < 8 && !p.inVehicle ? 0.3 : 1;
       v.handbrake = Math.abs(diff) > 1.2 && this.speed(v) > 12;
       // Passenger takes shots when lined up.
