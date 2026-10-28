@@ -10,6 +10,7 @@ import { makeRng } from '../engine/rng.js';
 import { roadLines } from '../world/city.js';
 import { C as CHUNK, chunkKey } from '../world/geo.js';
 import { mesasOf, mesaNorm, MESA_REACH } from '../world/chunkgen.js';
+import { lift } from '../engine/depthlayers.js';
 
 // DEATH RITES (docs/design/WEB_DEATH_RITES.md, rows in data/rites.js). Three things the dead are owed:
 //   bodies     a record for everyone who dies (not the infected's own loot: they carry none, but they rot all the same):
@@ -367,7 +368,7 @@ export class Rites {
     for (const R of near) { if (n++ >= BODY_FOLD.drawMax) break; i = this.body(i, R); }
     this.drawnBodies = Math.min(near.length, BODY_FOLD.drawMax);
     // open graves (a dark hole, the spoil heaped beside)
-    for (const H of this.holes) if (Math.abs(H.x - px) < 200 && Math.abs(H.z - pz) < 200) { i = this.put(i, H.x, H.y + 0.01, H.z, 0.9, 0.02, 1.9, H.a ?? 0, '#120e0a'); i = this.putL(i, H.x, H.y, H.z, H.a ?? 0, 0.9, 0.18, 0, 0.6, 0.36, 1.6, '#5a4630'); }
+    for (const H of this.holes) if (Math.abs(H.x - px) < 200 && Math.abs(H.z - pz) < 200) { i = this.put(i, H.x, H.y + lift('cemGround') - 0.01, H.z, 0.9, 0.02, 1.9, H.a ?? 0, '#120e0a'); i = this.putL(i, H.x, H.y, H.z, H.a ?? 0, 0.9, 0.18, 0, 0.6, 0.36, 1.6, '#5a4630'); }
     // the cemeteries within reach
     this.drawnCems = [];
     for (const cem of this.cemsNear(px, pz, 320)) { const j = this.drawCem(i, cem); if (j > i) this.drawnCems.push(cem.id); i = j; }
@@ -382,7 +383,7 @@ export class Rites {
     const stone = '#a8a49a', wood = '#4a3624', dirt = '#3a2c1e', fresh = '#2a1f14', iron = '#2c2a28';
     this.follow = K.at !== 'on' || !!cem.outside; // a site's yard lies on its pad; the others on the land as it falls
     const soil = cem.soil ?? (cem.soil = this.soilOf(cem));
-    if (K.layout !== 'vault' && !this.follow) i = this.put(i, cem.x, y0 + 0.01, cem.z, cem.w - 0.5, 0.02, cem.d - 0.5, a, soil, 0.5, _t.set('#5a4630')); // the yard's own worked ground
+    if (K.layout !== 'vault' && !this.follow) i = this.put(i, cem.x, y0 + lift('cemGround') - 0.01, cem.z, cem.w - 0.5, 0.02, cem.d - 0.5, a, soil, 0.5, _t.set('#5a4630')); // the yard's own worked ground (depth row cemGround)
     if (K.layout === 'vault') { // a concrete crypt: floor, four low walls, the niches as plaques on the floor rows
       i = this.put(i, cem.x, y0 + 0.05, cem.z, cem.w, 0.1, cem.d, a, '#6c6a64');
       for (const [lx, lz, sx, sz] of [[0, -cem.d / 2, cem.w, 0.3], [0, cem.d / 2, cem.w, 0.3], [-cem.w / 2, 0, 0.3, cem.d], [cem.w / 2, 0, 0.3, cem.d]]) i = this.putL(i, cem.x, y0, cem.z, a, lx, 0.6, lz, sx, 1.2, sz, '#7a7870');
@@ -395,7 +396,7 @@ export class Rites {
         for (let q = 0; q < n; q++) {
           const t = (q + 0.5) / n, lx = x0 + (x1 - x0) * t, lz = z0 + (z1 - z0) * t, wx = cem.x + lx * ca + lz * sa, wz = cem.z - lx * sa + lz * ca;
           const T = this.tilt(wx, wz, ry, wd / 2, len / n / 2);
-          i = this.put(i, wx, (this.follow ? this.ground(wx, wz) : y0) + 0.03, wz, wd, 0.12, len / n + 0.2, ry, '#9a8a6c', 0.3, _t.set(soil), 0, T.p, T.r);
+          i = this.put(i, wx, (this.follow ? this.ground(wx, wz) : y0) + lift('cemPath') - 0.06, wz, wd, 0.12, len / n + 0.2, ry, '#9a8a6c', 0.3, _t.set(soil), 0, T.p, T.r); // top: depth row cemPath
         }
       }
       for (const T of L.trees) i = this.drawTree(i, cem, T.lx, T.lz, T.h, soil);
@@ -403,7 +404,7 @@ export class Rites {
         if (!P.kerb || P.s0 + P.k > G.length) continue;
         const A = slots[P.s0], B = slots[P.s0 + P.k - 1], cx = (A.lx + B.lx) / 2, cz = (A.lz + B.lz) / 2, half = Math.hypot(B.lx - A.lx, B.lz - A.lz) / 2 + K.sp[0] / 2 - 0.1, hl = K.sp[1] / 2 - 0.05;
         const wx = cem.x + cx * ca + cz * sa, wz = cem.z - cx * sa + cz * ca, ry = a + (A.ra ?? 0);
-        for (const [lx, lz, sx, sz] of [[0, -hl + 0.15, half * 2, 0.16], [0, hl + 0.15, half * 2, 0.16], [-half, 0.15, 0.16, hl * 2], [half, 0.15, 0.16, hl * 2]]) i = this.putL(i, wx, y0, wz, ry, lx, 0.08, lz, sx, 0.16, sz, '#9c968a');
+        for (const [lx, lz, sx, sz] of [[0, -hl + 0.15, half * 2, 0.16], [0, hl + 0.15, half * 2, 0.16], [-half, 0.15, 0.16, hl * 2], [half, 0.15, 0.16, hl * 2]]) i = this.putL(i, wx, y0, wz, ry, lx, lift('cemKerb') / 2, lz, sx, lift('cemKerb'), sz, '#9c968a');
       }
     }
     if (K.layout === 'trench') { // long trenches: the ground worked over, a low hump for each of the dead, a cross post every 4 m
@@ -412,8 +413,8 @@ export class Rites {
       for (let t = 0; t < T; t++) {
         const s = slots[t * per], n = Math.min(per, G.length - t * per), len = n * K.sp[0];
         if (!s) break;
-        i = this.putL(i, cem.x, y0, cem.z, a, s.lx + len / 2 - K.sp[0] / 2, 0.03, s.lz, len + 0.6, 0.06, 2.6, dirt, 0.35, _t);
-        for (let q = 0; q < n; q++) { const h = hash(`${cem.id}:${t}:${q}`); i = this.putL(i, cem.x, y0, cem.z, a + ((h & 15) - 7) * 0.01, s.lx + q * K.sp[0], 0.1, s.lz + ((h >> 4) & 7) * 0.03, 0.82, 0.16 + ((h >> 8) & 7) * 0.012, 1.9, dirt, 0.15 + ((h >> 12) & 7) * 0.04, _t); }
+        i = this.putL(i, cem.x, y0, cem.z, a, s.lx + len / 2 - K.sp[0] / 2, lift('cemGround') - 0.03, s.lz, len + 0.6, 0.06, 2.6, dirt, 0.35, _t); // top: depth row cemGround
+        for (let q = 0; q < n; q++) { const h = hash(`${cem.id}:${t}:${q}`); i = this.putL(i, cem.x, y0, cem.z, a + ((h & 15) - 7) * 0.01, s.lx + q * K.sp[0], 0.1, s.lz + ((h >> 4) & 7) * 0.03, 0.66, 0.16 + ((h >> 8) & 7) * 0.012, 1.9, dirt, 0.15 + ((h >> 12) & 7) * 0.04, _t); }
         for (let q = 0; q < len; q += 4) { i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.6, s.lz - 1.35, 0.12, 1.2, 0.12, wood); i = this.putL(i, cem.x, y0, cem.z, a, s.lx + q, 0.9, s.lz - 1.35, 0.7, 0.12, 0.12, wood); }
       }
     }
@@ -431,24 +432,26 @@ export class Rites {
       const down = !newish && old > 0.4 && ((h >> 9) % 100) < CEM_LAYOUT.fall * 100, sink = old * 0.12;
       _t.set(soil);
       const T = this.tilt(gx, gz, aa, 0.45, 1.0);
-      if (hollow) i = this.putL(i, gx, y0, gz, aa, 0, 0.03, 0, 0.9, 0.06, 1.8, '#2a2016', 0.45, _t, 0, T.p, T.r);
-      else i = this.putL(i, gx, y0, gz, aa, 0, newish ? 0.16 : 0.08 - old * 0.03, 0, 0.95, newish ? 0.32 : 0.16 - old * 0.06, 2.0, newish ? fresh : dirt, newish ? 0 : 0.05 + old * 0.2, _t, 0, T.p, T.r);
+      // tops on the depth rows (engine/depthlayers.js): a hollow at cemHollow, a mound from cemMound (the oldest) up to 0.25, a fresh one 0.32
+      const mTop = hollow ? lift('cemHollow') : newish ? 0.32 : lift('cemMound') + (1 - old) * 0.084;
+      if (hollow) i = this.putL(i, gx, y0, gz, aa, 0, mTop - 0.03, 0, 0.9, 0.06, 1.8, '#2a2016', 0.45, _t, 0, T.p, T.r);
+      else i = this.putL(i, gx, y0, gz, aa, 0, mTop / 2, 0, 0.95, mTop, 2.0, newish ? fresh : dirt, newish ? 0 : 0.05 + old * 0.2, _t, 0, T.p, T.r);
       if (m === 'stone') {
         const tint = (h >> 3) % 3 ? stone : (h >> 4) % 2 ? '#a8a294' : '#8e8a82', tall = 0.62 + ((h >> 13) % 4) * 0.08, wide = 0.6 + ((h >> 15) % 3) * 0.08;
-        if (down) i = this.putL(i, gx, y0, gz, aa + 0.2, 0.1, 0.06, 1.25, wide, 0.12, tall, tint); // fallen flat at the head
+        if (down) i = this.putL(i, gx, y0, gz, aa + 0.2, 0.1, mTop + 0.06, 1.25, wide, 0.12, tall, tint); // fallen flat at the head, on the mound's end
         else { const lean = (h >> 24) % 7 === 0 ? 0.3 : 0; i = this.putL(i, gx, y0, gz, aa + lean, 0, tall / 2 - sink, 1.05, wide, tall, 0.24, tint); }
       } else if (m === 'cross') {
-        if (down) i = this.putL(i, gx, y0, gz, aa + 1.2, 0.3, 0.05, 0.6, 0.12, 0.1, 1.0, wood);
+        if (down) i = this.putL(i, gx, y0, gz, aa + 1.2, 0.3, mTop + 0.05, 0.6, 0.12, 0.1, 1.0, wood);
         else { const lean = (h >> 22) % 5 === 0 ? 0.25 : 0; i = this.putL(i, gx, y0, gz, aa + lean, 0, 0.55 - sink, 1.05, 0.12, 1.1, 0.12, wood); i = this.putL(i, gx, y0, gz, aa + lean, 0, 0.8 - sink, 1.05, 0.62, 0.12, 0.12, wood); }
       } else if (m === 'cairn') { // field stones heaped at the head and laid along the grave
         const c1 = (h >> 5) % 2 ? '#8a8276' : '#7c766c';
-        i = this.putL(i, gx, y0, gz, aa + 0.3, 0, 0.12, 1.0, 0.56, 0.24, 0.46, c1);
-        i = this.putL(i, gx, y0, gz, aa - 0.4, 0.04, 0.32, 1.02, 0.38, 0.2, 0.32, '#948c80');
-        if (!down) i = this.putL(i, gx, y0, gz, aa + 0.9, -0.02, 0.48, 1.0, 0.22, 0.16, 0.2, c1);
-        i = this.putL(i, gx, y0, gz, aa + 0.5, 0.32, 0.06, -0.2, 0.24, 0.12, 0.2, '#8a8276');
-        i = this.putL(i, gx, y0, gz, aa - 0.2, -0.3, 0.06, 0.3, 0.2, 0.12, 0.24, '#7c766c');
+        i = this.putL(i, gx, y0, gz, aa + 0.3, 0, 0.12, 1.25, 0.56, 0.24, 0.46, c1); // (heaped past the mound's end, on the ground)
+        i = this.putL(i, gx, y0, gz, aa - 0.4, 0.04, 0.32, 1.27, 0.38, 0.2, 0.32, '#948c80');
+        if (!down) i = this.putL(i, gx, y0, gz, aa + 0.9, -0.02, 0.48, 1.25, 0.22, 0.16, 0.2, c1);
+        i = this.putL(i, gx, y0, gz, aa + 0.5, 0.32, mTop + 0.06, -0.2, 0.24, 0.12, 0.2, '#8a8276'); // laid on the mound
+        i = this.putL(i, gx, y0, gz, aa - 0.2, -0.3, mTop + 0.06, 0.3, 0.2, 0.12, 0.24, '#7c766c');
       } else if (m === 'iron') { // a wrought-iron cross; half of them a low railing round the grave
-        if (down) i = this.putL(i, gx, y0, gz, aa + 1.3, 0.25, 0.04, 0.7, 0.07, 0.07, 1.0, iron);
+        if (down) i = this.putL(i, gx, y0, gz, aa + 1.3, 0.25, mTop + 0.035, 0.7, 0.07, 0.07, 1.0, iron);
         else { i = this.putL(i, gx, y0, gz, aa, 0, 0.55, 1.05, 0.07, 1.1, 0.07, iron); i = this.putL(i, gx, y0, gz, aa, 0, 0.82, 1.05, 0.5, 0.07, 0.07, iron); i = this.putL(i, gx, y0, gz, aa, 0, 0.82, 1.05, 0.2, 0.2, 0.04, iron); }
         if ((h >> 7) % 2) for (const [ox, oz, sx, sz] of [[-0.55, 0, 0.04, 2.1], [0.55, 0, 0.04, 2.1], [0, -1.05, 1.1, 0.04]]) i = this.putL(i, gx, y0, gz, aa, ox, 0.2, oz, sx, 0.4, sz, iron);
       }
@@ -465,12 +468,17 @@ export class Rites {
     const col = kind === 'stone' ? '#8f877a' : kind === 'iron' ? '#2c2a28' : kind === 'picket' ? '#b8ae98' : '#4a3624';
     const step = kind === 'stone' ? 3 : kind === 'iron' ? 2 : kind === 'wire' ? 4 : 2.5, thin = kind === 'iron' || kind === 'wire';
     const at = (lx, lz) => { _w.x = X + lx * ca + lz * sa; _w.z = Z - lx * sa + lz * ca; _w.y = this.follow ? this.ground(_w.x, _w.z) : y0; return _w; };
+    let run = 0, runs = 0;
+    for (const [x0, z0, x1, z1] of WALL_SIDES) runs += Math.max(1, Math.round(Math.hypot((x1 === 2 ? gate : x1 === -2 ? -gate : x1 * w) - (x0 === 2 ? gate : x0 === -2 ? -gate : x0 * w), (z1 - z0) * d) / step));
     for (const [x0, z0, x1, z1] of WALL_SIDES) {
       const sx0 = x0 === 2 ? gate : x0 === -2 ? -gate : x0 * w, sx1 = x1 === 2 ? gate : x1 === -2 ? -gate : x1 * w, sz0 = z0 * d, sz1 = z1 * d;
       const len = Math.hypot(sx1 - sx0, sz1 - sz0), n = Math.max(1, Math.round(len / step)), seg = len / n, ry = a + Math.atan2(sx1 - sx0, sz1 - sz0) + Math.PI / 2;
       for (let q = 0; q < n; q++) {
         const t = (q + 0.5) / n, P = at(sx0 + (sx1 - sx0) * t, sz0 + (sz1 - sz0) * t), mx = P.x, mz = P.z, gy = P.y, rl = this.tilt(mx, mz, ry, seg / 2, 0).r;
-        if (kind === 'stone') { i = this.put(i, mx, gy + 0.36, mz, seg + 0.05, 0.72, 0.42, ry, (q * 7 + n) % 3 ? col : '#857e72', 0, null, 0, 0, rl); continue; }
+        // stone: each run a step over or under the one before (overlapping tops of two shades never share a plane; the last
+        // run, which meets the first at the corner, takes a third height)
+        const hs = 0.72 + 0.014 * (run === runs - 1 && runs % 2 ? 2 : run % 2); run++;
+        if (kind === 'stone') { i = this.put(i, mx, gy + hs / 2, mz, seg + 0.05, hs, 0.42, ry, (q * 7 + n) % 3 ? col : '#857e72', 0, null, 0, 0, rl); continue; }
         if (kind === 'wire') { for (const yy of [0.35, 0.6, 0.85]) i = this.put(i, mx, gy + yy, mz, seg, 0.02, 0.02, ry, '#5a5650', 0, null, 0, 0, rl); }
         else for (const yy of kind === 'rail' ? [0.45, 0.85] : kind === 'iron' ? [0.12, 0.82] : [0.3, 0.7]) i = this.put(i, mx, gy + yy, mz, seg, thin ? 0.04 : 0.08, thin ? 0.04 : 0.05, ry, col, 0, null, 0, 0, rl);
         const Q = at(sx0 + (sx1 - sx0) * (q / n), sz0 + (sz1 - sz0) * (q / n));
