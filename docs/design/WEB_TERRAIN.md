@@ -1,6 +1,6 @@
 # WEB_TERRAIN: the real land under the streamed world
 
-**Status:** prototype, built 2026-10-23 on `feat/web-terrain`, **behind a flag that is OFF by default**. The I-10 corridor from
+**Status:** built 2026-10-23 on `feat/web-terrain` behind a flag; **ON by default since 2026-10-28** (`feat/web-sites-terrain`, [WEB_SITES_TERRAIN.md](WEB_SITES_TERRAIN.md): `?terrain=flat` is the escape hatch, and the land now reaches past this strip through four sheet packs). The I-10 corridor from
 Los Angeles through Phoenix to El Paso (the part P1 streams) is baked and drivable on real terrain; the rest of the country
 is planned in §6.4.
 **Owner of the call:** Robert ("we need different terrain... you go online, you find the terrain, and you just start laying
@@ -20,7 +20,7 @@ and baked into one 1.53 MB file. The engine lays the road, the towns and every c
 | The bake | `web/tools/terrain-bake.mjs` | Fetches and caches the sources, strip-maps them onto the world, holds the land to THE GRADE, classifies the biome and writes `src/data/terrain/i10.bin`. Also writes the profile chart. 30-40 s with a warm cache. |
 | The rows | `web/src/data/terrain.js` | Every knob of the bake and the engine (§7). |
 | The engine | `web/src/world/realterrain.js` | Decodes the asset, surveys the road and the pads onto the land, and answers the ground at any point from per-chunk 8 m grids. |
-| The flag | `Streamer.setTerrain(on)`, the agent command `terrain on=true\|false`, the URL `?terrain=real` | On: load, survey, lay out every chunk again. Off: lay out every chunk again, exactly as before. |
+| The flag | `Streamer.setTerrain(on)`, the agent command `terrain on=true\|false`, ON at boot unless the URL has `?terrain=flat` (WEB_SITES_TERRAIN §3.2) | On: load, survey, lay out every chunk again. Off: lay out every chunk again, exactly as before. |
 | The proof | `web/tools/terrain-check.mjs`, `docs/renders/web/terrain/` | Offline checks of the asset and the engine, plus the screenshots, the land map and the profile chart. |
 
 **Sources** (all public, freely licensed; every file and byte is recorded in `web/.terrain-cache/manifest.json`, which is
@@ -127,7 +127,7 @@ corridor uses a **strip map**, like a road atlas's strip of the route.
   are pitched to the ground under their two ends. **Collision heights stay measured from the ground**: a box is as tall as
   it was, and movers ask from their own ground.
 
-### 3.4 What the flag changes in the engine
+### 3.4 What the flag changes in the engine (ON by default since 2026-10-28; the packs, the many-road survey and the settlement pads are WEB_SITES_TERRAIN §3.2-3.3)
 With the flag off, `WorldIndex.terrain` is `null` and every changed line takes its old path (proof: §8).
 
 | File | With the flag on |
@@ -139,7 +139,7 @@ With the flag off, `WorldIndex.terrain` is `null` and every changed line takes i
 | `systems/stunts.js` | a grounded car more than 2.5 m off the land (the flag turned on, a teleport, a spawn) is set on it: not a jump, not a wall, not a crash |
 | `systems/vehicles.js` | a car's collision height is taken from the ground under it; a car is spawned on the land |
 | `systems/fx.js` | decals, skids, footprints, pools, particles, tracers, flashes and lights sit on the land (`fx.ground`) |
-| `systems/sky.js`, `main.js` | the camera keeps its height above the ground it looks at; the sun's shadow box follows it; `?terrain=real` |
+| `systems/sky.js`, `main.js` | the camera keeps its height above the ground it looks at; the sun's shadow box follows it; on at boot, `?terrain=flat` off |
 | `agent/api.js` | the `terrain` command; `screenshot x z` frames above the ground there; teleporting a car puts it on the land; the exit selftest measures from the ground |
 
 ## 4. Formulas

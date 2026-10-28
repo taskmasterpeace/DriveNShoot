@@ -40,7 +40,7 @@ export class Overrun {
     const want = Math.min(rec.kind === 'rural' ? 2 : 6, Math.max(0, Math.floor((g.freeSlots?.length ?? 0) - AMBIENT_RESERVE - 8) / 2));
     const doors = t.built.doors.filter((d) => d.kind === 'door');
     for (let i = 0; i < want && doors.length; i++) {
-      const d = doors[(i * 7 + (rec.seed % 13)) % doors.length];
+      const d = doors[(i * 7 + ((rec.seed >>> 0) % 13)) % doors.length]; // >>> 0: a negative seed (hash ^ seed) gave a negative index
       const warden = !!t.T.wall && i % 2 === 0;
       const c = g.addChar({ x: d.x + (d.side === 'E' ? 1.6 : d.side === 'W' ? -1.6 : 0), z: d.z + (d.side === 'S' ? 1.6 : d.side === 'N' ? -1.6 : 0), faction: warden ? 'warden' : 'drifter', weapon: warden ? 'smg' : null, hp: 100, colors: outfit(warden ? 'warden' : 'drifter'), name: warden ? 'Town Guard' : 'Townsfolk', flag: g.randomFlag(Math.random) });
       if (!c) break;

@@ -96,7 +96,7 @@ export async function pushUsmap(g, rows = null) {
   // The rows, in place: every module that imported usmap.json holds this same object.
   for (const k of Object.keys(doc)) USMAP[k] = doc[k];
   const rx = reindex(S);
-  if (W.terrain && S.terrainAsset) { const { RealTerrain } = await import('../world/realterrain.js'); W.terrain = new RealTerrain(S.terrainAsset, W); }
+  if (W.terrain && S.terrainAsset) { const { RealTerrain } = await import('../world/realterrain.js'); W.terrain = new RealTerrain(S.terrainAsset, W, S.terrainPacks ?? []); }
   const newBox = keys ? rowsBox(W, USMAP, keys) : null;
   const all = !keys || rx.signs || keys.some((k) => k.startsWith('interstates/I-10'));
   const set = all ? null : new Set([...keysIn(oldBox), ...keysIn(newBox)]);

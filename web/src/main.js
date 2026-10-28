@@ -1340,8 +1340,9 @@ loadContentPacks(game.api).then(async () => {
   // Dev QOL: a full page reload (code edit) keeps your place in the world.
   const keep = sessionStorage.getItem('dl.hmr');
   if (keep) { sessionStorage.removeItem('dl.hmr'); try { restore(game, JSON.parse(keep)); game.emit('hmrRestored'); } catch (e) { console.warn('hmr restore failed', e); } }
-  // Real terrain (docs/design/WEB_TERRAIN.md) is a flag, off by default: ?terrain=real turns it on before agents connect.
-  if (new URLSearchParams(location.search).get('terrain') === 'real') try { await game.streamer.setTerrain(true); } catch (e) { console.warn('terrain', e); }
+  // Real terrain (docs/design/WEB_TERRAIN.md, WEB_SITES_TERRAIN.md) is ON by default, before agents connect; ?terrain=flat
+  // keeps the old flat world (the escape hatch).
+  if (new URLSearchParams(location.search).get('terrain') !== 'flat') try { await game.streamer.setTerrain(true); } catch (e) { console.warn('terrain', e); }
   startBridge(game.api);
   const sc = new URLSearchParams(location.search).get('scenario');
   if (sc) console.log('[scenario]', sc, await game.api.call('scenario', { name: sc }));
