@@ -604,7 +604,7 @@ export class Rites {
     const R = this.drag;
     if (!R) return;
     const who = R.dragBy ?? this.g.player;
-    if (who.dragging === (R.c ?? R)) who.dragging = null;
+    if (who.dragging && (who.dragging === R.c || who.dragging === R || who.dragging.riteId === R.id)) who.dragging = null; // whatever it held of this body (it may have folded mid-drag)
     if (R.c) R.c.dragged = null;
     this.drag = null; R.dragBy = null;
     this.moveBox(R);
@@ -615,7 +615,8 @@ export class Rites {
     const R = this.drag;
     if (!R) return;
     const who = R.dragBy ?? this.g.player;
-    if (!who.alive || who.inVehicle) { this.stopDrag(); return; }
+    const bx0 = R.c ? R.c.x : R.x, bz0 = R.c ? R.c.z : R.z;
+    if (!who.alive || who.inVehicle || Math.hypot(who.x - bx0, who.z - bz0) > 4) { this.stopDrag(); return; } // gone from it (a car, a fall, a teleport): let go
     const back = (who.face ?? 0) + Math.PI, tx = who.x + Math.sin(back) * 1.1, tz = who.z + Math.cos(back) * 1.1;
     const k = Math.min(1, dt * 6);
     R.x += (tx - R.x) * k; R.z += (tz - R.z) * k; R.y = who.gy ?? 0;
@@ -747,6 +748,10 @@ export class Rites {
     if (F && !F.stone && I.hit('KeyG')) { I.pressed.delete('KeyG'); const r = this.payStone(F); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); return; }
     const R = this.bodyNear(p.x, p.z, 1.8);
     if (!R) { this.ePress = -1; return; }
+    // E is the body's only when nothing else claims it: no door or window in reach (their hold boards or picks), no
+    // downed crew member (theirs is a drag too), and the nearest box is this body's own
+    const box = g.inventory?.nearest(p.x, p.z, 2.2, true, p.gy ?? 0);
+    if (g.interiors?.nearest?.(p) || g.interiors?.hold > 0 || g.crew?.drag || g.crew?.downedNear?.() || (box && box.id !== R.box)) { this.ePress = -1; return; }
     if (I.hit('KeyE')) { this.ePress = g.time; return; } // the tap still reaches main.js's box search
     if (this.ePress >= 0 && I.key('KeyE') && g.time - this.ePress > BURIAL.holdE) { this.ePress = -1; g.invUI?.toggle?.(false); const r = this.startDrag(R, p); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
     if (!I.key('KeyE')) this.ePress = -1;
