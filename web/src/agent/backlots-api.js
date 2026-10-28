@@ -210,18 +210,25 @@ export async function backlotsChecks({ api, g, check, C }) {
     // round a house: street in front -> inside its alley gate
     const y = yardOf(() => true), H = t.T.buildings.find((q) => q.id === y.b), gt = y.gates.find((q) => q.kind === 'alley');
     for (const d of [...I.ringOpen.values()].flatMap((r) => r.doors)) if (d.gate && d.locked) I.setLocked(d, false);
-    const fx = H.front === 'N' || H.front === 'S' ? (H.x0 + H.x1) / 2 : H.front === 'W' ? H.x0 - 4 : H.x1 + 4, fz = H.front === 'N' ? H.z0 - 4 : H.front === 'S' ? H.z1 + 4 : (H.z0 + H.z1) / 2;
-    const tx = gt.x - gt.nx * 1.5, tz = gt.z - gt.nz * 1.5;
+    // a line across the house well clear of its doors: the street 4 m in front, the yard 1.4 m behind the back wall
+    const ax = H.front === 'N' || H.front === 'S', u0 = ax ? H.x0 : H.z0, u1 = ax ? H.x1 : H.z1;
+    let u = (u0 + u1) / 2, best = -1;
+    for (let a = u0 + 1; a <= u1 - 1; a += 0.25) { const m = Math.min(...H.doors.map((d) => Math.abs(d.at - a))); if (m > best) { best = m; u = a; } }
+    const sF = H.front === 'N' || H.front === 'W' ? -1 : 1, vF = H.front === 'N' ? H.z0 : H.front === 'S' ? H.z1 : H.front === 'W' ? H.x0 : H.x1, vB = H.front === 'N' ? H.z1 : H.front === 'S' ? H.z0 : H.front === 'W' ? H.x1 : H.x0;
+    const fx = ax ? u : vF + sF * 4, fz = ax ? vF + sF * 4 : u, tx = ax ? u : vB - sF * 1.4, tz = ax ? vB - sF * 1.4 : u;
     await stand(fx, fz);
     BL.dirtyNav();
     const r2 = g.footPath(fx, fz, tx, tz);
     // through doors and gates is fine (a house is enterable): through a wall or a fence panel is not
-    const probe = new TownProbe(t.built), solid = (x, z) => probe.blocked(x, z, 0, 0.05);
-    const fine = (pts) => { let px2 = pts.from.x, pz2 = pts.from.z; for (const q of pts.list) { const L2 = Math.hypot(q.x - px2, q.z - pz2), k2 = Math.max(1, Math.ceil(L2 / 0.04)); for (let k = 0; k <= k2; k++) if (solid(px2 + (q.x - px2) * k / k2, pz2 + (q.z - pz2) * k / k2)) return false; px2 = q.x; pz2 = q.z; } return true; };
+    const walls = t.built.boxes.filter((b) => b.base < 2.5 && (b.tag.startsWith('cg-wall') || b.tag === 'cg-townwall' || b.fence));
+    const probe = new TownProbe({ boxes: walls, recs: [] }), solid = (x, z) => probe.blocked(x, z, 0, 0.05);
+    let hit = null;
+    const fine = (pts) => { let px2 = pts.from.x, pz2 = pts.from.z; for (const q of pts.list) { const L2 = Math.hypot(q.x - px2, q.z - pz2), k2 = Math.max(1, Math.ceil(L2 / 0.04)); for (let k = 0; k <= k2; k++) { const x = px2 + (q.x - px2) * k / k2, z = pz2 + (q.z - pz2) * k / k2; if (solid(x, z)) { hit = { x: r1(x), z: r1(z), box: t.built.boxes.filter((b) => b.base < 2.5 && x > b.minX - 0.06 && x < b.maxX + 0.06 && z > b.minZ - 0.06 && z < b.maxZ + 0.06).map((b) => `${b.tag} ${r1(b.minX)},${r1(b.minZ)},${r1(b.maxX)},${r1(b.maxZ)}`) }; return false; } } px2 = q.x; pz2 = q.z; } return true; };
     const roundOk = !!r2 && fine({ from: { x: fx, z: fz }, list: r2 });
+    const hit1 = hit;
     // the straight line would have met a wall or a fence (the route had to find its way)
     const straightThrough = !fine({ from: { x: fx, z: fz }, list: [{ x: tx, z: tz }] });
-    return alleyOk && roundOk && straightThrough ? true : JSON.stringify({ alley: A.id, route: route?.length ?? null, alleyOk, r2: r2?.map((q) => [r1(q.x), r1(q.z)]).slice(0, 8) ?? null, roundOk, straightThrough });
+    return alleyOk && roundOk && straightThrough ? true : JSON.stringify({ alley: A.id, route: route?.length ?? null, alleyOk, r2: r2?.map((q) => [r1(q.x), r1(q.z)]).slice(0, 8) ?? null, roundOk, straightThrough, hit: hit1, from: [r1(fx), r1(fz)], house: [H.x0, H.z0, H.x1, H.z1, H.front], doors: H.doors.map((d) => `${d.side}@${d.at}`) });
   });
 
   await check('back lots: draw calls stay under 150 standing in an alley of a stamped town (alleys, fences, yard things and verge props are items of the one instanced town mesh; gates are leaves of the interiors pool)', async () => {

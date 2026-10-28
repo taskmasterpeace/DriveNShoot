@@ -335,7 +335,9 @@ export async function citygenChecks({ api, g, check, C }) {
     let hitRoof = null;
     if (S.n === B.n) {
       await stand(horiz ? wc : fixed - out * 1.0, horiz ? fixed - out * 1.0 : wc, S.Y[S.n]);
-      const d3 = g.addChar({ x: tx + (horiz ? 2 : 0), z: tz + (horiz ? 0 : 2), faction: 'drifter', weapon: null, hp: 400, colors: outfit('drifter'), name: 'Street target 3 (selftest)', flag: 'US' });
+      // the target stands where the agent's fire (a ground line of sight) can see it: a street wreck is not the parapet's test
+      const off = [2, -2, 4, -4, 0, 6, -6].find((o) => g.statics.lineOfSight(p.x, p.z, tx + (horiz ? o : 0), tz + (horiz ? 0 : o))) ?? 2;
+      const d3 = g.addChar({ x: tx + (horiz ? off : 0), z: tz + (horiz ? 0 : off), faction: 'drifter', weapon: null, hp: 400, colors: outfit('drifter'), name: 'Street target 3 (selftest)', flag: 'US' });
       d3.hold = true; const h3 = d3.hp;
       await C('fire', { id: d3.id, shots: 3 });
       hitRoof = d3.hp < h3 || !d3.alive;
