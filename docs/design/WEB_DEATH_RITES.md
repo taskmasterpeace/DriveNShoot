@@ -65,7 +65,7 @@ Out in the ring, the family whose son you killed buries him tomorrow at ten. You
 | crypt | bunkers (kind `military`, stamp `bunker`) | on site | a concrete vault: floor, walls, plaque rows |
 | family_plot | homesteads | the parcel's corner | rows, a picket fence, a tree, sexton's box |
 | war_graves | military bases | edge | crosses in uniform plots (no family names), an iron railing |
-| lot_yard | Phoenix-ring quarters | the quarter's empty lot nearest its middle | rows fitted to the lot, a wire fence |
+| lot_yard | Phoenix-ring quarters | the quarter's empty lot nearest its middle | rows across the lot's full width with a 1 m margin, so it stays inside the lot (28 × 20 m in a 28.5 × 20 m lot), a wire fence |
 
 A cemetery's position is provisional until its place is built.
 **Placement score:** a candidate footprint (both orientations) is sampled at 7 × 7 points, and every point on a building (the live towns' 8 m box grid), a street (town road rows, the island's 80 m grid, within 24 m of a corridor), water or a ring lot counts against it. The lowest score wins (`clash` in the view; 0 is clear ground).
@@ -76,7 +76,7 @@ A cemetery's position is provisional until its place is built.
 
 **The keep-out** (the follow-up from the first renders, where a boulder sat on the graves):
 - A placed cemetery goes into `rites.keep` (64 m cells), and `rites.solid(x, z, r)` answers the chunk generator's `blocked()`: inside the wall plus `CEM_LAYOUT.keep` = 4 m, no rock, scrub, cactus or tree is scattered.
-- When a cemetery is placed, the chunks already laid out under it are evicted and laid out again (the settlement pad's rule in `citygen.stamp`), so the scatter comes back off its ground. `cem.relaid` counts them.
+- When a cemetery is placed, the chunks already laid out under it that have scatter on its ground (`scatterIn`) are evicted and laid out again (the settlement pad's rule in `citygen.stamp`), so the scatter comes back off it. `cem.relaid` counts them. A chunk with nothing there is left alone, and a ring lot yard never evicts: its neighbours' walls and planting crowd the keep-out ring, and evicting the ring's chunks as a car drives past was a cross stall (the streaming check caught it).
 - The island is built once at boot (its RNG is pinned by the golden hash), so Rust Haven's yard is placed clear of the island's scatter rather than clearing it.
 
 **The yard's layout** (`lay()`, pure from the seed and the count; rows in `CEM_LAYOUT`; kinds with `layout: 'rows'`):

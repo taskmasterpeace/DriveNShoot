@@ -459,6 +459,7 @@ export class Rites {
   // gate in the middle of the side that faces its place (local -z): two posts (a stone wall's are piers), an iron arch
   // bar over a town's, one leaf swung inward.
   drawWall(i, cem, kind) {
+    if (!(cem.w < 1000 && cem.d < 1000)) return i; // a yard with no size (no plan yet) has no wall
     const w = cem.w / 2, d = cem.d / 2, gate = CEM_LAYOUT.gate / 2, a = cem.a, sa = Math.sin(a), ca = Math.cos(a), X = cem.x, Z = cem.z, y0 = cem.y;
     const col = kind === 'stone' ? '#8f877a' : kind === 'iron' ? '#2c2a28' : kind === 'picket' ? '#b8ae98' : '#4a3624';
     const step = kind === 'stone' ? 3 : kind === 'iron' ? 2 : kind === 'wire' ? 4 : 2.5, thin = kind === 'iron' || kind === 'wire';
@@ -556,10 +557,11 @@ export class Rites {
   lay(cem, maxW = Infinity) {
     const K = CEMETERY_KINDS[cem.kind], L = CEM_LAYOUT, [sx, sz] = K.sp;
     let rng = makeRng((cem.seed ^ 0x51ab) >>> 0);
-    const n = cem.count + spareOf(cem.count), inner = Math.max(3 * sx + L.plotGap, maxW - 2 * L.margin), area = n * sx * sz * 1.25;
+    const mg = maxW === Infinity ? L.margin : Math.min(L.margin, 1); // fitted to a lot: a narrow margin, so it stays inside it
+    const n = cem.count + spareOf(cem.count), inner = Math.max(3 * sx + L.plotGap, maxW - 2 * mg), area = n * sx * sz * 1.25;
     const small = area <= L.secW * L.secD;
     let secW = Math.min(L.secW, inner), cols = 1;
-    if (small) secW = Math.min(secW, Math.max(3 * sx + L.plotGap, Math.sqrt(area)));
+    if (small && maxW === Infinity) secW = Math.min(secW, Math.max(3 * sx + L.plotGap, Math.sqrt(area))); // fitted to a lot: its full width, so it stays shallow
     else if (2 * secW + L.mainPath <= inner) cols = 2;
     let rowsPer = small ? Infinity : Math.max(2, Math.floor(L.secD / sz));
     let slots = [], plots = [], secs = [];
@@ -589,10 +591,10 @@ export class Rites {
     }
     if (secs.length === 1) cols = 1;
     const R = Math.ceil(secs.length / cols), depth = Math.max(...secs.map((q) => q.rows)) * sz;
-    const w = cols * secW + (cols - 1) * L.mainPath + 2 * L.margin, d = R * depth + (R - 1) * L.path + 2 * L.margin + L.path;
+    const w = cols * secW + (cols - 1) * L.mainPath + 2 * mg, d = R * depth + (R - 1) * L.path + 2 * mg + L.path;
     for (const sec of secs) {
       const c = sec.i % cols, row = Math.floor(sec.i / cols);
-      sec.x0 = -w / 2 + L.margin + c * (secW + L.mainPath); sec.zb = d / 2 - L.margin - row * (depth + L.path);
+      sec.x0 = -w / 2 + mg + c * (secW + L.mainPath); sec.zb = d / 2 - mg - row * (depth + L.path);
       sec.cx = sec.x0 + secW / 2; sec.cz = sec.zb - depth / 2; sec.w = secW; sec.d = depth;
     }
     const k2 = (2 * Math.PI) / L.bendLen;
@@ -603,9 +605,9 @@ export class Rites {
     }
     // the paths: the main one from the gate up the middle (with one column of sections, only to the front section), the
     // cross paths between section rows
-    const paths = [], front = -d / 2 + 0.4, back = cols === 2 ? d / 2 - L.margin / 2 : d / 2 - L.margin - R * depth - (R - 1) * L.path;
+    const paths = [], front = -d / 2 + 0.4, back = cols === 2 ? d / 2 - mg / 2 : d / 2 - mg - R * depth - (R - 1) * L.path;
     paths.push([0, front, 0, Math.max(front + 1, back), cols === 2 ? L.mainPath - 0.6 : L.path - 0.4]);
-    for (let row = 0; row < R - 1; row++) { const z = d / 2 - L.margin - (row + 1) * depth - row * L.path - L.path / 2; paths.push([-w / 2 + L.margin / 2, z, w / 2 - L.margin / 2, z, L.path - 0.6]); }
+    for (let row = 0; row < R - 1; row++) { const z = d / 2 - mg - (row + 1) * depth - row * L.path - L.path / 2; paths.push([-w / 2 + mg / 2, z, w / 2 - mg / 2, z, L.path - 0.6]); }
     // a tree or two at the corners, just outside the wall (inside the keep-out ring)
     const trees = [], c0 = Math.floor(rng() * 4);
     for (let t = 0; t < (K.trees ?? 0); t++) { const [ux, uz] = CORNERS[(c0 + t * 2 + (t > 1 ? 1 : 0)) % 4]; trees.push({ lx: ux * (w / 2 + 1.6), lz: uz * (d / 2 + 1.6), h: Math.floor(rng() * 100000) }); }
@@ -621,8 +623,19 @@ export class Rites {
     }
     return false;
   }
-  // A cemetery placed: into the keep-out cells, and the chunks already laid out under it are laid out again (the
-  // settlement pad's rule, systems/citygen.js stamp), so their rocks, scrub and trees come back off its ground.
+  // How many of a laid-out chunk's scatter instances and static boxes stand inside a cemetery's wall plus its keep-out.
+  scatterIn(L, cem) {
+    const s = Math.sin(cem.a), c = Math.cos(cem.a), hw = cem.w / 2 + CEM_LAYOUT.keep, hd = cem.d / 2 + CEM_LAYOUT.keep;
+    const inside = (x, z) => { const dx = x - cem.x, dz = z - cem.z; return Math.abs(dx * c - dz * s) < hw && Math.abs(dx * s + dz * c) < hd; };
+    let n = 0;
+    for (const name in L.inst ?? {}) { const r = L.inst[name]; for (let k = 0; k < r.n; k++) if (inside(r.m[k * 16 + 12], r.m[k * 16 + 14])) n++; }
+    for (const b of L.boxes ?? []) if (inside((b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2)) n++;
+    return n;
+  }
+  // A cemetery placed: into the keep-out cells, and the chunks already laid out under it with something standing on its
+  // ground are laid out again (the settlement pad's rule, systems/citygen.js stamp), so their rocks, scrub and trees
+  // come back off it. A chunk with nothing there (a yard on a pad) is left alone, and a ring lot's never (its neighbours'
+  // walls and planting crowd the keep-out ring, and they are the city's, not wild scatter).
   keepOut(cem) {
     for (const L of this.keep.values()) { const k = L.indexOf(cem); if (k >= 0) L.splice(k, 1); }
     const R = Math.hypot(cem.w, cem.d) / 2 + CEM_LAYOUT.keep + 2;
@@ -631,9 +644,9 @@ export class Rites {
     }
     const S = this.g.streamer;
     let n = 0;
-    if (S?.layouts) for (let cx = Math.floor((cem.x - R) / CHUNK); cx <= Math.floor((cem.x + R) / CHUNK); cx++) for (let cz = Math.floor((cem.z - R) / CHUNK); cz <= Math.floor((cem.z + R) / CHUNK); cz++) {
-      const k = chunkKey(cx, cz);
-      if (S.layouts.has(k) && !S.pinned?.has(k)) { S.evict(k); n++; }
+    if (S?.layouts && !cem.ring) for (let cx = Math.floor((cem.x - R) / CHUNK); cx <= Math.floor((cem.x + R) / CHUNK); cx++) for (let cz = Math.floor((cem.z - R) / CHUNK); cz <= Math.floor((cem.z + R) / CHUNK); cz++) {
+      const k = chunkKey(cx, cz), L = S.layouts.get(k);
+      if (L && !S.pinned?.has(k) && this.scatterIn(L, cem)) { S.evict(k); n++; } // only a chunk with something on the yard: a relayout ahead of a fast car is a stall
     }
     cem.relaid = (cem.relaid ?? 0) + n;
     return n;
