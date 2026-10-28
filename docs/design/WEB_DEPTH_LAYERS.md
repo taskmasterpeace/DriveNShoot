@@ -45,7 +45,7 @@ from their row. Measured from the code (audit 2026-10-28):
 | chunk road ribbons | `chunkgen.js` road layer | Std | - | 0 | land + **RIBBON_BASE 0.03 + 0.012 x rank** (interstate 0, ramp 1, others 2 + heading third) |
 | stop lines | `chunkgen.js` | road layer | - | 0 | land + **PAINT_LIFT 0.09** |
 | town yard / lot / walk x / walk z / street x / street z | `chunkgen.js` (ring + holdouts) | road layer | - | 0 | land + **TOWN rows 0.012 ... 0.072** (STEP 0.012); a street + `tieLift(name)` (0 or STEP/2) where two of one axis join |
-| cemetery yards, mounds, plots (death rites) | `systems/rites.js` | Std (one InstancedMesh `rites`) | - | 0 | the land under each piece + 0.01-0.1 (scanned: no fights) |
+| cemetery yards, paths, mounds, kerbs (death rites) | `systems/rites.js` | Std (one InstancedMesh `rites`) | - | 0 | the land (or pad) under each piece + rows **cemGround 0.086 < cemPath 0.106 < cemHollow 0.126 < cemKerb 0.146 < cemMound 0.166** (oldest mound top; younger to 0.25, fresh 0.32); markers lying on a mound sit on its top; a stone wall's runs alternate 0.72 / 0.734 (a third height where the last run meets the first); trench humps 0.66 wide on a 1 m spacing (never overlap) |
 | ballistics ground scuffs | `systems/ballistics.js` -> `fx.decal` | fx dMesh | blood | 3 | ground + DECAL_Y |
 | chunk rock (fills) | `chunkgen.js` | Std, DoubleSide | - | 0 | land + fill profile |
 | chunk water | `world/water.js` streamMat | Std, opaque | - | 1 | region sheet 0.015 / river surfaces |

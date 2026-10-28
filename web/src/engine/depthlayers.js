@@ -28,6 +28,14 @@ export const LAYERS = {
   floor:       { on: 'pad',     lift: 0.12,  order: 0, write: true },   // a ring building's slab top; finishes 0.132, rugs to 0.15
   slab:        { on: 'storey',  lift: 0.006, order: 0, write: true },   // a storey's slab over the wall tops it overlaps (STEP / 2)
   water:       { on: 'bed',     lift: 0.015, order: 1, write: true },   // water sheets: drawn after the ground they sit in
+  // a cemetery's flat pieces (systems/rites.js, one InstancedMesh): TOP heights over the land or pad under each piece, every
+  // one clear of the town steps (to 0.078), the back lots (0.046-0.074), citygen kerbs and streets (0.08-0.112) and the
+  // ring's floors (0.12 / 0.132 / rugs 0.14-0.15), and of each other
+  cemGround:   { on: 'ground',  lift: 0.086, order: 0, write: true },   // a yard's worked ground on a site's pad; an open grave's floor
+  cemPath:     { on: 'ground',  lift: 0.106, order: 0, write: true },   // its gravel paths
+  cemHollow:   { on: 'ground',  lift: 0.126, order: 0, write: true },   // a sunk grave's hollow
+  cemMound:    { on: 'ground',  lift: 0.166, order: 0, write: true },   // the lowest (oldest) mound top; younger ones stand to 0.25, a fresh one 0.32
+  cemKerb:     { on: 'ground',  lift: 0.146, order: 0, write: true },   // a rich plot's stone kerb: under every mound top (it meets their ends where a row bends)
   // ---- decals: depthWrite off, polygonOffset, fixed order (separated by offset + order) ----
   groundDecal: { on: 'surface', lift: 0.03, factor: -2, units: -4, order: 2, write: false }, // tyre tracks, skid marks, ground patches
   blood:       { on: 'surface', lift: 0.03, factor: -4, units: -8, order: 3, write: false }, // blood pools, splats, scorch (fx + blood.js)
