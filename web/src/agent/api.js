@@ -67,6 +67,7 @@ import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // b
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
+import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -2083,6 +2084,7 @@ function buildCommands(api) {
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
+    ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
   };
 }
 
@@ -3378,6 +3380,7 @@ async function runSelfTest(api, only = null, skip = null) {
     N.rest = 0.3;
     const lay = S.sleepAt('ground');
     const z = g.zombies.spawn(p.x + 20, p.z, false);
+    z.ztarget = p; // it comes up the street toward you (survival.js's prowler does the same: one told fix; a sleeper lies too low to be seen at 20 m, WEB_ZOMBIES.md §3.1)
     for (let i = 0; i < 60 && S.sleep; i++) await C('step', { seconds: 0.25 });
     const woken = !!lay.ok && !S.sleep && /infected/.test(S.lastWake?.why ?? '') && S.lastWake.full === false;
     g.removeChar(z);
@@ -5649,6 +5652,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
   // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----
   const freeNear = (x, z, r = 3) => { for (let dx = -r; dx <= r; dx += 1.5) for (let dz = -r; dz <= r; dz += 1.5) if (!g.nav.foot.free(x + dx, z + dz)) return false; return true; };
