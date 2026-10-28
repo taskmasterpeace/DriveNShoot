@@ -130,6 +130,7 @@ The **HUD editor** (F6, or EDIT HUD LAYOUT in the pause menu) pauses the game an
 | `ui/hud.js` | Builds the elements, creates `HudLayout` and `HudEditor`, calls `layout.apply()` on rescale and `layout.tick()` at 4 Hz; new `footing(text)`; needs plate split | both |
 | `ui/qol.js` | HUD size (`hudScale`) feeds `L`. Pause menu **EDIT HUD LAYOUT** button. `toggleMenu` / `toggleMap` refresh the situation. `input()` yields to the editor and opens it on the `hudEdit` row | both |
 | `data/controls.js` | New row `hudEdit` (F6, rebindable in CONTROLS) | used by qol |
+| `ui/pullsboard.js` (WEB_PULLS) | The `pulls` row (`.pulls-chip`): built after the HUD, bound on a later tick like the compass | uses the layout |
 | `main.js` | `hud.footing(footingText(p))` each frame. The prompt no longer carries the footing text | uses |
 | `ui/feedback.js`, `ui/weaponbar.js`, `ui/telltales.js` (via `systems/survival.js`) | Build `.fb-compass`, `.kill-slot .fb-kills`, `.wbar` and `.tt-rail`; the layout lifts them by selector. **Rename a class there → update its row's `sel`** (the selftest names any row with no element) | they are used |
 | `systems/decks.js`, `systems/stance.js` | `p.onDeck` and `p.prone` decide the deck and prone situations | used |

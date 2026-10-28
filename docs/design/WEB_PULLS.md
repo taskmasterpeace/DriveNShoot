@@ -46,6 +46,7 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
 | bounty | a raider camp near the town | the board; radio; said | open | the town's chest, at its bar, once you have put down the number asked within 160 m of the camp |
 | work | the town | the board; said | open | the town's chest, at its bar, for the goods out of your pack (they become the town's stock) |
 | weather | over the nearest town | its set, when you listen | over in 6 h | none (the reason to stay in) |
+| funeral | a cemetery (the rites' own) | the household's town (said), its set (radio), the grapevine | the funeral's own start and end (the rites schedule it) | nothing paid: standing with the family (the rites' attend and dig) |
 | need | your own fuel, rounds, meds, water, food, car | your own eyes, every 2 s | gone once you meet the need | the nearest town you have stood in |
 
 ### 3.3 Bars
@@ -53,8 +54,22 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
   - a shelf of 10 to 24 bottles;
   - a till holding $60 to $200;
   - a barkeep;
-  - 2 to 3 drinkers. Half of them are gun hands, each with a purse and a day rate.
-- Furniture: the counter faces the door and the shelf stands against the back wall, with the bottles that are left on it. There are stools, a card table with chairs, and the board on a side wall. All of it is one instanced mesh, rebuilt only when a bar opens, closes or loses a bottle.
+  - 4 to 6 drinkers: two on the stools at the counter, the rest seated at the tables. Half of them are gun hands, each with a purse and a day rate.
+- **The room** is planned from the bar's own id (`plan(bar)`), and both the furniture and the seating read that plan:
+  - a dark plank floor over the building's own slab, with its seams;
+  - the counter facing the door, with glasses on it, and four stools along it;
+  - the back shelf against the back wall, holding the bottles that are actually left;
+  - a red rug with a cream border between the stools and the tables;
+  - 3 to 5 tables with four chairs each. The first is the card table (green baize, cards dealt); the others hold a bottle and a glass;
+  - a piano against one side wall (70% of bars) and a dartboard on the other (80%);
+  - the board, with its papers, on a side wall;
+  - a hanging lamp over each table and two over the counter;
+  - an awning over the front door with **SALOON** in bone letters (a 3x5 pixel font; the N is 4 columns wide), read from above.
+- **It costs two instanced meshes for every bar near you:**
+  - lit boxes (cap 1600);
+  - unlit additive discs (cap 64) for the lamps and the warm pools under them, in two rings for a falloff. This adds no light, so the fixed light count holds.
+  
+  Both are rebuilt only when a bar opens, closes or loses a bottle. A street with five live saloons stays at 82 draw calls.
 - The barkeep hears everything said in town: a `said` copy from the `town:` holder.
 - **A drink**: $6 goes into the till, a real `rotgut` comes off the shelf into your pack, and the barkeep tells you **one copy they hold** that you don't. If they hold none, they say it is a quiet week. No fact is ever made up to sell.
 - **The board**: you read every copy on `board:<town>` (the channel is `board`).
@@ -73,7 +88,7 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
   - a bar for how sure the teller was;
   - and, underneath, anything you have since learned of how it went.
 - Sorting: live rows first, needs after them, expired rows at the bottom.
-- **The chip** is one row in the HUD's top-right column. It shows `PULLS n` and the nearest live one, with distance and bearing. Click it to open the board. It refreshes twice a second, only when its text changes.
+- **The chip** is the `pulls` row of the HUD layout (`data/hudlayout.js`: top right under the kill feed, every play situation and the menu; F6 moves it, the presets scale it). It shows `PULLS n` and the nearest live one, with distance and bearing. Click it to open the board. It refreshes twice a second, only when its text changes.
 
 ### 3.5 No cheats (law 1)
 - Road people are born on a corridor's shoulder, 450 to 2600 m along the road from you, never inside the camera's ground radius plus 10 m, and never on the island.
@@ -115,6 +130,7 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
 | `radio.canHear()` | who hears a broadcast |
 | `inventory` (`add`, `spend`, `place`, `trunk`) | drinks, help, trades, bodies |
 | `combat.kill`, `ai.move`, `society.deeds.direct` | deaths, walking, deeds |
+| `rites.learn` (WEB_DEATH_RITES) | **a death is news through the rites' one path.** The rites decide when a household learns a death (it saw the killing, saw the body, found it at home, or was told by a witness or by you). `deathNews(R, fact)` only carries that into the knowledge model: a `death:<body>` copy in the household's town (`saw` or `said`, from whoever told them), so that town's barkeep and the grapevine pass it on. Once a funeral is set, the funeral becomes a `funeral` fact (a pull: go and stand at the grave) held by the town and read out on its set inside the radio's range, dated absolutely and ending when the funeral ends. There is no second detector |
 | `rites` (WEB_DEATH_RITES) | a pull's dead go on the rites' clock (`rites.onDeath`, dated to when they died off screen); once rites holds the body, pulls never makes that character again, and a folded body can still be seen and found |
 
 Shared-file hooks (exact):
@@ -124,14 +140,16 @@ Shared-file hooks (exact):
 | `web/src/systems/ai.js` | 1 line after the Grapevine branch: `if ((c.pullRec \|\| c.barRole) && g.pulls?.think(c, dt)) continue;` |
 | `web/src/ui/dialogue.js` | 2 lines in the stranger branch: `g.pulls.talkFor(c)` before the small talk |
 | `web/src/ui/charsheet.js` | `'pulls'` in `TABS`; one render branch; one style reset line |
+| `web/src/systems/rites.js` | 1 line at the end of `learn`: `this.g.pulls?.deathNews?.(R, fact)` |
+| `web/src/data/hudlayout.js` | 1 row: `pulls` (`.pulls-chip`) |
 | `web/src/agent/api.js` | import, `...pullsCommands`, `await pullsChecks(...)` before the perf budget; the snapshot excludes `pullRec`/`barRole` characters and saves `pulls`; restore calls `g.pulls.load` before the characters |
 | `web/docs/COMMANDS.md` | regenerated |
 
 What other lanes can use:
 - `g.pulls.k`, the knowledge model: `holder`, `record`, `see`, `tell`, `broadcast`, `sendWire`, `holds`, `copyOf`, `view`.
 - The bounty guild (SITE-STORIES) should post through `pulls.post('bounty')` and hunt from copies, never from your true position.
-- DEATH-RITES "a death is news": its witness facts can be `k.record` plus `k.see`.
-- UI-EDITOR: register the chip (`.pulls-chip`, `data-hud="pulls"`) as one row.
+- DEATH-RITES: already bridged (`rites.learn` calls `deathNews`).
+- UI-EDITOR: the chip is the `pulls` row.
 
 ## 7. Tuning Knobs (`web/src/data/pulls.js`)
 | knob | default | safe range | effect |
@@ -159,6 +177,7 @@ What other lanes can use:
 | a medic call expires and the caller dies if nobody comes | heard by radio; EXPIRED on the board with no outcome; you learn the death only by seeing the body; the body box holds their items |
 | a grapevine fact reaches the next town only after travel time | not held 0.15 h before `sent + distance / 450`, held just after, source `grapevine` |
 | a rumour bought in a bar is a fact the barkeep actually holds | the copy's source is that barkeep, who holds the fact; shelf −1, till +6, cash −6, one more rotgut in your pack; a barkeep with nothing new tells nothing new |
+| a death is news through the death rites | before the family learns, their town holds nothing; told by a neighbour (`rites.tell`), the town holds `death:<body>` as `said` from that neighbour, the funeral is a fact with the funeral's own end, and the next town has neither until the grapevine's truck lands |
 | rewards come out of real stock | a trader's count −1 and purse + price; the board shows the sighting; the chip counts it |
 
 Plus: the draw calls stay under 150 (one instanced mesh for all bar furniture; road people are the instanced rig), `scenario name=stress` shows no regression, and `ip-lint` reports 0 deny.
