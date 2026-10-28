@@ -765,6 +765,7 @@ export class Crew {
   bury(m, c, why, body) {
     const g = this.g, day = g.society?.day ?? 0, x = c?.x ?? this.base?.x ?? g.player.x, z = c?.z ?? this.base?.z ?? g.player.z;
     this.graves.push({ x: +(x + 1.2).toFixed(1), z: +z.toFixed(1), name: m.name, flag: m.flag, card: m.row.name, day, why });
+    g.rites?.graveFromCrew(m, x + 1.2, z, why); // a grave row like anyone's (systems/rites.js)
     this.memorial.push({ name: m.name, card: m.row.name, flag: m.flag, day, days: day - m.day, saves: m.saves, kills: m.kills, why });
     this.stats.died++;
     // The chronicle remembers it (the day's digest and the radio read from it).
