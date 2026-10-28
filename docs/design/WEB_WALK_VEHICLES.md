@@ -1,5 +1,10 @@
 # WEB_WALK_VEHICLES — vehicles you are IN, not just drive (web engine)
 
+> **Extended by [WEB_DECKS_STANCE.md](WEB_DECKS_STANCE.md) (2026-10-28):** boat decks, the trundle's aisle, ladder roofs
+> (a vehicle's second deck), prone riders, footing by QUICKNESS x stance (replaces the flat `braced` x1.6 below), and the
+> passenger turret seat. The rules here still hold; the new ones read through `c.onDeck.D` (which deck) and
+> `g.stance.footing(c)`.
+
 **Status:** SHIPPED 2026-10-23 on `feat/web-walk-vehicles`. Code: `web/src/systems/decks.js` (the moving floor),
 `web/src/data/decks.js` (deck layouts as rows, the rules, camp, placed vehicles), `web/src/systems/vehicles.js` (rows,
 reverse, screen-true steering, the parking brake), `web/src/systems/vehiclebodies.js` (the hollow van, the RV, the

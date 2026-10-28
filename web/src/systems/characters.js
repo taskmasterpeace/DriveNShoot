@@ -495,7 +495,7 @@ export class CharacterRenderer {
     if (prone) { // the legs out flat behind the hips, a crawl's knee drawn up on alternate sides
       hipY = PRONE_HIP;
       const cr = moving ? Math.sin(ch.walk * 1.6) * 0.18 : 0;
-      tgt[0].set(0.2, ANKLE_Y * 0.6, -0.8 + Math.max(0, cr)); tgt[1].set(-0.16, ANKLE_Y * 0.6, -0.84 + Math.max(0, -cr));
+      tgt[0].set(0.11, ANKLE_Y * 0.6, -0.8 + Math.max(0, cr)); tgt[1].set(-0.09, ANKLE_Y * 0.6, -0.82 + Math.max(0, -cr));
       footPitch[0] = footPitch[1] = 1.2;
     }
     if (ch.swim || ch.underwater) {

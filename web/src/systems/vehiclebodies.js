@@ -390,7 +390,7 @@ function busBody(parts, s, paint) {
   parts.push(slab(-hw + 0.25, hw - 0.25, 0.42, 0.62, zR + 0.4, zF - 0.4, '#222222', PART.frame));        // chassis
   // Hollow (data/decks.js busAisle: an aisle you walk): a floor at 0.65, the lower walls up to the window band, the
   // band's glass as thin panes on both sides, the upper walls, and the roof (ROOF: it lifts away while you are inside).
-  const yf = 0.65, R = ROOF ?? parts, FLOOR = '#4a4238', SEAT = '#5a3a2a';
+  const yf = 0.65, R = ROOF ?? parts, FLOOR = '#3a3834', SEAT = '#8a5232', SEATBACK = '#6a3a24';
   parts.push(slab(-hw, hw, 0.55, yf, zR + 0.05, zF - 0.12, '#2e2a26'));                                    // the floor pan
   parts.push(slab(-hw + 0.08, hw - 0.08, yf, yf + 0.01, zR + 0.12, zF - 0.6, FLOOR));                     // ribbed floor
   parts.push(slab(hw - 0.08, hw, 0.55, 1.3, zR + 0.05, zF - 0.12, paint));                                 // lower walls: the driver's side
@@ -412,7 +412,7 @@ function busBody(parts, s, paint) {
   // Inside: four rows of benches either side of the aisle, the driver's seat and dash, the luggage racks at the back.
   for (const z of [2.6, 1.1, -0.4, -1.9]) for (const sd of [1, -1]) {
     parts.push(slab(sd * 0.36, sd * (hw - 0.08), yf, yf + 0.45, z - 0.3, z + 0.3, SEAT));
-    parts.push(slab(sd * 0.36, sd * (hw - 0.08), yf + 0.45, yf + 1.0, z - 0.32, z - 0.22, SEAT));
+    parts.push(slab(sd * 0.36, sd * (hw - 0.08), yf + 0.45, yf + 1.0, z - 0.32, z - 0.22, SEATBACK));
   }
   parts.push(slab(0.3, hw - 0.08, yf, yf + 0.5, 4.0, 4.5, SEAT));                                          // the driver's seat
   parts.push(slab(0.3, hw - 0.08, yf + 0.5, yf + 1.0, 4.0, 4.08, SEAT));
