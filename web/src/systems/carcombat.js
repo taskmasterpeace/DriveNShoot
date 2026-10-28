@@ -155,7 +155,7 @@ export class CarCombat {
     ang += (Math.random() - 0.5) * 2 * Math.min(S.max, sp * S.perMs) * (v.driver === ch ? S.driver : 1);
     ch.face = ang; ch.lastShotT = this.g.time;
     const side = this.sideOfAngle(v, ang);
-    if (v.windows && v.windows[side].hp > 0) this.damageWindow(v, side, 9999, ch, true);
+    if (v.windows && v.windows[side].hp > 0 && !(v.utility?.gunports && v.driver !== ch)) this.damageWindow(v, side, 9999, ch, true); // gun ports: a passenger shoots through the door slot (data/workshop.js)
     const p = this.windowPos(v, side, -0.6); // just inside the frame: muzzle ends ~0.3m outside
     const sx = ch.x, sz = ch.z, wasIn = ch.inVehicle;
     ch.inVehicle = null; ch.firingFrom = v; ch.x = p.x; ch.z = p.z;

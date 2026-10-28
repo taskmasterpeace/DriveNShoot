@@ -120,7 +120,7 @@ export class Controls {
 
   context() {
     const g = this.g, p = g.player;
-    if (g.invUI?.open) return 'menu';
+    if (g.invUI?.open || g.workshopUI?.open) return 'menu'; // the PACK screen, the WORKSHOP screen
     if (g.dialogue?.active) return 'talk';
     if (g.arms?.radialOpen) return 'radial';
     if (p?.inVehicle) return p.inVehicle.driver === p ? 'drive' : 'ride';
