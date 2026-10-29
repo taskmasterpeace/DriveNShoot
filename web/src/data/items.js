@@ -78,7 +78,7 @@ export const ITEMS = {
     desc: 'Ten pounds on a hickory handle. Any door, any lock, and everyone for a block hears it.' },
   hammer_nails: { name: 'Hammer and nails', kind: 'tool', kg: 1.1, bulk: 0.5, stack: 1, value: 12, tags: ['hammer'],
     desc: 'A claw hammer and a coffee tin of bent nails. Boards go up, boards come down.' },
-  ladder_portable: { name: 'Aluminium ladder', kind: 'tool', kg: 7.5, bulk: 6, stack: 1, value: 30, use: { act: 'place_ladder' }, tags: ['ladder'],
+  ladder_portable: { name: 'Aluminium ladder', kind: 'tool', kg: 7.5, bulk: 2.8, stack: 1, value: 30, use: { act: 'place_ladder' }, tags: ['ladder'],
     desc: 'A folding ladder, sixteen feet open. Set it against a wall and the roof is yours.' },
   door_key: { name: 'Door key', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 4, value: 2,
     desc: 'A brass key on a split ring. Somebody\'s door, somewhere near.' },

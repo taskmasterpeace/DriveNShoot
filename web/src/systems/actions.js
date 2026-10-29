@@ -466,6 +466,7 @@ export class Actions {
   dismount(p, where) {
     const c = p.climb, L = c.L;
     p.climb = null; p.act = null; p.perchY = 0;
+    this.ring(null);
     if (where === 'top') { p.x = L.tx; p.z = L.tz; p.gy = L.y1; }
     else { const f = this.footOf(L); p.x = f.x + L.nx * 0.3; p.z = f.z + L.nz * 0.3; p.gy = L.y0; }
     this.g.standOn?.(p);

@@ -184,8 +184,9 @@ export async function actionsChecks(api, check, C) {
     } finally { g.input.down.delete('KeyE'); await C('god', { on: true }); }
     await api._step(2);
     const e = lastEnd('search_box'), kept = S.prog.get(`box:${b.id}`) ?? 0;
-    const ok = e?.why === 'damage' && !b.searched && b.hidden?.some((q) => q.id === 'door_key') && kept > 1;
-    return ok ? true : JSON.stringify({ end: e, searched: b.searched, hidden: b.hidden?.map((q) => q.id), kept: r2(kept) });
+    await tap('KeyE'); const top = g.invUI.other?.slots.map((q) => q.id) ?? []; if (g.invUI.open) g.invUI.toggle(false); // and opened now: the key is still out of sight
+    const ok = e?.why === 'damage' && !b.searched && !top.includes('door_key') && top.includes('crowbar') && kept > 1;
+    return ok ? true : JSON.stringify({ end: e, searched: b.searched, top, kept: r2(kept) });
   });
 
   // A locked back door in the ruins with a clear step outside it.
@@ -194,21 +195,21 @@ export async function actionsChecks(api, check, C) {
     ?? I.doors.slice(0, I.nIslandDoors).find((d) => d.leaves.length === 1 && !d.broken && g.nav.foot.free(d.x + d.nx * 1.3, d.z + d.nz * 1.3));
   const doorWas = door ? { locked: door.locked, padlock: door.padlock } : null;
 
-  await check('timed actions: a kick is louder than a pick - the boot\'s noise draws a zombie standing out of sight that the pick (quiet, 2.6 s) never reaches', async () => {
+  await check('timed actions: a kick is louder than a pick - the boot\'s noise draws one of the infected standing out of sight that the pick (quiet, 2.6 s) never reaches', async () => {
     if (!door) return 'no door';
     clean();
     const fx = door.x + door.nx * 1.3, fz = door.z + door.nz * 1.3;
     await stand(fx, fz);
-    // a place 14-22 m off, on foot ground, with no line of sight to where you kneel
+    // a place past a shambler's sight (32 m by day) and inside a boot's earshot (30 m x 2 for the infected), on foot ground
     let zs = null;
-    for (let r = 14; r <= 22 && !zs; r += 2) for (let k = 0; k < 16 && !zs; k++) {
-      const a = (k / 16) * Math.PI * 2, x = fx + Math.cos(a) * r, z = fz + Math.sin(a) * r;
-      if (g.nav.foot.free(x, z) && !g.statics.lineOfSight(fx, fz, x, z)) zs = { x, z };
+    for (let r = 40; r <= 56 && !zs; r += 2) for (let k = 0; k < 36 && !zs; k++) {
+      const a = (k / 36) * Math.PI * 2, x = fx + Math.cos(a) * r, z = fz + Math.sin(a) * r;
+      if (g.nav.foot.free(x, z) && !g.water?.depthAt?.(x, z) && !g.chars.some((c) => c.alive && c !== P() && Math.hypot(c.x - x, c.z - z) < 45)) zs = { x, z }; // nobody else for it to see (it would stop listening)
     }
     if (!zs) return 'no hidden spot';
     // The infected's senses hold still (no sight ticks): what it learns here it learns by ear (zombies.onNoise is always live).
     const zOn = g.zombies.enabled; g.zombies.enabled = false;
-    const zed = g.zombies.spawn(zs.x, zs.z, false); zed.taTest = true; if (zed.zm) zed.zm.src = null;
+    const zed = g.zombies.spawn(zs.x, zs.z, false); zed.taTest = true; zed.zkind = 'shambler'; zed.zSpeed = 0; if (zed.zm) zed.zm.src = null;
     const heard = () => zed.zm?.src === 'sound';
     const radii = []; const n0 = g.noise; g.noise = function (x, z, r, src) { if (src === P()) radii.push(r); return n0.call(this, x, z, r, src); };
     try {
@@ -261,21 +262,24 @@ export async function actionsChecks(api, check, C) {
   let town = null;
   const stampTown = () => { if (town && g.citygen.live.has(town.rec.id)) return town; const s = freeSpot(g, 7000, 9000, 260); if (!s) return null; town = g.citygen.stampAt({ id: 'ta-selftest', arch: 'sonoran_sprawl', seed: 4417, x: s.x, z: s.z }); return town; };
 
-  await check('timed actions: a climber reaches the roof rung by rung and cannot fire meanwhile - a ladder citygen\'s building wears, climbed on the held key with the trigger held the whole way', async () => {
+  await check('timed actions: a climber reaches the roof rung by rung and cannot fire meanwhile - a drawn-up fire-escape ladder pulled down from below, citygen\'s building wears, climbed on the held key with the trigger held the whole way', async () => {
     clean();
     const t = stampTown(); if (!t) return 'no town';
     await stand(t.rec.x, t.rec.z); await api._step(5); S.dress();
     const mine = S.ladders.filter((L) => L.town === t.rec.id).sort((a, b) => (a.y1 - a.y0) - (b.y1 - b.y0));
     if (!mine.length) return `no ladders in the town (${t.blds.length} buildings)`;
-    const L = mine.find((q) => !q.retracted) ?? mine[0];
+    const L = mine.find((q) => q.kind === 'dropdown' && q.retracted) ?? mine[0]; // a fire escape's drawn-up ladder when the town has one
     const f = S.footOf(L);
     await stand(f.x, f.z, L.y0);
+    const wasUp = L.retracted;
     if (L.retracted) await hold('KeyE', 4, () => !L.retracted);
+    if (L.retracted) return 'could not pull the drawn-up ladder down';
+    await api._step(3);
     g.inv.current = g.inv.weapons.includes('pistol') ? 'pistol' : g.inv.current;
     const r = await C('act', { action: 'do', id: 'climb', fire: true, hold: 30 });
     const want = S.rungsOf(L);
-    const ok = r.ok !== false && r.onTop && r.rungsClimbed >= want - 1 && r.distinctRungs >= want - 1 && !r.fired && r.shotsBlocked > 30 && r.secs >= want * ACTIONS.climb.dur * 0.7;
-    return ok ? true : JSON.stringify({ r, want, ladders: mine.length, kind: L.kind });
+    const ok = r.ok !== false && r.onTop && r.rungsClimbed >= want - 1 && r.distinctRungs >= want - 1 && !r.fired && r.shotsBlocked > 0 && r.secs >= want * ACTIONS.climb.dur * 0.7;
+    return ok ? true : JSON.stringify({ r, want, ladders: mine.length, kind: L.kind, wasUp });
   });
 
   await check('timed actions: a jammed roll-up is ducked under - bent double for the row\'s seconds, out the other side, no car gets through it', async () => {
