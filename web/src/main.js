@@ -20,6 +20,7 @@ import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
+import { Seasons } from './systems/seasons.js'; // the calendar, the climate by place and season, snow, light (WEB_SEASONS.md)
 import { LookFeel } from './systems/lookfeel.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
@@ -196,6 +197,8 @@ class Game {
     this.witnesses = new Witnesses(this);
     this.talk = new Talk(this); // what a stranger talks about: the news, the road, what their people make of you // the one who saw it runs home to tell it (catch them on the way)
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
+    this.seasons = new Seasons(this); // the date, the climate of the place you stand in, snow and the day's length
+    this.sky.weatherPicker = () => this.seasons.pickWeather();
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
@@ -1304,6 +1307,7 @@ class Game {
       this.bases.update(simDt); // sentries watch the wire, searchlights sweep
       this.witnesses.update(simDt);
       this.society.update(simDt);
+      this.seasons.update(simDt); // the date moves, the season turns, snow builds and melts
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
