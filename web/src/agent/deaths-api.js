@@ -88,7 +88,12 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
   const D = g.deaths, Z = g.zombies, P = () => g.player;
   const FLATS = { x: 250, z: 430 };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  const clearRound = (x, z, r) => { for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c); for (const v of [...g.vehicles]) if (v !== P().inVehicle && Math.hypot(v.x - x, v.z - z) < r) g.vehiclesSys.remove(v); };
+  const clearRound = (x, z, r) => {
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c);
+    for (const v of [...g.vehicles]) if (v !== P().inVehicle && Math.hypot(v.x - x, v.z - z) < r) g.vehiclesSys.remove(v);
+    const B = g.rites?.bodies; // and the dead's records: bloated, they smell and pull the infected (systems/rites.js smell())
+    if (B) { for (const [k, R] of B) if (!R.c && Math.hypot(R.x - x, R.z - z) < r) B.delete(k); g.rites.dirty = true; }
+  };
   const flats = async () => { await stage(); await C('teleport', FLATS); clearRound(FLATS.x, FLATS.z, 140); g.godMode = true; await C('step', { seconds: 0.2 }); };
   const gone = (...cs) => { for (const c of cs) if (c && g.chars.includes(c)) g.removeChar(c); };
   const drifter = (x, z) => { const c = g.addChar({ x, z, faction: 'drifter', weapon: null, hp: 100, colors: outfit('drifter'), name: 'Drifter', flag: g.randomFlag(Math.random) }); if (c) c.hold = true; return c; };
