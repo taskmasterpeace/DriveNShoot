@@ -134,3 +134,5 @@ Not done: placed gadgets and barricades are not saved (a hook into `snapshot` is
 | `doors: planks across a locked door hold four of the infected ... 25 s` | the barred door holds 25 s; the same kind of door bare gives first |
 
 Scenarios: `gadget-range` (every gadget on one stretch, each with a target), `checkpoint-run` (three stars at the wheel, the posse's roadblock ahead). Renders: `docs/renders/web/gadgets/`.
+
+**Used by GADGETS-2** (`WEB_GADGETS2.md`): the kit reads `gadgets.list` flares (the night goggles blind on them), calls `gadgets.breach` when the harpoon winch pulls a door down, and draws its marked cars from `drawMinimap`.

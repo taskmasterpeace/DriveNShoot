@@ -98,6 +98,13 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
   - Key lines (postings, bounties, falls, takes, raids) also go to `voice.radio`, which plays a locked, rendered station voice when one exists and is silent otherwise. Nothing here generates new audio.
 - **The air gap** is 26 to 44 s while tuned. With nothing new to read, the station plays static.
 
+#### The airwaves: one broadcast source (`systems/airwaves.js`, `g.airwaves`)
+- Every transmission in the world is ONE row on the airwaves, made where it was sent from: `{ id, channel, fact, x, z, from, fromName, text, at, heard, copy }`. The log is a fixed ring of 64.
+- **Channels.** `scanner`: a key-up from GADGETS 2's `kit.keyUp` (a convoy's lead, a party's car set, the bulls' dispatcher). `station:<id>`: a feed station's line read at its mast (`feed.air`).
+- **Listeners** are one routing table in `Airwaves.listeners`. `scanner` → `kit.hearKey` (a live scanner, switched on, within its range). `station:<id>` → `feed.hearStation` (every set tuned to it within the station's range, yours included; each takes the mast's copy).
+- Nothing reaches a scanner or a radio any other way. A key-up with the scanner off is still a row (it was said), heard by nobody. The feed's log row names its transmission (`tx`), and so does the radio copy's source.
+- A new kind of set is a line in the routing table; a new transmitter calls `g.airwaves.send`.
+
 ### 3.4 Marks (rows: `MARK_KINDS`, `MARK_RULES`, `TAGS`, `MARK_TEXT`, `PAINT`)
 | kind | made when | cause | text |
 |---|---|---|---|
@@ -189,6 +196,7 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 | `audio` (`ctx`, `master`, `noiseBuf`, `sample`, `burst`, `tone`) | the layers and far sounds |
 | `voice.radio` | key feed lines in a locked station voice |
 | `fx.light` | one light of the fixed pool for the fire |
+| `kit` (`keyUp`, `hearKey`, `systems/kit.js`, GADGETS 2) | the scanner: its key-ups are `scanner` rows on the airwaves, and it hears only from there |
 | `look` (`history('bonfire', x, z)`, `systems/lookfeel.js`) | the cold ash ring: look-feel draws it on the ground; marks keep the record (saved, re-laid on load when near) |
 | `engine/depthlayers.js` (`DECAL_Y`, `layerMesh(.., 'wallDecal')`) | where paint lies: ground words at ground + DECAL_Y + 1 cm, over every street step, kerb and look-feel's ground history |
 
@@ -197,7 +205,8 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 Shared-file hooks (exact):
 | File | Hook |
 |---|---|
-| `web/src/main.js` | 5 imports; `this.farsound`, `this.feed`, `this.marks`, `this.campfire` and `this.feedUI` built after `pullsUI`; `this.feed.update`, `this.marks.update`, `this.campfire.update` after `pulls.update` (sim block); `this.farsound.update(dt)`, `this.feedUI.update()` after `radio.update` |
+| `web/src/main.js` | 6 imports (incl. `Airwaves`); `this.airwaves` built first, beside the four; `this.farsound`, `this.feed`, `this.marks`, `this.campfire` and `this.feedUI` built after `pullsUI`; `this.feed.update`, `this.marks.update`, `this.campfire.update` after `pulls.update` (sim block); `this.farsound.update(dt)`, `this.feedUI.update()` after `radio.update` |
+| `web/src/systems/kit.js` | `keyUp` sends on the airwaves (`g.airwaves.send`, channel `scanner`); its old body is now `hearKey`, the scanner's listener. Falls back to `hearKey` when there are no airwaves |
 | `web/src/systems/combat.js` | 1 line after `g.noise` in `fire`: `g.farsound?.shot(ch, w)` |
 | `web/src/systems/radio.js` | 1 line in `update`: `if (S.kind === 'feed') this.g.feed?.tick(S, dt)` |
 | `web/src/data/radio.js` | 2 station rows (`wire`, `tally`, kind `feed`) and a comment |
@@ -244,4 +253,5 @@ What other lanes can use:
 | deaths leave tally marks | three kill rows at a place add exactly 3 strokes to its one tally |
 | DON'T GO <dir> is painted only by a town that holds news of the fall | nothing before the town holds the fact; after it is told, its road edge says DON'T GO <the right direction>, caused by that fact |
 | a campfire line references a real recent event | at night, with a crew member, stopped: the fire is made. The first line's ref is the chronicle row of the raider you really shot (a real round, a real kill), and the line names them or the place. The clock moved, rest rose, morale has `campfire`, and walking off leaves the ash, drawn once: look-feel's bonfire decal at the mark, not in the marks mesh |
+| one broadcast source | a key-up with the scanner on is ONE `scanner` row from its transmitter, heard by you, and your copy is that row's; with the scanner off it is still a row, heard by nobody; a station line you heard is ONE `station:wire` row from its mast, and your copy came from that mast; every line the feed aired names its row |
 | draws | nothing drawn when no mark is near, and the frame stays under 150 draw calls |

@@ -144,24 +144,34 @@ export class Feed {
     C.sort((a, b) => (key(b) - key(a)) || (b.heard - a.heard));
     const c = C[0], R = this.read(S, mast, c), now = this.hours();
     this.aired.set(`${mast.id}|${c.id}`, now);
-    // Who hears it: you (if you can hear a radio) and every holder with a set inside the station's range. Each gets the
-    // MAST's copy (its where, when, text as read), never the world's.
-    const f = k.fact(c.id) ?? c, src = { channel: 'radio', from: `mast:${mast.id}`, fromName: `${S.name} (${mast.name})` };
-    const heard = [], P = k.holders.get('player');
+    // Who hears it goes through THE AIRWAVES (systems/airwaves.js), the one broadcast source the scanner shares: the line
+    // is one transmission from the mast, and every set tuned to it in range takes the MAST's copy (hearStation below).
+    const f = k.fact(c.id) ?? c, P = k.holders.get('player');
     if (P) { P.x = me.x; P.z = me.z; } // where you are now, not where the last pulls tick saw you
-    for (const H of k.holders.values()) {
-      if (H.id === `town:${mast.id}` || Math.hypot(H.x - mast.x, H.z - mast.z) > (S.range ?? 9000)) continue;
-      const set = H.id === 'player' ? !!g.radio?.canHear?.() && g.radio.station === S : H.radio;
-      if (!set) continue;
-      if (k.put(H.id, { ...f, where: c.where, when: c.when, text: R.line }, src, c.conf * CHANNELS.radio.conf, c.hops + 1)) heard.push(H.id);
-    }
+    const sent = { ...f, where: c.where, when: c.when, text: R.line }, meta = { station: S, mastId: mast.id, conf: c.conf, hops: c.hops };
+    const tx = g.airwaves ? g.airwaves.send({ channel: `station:${S.id}`, fact: sent, x: mast.x, z: mast.z, from: `mast:${mast.id}`, fromName: `${S.name} (${mast.name})`, text: R.line, meta })
+      : { id: null, heard: this.hearStation({ fact: sent, x: mast.x, z: mast.z, from: `mast:${mast.id}`, fromName: `${S.name} (${mast.name})`, meta }) };
+    const heard = tx.heard;
     const row = { at: r1(now), t: r1(g.time), station: S.id, freq: S.freq, mast: mast.id, mastName: mast.name, fid: c.id, what: c.what, text: R.line, ageH: R.ageH, conf: c.conf,
-      mastHeard: r1(c.heard), fact: { when: r1(f.when) }, shaky: R.shaky, wrong: R.wrong, key: key(c), heardBy: heard.length, you: heard.includes('player') };
+      mastHeard: r1(c.heard), fact: { when: r1(f.when) }, shaky: R.shaky, wrong: R.wrong, key: key(c), heardBy: heard.length, you: heard.includes('player'), tx: tx.id };
     this.log.push(row); if (this.log.length > FEED.log) this.log.shift();
     this.stats.aired++; if (R.shaky) this.stats.hedged++; if (R.wrong) this.stats.wrong++; this.stats.heardBy += heard.length;
     if (row.you) this.say(S, R.line, row.key);
     g.emit?.('feedAired', { station: S.id, mast: mast.id, fid: c.id, what: c.what, you: row.you });
     return row;
+  }
+  // A station's transmission reaching sets (the airwaves' listener for `station:<id>`): you, if you can hear a radio
+  // tuned to it, and every holder with a set inside the station's range. Each gets the transmission's copy.
+  hearStation(tx) {
+    const g = this.g, k = this.k, S = tx.meta.station, heard = [];
+    const src = { channel: 'radio', from: tx.from, fromName: tx.fromName, tx: tx.id ?? undefined };
+    for (const H of k.holders.values()) {
+      if (H.id === `town:${tx.meta.mastId}` || Math.hypot(H.x - tx.x, H.z - tx.z) > (S.range ?? 9000)) continue;
+      const set = H.id === 'player' ? !!g.radio?.canHear?.() && g.radio.station === S : H.radio;
+      if (!set) continue;
+      if (k.put(H.id, tx.fact, src, tx.meta.conf * CHANNELS.radio.conf, tx.meta.hops + 1)) heard.push(H.id);
+    }
+    return heard;
   }
   // On the speaker: the subtitle and the HUD feed; key lines go to the station voice (a locked, rendered voice when the
   // forge made one: systems/voice.js radio(); never a new generation from here).

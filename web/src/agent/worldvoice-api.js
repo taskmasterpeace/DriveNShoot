@@ -26,6 +26,15 @@ export function worldVoiceCommands(api, need) {
         return F.view();
       },
     },
+    airwaves: {
+      group: 'world', desc: 'THE AIRWAVES (WEB_WORLD_VOICE.md §3.3): the one broadcast source the radio scanner (systems/kit.js) and the feed stations share. Every transmission (a key-up on the scanner channel, a station line from its mast) is one row with its transmitter, its fact and who heard it. action: log channel= (scanner | station | station:<id>) fact= n= | stats.',
+      args: { action: { type: 'string', default: 'log', enum: ['log', 'stats'] }, channel: { type: 'string' }, fact: { type: 'string' }, n: { type: 'number', default: 12 } },
+      run: async ({ action, channel, fact, n }) => {
+        const A = g.airwaves; need(A, 'no airwaves');
+        if (action === 'stats') return { ...A.stats, logged: A.log.length };
+        return { log: A.find({ channel, fact }).slice(-n).map((t) => A.view(t)) };
+      },
+    },
     feed: {
       group: 'world', desc: 'THE RADIO AS A WORLD FEED (WEB_WORLD_VOICE.md §3.3): feed stations (data/radio.js kind feed: THE WIRE 1480 AM, TALLY NIGHTLY 1590 AM) read out what the nearest town actually holds, with its age, hedged or wrong when the copy is shaky. action: view | log | air station=wire|tally (one line now, if the mast has anything) | mast station= (the mast for where you stand and what it could read) | tune station= (tune the car radio to it) | news (read new chronicle rows into facts now; who saw each).',
       args: { action: { type: 'string', default: 'view', enum: ['view', 'log', 'air', 'mast', 'tune', 'news'] }, station: { type: 'string', default: 'wire' } },
@@ -191,6 +200,35 @@ export async function worldVoiceChecks(api, check, C) {
       const ok = !unseen && F.stats.unwitnessed > 0 && t2 && !t1Before && before?.fid !== fid && !youBefore && !midHeld && mid?.fid !== fid
         && t1After && copyT1.source.channel === 'grapevine' && after?.fid === fid && after.mast === T1.id && after.ageH >= d / 450 && you?.source.channel === 'radio' && lawful;
       return ok ? true : JSON.stringify({ unseen: !!unseen, t2, t1Before, before: before?.fid, mid: mid?.fid, midHeld, t1After, ch: copyT1?.source?.channel, after: after && { fid: after.fid, mast: after.mast, age: after.ageH, text: after.text }, you: you?.source, lawful, need: r1(d / 450) });
+    });
+
+    await check('world voice: one broadcast source - the scanner and the radio feed hear only transmissions on the airwaves: a key-up and a station line are each ONE row there, from their transmitter; your scanner copy and your radio copy name that row; with the scanner off the key-up still goes out and nobody hears it', async () => {
+      const A = g.airwaves, F = g.feed, K = g.pulls.k, Kit = g.kit, S = STATIONS.find((s) => s.id === 'wire'), P = g.player;
+      if (!A || !Kit?.hearKey) return 'no airwaves or no scanner';
+      K.holder('player', { x: P.x, z: P.z, name: 'you' });
+      const was = { ears: Kit.on.ears, charge: Kit.charge.radio_scanner };
+      g.inventory.stow('radio_scanner', 1); g.inventory.stow('battery_cell', 2); Kit.charge.radio_scanner = 0; Kit.on.ears = 'radio_scanner';
+      // 1. a key-up 600 m off, the scanner on: one scanner row, heard by you, your copy is that row's
+      const n0 = A.log.length;
+      const f1 = K.record({ what: 'chatter', subject: 'airtest:1', text: 'Unit two, rolling past the grain tower.', where: { x: P.x + 600, z: P.z }, life: 2 });
+      const c1 = Kit.keyUp(f1, P.x + 600, P.z, 'a test set');
+      const tx1 = A.log.slice(n0).filter((t) => t.fact?.id === f1.id);
+      const one1 = tx1.length === 1 && tx1[0].channel === 'scanner' && tx1[0].x === Math.round(P.x + 600) && tx1[0].heard.includes('player') && tx1[0].copy === c1 && c1?.source?.channel === 'scanner';
+      // 2. the scanner off: the key-up still goes on the air (a row), and nobody hears it
+      Kit.on.ears = null;
+      const f2 = K.record({ what: 'chatter', subject: 'airtest:2', text: 'Unit two, back at the yard.', where: { x: P.x + 600, z: P.z }, life: 2 });
+      const c2 = Kit.keyUp(f2, P.x + 600, P.z, 'a test set'), tx2 = A.find({ fact: f2.id });
+      const off = !c2 && tx2.length === 1 && tx2[0].heard.length === 0 && !K.holds('player', f2.id);
+      // 3. a station line (aired in the witness check above): its log row names ONE station row on the airwaves, sent
+      // from its mast, and the copy you hold came from that mast
+      const row = [...F.log].reverse().find((r) => r.you && r.tx);
+      const tx3 = row ? A.log.filter((t) => t.id === row.tx) : [], you3 = row ? K.copyOf('player', row.fid) : null;
+      const mast = row ? g.pulls.nodes().find((nd) => nd.id === row.mast) : null;
+      const one3 = tx3.length === 1 && tx3[0].channel === `station:${S.id}` && tx3[0].from === `mast:${row.mast}` && !!mast && tx3[0].x === Math.round(mast.x) && tx3[0].heard.includes('player') && you3?.source?.from === `mast:${row.mast}`;
+      // every line the feed ever aired is a row on the airwaves (no second path)
+      const every = F.log.length > 0 && F.log.every((r) => r.tx);
+      Kit.on.ears = was.ears; Kit.charge.radio_scanner = was.charge;
+      return one1 && off && one3 && every ? true : JSON.stringify({ one1, tx1: tx1.map((t) => A.view(t)), off, c2: !!c2, row: row && { tx: row.tx, fid: row.fid, mast: row.mast }, tx3: tx3.map((t) => A.view(t)), you3: you3?.source, every });
     });
 
     await check('world voice: a raided site gets the raiders\' tag - a camp the sim says was taken, and a town raided, carry the raiders\' letters (in their colour, on its walls) with the chronicle row as the cause', async () => {
