@@ -130,6 +130,8 @@ export const DECALS = {
   // Seeded history (deterministic per 160 m cell, no RNG stream touched): a crash story beside a road (skids leading off
   // the shoulder into the ditch, an oil stain, sometimes a scorch where it burned); a bonfire ring at a camp near a site.
   cell: 160, radius: 420, roadStory: 0.16, campStory: 0.12, maxStories: 40,
+  // SITE STORIES (systems/sitestories.js): a place raided within this many game hours (or fallen) shows it on the ground.
+  raidHours: 72,
 };
 
 // ---- impact feel -----------------------------------------------------------------------------------------------------

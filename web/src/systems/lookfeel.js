@@ -457,6 +457,7 @@ void main() {
     const g = this.g, W = g.streamer?.W, L = g.camLook ?? g.player, C = DECALS.cell;
     if (!W) return;
     for (const [k, st] of this.stories) if (Math.hypot(st.x - L.x, st.z - L.z) > DECALS.radius * 1.5) { for (const i of st.slots) { this.clearSlot(i); this.seedFree.push(i); } this.stories.delete(k); }
+    this.seedFromSites(L);
     const r = Math.ceil(DECALS.radius / C), cx0 = Math.floor(L.x / C), cz0 = Math.floor(L.z / C);
     for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
       const cx = cx0 + a, cz = cz0 + b, key = `${cx},${cz}`;
@@ -466,6 +467,36 @@ void main() {
       const h = cellHash(cx, cz);
       const st = this.seedStory(W, cx, cz, mx, mz, h);
       this.stories.set(key, st ?? { slots: [], kind: null, x: mx, z: mz });
+    }
+  }
+  // SITE STORIES' history (systems/sitestories.js, g.stories): a place raided in the last DECALS.raidHours or fallen shows
+  // it on the ground (scorch where it burned, blood dragged off, tyre tracks where the raiders' cars wheeled about); a
+  // refugee or raider camp has its bonfire ring. Keyed by the place's state: when it changes, the marks are laid again.
+  seedFromSites(L) {
+    const S = this.g.stories; if (!S?.places) return;
+    const now = S.hours?.() ?? 0, R2 = DECALS.radius;
+    for (const [k, st] of this.stories) if (st.site && !S.places.has(st.site)) { for (const i of st.slots) { this.clearSlot(i); this.seedFree.push(i); } this.stories.delete(k); } // a place that is gone
+    for (const p of S.places.values()) {
+      if (Math.abs(p.x - L.x) > R2 + 60 || Math.abs(p.z - L.z) > R2 + 60) continue;
+      const raided = p.fallen || (p.raidedAt !== null && p.raidedAt !== undefined && now - p.raidedAt < DECALS.raidHours);
+      const camp = p.kind === 'refuge' || !!p.camp;
+      const want = raided ? `raid:${p.fallen ? 'f' : ''}${Math.round(p.raidedAt ?? 0)}` : camp ? 'camp' : null, key = `site:${p.id}`;
+      const had = this.stories.get(key);
+      if (had && had.state === want) continue;
+      if (had) { for (const i of had.slots) { this.clearSlot(i); this.seedFree.push(i); } this.stories.delete(key); }
+      if (!want) continue;
+      const rnd = rngOf((p.seed ?? cellHash(Math.round(p.x), Math.round(p.z))) ^ 0x5eed), slots = [];
+      const take = (kind, x, z, rot, s, a, len = 1) => { const i = this.seedFree.pop(); if (i === undefined) return; this.put(kind, x, z, rot, s, a, i, len); this.dLife[i] = 0; slots.push(i); };
+      const spread = Math.min(60, Math.max(14, (p.half ?? 40) * 0.4)), at = () => [p.x + (rnd() - 0.5) * 2 * spread, p.z + (rnd() - 0.5) * 2 * spread];
+      if (raided) {
+        for (let k = 0; k < (p.fallen ? 5 : 3); k++) { const [x, z] = at(); take('scorch', x, z, rnd() * 6.283, 0.7 + rnd() * 0.6, 0.9); }
+        for (let k = 0; k < 3; k++) { const [x, z] = at(), a = rnd() * 6.283; for (let j = 0; j < 4; j++) take('blood', x + Math.sin(a) * j * 1.2, z + Math.cos(a) * j * 1.2, a, 1, 0.75 - j * 0.12, 1.4); }
+        for (let k = 0; k < 4; k++) { const [x, z] = at(); let a = rnd() * 6.283; for (let j = 0; j < 6; j++) { a += (rnd() - 0.3) * 0.5; const ox = Math.cos(a) * 0.8, oz = -Math.sin(a) * 0.8, cx = x + Math.sin(a) * j * 1.6, cz = z + Math.cos(a) * j * 1.6; for (const w of [-1, 1]) take('skid', cx + ox * w, cz + oz * w, a, 1, 0.5, 1.5); } }
+      } else {
+        take('bonfire', p.x + 4, p.z + 3, rnd() * 6.283, 1, 1);
+        take('scorch', p.x + 4, p.z + 3, rnd() * 6.283, 0.45, 0.5);
+      }
+      this.stories.set(key, { slots, kind: raided ? 'raided site' : 'site camp', state: want, x: p.x, z: p.z, at: { x: Math.round(p.x), z: Math.round(p.z) }, site: p.id });
     }
   }
   seedStory(W, cx, cz, mx, mz, h) {
@@ -659,7 +690,7 @@ void main() {
         params: { temp: r3(B.grade.temp), tint: r3(B.grade.tint), sat: r3(B.grade.sat), con: r3(B.grade.con), gamma: r3(B.grade.gamma), bleach: r3(B.grade.bleach), lift: B.grade.lift.map(r3), gain: B.grade.gain.map(r3) },
         lut: N, rebuilds: this.rebuilds, lastBuildMs: r3(this.lastBuildMs), frame: `${this.rt.image.width}x${this.rt.image.height}` },
       wind: { strength: r3(this.windStrength), weather: r3(this.windWeather), ...this.windNow(), patched: this.patchedWind },
-      decals: { counts: { ...this.counts }, stories: [...this.stories.values()].filter((s) => s.kind).map((s) => ({ kind: s.kind, at: s.at, road: s.road })), seededSlots: SEED_CAP - this.seedFree.length, last: this.lastDecal },
+      decals: { counts: { ...this.counts }, stories: [...this.stories.values()].filter((s) => s.kind).map((s) => ({ kind: s.kind, at: s.at, road: s.road, site: s.site })), seededSlots: SEED_CAP - this.seedFree.length, last: this.lastDecal },
       impact: { stops: this.stops, lastStop: this.lastStop, lastKick: this.lastKick, dirt: r3(this.dirt), kick: { x: r3(this.kick.x), z: r3(this.kick.z) } },
     };
   }

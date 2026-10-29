@@ -60,6 +60,7 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
   - **a camp** (12%, 120–900 m from a town, off the road): a bonfire ring, a soot patch and tyre scuffs.
 
   Stories are laid inside 420 m of the view, given back past 630 m, and come back the same.
+- **From SITE STORIES' history** (`g.stories`, landed 2026-10-29). A place raided within `DECALS.raidHours` (72 game hours) or fallen gets 3 scorches (5 if it fell), 3 blood trails and 4 raiders' wheel tracks, spread across its middle. A refugee camp (`kind: 'refuge'`, made by `makeCamp`) or a raider camp gets its bonfire ring. The marks are keyed by the place's state, so a new raid lays them again and a place that is gone takes its marks with it. They sit with site stories' own soot boxes and burned barricade. Render: `raided-site-history.jpg` (Rust Haven).
 - **A hook for SITE-STORIES**: `g.look.history(kind, x, z, {rot, size, alpha, len})` lays a story's mark. `look action=decals kind=… x= z=` does the same from the agent API.
 
 ### 3.5 Impact feel
@@ -119,7 +120,7 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
 - **Hit-stop and the network**: it is local feel only. The shard never sees it.
 
 ## 6. Dependencies
-- **In (reads)**: `sky.js` (time, weather, windX/Z, below), `world/worldindex.js` (stateAt, project, projectAny, biomeAt, towns), `world/city.js` (roadLines, HALF), `world/flora.js` (pools, variantPatch), `streamer.pools` (shrubs, props), `systems/citygen.js` (its batch), `combat.js` WEAPONS (ammo → calibre), `vehiclebodies.js` PART, `vehicledamage.js` (zones, toLocal), `carcombat.js` (windows), `engine/depthlayers.js` (groundDecal, TRACK_Y).
+- **In (reads)**: `systems/sitestories.js` (places, raidedAt, fallen, kind, camp, hours), `sky.js` (time, weather, windX/Z, below), `world/worldindex.js` (stateAt, project, projectAny, biomeAt, towns), `world/city.js` (roadLines, HALF), `world/flora.js` (pools, variantPatch), `streamer.pools` (shrubs, props), `systems/citygen.js` (its batch), `combat.js` WEAPONS (ammo → calibre), `vehiclebodies.js` PART, `vehicledamage.js` (zones, toLocal), `carcombat.js` (windows), `engine/depthlayers.js` (groundDecal, TRACK_Y).
 - **Out (shared-file hooks, one line each)**:
   - `main.js`: import; `this.look = new LookFeel(this)` after FX; `dt = this.look.warp(dt)` before `this.time += dt`; `this.look.update(dt)` after `fx.update`; `render()` calls `this.look.render(this.camera)`; `this.look.onShot(p, k, ang)` after the fire shake.
   - `systems/camrig.js`: the kick is added to the shake offset.
@@ -163,7 +164,8 @@ Selftest checks (`only=look-feel`, all green):
 4. **`look-feel: wind moves a tree vertex over time, a storm bends it harder …`**: the offset changes over 0.75 s; STORM strength is more than 2× CLEAR and so is the max sway. A foot never moves. Every flora pool wears the wind material, and its program compiled (runnable).
 5. **`look-feel: a hard stop lays skid decals … a crash … freezes 40–80 ms, throws dirt … cracks the glass`**: a real drive and brake on the island flats lays at least 6 skids on the braking path (within 3 m). A full-throttle run into a wall stops 70 ms (frozen 30–100 ms, the sim advancing under 10% of it), dirt goes over 0.2, and the front pane's strength drops.
 6. **`look-feel: a big hit freezes 40–80 ms and a small one does not …`**: a 12-damage hit gives no stop; a 48-damage shotgun hit gives 60 ms. The shotgun's kick is more than 2× the SMG's.
-7. **`look-feel: a car gets dustier off-road than on the road, rain washes some off, and a garage repair cleans it`**: sand gives more than 3× the dust of a paved street. The uniform carries the value, and the wear program compiled. Rain lowers it; `vehDamage.repair` zeroes it.
+7. **`look-feel: a site the site-story system marks as raided shows it on the ground …`**: a real place with `raidedAt` set to now (the state `battle()` leaves) gets scorch, blood and skids within 90 m. Clearing the raid takes them away. A camp made through `addPlace` (kind refuge) gets a bonfire ring.
+8. **`look-feel: a car gets dustier off-road than on the road, rain washes some off, and a garage repair cleans it`**: sand gives more than 3× the dust of a paved street. The uniform carries the value, and the wear program compiled. Rain lowers it; `vehDamage.repair` zeroes it.
 
 Measured (port 3484, a PC loaded by other lanes):
 - **Batteries** (full selftest, budget 2900, fresh pages):

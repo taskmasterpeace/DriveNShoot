@@ -7,6 +7,7 @@ import { outfit } from '../systems/characters.js';
 import { roadLines } from '../world/city.js';
 import { devtoolsCommands } from './devtools.js'; // `look` is the observer's command: look-feel answers it only when action= is given
 
+const KIND_OF = ['skid', 'scorch', 'oil', 'bonfire', 'blood'];
 const r3 = (v) => (v === null || v === undefined ? v : +(+v).toFixed(3));
 
 // A clear strip of the Phoenix island's flats `len` m long heading +x (no box within w m of it, dry): staging for the car checks.
@@ -189,9 +190,10 @@ export async function lookfeelChecks({ g, api, C, check }) {
     const U = WIND_UNIFORMS, p = g.player, clearS = F.windStrength;
     const a0 = windOffset(U, 10, p.x, p.z); await api._step(45); const a1 = windOffset(U, 10, p.x, p.z);
     const moves = Math.abs(a1 - a0) > 0.003;
-    let clearMax = 0; for (let k = 0; k < 20; k++) { await api._step(6); clearMax = Math.max(clearMax, Math.abs(windOffset(U, 10, p.x, p.z))); }
+    const sweep = () => { const w = U.uWind.value, t0 = w.w; let m = 0; for (let t = 0; t <= 10; t += 0.05) { w.w = t; m = Math.max(m, Math.abs(windOffset(U, 10, p.x, p.z))); } w.w = t0; return m; }; // the same 10 s of wind time for both weathers
+    const clearMax = sweep();
     await C('setWeather', { key: 'STORM', instant: true }); await api._step(600);
-    const stormS = F.windStrength; let stormMax = 0; for (let k = 0; k < 20; k++) { await api._step(6); stormMax = Math.max(stormMax, Math.abs(windOffset(U, 10, p.x, p.z))); }
+    const stormS = F.windStrength, stormMax = sweep();
     const foot = Math.abs(windOffset(U, 0, p.x, p.z)) < 1e-6; // a trunk's foot never moves
     await C('setWeather', { key: 'CLEAR', instant: true });
     // The GPU side: the flora pools wear the wind material and a program with it compiled.
@@ -266,6 +268,27 @@ export async function lookfeelChecks({ g, api, C, check }) {
     const cx0 = g.camera.position.z; g.updateCamera(0); const moved = Math.abs(g.camera.position.z - cx0) > 0.05 || kSg > 0;
     F.kick.x = F.kick.z = 0;
     return small && big && frozenMs >= 30 && frozenMs <= 100 && slow && kSg > kSmg * 2 && moved ? true : JSON.stringify({ small, big, ms, frames, slow, kSmg: r3(kSmg), kSg: r3(kSg) });
+  });
+
+  await check('look-feel: a site the site-story system marks as raided shows it on the ground (scorch, blood, tyre tracks), and a camp has its bonfire ring', async () => {
+    const S = g.stories; if (!S?.places?.size) S?.ensure?.();
+    const places = [...(S?.places?.values() ?? [])].filter((q) => !q.beyond && g.streamer.W.inWorld(q.x, q.z, -200));
+    const p = places.find((q) => !q.fallen && q.kind !== 'refuge' && !q.camp) ?? null;
+    if (!p) return 'no site-story place in the streamed world';
+    const was = p.raidedAt;
+    await C('teleport', { x: p.x + 30, z: p.z + 30 }); await api._step(2);
+    p.raidedAt = S.hours(); F.updateSeeds(0, true); // staged: the state a fought raid leaves (sitestories.js battle)
+    const st = F.stories.get(`site:${p.id}`), kinds = st ? st.slots.map((i) => KIND_OF[F.dKind[i] - 1]) : [];
+    const near = st ? st.slots.every((i) => Math.hypot(F.dX[i] - p.x, F.dZ[i] - p.z) < 90) : false;
+    const raided = !!st && kinds.includes('scorch') && kinds.includes('blood') && kinds.includes('skid') && near;
+    p.raidedAt = was; F.updateSeeds(0, true);
+    const gone = !F.stories.get(`site:${p.id}`);
+    // A camp: the place made the way makeCamp makes it (kind refuge), its ring laid.
+    const cp = S.addPlace({ id: 'refuge_lookfeel', name: 'Look-Feel Camp', kind: 'refuge', x: p.x + 60, z: p.z + 60, half: 30, holder: 'site:refuge_lookfeel', walls: 'none' });
+    F.updateSeeds(0, true);
+    const cs = F.stories.get('site:refuge_lookfeel'), ring = !!cs && cs.slots.some((i) => KIND_OF[F.dKind[i] - 1] === 'bonfire');
+    S.places.delete('refuge_lookfeel'); F.updateSeeds(0, true);
+    return raided && gone && ring ? true : JSON.stringify({ place: p.id, kinds, near, gone, ring });
   });
 
   await check('look-feel: a car gets dustier off-road than on the road, rain washes some off, and a garage repair cleans it', async () => {
