@@ -147,6 +147,7 @@ Variables: `d` (m) distance; `r` a row's radius; `night` = `sky.night` 0..1; `t`
 | `systems/ai.js` | `scan`: the player's seen multiplier also `× g.kit.seenMul()` |
 | `systems/dogs.js` | `hurt`: `dmg *= g.kit?.dogSoak(d) ?? 1`; `pose`: `if (d.kit) this.gear(...)`, a `gear()` method that draws the vest (wrapping the barrel), its back plate, the collar and the lamp as four more limb segments of the dog's own model (LIMBS 11 → 15, no new mesh or draw call) |
 | `systems/vehicles.js` | `yank()`: `if (g.kit?.winchYank(h)) …return`; the harpoon's wall-hit branch: `if (g.kit?.hookDoor(v, h.x, h.z)) …return` |
+| `systems/kit.js` (read by the faceted bodies) | `frame()` keeps `this.eyes`, the optic live this frame; `main.js` turns it into `charR.lsw.heat`, so the vein glow (light, not heat) goes dark under the heat scope (`WEB_LSW_BODIES.md`) |
 | `systems/gadgets.js` | `drawMinimap`: `g.kit?.drawMinimap(...)` (cars the glass marked) |
 | `systems/garage.js` | `addUtility`: a row with `needs` refuses without that gun (the winch) |
 | `systems/inventory.js` | `act`: `kit` / `doggear` route to `g.kit.useItem` |

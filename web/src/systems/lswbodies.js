@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LSW_RULES, FACET_FRAMES, facetRecipe } from '../data/lswbodies.js';
+import { LSW_RULES, FACET_FRAMES, facetRecipe, VEIN_STYLES, VEIN_BY_BREED, VEIN_RULES } from '../data/lswbodies.js';
 import { VOICES, genderOf } from '../data/voices.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 
@@ -32,6 +32,39 @@ for (const [s, S] of [['l', 'L'], ['r', 'R']]) Object.assign(ALIAS, { [`clavicle
 const SRC = { head: 3, neck: 3, expression: 7, hair: 5, glasses: 6, torso: 0, arms: 0, deltoids: 0, forearms: 4, hands: 3, handTips: 3, legs: 1, waist: 1, calves: 1, boots: 2, shoes: 2 };
 const BODY = ['head', 'neck', 'expression', 'torso', 'waist', 'legs', 'arms', 'deltoids', 'forearms', 'hands', 'handTips', 'boots'];
 const FACES = ['worker', 'cop-off-duty', 'nurse', 'kid', 'elder', 'gang-member'];
+// The vein zombies: a style's number on the GPU (0 none) and its cell in the vein atlas.
+const VEINS = Object.keys(VEIN_STYLES); // rupture, black, neon, hollow
+const HOLLOW = VEINS.indexOf('hollow') + 1; // the one style with no map: a pale lerp instead
+const VEIN_OF = Object.fromEntries(Object.entries(VEIN_BY_BREED).map(([k, v]) => [k, v ? VEINS.indexOf(v) + 1 : 0]));
+const glsl = (hex) => { const c = new THREE.Color(hex); return `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`; };
+
+// LSW's vein tiles (modular-surfaces.js infectionTexture / infectionGlowTexture: the same paths, the same wounds), one
+// 256 px cell per style: the top row is the map the bare skin is multiplied by, the bottom row what glows, in its own
+// colour. Two rows, not alpha, because a canvas premultiplies (a glow of 0 would wipe the map).
+const VEIN_PATHS = [[[0, 44], [30, 58], [38, 81], [65, 98], [78, 130]], [[38, 81], [18, 110], [22, 141]], [[256, 189], [211, 171], [199, 134], [178, 120]], [[211, 171], [220, 212], [245, 229]]];
+function veinAtlas() {
+  const c = document.createElement('canvas'); c.width = VEINS.length * 256; c.height = 512;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, 256); x.fillStyle = '#000'; x.fillRect(0, 256, c.width, 256);
+  const stroke = (ox, oy) => { for (const path of VEIN_PATHS) { x.beginPath(); path.forEach(([a, b], i) => (i ? x.lineTo(ox + a, oy + b) : x.moveTo(ox + a, oy + b))); x.stroke(); } };
+  VEINS.forEach((k, i) => {
+    const V = VEIN_STYLES[k], ox = i * 256;
+    if (V.noMap) return;
+    x.fillStyle = '#c9c8bf'; for (const [a, b, w, h] of [[28, 18, 38, 24], [180, 80, 32, 21], [60, 176, 27, 48], [204, 212, 25, 32]]) x.fillRect(ox + a, b, w, h);
+    x.strokeStyle = V.mark; x.lineWidth = V.width; x.lineJoin = 'miter'; stroke(ox, 0);
+    if (V.wounds) {
+      for (const [a, b] of [[38, 81], [199, 134], [78, 130]]) { x.fillStyle = '#50121a'; x.fillRect(ox + a - 11, b - 9, 24, 20); x.fillStyle = '#c82332'; x.fillRect(ox + a - 7, b - 6, 15, 11); x.fillStyle = '#e87773'; x.fillRect(ox + a - 5, b - 5, 6, 3); }
+      x.strokeStyle = '#871627'; x.lineWidth = 7; for (const [a, b] of [[38, 81], [199, 134]]) { x.beginPath(); x.moveTo(ox + a, b); x.lineTo(ox + a + 30, b - 22); x.lineTo(ox + a + 46, b - 18); x.stroke(); }
+    }
+    if (V.glow) {
+      x.strokeStyle = V.glow; x.lineWidth = Math.min(6, V.width); stroke(ox, 256);
+      if (V.wounds) { x.fillStyle = V.glow; for (const [a, b] of [[38, 81], [199, 134], [78, 130]]) x.fillRect(ox + a - 7, 256 + b - 6, 15, 11); }
+    }
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false;
+  t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; // the cells wrap by fract(): no mip seam at the wrap
+  return t;
+}
 
 const _m = new THREE.Matrix4(), _n = new THREE.Matrix4(), _s = new THREE.Matrix4(), _r = new THREE.Matrix4();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _qt = new THREE.Quaternion(), _ql = new THREE.Quaternion();
@@ -115,6 +148,7 @@ export class LswBodies {
     this.candD = new Float64Array(rules.maxNear); this.candS = new Int16Array(rules.maxNear);
     this.hairKey = new Array(maxChars).fill(null); this.hairRGB = new Float32Array(maxChars * 3);
     this.bodies = []; // one: the kit
+    this.heat = { value: 0 }; // 1 while you look through the heat scope: the vein glow is light, not heat, so it goes dark (systems/kit.js)
     this.focus = null; // a Vector3 (the camera); nearest to it wear faceted bodies
     this.t = 0;
     this.stats = { frames: 0, ms: 0, last: 0, drawn: 0 };
@@ -144,7 +178,8 @@ export class LswBodies {
     const fx = fc.getContext('2d');
     faceImgs.forEach((im, i) => fx.drawImage(im, (i % 3) * 128, Math.floor(i / 3) * 128, 128, 128));
     const faceTex = new THREE.CanvasTexture(fc); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.flipY = false;
-    this.bodies.push(this.buildBody(meta, buf, maxNear, faceTex));
+    this.veinTex = veinAtlas();
+    this.bodies.push(this.buildBody(meta, buf, maxNear, faceTex, this.veinTex));
     const fg = new THREE.PlaneGeometry(R.flag.w, R.flag.h).rotateX(-Math.PI / 2);
     const fuv = new THREE.InstancedBufferAttribute(new Float32Array(maxNear * 2), 2); fuv.setUsage(THREE.DynamicDrawUsage);
     fg.setAttribute('iFlag', fuv);
@@ -172,7 +207,7 @@ export class LswBodies {
     this.ready = true;
   }
 
-  buildBody(info, buf, maxNear, faceTex) {
+  buildBody(info, buf, maxNear, faceTex, veinTex) {
     const L = info.layout, R = this.rules;
     const view = (k, T) => new T(buf, L[k].offset, L[k].length);
     const pos = view('position', Float32Array), part = view('part', Uint8Array), nv = pos.length / 3;
@@ -254,17 +289,29 @@ export class LswBodies {
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.78 });
     mat.onBeforeCompile = (sh) => {
       skinPatch(sh, tex, morphs, false);
-      sh.uniforms.lswFaces = { value: faceTex };
+      sh.uniforms.lswFaces = { value: faceTex }; sh.uniforms.lswVeins = { value: veinTex }; sh.uniforms.lswHeat = this.heat;
       // The colour is per module (LSW's material slots), resolved per vertex: one varying, no per-fragment branching.
-      sh.vertexShader = 'varying vec3 vLook; varying vec3 vFace;\n'
+      // The vein zombies (texel 7.z = the style): bare skin (skin, or a forearm the skin colour) takes the vein map, or
+      // hollow's pale lerp; the clothes take 14% of the grave. All resolved per vertex but the map itself.
+      sh.vertexShader = 'varying vec3 vLook; varying vec3 vFace; varying vec3 vVein;\n'
         + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
   float lswS = aPS.y; vLook = lswX(int(min(lswS, 6.0) + 0.5)).rgb;
+  float lswV = lswX(7).z; vVein = vec3(0.0, uv);
+  if (lswV > 0.5 && lswS < 6.5) {
+    bool bare = (lswS > 2.5 && lswS < 3.5) || (lswS > 3.5 && lswS < 4.5 && distance(lswX(4).rgb, lswX(3).rgb) < 0.02);
+    if (bare) { if (abs(lswV - ${HOLLOW.toFixed(1)}) < 0.5) vLook = mix(vLook, ${glsl(VEIN_STYLES.hollow.skin)}, ${VEIN_STYLES.hollow.skinMix.toFixed(3)}); else vVein.x = lswV; }
+    else if (lswS < 1.5 || (lswS > 3.5 && lswS < 4.5)) vLook = mix(vLook, ${glsl(VEIN_RULES.clothes)}, ${VEIN_RULES.clothesMix.toFixed(3)});
+  }
   float lswF = lswW.w; vFace = vec3((uv + vec2(mod(lswF, 3.0), floor(lswF / 3.0))) * vec2(1.0 / 3.0, 0.5), step(6.5, lswS));`);
-      sh.fragmentShader = 'uniform sampler2D lswFaces; varying vec3 vLook; varying vec3 vFace;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-  diffuseColor.rgb = vLook;
+      sh.fragmentShader = 'uniform sampler2D lswFaces; uniform sampler2D lswVeins; uniform float lswHeat; varying vec3 vLook; varying vec3 vFace; varying vec3 vVein;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+  diffuseColor.rgb = vLook; vec3 lswGlow = vec3(0.0);
+  if (vVein.x > 0.5) { vec2 vu = vec2((fract(vVein.y) + floor(vVein.x + 0.5) - 1.0) / ${VEINS.length.toFixed(1)}, fract(vVein.z) * 0.5);
+    diffuseColor.rgb *= texture2D(lswVeins, vu).rgb; lswGlow = texture2D(lswVeins, vu + vec2(0.0, 0.5)).rgb; }
   if (vFace.z > 0.5) { vec4 fc = texture2D(lswFaces, vFace.xy); if (fc.a < 0.5) discard; diffuseColor.rgb = fc.rgb; }`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-  roughnessFactor = 0.78;`);
+  roughnessFactor = 0.78;`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  totalEmissiveRadiance += lswGlow * ${VEIN_RULES.glowIntensity.toFixed(3)} * (1.0 - lswHeat);`);
     };
     mat.customProgramCacheKey = () => 'lsw-faceted';
     mat.userData.noCut = true;
@@ -430,9 +477,14 @@ export class LswBodies {
     if (this.hairKey[i] !== hx) { this.hairKey[i] = hx; _col.set(hx); this.hairRGB[i * 3] = _col.r; this.hairRGB[i * 3 + 1] = _col.g; this.hairRGB[i * 3 + 2] = _col.b; }
     D[o + 20] = this.hairRGB[i * 3]; D[o + 21] = this.hairRGB[i * 3 + 1]; D[o + 22] = this.hairRGB[i * 3 + 2];
     D[o + 24] = 0.45; D[o + 25] = 0.34; D[o + 26] = 0.13; // glasses frames: LSW's elder gold, darkened to read
-    D[o + 28] = L[lo]; D[o + 29] = L[lo + 1];
+    D[o + 28] = L[lo]; D[o + 29] = L[lo + 1]; D[o + 30] = this.veinOf(ch);
     D[o + 32] = L[lo + 2]; D[o + 33] = L[lo + 3]; D[o + 34] = L[lo + 4]; D[o + 35] = L[lo + 5];
   }
+
+  // The vein style a person wears (0 none): the infected only, by breed (a plain shambler has no zkind).
+  veinOf(ch) { return ch.faction === 'zombie' ? VEIN_OF[ch.zkind ?? 'shambler'] ?? VEIN_OF.shambler : 0; }
+  // The vein style a drawn person's GPU row carries, by name ('none' when bare of veins), or null when not drawn.
+  veinDrawn(ch) { if (!this.drawn[ch.slot]) return null; const v = this.bodies[0].data[(this.instOf[ch.slot] * ROW + NB * 4 + 7) * 4 + 2]; return v ? VEINS[v - 1] : 'none'; }
 
   // A drawn person's colour j (0 shirt, 1 trousers, 2 boots, 3 skin, 4 forearm, 5 hair, 6 trim) as the GPU has it.
   colourOf(ch, j) { if (!this.drawn[ch.slot]) return null; const o = (this.instOf[ch.slot] * ROW + NB * 4 + j) * 4, D = this.bodies[0].data; return [D[o], D[o + 1], D[o + 2]]; }

@@ -1,5 +1,6 @@
 // LSW-BODIES as COMMANDS rows and selftest checks (docs/design/WEB_LSW_BODIES.md; systems/lswbodies.js, data/lswbodies.js).
 // buildCommands() in api.js spreads lswBodiesCommands into COMMANDS; runSelfTest calls lswBodiesChecks.
+import * as THREE from 'three';
 import { LSW_RULES, validateLswBodies } from '../data/lswbodies.js';
 import { outfit } from '../systems/characters.js';
 import { FLAG_KEYS } from '../ui/portrait.js';
@@ -216,6 +217,65 @@ export async function lswBodiesChecks(api, check, C) {
     }
     if (!crawl.prone) out.push('the crawler is not prone');
     return out.length ? out.join('; ') : true;
+  }));
+
+  await check('lsw-bodies: the VEIN INFECTED (LSW modular-surfaces.js) - a near shambler wears red rupture veins that glow, a sprinter black veins, an echo (the smart one) neon green veins that glow, the Choir-Touched and the living none; the vein atlas holds a map for every veined style, glow only for the red and the neon (red-hued and green-hued), and no vein or glow pixel is in the purple range', () => stage(async () => {
+    const out = [];
+    const sham = g.zombies.spawn(STAGE.x - 1.5, STAGE.z + 1.5, false), sprint = g.zombies.spawn(STAGE.x - 0.3, STAGE.z + 1.5, true);
+    const echo = g.zombies.spawnKind('echo', STAGE.x + 0.9, STAGE.z + 1.5), choir = g.zombies.spawnKind('choir', STAGE.x + 2.1, STAGE.z + 1.5);
+    const live = add('drifter', -1.5, 2.7, { name: 'Still Breathing' });
+    const Z = [[sham, 'rupture'], [sprint, 'black'], [echo, 'neon'], [choir, 'none'], [live, 'none']];
+    for (const [z] of Z) if (z && z !== live) { z.hold = true; staged.push(z); }
+    if (Z.some(([z]) => !z)) return 'could not spawn every breed';
+    frame();
+    for (const [z, want] of Z) { const got = L.veinDrawn(z); if (got !== want) out.push(`${z.zkind ?? z.faction}: ${got ?? 'not drawn'}, want ${want}`); }
+    // The atlas (cells in VEIN_STYLES order): each mapped style has vein pixels, only the red and the neon glow, each in
+    // its own hue, and nothing is purple.
+    const img = L.veinTex.image, x = img.getContext('2d'), cells = ['rupture', 'black', 'neon', 'hollow'];
+    const glowHue = { rupture: 'red', neon: 'green' };
+    cells.forEach((k, i) => {
+      const map = x.getImageData(i * 256, 0, 256, 256).data, glow = x.getImageData(i * 256, 256, 256, 256).data;
+      let veins = 0, lit = 0, red = 0, green = 0, purple = 0;
+      for (let p = 0; p < map.length; p += 4) {
+        if (Math.min(map[p], map[p + 1], map[p + 2]) < 150) veins++;
+        if (glow[p] + glow[p + 1] + glow[p + 2] > 30) { lit++; if (glow[p] > glow[p + 1] + 80) red++; if (glow[p + 1] > glow[p] + 80 && glow[p + 1] > glow[p + 2] + 40) green++; }
+        for (const a of [map, glow]) { const r = a[p], gg = a[p + 1], b = a[p + 2]; if (b > gg + 20 && r > gg + 20 && b > 60) purple++; }
+      }
+      const wantMap = k !== 'hollow', hue = glowHue[k];
+      if (wantMap !== veins > 500) out.push(`${k}: ${veins} vein pixels`);
+      if (!!hue !== lit > 500) out.push(`${k}: ${lit} glow pixels`);
+      if (hue && (hue === 'red' ? red : green) < lit * 0.8) // the rest is anti-aliased edge out.push(`${k}: glow not ${hue} (${red} red, ${green} green of ${lit})`);
+      if (purple) out.push(`${k}: ${purple} purple-range pixels`);
+    });
+    return out.length ? out.join('; ') : true;
+  }));
+
+  await check('lsw-bodies: the vein glow is light, not heat - through the heat scope (systems/kit.js) the infected stay COLD: the vein glow is switched off while the scope is live (and back on after), and a close night frame of a red shambler and a neon echo through the scope has no glowing vein pixels (the same frame with the glow left on has them)', () => stage(async () => {
+    const K = g.kit, W = 320, H = 180, rt = new THREE.WebGLRenderTarget(W, H), buf = new Uint8Array(W * H * 4), base = new Uint8Array(W * H * 4);
+    const cam = new THREE.PerspectiveCamera(40, W / H, 0.1, 60); // close in, so a vein is a few pixels wide
+    cam.position.set(STAGE.x, 3.2, STAGE.z - 4.5); cam.lookAt(STAGE.x, 1, STAGE.z - 1); cam.updateMatrixWorld();
+    const sham = g.zombies.spawn(STAGE.x - 0.6, STAGE.z - 1, false), echo = g.zombies.spawnKind('echo', STAGE.x + 0.6, STAGE.z - 1);
+    if (!sham || !echo) return 'could not spawn a shambler and an echo';
+    for (const z of [sham, echo]) { z.hold = true; z.facing = Math.PI; staged.push(z); }
+    const shot = (out) => { frame(); g.renderer.setRenderTarget(rt); g.renderer.render(g.scene, cam); g.renderer.setRenderTarget(null); g.renderer.readRenderTargetPixels(rt, 0, 0, W, H, out); };
+    const had = { eyes: K.on.eyes, charge: K.charge.thermal_scope };
+    try {
+      await C('setTime', { hour: 22 });
+      g.inventory.stow('thermal_scope', 1); K.charge.thermal_scope = 100; K.on.eyes = 'thermal_scope';
+      await C('step', { seconds: 0.2 });
+      const on = L.heat.value, drawn = L.veinDrawn(sham) === 'rupture' && L.veinDrawn(echo) === 'neon';
+      g.paused = true;
+      // The pixels the glow brightens: the scope frame with the glow forced on against the frame the game draws (off).
+      shot(base); L.heat.value = 0; shot(buf); L.heat.value = on;
+      let lit = 0; for (let p = 0; p < buf.length; p += 4) if (buf[p] + buf[p + 1] + buf[p + 2] - base[p] - base[p + 1] - base[p + 2] > 24) lit++;
+      g.paused = false;
+      K.on.eyes = null; await C('step', { seconds: 0.2 });
+      const off = L.heat.value;
+      return on === 1 && off === 0 && drawn && lit > 20 ? true : `glow off under the scope=${on === 1} back on after=${off === 0} veins drawn=${drawn} pixels the glow would warm=${lit}`;
+    } finally {
+      g.paused = false; K.on.eyes = had.eyes; K.charge.thermal_scope = had.charge; g.inventory.spend('thermal_scope', 1); rt.dispose();
+      await C('setTime', { hour: 12 });
+    }
   }));
 
   await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {

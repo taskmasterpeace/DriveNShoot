@@ -1371,6 +1371,7 @@ class Game {
     this.flashlight.position.set(p.x, p.ug ? p.gy ?? 0 : 0, p.z);
     this.flashlight.rotation.y = p.face;
     this.kit.frame(dt); // the goggles' and the scope's overlay, body heat, dog and car kit drawn (systems/kit.js)
+    this.charR.lsw.heat.value = this.kit.eyes === 'thermal_scope' ? 1 : 0; // veins are not warm: their glow goes dark under the scope
     this.charR.sync(this.chars, dt);
     this.dogs.draw(dt);
     this.fauna.draw(dt);
