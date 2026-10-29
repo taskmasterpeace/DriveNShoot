@@ -91,6 +91,7 @@ export class Combat {
   // slope: a round aimed up into the sky (m up a m out): it passes over people, cars and dogs once above head height.
   hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null, slope = 0, round = ammo) {
     const g = this.g, M = g.materials;
+    g.drones?.shotThrough(shooter, ox, oz, dx, dz, range, dmg); // a round passing under one of THEIR drones may take it (systems/drones.js)
     if (g.ballistics?.takes(round, slope)) { g.ballistics.launch(shooter, ox, oz, dx, dz, range, dmg, ammo, round); return; }
     let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
     for (let seg = 0; seg < 4; seg++) {

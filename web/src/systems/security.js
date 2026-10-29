@@ -59,6 +59,14 @@ export class Security {
     return c;
   }
 
+  // A dead officer's body (main.js kill): the town's bulls and the county posse carry the ring that opens the town's
+  // doors (data/gadgets.js DOOR_KIT key_ring); a skip tracer is from out of county and carries none.
+  onDeath(c, body) {
+    if (!c.sec || c.sec.tier === 'tracers' || !body) return;
+    this.g.inventory.add(body, 'key_ring', 1);
+    this.g.emit('keyRingDropped', { by: c.id, tier: c.sec.tier, box: body.id });
+  }
+
   // A run-down patrol car (vehicles.js row bullcar: vehiclebodies.js paints it from RUNDOWN), dents put in.
   car(x, z, h, T) {
     const g = this.g, v = g.vehiclesSys.spawn(T.row.car.type, x, z, h, T.row.car.paint, { ai: 'security' });
@@ -98,6 +106,7 @@ export class Security {
     g.hud?.toast(`${tr.name.toUpperCase()} ROLLING`, tier === 'bulls' ? 'warn' : 'hot');
     g.emit('securityDispatched', { id: resp.id, tier, town: T.id, cars: resp.cars.map((v) => v.id), men: resp.men.map((c) => c.id), why, from: { x: r1(s.x), z: r1(s.z) } });
     if (tr.roadblock && P.inVehicle) this.roadblock(T, tier);
+    if (tier === 'tracers' && resp.cars[0]) this.gx.drones.foe('spotter', resp.cars[0].x, resp.cars[0].z, resp.men[0] ?? null); // the tracers' eye goes up off the car (systems/drones.js)
     return { ok: true, id: resp.id, cars: resp.cars.map((v) => v.id), men: resp.men.map((c) => c.id) };
   }
 

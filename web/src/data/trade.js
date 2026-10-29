@@ -6,9 +6,11 @@
 export const TRADERS = {
   // keeps: [item, n] he never lets run out - topped up to n across his shelves on the first look each day (his rounds of
   // every common kind and a cleaning kit; the guns are whatever second-hand pieces came in: the counter is the stock).
-  ike: { name: 'Ike', deals: ['gun', 'ammo', 'tool'], keeps: [['ammo_pistol', 24], ['ammo_smg', 60], ['ammo_shells', 8], ['ammo_rifle', 30], ['cleaning_kit', 1]] },
+  // ...and the bangs (data/gadgets.js): a pair of car mines, a fan mine, a remote charge, a breach frame.
+  ike: { name: 'Ike', deals: ['gun', 'ammo', 'tool', 'fan_mine', 'remote_charge', 'breach_charge', 'crawler_mine', 'gas_can'], keeps: [['ammo_pistol', 24], ['ammo_smg', 60], ['ammo_shells', 8], ['ammo_rifle', 30], ['cleaning_kit', 1], ['car_mine', 2], ['fan_mine', 1], ['remote_charge', 2], ['breach_charge', 1]] },
   reyes: { name: 'Doc Reyes', deals: ['med'] },
-  kenji: { name: 'Kenji', deals: ['part', 'tool', 'pack'] },
+  // Kenji's hardware (data/gadgets.js): what stops a car or tells you who came, and a scout drone with a cracked eye.
+  kenji: { name: 'Kenji', deals: ['part', 'tool', 'pack', 'gadget', 'drone'], keeps: [['road_chain', 1], ['spike_strip', 1], ['tripwire_bells', 3], ['noise_maker', 2], ['signal_flare', 4], ['smoke_canister', 2], ['car_alarm', 1], ['planks', 2], ['door_wedge', 3], ['drone_scout', 1]] },
   mags: { name: 'Mags', deals: ['water', 'food', 'valuable', 'paper', 'hide'] }, // hides: the fauna layer's (data/fauna.js)
 };
 

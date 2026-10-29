@@ -9,6 +9,7 @@ export default async function (DL, game) {
   await DL.setWeather({ key: 'CLEAR', instant: true });
   if (g.player.inVehicle) await DL.exitVehicle();
   g.zombies.enabled = false; g.raiderTimer = 1e9;
+  g.drones.foes.length = 0; g.drones.bombs.length = 0; // none of theirs left up from before
   if (g.drones.d) { g.drones.d = null; g.drones.piloting = false; } // a drone still up from before would hold your car parked
   g.gadgets.list.length = 0; await DL.security({ clear: true });
   g.wanted = 0; g.security.lastWanted = 0;

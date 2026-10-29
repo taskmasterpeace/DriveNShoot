@@ -48,6 +48,12 @@ Blasts go through `throwables.explode` (people with line of sight, glass, doors,
 ### 3.4 Drones
 Launch from the pack (the item leaves it; it lands back in it). **WASD** fly (`d.ix/iz`, smoothed velocity), **Shift** boost (2× drain), **E** home, **`** drop (the drop drone's 3 pipe charges, 0.6 s fall). Battery by the second; signal weak past 80% of range (a wobble, the HUD says so), **lost past range: it flies itself home** and lands. Low battery (12%) does the same; flat, it falls. Every 0.5 s it **marks** enemies under it for 8 s (minimap rings). It buzzes (`onNoise` 22 m every 2 s: THE PULL). Armed hostiles who see it inside 35 m shoot at it (hit odds fall with range); 0 hp, it falls and breaks to a piece of scrap on the ground. Your body is frozen where you stood, still shootable.
 
+**Theirs** (`FOE_DRONES`, `drones.foes`, at most 4 up): a **spotter** goes up off the skip tracers' first car when that rung is sent; a **drop drone** is what a raider flies (`drone action=foe foe=dropper`). Each circles what it watches (`orbit` m, at `alt`): you while it sees you (inside `sight`, not standing in smoke), else where it last saw you. A spotter, every `callEvery` s while it sees you, gives its own side's armed and idle people within `call` m of you you as their target (`foeDroneCalled`). A drop drone lets a charge go every `bombEvery` s once within `orbit + 2` m of its mark (`foeDroneBomb`, `on: you|flare`). After `life` s (or with its bombs gone) it turns away and is gone at 120 m. **Counters** (`ANTI_DRONE`): a round whose line passes within `shotR` of it under it hits on `shotHit` of the time (`combat.hitscan` hands every round's line to `drones.shotThrough`; its own side's rounds pass); a **lit signal flare** within `flareR` pulls it off you, so it circles and bombs the flare (`foeDroneDecoyed`); **smoke** you stand in hides you. Shot down it falls and leaves `scrap` on the ground. Red diamonds on the minimap.
+
+**Traders:** Kenji keeps the hardware on his shelves (chain, strip, bells, noise maker, flares, smoke, car alarm, planks, wedges, a scout drone), Ike the bangs (car mines, a fan mine, remote charges, a breach frame); each buys back what he sells (`data/trade.js` `deals`/`keeps`). Under the loot law the keeps are the opening stock; after that only deliveries fill the shelves.
+
+**Saves:** `snapshot().gadgets` keeps every gadget that is arming, armed or tripped (one in the air or burning is a moment, not a record), its owner by id, its door or car by id, how far it had armed, a timer's fuse, who had spotted it; and every barricade by door id. The door's lock strength is the interiors' own save, loaded first; a barricade whose door is no longer locked in the save is dropped. A drone in the air is not saved.
+
 ### 3.5 Town security (THE PAPER LADDER)
 `SECURITY` rows (one per town: Rust Haven today): station (`security_station` building from the cities lane when present, else a stub placement — a signpost, a lamp, painted garage lines), patrol loop, beat size, fine and jail rates, the car row. Officers are the town's wardens (faction `warden`), so hostility, stars and standing are the existing rules.
 - **Ambient:** within 200 m of the station a bull car drives the loop (it slows for people, avoids chains) and two officers walk the beat; past 340 m they go home.
@@ -99,7 +105,10 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `data/items.js` | folds `GADGETS`, `DRONES` (`drone_<kind>`), `DOOR_KIT` into `ITEMS` |
 | `data/controls.js` | the `detonate` row (` backquote; pad VIEW+RT). The workshop's row holds U |
 | `ui/hud.js` | `g.gadgets?.drawMinimap(...)` before it draws you |
-| `agent/api.js` | import, spread the commands, the checks before the perf gate, security off for the battery |
+| `agent/api.js` | import, spread the commands, the checks before the perf gate, security off for the battery; `snapshot` writes `gadgets: g.gadgets?.save()`, `restore` calls `g.gadgets?.load(...)` after the interiors |
+| `systems/combat.js` | `hitscan` hands every round's line to `g.drones?.shotThrough(...)` first (their drones can be shot) |
+| `data/trade.js` | Kenji and Ike's `deals` and `keeps` carry the gadgets |
+| `main.js` (kill) | a dead officer's body: `this.security?.onDeath(c, body)` puts the key ring in it |
 
 ## 7. Tuning knobs
 | Knob (data/gadgets.js) | Default | Safe range | Affects |
@@ -115,7 +124,12 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `SECURITY_TIERS.*.stars` | 1 / 3 / 5 | ladder order only | which rung answers |
 | `SECURITY.rust_haven.fine / jail` | 40 / 6 h | 10-100 / 2-12 | the price of giving up |
 
-Not done: placed gadgets and barricades are not saved (a hook into `snapshot` is the next step); no shop shelves stock gadgets yet (`source.buy` is the price a trader row would use; `gadget craft=` works from the recipes); the cities lane's `security_station` building isn't in this tree, so the stub stands at (-44, 40); enemy drones (the Remnant's) and the "flares that fool drones" tail chute are not built; officers don't drop their key ring yet.
+| `FOE_DRONES.spotter.call / callEvery` | 80 m / 1.5 s | 40-120 / 1-4 | how fast a tracers' spotter brings its side down on you |
+| `FOE_DRONES.dropper.bombs / bombEvery` | 2 / 4 s | 1-4 / 2-8 | how much a drop drone can hurt before it turns home |
+| `ANTI_DRONE.shotHit / shotR` | 0.5 / 1.0 m | 0.2-0.8 / 0.6-1.6 | how many rounds one of theirs takes (spotter 50 hp: about 3 revolver hits) |
+| `ANTI_DRONE.flareR` | 32 m | 15-60 | how close a flare must burn to pull one off you |
+
+Not done: the cities lane's `security_station` building is still not in the tree, so the stub stands at (-44, 40); a drone in the air is not saved; no raider camp sends a drop drone up on its own yet (`drone action=foe` does).
 
 ## 8. Acceptance criteria (named selftest checks, `src/agent/gadgets-api.js`)
 | Check | Proves |
@@ -132,5 +146,9 @@ Not done: placed gadgets and barricades are not saved (a hook into `snapshot` is
 | `security: hands up beside the bulls ... a fine` | holstered and still: fined, 0 stars |
 | `security: a roadblock (posse) ...` | two bull cars and a tyre chain |
 | `doors: planks across a locked door hold four of the infected ... 25 s` | the barred door holds 25 s; the same kind of door bare gives first |
+| `gadgets: a save carries what is set ...` | a chain, a car mine and a remote charge in `snapshot().gadgets` come back where they lay, armed, owned by you (the charge still answers your detonate), and the barred door is barred again |
+| `trade: Kenji's shelves keep the hardware gadgets ...` | Kenji keeps and buys chain, strip, bells, flares, a scout drone; Ike car mines, fan mine, remote and breach charges; every kept id is an item |
+| `security: a town bull shot dead leaves the town's key ring ...` | the bull's body box holds 1 key ring; a skip tracer's holds none |
+| `drones: theirs - a lit signal flare pulls a raider drop drone off you ...` | a drop drone 26 m off is decoyed by a flare 16 m away and bombs it, you unhurt; a spotter makes a held raider 60 m away target you; revolver rounds fired at it bring it down |
 
 Scenarios: `gadget-range` (every gadget on one stretch, each with a target), `checkpoint-run` (three stars at the wheel, the posse's roadblock ahead). Renders: `docs/renders/web/gadgets/`.

@@ -6047,6 +6047,7 @@ export function snapshot(g) {
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
+    gadgets: g.gadgets?.save(), // what is set in the world (chains, strips, mines, wires, charges, alarms) and which doors are barricaded (systems/gadgets.js)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
@@ -6134,6 +6135,7 @@ export function restore(g, s) {
   if (s.inventory) g.inventory.load(s.inventory);
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
+  g.gadgets?.load(s.gadgets ?? null); // after the doors and the people: barricades find their doors, gadgets their owners and cars (an old save: nothing set)
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   g.arms?.load(s.arms); g.gunpoint?.clear();
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)

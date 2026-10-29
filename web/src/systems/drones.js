@@ -1,4 +1,5 @@
-import { DRONES } from '../data/gadgets.js';
+import { DRONES, FOE_DRONES, ANTI_DRONE } from '../data/gadgets.js';
+import { rayCircle } from '../engine/collision.js';
 
 // DRONES (docs/design/WEB_GADGETS.md §4; rows in data/gadgets.js DRONES). Launched from the pack: the item leaves it and
 // a drone lifts off where you stand. While it flies YOU fly it (WASD, Shift boosts, E brings it home, ` drops a bomb)
@@ -11,6 +12,13 @@ import { DRONES } from '../data/gadgets.js';
 //
 // The camera lane owns the rig: this only publishes g.droneCam { active, x, z, h } and main.js updateCamera follows it
 // through one small hook while active.
+//
+// THEIR drones (`foes`, rows in data/gadgets.js FOE_DRONES): flown at you by someone else. A skip tracers' response
+// sends a spotter up off its car (systems/security.js); a drop drone is what a raider flies (`drone action=foe`). A
+// spotter circles over you and, every so often, tells its own side where you are; a drop drone circles tight and lets
+// go of its charges on you. Against them (ANTI_DRONE): shoot them (combat.hitscan hands every round's line here), light
+// a signal flare (it circles the flare instead, and bombs it), or stand in smoke (it loses you and circles where it last
+// saw you). Each one turns for home after its `life`.
 const SHOOT_R = 35, MARK_FOR = 8;
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -22,7 +30,9 @@ export class Drones {
     this.piloting = false;
     this.bombs = [];          // falling: { x, z, y, t, def, by }
     this.cool = {};           // kind -> game time it is charged again
-    this.counts = { launched: 0, landed: 0, lost: 0, shotDown: 0, marked: 0, bombs: 0, crashed: 0 };
+    this.counts = { launched: 0, landed: 0, lost: 0, shotDown: 0, marked: 0, bombs: 0, crashed: 0, foes: 0, foesDown: 0, decoyed: 0, calls: 0, foeBombs: 0 };
+    this.foes = [];           // theirs: { id, kind, def, x, z, y, h, vx, vz, hp, bombs, t, state hunt|leave|down, owner, of, lx, lz, seen, ... }
+    this.fseq = 0;
     game.droneCam = this.cam = { active: false, x: 0, z: 0, h: 40 };
   }
 
@@ -97,6 +107,128 @@ export class Drones {
     this.d = null; this.piloting = false;
   }
 
+  // ---- theirs ----------------------------------------------------------------------------------------------------------
+  // One of theirs lifts off at (x, z); owner: who flies it (its side is theirs; null: raiders for a drop drone, the
+  // wardens for a spotter).
+  foe(kind, x, z, owner = null) {
+    const g = this.g, def = FOE_DRONES[kind], P = g.player;
+    if (!def) return { ok: false, why: `kinds: ${Object.keys(FOE_DRONES).join(', ')}` };
+    if (this.foes.length >= 4) return { ok: false, why: 'four of theirs are up already' };
+    const f = { id: `FD${++this.fseq}`, kind, def, x, z, y: 0.5, h: 0, vx: 0, vz: 0, hp: def.hp, bombs: def.bombs, t: 0, state: 'hunt', owner,
+      of: owner?.faction ?? (kind === 'dropper' ? 'raider' : 'warden'), lx: P.x, lz: P.z, seen: false, saw: false, callT: 0, bombT: 1.5, ang: Math.random() * 6.283, decoy: null, downT: 0, buzzT: 0 };
+    this.foes.push(f);
+    this.counts.foes++;
+    g.emit('foeDroneUp', { id: f.id, kind, by: owner?.id ?? null, x: r1(x), z: r1(z) });
+    return { ok: true, id: f.id, kind };
+  }
+
+  // A round's line (combat.hitscan, before it is resolved on the ground): one passing under one of theirs may take it.
+  shotThrough(shooter, ox, oz, dx, dz, range, dmg) {
+    if (!this.foes.length || !shooter) return;
+    for (const f of this.foes) {
+      if (f.state === 'down' || shooter === f.owner || (shooter !== this.g.player && shooter.faction === f.of)) continue;
+      if (rayCircle(ox, oz, dx, dz, f.x, f.z, ANTI_DRONE.shotR, range) < 0) continue;
+      if (Math.random() < ANTI_DRONE.shotHit) this.hurtFoe(f, dmg, shooter);
+    }
+  }
+
+  hurtFoe(f, dmg, by = null) {
+    const g = this.g;
+    if (f.state === 'down') return;
+    f.hp -= dmg;
+    g.fx.sparks(f.x, f.y, f.z, 0, 0, 4);
+    if (f.hp > 0) return;
+    f.state = 'down'; f.downT = 0;
+    this.counts.foesDown++;
+    g.emit('foeDroneDown', { id: f.id, kind: f.kind, by: by?.id ?? null, x: r1(f.x), z: r1(f.z) });
+    if (by === g.player) g.hud?.toast(`${f.def.name.toUpperCase()} DOWN`, 'job');
+  }
+
+  // A lit signal flare within reach of it (systems/gadgets.js burn keeps p.lit), nearest first; null when none.
+  flareNear(f) {
+    let best = null, bd = ANTI_DRONE.flareR;
+    for (const p of this.gx.list) {
+      if (p.kind !== 'signal_flare' || !(p.lit > 0)) continue;
+      const k = Math.hypot(p.x - f.x, p.z - f.z);
+      if (k < bd) { bd = k; best = p; }
+    }
+    return best;
+  }
+
+  smoked(x, z) {
+    for (const s of this.g.throwables?.smokes ?? []) if (Math.hypot(s.x - x, s.z - z) < s.r) return true;
+    return false;
+  }
+
+  updateFoes(dt) {
+    const g = this.g, P = g.player, B = P.inVehicle ?? P;
+    for (let i = this.foes.length - 1; i >= 0; i--) {
+      const f = this.foes[i], def = f.def;
+      f.t += dt;
+      if (f.state === 'down') {
+        f.y = Math.max(0.15, f.y - dt * 14); f.downT += dt;
+        if (f.downT > 1.2) { g.inventory?.add(g.inventory.groundAt(f.x, f.z), 'scrap', ANTI_DRONE.scrap); g.fx.explosion?.(f.x, f.z); this.foes.splice(i, 1); }
+        continue;
+      }
+      if (f.state !== 'leave' && (f.t > def.life || (f.bombs <= 0 && def.bombs > 0))) { f.state = 'leave'; g.emit('foeDroneLeaving', { id: f.id, kind: f.kind }); }
+      let gx, gz;
+      if (f.state === 'leave') {
+        const ax = f.x - B.x, az = f.z - B.z, ad = Math.hypot(ax, az) || 1;
+        if (ad > 120) { this.foes.splice(i, 1); continue; }
+        gx = f.x + (ax / ad) * 20; gz = f.z + (az / ad) * 20; f.seen = false;
+      } else {
+        const fl = this.flareNear(f);
+        if (fl) {
+          if (f.decoy !== fl.id) { f.decoy = fl.id; this.counts.decoyed++; g.emit('foeDroneDecoyed', { id: f.id, flare: fl.id }); }
+          gx = fl.x; gz = fl.z; f.seen = false;
+        } else {
+          f.decoy = null;
+          f.seen = P.alive && !this.smoked(B.x, B.z) && Math.hypot(B.x - f.x, B.z - f.z) < def.sight;
+          if (f.seen) {
+            f.lx = B.x; f.lz = B.z;
+            if (!f.saw) { f.saw = true; g.hud?.toast(`${def.name.toUpperCase()} OVERHEAD`, 'hot'); g.emit('foeDroneSpotted', { id: f.id, kind: f.kind }); }
+          }
+          gx = f.lx; gz = f.lz;
+        }
+      }
+      // Circle what it watches (a leaving one just goes).
+      let tx = gx, tz = gz;
+      if (f.state !== 'leave') { f.ang += dt * def.speed / Math.max(def.orbit, 2) * 0.35; tx += Math.sin(f.ang) * def.orbit; tz += Math.cos(f.ang) * def.orbit; }
+      const mx = tx - f.x, mz = tz - f.z, md = Math.hypot(mx, mz), sp = Math.min(def.speed, md * 2.5);
+      const k = 1 - Math.exp(-dt * 3);
+      f.vx += ((md > 0.01 ? mx / md : 0) * sp - f.vx) * k; f.vz += ((md > 0.01 ? mz / md : 0) * sp - f.vz) * k;
+      f.x += f.vx * dt; f.z += f.vz * dt;
+      f.y += (def.alt - f.y) * (1 - Math.exp(-dt * 2));
+      if (Math.hypot(f.vx, f.vz) > 0.5) f.h = Math.atan2(f.vx, f.vz);
+      f.buzzT -= dt;
+      if (f.buzzT <= 0) { f.buzzT = 2; g.zombies?.onNoise(f.x, f.z, 22); }
+      // A spotter tells its own side where you are.
+      if (def.call && f.seen) {
+        f.callT -= dt;
+        if (f.callT <= 0) {
+          f.callT = def.callEvery;
+          let n = 0;
+          for (const c of g.chars) {
+            if (!c.alive || !c.weapon || c === P || c.faction !== f.of || c.target || Math.abs(c.x - B.x) > def.call || Math.abs(c.z - B.z) > def.call) continue;
+            if (!g.ai.hostile(c, P)) continue;
+            c.target = P; c.state = 'fight'; n++;
+          }
+          if (n) { this.counts.calls += n; g.emit('foeDroneCalled', { id: f.id, n }); }
+        }
+      }
+      // A drop drone over what it watches lets one go.
+      if (f.bombs > 0 && (f.seen || f.decoy) && f.state !== 'leave') {
+        f.bombT -= dt;
+        if (f.bombT <= 0 && Math.hypot(gx - f.x, gz - f.z) < def.orbit + 2) {
+          f.bombT = def.bombEvery; f.bombs--; this.counts.foeBombs++;
+          this.bombs.push({ x: f.x, z: f.z, y: f.y, t: 0, def: def.bomb, by: f.owner, vx: f.vx * 0.6, vz: f.vz * 0.6 });
+          g.audio.clink?.(g.pan(f.x));
+          g.emit('foeDroneBomb', { id: f.id, x: r1(f.x), z: r1(f.z), on: f.decoy ? 'flare' : 'you', left: f.bombs });
+        }
+      }
+    }
+  }
+
   update(dt) {
     const g = this.g, d = this.d;
     this.cam.active = false;
@@ -105,6 +237,7 @@ export class Drones {
       b.t += dt; b.x += b.vx * dt; b.z += b.vz * dt; b.y -= (9 + 20 * b.t) * dt;
       if (b.y <= 0.2) { this.gx.blast(b.x, b.z, b.def, b.by); this.bombs.splice(i, 1); }
     }
+    if (this.foes.length) this.updateFoes(dt);
     if (!d) return;
     d.t += dt;
     const P = d.pilot, def = d.def;
@@ -182,9 +315,13 @@ export class Drones {
   draw(gx) {
     const d = this.d, t = this.g.time;
     for (const b of this.bombs) gx.put(b.x, b.y, b.z, t * 5, 0, 0, 0, 0.12, 0.32, 0.12, '#6a5a4a');
-    if (!d) return;
+    for (const f of this.foes) this.body(gx, f, f.def.look, t);
+    if (d) this.body(gx, d, d.kind === 'bomber' ? '#5a5a48' : '#3a3a36', t);
+  }
+
+  body(gx, d, col, t) {
     const y = d.y, h = d.h, spin = t * 40;
-    gx.put(d.x, y, d.z, h, 0, 0, 0, 0.42, 0.14, 0.42, d.kind === 'bomber' ? '#5a5a48' : '#3a3a36');
+    gx.put(d.x, y, d.z, h, 0, 0, 0, 0.42, 0.14, 0.42, col);
     for (const [lx, lz] of [[0.32, 0.32], [-0.32, 0.32], [0.32, -0.32], [-0.32, -0.32]]) {
       gx.put(d.x, y, d.z, h, lx * 0.6, 0.02, lz * 0.6, 0.06, 0.04, 0.32, '#262626', 0, 0);
       gx.put(d.x, y, d.z, h, lx, 0.1, lz, 0.36, 0.01, 0.05, '#8a8478'); // the blur of a rotor
@@ -204,6 +341,13 @@ export class Drones {
       if ((x - R) ** 2 + (y - R) ** 2 > (R - 16) ** 2) continue;
       c.beginPath(); c.arc(x, y, 4.5, 0, 6.3); c.stroke();
     }
+    c.fillStyle = '#ff3b2a';
+    for (const f of this.foes) {
+      if (f.state === 'down') continue;
+      const x = R + (f.x - px) * scale, y = R + (f.z - pz) * scale;
+      if ((x - R) ** 2 + (y - R) ** 2 > (R - 16) ** 2) continue;
+      c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x + 4, y); c.lineTo(x, y + 4); c.lineTo(x - 4, y); c.closePath(); c.fill();
+    }
     const d = this.d;
     if (!d) return;
     const x = R + (d.x - px) * scale, y = R + (d.z - pz) * scale;
@@ -212,10 +356,12 @@ export class Drones {
     c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x + 4, y); c.lineTo(x, y + 4); c.lineTo(x - 4, y); c.closePath(); c.fill();
   }
 
+  foeView() { return this.foes.map((f) => ({ id: f.id, kind: f.kind, state: f.state, x: r1(f.x), z: r1(f.z), hp: Math.round(f.hp), bombs: f.bombs, seen: f.seen, decoy: f.decoy, by: f.owner?.id ?? null, of: f.of })); }
+
   view() {
     const d = this.d, P = this.g.player;
-    if (!d) return { up: false, cooling: Object.fromEntries(Object.entries(this.cool).filter(([, t]) => t > this.g.time).map(([k, t]) => [k, r1(t - this.g.time)])), counts: { ...this.counts } };
+    if (!d) return { up: false, foes: this.foeView(), cooling: Object.fromEntries(Object.entries(this.cool).filter(([, t]) => t > this.g.time).map(([k, t]) => [k, r1(t - this.g.time)])), counts: { ...this.counts } };
     return { up: true, kind: d.kind, state: d.state, why: d.why, x: r1(d.x), z: r1(d.z), alt: r1(d.y), d: r1(Math.hypot(d.x - d.pilot.x, d.z - d.pilot.z)), range: d.def.range,
-      signal: +d.signal.toFixed(2), battery: Math.round(d.battery), hp: Math.round(d.hp), bombs: d.bombs, piloting: this.piloting, pilotAt: { x: r1(P.x), z: r1(P.z) }, counts: { ...this.counts } };
+      signal: +d.signal.toFixed(2), battery: Math.round(d.battery), hp: Math.round(d.hp), bombs: d.bombs, piloting: this.piloting, pilotAt: { x: r1(P.x), z: r1(P.z) }, foes: this.foeView(), counts: { ...this.counts } };
   }
 }

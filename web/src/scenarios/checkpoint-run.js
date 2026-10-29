@@ -8,6 +8,7 @@ export default async function (DL, game) {
   await DL.setTime({ hour: 17.5 });
   if (g.player.inVehicle) await DL.exitVehicle();
   g.security.auto = true;
+  g.drones.foes.length = 0; g.drones.bombs.length = 0; // none of theirs left up from before
   if (g.drones.d) { g.drones.d = null; g.drones.piloting = false; } // a drone still up from before would hold your car parked
   g.gadgets.list.length = 0; await DL.security({ clear: true });
   g.wanted = 0; g.security.lastWanted = 0;
