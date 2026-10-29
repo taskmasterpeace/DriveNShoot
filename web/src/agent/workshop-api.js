@@ -265,6 +265,34 @@ export async function workshopChecks({ g, api, C, check, stage, person }) {
     return fast.ride === UTILITY.monster.monster.lift && fast.climbed && fast.peak > 1 && fast.crushed > 0 && fast.hp[1] < fast.hp[0] && !slow.climbed ? true : JSON.stringify({ fast, slow });
   });
 
+  await check('workshop: a grapple bites one throw in three (a miss skids off and reels in), reaches its rig\'s car lengths, and throws off the nose or the tail', async () => {
+    await stage();
+    // One throw: fit `part` on `face`, a sedan `dist` m off that end, the dice pinned to `roll` for the flight (staged).
+    const thr = async (part, face, dist, roll) => {
+      const v = await spawn('pickup', 0, 0, Math.PI / 2), end = face === 'front' ? 1 : -1;
+      const o = await spawn('sedan', end * (dist + v.len / 2), 0, 0);
+      fit(v, part, face);
+      await C('enterVehicle', { id: v.id, force: true });
+      const seq0 = g.eventSeq, rnd = Math.random;
+      let ev = [];
+      try {
+        Math.random = () => roll;
+        await C('mount', { group: face === 'front' ? 1 : 2, id: o.id });
+        for (let i = 0; i < 90 && !ev.length; i++) { await api._step(1); ev = ((await C('events', { since: seq0 })).events ?? []).filter((e) => e.type === 'grappleHit' || e.type === 'grappleMiss'); }
+      } finally { Math.random = rnd; }
+      const out = ev[0]?.type ?? 'none';
+      g.vehiclesSys.releaseHarpoon(); g.exitVehicle(true); cleanup(v, o);
+      return out;
+    };
+    const len = VEHICLES.pickup.len, G = MOUNT_WEAPONS.grapple.grapple, GR = MOUNT_WEAPONS.grapple_rig.grapple;
+    const r = {
+      bite: await thr('grapple', 'rear', len * 2, G.hook - 0.01), skid: await thr('grapple', 'rear', len * 2, G.hook + 0.01),
+      short: await thr('grapple', 'rear', len * (G.lengths + 1), 0), rigged: await thr('grapple_rig', 'rear', len * (G.lengths + 1), 0),
+      nose: await thr('grapple', 'front', len * 2, 0),
+    };
+    return r.bite === 'grappleHit' && r.skid === 'grappleMiss' && r.short === 'none' && r.rigged === 'grappleHit' && r.nose === 'grappleHit' && Math.abs(G.hook - 1 / 3) < 1e-9 && GR.lengths > G.lengths ? true : JSON.stringify(r);
+  });
+
   await check('workshop: hub spikes - drive alongside and they eat the other car\'s tyre and flank on that side', async () => {
     await stage();
     const v = await spawn('sedan', 0, -14, 0), o = await spawn('sedan', 2.5, 0, 0); // o parked 2.5 m to v's left (+x), 14 m up the road

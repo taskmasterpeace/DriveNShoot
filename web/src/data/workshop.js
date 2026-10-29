@@ -120,6 +120,14 @@ export const MOUNT_WEAPONS = {
   harpoon:    { name: 'HARPOON GUN', kind: 'harpoon', size: 2, kg: 110, price: 600, labour: 1.5, faces: ['front', 'rear', 'top'], type: 'bullet',
                 mag: 0, rate: 0.6, range: 40,
                 desc: 'A whaling gun on a cable drum. Bite a car and tow it; fire again and yank it off its wheels.' },
+  // Grapples: a hook on a chain (vehicles.js fireHarpoon). reach = lengths x your car's length; it bites one throw in
+  // `hook` (the rest skid off and reel back in). Rig it heavier for more chain. A skill can raise `hook` later: one knob.
+  grapple:    { name: 'GRAPPLING HOOK', kind: 'harpoon', size: 1, kg: 45, price: 250, labour: 0.75, faces: ['front', 'rear'], type: 'bullet',
+                mag: 0, rate: 0.9, grapple: { lengths: 3, hook: 1 / 3 },
+                desc: 'A four-prong hook on three car lengths of chain. One throw in three it bites; then you own that car until the chain gives.' },
+  grapple_rig: { name: 'RIGGED GRAPPLE', kind: 'harpoon', size: 2, kg: 95, price: 700, labour: 1.5, faces: ['front', 'rear'], type: 'bullet',
+                mag: 0, rate: 0.9, grapple: { lengths: 6, hook: 1 / 3 },
+                desc: 'The same hook on a winch drum and six car lengths of chain. Still bites one throw in three, from twice as far.' },
   minedrop:   { name: 'MINE DROPPER', kind: 'drop', size: 1, kg: 50, price: 400, labour: 1, faces: ['rear'], group: 2, type: 'blast',
                 mag: 4, ammo: 'car_mine', perItem: 1, mine: { arm: 1.2, r: 2.2, dmg: 120, blast: 5, life: 120 },
                 desc: 'A chute of pressure mines. Arms a second after it lands; the next set of wheels over it goes up.' },

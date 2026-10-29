@@ -345,7 +345,7 @@ export class Workshop {
     else if (W.kind === 'flame') this.flame(v, mz, a, W, shooter);
     else if (W.kind === 'beam') this.beam(v, mz, dx, dz, W, shooter, 1);
     else if (W.kind === 'rail') this.beam(v, mz, dx, dz, W, shooter, W.pierce);
-    else if (W.kind === 'harpoon') { if (v.driver === g.player) g.vehiclesSys.fireHarpoon(v, a); else return false; }
+    else if (W.kind === 'harpoon') { if (v.driver === g.player) g.vehiclesSys.fireHarpoon(v, a, { front: face === 'front', grapple: W.grapple }); else return false; }
     else if (W.kind === 'emp') this.emp(v, mz, a, W, shooter);
     g.emit('mountFire', { vehicle: v.id, face, kind: m.kind, by: shooter?.id ?? null });
     return true;

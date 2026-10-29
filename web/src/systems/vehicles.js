@@ -572,13 +572,18 @@ export class Vehicles {
   }
 
   // ---- harpoon -------------------------------------------------------------------------
-  fireHarpoon(v, ang) {
+  // opts (a workshop mount, data/workshop.js): front = thrown off the nose, not the tail; grapple = { lengths, hook }: the
+  // chain reaches lengths x this car's length and bites one throw in `hook`, the rest skid off and reel back in.
+  fireHarpoon(v, ang, opts = {}) {
     if (this.harpoon) {
       if (this.harpoon.state === 'attached') this.yank();
       return;
     }
-    const ox = v.x - Math.sin(v.h) * 1.4, oz = v.z - Math.cos(v.h) * 1.4;
-    this.harpoon = { from: v, x: ox, z: oz, dx: Math.sin(ang), dz: Math.cos(ang), dist: 0, target: null, kind: null, state: 'flying', len: 0 };
+    const end = opts.front ? 1 : -1, off = opts.front ? v.len / 2 - 0.2 : 1.4;
+    const ox = v.x + Math.sin(v.h) * off * end, oz = v.z + Math.cos(v.h) * off * end;
+    const G = opts.grapple;
+    this.harpoon = { from: v, x: ox, z: oz, dx: Math.sin(ang), dz: Math.cos(ang), dist: 0, target: null, kind: null, state: 'flying', len: 0,
+      end, off, reach: G ? G.lengths * v.len : 48, hook: G ? G.hook : 1, grapple: !!G };
     this.g.audio.harpoon();
     this.g.hud.shake(0.3);
   }
@@ -623,7 +628,7 @@ export class Vehicles {
     const g = this.g;
     const v = h.from;
     if (v.dead || v.driver !== g.player) { this.releaseHarpoon(); return; }
-    const ax = v.x - Math.sin(v.h) * 1.4, az = v.z - Math.cos(v.h) * 1.4;
+    const ax = v.x + Math.sin(v.h) * (h.off ?? 1.4) * (h.end ?? -1), az = v.z + Math.cos(v.h) * (h.off ?? 1.4) * (h.end ?? -1);
     let bx, bz;
     if (h.state === 'flying') {
       const step = 95 * dt;
@@ -640,8 +645,15 @@ export class Vehicles {
         const d = Math.hypot(c.x - (h.x + h.dx * step * 0.5), c.z - (h.z + h.dz * step * 0.5));
         if (d < 0.8 + step * 0.5) { hit = c; kind = 'char'; best = 0; break; }
       }
+      if (hit && Math.random() >= h.hook) { // a grapple that didn't bite: it skids off and reels in
+        g.fx.sparks(h.x, 1.2, h.z, -h.dx, -h.dz, 6); g.audio.clank();
+        g.emit('grappleMiss', { vehicle: v.id, target: hit.id });
+        if (v.driver === g.player) g.hud.toast('DIDN\'T BITE — REELING IN', 'warn');
+        h.state = 'retract'; hit = null;
+      }
       if (hit) {
         h.state = 'attached'; h.target = hit; h.kind = kind;
+        g.emit('grappleHit', { vehicle: v.id, target: hit.id, kind, grapple: h.grapple });
         h.len = Math.max(6, Math.hypot(hit.x - ax, hit.z - az));
         if (kind === 'char') {
           hit.dragged = h; g.combat.damage(hit, 55, g.player, h.dx, h.dz, 'bullet');
@@ -649,7 +661,7 @@ export class Vehicles {
         } else {
           this.damage(hit, 20, g.player);
           g.fx.sparks(hit.x, 1.2, hit.z, -h.dx, -h.dz, 12);
-          g.hud.toast('HOOKED — [H] TO YANK', 'hot');
+          g.hud.toast(h.grapple ? 'HOOKED — FIRE AGAIN TO YANK' : 'HOOKED — [H] TO YANK', 'hot');
           if (hit.driver && hit.driver !== g.player) g.ai.onDamaged(hit.driver, g.player);
         }
         g.audio.clank();
@@ -660,7 +672,7 @@ export class Vehicles {
         h.state = 'retract';
       } else {
         h.x += h.dx * step; h.z += h.dz * step; h.dist += step;
-        if (h.dist > 48) h.state = 'retract';
+        if (h.dist > h.reach) h.state = 'retract'; // the end of the chain
       }
       bx = h.x; bz = h.z;
     } else if (h.state === 'retract') {
