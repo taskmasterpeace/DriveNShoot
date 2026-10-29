@@ -101,9 +101,9 @@ export function mixOf(P, rows = OCCUPATIONS, mix = MIX) {
   if (!ids.length) return [];
   // THE TAIL: a trade that would keep fewer than MIX.tailN people here is here only by the seed's say (MIX.tailKeep): not
   // every farm town has a beekeeper. One-of-a-kind posts (`one`) are a town's or not by their own rows, and a CORE trade (its fit to
-  // the place at least MIX.tailCore: the mine's diggers, the base's sentries) is never left to the seed.
-  if (mix.tailN > 0 && mix.tailKeep < 1) {
-    const sh0 = waterFill(w, cap), keep = ids.map((id, i) => rows[id].one || sh0[i] * P.n >= mix.tailN || fitOf(rows[id], P) >= mix.tailCore || hashU(P.seed, `${id}|tail`) < mix.tailKeep);
+  // the place times its holder factor at least MIX.tailCore: the mine's diggers, the base's sentries) is never left to the seed.
+  if (mix.tailN > 0 && mix.tailKeep < 1 && P.n >= mix.tailFrom) {
+    const sh0 = waterFill(w, cap), keep = ids.map((id, i) => rows[id].one || sh0[i] * P.n >= mix.tailN || fitOf(rows[id], P) * (rows[id].fac?.[P.cls] ?? 1) >= mix.tailCore || hashU(P.seed, `${id}|tail`) < mix.tailKeep);
     if (keep.some(Boolean)) { ids = ids.filter((_, i) => keep[i]); w = w.filter((_, i) => keep[i]); cap = cap.filter((_, i) => keep[i]); }
   }
   const sh = waterFill(w, cap);
