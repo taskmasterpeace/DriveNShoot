@@ -228,7 +228,7 @@ export async function citygenChecks({ api, g, check, C }) {
 
   await check('citygen: the country\'s plan - settlements along every streamed corridor (towns of several archetypes, homesteads to live in outside a city, real sites), off the interstate and the island, none overlapping; military bases only at real base anchors and never closer than 40 km', async () => {
     const plan = CGs.plan.filter((r) => !r.adhoc);
-    const towns = plan.filter((r) => r.kind === 'town'), rural = plan.filter((r) => r.kind === 'rural'), sites = plan.filter((r) => r.kind === 'site'), bases = plan.filter((r) => r.kind === 'base');
+    const towns = plan.filter((r) => r.kind === 'town'), rural = plan.filter((r) => r.kind === 'rural'), sites = plan.filter((r) => r.kind === 'site'), bases = plan.filter((r) => r.kind === 'base' && !r.milbase); // the generic reservations: 40 km apart (a real installation's row, data/milbases.js, stands where it really is: the overlap rule covers it)
     const archs = new Set(towns.map((r) => r.arch)), overlap = [];
     for (let i = 0; i < plan.length; i++) for (let j = i + 1; j < plan.length; j++) { const a = plan[i], b = plan[j]; if (Math.abs(a.x - b.x) < a.half + b.half && Math.abs(a.z - b.z) < a.half + b.half) overlap.push(`${a.id}/${b.id}`); }
     let close = 0; for (let i = 0; i < bases.length; i++) for (let j = i + 1; j < bases.length; j++) if (Math.hypot(bases[i].x - bases[j].x, bases[i].z - bases[j].z) < MILITARY.spacing) close++;

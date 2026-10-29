@@ -46,12 +46,14 @@ import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
-import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { undergroundCommands, undergroundChecks } from './underground-api.js';
+import { milbasesCommands, milbasesChecks } from './milbases-api.js'; // the military bases (WEB_MILITARY_BASES.md) // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md)
 import { zfightCommands, zfightChecks } from './zfight.js';
 import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-fight detector (WEB_DEPTH_LAYERS.md)
 import { siteStoriesCommands, siteStoriesChecks } from './sitestories-api.js'; // site stories and the Tally: places' living state, parties on the roads, stories, bounties (WEB_SITE_STORIES.md)
+import { townJobs, rolesChecks } from './roles-api.js'; // the work of a settlement: town action=jobs|who|diversity (WEB_OCCUPATIONS.md)
 import { pullsCommands, pullsChecks } from './pulls-api.js'; // pulls: bars, road people, the radio, boards, needs; what reached you (WEB_PULLS.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
@@ -1582,9 +1584,10 @@ function buildCommands(api) {
       },
     },
     town: {
-      group: 'world', desc: 'The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town\'s own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does).',
-      args: { radius: { type: 'number', default: 150 }, wake: { type: 'string' } },
-      run: async ({ radius, wake }) => {
+      group: 'world', desc: 'The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town\'s own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does). THE WORK (docs/design/WEB_OCCUPATIONS.md; rows in data/occupations.js): action=jobs [id=cg-N] the settlement you are in (or nearest): its tags, holder, workforce, every job with its count, workplace, shift and what it makes, its diversity against the goal, its stock (only what was worked for); action=who its workers (name, flag, job, on shift, walking or working, hours banked); action=diversity every settlement against the goal; action=dump the plan records tools/role-diversity.mjs scores; action=validate the rows; action=promote bring the built town workers in now.',
+      args: { radius: { type: 'number', default: 150 }, wake: { type: 'string' }, action: { type: 'string', default: 'night', enum: ['night', 'jobs', 'who', 'diversity', 'dump', 'validate', 'promote'] }, id: { type: 'string' } },
+      run: async ({ radius, wake, action, id }) => {
+        if (action && action !== 'night') return townJobs(api, need, { action, id });
         const p = P();
         if (wake) { const c = api.findChar(wake); need(c, `no character ${wake}`); g.ai.wake(c, 'shaken awake'); }
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < radius && g.ai.sleeper(c));
@@ -2047,6 +2050,7 @@ function buildCommands(api) {
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     ...creatorCommands(api), // creator, sheet
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
+    ...milbasesCommands(api, need), // milbase (WEB_MILITARY_BASES.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
@@ -2233,6 +2237,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
   const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
   const storiesWas = g.stories.enabled; g.stories.enabled = false; g.stories.sleep(); // site stories: off too, its own stage below
+  // The workforce (systems/workforce.js) would put workers into every town an unrelated check stamps: off for the battery;
+  // its own checks (agent/roles-api.js) turn it on.
+  const workWas = g.workforce.enabled; g.workforce.enabled = false;
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5988,11 +5995,14 @@ async function runSelfTest(api, only = null, skip = null) {
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
+  await milbasesChecks({ api, g, check, C }); // the military bases: rows, the wire, the armory, the gate rule, the blast door, the horde (WEB_MILITARY_BASES.md §8)
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   await backlotsChecks({ api, g, check, C }); // the back lots: alleys, yards, back doors, fences, pathing (WEB_BACK_LOTS.md §8)
   await zfightChecks({ g, check, C }); // the depth layers: no flicker at seven spots, blood shows from the widest zoom (WEB_DEPTH_LAYERS.md §8)
-  await wrecksChecks({ api, g, check, C }); // no static car built from boxes: every one is our body, dead
+  await wrecksChecks({ api, g, check, C });
+  await rolesChecks({ api, g, check, C }); // the work of a settlement: rows, the diversity goal, dock work where the water is, to work at shift start, goods only from work (WEB_OCCUPATIONS.md §8)
+  g.workforce.enabled = workWas; // no static car built from boxes: every one is our body, dead
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
@@ -6027,6 +6037,7 @@ export function snapshot(g) {
     vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
+    milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
@@ -6102,6 +6113,7 @@ export function restore(g, s) {
   }
   // The underground before the player: a save that has you below makes your site live and your level promoted, so the
   // floor is under your feet when you stand again (an older save: every site as it was made).
+  g.milbases?.load(s.milbases ?? null);
   g.under?.load(s.under ?? null, s.player);
   const p = g.player;
   if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
