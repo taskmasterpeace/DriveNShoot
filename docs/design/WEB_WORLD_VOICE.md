@@ -10,7 +10,12 @@ Code:
 - `web/src/ui/radiofeed.js`: the HUD feed (the `radiofeed` row of `data/hudlayout.js`).
 - `web/src/agent/worldvoice-api.js`: the `farsound`, `feed`, `marks` and `campfire` commands and 10 checks.
 
-Renders: `docs/renders/web/world-voice/`.
+Renders: `docs/renders/web/world-voice/`:
+- `01-tagged-wall.jpg`: the Dustwolves' DW on a Miami Metro wall between the windows.
+- `02-tally-marks.jpg`: 17 strokes for its dead.
+- `03-dont-go-north.jpg`: Miami Metro's board, DON'T GO NORTHEAST / INTERSTATE EXIT CLUSTER FELL, painted once it held the news.
+- `04-campfire-night.jpg`: the crew sat round a fire at night.
+- `05-radio-feed-hud.jpg` and `05b-radio-feed-hud-crop.png`: THE WIRE on the HUD, three lines with their ages.
 
 ## 1. Overview
 Robert, 2026-10-29: "Sound gives about half the sense of depth for nearly no CPU", "the world tells you its stories", "it costs nothing in render time, gives the loop a breather", "it shows the persistent world working without new art".
@@ -80,7 +85,7 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 - **The read:**
   - If the copy's confidence is under 0.62, the line opens with a hedge ("Word is"). Otherwise it opens with a plain lead.
   - Under 0.5, the first number in the text is shifted 1 to 3 (the same way every time for that fact at that mast).
-  - The age comes last ("That was yesterday").
+  - The age comes last, by hours old (`FEED.ages`): under 1 h "just now", under 6 h "a few hours back", under 18 h "earlier today", under 42 h "yesterday", under 96 h "a couple of days back", otherwise "a while back".
 - **Who hears it:**
   - You, if you can hear a radio and are tuned to that station.
   - Every knowledge holder with a set inside the range.
@@ -104,9 +109,13 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 | ash | a campfire left behind | the fire id | a cold ring of ash and stones |
 
 - **Where a mark goes** (`on`):
-  - **wall:** a face of a live citygen building near the place that has no door, south faces first (the camera's side). It sits at chest height, 6 cm off the wall. If the place is not built near you, the mark goes on the ground instead.
+  - **wall:** a face of a live citygen building near the place.
+    - The face has no door. Faces with 6 m of open ground in front of them come first (a face 2 m from the next building is a slot nobody reads), then south faces (the camera's side).
+    - The mark goes in the widest bare stretch between the face's ground-floor windows. Their spans come from `VERT.window` (`every` 3.6 m, `w` 1.3 m, a metre in from each corner), the same numbers `world/citygen/build.js` lays them with. It is shrunk to fit (to 45% at most).
+    - It sits 4 cm proud of the outer face. The wall is 0.4 m thick, so the outer face stands 0.2 m out from the footprint's edge.
+    - If the place is not built near you, the mark goes on the ground instead.
   - **ground:** paint on the street near the place's centre.
-  - **board:** a plank on two posts, leaned back 54° so it reads from the top-down camera.
+  - **board:** a plank leaned back 54° so it reads from the top-down camera, its centre 1.25 m up (clear of a road's raised bed), on two posts set behind it.
 - **Drawing:**
   - Marks within 240 m are drawn, with a cap of 96. The near set is rebuilt when you move 18 m or a mark changes.
   - Each mark has a 256 × 128 slot in one 2048 × 1024 canvas atlas, painted once and given back when the mark is far.
@@ -123,12 +132,12 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 - **The fire:**
   - It is made 2.6 m in front of you: five logs and nine stones (one instanced mesh), and three additive glow quads that flicker (no new light).
   - It keeps one light of the fx's fixed pool lit (re-armed every 0.35 s), so the light count holds.
-  - While it burns, `crew.camp` is the fire (the crew's own camp talk is held off). Members by their seat sit (crouch).
+  - While it burns, `crew.camp` is the fire (the crew's own camp talk is held off). Each member at the fire walks to a seat round it (2.4 m out) under the crew's own `holdpos` order, sits (crouch) and faces the fire. Their previous order comes back when the fire ends.
 - **A line every 6 s:**
   - It is the best line nobody has said tonight, spoken by each member in turn through `crew.say(m, text, true, 'camp', null, { campfire, line, ref })`, which carries it to the subtitle, the voice layer and the LLM hook.
   - Candidates, by weight:
     - **real events** (+2): chronicle rows in the last 30 game hours within 6 km. That means a raid, fall or take, a skirmish, your kill (it names the target and the place), or someone else's kill.
-    - **heard** (+1): a shot, volley, engine or blast from the far-sound ledger, with its bearing.
+    - **heard** (+1): from the far-sound ledger, with its bearing. `heard:shot` takes a shot, volley or blast, and `heard:engine` takes an engine, so a line about shooting is never said of a car.
     - **news:** a radio copy you hold.
     - **stats:** hp under 50%, food under 0.35, cash over 400, kills over 10, wanted, morale under 0.
     - **area:** the biome (swamp, desert, coast, ruins).
@@ -139,6 +148,7 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
   - you and every member at the fire gain 0.06 rest;
   - the first line adds the `campfire` morale mod (+4 for 14 h);
   - two members who talk move their bond by `BOND_RULES.campNudge`.
+- **The look:** the glow quads are `toneMapped: false` and `fog: false` (as the fx's own flames are), or the night's exposure and fog swallow them. The pool is 5.5 m across in `#c2611f`, and the pool light's power is 70.
 - **It ends** after 5 exchanges ("burned down"), when you walk 14 m off or get in a car, at dawn (night under 0.3), or when a threat comes. A cold ring of ash is left as a mark.
 
 ## 4. Formulas
@@ -156,6 +166,8 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 - **Tally:** `n = Σ kill rows at the place + raided "N dead" + round(skirmish m)`, capped at 40.
 
 ## 5. Edge Cases
+- **You moved since the last pulls tick** (a teleport, a fast car): the feed puts your holder where you are before it measures the station's range, so you are never left out of a broadcast you stand under.
+- **History already in the chronicle when the page boots** is not news: the feed's cursor starts at the chronicle's newest row. Only rows written after that become facts.
 - **A shot inside 520 m** is the ordinary sound's job. The far layer never queues it (checked).
 - **A source that stops** (a car parks) stops being heard. What is already in the air still lands: sound that has left does not come back.
 - **No mast in range:** the station is static ("No mast in reach" on a forced read). A mast with nothing new also plays static.
@@ -186,7 +198,8 @@ Shared-file hooks (exact):
 | `web/src/systems/radio.js` | 1 line in `update`: `if (S.kind === 'feed') this.g.feed?.tick(S, dt)` |
 | `web/src/data/radio.js` | 2 station rows (`wire`, `tally`, kind `feed`) and a comment |
 | `web/src/data/hudlayout.js` | 1 row: `radiofeed` (`.rf-feed`, top right under the pulls chip) |
-| `web/src/agent/api.js` | import; `...worldVoiceCommands`; `voiceWas` (off for the battery) and `worldVoiceChecks` after the pulls' checks; the snapshot saves `voice: { feed, marks }`; restore loads them, puts out a fire and clears the far queue |
+| `web/src/agent/api.js` (runSelfTest) | `g.selftestLive = { results, ms, done, at }`, with each check's ms. A long battery can be read with `exec` after the bridge stops waiting. It is set at the start and end of `runSelfTest`, plus one line in `check` |
+| `web/src/agent/api.js` | import; `...worldVoiceCommands`; `voiceWas` (all four off for the battery; back on at its very end, after the crew's and the rites' checks) and `worldVoiceChecks` after the pulls' checks; the snapshot saves `voice: { feed, marks }`; restore loads them, puts out a fire and clears the far queue |
 | `data/pulls.js`, `data/stats.js` | not edited. `FACT_KINDS.news`/`market` and `MORALE.mods.campfire` are added at import from `data/worldvoice.js` |
 | `web/docs/COMMANDS.md` | regenerated |
 
