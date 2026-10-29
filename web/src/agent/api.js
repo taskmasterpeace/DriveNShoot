@@ -60,6 +60,8 @@ import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys, fenced back yards, docks, back doors (WEB_BACK_LOTS.md)
 import { wrecksCommands, wrecksChecks } from './wrecks-api.js'; // dead cars: our real bodies, in one batched mesh (WEB_BACK_LOTS.md §3.5)
+import { semisCommands } from './semis-api.js'; // tractor-trailers: the hitch, the ramp, cars in the hold, the freight (WEB_SEMIS.md)
+import { semisChecks } from './semis-selftest.js';
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -2056,6 +2058,7 @@ function buildCommands(api) {
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
+    ...semisCommands(api, need), // semi (WEB_SEMIS.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
@@ -3303,6 +3306,7 @@ async function runSelfTest(api, only = null, skip = null) {
     } finally { wvClean([v, d, a, t]); }
   }));
   await decksStanceChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // boats, the aisle, roofs, prone, footing, the turret seat (src/agent/decks-stance-selftest.js)
+  await semisChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // tractor-trailers: hitch, reverse, jackknife, a car into a moving semi, the RV, the road rules (src/agent/semis-selftest.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };

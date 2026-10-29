@@ -401,7 +401,7 @@ export class Vehicles {
     // Vehicle vs vehicle: each body is a chain of discs along its length (a long rig is
     // 3-4 discs, a buggy 2), so cars can't slide into the side of a truck.
     for (const o of this.list) {
-      if (o === v) continue;
+      if (o === v || g.semis?.linked(v, o)) continue; // a tractor and its trailer; a car in a hold (systems/semis.js)
       const reach = (v.len + o.len) * 0.5 + 1;
       if (Math.abs(o.x - v.x) > reach || Math.abs(o.z - v.z) > reach) continue;
       if (v.y > o.y + o.tall * 0.85 || o.y > v.y + v.tall * 0.85) continue; // one is flying over the other
@@ -548,6 +548,8 @@ export class Vehicles {
       v.handbrake = false;
     } else if (v.ai === 'convoy') {
       g.convoy.drive(v, dt);
+    } else if (v.ai === 'semi') {
+      g.semis.aiDrive(v, dt); // the freight's rigs and pilot cars (systems/semis.js)
     } else if (v.ai === 'raider') {
       // Hunt the player's vehicle; ram it.
       const p = g.player;
@@ -726,10 +728,12 @@ export class Vehicles {
       this.decks.capture(v); // its deck's riders back into its frame before it moves (systems/decks.js)
       if (v.driver && v.driver !== g.player && !v.dead) this.aiDrive(v, dt);
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
-      this.drive(v, dt);
-      this.collide(v, dt);
-      g.stunts?.step(v, dt); // the vertical half: ride the ground on its springs, fly, land
-      const lit = !!v.driver && !v.dead;
+      if (!g.semis?.tick(v, dt)) { // a trailer moves through its tractor, a car in a hold through its trailer (systems/semis.js)
+        this.drive(v, dt);
+        this.collide(v, dt);
+        g.stunts?.step(v, dt); // the vertical half: ride the ground on its springs, fly, land
+      }
+      const lit = (!!v.driver || !!v.towedBy?.driver) && !v.dead;
       // Brake lights: braking (throttle against the direction of travel) or the handbrake flares them.
       const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
       v.braking = lit && (v.handbrake || (v.throttle < 0 && fwd > 0.5) || (v.throttle > 0 && fwd < -0.5));

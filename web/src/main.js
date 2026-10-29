@@ -16,6 +16,7 @@ import { Swamp } from './systems/swamp.js';
 import { RAIL_AVOID } from './world/rail.js';
 import { Train } from './systems/train.js';
 import { Convoy } from './systems/convoy.js';
+import { Semis } from './systems/semis.js';
 import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
@@ -217,6 +218,7 @@ class Game {
     this.backlots = new BackLots(this); // their alleys, yard fences and gates, back-door locks, town pathing (docs/design/WEB_BACK_LOTS.md)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
+    this.semis = new Semis(this); // tractor-trailers: the hitch, the ramp, cars in the hold, the freight (systems/semis.js)
     this.ambient = new Ambient(this);
     this.residents = new Residents(this); // the Phoenix ring's people: records by building, promoted near you (WEB_STREAMING §1.3 R2)
     this.regions = new Regions(this); // Florida (WEB_FLORIDA.md): where a new game starts, Meridian's people, the gators, the region's infected
@@ -998,7 +1000,7 @@ class Game {
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
       if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
-      if (veh === p.onDeck?.v) continue; // the one you stand in: its wheel is a spot on its deck (systems/decks.js)
+      if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
@@ -1307,6 +1309,7 @@ class Game {
       this.workshop.update(simDt); // rockets in flight, seeker locks, power, nitrous, the fire bottles
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
+      this.semis.update(simDt); this.nanGuard('semis');
       this.travel.update(simDt); this.nanGuard('travel'); // the trundle on the road, the iron's riders, the boards
       this.clone.update(simDt); // brine money, the pickers on your husks, the husk drawn near you
       this.ambient.update(simDt);
