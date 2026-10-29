@@ -47,6 +47,8 @@ const CSS = `
 .tb-foot { margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font: 600 14px var(--display, 'Arial Narrow'); color: oklch(0.88 0.04 120); text-transform: uppercase; letter-spacing: 0.05em; }
 .tb-foot kbd { background: oklch(0.25 0.03 60); border: 1px solid oklch(0.5 0.05 85); border-radius: 4px; padding: 0 5px; margin-right: 4px; color: var(--sand, #e7d6b4); }
 `;
+import { Shoe, Blackjack } from '../systems/cards.js';
+import { STAKES, BLACKJACK } from '../data/casinos.js';
 const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
 const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 const SUIT = { S: '♠', H: '♥', D: '♦', C: '♣' };
@@ -80,6 +82,15 @@ export class TablePanel {
     const s = cas.seat; this.bet = Math.max(s.v.row.min, Math.min(s.v.row.max, this.bet || s.v.row.min));
     this.wasPaused = this.g.paused; this.g.paused = true; this.g.input?.down?.clear?.();
     this.render(); this.wrap?.classList.remove('hidden');
+  }
+  // The HUD editor's preview (data/panellayout.js `table`): a sample hand off a real shoe, nobody seated, nothing staked.
+  preview() {
+    const shoe = new Shoe(BLACKJACK.floor.decks, BLACKJACK.floor.pen, () => 0.5), t = { i: 0, game: 'blackjack', shoe, dealer: { name: 'Card dealer' }, last: null };
+    t.bj = new Blackjack(BLACKJACK.floor, shoe); t.bj.deal(STAKES.floor.min * 4);
+    const v = { id: 'preview', kind: 'floor', row: STAKES.floor, name: 'Sample table' };
+    this.show({ seat: { v, t, game: 'blackjack' }, house: () => STAKES.floor.cage[0], leave() {}, chessView: () => null });
+    this.say = 'A sample hand. Nothing is staked.'; this.render();
+    const ch = document.createElement('div'); ch.className = 'tb-chessside'; ch.style.display = 'none'; this.panel?.insertBefore(ch, this.panel.querySelector('.tb-say'));
   }
   close() {
     if (!this.open) return;

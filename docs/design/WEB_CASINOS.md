@@ -146,6 +146,13 @@ The cashier keeps running, all the way to the town board. The next morning there
 - **When it sees an intruder:** the drone tracks you, marks you (8 s) and raises the room's alarm at the spot it saw you. After 6 s without seeing you, it goes back to its loop.
 - **Shooting it down:** your rounds (`combat.js` segment) meet a drone whose spot the round crosses. At 0 hp (26) it falls and breaks.
 - **Jamming it:** a `jammer` in your pack within 22 m makes it lose you and fly home for 30 s.
+- **Power** (Robert, 2026-10-29: "the security drones got to also get fuel or if they have multiple ones, they rotate"):
+  - A drone flies `battery` (300 s) on a charge. Chasing costs ×1.5.
+  - Under `reserve` (18%), it turns for the property's **charging pad** and charges for up to `charge` (150 s from empty).
+  - **One pad a property** (behind a room's back wall, beside a home): a real thing drawn on the ground, with a charger box and a lamp. The lamp is green when the pad is ready, blinks while a drone charges, and shows red once the cable is cut.
+  - **They rotate:** a drone coming in sends the one charging on the pad up. So two are never on it at once, and an owner with several always has one in the air. Their batteries start staggered (the i-th of n at (n − i)/n of a charge), so they come in one at a time.
+  - **A lone drone leaves a gap** every flight (about 125 s on the pad out of every ~370 s). You can watch the pad's lamp to learn it.
+  - **Sabotage:** hold E at the pad for `cut` (3 s) to cut its cable. A drone that lands on a cut pad charges nothing and stays down. Run flat in the air, it falls.
 
 ## 4. Formulas
 - **House edge, about** (`edgeOf`): `0.44 + deck adj + 0.22·H17 + 4.6·(1.5 − bjPays) + 0.09·(no double-any) − 0.03·(re-splits)`.
@@ -175,6 +182,8 @@ The cashier keeps running, all the way to the town board. The next morning there
 - **A runner who can't reach the board** (killed, or the town released): nothing is posted. The robbery stays in the chronicle, and the deeds' own witnesses still gossip.
 - **A drone over a home in a town with no room:** a home exists only where a room flies drones. A home's alarm is its own and calls nobody.
 - **The town is released** (you leave): its rooms, homes and drones are dropped from memory. They roll the same money again only from the same building id. Money already moved (robbed or won) is not tracked across a release; this is the persistent-shard gap (§6).
+- **Two drones off duty** (a home's hours): the second parks beside the pad, not on it (it is not charging).
+- **A drone flat in the air** falls and breaks (`dronesFlat`). It happens only if it was kept chasing past its reserve, or jammed far from its pad.
 - **NPC rounds** never hit the house's drones (only your rounds are tested), so a guard firing at you can't down his own drone.
 
 ## 6. Dependencies (both ways)
@@ -185,6 +194,7 @@ The cashier keeps running, all the way to the town board. The next morning there
 - **ai** (`systems/ai.js`, one line): `c.casinoId && g.casinos.think(c, dt)`.
 - **combat** (`systems/combat.js`, five lines): a drone in a round's path (`kind 'cdrone'`), only for your rounds.
 - **main** (`main.js`, four lines): construct, update, E-interact first after gunpoint, `noise()` forwards to `onNoise`.
+- **TIMED-ACTIONS** (the lane building ladders, prying and kicking doors, and a crowbar and bolt-cutter toolkit): when it lands, the safe's pick, pry and blow and the back office's door switch to its break-in verbs. `SAFE` rows stay the times and noises until then.
 - **interiors / understreet** (read only): the back door and the drain way for `plan`.
 - **drones** (`systems/drones.js`): the same frame (body, four rotors, red eye, shadow) and the same fly-and-mark idea. The house's drones are their own records, because the existing drone is a single player-flown bird.
 - **gadgets** (`data/gadgets.js` `breach_charge`), **items** (`lockpicks`, `crowbar`; the `jammer` row is registered from `data/casinos.js`).
@@ -207,8 +217,9 @@ The cashier keeps running, all the way to the town board. The next morning there
 | SAFE.*.time / noise | 9/0 · 5/30 · 2/90 | time 1-30 | quiet versus fast |
 | WITNESS.speed / bounty | 3.2 / 0.5 | speed 2-5 | how long you have before the board knows |
 | SEC_DRONE.sight / hp / jam / hours | [30, 14] / 26 / 22 / 18-7 | sight 10-50 | how hard the rich are to rob |
+| SEC_DRONE.battery / charge / reserve / trackMul / cut | 300 / 150 / 0.18 / 1.5 / 3 | charge < battery (validated) | the lone drone's gap (≈ charge × (1 − reserve)); how long a chase can last; how fast the pad is cut |
 
-## 8. Acceptance Criteria (`selftest only=casinos:`, 13 checks)
+## 8. Acceptance Criteria (`selftest only=casinos:`, 15 checks)
 | check | proves |
 |---|---|
 | the rows validate | `validateCasinos` passes the shipped rows; a broken set (bad `where`, purple felt, a cage too small for its max, 0 decks, depth 9, an unknown chess player, a safe tool that is not an item, a purple drone eye) trips at least 7 named errors |
@@ -222,5 +233,7 @@ The cashier keeps running, all the way to the town board. The next morning there
 | the bounty board gets the robbery only after a witness reaches it | no bounty while the witness runs. On their arrival, a player bounty for the robbery's chronicle row is pinned on that board, and the house's cash went down by exactly the pay |
 | a guard who sees it or hears it raises the alarm at once | the cage guard in sight: instant alarm. The office safe blown with the only guard behind a wall (no line of sight) inside earshot: instant alarm, named as heard |
 | a security drone spots by line of sight only | open ground with a gun up: seen, tracked, marked, the alarm raised at your spot. Behind the building (inside range): not seen. Inside the building: not seen. A jammer in the pack: jammed, no alarm |
+| security drones rotate on a real battery | the high-roller room's three drones over 15 minutes (half-second ticks of the drones' own update): never two on the pad, never none in the air, each one lands to charge. The floor's lone drone leaves at least 2 gaps adding up to at least 1.5 × `charge` |
+| a cut charging pad grounds the fleet | E held at the pad through the real `interact` path cuts it. Every drone that comes in low stays `grounded` on it |
 | a security drone can be shot down | your rounds through the real `combat.hitscan` path take its hp; it falls, and `dronesDown` +1 |
 | draw calls stay under budget | a strip live with its rooms, tables and drones: < 150 |

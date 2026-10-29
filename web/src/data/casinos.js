@@ -86,7 +86,14 @@ export const WITNESS = { speed: 3.2, arrive: 6, bounty: 0.5, min: 40, max: 2500 
 // property on the schedule (hours on), see by line of sight only (law 6: a body inside a building is under a roof),
 // MARK what they see and call the guards to where they saw it. Shot down (hp), jammed (a jammer in your pack within jam
 // m: it loses you and goes home), or avoided (crouch, the dark, a roof).
-export const SEC_DRONE = { name: 'Security drone', hp: 26, speed: 6, alt: 7, sight: [30, 14], crouchMul: 0.6, mark: 8, hours: [18, 7], jam: 22, homeRest: 30, color: '#3a3a36', eye: '#ff3b2a' };
+// Power (Robert, 2026-10-29: "the security drones got to also get fuel or if they have multiple ones, they rotate"): a
+// drone flies `battery` s on a charge (x trackMul while it chases), turns for home under `reserve` of it, and charges
+// on the property's DOCK (a real pad you can find; `cut` s of a held E cuts its cable) for `charge` s. One pad a
+// property: a drone coming in to charge sends the one on the pad up (they rotate), so two are never on it at once and
+// an owner with several always has one up; a lone drone leaves a gap while it charges. A cut pad charges nothing: a
+// drone that lands on it stays down. Run flat in the air, it falls.
+export const SEC_DRONE = { name: 'Security drone', hp: 26, speed: 6, alt: 7, sight: [30, 14], crouchMul: 0.6, mark: 8, hours: [18, 7], jam: 22, homeRest: 30, color: '#3a3a36', eye: '#ff3b2a',
+  battery: 300, charge: 150, reserve: 0.18, trackMul: 1.5, cut: 3 };
 export const JAMMER = { jammer: { name: 'Signal jammer', kind: 'gadget', kg: 0.9, bulk: 0.8, stack: 1, value: 180, tags: ['jammer'],
   desc: 'A box of coils off a pre-war cab radio. Within twenty paces no little flier hears its master.' } };
 
@@ -135,6 +142,8 @@ export function validateCasinos(rows = { STAKES, BLACKJACK, CHESS_PLAYERS, CHESS
   const D = rows.SEC_DRONE ?? {};
   if (!(D.hp > 0 && D.speed > 0 && Array.isArray(D.sight) && D.sight.length === 2 && D.sight[1] > 0 && D.sight[1] <= D.sight[0])) e.push('sec_drone: hp, speed, sight [day, night] (night no further than day)');
   if (PURPLE(D.color) || PURPLE(D.eye)) e.push('sec_drone: purple');
+  if (!(D.battery > 0 && D.charge > 0 && D.reserve > 0 && D.reserve < 0.5 && D.trackMul >= 1 && D.cut > 0)) e.push('sec_drone: battery, charge, reserve (0..0.5), trackMul, cut');
+  if (D.charge >= D.battery) e.push('sec_drone: a charge as long as a flight leaves a pair of drones nobody in the air');
   if (!(rows.WITNESS?.speed > 0 && rows.WITNESS?.bounty > 0)) e.push('witness: speed and bounty');
   for (const [k, v] of Object.entries(rows.DEALER_EYE ?? {})) if (!(v >= 0 && v <= 1)) e.push(`dealer eye ${k}: ${v}`);
   return e;

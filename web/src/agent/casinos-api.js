@@ -95,7 +95,10 @@ export async function casinoChecks(api, check, C) {
     }
     return !!(hi && fl);
   };
-  const atRoom = async (v) => { await stand(v.x, v.z); CS.scanT = 0; await C('step', { seconds: 1.2 }); return v.live; };
+  // staged: the house's people (drifters) neither like nor hate you, whatever earlier checks did to drifters
+  const F = g.society.factions, standing0 = new Map();
+  const neutral = (v) => { const c = CS.people(v)[0]; if (!c || !(c.fi >= 0)) return; const id = F.ids[c.fi]; if (!standing0.has(id)) standing0.set(id, F.standing[c.fi]); if (F.reading(c.fi) < 5) F.set(id, 5 - (F.bias?.[c.fi] ?? 0)); };
+  const atRoom = async (v) => { await stand(v.x, v.z); CS.scanT = 0; await C('step', { seconds: 1.2 }); neutral(v); return v.live; };
   try {
     await check('casinos: the rows validate - the stakes ladder, blackjack rules, chess players, the eye, the safe\'s tools as real items, the drones, no purple felt; a broken row set trips named errors', async () => {
       const e = validateCasinos(undefined, ITEMS);
@@ -306,7 +309,7 @@ export async function casinoChecks(api, check, C) {
       g.sky.time = 13; if (!P.weapon) P.weapon = 'pistol'; if (g.arms) g.arms.stance = 'raised';
       const L = CS.layout(hi), out = L.at(L.depth + 6, 0), back = L.at(-3, 0);
       // open ground in front of the door, the drone 12 m off over the street side
-      const hold = (x, z) => { d.x = x; d.z = z; d.state = 'patrol'; d.seen = null; d.hp = SEC_DRONE.hp; d.jamT = 0; };
+      const hold = (x, z) => { d.x = x; d.z = z; d.state = 'patrol'; d.seen = null; d.hp = SEC_DRONE.hp; d.jamT = 0; d.bat = SEC_DRONE.battery; };
       await stand(out.x, out.z); hold(out.x + L.ax * 10, out.z + L.az * 10); // along the front, over the street side
       if (g.arms) g.arms.stance = 'raised'; // the gun up now (a staged step lets the arm drop)
       const open = CS.droneSees(d, P); CS.updateDrones(0.05);
@@ -329,11 +332,47 @@ export async function casinoChecks(api, check, C) {
       if (!(await setup())) return 'no strip';
       const d = CS.drones.find((x) => x.owner === hi && x.state !== 'gone'); if (!d) return 'no drone';
       const L = CS.layout(hi), out = L.at(L.depth + 12, 0);
-      await stand(out.x, out.z); d.x = out.x + 6; d.z = out.z; d.state = 'patrol'; d.hp = SEC_DRONE.hp; d.live = true;
+      await stand(out.x, out.z); d.x = out.x + 6; d.z = out.z; d.state = 'patrol'; d.hp = SEC_DRONE.hp; d.live = true; d.bat = SEC_DRONE.battery;
       const down0 = CS.counts.dronesDown;
       for (let i = 0; i < 12 && d.state !== 'falling' && d.state !== 'gone'; i++) { d.x = out.x + 6; d.z = out.z; g.combat.hitscan(P, P.x, P.z, 1, 0, 30, 10, 'ammo_pistol', 0, null); await C('step', { seconds: 0.1 }); }
       await restoreRoom(hi);
       return (d.state === 'falling' || d.state === 'gone') && CS.counts.dronesDown === down0 + 1 ? true : JSON.stringify({ state: d.state, hp: d.hp });
+    });
+
+    // The drones' power (Robert: "they got to also get fuel or if they have multiple ones, they rotate"). Their own clock is
+    // run here in half-second ticks (the update the game calls every frame), the player calm and unarmed in the room.
+    const fleet = (o) => CS.drones.filter((x) => x.owner === o);
+    const reset = (o) => { const L = fleet(o); L.forEach((d, i) => { d.state = 'patrol'; d.bat = SEC_DRONE.battery * (L.length - i) / L.length; d.charges = 0; d.hp = SEC_DRONE.hp; d.seen = null; d.jamT = 0; }); o.dock.broken = false; o.dock.cut = 0; };
+    await check('casinos: security drones rotate on a real battery - three on the high-roller room: never two on the pad at once and never none in the air over 15 minutes, each one charges in turn; the floor\'s lone drone leaves gaps while it charges', async () => {
+      if (!(await setup())) return 'no strip';
+      await atRoom(hi); await restoreRoom(hi); if (g.arms) g.arms.stance = 'lowered';
+      reset(hi); reset(fl);
+      let both = 0, none = 0, gapT = 0, gaps = 0, wasGap = false;
+      for (let i = 0; i < 1800; i++) {
+        CS.updateDrones(0.5);
+        const H = fleet(hi), onPad = H.filter((d) => d.state === 'charging').length, up = H.filter((d) => !['charging', 'grounded', 'docked', 'gone', 'falling'].includes(d.state)).length;
+        if (onPad > 1) both++; if (up === 0) none++;
+        const lone = fleet(fl)[0], gap = lone && lone.state === 'charging';
+        if (gap) gapT += 0.5; if (gap && !wasGap) gaps++; wasGap = gap;
+      }
+      const charged = fleet(hi).every((d) => d.charges >= 1), alive = fleet(hi).every((d) => d.state !== 'gone' && d.state !== 'falling');
+      const ok = fleet(hi).length === 3 && both === 0 && none === 0 && charged && alive && gaps >= 2 && gapT >= SEC_DRONE.charge * 1.5;
+      reset(hi); reset(fl);
+      return ok ? true : JSON.stringify({ n: fleet(hi).length, both, none, charges: fleet(hi).map((d) => d.charges), states: fleet(hi).map((d) => d.state), gaps, gapT });
+    });
+
+    await check('casinos: a cut charging pad grounds the fleet - hold E at the pad behind the room: its cable is cut, and every drone that comes in low stays down on it', async () => {
+      if (!(await setup())) return 'no strip';
+      await atRoom(hi); await restoreRoom(hi); reset(hi);
+      const K = hi.dock; await stand(K.x + 0.6, K.z);
+      const held = { key: (c) => c === 'KeyE', hit: () => false };
+      for (let i = 0; i < 10 && !K.broken; i++) CS.interact(P, held, 0.5);
+      const cut = K.broken;
+      for (let i = 0; i < 1400; i++) CS.updateDrones(0.5);
+      const states = fleet(hi).map((d) => d.state);
+      const ok = cut && states.every((s) => s === 'grounded');
+      reset(hi);
+      return ok ? true : JSON.stringify({ cut, states });
     });
 
     await check('casinos: draw calls stay under budget with a casino strip live (rooms, tables and drones are two instanced meshes)', async () => {
@@ -347,6 +386,7 @@ export async function casinoChecks(api, check, C) {
     for (const v of [...CS.venues.values()]) if (v.town === ID) { CS.demote(v); CS.venues.delete(v.id); CS.dropDrones(v); }
     for (const h of [...CS.homes.values()]) if (h.town === ID) { CS.homes.delete(h.id); CS.dropDrones(h); }
     CS.runners.length = 0;
+    for (const [id, s] of standing0) F.set(id, s);
     await C('load', { save: sv });
     g.cash = was.cash; g.wanted = was.wanted; g.zombies.enabled = was.z; g.raiderTimer = was.r; g.convoy.next = was.convoy; g.stories.enabled = was.stories; CS.enabled = was.enabled;
   }

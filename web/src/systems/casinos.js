@@ -30,7 +30,7 @@ import { wayTop } from '../world/understreet.js';
 // Two instanced meshes (the rooms' furniture, rebuilt only when a room opens or closes; the drones, written in place every
 // frame), no lights.
 
-const FURN_CAP = 900, DYN_CAP = 160, GLOW_CAP = 96, LIVE_R = 140, DROP_R = 220;
+const FURN_CAP = 900, DYN_CAP = 220, GLOW_CAP = 96, LIVE_R = 140, DROP_R = 220;
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 const r1 = (v) => Math.round(v * 10) / 10;
 const iroll = (rng, [a, b]) => Math.round(a + rng() * (b - a));
@@ -123,7 +123,8 @@ export class Casinos {
         v.guards.push({ role: 'patrol', name: 'Floor man', flag: g.randomFlag(rng), post: null, loop, c: null, dead: false });
       }
       for (let i = 0; i < row.cameras; i++) { const s = i % 2 ? 1 : -1, back = i < 2; const at = L.at(back ? 0.4 : L.depth - 0.4, s * (L.width / 2 - 0.4)); v.cameras.push({ x: at.x, z: at.z, h: Math.atan2(L.at(L.depth / 2, 0).x - at.x, L.at(L.depth / 2, 0).z - at.z), broken: false }); }
-      for (let i = 0; i < row.drones; i++) this.drones.push(this.droneRec(v, i, B, [0, 24]));
+      v.dock = this.dockFor(L.at(-3, -L.width / 2 + 2.5));
+      for (let i = 0; i < row.drones; i++) this.drones.push(this.droneRec(v, i, B, [0, 24], row.drones));
     }
     this.venues.set(v.id, v);
     this.dirty = true;
@@ -141,14 +142,18 @@ export class Casinos {
     const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2;
     const h = { id: B.id, town: t.rec.id, x: cx, z: cz, y: t.rec.y ?? 0, w: B.x1 - B.x0, d: B.z1 - B.z0, B, owner: null, home: true, alarm: 'calm', lastSeen: null, guards: [] };
     const v = [...this.venues.values()].find((q) => q.town === t.rec.id && q.row.drones); h.owner = v?.owner ?? 'the house'; h.venue = v?.id ?? null;
+    h.dock = this.dockFor({ x: B.x1 + 3, z: cz });
     this.homes.set(B.id, h);
-    this.drones.push(this.droneRec(h, 0, B, SEC_DRONE.hours));
+    this.drones.push(this.droneRec(h, 0, B, SEC_DRONE.hours, 1));
   }
-  // A drone's loop: the property's corners 4 m out from the walls, at its height.
-  droneRec(v, i, B, hours) {
+  // The property's charging pad: a real thing on the ground outside the building (cut its cable and the fleet is done).
+  dockFor(at) { return { x: at.x, z: at.z, broken: false, cut: 0, by: null }; }
+  // A drone's loop: the property's corners 4 m out from the walls, at its height. Its battery starts staggered (the i-th
+  // of n at (n - i) / n of a charge) so a fleet comes in to charge one at a time.
+  droneRec(v, i, B, hours, n = 1) {
     const m = 4, loop = [[B.x0 - m, B.z0 - m], [B.x1 + m, B.z0 - m], [B.x1 + m, B.z1 + m], [B.x0 - m, B.z1 + m]].map(([x, z]) => ({ x, z }));
     const k = i % 4, p = loop[k];
-    return { id: `${v.id}:d${i}`, owner: v, loop, k: (k + 1) % 4, x: p.x, z: p.z, y: SEC_DRONE.alt, h: 0, hp: SEC_DRONE.hp, state: 'patrol', hours, seen: null, seenT: 0, markT: 0, jamT: 0, dock: { x: (B.x0 + B.x1) / 2, z: (B.z0 + B.z1) / 2 }, live: false, down: 0 };
+    return { id: `${v.id}:d${i}`, owner: v, loop, k: (k + 1) % 4, x: p.x, z: p.z, y: SEC_DRONE.alt, h: 0, hp: SEC_DRONE.hp, state: 'patrol', hours, seen: null, seenT: 0, markT: 0, jamT: 0, live: false, down: 0, bat: SEC_DRONE.battery * (n - i) / n, charges: 0 };
   }
   // The room laid out from its own front (the same frame pulls.js uses for a bar).
   layout(v) {
@@ -512,7 +517,7 @@ export class Casinos {
     const row = g.understreet?.byTown?.get(v.town), ways = row?.net?.ways ?? [];
     let drain = null, dd = 1e9; for (const w of ways) { const q = wayTop(w), k = w.store === v.id ? -1 : Math.hypot(q.x - v.x, q.z - v.z); if (k < dd) { dd = k; drain = { ...q, kind: w.kind, under: w.store === v.id }; } }
     out.routes.push(drain ? { how: 'storm drain', way: drain.kind, under: drain.under, at: { x: r1(drain.x), z: r1(drain.z) }, d: Math.round(Math.hypot(drain.x - v.x, drain.z - v.z)) } : { how: 'storm drain', at: null, note: 'no drain mouth near this block' });
-    out.inside = { cage: v.cagePos && { x: r1(v.cagePos.x), z: r1(v.cagePos.z), cash: '?' }, safe: v.safePos && { x: r1(v.safePos.x), z: r1(v.safePos.z) }, guards: v.guards.length, cameras: v.cameras.length, drones: this.drones.filter((d) => d.owner === v).length };
+    out.inside = { dock: v.dock && { x: r1(v.dock.x), z: r1(v.dock.z), cut: v.dock.broken }, cage: v.cagePos && { x: r1(v.cagePos.x), z: r1(v.cagePos.z), cash: '?' }, safe: v.safePos && { x: r1(v.safePos.x), z: r1(v.safePos.z) }, guards: v.guards.length, cameras: v.cameras.length, drones: this.drones.filter((d) => d.owner === v).length };
     return out;
   }
 
@@ -526,6 +531,8 @@ export class Casinos {
     const dist = Math.hypot(c.x - d.x, c.z - d.z); if (dist > r) return false;
     return g.los(d.x, d.z, c.x, c.z);
   }
+  dockNear(x, z, r) { for (const o of this.venues.values()) { const K = o.dock; if (K && o.live && Math.hypot(K.x - x, K.z - z) < r) return K; } for (const o of this.homes.values()) { const K = o.dock; if (K && Math.hypot(K.x - x, K.z - z) < r) return K; } return null; }
+  sabotage(K) { K.broken = true; K.by = 'player'; K.cut = 0; this.counts.docksCut = (this.counts.docksCut ?? 0) + 1; this.log('dockCut', { at: { x: r1(K.x), z: r1(K.z) } }); this.g.hud?.toast?.('THE CHARGER IS DEAD · THEIR DRONES COME DOWN WHEN THEY RUN LOW', 'job'); }
   homeAt(x, z) { for (const h of this.homes.values()) if (Math.abs(x - h.x) < h.w / 2 && Math.abs(z - h.z) < h.d / 2) return h; return null; }
   onDuty(d) { const [a, b] = d.hours, h = this.g.sky?.time ?? 12; return a <= b ? h >= a && h < b : h >= a || h < b; }
   // Who the drone calls in on: anyone on a home's grounds while it flies; at a room, only a barred or wanted face, a gun
@@ -542,10 +549,30 @@ export class Casinos {
       d.live = !!(d.owner.home ? this.g.citygen?.live?.has(d.owner.town) : d.owner.live);
       if (!d.live || d.state === 'gone') continue;
       if (d.state === 'falling') { d.y = Math.max(0.15, d.y - dt * 12); d.down += dt; if (d.down > 1) { d.state = 'gone'; g.fx?.explosion?.(d.x, d.z); } continue; }
-      if (!this.onDuty(d)) { d.state = 'docked'; this.fly(d, d.dock.x, d.dock.z, dt); d.y = Math.max(d.owner.home ? 4 : 6, d.y - dt); continue; }
-      if (d.state === 'docked') d.state = 'patrol';
+      const K = d.owner.dock;
+      // on the pad: charging (a cut pad charges nothing: it stays down), or parked off duty
+      if (d.state === 'charging' || d.state === 'grounded' || d.state === 'docked') {
+        d.x = K.x + (d.state === 'docked' ? d.k * 0.3 : 0); d.z = K.z; d.y = 0.25;
+        if (K.broken) { d.state = 'grounded'; continue; }
+        d.bat = Math.min(D.battery, d.bat + dt * D.battery / D.charge);
+        if (d.bat >= D.battery && this.onDuty(d)) d.state = 'patrol';
+        continue;
+      }
+      if (!this.onDuty(d)) d.state = 'returning';
+      d.bat -= dt * (d.state === 'track' ? D.trackMul : 1);
+      if (d.bat <= 0) { d.state = 'falling'; d.down = 0; this.counts.dronesFlat = (this.counts.dronesFlat ?? 0) + 1; this.log('droneFlat', { drone: d.id }); continue; }
+      if (d.state !== 'returning' && d.state !== 'jammed' && d.bat < D.battery * D.reserve) { d.state = 'returning'; d.seen = null; }
+      if (d.state === 'returning') {
+        d.y += (D.alt * 0.6 - d.y) * Math.min(1, dt * 2);
+        if (this.fly(d, K.x, K.z, dt)) {
+          // one pad: whoever is charging on it goes up as this one comes down (they rotate)
+          if (!K.broken) for (const o of this.drones) if (o !== d && o.owner === d.owner && o.state === 'charging') { o.state = 'patrol'; o.y = 1; }
+          d.state = this.onDuty(d) ? 'charging' : 'docked'; if (d.state === 'charging') d.charges++;
+        }
+        continue;
+      }
       if (jam && Math.hypot(P.x - d.x, P.z - d.z) < D.jam) { if (d.state !== 'jammed') { d.state = 'jammed'; d.jamT = D.homeRest; d.seen = null; this.log('jammed', { drone: d.id }); } }
-      if (d.state === 'jammed') { d.jamT -= dt; this.fly(d, d.dock.x, d.dock.z, dt); if (d.jamT <= 0) d.state = 'patrol'; continue; }
+      if (d.state === 'jammed') { d.jamT -= dt; this.fly(d, K.x, K.z, dt); if (d.jamT <= 0) d.state = 'patrol'; continue; } // lost its master: it hovers over its pad
       const sees = this.droneSees(d, P);
       if (sees && this.intruder(d)) {
         if (d.state !== 'track') { this.counts.spotted++; this.log('spotted', { drone: d.id, at: { x: r1(P.x), z: r1(P.z) } }); }
@@ -628,6 +655,13 @@ export class Casinos {
   interact(p, I, dt) {
     if (!this.enabled || p.inVehicle || this.g.tablePanel?.open) return false;
     const g = this.g, at = this.seatNear(p.x, p.z, 1.1);
+    const pad = this.dockNear(p.x, p.z, 1.8);
+    if (pad && !pad.broken) {
+      if (I.key('KeyE')) { pad.cut += dt; g.hud.prompt(`Cutting the charger's cable… ${Math.round(Math.min(1, pad.cut / SEC_DRONE.cut) * 100)}%`); if (pad.cut >= SEC_DRONE.cut) this.sabotage(pad); }
+      else { pad.cut = 0; g.hud.prompt("The drones' charging pad · hold <kbd>E</kbd> cut its cable"); }
+      this.ring.x = pad.x; this.ring.z = pad.z; g.qol?.highlight?.(this.ring);
+      return true;
+    }
     if (at) {
       const e = this.entry(at.v), label = at.t.game === 'chess' ? `Play chess with ${at.t.dealer.name.toLowerCase()} ($${Math.min(CHESS_PLAYERS[at.t.opp].stake[1], at.t.purse)})` : `Sit at blackjack ($${at.v.row.min}-$${at.v.row.max})`;
       g.hud.prompt(e.ok ? `<kbd>E</kbd> ${label}${e.fee ? ` · $${e.fee} at the door` : ''}` : `${label} · <b class="warn">${e.why}</b>`);
@@ -714,6 +748,8 @@ export class Casinos {
     if (!this.dyn) { if (!this.drones.length) return; this.ensureMeshes(); if (!this.dyn) return; }
     let n = 0; const t = this.g.time ?? 0;
     const put = (x, y, z, h, lx, ly, lz, sx, sy, sz, col) => { if (n >= DYN_CAP) return; const c = Math.cos(h), s = Math.sin(h); _o.position.set(x + lx * c + lz * s, y + ly, z - lx * s + lz * c); _o.rotation.set(0, h, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix(); this.dyn.setMatrixAt(n, _o.matrix); this.dyn.setColorAt(n, _c.set(col)); n++; };
+    for (const o of this.venues.values()) if (o.live && o.dock) this.drawPad(put, o, t);
+    for (const o of this.homes.values()) if (o.dock && this.g.citygen?.live?.has(o.town)) this.drawPad(put, o, t);
     for (const d of this.drones) {
       if (!d.live || d.state === 'gone') continue;
       const y0 = d.owner.y ?? 0, dy = d.y + y0; // d.y is height over the property's own ground (a town on a terrain pad sits hundreds of m up)
@@ -725,9 +761,17 @@ export class Casinos {
       }
       put(d.x, dy, d.z, d.h, 0, 0.13, 0, 0.3, 0.06, 0.3, '#c8b24a'); // the house's brass plate on its back
       put(d.x, dy, d.z, d.h, 0, -0.14, 0.34, 0.14, 0.1, 0.14, d.state === 'track' ? (Math.sin(t * 14) > 0 ? SEC_DRONE.eye : '#ffd25a') : d.state === 'jammed' ? '#5a5a52' : SEC_DRONE.eye);
-      put(d.x, y0 + 0.05, d.z, d.h, 0, 0, 0, 0.7, 0.01, 0.7, '#2a2218'); // its shadow
+      if (d.y > 1) put(d.x, y0 + 0.05, d.z, d.h, 0, 0, 0, 0.45, 0.01, 0.45, '#4a3c2e'); // its shadow (a small dark patch; none on the pad)
     }
     this.dyn.count = n; this.dyn.instanceMatrix.needsUpdate = true; if (this.dyn.instanceColor) this.dyn.instanceColor.needsUpdate = true;
+  }
+  // The pad: a dark slab with a yellow cross, the charger box, its lamp (green: ready; blinking: charging; red: cut).
+  drawPad(put, o, t) {
+    const K = o.dock, y = o.y ?? 0; let busy = false; for (const d of this.drones) if (d.owner === o && d.state === 'charging') busy = true;
+    put(K.x, y, K.z, 0, 0, 0.06, 0, 1.6, 0.12, 1.6, '#2a2a28');
+    put(K.x, y, K.z, 0, 0, 0.13, 0, 1.3, 0.01, 0.12, '#d8a83a'); put(K.x, y, K.z, 0, 0, 0.13, 0, 0.12, 0.01, 1.3, '#d8a83a');
+    put(K.x, y, K.z, 0, 0.7, 0.2, 0.7, 0.16, 0.3, 0.16, '#1c1c1a');
+    put(K.x, y, K.z, 0, 0.7, 0.38, 0.7, 0.1, 0.06, 0.1, K.broken ? '#ff3b2a' : busy ? (Math.sin(t * 3) > 0 ? '#5ad06a' : '#2a6a34') : '#5ad06a');
   }
   drawMinimap(c, px, pz, scale, R) {
     c.fillStyle = '#ff5a3a';
@@ -750,7 +794,7 @@ export class Casinos {
   view() {
     const s = this.seat;
     return { venues: [...this.venues.values()].map((v) => this.vView(v)), homes: [...this.homes.values()].map((h) => ({ id: h.id, town: h.town, owner: h.owner, at: { x: r1(h.x), z: r1(h.z) }, alarm: h.alarm })),
-      drones: this.drones.map((d) => ({ id: d.id, state: d.state, live: d.live, x: r1(d.x), z: r1(d.z), y: r1(d.y), hp: d.hp, home: !!d.owner.home })),
+      drones: this.drones.map((d) => ({ id: d.id, state: d.state, live: d.live, x: r1(d.x), z: r1(d.z), y: r1(d.y), hp: d.hp, home: !!d.owner.home, battery: Math.round(d.bat), charges: d.charges, dock: d.owner.dock ? { x: r1(d.owner.dock.x), z: r1(d.owner.dock.z), cut: d.owner.dock.broken } : null })),
       seat: s ? { venue: s.v.id, table: s.t.i, game: s.game, ...(s.game === 'chess' ? this.chessView(s.t) : this.bjView(s.t)) } : null,
       runners: this.runners.map((r) => ({ id: r.c.id, stop: r.i, of: r.stops.length, venue: r.v.id })), counts: { ...this.counts }, events: this.events.slice(-8) };
   }
