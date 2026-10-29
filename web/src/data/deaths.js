@@ -124,7 +124,7 @@ export const BLADES = ['knife', 'machete', 'fire_axe'];
 //   maxT         s a ragdoll is given before it is frozen where it is, whatever it is doing
 //   maxActive    ragdolls stepped at once (the oldest live one is frozen to make room)
 //   step         s the fixed physics step (frame-rate independent: same fall at 20 and 144 fps)
-export const RAGDOLL = { gravity: 9.8, iters: 4, radius: 0.07, radiusTorso: 0.11, friction: 0.35, air: 0.12, bounce: 0.15, settleV: 0.12, settleT: 0.35, maxT: 6, maxActive: 16, step: 1 / 60 };
+export const RAGDOLL = { gravity: 9.8, iters: 4, radius: 0.07, radiusTorso: 0.11, friction: 0.35, air: 0.12, bounce: 0.15, settleV: 0.15, settleT: 0.35, maxT: 5, maxActive: 16, step: 1 / 60 };
 
 // What a body lands on when it lands on a vehicle (a box along the vehicle's heading). top: share of the vehicle's
 // `tall` its top stands at over each lengthwise band (0 the nose, 1 the tail): a hood, then the cab's roof, then the

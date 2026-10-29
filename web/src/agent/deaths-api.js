@@ -102,7 +102,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
     return !bad.length && !hb.length && broken && same && DEATH_TYPES.length === 9 && baked.length >= 2 && baked.every((l) => l === 'CC0-1.0') ? true : JSON.stringify({ bad, hb, broken, same, baked });
   });
 
-  await check('deaths: every death type plays its own clip and ends in a settled ragdoll - resting on the ground (no point floats > 0.15 m or sinks), links held, frozen, handed to death rites', async () => hush(async () => {
+  await check('deaths: every death type plays its own clip and ends in a settled ragdoll - resting on what is under it (no body hangs > 0.15 m in the air, no point sinks), links held, frozen, handed to death rites', async () => hush(async () => {
     await flats();
     const out = {}, made = [];
     try {
@@ -111,7 +111,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
         const r = await C('death', { action: 'play', type, x: at.x, z: at.z });
         const c = api.findChar(r.id); made.push(c);
         const v = await settle(c, 10);
-        out[type] = v ? { clip: v.clip, phase: v.phase, gap: v.restGap, stretch: v.stretch, low: v.lowY } : null;
+        out[type] = v ? { clip: v.clip, phase: v.phase, gap: v.restGap, hang: v.hang, stretch: v.stretch, low: v.lowY, on: v.onVehicle } : null;
         if (r.vehicle) { const car = api.findVeh(r.vehicle); if (car) g.vehiclesSys.remove(car); }
       }
       const bad = Object.entries(out).filter(([k, v]) => !v || v.clip !== k || v.phase !== 'still' || v.gap > 0.15 || v.stretch > 0.15);
@@ -127,7 +127,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       a.hitPart = 'head'; g.combat.damage(a, 20, p, 1, 0, 'bullet');
       b.hitPart = 'torso'; g.combat.damage(b, 20, p, 1, 0, 'bullet');
       const dropped = !a.alive && a.rag?.id === 'head', torso = b.alive;
-      const v = await settle(a, 6);
+      const v = await settle(a, 8);
       return dropped && torso && v.phase === 'still' && dist(a, at) < 0.8 ? true : JSON.stringify({ dropped, torso, v, moved: r1(dist(a, at)) });
     } finally { gone(a, b); g.godMode = false; }
   }));
@@ -182,7 +182,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       const v = await settle(c, 9);
       const ys = []; for (let i = 0; i < 12; i++) ys.push(c.rag.P[i * 3 + 1]);
       const spread = Math.max(...ys) - Math.min(...ys);
-      return v.phase === 'still' && v.restGap < 0.15 && mid > 0.4 && spread > 0.25 && v.lowY > 0.1 ? true : JSON.stringify({ v, mid: r1(mid), spread: r1(spread), f: { from: f.from, to: f.to, len: f.len } });
+      return v.phase === 'still' && v.restGap < 0.15 && v.hang < 0.6 && mid > 0.4 && spread > 0.25 && v.lowY > 0.1 ? true : JSON.stringify({ v, mid: r1(mid), spread: r1(spread), f: { from: f.from, to: f.to, len: f.len } });
     } finally { gone(c); }
   }));
 

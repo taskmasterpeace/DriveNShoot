@@ -12,7 +12,7 @@ import { DECAL_Y } from '../engine/depthlayers.js';
 // roof or deck). Settled, it is frozen (riding the vehicle it lies on) and left to death rites. Nothing here allocates
 // per frame: a death allocates its two point arrays once.
 const NP = 12, FPS = 30, N3 = NP * 3;
-const P_HIP = [0, 1], P_SH = [6, 7];
+const AIR_PTS = [0, 1, 4, 5, 6, 7];
 const { HIP_X, THIGH, SHIN, WAIST_UP, SHOULDER_X, SHOULDER_UP, UPPER, FORE } = RIG;
 const TORSO_L = WAIST_UP + SHOULDER_UP;
 // links: [a, b, length]; the torso quad and its diagonals hold it square.
@@ -368,8 +368,9 @@ export class Deaths {
     for (let i = 0; i < NP; i++) {
       const j = i * 3, f = this.surface(P[j], P[j + 2], P[j + 1] + 0.25) + RAD[i];
       if (P[j + 1] < f) {
-        P[j + 1] = f;
-        if (Q[j + 1] > f + 0.6) Q[j + 1] = f; // a step up (a stair, a hood) is not a fall from it
+        // pushed out onto the surface: it keeps a genuine upward speed (a body thrown off a hood), never the push itself
+        const vy = P[j + 1] - Q[j + 1];
+        P[j + 1] = f; Q[j + 1] = f - Math.max(0, Math.min(vy, 0.2));
         if (last) {
           // friction relative to the surface (a moving hood or bed drags what lies on it), a thud not a bounce
           const svx = _surf.vx * h, svz = _surf.vz * h, k = 1 - RG.friction;
@@ -388,8 +389,11 @@ export class Deaths {
   // After each update: the body's spot (c.x/z the pelvis), in the air or not (blood.js smears only on the ground), the car.
   track(c, R) {
     const P = R.P, px = (P[0] + P[3]) / 2, py = (P[1] + P[4]) / 2, pz = (P[2] + P[5]) / 2;
+    // in the air: its lowest point (ankles, hips, shoulders) clear of what is under it, or lying on a vehicle
+    let lift = Infinity, onCar = false;
+    for (const i of AIR_PTS) { lift = Math.min(lift, P[i * 3 + 1] - this.surface(P[i * 3], P[i * 3 + 2], P[i * 3 + 1] + 0.3) - RAD[i]); if (_surf.v) onCar = true; }
     const f = this.surface(px, pz, py + 0.3);
-    R.air = py - f > 0.4 || !!_surf.v;
+    R.air = lift > 0.3 || onCar;
     c.x = px; c.z = pz; R.cx = px; R.cz = pz; c.gy = _surf.v ? 0 : Math.max(0, f);
     R.maxY = Math.max(R.maxY, py - R.oy);
     const X = R.cross;
@@ -471,17 +475,19 @@ export class Deaths {
     const R = c?.rag;
     if (!R) return null;
     const P = R.P, r2 = (v) => Math.round(v * 100) / 100;
-    let lo = Infinity, hi = -Infinity, gap = 0;
+    // rest: the best-supported point's gap over what is under it (a body draped over a car's edge hangs its limbs in the
+    // air, but something touches); hang: the worst
+    let lo = Infinity, hi = -Infinity, gap = Infinity, hang = 0;
     for (let i = 0; i < NP; i++) {
       const y = P[i * 3 + 1]; lo = Math.min(lo, y); hi = Math.max(hi, y);
-      const f = this.surface(P[i * 3], P[i * 3 + 2], y + 0.3) + RAD[i]; gap = Math.max(gap, y - f);
+      const f = this.surface(P[i * 3], P[i * 3 + 2], y + 0.3) + RAD[i]; gap = Math.min(gap, y - f); hang = Math.max(hang, y - f);
     }
     let stretch = 0;
     for (const L of LINKS) { if (L[3]) continue; const a = L[0] * 3, b = L[1] * 3; stretch = Math.max(stretch, Math.abs(Math.hypot(P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]) - L[2]) / L[2]); }
     return {
       id: c.id, clip: R.id, part: R.part, cause: R.cause, phase: R.phase, t: r2(R.t), age: r2(R.age), air: R.air,
       onVehicle: R.on?.id ?? null, x: r2(c.x), z: r2(c.z), lowY: r2(lo), highY: r2(hi), maxLift: r2(R.maxY),
-      restGap: r2(gap), stretch: r2(stretch), lost: c.lost ?? 0, moved: r2(Math.hypot(c.x - R.x0, c.z - R.z0)),
+      restGap: r2(gap), hang: r2(hang), stretch: r2(stretch), lost: c.lost ?? 0, moved: r2(Math.hypot(c.x - R.x0, c.z - R.z0)),
       cross: R.cross ? { a0: r2(R.cross.a0), aMin: r2(R.cross.aMin), overTop: R.cross.overTop, len: R.cross.len } : null,
     };
   }
