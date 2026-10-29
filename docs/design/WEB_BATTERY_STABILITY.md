@@ -17,6 +17,7 @@ re-staged or retried the STAGING, never the claim. Every bar, count and distance
 | doors: planks… | not reproduced (50+ runs alone, after its section, at night, after a burning car, on each of the 7 nearest doors) | — | richer failure detail |
 | crew order FALL BACK… | not reproduced (alone 8/8, the crew section 2/2) | — | richer failure detail |
 | storeys: a raider with a grudge… | not reproduced (alone 10/10; 16 timed trials 3–15 s against the 20 s bar, day and night) | — | richer failure detail |
+| tactics band: a rifleman holds 25-45 m… (added later, §3.9) | the rifleman killed you inside the window, dropped you and wandered home 12 m off; separately, an open goal at the band's edge left him `arrive` short of it, out of band | staging + **real game bug** | godMode for the window; `systems/tactics.js` (an edge goal goes `arrive` into the band) |
 
 ## 2. Player Fantasy
 
@@ -143,6 +144,31 @@ knockdown, tactics, and line of sight. Plus the `[entry …]` tag on every failu
 - **Fix (`agent/sealife-api.js`):** 12 samples 0.6 s apart. The bar (span > 0.15 m) and the per-sample pitch and heave
   match against `waveAt` are unchanged.
 
+### 3.9 tactics band: a rifleman holds 25-45 m (he backs off from 12 m, stays in the band)
+
+Added after the first eight, at the lead's ask: on main `ca1d5c4d` it failed both lead batteries with
+`distance 9.8-9.8 band 25.0-45.0 role pin` (P3 here: `23.8-23.8`). He "never moved at all".
+
+- **Cause 1 (staging: he killed you).** He shoots while he moves. Measured (`scratchpad/battery-stable/band-hurt.js`, the
+  check's own staging, 10 s): his hits alone came to 66, 85, 102 and 112 hp in four runs, against your 100. A dead target ends
+  his fight (`ai.js`: `!t.alive` → `target = null`), so he goes idle and wanders back toward his spawn point 12 m from you
+  at 1.6 m/s, and stands there. His `tac` is left as it was, so the detail still read `role pin`. 9.8 m is the idle
+  walk back toward the spawn; 23.8 m is the same death caught later in the walk back. A battery reaches the crew section with
+  your hp worn down by earlier checks, so it happens more often there than alone (a solo battery heals you on the way in).
+  Proof: a probe that tops your hp only at the start shows `DEAD tgt0 sp1.6` and the walk back in 3/3 runs at 25 hp.
+- **Fix 1 (`agent/crew-api.js`):** `g.godMode` is on for the check's 16 s and restored after (in a `finally`). He still
+  fights for real (aims, fires, suppresses); only the damage to you is off. The claim (lo ≥ 25 and hi ≤ 45 over the last 4 s) is unchanged.
+- **Cause 2 (real game bug: a goal at the band's edge).** `steer` stops `T.arrive` (0.9 m) short of a goal. Moving out
+  from 12 m, his plans often pick an open spot just inside the band (25.1–25.6 m: the travel cost and the `stay` loyalty
+  make the nearest in-band spot win), so he stops 0.9 m short, at 24.2–24.9 m, out of his own band. 1 run in about 15 settled at 24.9 m.
+- **Fix 2 (`systems/tactics.js` `plan`):** after the search, an **open** goal (no cover) within `arrive` of a band edge
+  (from `b0 − 2·arrive` up to `b0 + arrive`, or `b1 − arrive` up to `b1 + 2·arrive`) moves along the line from the threat to
+  `b0 + arrive` (or `b1 − arrive`), if that point is not blocked. A cover goal stays put, since the thing it hides behind
+  does not move. Retreats are left alone. It is two hypots at plan rate, with no allocation.
+- **Measured after:** 22 slots (the probe directions spin by `c.slot`), every run where you lived settled at 25.2–29.7 m.
+- **Diagnostic (on failure only):** the detail adds his position, sight and LOS, storeys, hold/cower/knock/flee, state,
+  whether he still targets you, **whether you are down**, your hp, his goal, cover, `why`, plan count and path.
+
 ## 4. Formulas
 
 - **Town give-up:** asleep-or-floor by `t_bed + TOWN_NIGHT.giveUp` (25 s). The check now waits
@@ -159,6 +185,10 @@ knockdown, tactics, and line of sight. Plus the `[entry …]` tag on every failu
 - **A leaf at its stop:** the push-out left over after the leaf yields nothing (`rem` m) is applied along the leaf toward
   its free end, so an AI walker pressed square on slides `rem` per frame round the tip (1 m leaf, 1.6 m/s: under 1 s).
 
+- **Band edge:** for an open goal at distance `d` from the threat, band `[b0, b1]`, `A = T.arrive` = 0.9 m:
+  `d' = b0 + A` if `b0 − 2A < d < b0 + A`; `d' = b1 − A` if `b1 − A < d < b1 + 2A`; else `d' = d`. Example: rifle
+  `[25, 45]`, a goal at 25.1 m → 25.9 m; he stops ≤ 0.9 m short → ≥ 25.0 m.
+
 ## 5. Edge Cases
 
 - A check that fails **only** in the full battery: read the new `[entry …]` tag on its detail (§6, tools) first. It
@@ -168,6 +198,9 @@ knockdown, tactics, and line of sight. Plus the `[entry …]` tag on every failu
 - A check that visits a guarded site: leftovers on the site's own record (an alert, a warning running) carry into the next
   visit. Stage the record, not just the people (§3.5).
 - A walker with no route (the planner found none): the watchdog falls back to straight-line distance, as before.
+- A check whose fighter can kill you inside its window: if you die, the fight ends and the fighter goes idle (correct game
+  behaviour). Keep you alive (`g.godMode`) for checks about where they stand, not about their damage (§3.9).
+- A band goal next to a wall: the nudged point is tested with `pointBlocked`; if it is blocked the goal stays at the edge.
 - You, or a car, pressing a leaf at its stop: unchanged (the push-out only). Only the AI's walkers turn round its end.
 
 ## 6. Dependencies
@@ -180,14 +213,15 @@ knockdown, tactics, and line of sight. Plus the `[entry …]` tag on every failu
   - Richer failure details (only on failure) for the planks, crew FALL BACK, storeys raider, ring residents' run, and
     Outpost Nine checks.
 - **Game code changed (real bugs):** `systems/residents.js` `walk` (the progress watchdog measures along the route),
-  `systems/interiors.js` `leafCircle` (a leaf open to its stop turns an AI walker round its free end). Every other change is
+  `systems/interiors.js` `leafCircle` (a leaf open to its stop turns an AI walker round its free end), `systems/tactics.js`
+  `plan` (an open goal at a band edge goes `arrive` into the band, §3.9). Every other change is
   in `agent/*` (staging, waits, failure details).
 - **Systems these checks read:** `systems/clone.js`, `systems/inventory.js` (stow, groundAt, nearest), `systems/ai.js`
   (toBed, TOWN_NIGHT), `world/waves.js` (ride, sum), `data/waves.js` (SWELL), `systems/residents.js`, `systems/interiors.js`,
   `systems/underground.js` (soldier, drone, hostileNow, warnT), `systems/roles.js` (the factions' bias), `data/society.js`
   (TIERS).
 - **Back-references (added):** WEB_STREAMING.md §1.3 R2 (the watchdog and the leaf), WEB_SURVIVAL.md §3.5 (the give-up),
-  WEB_UNDERGROUND.md §6 (stage calms the record); `.claude/skills/dsoa-land/SKILL.md` §4 (state from earlier checks) is
+  WEB_UNDERGROUND.md §6 (stage calms the record), WEB_CREW.md §6 (the band-edge goal); `.claude/skills/dsoa-land/SKILL.md` §4 (state from earlier checks) is
   the rule this document applies.
 
 ## 7. Tuning Knobs
