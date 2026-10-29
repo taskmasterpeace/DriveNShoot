@@ -11,6 +11,8 @@ import { makeRng } from '../engine/rng.js';
 import { Overrun } from './overrun.js';
 import { RING_OPENINGS as RO } from '../data/interiors.js';
 import { ALLEYS } from '../data/backlots.js';
+import { MILBASES, MILBASES_BY_ID, MB_RULES } from '../data/milbases.js'; // THE MILITARY BASES (WEB_MILITARY_BASES.md)
+import { layoutMilbase, buildMilbase } from '../world/citygen/milbase.js';
 
 // PROCEDURAL CITIES (docs/design/WEB_CITYGEN.md): the settlements of the streamed country, planned once at boot from the
 // corridors (a pure, seeded plan: towns of every archetype by biome, homesteads along the roads, real sites, military bases
@@ -170,9 +172,29 @@ export function planWorld(W, seed = 0xc17e) {
     const rec = { kind: 'base', arch: 'military_base', biome: biomeFor(W, at.x, at.z), half, x: at.x, z: at.z, seed: hashStr(B.real_base) ^ seed, id: `cg-${out.length}`, name: `${B.real_base.split(/[(/]/)[0].trim().toUpperCase()} RESERVATION`, anchor: B.real_base };
     bases.push(rec); out.push(rec);
   });
+  // THE MILITARY BASES (data/milbases.js; docs/design/WEB_MILITARY_BASES.md): every row a record - in the streamed world on
+  // free ground near its real point (up to 6 km off it), beyond it at its anchor (stamped when someone gets there), off
+  // the grid (Alaska, Hawaii) not at all. planWorld.milbaseReport accounts for every row.
+  const mbReport = [];
+  for (const M of MILBASES) {
+    const rep = { id: M.id, state: M.state, anchor: M.xz, status: 'offmap', rec: null };
+    mbReport.push(rep);
+    if (!M.xz) continue;
+    const half = Math.round(Math.max(M.size[0] / 2 + MB_RULES.approach.len + 10, M.size[1] / 2 + 20));
+    let at = null, beyond = false;
+    if (W.inWorld(M.xz[0], M.xz[1], -half)) { at = near(M.xz[0], M.xz[1], half, 0, 6000); if (!at) { rep.status = 'unplaced'; continue; } }
+    else {
+      beyond = true; at = { x: M.xz[0], z: M.xz[1] };
+      for (let k = 0; k < 24 && out.some((o) => Math.abs(o.x - at.x) < o.half + half + 120 && Math.abs(o.z - at.z) < o.half + half + 120); k++) at = { x: M.xz[0] + Math.cos(k * 2.4) * (300 + 120 * k), z: M.xz[1] + Math.sin(k * 2.4) * (300 + 120 * k) };
+    }
+    const rec = { kind: 'base', arch: 'milbase', milbase: M.id, biome: biomeFor(W, at.x, at.z), half, x: at.x, z: at.z, seed: hashStr(M.id) ^ seed, id: `cg-${out.length}`, name: M.name, anchor: M.xz, ...(beyond ? { beyond: true } : {}) };
+    out.push(rec); rep.rec = rec.id; rep.status = beyond ? 'beyond' : 'planned';
+  }
+  out.milbaseReport = mbReport;
   for (const r of out) {
     const A = ARCHETYPES[r.arch];
     r.infestation = 0; r.state = 'holding';
+    if (r.milbase && MILBASES_BY_ID.get(r.milbase).status === 'overrun') { r.infestation = 0.9; r.state = 'overrun'; } // an overrun base starts fallen
     r.walls = r.kind === 'base' ? MILITARY.fence : r.kind === 'site' ? (SITES_BY_ID.get(r.site)?.walls?.type ?? 'none') : A?.walls ?? 'none';
   }
   return out;
@@ -249,6 +271,7 @@ export class CityGen {
   layoutOf(rec) {
     if (rec.kind === 'site') return layoutSite(SITES_BY_ID.get(rec.site), { x: rec.x, z: rec.z, seed: rec.seed });
     if (rec.kind === 'rural') return layoutRural({ kind: rec.arch, seed: rec.seed, x: rec.x, z: rec.z, biome: rec.biome, front: rec.front, id: rec.id, name: rec.name });
+    if (rec.kind === 'base' && rec.milbase) return layoutMilbase({ row: MILBASES_BY_ID.get(rec.milbase), seed: rec.seed, x: rec.x, z: rec.z, biome: rec.biome, id: rec.id, name: rec.name });
     if (rec.kind === 'base') return layoutBase({ seed: rec.seed, x: rec.x, z: rec.z, biome: rec.biome, id: rec.id, name: rec.name });
     return layoutTown({ arch: rec.arch, biome: rec.biome, seed: rec.seed, x: rec.x, z: rec.z, id: rec.id, name: rec.name, size: rec.size, walls: rec.wallsOverride });
   }
@@ -256,7 +279,7 @@ export class CityGen {
     if (this.live.has(rec.id)) return this.live.get(rec.id);
     const t0 = performance.now();
     const T = this.layoutOf(rec);
-    const built = buildTown(T);
+    const built = T.mb ? buildMilbase(T) : buildTown(T); // a military base lays its wire, towers and yard on the town's output
     // Real terrain (WEB_SITES_TERRAIN §3.2): the settlement stands on its pad. A record made after the survey (an ad-hoc
     // stamp) gets its pad now and the chunks under it are laid out again on the terraced ground.
     const RT = this.W?.terrain;
@@ -281,6 +304,7 @@ export class CityGen {
     }
     if (T.bunker) this.bunkerFor(rec, T);
     this.overrun.populate(t);
+    this.g.milbases?.onBuilt(t); // a military base's garrison, horde or sealed doors (systems/milbases.js)
     this.g.rites?.onBuilt(t); // its cemetery stands off its buildings now (systems/rites.js)
     const ms = performance.now() - t0;
     this.counts.stamped++; this.counts.buildMs = +ms.toFixed(1); this.counts.maxMs = Math.max(this.counts.maxMs, +ms.toFixed(1));
@@ -292,6 +316,7 @@ export class CityGen {
     if (!t) return;
     for (const R of t.blds) if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; }
     this.overrun.depopulate(t);
+    this.g.milbases?.onReleased(t);
     this.g.rites?.onReleased(t);
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
@@ -512,6 +537,9 @@ export class CityGen {
     const rec = { kind: o.site ? 'site' : o.rural ? 'rural' : o.base ? 'base' : 'town', arch: o.arch ?? (o.site ? SITES_BY_ID.get(o.site)?.layout : o.rural ?? 'military_base'), site: o.site, biome: o.biome ?? A?.biome?.[0] ?? SITES_BY_ID.get(o.site)?.biome ?? 'desert_sonoran',
       x: Math.round(o.x), z: Math.round(o.z), seed: (o.seed ?? 1) >>> 0, id, half: (A ? A.sizeM[1] / 2 : 300) + 30, name: o.name ?? (A ? A.name.toUpperCase() : 'SETTLEMENT'), pinned: true, adhoc: true,
       infestation: 0, state: 'holding', walls: A?.walls ?? 'none', size: o.size, wallsOverride: o.walls, defenseBonus: o.defense ?? 0, front: o.front };
+    const MB = o.milbase ? MILBASES_BY_ID.get(o.milbase) : null; // a military base row (data/milbases.js), stamped where you say
+    if (MB) Object.assign(rec, { kind: 'base', arch: 'milbase', milbase: MB.id, name: o.name ?? MB.name, half: Math.round(Math.max(MB.size[0] / 2 + MB_RULES.approach.len + 10, MB.size[1] / 2 + 20)),
+      ...(MB.status === 'overrun' ? { infestation: 0.9, state: 'overrun' } : {}) });
     this.plan.push(rec); this.byId.set(id, rec); this.index(rec);
     return this.stamp(rec);
   }
