@@ -20,6 +20,7 @@
 //   end      s the clip lasts; past it the ragdoll is on its own until it settles
 //   kick     { fwd, up, side, spin } m/s (spin rad/s about up) added to every point when the ragdoll takes over,
 //            in the frame the body faced as it died (fwd = its forward)
+//   pull     how hard the clip pulls the ragdoll back toward its pose while they blend (default 0.22; 0: a throw is all physics)
 //   licence  where the motion came from (baked: the pack's licence; proc: our own keys)
 export const DEATH_CLIPS = {
   front: {
@@ -64,7 +65,7 @@ export const DEATH_CLIPS = {
     licence: 'CC0-1.0, Quaternius Universal Animation Library 2 (Hit_Knockback), via LSW motion.hero-ual2',
   },
   runover: {
-    name: 'run over', src: 'proc', rag: 0, end: 0.2, kick: { fwd: 0, up: 0, side: 0, spin: 0 }, licence: 'own keys (the launch is HOOD below)',
+    name: 'run over', src: 'proc', rag: 0, end: 0.2, pull: 0, kick: { fwd: 0, up: 0, side: 0, spin: 0 }, licence: 'own keys (the launch is HOOD below)',
     keys: [{ t: 0, pitch: -0.2, lean: 0.3, flex: [0.4, -0.2], bend: [0.4, 0.2], arm: [[0.9, 0.7, 0.3], [0.7, 0.8, 0.2]] }],
   },
   burn: {

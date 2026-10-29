@@ -159,11 +159,11 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       const sm0 = g.blood.stats.smear;
       let air = 0, smearAir = 0;
       for (let t = 0; t < 1.6 && c.alive; t += 0.05) await C('drive', { throttle: 1, seconds: 0.05 });
-      for (let t = 0; t < 2.5; t += 0.1) { const s0 = g.blood.stats.smear; await C('drive', { throttle: 0.6, seconds: 0.1 }); if (c.rag?.air) { air++; smearAir += g.blood.stats.smear - s0; } }
+      for (let t = 0; t < 2.5; t += 1 / 60) { const s0 = g.blood.stats.smear, a0 = !!c.rag?.air; await C('drive', { throttle: 0.6, seconds: 1 / 60 }); if (a0 && c.rag?.air) { air++; smearAir += g.blood.stats.smear - s0; } }
       g.exitVehicle(true);
       const vw = await settle(c, 8), X = c.rag?.cross;
       const over = !!X && (X.overTop || X.aMin < -X.len / 2);
-      return !c.alive && vw?.clip === 'runover' && vw.maxLift > 1.0 && over && air > 0 && smearAir === 0 && vw.phase === 'still' ? true : JSON.stringify({ alive: c.alive, vw, air, smearAir, smear: g.blood.stats.smear - sm0 });
+      return !c.alive && vw?.clip === 'runover' && vw.maxLift > 1.0 && over && vw.airT > 0.15 && smearAir === 0 && vw.phase === 'still' ? true : JSON.stringify({ alive: c.alive, vw, air, smearAir, smear: g.blood.stats.smear - sm0 });
     } finally { if (P().inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(v); gone(c); g.godMode = false; }
   }));
 

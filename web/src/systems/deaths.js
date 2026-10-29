@@ -162,7 +162,7 @@ export class Deaths {
     else if (id === 'back') yaw = Math.atan2(dx / d, dz / d);
     const gy = g.stunts?.heightAt(c.x, c.z, c.gy ?? 0) ?? c.gy ?? 0;
     const R = c.rag ?? { P: new Float32Array(N3), Q: new Float32Array(N3) };
-    Object.assign(R, { clip: C, id, t: 0, phase: C.rag <= 0 ? 'rag' : 'clip', yaw, ox: c.x, oz: c.z, oy: gy, still: 0, age: 0, air: false, on: null, lv: R.lv ?? null, acc: 0, cx: c.x, cz: c.z, x0: c.x, z0: c.z, part, cause, pooled: false, maxY: 0, cross: null });
+    Object.assign(R, { clip: C, id, t: 0, phase: C.rag <= 0 ? 'rag' : 'clip', yaw, ox: c.x, oz: c.z, oy: gy, still: 0, age: 0, air: false, on: null, lv: R.lv ?? null, acc: 0, cx: c.x, cz: c.z, x0: c.x, z0: c.z, part, cause, pooled: false, maxY: 0, cross: null, airT: 0 });
     c.rag = R; c.face = yaw;
     this.place(R, 0, R.P);
     R.Q.set(R.P);
@@ -308,6 +308,7 @@ export class Deaths {
   update(dt) {
     const g = this.g;
     if (!dt) return;
+    this.dt = dt;
     let active = 0;
     for (let i = this.bodies.length - 1; i >= 0; i--) {
       const c = this.bodies[i], R = c.rag;
@@ -338,7 +339,7 @@ export class Deaths {
   step(R, h) {
     const P = R.P, Q = R.Q, damp = 1 - RG.air * h, g2 = RG.gravity * h * h;
     let pull = 0;
-    if (R.t < R.clip.end && R.clip.end > R.clip.rag) { pull = 0.22 * (1 - (R.t - R.clip.rag) / (R.clip.end - R.clip.rag)); this.place(R, R.t, _loc2); }
+    if (R.t < R.clip.end && R.clip.end > R.clip.rag && (R.clip.row.pull ?? 0.22) > 0) { pull = (R.clip.row.pull ?? 0.22) * (1 - (R.t - R.clip.rag) / (R.clip.end - R.clip.rag)); this.place(R, R.t, _loc2); }
     let vmax = 0;
     for (let i = 0; i < NP; i++) {
       for (let a = 0; a < 3; a++) {
@@ -394,6 +395,7 @@ export class Deaths {
     for (const i of AIR_PTS) { lift = Math.min(lift, P[i * 3 + 1] - this.surface(P[i * 3], P[i * 3 + 2], P[i * 3 + 1] + 0.3) - RAD[i]); if (_surf.v) onCar = true; }
     const f = this.surface(px, pz, py + 0.3);
     R.air = lift > 0.3 || onCar;
+    if (R.air) R.airT = (R.airT ?? 0) + (this.dt ?? 1 / 60);
     c.x = px; c.z = pz; R.cx = px; R.cz = pz; c.gy = _surf.v ? 0 : Math.max(0, f);
     R.maxY = Math.max(R.maxY, py - R.oy);
     const X = R.cross;
@@ -493,8 +495,8 @@ export class Deaths {
     let stretch = 0;
     for (const L of LINKS) { if (L[3]) continue; const a = L[0] * 3, b = L[1] * 3; stretch = Math.max(stretch, Math.abs(Math.hypot(P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]) - L[2]) / L[2]); }
     return {
-      id: c.id, clip: R.id, part: R.part, cause: R.cause, phase: R.phase, t: r2(R.t), age: r2(R.age), air: R.air,
-      onVehicle: R.on?.id ?? null, x: r2(c.x), z: r2(c.z), lowY: r2(lo), highY: r2(hi), maxLift: r2(R.maxY),
+      id: c.id, clip: R.id, part: R.part, cause: R.cause, phase: R.phase, t: r2(R.t), age: r2(R.age), air: R.air, airT: r2(R.airT ?? 0),
+      onVehicle: R.on?.id ?? null, carSp: R.carSp !== undefined ? r2(R.carSp) : null, x: r2(c.x), z: r2(c.z), lowY: r2(lo), highY: r2(hi), maxLift: r2(R.maxY),
       restGap: r2(gap), hang: r2(hang), stretch: r2(stretch), lost: c.lost ?? 0, moved: r2(Math.hypot(c.x - R.x0, c.z - R.z0)),
       cross: R.cross ? { a0: r2(R.cross.a0), aMin: r2(R.cross.aMin), overTop: R.cross.overTop, len: R.cross.len } : null,
     };
