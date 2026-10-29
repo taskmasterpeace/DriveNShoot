@@ -34,7 +34,7 @@ export class Tactics {
     this.g = game;
     this.budget = T.perFrame;
     this.on = true;            // false: every faction back on the plain ai.js fight (an A/B for perf or a test)
-    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0, slowPaths: 0 };
+    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0, slowPaths: 0, retimed: 0 };
     this.mark = 0;
 
   }
@@ -159,7 +159,11 @@ export class Tactics {
       U.pathAt = g.time;
       const t1 = performance.now(), p = g.nav.foot.find(c.x, c.z, U.gx, U.gz, 1500); // a tactical move is short: a small search budget
       this.stats.paths++;
-      const pm = performance.now() - t1; if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm; if (pm > 8) this.stats.slowPaths++;
+      let pm = performance.now() - t1;
+      // Over 8 ms: time the same search again at once (same grid, no rebuild). A slow search is slow twice; a busy machine's
+      // stall is not (the lead saw 390 ms paths with a dozen harnesses on one CPU; docs/design/WEB_BATTERY_STABILITY.md §3.13).
+      if (pm > 8) { const t2 = performance.now(); g.nav.foot.find(c.x, c.z, U.gx, U.gz, 1500); pm = Math.min(pm, performance.now() - t2); this.stats.retimed++; }
+      if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm; if (pm > 8) this.stats.slowPaths++;
       if (p && p.length) { U.path = p; U.pi = 0; }
     }
   }

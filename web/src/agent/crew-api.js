@@ -590,6 +590,6 @@ export async function crewChecks(api, check, C) {
 
   await check('tactics cost: a plan averages under 0.3 ms, under 1% of plans take over 2 ms, under 2% of nav paths over 8 ms; plans are staggered, perFrame at most', async () => {
     const S = g.tactics.stats, avg = S.planMs / Math.max(1, S.plans), slow = S.slowPlans / Math.max(1, S.plans), slowPath = S.slowPaths / Math.max(1, S.paths);
-    return S.plans > 0 && avg < 0.3 && slow < 0.01 && slowPath < 0.02 ? true : `plans ${S.plans} avg ${avg.toFixed(3)} ms, over 2 ms ${(slow * 100).toFixed(2)}%, slowest plan ${S.maxPlanMs.toFixed(3)} ms, slowest path ${S.maxPathMs.toFixed(3)} ms (${S.slowPaths}/${S.paths} over 8 ms)`;
+    return S.plans > 0 && avg < 0.3 && slow < 0.01 && slowPath < 0.02 ? true : `plans ${S.plans} avg ${avg.toFixed(3)} ms, over 2 ms ${(slow * 100).toFixed(2)}%, slowest plan ${S.maxPlanMs.toFixed(3)} ms, slowest path ${S.maxPathMs.toFixed(3)} ms (${S.slowPaths}/${S.paths} over 8 ms twice running, ${S.retimed} re-timed)`;
   });
 }
