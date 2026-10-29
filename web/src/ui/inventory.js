@@ -273,7 +273,7 @@ export class InventoryUI {
       }
       if (it.kind === 'gun') { bits.unshift(`${Math.round((s.cond ?? 1) * 100)}% condition`, `${s.loaded ?? 0} rounds in it`); useT = g.inv.weapons.includes(it.weapon) ? 'SWAP FOR YOURS' : 'SLING IT'; canUse = true; }
       else { canUse = !!it.use || (!!it.slot && this.side === 0); if (it.slot && this.side === 0) useT = 'WEAR'; }
-      if (it.ammo) bits.push(g.inv.weapons.some((k) => WEAPONS[k]?.ammo === it.ammo) ? 'fits a gun you carry' : 'fits none of your guns');
+      if (it.ammo) bits.push(g.inv.weapons.some((k) => WEAPONS[k]?.ammo === it.ammo || WEAPONS[k]?.modes?.some((m) => m.ammo === it.ammo)) ? 'fits a gun you carry' : 'fits none of your guns');
       if (D) bits.push(this.side === 1 ? `${D.name} sells ${s.n > 1 ? `all ${s.n} for` : 'it for'} $${g.trade.buyPrice(s, s.n, D)}` : g.trade.deals(D, s.id) ? `${D.name} pays $${g.trade.sellPrice(s, s.n, D)}${s.n > 1 ? ` for all ${s.n}` : ''}` : `${D.name} doesn't deal in it`);
       this.el.dname.textContent = it.name.toUpperCase();
       this.el.desc.textContent = it.desc;
