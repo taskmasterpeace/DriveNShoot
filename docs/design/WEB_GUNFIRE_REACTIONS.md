@@ -175,6 +175,9 @@ The same man **asleep**:
   Now nothing about a bar is saved; a save mid-bar loads a plain closed door. Others stop at it like any shut door. A
   kick (`interiors.fling` zeroes `jamT`) or the door forced open breaks it (`barBroken`), and the plank comes off.
 - **Crew candidates** (`c.crewCand`) are crew.js's: they do not take part.
+- **A witness who heard the shot and then becomes a runner** (`witnesses.consider` sets `c.telling`), or someone
+  taken on as crew mid-reaction: the reaction ends at once. The runner runs home to tell it, and the battery's witness
+  check caught the hider who never did.
 - **Below the street** (`c.ug`), in a seat, being dragged, captive → not this system's.
 - **Underground shots** never reach the street (the existing `under.noise` short-circuit is untouched).
 - **The 14 m flinch** (`ambient.onShot`, 55% cower) still happens first for the unarmed close by. The profiled reaction

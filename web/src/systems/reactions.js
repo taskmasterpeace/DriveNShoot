@@ -219,6 +219,7 @@ export class Reactions {
     if (!c.alive || c.inVehicle) { this.end(c); return false; }
     if (rx.kind === 'follow') return this.followThink(c, dt);
     if (c.target && c.weapon) { this.end(c); return false; } // a hostile in sight (ai.scan): the fight comes first
+    if (c.telling || c.crewRec || c.follower) { this.end(c); return false; } // a witness now running home to tell it, or taken on as crew: theirs, not ours
     const now = g.time;
     if (now < rx.t0) { // not yet: a sleeper sleeps on; the awake carry on with what they were doing
       if (rx.asleep && c.sleeping) { c.speed = 0; return true; }
