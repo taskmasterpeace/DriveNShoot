@@ -10,7 +10,7 @@ const CSS = `
 .tb-wrap.hidden { display: none; }
 .tb { position: relative; width: min(900px, 94vw); max-height: 90vh; overflow: auto; padding: 18px 24px 16px; color: var(--bone, #efe6d6);
   background: radial-gradient(ellipse at 50% 30%, oklch(0.44 0.09 155), oklch(0.3 0.07 155) 60%, oklch(0.22 0.05 155));
-  border: 10px solid oklch(0.3 0.05 50); border-radius: 0.625rem 0.625rem 48% 48% / 0.625rem 0.625rem 18% 18%;
+  border: 10px solid oklch(0.3 0.05 50); border-radius: 0.625rem 0.625rem 42% 42% / 0.625rem 0.625rem 11% 11%; padding-bottom: 34px;
   box-shadow: inset 0 0 0 2px oklch(0.62 0.1 85), inset 0 0 60px rgba(0,0,0,0.45), 0 18px 46px rgba(0,0,0,0.7); }
 .tb-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .tb-kind { font: 800 13px var(--stencil, 'Arial Narrow'); letter-spacing: 0.32em; color: oklch(0.8 0.1 85); }
@@ -44,7 +44,7 @@ const CSS = `
 .tb-chessside { display: flex; gap: 18px; align-items: flex-start; margin-top: 12px; }
 .tb-moves { font: 400 15px/1.5 var(--type, monospace); color: var(--bone, #efe6d6); min-width: 180px; }
 .tb-say { margin-top: 10px; padding: 8px 12px; font: 400 15px/1.3 var(--type, monospace); color: oklch(0.22 0.015 60); background: linear-gradient(175deg, oklch(0.9 0.035 86), oklch(0.8 0.045 80)); border-left: 5px solid oklch(0.55 0.15 35); transform: rotate(-0.3deg); }
-.tb-foot { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; font: 600 14px var(--display, 'Arial Narrow'); color: oklch(0.88 0.04 120); text-transform: uppercase; letter-spacing: 0.05em; }
+.tb-foot { margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font: 600 14px var(--display, 'Arial Narrow'); color: oklch(0.88 0.04 120); text-transform: uppercase; letter-spacing: 0.05em; }
 .tb-foot kbd { background: oklch(0.25 0.03 60); border: 1px solid oklch(0.5 0.05 85); border-radius: 4px; padding: 0 5px; margin-right: 4px; color: var(--sand, #e7d6b4); }
 `;
 const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
@@ -143,7 +143,7 @@ export class TablePanel {
         sq += `<div class="tb-sq ${(r + f) % 2 ? 'l' : 'd'}${this.sel === i ? ' sel' : ''}${lf.includes(nm) ? ' last' : ''}" data-sq="${i}">${p ? `<span class="${p === p.toUpperCase() ? 'w' : 'k'}">${GLYPH[p.toUpperCase()]}</span>` : ''}</div>`;
       }
       body = `<div class="tb-chessside"><div class="tb-board">${sq}</div><div class="tb-moves"><div class="tb-who">${V.over ? esc(V.over) : V.status === 'check' ? 'check' : V.turn === 'w' ? 'your move' : 'thinking'}</div>
-        <div>${(V.moves ?? []).map((m, i) => `${i % 2 ? '' : `${Math.floor(i / 2) + 1}. `}${m}`).join(' ')}</div><div style="margin-top:8px">${this.typed ? `&gt; ${esc(this.typed)}_` : ''}</div></div></div>`;
+        <div>${(V.moves ?? []).map((m, i) => `${i % 2 ? '' : `${Math.floor((i + (V.movesFrom ?? 0)) / 2) + 1}. `}${m}`).join(' ')}</div><div style="margin-top:8px">${this.typed ? `&gt; ${esc(this.typed)}_` : ''}</div></div></div>`;
       foot = V.over ? [['ESC', 'stand up']] : [['CLICK', 'piece, then square'], ['e2e4 ENTER', 'type a move'], ['R', 'resign'], ['ESC', 'stand up']];
     }
     const say = this.say || (t.last && s.game === 'blackjack' ? `Last hand: staked $${t.last.staked}, back $${t.last.paid}.` : '');

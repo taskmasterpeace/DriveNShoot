@@ -136,8 +136,9 @@ function evaluate(S) {
     const p = S.b[i]; if (!p) continue;
     const t = p.toLowerCase(), W = white(p), f = i & 7, r = i >> 3, rr = W ? r : 7 - r;
     let v = VAL[t];
-    if (t === 'p') v += rr * 6;
-    else if (t === 'n' || t === 'b') v += 12 - 4 * (Math.abs(3.5 - f) + Math.abs(3.5 - r)) / 2;
+    if (t === 'p') v += rr * [0, 1, 3, 7, 7, 3, 1, 0][f] - (rr >= 3 && (f === 0 || f === 7) ? 8 : 0); // centre pawns forward, rim pawns stay home
+    else if (t === 'n' || t === 'b') v += 12 - 4 * (Math.abs(3.5 - f) + Math.abs(3.5 - r)) / 2 - (rr === 0 ? 14 : 0); // out and toward the middle
+    else if (t === 'k' && S.b.filter((q) => q && 'qQ'.includes(q)).length) v += rr === 0 && (f <= 2 || f >= 6) ? 18 : rr === 0 ? 0 : -20; // tucked away while queens are on
     s += W ? v : -v;
   }
   return S.turn === 'w' ? s : -s;
@@ -158,7 +159,7 @@ function search(S, depth, alpha, beta, ply) {
 // skill: { depth (1..3), blunder (0..1: the chance to take the second-best move) }. rng for the blunder and ties.
 export function think(S, skill, rng = Math.random) {
   const moves = legal(S); if (!moves.length) return null;
-  const scored = moves.map((m) => ({ m, v: -search(play(S, m), Math.max(0, skill.depth - 1), -MATE - 1, MATE + 1, 1) + rng() * 0.5 }));
+  const scored = moves.map((m) => ({ m, v: -search(play(S, m), Math.max(0, skill.depth - 1), -MATE - 1, MATE + 1, 1) + rng() * 4 })); // a few points of taste between equal moves
   scored.sort((a, b) => b.v - a.v);
   const pick = scored.length > 1 && rng() < (skill.blunder ?? 0) ? scored[1] : scored[0];
   return pick.m;

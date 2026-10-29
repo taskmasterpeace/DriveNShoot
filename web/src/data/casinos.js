@@ -133,7 +133,7 @@ export function validateCasinos(rows = { STAKES, BLACKJACK, CHESS_PLAYERS, CHESS
     if (items && !items[s.needs]) e.push(`safe ${k}: needs ${s.needs}, not an item`);
   }
   const D = rows.SEC_DRONE ?? {};
-  if (!(D.hp > 0 && D.speed > 0 && pair(D.sight) && D.sight[1] <= D.sight[0])) e.push('sec_drone: hp, speed, sight [day, night]');
+  if (!(D.hp > 0 && D.speed > 0 && Array.isArray(D.sight) && D.sight.length === 2 && D.sight[1] > 0 && D.sight[1] <= D.sight[0])) e.push('sec_drone: hp, speed, sight [day, night] (night no further than day)');
   if (PURPLE(D.color) || PURPLE(D.eye)) e.push('sec_drone: purple');
   if (!(rows.WITNESS?.speed > 0 && rows.WITNESS?.bounty > 0)) e.push('witness: speed and bounty');
   for (const [k, v] of Object.entries(rows.DEALER_EYE ?? {})) if (!(v >= 0 && v <= 1)) e.push(`dealer eye ${k}: ${v}`);

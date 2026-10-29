@@ -30,7 +30,7 @@ import { wayTop } from '../world/understreet.js';
 // Two instanced meshes (the rooms' furniture, rebuilt only when a room opens or closes; the drones, written in place every
 // frame), no lights.
 
-const FURN_CAP = 900, DYN_CAP = 120, LIVE_R = 140, DROP_R = 220;
+const FURN_CAP = 900, DYN_CAP = 160, GLOW_CAP = 96, LIVE_R = 140, DROP_R = 220;
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 const r1 = (v) => Math.round(v * 10) / 10;
 const iroll = (rng, [a, b]) => Math.round(a + rng() * (b - a));
@@ -95,13 +95,20 @@ export class Casinos {
       v.tables.push(this.table(v, 0, 'blackjack', c, L, rng, eye));
     } else {
       const games = [...Array(row.tables.blackjack).fill('blackjack'), ...Array(row.tables.chess).fill('chess')];
-      const cols = Math.max(1, Math.min(3, Math.floor((L.width - 4) / 4))), rows = Math.ceil(games.length / cols);
-      games.forEach((gm, i) => {
-        const cI = i % cols, rI = Math.floor(i / cols);
-        const din = L.depth * 0.38 + rI * Math.min(3.8, (L.depth * 0.45) / Math.max(1, rows - 1 || 1));
-        const dw = (cI - (cols - 1) / 2) * Math.min(4.6, (L.width - 6) / Math.max(1, cols - 1 || 1));
-        v.tables.push(this.table(v, i, gm, L.at(din, dw), L, rng, eye));
-      });
+      // the tables go only on open floor: clear of the building's own stair core, partitions and furniture (its boxes),
+      // of the cage's corner, the office's and the door's way in, and 3.6 m apart
+      const solid = (t.built?.boxes ?? []).filter((b) => b.tag !== 'cg-wall' && (b.base ?? 0) < 1 && b.maxX > B.x0 && b.minX < B.x1 && b.maxZ > B.z0 && b.minZ < B.z1);
+      const free = (q, r) => !solid.some((b) => q.x + r > b.minX && q.x - r < b.maxX && q.z + r > b.minZ && q.z - r < b.maxZ);
+      const spots = [];
+      for (let din = 4.2; din <= L.depth - 3.4; din += 1.4) for (let dw = -L.width / 2 + 2.6; dw <= L.width / 2 - 2.6; dw += 1.4) {
+        if (dw > L.width / 2 - 6 && din < 5.5) continue; // the office
+        if (dw < -L.width / 2 + 5.5 && din < 4.6) continue; // the cage
+        if (din > L.depth - 5 && Math.abs(dw) < 2.4) continue; // the door's way in
+        const q = L.at(din, dw); if (!free(q, 1.9)) continue;
+        if (spots.some((o) => Math.hypot(o.x - q.x, o.z - q.z) < 3.6)) continue;
+        spots.push(q);
+      }
+      games.forEach((gm, i) => { if (spots[i]) v.tables.push(this.table(v, v.tables.length, gm, spots[i], L, rng, eye)); }); // a cramped hotel holds fewer tables
       // the cage on the back wall (left), the office in the back corner (right) with the safe, the door at the front
       v.cagePos = L.at(1.6, -L.width / 2 + 3.2); v.cashierAt = L.at(0.8, -L.width / 2 + 3.2);
       v.officePos = L.at(2.4, L.width / 2 - 3.2); v.safePos = L.at(0.7, L.width / 2 - 1.2);
@@ -361,7 +368,7 @@ export class Casinos {
     return true;
   }
   resign() { const t = this.seat?.t, C = t?.chess; if (!C || C.over) return { ok: false, why: 'no game' }; C.over = 'you resigned'; t.purse += C.pot; C.pot = 0; this.counts.chessGames++; return { ok: true }; }
-  chessView(t) { const C = t.chess; return { game: 'chess', board: C ? C.S.b.slice() : null, turn: C?.S.turn, status: C ? Chess.status(C.S) : null, over: C?.over ?? null, reply: C?.reply ?? null, moves: C?.moves.slice(-12) ?? [], stake: C?.stake ?? 0, opponent: CHESS_PLAYERS[t.opp]?.name, purse: t.purse }; }
+  chessView(t) { const C = t.chess; return { game: 'chess', board: C ? C.S.b.slice() : null, turn: C?.S.turn, status: C ? Chess.status(C.S) : null, over: C?.over ?? null, reply: C?.reply ?? null, moves: C ? C.moves.slice(C.moves.length > 16 ? (C.moves.length - 16) & ~1 : 0) : [], movesFrom: C && C.moves.length > 16 ? (C.moves.length - 16) & ~1 : 0, stake: C?.stake ?? 0, opponent: CHESS_PLAYERS[t.opp]?.name, purse: t.purse }; }
 
   // ---- the float: cash carried from the safe to the cage (law 1) ----------------------------------------------------------
   float(v) {
@@ -576,7 +583,7 @@ export class Casinos {
   }
   hurtDrone(d, dmg, by) {
     if (d.state === 'gone' || d.state === 'falling') return;
-    d.hp -= dmg; this.g.fx?.sparks?.(d.x, d.y, d.z, 0, 0, 4);
+    d.hp -= dmg; this.g.fx?.sparks?.(d.x, d.y + (d.owner.y ?? 0), d.z, 0, 0, 4);
     if (d.hp <= 0) { d.state = 'falling'; d.down = 0; this.counts.dronesDown++; this.log('droneDown', { drone: d.id, by: by?.id ?? null }); if (by === this.g.player) this.g.hud?.toast?.('SECURITY DRONE DOWN', 'job'); }
   }
 
@@ -654,11 +661,18 @@ export class Casinos {
     if (this.furn || !this.g.scene) return;
     const mk = (cap, name) => { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.05 }), cap); m.name = name; m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.frustumCulled = false; m.count = 0; m.castShadow = true; m.receiveShadow = true; this.g.scene.add(m); return m; };
     this.furn = mk(FURN_CAP, 'casino-rooms'); this.dyn = mk(DYN_CAP, 'casino-drones');
+    this.furn.material.userData.noCut = true; this.dyn.material.userData.noCut = true; // the camera's cutaway (systems/cutaway.js) would dither away the table you sit at and the drone over your head: they stay, like people
+    // light without a light (the bars' trick, pulls.js): unlit additive discs, a warm pool under each lamp
+    this.glow = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 20), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), GLOW_CAP);
+    this.glow.name = 'casino-lamps'; this.glow.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(GLOW_CAP * 3).fill(1), 3); this.glow.frustumCulled = false; this.glow.count = 0; this.glow.renderOrder = 2; this.g.scene.add(this.glow);
   }
   furnish() {
     this.ensureMeshes(); if (!this.furn) return;
     let n = 0;
     const box = (x, z, y, sx, sy, sz, rot, col) => { if (n >= FURN_CAP) return; _o.position.set(x, y + sy / 2, z); _o.rotation.set(0, rot, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix(); this.furn.setMatrixAt(n, _o.matrix); this.furn.setColorAt(n, _c.set(col)); n++; };
+    let m = 0;
+    const disc = (p, y, r, h, col) => { if (m >= GLOW_CAP) return; _o.position.set(p.x, y + h / 2, p.z); _o.rotation.set(0, 0, 0); _o.scale.set(r * 2, h, r * 2); _o.updateMatrix(); this.glow.setMatrixAt(m, _o.matrix); this.glow.setColorAt(m, _c.set(col)); m++; };
+    const lamp = (p, y, r) => { disc(p, y + 0.86, r * 1.35, 0.02, '#1c150a'); disc(p, y + 0.87, r * 0.85, 0.02, '#2a2412'); disc(p, y + 3.2, 0.09, 0.08, '#ffd27a'); }; // a soft ring, a warm (not orange) core so the felt stays green, a small bulb
     const wood = '#4a2f1e', rail = '#2a1a10', chip = ['#c8402a', '#e8dcc0', '#2a5a8a', '#1a1a18', '#d8a83a'];
     for (const v of this.venues.values()) {
       if (!v.live) continue;
@@ -666,7 +680,7 @@ export class Casinos {
       if (v.kind !== 'backroom') {
         // the floor carpet: a deep red field in a gold border, and the felt tables on it
         const c0 = L.at(L.depth / 2, 0), sx = L.inZ ? L.width - 1 : L.depth - 1, sz = L.inZ ? L.depth - 1 : L.width - 1;
-        box(c0.x, c0.z, y + 0.03, sx, 0.02, sz, 0, '#b8902a'); box(c0.x, c0.z, y + 0.04, sx - 0.6, 0.02, sz - 0.6, 0, '#5a1a14');
+        box(c0.x, c0.z, y + 0.03, sx, 0.02, sz, 0, '#a8842a'); box(c0.x, c0.z, y + 0.04, sx - 0.6, 0.02, sz - 0.6, 0, '#461410');
         // the cage: a counter with bars, the cashier's window
         const cg = v.cagePos; box(cg.x, cg.z, y, 2.6, 1.1, 0.6, rot, wood); for (let i = 0; i < 7; i++) { const q = L.at(1.6, -L.width / 2 + 2 + i * 0.4); box(q.x, q.z, y + 1.1, 0.05, 1.2, 0.05, 0, '#b8a060'); }
         box(cg.x, cg.z, y + 2.3, 2.7, 0.08, 0.7, rot, '#b8a060');
@@ -674,6 +688,7 @@ export class Casinos {
         const sf = v.safePos; box(sf.x, sf.z, y, 0.9, 1.1, 0.8, rot, v.safe.state === 'locked' ? '#3a3e40' : '#6a6e70');
         if (v.safe.state !== 'locked') box(sf.x + L.inX * 0.6, sf.z + L.inZ * 0.6, y, 0.08, 1.0, 0.8, rot + 0.9, '#3a3e40');
         const part = L.at(3.6, L.width / 2 - 3.2); box(part.x, part.z, y, L.inZ ? 4.4 : 0.15, 2.4, L.inZ ? 0.15 : 4.4, 0, '#6a5038');
+        lamp(cg, y + 0.3, 1.4); lamp(L.at(L.depth - 2, 0), y - 0.8, 1.8); // the cage's lamp, the door's
         for (const cam of v.cameras) box(cam.x, cam.z, y + 2.8, 0.22, 0.16, 0.3, cam.h, cam.broken ? '#2a2a2a' : '#1c1c1a');
       }
       for (const t of v.tables) {
@@ -689,8 +704,10 @@ export class Casinos {
           box(t.x, t.z, y + 0.8, 0.12, 0.005, 0.17, rot + 0.2, '#efe6d2'); box(t.x + 0.2, t.z + 0.1, y + 0.8, 0.12, 0.005, 0.17, rot - 0.15, '#efe6d2');
         }
         box(t.seat.x, t.seat.z, y, 0.45, 0.5, 0.45, rot, '#3a2416'); // your stool
+        lamp(t, y, 1.3);
       }
     }
+    this.glow.count = m; this.glow.instanceMatrix.needsUpdate = true; if (this.glow.instanceColor) this.glow.instanceColor.needsUpdate = true;
     this.furn.count = n; this.furn.instanceMatrix.needsUpdate = true; if (this.furn.instanceColor) this.furn.instanceColor.needsUpdate = true;
   }
   drawDrones() {
@@ -699,10 +716,16 @@ export class Casinos {
     const put = (x, y, z, h, lx, ly, lz, sx, sy, sz, col) => { if (n >= DYN_CAP) return; const c = Math.cos(h), s = Math.sin(h); _o.position.set(x + lx * c + lz * s, y + ly, z - lx * s + lz * c); _o.rotation.set(0, h, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix(); this.dyn.setMatrixAt(n, _o.matrix); this.dyn.setColorAt(n, _c.set(col)); n++; };
     for (const d of this.drones) {
       if (!d.live || d.state === 'gone') continue;
-      put(d.x, d.y, d.z, d.h, 0, 0, 0, 0.5, 0.16, 0.5, SEC_DRONE.color);
-      for (const [lx, lz] of [[0.36, 0.36], [-0.36, 0.36], [0.36, -0.36], [-0.36, -0.36]]) put(d.x, d.y, d.z, d.h + (d.state === 'falling' ? 0 : t * 30), lx, 0.1, lz, 0.38, 0.01, 0.06, '#8a8478');
-      put(d.x, d.y, d.z, d.h, 0, -0.1, 0.22, 0.09, 0.07, 0.09, d.state === 'track' ? (Math.sin(t * 14) > 0 ? SEC_DRONE.eye : '#ffd25a') : d.state === 'jammed' ? '#5a5a52' : SEC_DRONE.eye);
-      put(d.x, 0.04, d.z, d.h, 0, 0, 0, 0.6, 0.01, 0.6, '#151210');
+      const y0 = d.owner.y ?? 0, dy = d.y + y0; // d.y is height over the property's own ground (a town on a terrain pad sits hundreds of m up)
+      // bigger than the scout (a house's drone carries a lamp and a siren): a body, four arms, four rotor blurs, the eye
+      put(d.x, dy, d.z, d.h, 0, 0, 0, 0.8, 0.22, 0.8, SEC_DRONE.color);
+      for (const [lx, lz] of [[0.6, 0.6], [-0.6, 0.6], [0.6, -0.6], [-0.6, -0.6]]) {
+        put(d.x, dy, d.z, d.h, lx * 0.5, 0.04, lz * 0.5, 0.08, 0.05, 0.08, '#262626');
+        put(d.x, dy, d.z, d.h + (d.state === 'falling' ? 0 : t * 30), lx, 0.13, lz, 0.6, 0.012, 0.09, '#a8a294');
+      }
+      put(d.x, dy, d.z, d.h, 0, 0.13, 0, 0.3, 0.06, 0.3, '#c8b24a'); // the house's brass plate on its back
+      put(d.x, dy, d.z, d.h, 0, -0.14, 0.34, 0.14, 0.1, 0.14, d.state === 'track' ? (Math.sin(t * 14) > 0 ? SEC_DRONE.eye : '#ffd25a') : d.state === 'jammed' ? '#5a5a52' : SEC_DRONE.eye);
+      put(d.x, y0 + 0.05, d.z, d.h, 0, 0, 0, 0.7, 0.01, 0.7, '#2a2218'); // its shadow
     }
     this.dyn.count = n; this.dyn.instanceMatrix.needsUpdate = true; if (this.dyn.instanceColor) this.dyn.instanceColor.needsUpdate = true;
   }

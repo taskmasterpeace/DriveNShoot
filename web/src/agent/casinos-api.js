@@ -103,15 +103,17 @@ export async function casinoChecks(api, check, C) {
       return e.length === 0 && bad.length >= 7 ? true : JSON.stringify({ e, bad });
     });
 
-    await check('casinos: a casino strip has its rooms - the tallest hotel is a high-roller room, another hotel a gaming floor, every saloon a back room; guards on their posts, the cage and the safe rolled once from the building, drones over the house and over its owner\'s home', async () => {
+    await check('casinos: a casino strip has its rooms - the tallest hotel is a high-roller room, another hotel a gaming floor, every saloon a back room; tables on open floor, guards on their posts, the cage and the safe rolled once from the building, drones over the house and over its owner\'s home', async () => {
       if (!(await setup())) return 'no casino strip with a high-roller room and a floor';
       const live = await atRoom(hi);
       const v2 = CS.make({ rec: g.citygen.byId.get(ID) }, hi.B, 'highroller'); // the same building rolls the same money
       CS.venues.set(hi.id, hi);
       const same = v2.cage === hi.cage && v2.safe.cash === hi.safe.cash; CS.dropDrones(v2);
+      // every table on open floor: no collision box of the building's own under a table, a seat or a dealer
+      const tablesFree = hi.tables.every((t) => [t, t.seat, t.dealerAt].every((q) => g.statics.lineOfSight(q.x - 0.3, q.z, q.x + 0.3, q.z)));
       const guards = CS.guardsOf(hi).length, drones = CS.drones.filter((d) => d.owner === hi).length, home = [...CS.homes.values()].some((h) => h.town === ID);
-      const ok = live && same && guards === STAKES.highroller.guards.post.length + STAKES.highroller.guards.patrol && drones === STAKES.highroller.drones && home && hi.cage >= STAKES.highroller.cage[0] && hi.tables.length === STAKES.highroller.tables.blackjack + STAKES.highroller.tables.chess;
-      return ok ? true : JSON.stringify({ live, same, guards, drones, home, cage: hi.cage, tables: hi.tables.length });
+      const ok = live && same && guards === STAKES.highroller.guards.post.length + STAKES.highroller.guards.patrol && drones === STAKES.highroller.drones && home && hi.cage >= STAKES.highroller.cage[0] && hi.tables.length >= 4 && hi.tables.some((x) => x.game === 'chess') && tablesFree;
+      return ok ? true : JSON.stringify({ live, same, guards, drones, home, cage: hi.cage, tables: hi.tables.length, tablesFree });
     });
 
     await check('casinos: blackjack deals from a real 52 x N shoe and pays 3:2 on a natural - the shoe holds 4 x decks of every rank in every suit, every card dealt over 300 hands is one of the shoe\'s, and a natural on a $100 bet puts back $250 (the cage down $150, your pocket up $150)', async () => {
@@ -288,7 +290,7 @@ export async function casinoChecks(api, check, C) {
       const og = CS.guardsOf(hi)[0];
       const behind = L.at(-6, L.width / 2 - 1.2); og.x = behind.x; og.z = behind.z; og.post = { x: og.x, z: og.z, face: 0 };
       await stand(hi.safePos.x + L.inX * 1.0, hi.safePos.z + L.inZ * 1.0);
-      g.inventory.stow('breach_charge', 1); hi.safe.state = 'locked'; hi.safe.work = 0; if (!hi.safe.cash) hi.safe.cash = 5000;
+      g.inventory.stow('breach_charge', 1); hi.safe.state = 'locked'; hi.safe.work = 0; if (!hi.safe.cash) hi.safe.cash = 5000; hi.cage = Math.max(hi.cage, 5000); hi.carrying = null; // a full cage: no guard comes for the float mid-test
       const los = g.los(og.x, og.z, P.x, P.z);
       const cash0 = g.cash, safe0 = hi.safe.cash;
       const r2 = await C('casino', { action: 'rob', venue: hi.id, target: 'safe', how: 'blow' });
@@ -306,6 +308,7 @@ export async function casinoChecks(api, check, C) {
       // open ground in front of the door, the drone 12 m off over the street side
       const hold = (x, z) => { d.x = x; d.z = z; d.state = 'patrol'; d.seen = null; d.hp = SEC_DRONE.hp; d.jamT = 0; };
       await stand(out.x, out.z); hold(out.x + L.ax * 10, out.z + L.az * 10); // along the front, over the street side
+      if (g.arms) g.arms.stance = 'raised'; // the gun up now (a staged step lets the arm drop)
       const open = CS.droneSees(d, P); CS.updateDrones(0.05);
       const called = d.state === 'track' && hi.alarm === 'alert' && Math.hypot(hi.lastSeen.x - P.x, hi.lastSeen.z - P.z) < 0.5 && P.marked > g.time;
       await restoreRoom(hi);
