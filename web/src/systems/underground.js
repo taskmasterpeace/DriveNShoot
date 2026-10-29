@@ -483,6 +483,7 @@ export class Underground {
     const R = A.liftR;
     if (R && x > R.minX && x < R.maxX && z > R.minZ && z < R.maxZ) { const ly = A.rec.lift.y; if (Math.abs(ly - y) < 2.2) return ly; }
     if (y > A.plan.Y[0] - UG.below) return null;
+    if (A.plan.drains && !this.ext.under(x, z, y)) return null; // a town's drains: only someone really down there (low ground off the pad is not)
     let best = null, bd = 3.6;
     for (let k = 1; k <= A.plan.n; k++) { const d = Math.abs(A.plan.Y[k] - y); if (d < bd) { bd = d; best = A.plan.Y[k]; } }
     return best;
@@ -491,6 +492,7 @@ export class Underground {
   siteOf(c) {
     const A = this.A;
     if (!A || (c.gy ?? 0) > A.plan.Y[0] - UG.below || !this.inBox(c.x, c.z)) return null;
+    if (A.plan.drains && !this.ext.under(c.x, c.z, c.gy ?? 0)) return null; // standing on ground lower than the street (a ring district, off a pad): still up top
     return A.site.id;
   }
   // A person on a flight walks it at the flight's pace (a ladder is slow).

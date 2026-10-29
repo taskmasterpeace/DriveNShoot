@@ -4,7 +4,7 @@ import { DOOR_MATERIALS } from '../data/interiors.js';
 import { UG, LOGS, NOISE } from '../data/underground.js';
 import { SEWER, WAYS, FLOOD, CURRENT, LIFE, US_LOOT, US_LOGS, BARS, RING_DRAINS } from '../data/understreet.js';
 import { drainSite, CLS, LIFT_OF, ringPlan, ringTileOf } from '../world/understreet.js';
-import { planSite, OPEN } from '../world/undergen.js';
+import { planSite, OPEN, flightHeight } from '../world/undergen.js';
 import { makeLookMaterials, buildWays, setLid, buildBelow, setWater, setDay, setRats } from './understreetlook.js';
 
 // UNDER THE STREET at runtime (docs/design/WEB_UNDERSTREET.md). Every generated town gets a drain site when it is built
@@ -161,6 +161,16 @@ export class UnderStreet {
     const boxes = sides.map(([x0, z0, x1, z1]) => StaticWorld.box(x0, z0, x1, z1, 'ug-collar', h));
     for (const b of boxes) this.g.statics.extra.push(b);
     this.collars.set(key, boxes);
+  }
+  // Is someone at (x, z, y) really down in the live drains: on one of its open shafts, or on its level under ground they
+  // are beneath (the ring's streets rise and fall, a town's outfall runs out under lower ground past its pad: standing on
+  // that low ground is not being below).
+  under(x, z, y) {
+    const A = this.U.A, P = A.plan, F = P.fgrid?.get(Math.floor(x / P.fcell) * 65536 + Math.floor(z / P.fcell));
+    if (F) for (const f of F) { const R = f.rect; if (x >= R.minX && x <= R.maxX && z >= R.minZ && z <= R.maxZ && this.isOpen(f) && flightHeight(f, x, z, y) !== null) return true; }
+    if (y > P.Y[1] + 2.2) return false;
+    const W = this.g.streamer?.W, gr = W?.groundAt ? W.groundAt(x, z) : P.Y[0];
+    return y < gr - 1; // a metre under the ground over them (W.groundAt reads the pads)
   }
   // A shut lid is no way: heightAt, steer and the level's wants skip it.
   isOpen(f) { if (!f.lid) return true; const A = this.U.A; return !!A && this.rec(A.site).open.includes(f.way); }
