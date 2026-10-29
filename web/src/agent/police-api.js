@@ -49,6 +49,23 @@ export function policeCommands(api, need) {
         return { filed: r.id, town: D.id, channel, sev, dueIn: r1(delay), rung: S.rungFor(D, sev), at: { x: r1(x), z: r1(z) } };
       },
     },
+    investigate: {
+      group: 'society',
+      desc: 'INVESTIGATE (systems/investigate.js; rows data/police.js INVESTIGATE): the shared search-party behaviour police, hunters and guards use. A party gets only what it can perceive: brass at the spot (the shooter stood there), people who SAW you (asked when reached), a blood trail laid after the incident (boot prints only with a tracker of bootSkill), the obvious hiding places round the spot (inside the nearest buildings, behind cover, beside parked cars, back yards) split between them, then rings outward; any of them seeing you ends it found (they keep your description); `until` s without a clue and they give up. No args / action=view: the parties out, their clues, where each went and why, the descriptions kept. action=start ids=c12,c13 at=x,z (the last known spot) until= trackSkill= sends those people searching; action=stop id= calls one off.',
+      args: { action: { type: 'string', default: 'view', enum: ['view', 'start', 'stop'] }, ids: { type: 'string' }, at: { type: 'string' }, until: { type: 'number' }, trackSkill: { type: 'number' }, id: { type: 'string' } },
+      run: async ({ action, ids, at, until, trackSkill, id }) => {
+        const IV = g.investigate;
+        if (action === 'start') {
+          const members = String(ids ?? '').split(',').map((k) => g.chars.find((c) => c.id === k.trim())).filter((c) => c?.alive && c !== P());
+          need(members.length, 'ids= the searchers (character ids, comma separated)');
+          const m = String(at ?? '').split(',').map(Number); need(m.length === 2 && m.every(Number.isFinite), 'at=x,z: the last known spot');
+          const p = IV.start({ members, x: m[0], z: m[1], until, trackSkill });
+          return { started: p.id, queue: p.queue.length, hiding: p.queue.filter((q) => q.why !== 'sweep').map((q) => ({ why: q.why, x: r1(q.x), z: r1(q.z) })) };
+        }
+        if (action === 'stop') { const p = IV.parties.find((q) => q.id === id); need(p, `id= one of ${IV.parties.map((q) => q.id).join(', ') || '(none out)'}`); IV.stop(p); return { stopped: id }; }
+        return IV.view();
+      },
+    },
   };
 }
 
@@ -110,7 +127,7 @@ export async function policeChecks(api, check, C) {
     });
     if (!D) throw new Error('police: no county seat desk to stage the rest in');
 
-    await check('police: a crime nobody saw or heard never dispatches anyone (a killing with no witness, a shot outside every ear: 60 s, no report, no case, no unit)', async () => {
+    await check('police: a crime nobody saw or heard never dispatches anyone (a killing with no witness, a shot outside every ear: 25 s, no report, no case, no unit)', async () => {
       reset();
       const far = streetSpot(D, 260) ?? { x: D.T.x0 + 30, z: D.T.z0 + 30 };
       await home(far.x, far.z);
@@ -121,7 +138,7 @@ export async function policeChecks(api, check, C) {
       g.combat.damage(victim, 999, P(), 0, 0, 'melee');
       const ds = Math.hypot(P().x - D.front.x, P().z - D.front.z);
       g.noise(P().x, P().z, 45, P()); // a shot: the station is ds m off, out of its ear when ds > 45 x stationEar
-      await C('step', { seconds: 60 });
+      await C('step', { seconds: 25 });
       const filed = evs('crimeReported', s0).length, cases = evs('caseOpen', s0).length, sent = evs('policeDispatched', s0).length;
       return filed === 0 && cases === 0 && sent === 0 && S.units.length === 0 && ds > 45 * CHANNELS.heard.stationEar ? true : JSON.stringify({ filed, cases, sent, units: S.units.length, ds: r1(ds), witnesses: rec?.ws, reports: S.counts.reports - n0.reports });
     });
@@ -133,13 +150,11 @@ export async function policeChecks(api, check, C) {
       for (const m of [110, 330]) {
         const spot = streetSpot(D, m);
         if (!spot) return `no street spot ${m} m out`;
-        // The scene: you, a theft, and a townsperson beside you who sees it and runs to the station.
+        // The call: a theft an officer radios in from that spot (the channels have their own checks: this one is the drive).
         await home(spot.x + 6, spot.z + 6);
-        const w = person(spot.x + 9, spot.z + 3, Math.atan2(P().x - (spot.x + 9), P().z - (spot.z + 3)));
-        w.hold = 0;
         const s0 = seq();
-        g.society.deeds.record('steal', { x: P().x, z: P().z, m: 2, label: 'a shelf' });
-        const sent = await stepUntil(() => evs('policeDispatched', s0)[0], 240);
+        await C('police', { action: 'report', at: `${r1(spot.x)},${r1(spot.z)}`, sev: 2, channel: 'patrol', verb: 'steal' });
+        const sent = await stepUntil(() => evs('policeDispatched', s0)[0], 20);
         if (!sent) return JSON.stringify({ m, why: 'never dispatched', pending: S.view().pending, reported: evs('crimeReported', s0).length });
         const u = S.units.find((q) => q.id === sent.data?.id ?? sent.id) ?? S.units[S.units.length - 1];
         const fromStation = Math.hypot((sent.data ?? sent).from.x - D.front.x, (sent.data ?? sent).from.z - D.front.z);
@@ -196,7 +211,7 @@ export async function policeChecks(api, check, C) {
 
     await check('police: a witness runs to the station; stopped on the way, the word never reaches the desk (no case); one who gets there opens it, in their run time', async () => {
       reset();
-      const spot = streetSpot(D, 200);
+      const spot = streetSpot(D, 110);
       await home(spot.x + 4, spot.z + 4);
       const mk = () => { const w = person(P().x + 5, P().z + 1, Math.atan2(-5, -1)); w.hold = 0; return w; };
       let w = mk(), s0 = seq();
@@ -208,7 +223,7 @@ export async function policeChecks(api, check, C) {
       const silenced = evs('reportSilenced', s0).length, opened = evs('caseOpen', s0).length;
       w = mk(); const s1 = seq(), t1 = g.time, d = Math.hypot(w.x - D.front.x, w.z - D.front.z);
       g.society.deeds.record('steal', { x: P().x, z: P().z, m: 2, label: 'a second crate' });
-      const open = await stepUntil(() => evs('caseOpen', s1)[0], 200);
+      const open = await stepUntil(() => evs('caseOpen', s1)[0], 120);
       const secs = open ? g.time - t1 : null, expect = d / CHANNELS.witness.run + CHANNELS.witness.tell;
       return ran && silenced === 1 && opened === 0 && open && secs > expect * 0.6 && secs < expect * 2.2 ? true : JSON.stringify({ ran: !!ran, silenced, opened, open: !!open, secs: secs && r1(secs), expect: r1(expect) });
     });
@@ -232,6 +247,73 @@ export async function policeChecks(api, check, C) {
       const breach = await stepUntil(() => evs('policeBreach', s0)[0], 40, 0.25);
       const st = stack?.data ?? stack, br = breach?.data ?? breach;
       return u.cars[0].type === 'breach_truck' && u.men.length === 6 && st?.shield && st?.ram && br && (!door || !door.locked) ? true : JSON.stringify({ truck: u.cars[0].type, men: u.men.length, stack: st, breach: br, door: door ? { locked: door.locked } : null, mode: u.mode });
+    });
+
+    // ---- INVESTIGATE (systems/investigate.js): a generic party of two (not police: anyone can search) ----------------
+    const party = (x, z, o = {}) => {
+      const a = g.addChar({ x: x + 1, z, faction: 'warden', weapon: 'pistol', name: 'Searcher A', flag: 'MX' }), b = g.addChar({ x: x - 1, z, faction: 'warden', weapon: 'pistol', name: 'Searcher B', flag: 'CA' });
+      for (const c of [a, b]) { extras.push(c); c.searchTest = true; }
+      return g.investigate.start({ members: [a, b], x, z, side: 'test', until: 40, ...o });
+    };
+    const runParty = async (p, secs) => { for (let t = 0; t < secs && !p.done; t += 0.5) await C('step', { seconds: 0.5 }); return p; };
+    const spotI = streetSpot(D, 150);
+    await check('investigate: a party finds you hiding in the obvious spot (inside the building nearest where it happened), but not if you left before they came and nobody saw you go', async () => {
+      reset();
+      await home(spotI.x, spotI.z);
+      g.arms.holster('test');
+      const hide = (() => { const p = party(spotI.x, spotI.z); const h = p.queue.find((q) => q.why === 'inside a building' && !g.losAt(spotI.x, spotI.z, q.x, q.z) && Math.hypot(q.x - spotI.x, q.z - spotI.z) > 12); g.investigate.stop(p); for (const c of extras.splice(0)) g.removeChar(c); return h; })();
+      if (!hide) return 'no building near the spot that hides you from it';
+      await home(hide.x, hide.z);
+      const p1 = party(spotI.x, spotI.z);
+      await runParty(p1, 90);
+      const found = !!p1.found, went = p1.log.some((q) => q.why === 'inside a building');
+      for (const c of extras.splice(0)) if (g.chars.includes(c)) g.removeChar(c);
+      // Gone before they came: 170 m off across town, out of sight, nobody watching (staged: no prints to follow)
+      const far = D.SG.nodes.map((n) => ({ ...n, d: Math.hypot(n.x - spotI.x, n.z - spotI.z) })).filter((n) => n.d > 150).sort((a, b) => a.d - b.d)[0];
+      await home(far.x + 3, far.z + 3);
+      for (const c of g.chars) if (c.lastSawP) c.lastSawP = null;
+      const p2 = party(spotI.x, spotI.z);
+      let near = Infinity;
+      for (let t = 0; t < 120 && !p2.done; t += 0.5) { await C('step', { seconds: 0.5 }); for (const c of p2.members) if (c.alive) near = Math.min(near, Math.hypot(c.x - P().x, c.z - P().z)); }
+      const gaveUp = p2.done && !p2.found;
+      return found && went && gaveUp && near > 60 ? true : JSON.stringify({ found, went, p1: { secs: r1(p1.t), log: p1.log.slice(-5) }, p2: { done: p2.done, found: p2.found, clues: p2.clues }, near: r1(near) });
+    });
+
+    await check('investigate: without a clue they never head for your true position - every place they go is the spot, a hiding place or a sweep ring round it (a party searching while you sit 120 m away)', async () => {
+      reset();
+      const away = D.SG.nodes.map((n) => ({ ...n, d: Math.hypot(n.x - spotI.x, n.z - spotI.z) })).filter((n) => n.d > 110).sort((a, b) => a.d - b.d)[0];
+      await home(away.x + 3, away.z + 3);
+      for (const c of g.chars) if (c.lastSawP) c.lastSawP = null;
+      const p = party(spotI.x, spotI.z, { until: 30 });
+      const goals = [];
+      for (let t = 0; t < 80 && !p.done; t += 0.5) { await C('step', { seconds: 0.5 }); for (const c of p.members) { const G = p.goals.get(c); if (G && !goals.some((q) => q.x === G.x && q.z === G.z)) goals.push({ why: G.why, x: G.x, z: G.z }); } }
+      const OK = ['the reported spot', 'inside a building', 'behind cover', 'beside a car', 'a back yard', 'sweep', 'again'];
+      const bad = goals.filter((q) => !OK.includes(q.why) || Math.hypot(q.x - spotI.x, q.z - spotI.z) > 60 || Math.hypot(q.x - P().x, q.z - P().z) < 40);
+      return goals.length >= 4 && !bad.length && !p.found && !p.clues.length ? true : JSON.stringify({ goals: goals.length, bad: bad.slice(0, 4), found: p.found, clues: p.clues });
+    });
+
+    await check('investigate: they follow a blood trail - drops laid after the incident lead them from the spot round the corner to you (out of sight of the spot, past the hiding-place radius)', async () => {
+      reset();
+      // The trail: along the street from the spot to the next crossing, then 24 m round the corner (staged drops, oldest at the spot).
+      const n0 = D.SG.nodes.map((n, i) => ({ i, d: Math.hypot(n.x - spotI.x, n.z - spotI.z) })).sort((a, b) => a.d - b.d)[0];
+      const nbrs = D.SG.adj[n0.i].map(([b]) => D.SG.nodes[b]).filter((q) => Math.hypot(q.x - spotI.x, q.z - spotI.z) > 40);
+      const n1 = nbrs[0]; if (!n1) return 'no next crossing';
+      // round the corner: of n1's neighbours, the one whose street turns most from the way we came
+      const ux = n1.x - spotI.x, uz = n1.z - spotI.z, uL = Math.hypot(ux, uz);
+      const n2 = D.SG.adj[D.SG.nodes.indexOf(n1)].map(([b]) => D.SG.nodes[b]).sort((a, b) => Math.abs(((b.x - n1.x) * uz - (b.z - n1.z) * ux) / (Math.hypot(b.x - n1.x, b.z - n1.z) * uL)) - Math.abs(((a.x - n1.x) * uz - (a.z - n1.z) * ux) / (Math.hypot(a.x - n1.x, a.z - n1.z) * uL)))[0];
+      if (!n2) return 'no corner';
+      const L2 = Math.hypot(n2.x - n1.x, n2.z - n1.z), end = { x: n1.x + (n2.x - n1.x) / L2 * 24, z: n1.z + (n2.z - n1.z) / L2 * 24 };
+      const path = [{ x: spotI.x, z: spotI.z }, { x: n1.x, z: n1.z }, end], pts = [];
+      for (let k = 1; k < path.length; k++) { const a = path[k - 1], b = path[k], L = Math.hypot(b.x - a.x, b.z - a.z); for (let s2 = 0; s2 < L; s2 += 2) pts.push({ x: a.x + (b.x - a.x) * s2 / L, z: a.z + (b.z - a.z) * s2 / L }); }
+      await home(end.x + 1.5, end.z + 1.5);
+      g.arms.holster('test');
+      const O = g.outdoors;
+      pts.forEach((q, k) => O.lay('blood', q.x, q.z, 0, P().id, 'person', (pts.length - k) * 0.0015));
+      const dStart = Math.hypot(P().x - spotI.x, P().z - spotI.z);
+      const p = party(spotI.x, spotI.z, { until: 45 });
+      await runParty(p, 120);
+      const blood = p.clues.find((q) => q.kind === 'blood'), trailSteps = p.log.filter((q) => q.why === 'following the trail').length;
+      return blood && p.found && trailSteps >= 3 && dStart > 50 ? true : JSON.stringify({ blood: !!blood, found: p.found, trailSteps, dStart: r1(dStart), clues: p.clues, log: p.log.slice(-6), drops: pts.length });
     });
 
     Dsmall = await stamp('plains_grain_town', 1, { x: 2600, z: 1600 });

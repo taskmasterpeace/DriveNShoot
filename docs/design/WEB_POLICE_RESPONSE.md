@@ -1,6 +1,6 @@
 # WEB_POLICE_RESPONSE: stations, beats, the desk, and the heavy team
 
-Rows: `web/src/data/police.js` (+ `validatePolice`). System: `web/src/systems/police.js`. Commands and checks: `web/src/agent/police-api.js` (`police action=stations|patrols|dispatch|units|report|clear|siren`). Renders: `docs/renders/web/swat/`.
+Rows: `web/src/data/police.js` (+ `validatePolice`, `INVESTIGATE`). Systems: `web/src/systems/police.js`, `web/src/systems/investigate.js` (the shared search party). Commands and checks: `web/src/agent/police-api.js` (`police action=stations|patrols|dispatch|units|report|clear|siren`, `investigate action=view|start|stop`). Renders: `docs/renders/web/swat/`.
 
 Robert (2026-10-29): *"certain cities should be able to have, like, the equivalent of SWAT teams. And they got to actually come from the police station too, though. And you should hear them coming close. They should have their routes around the city for certain."*
 
@@ -73,6 +73,17 @@ In a precinct, if you kill an officer, the breach truck comes. You see six helme
   At severity ≤ 2 with a force that arrests: hands up, holster and stand still within 5.5 m for 1.5 s. If you can pay, you are fined `fine` × severity; if not, you go to THIS station's cell for `jail` × severity hours.
   Otherwise they open fire. If they lose you for 12 s, they search where they last saw you.
 
+**Investigation (the shared INVESTIGATE behaviour, `systems/investigate.js`).** Robert: *"no cheating, but the AI needs the tools that they need in order to be able to do stuff like find you and investigate stuff."* Any AI starts a party (`g.investigate.start({ members, x, z, ... })`); police searches run through it. A party knows only:
+- the **last known spot** it was given, plus whatever it reads there itself;
+- **brass**: two or more casings at rest within `brassR` of the spot (`systems/ambient.js` shells). The search moves to where the shooter stood;
+- **witnesses**: people who SAW you have `c.lastSawP`, which is recorded only from `g.sees`, twice a second, while a party is out. A searcher within `askR` of one walks over, asks (`ask` s), and the search moves to where that witness last saw you;
+- **blood**: a drop laid after the incident (the `outdoors.js` track pool, by anyone not in the party, younger than `lookbackH`). They follow it print to print forward (the newest within `noseR` of the lead each scan). **Boot prints** are followed the same way, but only by a party with `trackSkill ≥ bootSkill` (a tracker), so a bull without a dog does not read boots on a street;
+- **hiding places** within `hideR`, nearest first, up to `maxHides`: inside the nearest buildings (the centre; `look` × 1.5), behind crates, half-walls, pumps and wrecks (the far side of their normal), beside parked cars (the side away from the spot), and the back yards;
+- **sweep** rings at `rings` m, `perRing` points each, after the hiding places;
+- **sight**: any member who sees you (`g.sees` inside `sightDay`→`sightNight`; ×0.6 crouched; prone by `stance.seenRange`) ends the party as FOUND. The party's side keeps your description (weapon, vehicle, flag, where, when).
+
+Members take the next place on the list in turn, so the party splits up. A place they cannot reach is given up after `giveGoal` s. Hard evidence (blood, brass) calls backup once (police: the case's rung rises to posse). After `until` s with no fresh clue, they give up (`investigateEnd`). Drains: a party never goes below the street (no line of sight into the drains); a witness who saw you go down a manhole moves the search to the manhole and no further.
+
 **The air.**
 - The desk's lines (`DISPATCH_LINES`: send, scene, stack, clear, contact) are knowledge facts keyed up from the station through `kit.keyUp`. Only a live scanner in range copies them.
 
@@ -119,6 +130,9 @@ In a precinct, if you kill an officer, the breach truck comes. You see six helme
 | `systems/audio.js spatial`, `tone` | the siren's falloff and its wail |
 | `systems/gadgets.js` parts and glow meshes | light bars, the shield, the ram, the station lamp (hook: no new draw calls) |
 | `systems/sitestories.js` places (owner) | which force |
+| `systems/outdoors.js` track pool (`tx/tz/tt/tk/tw`, `visible`, `hours`) | blood and boot prints for the party |
+| `systems/ambient.js shells` | brass at the spot |
+| `systems/citygen.js coverNear`, `T.yards`, built `blds` | the obvious hiding places |
 | `systems/vehicles.js VEHICLES` | `bullcar`; the breach truck row on the `patrol` frame |
 | `data/gear.js` (NPC `c.worn` soaks) | the heavy team's helmets, vests and arm guards |
 
@@ -127,6 +141,9 @@ In a precinct, if you kill an officer, the breach truck comes. You see six helme
 | `systems/security.js` | `g.police.owns(x, z)`: no Rust Haven dispatch inside a desk's town (hook) |
 | `agent/api.js` | `policeCommands`; `policeChecks` in the battery; the desk is off for unrelated checks (hook) |
 | `systems/kit.js` (scanner) | hears the desk's key-ups (no change: `keyUp` already public) |
+| `systems/police.js` | every police search (`search`, `inside`) is a party; blood or brass raises the case's rung |
+| bounty hunters / guards (any lane) | `g.investigate.start({ members, x, z, side, until, trackSkill, onFound, onBackup })` |
+| CALIBERS lane (pending) | when it lands casings and wounds that carry the calibre and direction, `scan()` can read them; today brass gives only the shooter's spot |
 | timed-actions lane (pending) | `g.actions.breakIn(ram, door, { tool: 'ram' })` is called when present |
 | gunfire-react lane (pending) | can file into `g.police.file({...})` or rely on `g.noise` |
 
@@ -146,6 +163,10 @@ In a precinct, if you kill an officer, the breach truck comes. You see six helme
 | `CHANNELS.alarm.share` | 0.6 | 0–1 | how many shops are wired |
 | `PATROLS.car.ring`, `dwell`, `cruise` | 1, 4 s, 9 | ring 1–3 | beat size; how predictable |
 | `SIREN.range`, `audible` | 650 m, 0.012 | 300–900, 0.005–0.05 | how early you hear them |
+| `INVESTIGATE.hideR`, `maxHides` | 34 m, 10 | 20–50, 4–16 | how thorough the hiding-place pass is; how long it takes |
+| `INVESTIGATE.until` | 75 s (police: the response's `search`) | 30–180 | how long they keep looking with no new clue |
+| `INVESTIGATE.bootSkill`, `trackSkill` | 6, 3 | 4–8, 1–8 | who can follow your boots (a tracker can; a bull can't) |
+| `INVESTIGATE.sightDay/Night` | 38 / 15 m | 25–50 / 8–25 | how far a searcher picks you out |
 | `FORCES.*.fine`, `jail` | 35/25/0, 4/6/0 | — | the price of the cuffs |
 
 ## 8. Acceptance Criteria
@@ -154,13 +175,19 @@ The selftest checks (`police:` in `src/agent/police-api.js`, run inside the batt
 2. **The response table by town size**: every archetype × 3 seeds, through the real `layoutTown`. Fewer than 30 buildings gives no station. Every station-holding town gets a tier. The heavy team iff precinct, major, or a rich station. The table holds at least none, post, station and precinct+heavy.
 3. **A county seat keeps a precinct**: a desk at its station, a parked motor pool (≥3 cars and the truck), an armory with men, cells, and a street graph.
 4. **A crime nobody saw or heard never dispatches anyone**: an unwitnessed killing plus a shot beyond the station's ear, then 60 s. No report, no case, no unit.
-5. **From the station, by the streets, in time proportional to distance**: a theft seen by a townsperson, at 110 m and at 330 m of street. Each unit starts within 30 m of the station. ≥85% of its samples are on a street. Time ratio / route ratio is within ±45%.
+5. **From the station, by the streets, in time proportional to distance**: a theft radioed in from 110 m and from 330 m of street (the channels have their own checks; this one is the drive). Each unit starts within 30 m of the station. ≥85% of its samples are on a street. Time ratio / route ratio is within ±45%.
 6. **The reported spot, not your true position**: a shot the station hears, then you teleport 200 m off. The reported spot is >3 m from the real one. The car parks <30 m from the *reported* spot and >120 m from you, and there is no contact.
 7. **Sirens before arrival, from the right direction**: a posse to a spot beside you. `sirenHeard` comes before `policeArrived`, while the unit is still rolling, from >60 m. Its bearing is within 20° of the car's true bearing at that moment.
 8. **A witness runs; stopped, the word never arrives**: the first runner is killed, which gives a silenced report and no case. A second runner reaches the station and opens the case in 0.6–2.2× their run time.
 9. **The heavy team stacks and breaches**: a severity-6 report naming a shop with a locked door. The breach truck brings six. `policeStack` reports the shield and the ram. `policeBreach` follows, and the door is unlocked.
 10. **The heavy team only where kept**: the same severity-6 call in a station-sized grain town brings two bull cars and no truck.
 11. **Patrols on schedule**: at 09:00, the day shift's car beats leave from within 30 m of the station. A car makes ≥3 corners, in loop order, starting at its first corner. At 18:00 every day beat goes home (`beatIn`), and the night shift's car beats are out.
+
+12. **Investigate: the obvious spot, and the one who left**: a generic party of two (not police) starts at a street spot.
+    You hide inside the nearest building that can't be seen from the spot: they go inside and find you.
+    You were moved 170 m off before they came (staged, so no prints) and nobody saw you go: they never get within 60 m of you, and they give up.
+13. **Investigate: no clue, no beeline**: while you sit 120 m away, every place the party goes is the spot, a hiding place or a sweep point within 60 m of the spot. None is within 40 m of you. No clue is found, and you are not found.
+14. **Investigate: a blood trail**: drops laid from the spot to 24 m round the next corner, more than 50 m from the spot, beyond the hiding-place pass. The party reads the blood, takes at least 3 steps along the trail, and finds you.
 
 Also required of the lane: full selftest green twice on fresh pages, `scenario name=stress` with no regression, <150 draw calls, `ip-lint` 0 deny.
 

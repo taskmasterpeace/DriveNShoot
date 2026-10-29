@@ -727,17 +727,21 @@ export class Police {
     const searchers = [];
     men.forEach((c, j) => { if (j >= men.length - u.posts.length || (u.mode === 'stack' && !(c.pol.shield || c.pol.ram) && j >= 4)) { const p = u.posts[j - (men.length - u.posts.length)]; if (p) { if (this.walk(c, p.x, p.z, 3.2, dt) < 1.5) { c.face = Math.atan2((C?.x ?? u.goal.x) - c.x, (C?.z ?? u.goal.z) - c.z); c.aiming = true; } return; } } searchers.push(c); });
     if (u.mode === 'stack') { this.stepStack(u, searchers, C, D, dt); return; }
-    // The search: a ring round the reported spot, turning every 8 s.
+    // The search: a party of the searchers (systems/investigate.js) from the reported spot, or from where they last saw
+    // you: the spot, brass, anyone who saw, blood, the hiding places, rings outward. It gives up after the response's
+    // `search` s without a fresh clue; hard evidence (blood, brass) brings backup (the case's rung goes up).
     u.searchT += dt;
-    const cx = C?.lastSeen?.x ?? C?.x ?? u.goal.x, cz = C?.lastSeen?.z ?? C?.z ?? u.goal.z, rr = u.mode === 'inside' ? 4 : 11;
-    if (((u.ringT = (u.ringT ?? 0) + dt) > 8)) { u.ringT = 0; u.ring++; }
-    searchers.forEach((c, j) => { const a = (j / Math.max(1, searchers.length) + u.ring * 0.17) * Math.PI * 2; this.walk(c, cx + Math.cos(a) * rr, cz + Math.sin(a) * rr, 2.2, dt); });
-    if (u.searchT > u.R.search) {
-      u.mode = 'home'; this.counts.cleared++;
-      if (C) { C.units = C.units.filter((id) => id !== u.id); if (!C.units.length) C.open = false; }
-      this.air(D, this.say('clear', D, { unit: u.call, place: this.placeName(D, cx, cz) }), cx, cz, u);
-      g.emit('policeClear', { id: u.id, case: C?.id ?? null, town: D.id, searched: r1(u.searchT) });
+    const cx = C?.lastSeen?.x ?? C?.x ?? u.goal.x, cz = C?.lastSeen?.z ?? C?.z ?? u.goal.z, IVS = g.investigate;
+    if (!u.party && IVS && searchers.length) {
+      u.party = IVS.start({ members: searchers, x: cx, z: cz, side: D.id, until: u.R.search, r: u.mode === 'inside' ? 10 : undefined, t0: C?.t,
+        onBackup: () => { if (C?.open) { C.sev = Math.max(C.sev, SEVERITY.ladder.posse); this.respond(D, C); } } });
     }
+    if (u.party && !u.party.done) return;
+    if (u.party?.found && C && (C.suspect === 'player' || this.armed())) { u.party = null; return; } // seen: spot() takes it next frame
+    u.mode = 'home'; this.counts.cleared++;
+    if (C) { C.units = C.units.filter((id) => id !== u.id); if (!C.units.length) C.open = false; }
+    this.air(D, this.say('clear', D, { unit: u.call, place: this.placeName(D, cx, cz) }), cx, cz, u);
+    g.emit('policeClear', { id: u.id, case: C?.id ?? null, town: D.id, searched: r1(u.searchT), checked: u.party?.qi ?? 0, clues: u.party?.clues?.length ?? 0 });
   }
   armed() { const a = this.g.arms; return !!this.g.player.weapon && a?.stance !== 'holstered'; }
   spot(u, men, C) {
@@ -784,12 +788,13 @@ export class Police {
       else if (door && g.interiors?.kick) { ram.kickAt = -9; const r = g.interiors.kick(door, ram); if (r?.kicked && door.locked) { ram.kickAt = -9; g.interiors.kick(door, ram); } done = !door.locked; }
       else done = S.blows >= 3;
       g.noise?.(S.x, S.z, 30, ram);
-      if (done || S.blows > 8) { for (const c of men) c.crouch = false; S.open = true; this.counts.breaches++; g.emit('policeBreach', { id: u.id, building: B.id, blows: S.blows, door: door?.id ?? null }); u.mode = 'inside'; u.searchT = 0; if (C) { C.x = (B.x0 + B.x1) / 2; C.z = (B.z0 + B.z1) / 2; } }
+      if (done || S.blows > 8) { for (const c of men) c.crouch = false; S.open = true; this.counts.breaches++; g.emit('policeBreach', { id: u.id, building: B.id, blows: S.blows, door: door?.id ?? null }); u.mode = 'inside'; u.searchT = 0; u.party = null; if (C) { C.x = (B.x0 + B.x1) / 2; C.z = (B.z0 + B.z1) / 2; } }
     }
   }
   contact(u, C, D, by) {
     const g = this.g;
     u.mode = 'contact'; this.counts.contacts++;
+    if (u.party && !u.party.done) g.investigate?.stop(u.party, 'contact'); u.party = null;
     u.contact = { t: 0, still: 0, offer: D.forceRow.arrest && C.sev <= 2, hp0: u.men.map((c) => c.hp) };
     this.air(D, this.say('contact', D, { unit: u.call, place: this.placeName(D, g.player.x, g.player.z) }), g.player.x, g.player.z, u);
     g.emit('policeContact', { id: u.id, case: C.id, by: by.id, offer: u.contact.offer, at: { x: r1(g.player.x), z: r1(g.player.z) } });
@@ -803,7 +808,7 @@ export class Police {
     if (!P.alive) { u.mode = 'home'; return; }
     if (!K.offer) {
       // Fighting: while they see you; lose you for 12 s and they search where they last saw you (the case's lastSeen).
-      if (!seen && g.time - u.seenAt > 12) { u.mode = 'search'; u.searchT = 0; for (const c of men) { c.target = null; c.state = 'idle'; } }
+      if (!seen && g.time - u.seenAt > 12) { u.mode = 'search'; u.searchT = 0; u.party = null; for (const c of men) { c.target = null; c.state = 'idle'; } }
       return;
     }
     for (let i = 0; i < u.men.length; i++) { const c = u.men[i]; if (K.hp0[i] > 0 && (c.hp < K.hp0[i] - 0.5 || !c.alive) && c.lastAttacker === P) { this.fight(u); return; } }
@@ -831,6 +836,7 @@ export class Police {
   }
   retire(u, silent = false) {
     u.live = false;
+    if (u.party && !u.party.done) this.g.investigate?.stop(u.party, 'unit in');
     const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1);
     const D = this.towns.get(u.town);
     if (u.beat && D) {

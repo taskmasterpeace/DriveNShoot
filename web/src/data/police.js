@@ -113,6 +113,25 @@ export const DISPATCH_LINES = {
 };
 export const PLACE_WORDS = { N: 'north end', S: 'south end', E: 'east end', W: 'west end', C: 'downtown' };
 
+// ---- INVESTIGATE: how anyone looks for someone (systems/investigate.js; police, hunters, a guard who heard something) --
+//   hideR      the obvious hiding places are looked for this far round the spot (buildings, cover, parked cars, yards);
+//              maxHides of them, nearest first; look: seconds spent looking at each (x1.5 inside a building)
+//   rings      the sweep's radii (m) after the hiding places, perRing points each, split between the party
+//   sightDay/Night  how far a searcher picks you out (crouch x0.6, prone by systems/stance.js)
+//   brassR     casings within this of the spot are read (the shooter stood where the brass lies)
+//   askR       a searcher this close to someone who SAW you goes and asks (ask: seconds); witnessR: how far people see
+//   noseR      sign (blood, prints) is read within this of the lead; bootSkill: the tracking it takes to follow BOOTS
+//              (anyone follows blood); trackSkill: a party's skill unless it brings a tracker; lookbackH: sign this many
+//              game hours older than the search is not this incident
+//   until      seconds without a fresh clue before they give up; giveGoal: seconds before a place they cannot reach is
+//              given up; scanEvery: seconds between reads of the ground; speed / trailSpeed: walking pace
+export const INVESTIGATE = {
+  hideR: 34, maxHides: 10, look: 2.2, rings: [12, 24, 36], perRing: 6,
+  sightDay: 38, sightNight: 15, brassR: 16, askR: 22, ask: 2, witnessR: 45,
+  noseR: 20, bootSkill: 6, trackSkill: 3, lookbackH: 0.25,
+  until: 75, giveGoal: 18, scanEvery: 1, speed: 2.4, trailSpeed: 3,
+};
+
 // The validator (the World Forge and the selftest): tiers climb, every force names a real look and car, every response
 // names real weapons and gear, severities climb, colours are red and blue (never purple, hue 270-320).
 export function validatePolice(rows = { STATION_TIERS, FORCES, RESPONSES, SEVERITY, CHANNELS, PATROLS, SIREN, BREACH_TRUCK }, ctx = {}) {

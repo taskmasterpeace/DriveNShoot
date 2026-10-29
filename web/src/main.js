@@ -76,6 +76,7 @@ import { Travel } from './systems/travel.js'; // the trundle, the iron, the one 
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
+import { Investigate } from './systems/investigate.js'; // one shared INVESTIGATE behaviour: a search party that finds you only from what it perceives
 import { Police } from './systems/police.js'; // POLICE RESPONSE: stations, beats, the desk, units that drive from the station, sirens (WEB_POLICE_RESPONSE.md)
 import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
 import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
@@ -259,6 +260,7 @@ class Game {
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.kit = new Kit(this); // what you wear and look through, and what feeds it (systems/kit.js, WEB_GADGETS2.md)
+    this.investigate = new Investigate(this); // search parties (systems/investigate.js): police, hunters, a guard who heard something
     this.police = new Police(this); // the town desks: stations, beats, reports by real channels, units from the motor pool (systems/police.js)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
     this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
@@ -1324,6 +1326,7 @@ class Game {
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.investigate.update(simDt); // the search parties out: sweep, hiding places, blood, witnesses (systems/investigate.js)
       this.police.update(simDt); // the desks hear what reached them and send from the station (systems/police.js)
       this.kit.update(simDt); // cells drain, the glass marks, the scanner listens, bad air, dog gear, car kit (systems/kit.js)
       this.rites.update(simDt); // the dead age on the clock, the cemeteries near you, funerals (systems/rites.js)
