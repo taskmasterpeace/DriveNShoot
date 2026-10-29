@@ -128,7 +128,8 @@ export class Feed {
   candidates(S, mast) {
     const k = this.k, h = k?.holders.get(`town:${mast.id}`), now = this.hours();
     if (!h) return [];
-    return h.facts.filter((c) => S.airs.includes(c.what) && (c.ends ?? c.when + c.life) > now && now - (this.aired.get(`${mast.id}|${c.id}`) ?? -1e9) > FEED.airAgainAfter);
+    // a copy dated after now (a clock wound back by a load) has not happened yet on this clock: never read it
+    return h.facts.filter((c) => S.airs.includes(c.what) && c.when <= now + 0.05 && (c.ends ?? c.when + c.life) > now && now - (this.aired.get(`${mast.id}|${c.id}`) ?? -1e9) > FEED.airAgainAfter);
   }
   // One line on the air. force: ignore the gap (a command). Returns the log row or null (nothing to say).
   air(S, { force = false } = {}) {

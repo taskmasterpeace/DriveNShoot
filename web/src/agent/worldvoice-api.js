@@ -180,10 +180,12 @@ export async function worldVoiceChecks(api, check, C) {
       if (!truck) return `no truck left ${T2.name} for ${T1.name}`;
       if (Math.abs(truck.at - truck.sent - d / 450) > 0.15) return `truck time ${JSON.stringify(truck)} vs ${r1(d / 450)} h`;
       await waitHours(g, Math.max(0.05, truck.at - g.pulls.hours() - 0.3), 0.25);
-      const midHeld = K.holds(`town:${T1.id}`, fid), mid = F.air(S, { force: true });
+      // read the mast out (everything it holds now): this fight is not among it before the truck lands
+      const readOut = () => { const ids = []; for (let k = 0; k < 40; k++) { const r = F.air(S, { force: true }); if (!r) break; ids.push(r.fid); if (r.fid === fid) break; } return ids; };
+      const midHeld = K.holds(`town:${T1.id}`, fid), midIds = readOut(), mid = { fid: midIds.includes(fid) ? fid : null };
       await waitHours(g, 0.8, 0.25);
       const t1After = K.holds(`town:${T1.id}`, fid), copyT1 = K.copyOf(`town:${T1.id}`, fid);
-      const after = F.air(S, { force: true }), you = K.copyOf('player', fid);
+      const afterIds = readOut(), after = F.log.find((row) => row.fid === fid && row.mast === T1.id) ?? null, you = K.copyOf('player', fid);
       // every line ever aired came from a copy the mast held, heard no earlier than the thing happened
       const lawful = F.log.every((row) => row.mastHeard >= row.fact.when - 0.01);
       const ok = !unseen && F.stats.unwitnessed > 0 && t2 && !t1Before && before?.fid !== fid && !youBefore && !midHeld && mid?.fid !== fid
