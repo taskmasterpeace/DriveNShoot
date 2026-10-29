@@ -72,6 +72,7 @@ import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressin
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
+import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
@@ -253,6 +254,7 @@ class Game {
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
+    this.stories = new SiteStories(this); // site stories and the bounty guild (systems/sitestories.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
     this.insideBuilding = null;
     this.paused = true;
@@ -639,6 +641,7 @@ class Game {
       this.inventory.armBody(body, c);
     }
     this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
+    this.stories?.onKill(c, attacker); // a party's person, a fallen place's master, a hunter (systems/sitestories.js)
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); this.clone.onDeath(c); } // the husk lies where you fell
     if (c.res) this.residents.onKill(c, attacker); // a ring resident: the death goes on their household's record
     this.rites?.onDeath(c, attacker, cause); // the body's record: it rots on the clock until buried, burned or dragged off
@@ -1323,6 +1326,7 @@ class Game {
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
+      this.stories.update(simDt); // places on the world clock, traders, raids, refugees, hunters (systems/sitestories.js)
       this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.nanGuard('late');
     }

@@ -312,6 +312,7 @@ export class AI {
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.gv) { g.grapevine.think(c, dt); continue; } // a Grapevine pack's own mind (systems/grapevine.js)
       if ((c.pullRec || c.barRole) && g.pulls?.think(c, dt)) continue; // a road person walks their shoulder; a barkeep keeps the bar (systems/pulls.js)
+      if ((c.storyM || c.storyCamp || c.storyGarrison) && g.stories?.think(c, dt)) continue; // a party on the road, a camp, a fallen place's master (systems/sitestories.js)
       if (c.crewRec && g.crew.think(c, dt)) continue; // your crew: orders, jobs, downed, drift (systems/crew.js)
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
