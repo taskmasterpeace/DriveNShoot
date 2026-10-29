@@ -169,7 +169,8 @@ export class UnderStreet {
     const A = this.U.A, P = A.plan, F = P.fgrid?.get(Math.floor(x / P.fcell) * 65536 + Math.floor(z / P.fcell));
     if (F) for (const f of F) { const R = f.rect; if (x >= R.minX && x <= R.maxX && z >= R.minZ && z <= R.maxZ && this.isOpen(f) && flightHeight(f, x, z, y) !== null) return true; }
     if (y > P.Y[1] + 2.2) return false;
-    const W = this.g.streamer?.W, gr = W?.groundAt ? W.groundAt(x, z) : P.Y[0];
+    const W = this.g.streamer?.W, g0 = W?.groundAt ? W.groundAt(x, z) : P.Y[0];
+    const gr = Number.isFinite(g0) && g0 > P.Y[1] + 1 ? g0 : P.Y[0]; // terrain not laid out yet (0, NaN): the street's height
     return y < gr - 1; // a metre under the ground over them (W.groundAt reads the pads)
   }
   // A shut lid is no way: heightAt, steer and the level's wants skip it.
