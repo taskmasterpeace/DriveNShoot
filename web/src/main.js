@@ -23,6 +23,8 @@ import { FX } from './systems/fx.js';
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
 import { Ballistics } from './systems/ballistics.js';
+import { Deaths } from './systems/deaths.js';
+import { Migrations } from './systems/migrations.js';
 import { Arms } from './systems/arms.js';
 import { Gunpoint } from './systems/gunpoint.js';
 import { Melee } from './systems/melee.js';
@@ -181,6 +183,7 @@ class Game {
     this.vehicles = [];
     this.combat = new Combat(this);
     this.ballistics = new Ballistics(this, this.scene); // rounds in flight (docs/design/WEB_BALLISTICS.md)
+    this.deaths = new Deaths(this); // the death library: clips, ragdolls, limbs, blood (docs/design/WEB_DEATHS.md)
     this.arms = new Arms(this);         // stance, grip, fire modes, recoil (WEB_CONTROLLER §3.2-3.4)
     this.gunpoint = new Gunpoint(this); // a raised gun held on a person is a state (§3.5)
     this.melee = new Melee(this);       // shove, strike, kick (§3.6)
@@ -255,6 +258,7 @@ class Game {
     this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
+    this.migrations = new Migrations(this); // hordes that walk the highways, seen before they are reported (WEB_DEATHS.md)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
@@ -1308,6 +1312,7 @@ class Game {
       this.gunpoint.update(simDt); // after ambient: the held keep their hands up
       this.carCombat.update(simDt);
       this.ballistics.update(simDt); // rounds in the air fly on and meet what is in their way
+      this.deaths.update(simDt); this.migrations?.update(simDt); // the dying land; hordes walk the highways (WEB_DEATHS.md)
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)

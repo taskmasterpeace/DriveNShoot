@@ -210,7 +210,7 @@ export class Combat {
     const quiet = cause === 'fire' || cause === 'drown';
     if (quiet) {
       if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.hud.hurt(dmg * 0.5); }
-      c.hp -= dmg; c.lastAttacker = attacker ?? c.lastAttacker;
+      c.hp -= dmg; c.lastAttacker = attacker ?? c.lastAttacker; c._hitCause = cause;
       if (cause === 'fire') { c.charred = Math.min(1, (c.charred ?? 0) + dmg / 90); if (Math.random() < 0.05) g.charR.paint(c); }
       if (c.hp <= 0) this.kill(c, attacker, dx, dz, cause);
       return;
@@ -219,6 +219,7 @@ export class Combat {
     if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
     if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
+    c._hit = part ?? c.hitPart ?? null; c._hitDmg = dmg; c._hitCause = cause; // what the death library reads (systems/deaths.js)
     if (attacker === g.player && c !== g.player) g.feedback?.damage(c, dmg, part); // damage numbers (ui/feedback.js, a setting)
     c.lastAttacker = attacker;
     c.bleed = Math.min(1, c.bleed + dmg / 120);
@@ -241,6 +242,7 @@ export class Combat {
   }
 
   kill(c, attacker, dx, dz, cause) {
+    const face0 = c.face; // which way they faced as it hit (the death library: shot from the front or the back)
     if (cause === 'fire' || cause === 'drown') {
       // Burned or drowned: no blood bath, just the body (charred if it burned).
       const g = this.g;
@@ -248,6 +250,7 @@ export class Combat {
       if (cause === 'fire') { c.charred = 1; g.charR.paint(c); g.fx.decal(c.x, c.z, 1.6, '#151210'); }
       g.audio.death();
       if (c.npc && attacker !== g.player) { c.downedT = 45; g.emit('downed', { id: c.id, name: c.npc.name, backInSeconds: 45, by: attacker?.id ?? null }); }
+      if (cause === 'fire') g.deaths?.onKill(c, attacker, dx, dz, cause, face0);
       g.onKill(c, attacker, cause);
       return;
     }
@@ -275,6 +278,7 @@ export class Combat {
     // Named characters are essential: if anyone but the player drops them they're only
     // downed — Doc Reyes gets them back on their feet a bit later. The player's kills stick.
     if (c.npc && (attacker !== g.player || c.npc.essential)) { c.downedT = 45; g.hud.toast(`${c.npc.name} is down — Doc Reyes will patch them up`, 'warn'); g.emit('downed', { id: c.id, name: c.npc.name, backInSeconds: 45, by: attacker?.id ?? null }); }
+    g.deaths?.onKill(c, attacker, dx, dz, cause, face0); // the clip, the ragdoll, limbs (systems/deaths.js)
     g.onKill(c, attacker, cause); // without the cause every kill logged as 'bullet': no ROADKILL or BLOWN UP in the feed
   }
 }

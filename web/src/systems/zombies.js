@@ -4,6 +4,8 @@ import { layerMesh } from '../engine/depthlayers.js';
 import { outfit } from './characters.js';
 import { INFECTED, CHOIR_SITES, FOOTSTEPS, INSIDE, BREEDS } from '../data/infected.js';
 import { HIT_ODDS } from '../data/gear.js';
+import { HEADSHOT } from '../data/deaths.js';
+import { BREED_ANSWERS, WARNINGS } from '../data/hordes.js';
 import { Wilds } from './wilds.js';
 
 // The infected (canon: docs/design/THE_INFECTED.md - shamblers, and the rare sprinter; never "zombies" on screen). They hunt by smell (no line of sight needed), swarm to
@@ -12,6 +14,8 @@ import { Wilds } from './wilds.js';
 // them out of town.
 
 const SH = INFECTED.shambler, SP = INFECTED.sprinter, EC = INFECTED.echo, CH = INFECTED.choir;
+const BS = BREED_ANSWERS.sprinter, BE = BREED_ANSWERS.echo, WG = WARNINGS.groan; // what each breed demands (data/hordes.js)
+const wrapA = (a) => a - Math.PI * 2 * Math.round(a / (Math.PI * 2));
 const D2R = Math.PI / 180;
 const rowOf = (c) => INFECTED[c.zkind] ?? SH; // a plain shambler has no zkind
 const BITE = SH.claw;
@@ -123,14 +127,29 @@ export class Zombies {
   // A sprinter breaks: the burst (6 s at 9 m/s, claws x1.4), the overheat (3 s bent double, wheezing), dormant again.
   burst(c, why = 'moved') {
     if (c.zkind !== 'sprinter' || c.zs.state !== 'dormant' || !c.alive) return false;
-    c.zs.state = 'burst'; c.zs.t = SP.burst; c.zs.base = c.zs.base ?? c.zSpeed; c.zSpeed = SP.burstSpeed; c.crouch = false;
+    // It SCREAMS first (BREED_ANSWERS.sprinter.windup: the tell, the moment to step aside), then charges.
+    c.zs.state = 'windup'; c.zs.t = BS.windup; c.zs.base = c.zs.base ?? c.zSpeed; c.crouch = false;
     c.name = 'Sprinter'; // it has shown what it is (the tag says so until it is a walker again)
-    this.counts.bursts++;
-    this.g.emit('sprinterBurst', { id: c.id, why });
+    this.counts.bursts++; this.counts.screams = (this.counts.screams ?? 0) + 1;
+    const g = this.g, P = g.player, d = Math.hypot(c.x - P.x, c.z - P.z);
+    if (d < WARNINGS.scream.range) { const A = g.audio; A?.count?.('scream'); if (!A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
+    g.emit('sprinterBurst', { id: c.id, why });
+    g.emit('sprinterScream', { id: c.id, dist: Math.round(d), windup: BS.windup });
     return true;
   }
   sprinter(c, dt) {
     const Z = c.zs, g = this.g;
+    if ((Z.state === 'windup' || Z.state === 'burst') && this.leap(c)) return true;
+    if (Z.state === 'windup') {
+      const t = c.zsee?.alive ? c.zsee : c.ztarget?.alive ? c.ztarget : null;
+      if ((Z.t -= dt) > 0) { c.speed = 0; c.handsUp = true; if (t) c.face = Math.atan2((t.inVehicle?.x ?? t.x) - c.x, (t.inVehicle?.z ?? t.z) - c.z); return true; } // reared back, screaming
+      // The charge: locked on where the target stood at the end of the scream; it runs straight past that spot by
+      // BS.overshoot m before it can turn (a step aside and it goes by).
+      c.handsUp = false; Z.state = 'burst'; Z.t = SP.burst; c.zSpeed = SP.burstSpeed;
+      const tx = t ? (t.inVehicle?.x ?? t.x) : c.x + Math.sin(c.face), tz = t ? (t.inVehicle?.z ?? t.z) : c.z + Math.cos(c.face);
+      c.zhead = Math.atan2(tx - c.x, tz - c.z); c.zlock = { x: tx, z: tz, past: false };
+      return false;
+    }
     if (Z.state === 'dormant') {
       if (c.zSpeed > SH.speed[1] + 0.5) { c.zSpeed = SH.speed[0] + 0.35; c.name = SH.name; } // a save taken mid-burst: back to the walk
       if ((Z.t -= dt) > 0) return false; // re-arming
@@ -151,7 +170,7 @@ export class Zombies {
       if (Z.state === 'overheat') { c.speed = 0; c.crouch = true; if (Math.random() < dt * 0.8) g.audio.wheeze?.(g.pan(c.x), Math.hypot(c.x - g.player.x, c.z - g.player.z)); return true; }
       return false;
     }
-    if (Z.state === 'burst') { Z.state = 'overheat'; Z.t = SP.overheat; c.zSpeed = Z.base; this.counts.overheats++; g.emit('sprinterOverheat', { id: c.id }); return true; }
+    if (Z.state === 'burst') { Z.state = 'overheat'; Z.t = SP.overheat; c.zSpeed = Z.base; c.zlock = null; this.counts.overheats++; g.emit('sprinterOverheat', { id: c.id }); return true; }
     Z.state = 'dormant'; Z.t = SP.rearm; c.crouch = false; c.name = SH.name; // stood up: a shambler again
     return false;
   }
@@ -171,6 +190,19 @@ export class Zombies {
   echo(c, dt) {
     const g = this.g, I = g.interiors, P = g.player, post = c.post;
     c.aiming = false;
+    // It COPIES what it heard (BREED_ANSWERS.echo): the noise comes back from where it stands, and the dead round it walk
+    // to the copy. A stealth problem: fight loud near one and it doubles the crowd.
+    if (c.ecopy && (c.ecopy.t -= dt) <= 0) {
+      const r = c.ecopy.r; c.ecopy = null;
+      this._echoing = true;
+      this.onNoise(c.x, c.z, r, 'echo');
+      g.citygen?.overrun?.onNoise?.(c.x, c.z, r / 2);
+      this._echoing = false;
+      this.counts.echoCopies = (this.counts.echoCopies ?? 0) + 1;
+      const d = Math.hypot(c.x - P.x, c.z - P.z);
+      if (d < 90) { g.audio.murmur?.(g.pan(c.x), Math.min(25, d * 0.4)); g.feedback?.floater(c.x, c.z, c.ecopyWhat ?? 'BANG', 'bark'); }
+      g.emit('echoCopied', { id: c.id, r: Math.round(r), what: c.ecopyWhat ?? 'noise' });
+    }
     // Its phrase, on a loop: the approach tell.
     c.phraseT = (c.phraseT ?? Math.random() * EC.phrase) - dt;
     if (c.phraseT <= 0) {
@@ -376,12 +408,16 @@ export class Zombies {
     const dmg = Math.max(0, (c._zhp ?? c.maxHp ?? c.hp) - c.hp); c._zhp = c.hp;
     let part = c.hitPart; c.hitPart = null;
     if (!part) { const o = HIT_ODDS.bullet; let u = Math.random(); part = 'torso'; for (const k in o) { if ((u -= o[k]) <= 0) { part = k; break; } } }
+    c._hit = part; // the death library's clip reads it (systems/deaths.js)
+    // A HEADSHOT drops it clean (data/deaths.js HEADSHOT): whatever its hp, it folds where it stood.
+    if (part === 'head' && c.alive && c.hp > 0 && dmg >= HEADSHOT.min && HEADSHOT.causes.includes(c._hitCause)) { c.hp = 0; this.counts.headshots = (this.counts.headshots ?? 0) + 1; g.emit('headshot', { id: c.id, kind: c.zkind ?? 'shambler' }); return; }
     if (attacker && attacker !== c && attacker.alive && !c.zsee) {
       // It knows which way the hit came from, not who or how far: a spot up to 20 m back along it.
       const dx = attacker.x - c.x, dz = attacker.z - c.z, d = Math.hypot(dx, dz) || 1, k = Math.min(d, 20) / d;
       this.remember(c, c.x + dx * k, c.z + dz * k, 'hurt');
     }
     if (!R.legs || !c.alive) return;
+    if (c.hp > 0 && !c.wild) g.deaths?.limbHit(c, part, dmg, c._hitCause, 0, 0, attacker); // limbs come off; a leg gone and it crawls
     if (part === 'legs' && !c.crawl) { c.zlegs = (c.zlegs ?? R.legs) - dmg; if (c.zlegs <= 0) this.crawler(c, 'legs'); }
     if (!c.crawl && R.fall && dmg >= R.fall.dmg && Math.random() < R.fall.chance && !(c.knockT > 0)) {
       c.knockT = c.knockMax = R.fall.getUp; c.zrise = true; this.counts.falls++;
@@ -399,17 +435,19 @@ export class Zombies {
 
   // Noise: everyone of the infected in reach of it HEARS it (x their row's hear) and, knowing of nothing better (nobody in
   // sight), remembers roughly where it was (a heard spot is off by sense.scatter m).
-  onNoise(x, z, r) {
+  onNoise(x, z, r, src = 'sound') {
     const g = this.g;
     for (const c of g.chars) {
       if (c.faction !== 'zombie' || !c.alive || c.ug) continue; // below the street a noise travels its own corridors (systems/underground.js)
+      // An Echo hears it and will give it back (never its own copy, nor another Echo's: one echo, not a chain).
+      if (c.zkind === 'echo' && !this._echoing && !c.ecopy && r >= BE.minR && g.time >= (c.ecopyAt ?? 0) && Math.abs(c.x - x) < BE.hear && Math.abs(c.z - z) < BE.hear && Math.hypot(c.x - x, c.z - z) < BE.hear) { c.ecopy = { t: BE.delay, r: r * BE.gain }; c.ecopyAt = g.time + BE.every; c.ecopyWhat = r >= 60 ? 'BANG' : r >= 25 ? 'CRACK' : 'TAP'; }
       // A sprinter breaks at a noise inside its ear.
       if (c.zkind === 'sprinter' && !c.crawl && Math.abs(c.x - x) < SP.ear && Math.abs(c.z - z) < SP.ear && Math.hypot(c.x - x, c.z - z) <= Math.min(r, SP.ear)) this.burst(c, 'noise');
       if (c.zsee || c.zkind === 'echo' || c.zkind === 'choir' || c.wild) continue;
       const S = rowOf(c).sense, rr = r * S.hear;
       if (Math.abs(c.x - x) > rr || Math.abs(c.z - z) > rr || Math.hypot(c.x - x, c.z - z) > rr) continue;
       if (c.res) c.res.roused = g.time + 20; // a nest's own (systems/residents.js): roused, it goes to look
-      this.remember(c, x + (Math.random() - 0.5) * 2 * S.scatter, z + (Math.random() - 0.5) * 2 * S.scatter, 'sound');
+      this.remember(c, x + (Math.random() - 0.5) * 2 * S.scatter, z + (Math.random() - 0.5) * 2 * S.scatter, src);
       c.wx = c.zm.x; c.wz = c.zm.z; c.timer = 10;
     }
   }
@@ -451,6 +489,29 @@ export class Zombies {
     const herd = this.horde(s.x, s.z, n, 0.15, 9);
     g.emit('choirSite', { site: s.id, choir: q.id, herd: herd.length });
     return { choir: q.id, herd };
+  }
+
+  // The sprinter's charge (BREED_ANSWERS.sprinter): straight along its locked heading until it is `overshoot` m past the
+  // spot it locked at the scream, then it may turn toward (tx, tz) at no more than `steer` rad/s.
+  charge(c, tx, tz, pace, dt) {
+    const L = c.zlock, hx = Math.sin(c.zhead), hz = Math.cos(c.zhead);
+    if (!L.past && (L.x - c.x) * hx + (L.z - c.z) * hz < -BS.overshoot) { L.past = true; this.counts.overshoots = (this.counts.overshoots ?? 0) + 1; this.g.emit('sprinterOvershoot', { id: c.id }); }
+    if (L.past) { const m = BS.steer * dt; c.zhead += Math.max(-m, Math.min(m, wrapA(Math.atan2(tx - c.x, tz - c.z) - c.zhead))); }
+    this.g.ai.move(c, Math.sin(c.zhead), Math.cos(c.zhead), pace, dt);
+  }
+  // A screaming or charging sprinter LEAPS onto a moving car inside BS.carLeap m, at any speed (a car is no answer to it).
+  leap(c) {
+    const g = this.g;
+    if (c.grabbing || c.crawl || !g.carCombat) return null;
+    for (const v of g.vehicles) {
+      if (v.dead || !v.driver?.alive || g.vehiclesSys.speed(v) < 2) continue;
+      if (Math.abs(v.x - c.x) > BS.carLeap + v.len || Math.abs(v.z - c.z) > BS.carLeap + v.len) continue;
+      let gap = Infinity;
+      for (const dd of g.vehiclesSys.discs(v)) gap = Math.min(gap, Math.hypot(dd.x - c.x, dd.z - c.z) - dd.r);
+      if (gap > BS.carLeap) continue;
+      if (g.carCombat.grab(c, v)) { c.handsUp = false; this.counts.leaps = (this.counts.leaps ?? 0) + 1; g.emit('sprinterLeap', { id: c.id, vehicle: v.id, speed: Math.round(g.vehiclesSys.speed(v)) }); return v; }
+    }
+    return null;
   }
 
   // Per-zombie brain (called from AI.update instead of the normal state machine).
@@ -550,7 +611,8 @@ export class Zombies {
       if (L && !c.crawl && c.zhow === 'sight' && d < L.at && d > 1.3 && !(c.zlungeT > 0) && g.time > (c.zlungeAt ?? 0)) { c.zlungeT = L.t; c.zlungeAt = g.time + L.cool; c.cool = 0; this.counts.lunges++; g.emit('infectedLunge', { id: c.id, at: t.id }); }
       if (c.zblock && this.work(c, R, dt)) return; // smelling you through the door it is pressed at
       c.zwant = d;
-      this.go(c, t.x - c.x, t.z - c.z, pace, dt);
+      if (c.zs?.state === 'burst' && c.zlock) this.charge(c, t.x, t.z, pace, dt);
+      else this.go(c, t.x - c.x, t.z - c.z, pace, dt);
       // The unarmed living run.
       if (!t.weapon && t !== g.player && d < 12 && t.flee <= 0) { t.flee = 5; t.fleeX = c.x; t.fleeZ = c.z; }
     }
@@ -563,10 +625,25 @@ export class Zombies {
     // Groans from the infected nearby.
     this.groanT -= dt;
     if (this.groanT <= 0) {
-      this.groanT = 1.5 + Math.random() * 2.5;
-      let near = null, nd = 30;
-      for (const c of g.chars) if (c.faction === 'zombie' && c.alive) { const d = Math.hypot(c.x - g.player.x, c.z - g.player.z); if (d < nd) { nd = d; near = c; } }
-      if (near) g.audio.groan?.(g.pan(near.x), nd);
+      // READABLE WARNINGS (data/hordes.js WARNINGS.groan): you hear them before you see them. The nearest you cannot see
+      // inside its range groans (a positional sound); else the nearest you can.
+      this.groanT = WG.every[0] + Math.random() * (WG.every[1] - WG.every[0]);
+      const P = g.player;
+      let near = null, nd = WG.range, hid = null, hd = WG.range;
+      for (const c of g.chars) {
+        if (c.faction !== 'zombie' || !c.alive || c.wild) continue;
+        const dx = c.x - P.x, dz = c.z - P.z;
+        if (dx > WG.range || dx < -WG.range || dz > WG.range || dz < -WG.range) continue;
+        const d = Math.hypot(dx, dz);
+        if (d < nd) { nd = d; near = c; }
+        if (d < hd && !(P.inVehicle ? g.los(P.x, P.z, c.x, c.z) : g.sees(P, c))) { hd = d; hid = c; }
+      }
+      const q = hid ?? near, qd = hid ? hd : nd;
+      if (q) {
+        g.audio.groan?.(g.pan(q.x), qd * (32 / WG.range)); // heard to the row's range
+        if (hid) this.counts.groansUnseen = (this.counts.groansUnseen ?? 0) + 1;
+        g.emit('groanHeard', { id: q.id, dist: Math.round(qd), seen: !hid });
+      }
     }
     // The Choir: the dead fall out of the list (their aura and hum die with them); a site wakes at night, out of sight.
     for (let i = this.choirs.length - 1; i >= 0; i--) if (!this.choirs[i].alive || !g.chars.includes(this.choirs[i])) { const q = this.choirs[i]; this.choirs.splice(i, 1); if (!q.alive) g.emit('choirSilenced', { id: q.id }); }

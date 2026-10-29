@@ -274,7 +274,7 @@ export class Blood {
     const seen = this.bodyT <= 0;
     if (seen) this.bodyT = 2;
     for (const c of g.chars) {
-      if (c.alive || c.inVehicle || c.hidden) continue;
+      if (c.alive || c.inVehicle || c.hidden || c.rag?.air) continue; // a body thrown through the air (systems/deaths.js) smears nothing
       const p = this.bodies.get(c);
       if (!p) { this.bodies.set(c, { x: c.x, z: c.z, acc: 0, t: g.time }); continue; }
       p.t = g.time;

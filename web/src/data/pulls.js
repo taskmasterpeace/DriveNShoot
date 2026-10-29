@@ -42,6 +42,7 @@ export const FACT_KINDS = {
   funeral:    { name: 'Funeral', pull: true, life: 48, icon: 'news' },   // death rites' funerals, carried as word (systems/rites.js learn)
   outcome:    { name: 'What happened', pull: false, life: 999, icon: 'news' },
   place:      { name: 'A place', pull: false, life: 999, icon: 'pin' },
+  horde:      { name: 'Horde on the move', pull: false, life: 12, icon: 'skull' }, // a migration someone saw (systems/migrations.js)
 };
 
 // ---- the rules ---------------------------------------------------------------------------------------------------------
