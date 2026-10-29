@@ -105,8 +105,11 @@ export async function sealifeChecks(api, check, C) {
       const v = await boatAt('gunboat', SEA.x + 10, SEA.z, 0);
       for (let i = 0; i < 10 && v.waveH === undefined; i++) await C('step', { seconds: 0.3 });
       const bad = [], hs = [];
+      // 12 samples 0.6 s apart: 7.2 s, longer than the long swell's period (62 m, ~6.3 s). Over 4.2 s the sum can sit in a
+      // lull between groups (a 0.06 m span at ~1% of start phases; the phase is wherever the battery's clock left the sea):
+      // over a whole period the hull's heave spans at least 0.28 m at every phase (docs/design/WEB_BATTERY_STABILITY.md §3.8).
       for (let i = 0; i < 12; i++) {
-        await C('step', { seconds: 0.35 });
+        await C('step', { seconds: 0.6 });
         const L = v.len * WAVES.ride.sample, fx = Math.sin(v.h), fz = Math.cos(v.h);
         const hb = W.waveAt(v.x + fx * L, v.z + fz * L, W.t, {}).h, hst = W.waveAt(v.x - fx * L, v.z - fz * L, W.t, {}).h;
         const pitch = Math.atan2(hb - hst, 2 * L) - Math.min(0.12, Math.hypot(v.vx, v.vz) * 0.004);

@@ -469,8 +469,13 @@ export class Residents {
     S.repath -= dt;
     const goalMoved = !(Math.abs(S.gx - tx) < 0.5 && Math.abs(S.gz - tz) < 0.5);
     // A watchdog on progress: no closer by 0.3 m in 4 s (wedged on a corner the slide and the detours cannot get round)
-    // plans again from where they stand.
-    const dist = Math.hypot(tx - c.x, tz - c.z);
+    // plans again from where they stand. Closer ALONG THE ROUTE (to its next point, plus the rest of it), not as the crow
+    // flies: a front door facing away from the stop sends them away from it at first, and measured straight that read as
+    // "wedged" every 4 s round the house - a fresh route and a random detour each time, back into their own doorway
+    // (docs/design/WEB_BATTERY_STABILITY.md §3.2).
+    const R = goalMoved ? null : S.route;
+    let dist = Math.hypot(tx - c.x, tz - c.z);
+    if (R && S.ri < R.length) { dist = Math.hypot(R[S.ri].x - c.x, R[S.ri].z - c.z); for (let i = S.ri; i < R.length - 1; i++) dist += Math.hypot(R[i + 1].x - R[i].x, R[i + 1].z - R[i].z); }
     if (goalMoved || !(dist < S.best - 0.3)) { if (goalMoved || (S.noGain = (S.noGain ?? 0) + dt) > 4) { S.best = dist; S.noGain = 0; if (!goalMoved) { S.route = null; S.wedged = (S.wedged ?? 0) + 1; this.stats.wedged = (this.stats.wedged ?? 0) + 1; c.detour = 0.6; c.detourA = (Math.random() < 0.5 ? 1 : -1) * (1.2 + Math.random()); } } }
     else { S.best = dist; S.noGain = 0; }
     if ((goalMoved || !S.route || (S.repath <= 0 && (c.stuck ?? 0) > 0.25)) && this.pathsLeft > 0) {

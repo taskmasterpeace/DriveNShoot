@@ -287,7 +287,7 @@ export async function undergroundChecks({ api, g, check, C }) {
     await api._step(60 * (UG.below ? 7 : 7));
     const hostile = A.rec.alert === 'hostile', aimed = soldiers.some((c) => c.target === p);
     await home();
-    return soldiers.length >= 4 && armed && drone && flew > 2 && warned && hostile && aimed ? true : JSON.stringify({ soldiers: soldiers.length, armed, drone: !!drone, flew, warned, hostile, aimed, alert: A.rec.alert });
+    return soldiers.length >= 4 && armed && drone && flew > 2 && warned && hostile && aimed ? true : JSON.stringify({ soldiers: soldiers.length, armed, drone: !!drone, flew, warned, hostile, aimed, alert: A.rec.alert, ug: p.ug, live: U.A?.site.id ?? null, level: U.levelOf(p.gy), dlg: !!g.dialogue?.active, held: soldiers.filter((c) => c.hold).length, dr: drone && { hold: drone.hold, alive: drone.alive, ug: drone.ug, dead: !g.chars.includes(drone) } });
   });
 
   await check('underground: sound carries down the corridors, not up through the earth - a shot below turns the cave\'s dead toward it and not one stood on the street right over it; a shot on the street there reaches nobody below', async () => {

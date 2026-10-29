@@ -306,11 +306,12 @@ export async function crewChecks(api, check, C) {
     await C('crewOrder', { order: 'fallback', who: String(a.id) }); await C('crewOrder', { order: 'mangun', who: String(b.id) });
     await steps(6);
     const aboard = (c) => c.inVehicle === v || c.onDeck?.v === v, boarded = aboard(a.c) && aboard(b.c);
+    const why = [a, b].map((m) => `${m.name}: order ${m.order} ${m.c.inVehicle ? `seat ${m.c.inVehicle.id}` : m.c.onDeck ? `deck ${m.c.onDeck.v?.id}` : 'afoot'} ${(+Math.hypot(m.c.x - v.x, m.c.z - v.z)).toFixed(1)}m sp ${(m.c.speed ?? 0).toFixed(1)} stuck ${(m.c.stuck ?? 0).toFixed(1)} trust ${Math.round(m.trust)}${m.c.alive ? '' : ' DEAD'}`).join('; ');
 
     const r = g.spawnRaider(v.x + 14, v.z + 2, Math.random, 'pistol'); r.hp = r.maxHp = 5000; r.hold = true;
     const hp0 = r.hp; await steps(4);
     g.vehiclesSys.remove?.(v);
-    return boarded && r.hp < hp0 ? true : `boarded ${a.c.inVehicle?.id}/${b.c.inVehicle?.id} (rig ${v.id}) gunner hit ${r.hp < hp0}`;
+    return boarded && r.hp < hp0 ? true : `boarded ${boarded} (rig ${v.id} at ${Math.round(v.x - at.x)},${Math.round(v.z - at.z)}${v.dead ? ' dead' : ''}) gunner hit ${r.hp < hp0} · ${why}`;
   }));
 
   await check('crew order LOOT THIS: a member walks to the box nearest your aim and brings its contents into your pack', () => stage((at) => roomy(async () => {
