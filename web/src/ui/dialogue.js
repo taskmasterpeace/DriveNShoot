@@ -77,7 +77,7 @@ export class Dialogue {
     else if (c.npc) { const line = roles?.greet(c); if (line) { this.g.hud.subtitle(`${c.npc.name}: ${line}`, 4); this.g.voice?.speak(c, line, { kind: 'talk' }); } } // what you are known for
     if (c.npc) this.show(c.npc.startFor?.(this.g) ?? c.npc.start);
     else {
-      const pl = this.g.pulls?.talkFor(c); // a road person, a barkeep, a drinker (systems/pulls.js): what they know, what they want
+      const pl = this.g.pulls?.talkFor(c) ?? this.g.workforce?.talkFor(c); // a road person, a barkeep, a drinker (systems/pulls.js): what they know, what they want
       if (pl) { this.say(pl.text, pl.choices); return; }
       // A stranger: their own small talk, or (every other hour, if you are known for something) what they make of you.
       const k = c.slot * 7 + Math.floor(this.g.sky.time), lines = BARKS[c.faction] ?? BARKS.drifter;

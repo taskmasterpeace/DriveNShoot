@@ -51,6 +51,7 @@ import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the 
 import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md)
 import { zfightCommands, zfightChecks } from './zfight.js';
 import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-fight detector (WEB_DEPTH_LAYERS.md)
+import { townJobs, rolesChecks } from './roles-api.js'; // the work of a settlement: town action=jobs|who|diversity (WEB_OCCUPATIONS.md)
 import { pullsCommands, pullsChecks } from './pulls-api.js'; // pulls: bars, road people, the radio, boards, needs; what reached you (WEB_PULLS.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
@@ -1581,9 +1582,10 @@ function buildCommands(api) {
       },
     },
     town: {
-      group: 'world', desc: 'The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town\'s own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does).',
-      args: { radius: { type: 'number', default: 150 }, wake: { type: 'string' } },
-      run: async ({ radius, wake }) => {
+      group: 'world', desc: 'The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town\'s own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does). THE WORK (docs/design/WEB_OCCUPATIONS.md; rows in data/occupations.js): action=jobs [id=cg-N] the settlement you are in (or nearest): its tags, holder, workforce, every job with its count, workplace, shift and what it makes, its diversity against the goal, its stock (only what was worked for); action=who its workers (name, flag, job, on shift, walking or working, hours banked); action=diversity every settlement against the goal; action=dump the plan records tools/role-diversity.mjs scores; action=validate the rows; action=promote bring the built town workers in now.',
+      args: { radius: { type: 'number', default: 150 }, wake: { type: 'string' }, action: { type: 'string', default: 'night', enum: ['night', 'jobs', 'who', 'diversity', 'dump', 'validate', 'promote'] }, id: { type: 'string' } },
+      run: async ({ radius, wake, action, id }) => {
+        if (action && action !== 'night') return townJobs(api, need, { action, id });
         const p = P();
         if (wake) { const c = api.findChar(wake); need(c, `no character ${wake}`); g.ai.wake(c, 'shaken awake'); }
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < radius && g.ai.sleeper(c));
@@ -2230,6 +2232,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // The pulls (systems/pulls.js) would grow road people on the I-10 round unrelated drive checks: off for the battery;
   // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
   const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
+  // The workforce (systems/workforce.js) would put workers into every town an unrelated check stamps: off for the battery;
+  // its own checks (agent/roles-api.js) turn it on.
+  const workWas = g.workforce.enabled; g.workforce.enabled = false;
   await check('frame clock: an animation timestamp before startup never runs the simulation backward; long gaps are capped and ordinary frames keep their elapsed time', () => {
     const raf = window.requestAnimationFrame, frame = g.frame, render = g.render, fps = g.fps, held = g.holdLoop;
     const frames = [], renders = [];
@@ -5989,7 +5994,9 @@ async function runSelfTest(api, only = null, skip = null) {
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   await backlotsChecks({ api, g, check, C }); // the back lots: alleys, yards, back doors, fences, pathing (WEB_BACK_LOTS.md §8)
   await zfightChecks({ g, check, C }); // the depth layers: no flicker at seven spots, blood shows from the widest zoom (WEB_DEPTH_LAYERS.md §8)
-  await wrecksChecks({ api, g, check, C }); // no static car built from boxes: every one is our body, dead
+  await wrecksChecks({ api, g, check, C });
+  await rolesChecks({ api, g, check, C }); // the work of a settlement: rows, the diversity goal, dock work where the water is, to work at shift start, goods only from work (WEB_OCCUPATIONS.md §8)
+  g.workforce.enabled = workWas; // no static car built from boxes: every one is our body, dead
   g.citygen.enabled = citygenWas;
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
