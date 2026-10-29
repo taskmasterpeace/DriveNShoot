@@ -60,7 +60,7 @@ export const CHASSIS = {
   rig:         { maxKg: 4000, spaces: 24, faces: { front: 60, rear: 40, left: 48, right: 48, top: 30, under: 30 }, mounts: mp(3, 3, 2, 2, 3) },
   patrol:      { maxKg: 1600, spaces: 12, faces: { front: 40, rear: 34, left: 32, right: 32, top: 18, under: 20 }, mounts: mp(3, 2, 1, 1, 3) },
   apc:         { maxKg: 3200, spaces: 18, faces: { front: 60, rear: 44, left: 50, right: 50, top: 34, under: 34 }, mounts: mp(3, 2, 2, 2, 3) },
-  buggy:       { maxKg: 420,  spaces: 4,  faces: { front: 12, rear: 8, left: 4, right: 4, top: 0, under: 8 },     mounts: mp(2, 1, 0, 0, 2) },
+  buggy:       { maxKg: 420,  spaces: 4,  faces: { front: 12, rear: 8, left: 4, right: 4, top: 0, under: 8 },     mounts: mp(2, 1, 1, 1, 2) }, // light pods: an open frame shoots every way
   atv:         { maxKg: 160,  spaces: 2,  faces: { front: 6, rear: 4, left: 0, right: 0, top: 0, under: 4 },      mounts: mp(1, 1, 0, 0, 0) },
   bike:        { maxKg: 110,  spaces: 2,  faces: { front: 4, rear: 0, left: 0, right: 0, top: 0, under: 0 },      mounts: mp(1, 1, 0, 0, 0) },
 };
@@ -120,6 +120,14 @@ export const MOUNT_WEAPONS = {
   harpoon:    { name: 'HARPOON GUN', kind: 'harpoon', size: 2, kg: 110, price: 600, labour: 1.5, faces: ['front', 'rear', 'top'], type: 'bullet',
                 mag: 0, rate: 0.6, range: 40,
                 desc: 'A whaling gun on a cable drum. Bite a car and tow it; fire again and yank it off its wheels.' },
+  // Grapples: a hook on a chain (vehicles.js fireHarpoon). reach = lengths x your car's length; it bites one throw in
+  // `hook` (the rest skid off and reel back in). Rig it heavier for more chain. A skill can raise `hook` later: one knob.
+  grapple:    { name: 'GRAPPLING HOOK', kind: 'harpoon', size: 1, kg: 45, price: 250, labour: 0.75, faces: ['front', 'rear'], type: 'bullet',
+                mag: 0, rate: 0.9, grapple: { lengths: 3, hook: 1 / 3 },
+                desc: 'A four-prong hook on three car lengths of chain. One throw in three it bites; then you own that car until the chain gives.' },
+  grapple_rig: { name: 'RIGGED GRAPPLE', kind: 'harpoon', size: 2, kg: 95, price: 700, labour: 1.5, faces: ['front', 'rear'], type: 'bullet',
+                mag: 0, rate: 0.9, grapple: { lengths: 6, hook: 1 / 3 },
+                desc: 'The same hook on a winch drum and six car lengths of chain. Still bites one throw in three, from twice as far.' },
   minedrop:   { name: 'MINE DROPPER', kind: 'drop', size: 1, kg: 50, price: 400, labour: 1, faces: ['rear'], group: 2, type: 'blast',
                 mag: 4, ammo: 'car_mine', perItem: 1, mine: { arm: 1.2, r: 2.2, dmg: 120, blast: 5, life: 120 },
                 desc: 'A chute of pressure mines. Arms a second after it lands; the next set of wheels over it goes up.' },
@@ -152,10 +160,28 @@ export const UTILITY = {
                   desc: 'Pre-war. A sealed cell that runs warm and never stops. What the rail gun was built to drink from.' },
   extinguisher: { name: 'FIRE SUPPRESSION', kg: 20, space: 1, price: 250, labour: 0.5, charges: 2, ammo: 'suppressant', perItem: 1,
                   desc: 'Two bottles and a ring of nozzles under the hood. Puts out a burning car twice.' },
-  runflat:      { name: 'RUN-FLAT TYRES', kg: 30, space: 0, price: 200, labour: 0.5, flatMul: 0.4,
+  nowindshield: { name: 'PULL THE WINDSHIELD', kg: 0, space: 0, price: 30, labour: 0.25, openFront: true, glass: true,
+                  desc: 'Out comes the glass, in goes a wire screen. Now you can shoot over the hood, and so can they.' },
+  runflat:      { name: 'RUN-FLAT TYRES', kg: 30, space: 0, price: 200, labour: 0.5, tab: 'wheels', flatMul: 0.4,
                   desc: 'Inserts in the rims. A blown tyre still rolls, badly, instead of dragging you into the ditch.' },
-  solidtyres:   { name: 'PUNCTURE-PROOF TYRES', kg: 60, space: 0, price: 350, labour: 0.75, grip: 0.95,
+  solidtyres:   { name: 'PUNCTURE-PROOF TYRES', kg: 60, space: 0, price: 350, labour: 0.75, tab: 'wheels', grip: 0.95,
                   desc: 'Solid rubber, no air to lose. Caltrops and rounds do nothing. The ride shakes your fillings out.' },
+  // WHEELS (tab 'wheels'). A tread is one per car (set: fitting one swaps the last out); stock tyres are 1 on everything.
+  //   tread  grip on pavement / off it (multiplies the car's grip, sampled 4 times a second), topPaved: top speed on
+  //          pavement, wade: metres the tyres lift the hull out of a ford (vehicles.js depth)
+  tread_road:   { name: 'ROAD TYRES', tab: 'wheels', set: 'tread', kg: 0, space: 0, price: 160, labour: 0.5, tread: { paved: 1.18, dirt: 0.8, topPaved: 1.04 },
+                  desc: 'Smooth highway rubber. Glued to the blacktop, a skating rink the moment you leave it.' },
+  tread_offroad:{ name: 'OFF-ROAD TYRES', tab: 'wheels', set: 'tread', kg: 30, space: 0, price: 220, labour: 0.5, tread: { paved: 0.88, dirt: 1.22, wade: 0.15 },
+                  desc: 'Knobbly lugs that dig into sand and mud. On the highway they hum and wander.' },
+  tread_allterrain: { name: 'ON/OFF-ROAD TYRES', tab: 'wheels', set: 'tread', kg: 15, space: 0, price: 260, labour: 0.5, tread: { paved: 1.06, dirt: 1.06 },
+                  desc: 'Half and half. Better than what came on the car everywhere, best nowhere.' },
+  monster:      { name: 'MONSTER TYRES', tab: 'wheels', set: 'tread', kg: 240, space: 0, price: 1600, labour: 3, rare: 'uncommon',
+                  tread: { paved: 0.92, dirt: 1.2, wade: 0.5 }, monster: { scale: 2.2, lift: 0.6, turn: 0.8, top: 0.93, crush: 1.6,
+                    // climbing: hit a car nose-first this fast (closing m/s) and you go up over it instead of off it; under
+                    // `under` metres tall only. On top you cave its roof (dps a second), it is pinned (keeps `pin` of its speed).
+                    climb: { speed: 7, under: 2.2, dps: 60, pin: 0.25, part: 14 } },
+                  chassis: ['buggy', 'sedan', 'interceptor', 'pickup', 'patrol', 'van'],
+                  desc: 'Tractor tyres on a lift kit. Wades rivers, climbs over cars, corners like a wardrobe.' },
   nitrous:      { name: 'NITROUS', kg: 25, space: 1, price: 350, labour: 0.75, charges: 3, ammo: 'nitrous_bottle', perItem: 1, burst: { time: 2.5, accel: 1.8, top: 1.15 },
                   desc: 'A bottle and a button. Boost (Shift) at speed and the car jumps like it was kicked.' },
   turbo:        { name: 'TURBOCHARGER', kg: 30, space: 1, price: 500, labour: 1.5, accel: 1.12, top: 1.05,
@@ -171,8 +197,11 @@ export const UTILITY = {
   targeting:    { name: 'TARGETING COMPUTER', kg: 15, space: 1, price: 1200, labour: 1, rare: 'uncommon', spread: 0.5, lock: 0.6,
                   desc: 'A pre-war fire-control box wired to the triggers. Tightens every gun and locks the seekers faster.' },
   // GADGETS-2 (docs/design/WEB_GADGETS2.md; systems/kit.js runs them). Scavenged, taped, powered by the car.
-  hubspikes:    { name: 'HUB SPIKES', kg: 22, space: 0, price: 160, labour: 0.5, slash: { r: 1.1, tyres: 1, every: 0.4, dmg: 18 },
-                  desc: 'Sharpened bolts welded to the wheel nuts. Rub a car alongside and its tyres go to ribbons.' },
+  // ONE row, two jobs: `slash` pops the facing tyre (systems/kit.js), `hub` chews the flank, shins and hangers-on
+  // (systems/workshop.js hubSpikes) and garage.js draws the cones. Sold on the WHEELS tab.
+  hubspikes:    { name: 'HUB SPIKES', tab: 'wheels', kg: 22, space: 0, price: 160, labour: 0.5, slash: { r: 1.1, tyres: 1, every: 0.4, dmg: 18 },
+                  hub: { reach: 0.6, car: 24, person: 35, grip: 3 },
+                  desc: 'Sharpened steel cones welded to the hubs, sticking out the side. Rub a car alongside and its tyres go to ribbons, its doors and your shins with them.' },
   spotlight:    { name: 'ROOF SPOTLIGHT', kg: 12, space: 1, price: 220, labour: 0.5, beam: { reach: 2.1, power: 1.5, seen: 1.8 },
                   desc: 'A searchlight off a dead patrol boat, bolted to the roof bars. It turns night into a stage, and you are on it.' },
   winch:        { name: 'HARPOON WINCH', kg: 35, space: 1, price: 300, labour: 1, needs: 'harpoon', pull: { slack: 1.2, range: 30 },
@@ -259,6 +288,8 @@ export function validateWorkshop(rows = { ARMOR, CHASSIS, MOUNT_WEAPONS, UTILITY
   for (const [id, u] of Object.entries(rows.UTILITY)) {
     if (!(u.kg >= 0 && u.space >= 0 && u.price > 0)) bad.push(`utility ${id}: kg, space, price`);
     if (u.ammo && !rows.AMMO_ITEMS[u.ammo]) bad.push(`utility ${id}: ammo item ${u.ammo} has no row`);
+    if (u.tread && !(u.tread.paved > 0 && u.tread.dirt > 0 && u.set === 'tread')) bad.push(`utility ${id}: a tread needs paved, dirt and set 'tread'`);
+    if (u.chassis && !u.chassis.every((c) => rows.CHASSIS[c])) bad.push(`utility ${id}: unknown chassis`);
     if (u.needs && !Object.values(rows.MOUNT_WEAPONS).some((w) => w.kind === u.needs)) bad.push(`utility ${id}: needs a ${u.needs} mount that has no row`);
     if (u.slash && !(u.slash.r > 0 && u.slash.every > 0)) bad.push(`utility ${id}: slash r, every`);
     if (u.beam && !(u.beam.reach > 0 && u.beam.power >= 0)) bad.push(`utility ${id}: beam reach, power`);

@@ -593,9 +593,7 @@ export class Kit {
       if (Math.abs(v.x - P.x) > 110 || Math.abs(v.z - P.z) > 110 || v.sunk) continue;
       const f = v.h, fx = Math.sin(f), fz = Math.cos(f), ax = Math.cos(f), az = -Math.sin(f), L = v.len, W = v.wid;
       const at = (lx, lz) => [v.x + ax * lx + fx * lz, v.z + az * lx + fz * lz];
-      if (U?.hubspikes) for (const [lx, lz] of [[W / 2 - 0.05, L / 2 - 0.92], [-(W / 2 - 0.05), L / 2 - 0.92], [W / 2 - 0.05, -(L / 2 - 0.92)], [-(W / 2 - 0.05), -(L / 2 - 0.92)]]) {
-        const [x, z] = at(lx + Math.sign(lx) * 0.22, lz); box(x, 0.42, z, f, 0.42, 0.07, 0.07, '#b8b0a0'); box(x, 0.42, z, f + Math.PI / 2, 0.07, 0.07, 0.3, '#8a8478');
-      }
+      // hub spikes are drawn by systems/garage.js (steel cones on every hub, monster tyres too)
       if (U?.spotlight) {
         const [x, z] = at(0.35, 0.2), roof = (v.tall ?? 1.8) * 0.96;
         box(x, roof + 0.14, z, f, 0.34, 0.26, 0.4, '#3a3632'); box(x + fx * 0.21, roof + 0.14, z + fz * 0.21, f, 0.28, 0.2, 0.03, v.kitSpot ? '#fff6d8' : '#6a665e');
