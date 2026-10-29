@@ -3,6 +3,7 @@
 // camp, in the base, beside the piece, in front of the owner. Work takes time on the game clock (wait=true steps it).
 import { HOMES_ROWS, validateHomes, CAMP_KIT, CAMP_BELLS, CAMP_RULES, FORTIFY, FURNITURE, RAID } from '../data/homes.js';
 import { ITEMS } from '../data/items.js';
+import { outdoorsCommands } from './outdoors-api.js'; // THE WILDS own `camp` (build/fuel/hang/take/fill): one row, both verbs
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -18,14 +19,17 @@ export function homesCommands(api, need) {
   const charById = (id) => g.chars.find((c) => String(c.id) === String(id)) ?? null;
   const vehById = (id) => (id ? g.vehicles.find((v) => String(v.id) === String(id)) : g.vehicles.filter((v) => !v.dead).sort((a, b) => Math.hypot(a.x - P().x, a.z - P().z) - Math.hypot(b.x - P().x, b.z - P().z))[0]) ?? null;
   const houseR = (id, x, z) => { if (id) { const R = H().liveR(id); need(R, `no live building ${id} (home action=list)`); return R; } const R = H().buildingNear(x ?? P().x, z ?? P().z); need(R, 'stand in (or give id= of) a building'); return R; };
+  const wild = outdoorsCommands(api, need).camp;
   return {
     camp: {
-      group: 'world',
-      desc: 'A CAMP for the night (docs/design/WEB_CAMPS_BASES.md §3.1; data/homes.js CAMP_*). action=status (default): the camp - kit, fire, bells, how far it is seen now and by night/day, the smoke, the danger a game hour asleep and its factors (road, town, horde, fire, lookout), who stands watch. '
+      group: wild.group,
+      desc: `${wild.desc} THE NIGHT'S CAMP (docs/design/WEB_CAMPS_BASES.md §3.1; data/homes.js CAMP_*): action=status: the camp - kit, fire, bells, how far it is seen now and by night/day, the smoke, the danger a game hour asleep and its factors (road, town, horde, fire, lookout), who stands watch. `
         + 'pitch kit=bedroll|tent [fire=true: the wilds\' fire pit, 3 deadwood] [bells=true: trip bells round it]: off the road (9 m+), on dry ground, out from under a roof; the kit leaves your pack. strike: the same kit back in your pack (the fire\'s wood is burnt). '
-        + 'sleep: lie down in it (survival.js: tired enough, nothing hostile close). Work takes game seconds: wait=true (default) steps until done.',
-      args: { action: { type: 'string', enum: ['status', 'pitch', 'strike', 'sleep'], default: 'status' }, kit: { type: 'string', enum: Object.keys(CAMP_KIT), default: 'bedroll' }, fire: { type: 'boolean', default: false }, bells: { type: 'boolean', default: false }, wait: { type: 'boolean', default: true } },
-      run: async ({ action, kit, fire, bells, wait }) => {
+        + 'sleep: lie down in it (survival.js: tired enough, nothing hostile close). Work takes game seconds: wait=true (default) steps until done. With no action= the row is the wilds camp kit above.',
+      args: { ...wild.args, action: { type: 'string', enum: ['status', 'pitch', 'strike', 'sleep'] }, kit: { type: 'string', enum: Object.keys(CAMP_KIT), default: 'bedroll' }, fire: { type: 'boolean', default: false }, bells: { type: 'boolean', default: false }, wait: { type: 'boolean', default: true } },
+      run: async (a) => {
+        const { action, kit, fire, bells, wait } = a;
+        if (!action) return wild.run(a); // the wilds' camp kit: build=, fuel, hang, take, fill
         const S = H(); need(S, 'no homes system');
         if (action === 'pitch') return work(S.pitch({ kind: kit, fire, bells }), wait);
         if (action === 'strike') return work(S.strike(), wait);
@@ -78,7 +82,7 @@ export async function homesChecks(api, check, C) {
   if (!S) { await check('homes: the camps-and-bases system is live', async () => 'no g.homes'); return; }
   const inv = g.inventory, cnt = (id) => inv.carried.count(id);
   const give = (id, n) => { const k = n - cnt(id); if (k > 0) inv.add(inv.carried, id, k); return cnt(id) >= n; }; // never a loop: a full pack just comes up short
-  const cap0 = inv.carried.cap; inv.carried.cap += 240; // room in the pack for the kit and the planks (put back after)
+  const pack0 = inv.carried.slots.map((x) => ({ ...x })), cap0 = inv.carried.cap; inv.carried.cap += 240; // the pack as it came in (put back after: later checks count on its room) // room in the pack for the kit and the planks (put back after)
   const was = { z: g.zombies.enabled, r: g.raiderTimer, conv: g.convoy.next, hour: g.sky.time, cash: g.cash, god: !!g.godMode, cg: g.citygen.enabled };
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy.despawn?.(); g.convoy.next = 1e9;
   await C('god', { on: true });
@@ -300,7 +304,7 @@ export async function homesChecks(api, check, C) {
     sweep();
     for (const id of stamped) { try { await C('citygen', { action: 'remove', id }); } catch { /* gone */ } }
     S.load(null);
-    inv.carried.cap = cap0;
+    inv.carried.cap = cap0; inv.carried.slots.length = 0; inv.carried.slots.push(...pack0); inv.changed?.(); if (P().haulSlow) P().haulSlow = 1;
     g.zombies.enabled = was.z; g.raiderTimer = was.r; g.convoy.next = was.conv; g.sky.time = was.hour; g.cash = was.cash;
     if (!was.god) await C('god', { on: false });
   }
