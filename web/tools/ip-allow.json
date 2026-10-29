@@ -1,4 +1,12 @@
 [
-  { "term": "deathlands", "file": "src/ui/qol.js", "why": "one-time localStorage migration from the engine's old code name; read once, never displayed" },
-  { "term": "interceptor", "file": "*", "why": "internal vehicle TYPE id kept so saves and content packs stay valid; players only ever see the display name LAWMAN" }
+  {"term":"deathlands","file":"src/ui/qol.js","why":"one-time localStorage migration from the engine's old code name; read once, never displayed"},
+  {"term":"interceptor","file":"*","why":"internal vehicle TYPE id kept so saves and content packs stay valid; players only ever see the display name LAWMAN"},
+  {"term":"zombie","file":"src/data/audio-manifest.json","why":"the studio library source file names (a vendor pack title), kept for the license trail; never displayed"},
+  {"term":"glock","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"},
+  {"term":"uzi","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"},
+  {"term":"uzis","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"},
+  {"term":"taser","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"},
+  {"term":"kalashnikov","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"},
+  {"term":"jeep","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"},
+  {"term":"humvee","file":"src/data/audio-manifest.json","why":"a studio library source file name (the recording's gun or vehicle), kept for the license trail; never displayed"}
 ]

@@ -116,6 +116,7 @@ export class Throwables {
     }
     g.dogs?.blast(x, z, r, dmg, by); // and any dog in reach (systems/dogs.js)
     g.fauna?.blast(x, z, r, dmg, by); // and the animals (systems/fauna.js)
+    g.sealife?.blast(x, z, r, dmg, by); // and what is in the water (systems/sealife.js)
     for (const v of g.vehicles) {
       const d = Math.hypot(v.x - x, v.z - z);
       if (d > r + v.len / 2 || v.dead) continue;

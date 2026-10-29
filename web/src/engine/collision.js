@@ -45,6 +45,13 @@ export class StaticWorld {
       this.ring.push({ cx: 0x7fffffff, cz: 0x7fffffff, cells, boxes: EMPTY, used: false, gen: 0 });
     }
     this.chunkBoxes = 0; // boxes registered across the ring (for perf/world reports)
+    // THE UNDERGROUND (systems/underground.js): a second StaticWorld for whoever is below the surface (c.ug), and the few
+    // `extra` boxes round an open entrance (its collar) that the street's movers meet but its hash and nav grids never see.
+    this.under = null;
+    this.extra = [];
+    // GENERATED SETTLEMENTS (systems/citygen.js): the live towns' boxes in their own 8 m hash (cg.cell(gx, gz) -> list;
+    // cg.n boxes; cg.x0..z1 their bounds), met by every query below wherever a town stands.
+    this.cg = null;
   }
 
   // An opening's entry: bucketed over the area it can ever occupy (a door's whole swing).
@@ -160,6 +167,16 @@ export class StaticWorld {
           for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
         }
     }
+    const cg = this.cg;
+    if (cg !== null && cg.n > 0 && bx1 > cg.x0 && bx0 < cg.x1 && bz1 > cg.z0 && bz0 < cg.z1) {
+      const c = this.cell, gx0 = Math.floor(bx0 / c), gx1 = Math.floor(bx1 / c), gz0 = Math.floor(bz0 / c), gz1 = Math.floor(bz1 / c);
+      for (let gx = gx0; gx <= gx1; gx++)
+        for (let gz = gz0; gz <= gz1; gz++) {
+          const list = cg.cell(gx, gz);
+          for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
+        }
+    }
+    for (let i = 0; i < this.extra.length; i++) pushed += this.circleBox(this.extra[i], stamp, p, r, mover, minY, skip, topY);
     return pushed;
   }
 
@@ -168,7 +185,8 @@ export class StaticWorld {
   // the floor above's over their head. Everywhere else, the old flat rule (dunes, ramps and bridges as they were).
   // mover: who pushes doors (the person by default; null for a shove in a crowd, where a door is as solid as a wall).
   resolveBody(p, r, c, mover = c) {
-    const y = c?.storey ? c.gy ?? 0 : 0;
+    if (c?.ug && this.under) { const u = c.gy ?? 0; return this.under.resolveCircle(p, r, mover, u + 0.25, null, u + 2.4); } // underground: the level's own walls at its own height
+    const y = c?.storey ? (c.gy ?? 0) - (c.storey.y0 ?? 0) : 0; // a building's boxes stand on its own floor (y0: raised ground)
     return y > 0.5 ? this.resolveCircle(p, r, mover, y + 0.25, null, y + 2.4) : this.resolveCircle(p, r, mover);
   }
 
@@ -203,13 +221,18 @@ export class StaticWorld {
   // mode: RAY_SOLID | RAY_SIGHT | RAY_BULLET (see the top of the file). y >= 0: the ray's height (a
   // thrown thing): anything lower than it is flown over, so a sill can't hide the glass behind it.
   raycast(x0, z0, dx, dz, maxDist, mode = RAY_SOLID, y = -1) {
+    if (y < -1.5 && this.under) { // a ray at an underground height is the UnderWorld's (systems/underground.js); y is over the street, as up a building
+      const t = this.under.raycast(x0, z0, dx, dz, maxDist, mode, y + (this.under.y0 ?? 0)), h = this.under.hit; // its boxes stand at true heights (a town's pad for its drains)
+      this.hit.t = t; this.hit.nx = h.nx; this.hit.nz = h.nz; this.hit.box = h.box;
+      return t;
+    }
     const stamp = ++this.stamp;
     const step = this.cell * 0.5;
     this.best = maxDist;
     this.hit.box = null;
     const invX = dx !== 0 ? 1 / dx : 1e9, invZ = dz !== 0 ? 1 / dz : 1e9;
-    let lastCell = -1, lastG = 0x7fffffff, lastGz = 0x7fffffff;
-    const chunks = this.chunkBoxes > 0;
+    let lastCell = -1, lastG = 0x7fffffff, lastGz = 0x7fffffff, lastCx = 0x7fffffff, lastCz = 0x7fffffff;
+    const chunks = this.chunkBoxes > 0, cg = this.cg !== null && this.cg.n > 0 ? this.cg : null;
     for (let s = 0; s <= maxDist + step; s += step) {
       if (s > this.best + this.cell) break;
       const px = x0 + dx * Math.min(s, maxDist), pz = z0 + dz * Math.min(s, maxDist);
@@ -232,6 +255,13 @@ export class StaticWorld {
         if (gx !== lastG || gz !== lastGz) {
           lastG = gx; lastGz = gz;
           for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) this.rayList(this.chunkCell(gx + ox, gz + oz), stamp, x0, z0, dx, dz, invX, invZ, mode, y);
+        }
+      }
+      if (cg !== null && px > cg.x0 - this.cell && px < cg.x1 + this.cell && pz > cg.z0 - this.cell && pz < cg.z1 + this.cell) {
+        const gx = Math.floor(px / this.cell), gz = Math.floor(pz / this.cell);
+        if (gx !== lastCx || gz !== lastCz) {
+          lastCx = gx; lastCz = gz;
+          for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) this.rayList(cg.cell(gx + ox, gz + oz), stamp, x0, z0, dx, dz, invX, invZ, mode, y);
         }
       }
     }

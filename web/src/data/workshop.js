@@ -182,8 +182,6 @@ export const UTILITY = {
                     climb: { speed: 7, under: 2.2, dps: 60, pin: 0.25, part: 14 } },
                   chassis: ['buggy', 'sedan', 'interceptor', 'pickup', 'patrol', 'van'],
                   desc: 'Tractor tyres on a lift kit. Wades rivers, climbs over cars, corners like a wardrobe.' },
-  hubspikes:    { name: 'HUB SPIKES', tab: 'wheels', kg: 24, space: 0, price: 320, labour: 0.75, hub: { reach: 0.6, car: 24, tyre: 0.45, person: 35, grip: 3 },
-                  desc: 'Steel blades welded to the hubs, sticking out the side. Pull alongside and they eat tyres, doors and shins.' },
   nitrous:      { name: 'NITROUS', kg: 25, space: 1, price: 350, labour: 0.75, charges: 3, ammo: 'nitrous_bottle', perItem: 1, burst: { time: 2.5, accel: 1.8, top: 1.15 },
                   desc: 'A bottle and a button. Boost (Shift) at speed and the car jumps like it was kicked.' },
   turbo:        { name: 'TURBOCHARGER', kg: 30, space: 1, price: 500, labour: 1.5, accel: 1.12, top: 1.05,
@@ -198,6 +196,16 @@ export const UTILITY = {
                   desc: 'Slots cut in the doors with sliding covers. Your passengers shoot without losing the glass.' },
   targeting:    { name: 'TARGETING COMPUTER', kg: 15, space: 1, price: 1200, labour: 1, rare: 'uncommon', spread: 0.5, lock: 0.6,
                   desc: 'A pre-war fire-control box wired to the triggers. Tightens every gun and locks the seekers faster.' },
+  // GADGETS-2 (docs/design/WEB_GADGETS2.md; systems/kit.js runs them). Scavenged, taped, powered by the car.
+  // ONE row, two jobs: `slash` pops the facing tyre (systems/kit.js), `hub` chews the flank, shins and hangers-on
+  // (systems/workshop.js hubSpikes) and garage.js draws the cones. Sold on the WHEELS tab.
+  hubspikes:    { name: 'HUB SPIKES', tab: 'wheels', kg: 22, space: 0, price: 160, labour: 0.5, slash: { r: 1.1, tyres: 1, every: 0.4, dmg: 18 },
+                  hub: { reach: 0.6, car: 24, person: 35, grip: 3 },
+                  desc: 'Sharpened steel cones welded to the hubs, sticking out the side. Rub a car alongside and its tyres go to ribbons, its doors and your shins with them.' },
+  spotlight:    { name: 'ROOF SPOTLIGHT', kg: 12, space: 1, price: 220, labour: 0.5, beam: { reach: 2.1, power: 1.5, seen: 1.8 },
+                  desc: 'A searchlight off a dead patrol boat, bolted to the roof bars. It turns night into a stage, and you are on it.' },
+  winch:        { name: 'HARPOON WINCH', kg: 35, space: 1, price: 300, labour: 1, needs: 'harpoon', pull: { slack: 1.2, range: 30 },
+                  desc: 'A tow drum geared down off a wrecker. Bite a door and drive away: the door comes with you. Gates too.' },
   radar:        { name: 'RADAR DETECTOR', kg: 5, space: 0, price: 150, labour: 0.25, warn: 120,
                   desc: 'A dash box that screams when something locks onto you, or an armed car closes within a long block.' },
 };
@@ -282,6 +290,9 @@ export function validateWorkshop(rows = { ARMOR, CHASSIS, MOUNT_WEAPONS, UTILITY
     if (u.ammo && !rows.AMMO_ITEMS[u.ammo]) bad.push(`utility ${id}: ammo item ${u.ammo} has no row`);
     if (u.tread && !(u.tread.paved > 0 && u.tread.dirt > 0 && u.set === 'tread')) bad.push(`utility ${id}: a tread needs paved, dirt and set 'tread'`);
     if (u.chassis && !u.chassis.every((c) => rows.CHASSIS[c])) bad.push(`utility ${id}: unknown chassis`);
+    if (u.needs && !Object.values(rows.MOUNT_WEAPONS).some((w) => w.kind === u.needs)) bad.push(`utility ${id}: needs a ${u.needs} mount that has no row`);
+    if (u.slash && !(u.slash.r > 0 && u.slash.every > 0)) bad.push(`utility ${id}: slash r, every`);
+    if (u.beam && !(u.beam.reach > 0 && u.beam.power >= 0)) bad.push(`utility ${id}: beam reach, power`);
   }
   for (const [id, a] of Object.entries(rows.ARENAS)) if (!['arena', 'track'].includes(a.kind) || !a.props?.length) bad.push(`arena ${id}: kind and props`);
   return { ok: bad.length === 0, bad };

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { layerMesh } from '../engine/depthlayers.js';
 import { RAMPS, PROPS, JUMPS, SITES, STUNT } from '../data/stunts.js';
 import { radialGlow } from '../world/textures.js';
 import { makeRng } from '../engine/rng.js';
@@ -117,6 +118,7 @@ export class Stunts {
   // Ground height at (x, z), and which ramp made it (hitRamp, hitS, hitU) - or 0 and null on the open ground.
   heightAt(x, z, y = 0) {
     this.hitRamp = null;
+    if (this.under) { const u = this.under.heightAt(x, z, y); if (u !== null) return u; } // a level below the street, its flights (systems/underground.js)
     if (this.storeys) { const s = this.storeys.heightAt(x, z, y); if (s !== null) return s; } // a floor, a stair (world/storeys.js)
     if (this.ext && this.outside(x, z)) return this.ext.heightAt(x, z, y);
     const list = this.cells[this.ci(z) * N + this.ci(x)];
@@ -343,7 +345,7 @@ export class Stunts {
   }
 
   initShadows(scene) {
-    const mat = new THREE.MeshBasicMaterial({ map: radialGlow(), color: '#000000', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const mat = new THREE.MeshBasicMaterial({ map: radialGlow(), color: '#000000', transparent: true });
     // Instance colour is the blob's strength: alpha *= r. (Black stays black.)
     // (Instance colours reach the fragment shader as USE_COLOR / vColor; USE_INSTANCING_COLOR is vertex-only.)
     mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n#ifdef USE_COLOR\n  diffuseColor.a *= vColor.r;\n#endif'); };
@@ -352,7 +354,7 @@ export class Stunts {
     this.shadows.setColorAt(0, _c.setScalar(1));
     this.shadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.shadows.instanceColor.setUsage(THREE.DynamicDrawUsage);
-    this.shadows.count = 0; this.shadows.visible = false; this.shadows.frustumCulled = false; this.shadows.renderOrder = 2;
+    this.shadows.count = 0; this.shadows.visible = false; this.shadows.frustumCulled = false; layerMesh(this.shadows, 'shadowBlob'); // engine/depthlayers.js
     scene.add(this.shadows);
   }
 
@@ -480,15 +482,12 @@ export class Stunts {
   }
 
   // A dead car for the row: crushed flat by whatever drove over it at the last show. Long axis along p.h.
+  // One of our own bodies, crushed (data/wrecks.js; systems/wrecks.js draws it); its collider as it always was.
   wreckGeo(p, out, statics, rng) {
-    const parts = [], body = p.paint ?? '#5a3a24';
-    const dark = '#' + new THREE.Color(body).multiplyScalar(0.55).getHexString();
-    parts.push(box(1.86, 0.62, 4.3, body).translate(0, 0.62, 0));
-    parts.push(box(1.62, 0.34, 1.9, dark).translate(0, 1.1, -0.2)); // the cab, roof pushed down to the belt line
-    parts.push(box(1.7, 0.05, 1.3, '#2a2622').translate(0, 0.95, 1.35)); // hood seam
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(box(0.26, 0.62, 0.62, '#151413').translate(sx * 0.86, 0.32, sz * 1.35));
-    if (rng() < 0.6) parts.push(box(0.9, 0.04, 0.8, '#6b4a32').translate((rng() - 0.5) * 0.6, 0.95, -1.6 + rng() * 0.5)); // rust bloom
-    out.push(this.place(mergeGeometries(parts), p.x, p.z, p.h));
+    void out;
+    if (rng() < 0.6) { rng(); rng(); } // (the rust bloom's rolls: the show's rng stays as it was)
+    const n = (this.crushed = (this.crushed ?? 0) + 1);
+    this.g.wrecks?.add(`stunts:${p.site}:${n}`, [{ x: p.x, z: p.z, rot: p.h, type: n % 3 === 1 ? 'pickup' : 'sedan', state: 'crushed', paint: n % 8, fit: [4.3, 1.86] }]);
     const along = Math.abs(Math.sin(p.h)) > 0.7;
     statics.addCentered(p.x, p.z, along ? 4.3 : 1.86, along ? 1.86 : 4.3, 'wreck', 1.4);
   }

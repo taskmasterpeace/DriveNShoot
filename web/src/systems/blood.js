@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RAY_BULLET, rayCircle } from '../engine/collision.js';
+import { DECAL_Y, decalMaterial, layerMesh } from '../engine/depthlayers.js';
 import { makeRng } from '../engine/rng.js';
 import { BLOOD } from '../data/materials.js';
 
@@ -96,6 +97,8 @@ function decalAtlas() {
   return tex;
 }
 
+const _box = new THREE.Box3();
+
 export class Blood {
   constructor(game) {
     this.g = game;
@@ -107,7 +110,7 @@ export class Blood {
     this.aTile = new THREE.InstancedBufferAttribute(new Float32Array(N), 1);
     this.aFade = new THREE.InstancedBufferAttribute(new Float32Array(N), 1);
     geo.setAttribute('aTile', this.aTile); geo.setAttribute('aFade', this.aFade);
-    const mat = new THREE.MeshLambertMaterial({ map: decalAtlas(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    const mat = decalMaterial(new THREE.MeshLambertMaterial({ map: decalAtlas(), transparent: true }), 'blood'); // engine/depthlayers.js
     mat.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nattribute float aTile;\nattribute float aFade;\nvarying float vFade;')
@@ -122,7 +125,7 @@ export class Blood {
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.mesh.receiveShadow = true;
-    this.mesh.renderOrder = 3;
+    layerMesh(this.mesh, 'blood');
     this.mesh.count = 0;
     this.mesh.visible = false;
     game.scene.add(this.mesh);
@@ -190,7 +193,7 @@ export class Blood {
 
   // A burn on the floor: a soft black blotch (a fire's scorch, the ash where something burnt down).
   scorch(x, z, size, color = '#15110e') {
-    return this.add(TILE.scorch, x, 0.135, z, 0, 1, 0, size, size * (0.8 + Math.random() * 0.3), Math.random() * 6.283, color, false);
+    return this.add(TILE.scorch, x, (this.g.fx.ground?.(x, z) ?? 0) + DECAL_Y, z, 0, 1, 0, size, size * (0.8 + Math.random() * 0.3), Math.random() * 6.283, color, false); // on the ground under it (engine/depthlayers.js)
   }
 
   // ---- a hit person bleeds onto what is behind them -------------------------------------------------------------
@@ -202,9 +205,9 @@ export class Blood {
     if (c._splashT === g.time && !big && Math.random() < 0.7) return null; // a shotgun's pellets: not a splash each
     c._splashT = g.time;
     dx /= dl; dz /= dl;
-    const fy = c.storey ? c.gy ?? 0 : 0, up = fy > 0.5;
+    const G = g.fx.ground, fy = c.storey ? c.gy ?? 0 : (G ? G(c.x, c.z) : 0), fyr = c.storey ? fy - (c.storey.y0 ?? 0) : 0, up = fyr > 0.5; // fy: the floor they stand on (the land under them off a storey); fyr: that floor over its own ground (a building on raised land, WEB_SITES_TERRAIN)
     const ox = c.x + dx * 0.3, oz = c.z + dz * 0.3, reach = BLOOD.reach;
-    let t = S.raycast(ox, oz, dx, dz, reach, RAY_BULLET, up ? fy + 1.3 : -1);
+    let t = S.raycast(ox, oz, dx, dz, reach, RAY_BULLET, up ? fyr + 1.3 : -1);
     const box = S.hit.box;
     let nx = S.hit.nx, nz = S.hit.nz;
     // A car behind them takes it on its roof and doors (it rides along with the car).
@@ -217,9 +220,10 @@ export class Blood {
     const s = (0.55 + Math.min(1.2, dmg / 50)) * (1.15 - (t / reach) * 0.45) * (big ? 1.35 : 1);
     if (car) {
       const hx = ox + dx * t, hz = oz + dz * t, lx = hx - car.x, lz = hz - car.z, ch = Math.cos(car.h), sh = Math.sin(car.h);
-      const i = this.add(Math.random() < 0.5 ? TILE.spray : TILE.spray2, hx, 1.45, hz, 0, 1, 0, s * 1.3, s, Math.atan2(-dz, dx), BLOOD.fresh, true);
+      const top = (car.mesh ? _box.setFromObject(car.mesh).max.y : (car.y ?? 0) + 1.45) + 0.02; // on its roof, whatever the body (engine/depthlayers.js: never under it)
+      const i = this.add(Math.random() < 0.5 ? TILE.spray : TILE.spray2, hx, top, hz, 0, 1, 0, s * 1.3, s, Math.atan2(-dz, dx), BLOOD.fresh, true);
       // Car frame: x across (cos h, -sin h), z along (sin h, cos h).
-      this.attached.push({ i, v: car, lx: lx * ch - lz * sh, lz: lx * sh + lz * ch, rot: Math.atan2(-dz, dx) - car.h });
+      this.attached.push({ i, v: car, lx: lx * ch - lz * sh, lz: lx * sh + lz * ch, ly: top - (car.y ?? 0), rot: Math.atan2(-dz, dx) - car.h });
       this.stats.car++;
       return { on: 'car', id: car.id, t: r2(t) };
     }
@@ -236,7 +240,7 @@ export class Blood {
       // It runs down the face and pools at its foot (the floor decal is what reads from straight above).
       const dh = Math.min(y - fy - 0.05, s * 1.5);
       this.add(TILE.drips, hx + nx * 0.045, y - dh * 0.42, hz + nz * 0.045, nx, 0, nz, s * 0.7, dh, 0, BLOOD.fresh, true);
-      g.fx.decal(hx + nx * 0.3, hz + nz * 0.3, s * (big ? 1.0 : 0.65), '#4e0303', Math.random() * 6.283, fy + 0.13);
+      g.fx.decal(hx + nx * 0.3, hz + nz * 0.3, s * (big ? 1.0 : 0.65), '#4e0303', Math.random() * 6.283, fy - (G ? G(hx + nx * 0.3, hz + nz * 0.3) : 0) + DECAL_Y); // (fx adds the ground back)
     }
     this.stats.wall++;
     return { on: box.op ? box.op.kind : box.tag, t: r2(t), x: r2(hx), z: r2(hz) };
@@ -262,7 +266,7 @@ export class Blood {
       if (!this.d.alive[a.i] || !g.vehicles.includes(v)) { this.kill(a.i); this.attached.splice(k, 1); continue; }
       const ch = Math.cos(v.h), sh = Math.sin(v.h);
       const d = this.d;
-      d.x[a.i] = v.x + a.lx * ch + a.lz * sh; d.z[a.i] = v.z - a.lx * sh + a.lz * ch; d.roll[a.i] = a.rot + v.h;
+      d.x[a.i] = v.x + a.lx * ch + a.lz * sh; d.z[a.i] = v.z - a.lx * sh + a.lz * ch; d.roll[a.i] = a.rot + v.h; if (a.ly !== undefined) d.y[a.i] = (v.y ?? 0) + a.ly; // rides up and down with it
       this.write(a.i);
     }
     // Dragged bodies leave smears.
@@ -279,8 +283,8 @@ export class Blood {
       if (m > 4) { p.x = c.x; p.z = c.z; p.acc = 0; continue; } // teleported, not dragged
       p.acc += m;
       if (p.acc >= BLOOD.smearEvery && (c.blood ?? 1) > 0.15) {
-        const fy = c.storey ? c.gy ?? 0 : 0;
-        this.add(TILE.smear, (c.x + p.x) / 2 - mx * 0.0, fy + 0.15, (c.z + p.z) / 2, 0, 1, 0, p.acc + 0.35, 0.55, Math.atan2(-mz, mx), BLOOD.fresh, true);
+        const fy = c.storey ? c.gy ?? 0 : (g.fx.ground?.(c.x, c.z) ?? 0); // the floor they lie on, or the land
+        this.add(TILE.smear, (c.x + p.x) / 2 - mx * 0.0, fy + DECAL_Y, (c.z + p.z) / 2, 0, 1, 0, p.acc + 0.35, 0.55, Math.atan2(-mz, mx), BLOOD.fresh, true);
         this.stats.smear++;
         p.acc = 0;
       }

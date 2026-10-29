@@ -57,7 +57,7 @@ export class Bases {
       seenBy: null, checkT: 0, lastSeen: { x: 0, z: 0, t: -1e9 }, alarms: 0, warnings: 0,
     };
     const solid = [], mesh = [], roofs = [];
-    const P = { solid, mesh, roofs, ox, oz };
+    const P = { solid, mesh, roofs, ox, oz, wrecks: [] }; // wrecks: a stripped truck's body (systems/wrecks.js)
     this.buildFence(s, row, P, statics);
     for (const t of row.towers) this.buildTower(s, t, P, statics);
     for (const b of row.buildings) this.buildBuilding(s, b, P, statics, world);
@@ -72,6 +72,7 @@ export class Bases {
     }
     this.buildSign(s, row.sign, P);
     this.clearLot(s, row);
+    if (P.wrecks.length) g.wrecks?.add(`base:${id}`, P.wrecks);
 
     // ---- GPU batches ----
     const scene = g.scene;
@@ -169,6 +170,7 @@ export class Bases {
     });
     if (n) B.mesh.instanceMatrix.needsUpdate = true;
     s.rubbleCleared = n;
+    s.wrecksCleared = this.g.wrecks?.clearIn(rects) ?? 0; // the island's dead cars on the lot go too
   }
 
   // A thin wall that stops movers but not rays: its whole length is a window hole (collision.js `holes`).
@@ -375,9 +377,9 @@ export class Bases {
       statics.addCentered(x, z, f.w, f.d, 'engine', 1.3);
     } else if (f.kind === 'chassis') {
       // A truck stripped to the frame, up on blocks: two rails, axles, no wheels.
-      for (const sd of [-1, 1]) S.push(at(box(0.16, 0.22, 4.1, '#2c2b28'), x + sd * 0.55, 0.62, z));
-      for (const zz of [-1.3, 1.3]) { S.push(at(box(1.9, 0.14, 0.14, '#33312d'), x, 0.5, z + zz)); for (const sd of [-1, 1]) S.push(at(box(0.4, 0.4, 0.4, '#6a6458'), x + sd * 0.7, 0.2, z + zz)); }
-      S.push(at(box(1.0, 0.7, 1.2, '#3a3833'), x, 0.95, z + 1.2), at(box(1.7, 0.08, 0.9, '#55593f'), x, 1.32, z - 1.4)); // engine block, a door panel lying across
+      // Our own pickup, stripped: doors gone, hood up, on blocks (data/wrecks.js; systems/wrecks.js draws it).
+      P.wrecks.push({ x, z, rot: 0, type: 'pickup', state: 'stripped', paint: 2, fit: [4.2, 1.9] });
+      S.push(at(box(1.7, 0.08, 0.9, '#55593f'), x + 1.6, 0.04, z - 1.4)); // a door panel lying on the ground beside it
       statics.addCentered(x, z, 1.9, 4.2, 'chassis', 1.3);
     } else if (f.kind === 'drum') {
       S.push(at(cyl(0.42, 0.42, 1.0, '#7a3a1c', 12), x, 0.5, z), at(cyl(0.43, 0.43, 0.05, '#4a2a16', 12), x, 0.75, z));
@@ -696,7 +698,7 @@ export class Bases {
   spotRange(s) {
     const g = this.g, P = g.player, R = BASE_RULES, v = P.inVehicle;
     let range = lerp(R.spotDay, R.spotNight, g.sky.night);
-    if (v) range *= R.vehicleMul; else if (P.crouch) range *= R.crouchMul;
+    if (v) range *= R.vehicleMul; else if (P.prone && g.stance) range = g.stance.seenRange(P, range, R.crouchMul, s.x ?? s.cx, s.z ?? s.cz); else if (P.crouch) range *= R.crouchMul; // prone: systems/stance.js (D2)
     if (this.lit(s, v ? v.x : P.x, v ? v.z : P.z)) range = Math.max(range, R.spotLit);
     return range;
   }

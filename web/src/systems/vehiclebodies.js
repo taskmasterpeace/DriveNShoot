@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { deckOf } from '../data/decks.js';
+import { RUNDOWN } from '../data/gadgets.js';
 
 // Vehicle bodies, built to measurements in code: ONE merged, vertex-coloured mesh per vehicle with a
 // per-vertex `part` id, so damage (vehicledamage.js) can dent, scrape and drop exact pieces.
@@ -100,6 +101,7 @@ export function buildBody(s, type, paint, out = null) {
   else if (base === 'bike') bikeBody(parts, s, paint);
   else if (base === 'atv') atvBody(parts, s, paint);
   else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
+  else if (base === 'raft' || base === 'ferry') raftBody(parts, s, base);
   else if (base === 'patrol') patrolBody(parts, s, paint);
   else if (base === 'apc') apcBody(parts, s, paint);
   else if (base === 'bus') busBody(parts, s, paint);
@@ -118,10 +120,11 @@ function carBody(parts, s, base, paint) {
   const L = s.len, hw = s.wid / 2, G = GREENHOUSE[base];
   const lawman = base === 'interceptor', pickup = base === 'pickup';
   const skin = lawman ? CREAM : paint; // a faded trooper two-tone (cream roof + doors), not the all-black cop car
+  const rd = s.look === 'rundown' ? RUNDOWN : null; // a town's patrol car gone to seed (systems/security.js): primer, swapped panels
   const yHood = pickup ? 1.2 : 1.1, yFloor = pickup ? 0.72 : 0.62, r = pickup ? 0.46 : 0.42;
   // Nose: engine block, hood panel (PART.hood tears off), grille, bumper.
   parts.push(slab(-hw, hw, 0.42, yHood - 0.06, G.zA - 0.05, L / 2 - 0.06, paint));
-  parts.push(slab(-hw + 0.07, hw - 0.07, yHood - 0.06, yHood, G.zA + 0.02, L / 2 - 0.16, paint, PART.hood));
+  parts.push(slab(-hw + 0.07, hw - 0.07, yHood - 0.06, yHood, G.zA + 0.02, L / 2 - 0.16, rd ? rd.primer : paint, PART.hood));
   if (lawman) parts.push(slab(-0.32, 0.32, yHood, yHood + 0.05, G.zA + 0.3, L / 2 - 0.45, paint, PART.hood)); // power bulge
   grille(parts, hw, L, yHood);
   parts.push(slab(-hw - 0.03, hw + 0.03, 0.46, 0.7, L / 2 - 0.08, L / 2 + 0.12, BUMPER, PART.bumperF));
@@ -133,7 +136,7 @@ function carBody(parts, s, base, paint) {
     if (zB !== undefined) {
       parts.push(slab(x0, x1, 0.42, G.yB, zB, G.zA, skin, front));
       parts.push(slab(x0, x1, 0.42, G.yB, G.zC, zB, skin, sd > 0 ? PART.doorL2 : PART.doorR2));
-    } else parts.push(slab(x0, x1, 0.42, G.yB, G.zC, G.zA, skin, front));
+    } else parts.push(slab(x0, x1, 0.42, G.yB, G.zC, G.zA, rd ? rd.panels[sd > 0 ? 0 : 1] : skin, front));
     parts.push(slab(sd * (hw + 0.01), sd * (hw + 0.035), G.yB - 0.18, G.yB - 0.13, G.zA - 0.45, G.zA - 0.25, CHROME, front)); // handle
     mirror(parts, sd, hw, G);
   }
@@ -141,10 +144,10 @@ function carBody(parts, s, base, paint) {
   greenhouse(parts, G, skin, skin, zB);
   // Tail: a trunk, or an open bed.
   if (pickup) bed(parts, L, hw, G, paint);
-  else parts.push(slab(-hw, hw, 0.42, yHood - 0.02, -L / 2 + 0.06, G.zC + 0.05, paint));
+  else parts.push(slab(-hw, hw, 0.42, yHood - 0.02, -L / 2 + 0.06, G.zC + 0.05, rd ? rd.panels[2] : paint));
   parts.push(slab(-hw - 0.03, hw + 0.03, 0.46, 0.7, -L / 2 - 0.12, -L / 2 + 0.08, BUMPER, PART.bumperR));
   parts.push(slab(-0.22, 0.22, 0.55, 0.68, -L / 2 - 0.14, -L / 2 - 0.12, PLATE, PART.bumperR));
-  if (lawman) { lightBar(parts, G); pushBar(parts, L); spotlight(parts, hw, G); }
+  if (lawman) { lightBar(parts, G, rd); pushBar(parts, L, rd); spotlight(parts, hw, G); }
   axle(parts, L / 2 - 0.92, r, 0.32, hw - 0.1, true);
   axle(parts, -L / 2 + 0.92, r, 0.32, hw - 0.1, false);
 }
@@ -202,15 +205,17 @@ function bed(parts, L, hw, G, paint) {
   parts.push(slab(-hw + 0.2, hw - 0.2, 1.29, 1.3, z1 - 0.38, z1 - 0.08, '#9a958b'));                       // its lid
 }
 
-function lightBar(parts, G) {
+function lightBar(parts, G, rd = null) {
   const zc = (G.roofF + G.roofR) / 2 + 0.1, y = G.yR + 0.07;
   parts.push(slab(-0.66, 0.66, y, y + 0.1, zc - 0.13, zc + 0.13, '#1e1e1e'));
   parts.push(slab(0.06, 0.62, y + 0.1, y + 0.15, zc - 0.11, zc + 0.11, '#7a2119'));   // dead red lens (driver's side)
-  parts.push(slab(-0.62, -0.06, y + 0.1, y + 0.15, zc - 0.11, zc + 0.11, '#23395f')); // dead blue lens
+  if (rd) { parts.push(slab(-0.62, -0.06, y + 0.1, y + 0.12, zc - 0.11, zc + 0.11, '#2a2622')); parts.push(slab(-0.5, -0.2, y + 0.12, y + 0.16, zc - 0.04, zc + 0.04, rd.rust)); } // busted: the blue lens gone, a wire hanging
+  else parts.push(slab(-0.62, -0.06, y + 0.1, y + 0.15, zc - 0.11, zc + 0.11, '#23395f')); // dead blue lens
 }
 
-function pushBar(parts, L) {
+function pushBar(parts, L, rd = null) {
   const z = L / 2 + 0.24, c = '#1b1b1b';
+  if (rd) { parts.push(slab(-0.78, 0.78, 0.42, 0.66, z + 0.04, z + 0.16, rd.rust, PART.bumperF)); parts.push(slab(-0.7, 0.7, 0.78, 0.86, z, z + 0.08, rd.primer, PART.bumperF)); } // a welded ram plate
   parts.push(beam([-0.62, 0.62, z], [0.62, 0.62, z], 0.07, c, PART.bumperF));
   parts.push(beam([-0.62, 0.95, z - 0.04], [0.62, 0.95, z - 0.04], 0.07, c, PART.bumperF));
   for (const x of [-0.55, 0.55]) {
@@ -273,6 +278,9 @@ function vanBody(parts, s, paint) {
   greenhouse(parts, G, '#cfc8bb', paint);
   parts.push(slab(-hw - 0.03, hw + 0.03, 0.46, 0.72, -L / 2 - 0.12, -L / 2 + 0.08, BUMPER, PART.bumperR));
   parts.push(slab(-0.22, 0.22, 0.55, 0.68, -L / 2 - 0.14, -L / 2 - 0.12, PLATE, PART.bumperR));
+  // A ladder up the left flank by the back (data/decks.js vanRoof): E at its foot climbs onto the roof.
+  for (const z of [-2.42, -1.98]) parts.push(beam([hw + 0.07, 0.45, z], [hw + 0.07, G.yR + 0.12, z], 0.03, CHROME));
+  for (let k = 0; k < 5; k++) { const y = 0.65 + k * 0.32; parts.push(beam([hw + 0.07, y, -2.42], [hw + 0.07, y, -1.98], 0.025, CHROME)); }
   // The roof rack and its load ride the roof panel (greenhouse() put it in ROOF): they lift away with it.
   const R = ROOF ?? parts;
   const y = G.yR + 0.15;
@@ -381,20 +389,39 @@ function busBody(parts, s, paint) {
   const L = s.len, hw = s.wid / 2, BONE = '#d8cdb4', GLASS = '#22282a', PLATE = '#5a5550', RACK = '#1e1e1e';
   const zF = L / 2, zR = -L / 2;
   parts.push(slab(-hw + 0.25, hw - 0.25, 0.42, 0.62, zR + 0.4, zF - 0.4, '#222222', PART.frame));        // chassis
-  parts.push(slab(-hw, hw, 0.55, 1.3, zR + 0.05, zF - 0.12, paint));                                     // the lower body
+  // Hollow (data/decks.js busAisle: an aisle you walk): a floor at 0.65, the lower walls up to the window band, the
+  // band's glass as thin panes on both sides, the upper walls, and the roof (ROOF: it lifts away while you are inside).
+  const yf = 0.65, R = ROOF ?? parts, FLOOR = '#3a3834', SEAT = '#8a5232', SEATBACK = '#6a3a24';
+  parts.push(slab(-hw, hw, 0.55, yf, zR + 0.05, zF - 0.12, '#2e2a26'));                                    // the floor pan
+  parts.push(slab(-hw + 0.08, hw - 0.08, yf, yf + 0.01, zR + 0.12, zF - 0.6, FLOOR));                     // ribbed floor
+  parts.push(slab(hw - 0.08, hw, 0.55, 1.3, zR + 0.05, zF - 0.12, paint));                                 // lower walls: the driver's side
+  parts.push(slab(-hw, -hw + 0.08, 0.55, 1.3, zR + 0.05, zF - 2.0, paint));                                // kerb side, behind the door
+  parts.push(slab(-hw, -hw + 0.08, 0.55, 1.3, zF - 1.0, zF - 0.12, paint));                                // and in front of it
+  parts.push(slab(-hw, hw, 0.55, 2.92, zR + 0.05, zR + 0.15, paint, PART.bumperR));                        // back wall
   parts.push(slab(-hw - 0.01, hw + 0.01, 1.08, 1.16, zR + 0.1, zF - 0.2, '#3a2a1e'));                    // a dark rub strip
-  // The window band: dark glass, paint pillars, steel mesh over the front panes, plates welded over two of them.
-  parts.push(slab(-hw + 0.03, hw - 0.03, 1.3, 2.32, zR + 0.15, zF - 0.6, GLASS));
+  // The window band: dark glass panes, paint pillars, steel mesh over the front panes, plates welded over two of them.
+  for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.05), sd * (hw - 0.02), 1.3, 2.32, zR + 0.15, zF - 0.6, GLASS));
   for (let z = zR + 0.3; z < zF - 0.7; z += 1.4) for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.04), sd * hw, 1.3, 2.32, z, z + 0.16, paint));
   for (const sd of [1, -1]) {
     parts.push(slab(sd * (hw - 0.01), sd * (hw + 0.04), 1.32, 2.28, zR + 1.9, zR + 3.2, PLATE));
     parts.push(slab(sd * (hw - 0.01), sd * (hw + 0.04), 1.32, 2.28, zR + 5.4, zR + 6.6, PLATE));
     for (let y = 1.42; y < 2.3; y += 0.22) parts.push(slab(sd * hw, sd * (hw + 0.025), y, y + 0.03, zF - 3.6, zF - 0.75, '#4a4642'));
+    parts.push(slab(sd * (hw - 0.08), sd * hw, 2.32, 2.92, zR + 0.05, zF - 0.15, BONE));                    // upper walls
   }
   // The door on the kerb (right) side, up front.
   parts.push(slab(-hw - 0.02, -hw + 0.02, 0.6, 2.3, zF - 2.0, zF - 1.0, '#3a3532', PART.doorR));
-  parts.push(slab(-hw - 0.01, hw + 0.01, 2.32, 2.92, zR + 0.05, zF - 0.15, BONE));                       // the upper body
-  parts.push(slab(-hw + 0.04, hw - 0.04, 2.92, 3.0, zR + 0.15, zF - 0.3, paint));                         // roof skin: the line's colour, read from above
+  // Inside: four rows of benches either side of the aisle, the driver's seat and dash, the luggage racks at the back.
+  for (const z of [2.6, 1.1, -0.4, -1.9]) for (const sd of [1, -1]) {
+    parts.push(slab(sd * 0.36, sd * (hw - 0.08), yf, yf + 0.45, z - 0.3, z + 0.3, SEAT));
+    parts.push(slab(sd * 0.36, sd * (hw - 0.08), yf + 0.45, yf + 1.0, z - 0.32, z - 0.22, SEATBACK));
+  }
+  parts.push(slab(0.3, hw - 0.08, yf, yf + 0.5, 4.0, 4.5, SEAT));                                          // the driver's seat
+  parts.push(slab(0.3, hw - 0.08, yf + 0.5, yf + 1.0, 4.0, 4.08, SEAT));
+  parts.push(slab(-hw + 0.08, hw - 0.08, yf, yf + 1.0, 4.6, zF - 0.62, '#2a2826'));                        // the dash
+  parts.push(slab(-hw + 0.08, hw - 0.08, yf, yf + 0.9, zR + 0.15, -4.3, '#3a3128'));                       // luggage racks
+  for (const [x, z, c] of [[-0.6, -4.7, '#6b5537'], [0.1, -4.8, '#4b5338'], [0.7, -4.6, '#5c4a32']]) parts.push(slab(x - 0.3, x + 0.3, yf + 0.9, yf + 1.25, z - 0.25, z + 0.25, c));
+  R.push(slab(-hw - 0.01, hw + 0.01, 2.85, 2.92, zR + 0.05, zF - 0.15, BONE));                            // the ceiling
+  R.push(slab(-hw + 0.04, hw - 0.04, 2.92, 3.0, zR + 0.15, zF - 0.3, paint));                              // roof skin: the line's colour, read from above
   // The nose: windshield, the amber destination board, grille, the ram bar, bumpers.
   parts.push(slab(-hw + 0.12, hw - 0.12, 1.35, 2.3, zF - 0.62, zF - 0.5, GLASS));
   parts.push(slab(-hw + 0.2, hw - 0.2, 2.42, 2.78, zF - 0.2, zF - 0.1, '#e0a030', PART.light));
@@ -408,15 +435,15 @@ function busBody(parts, s, paint) {
   parts.push(slab(-hw - 0.03, hw + 0.03, 0.5, 0.78, zR - 0.16, zR + 0.06, BUMPER, PART.bumperR));
   // The roof: rack rails, cross bars, the riders' bags and crates, a spare, a hatch, a sand stripe down the middle.
   const y = 3.05;
-  for (const x of [-hw + 0.2, hw - 0.2]) parts.push(beam([x, y + 0.12, zR + 0.6], [x, y + 0.12, zF - 1.2], 0.06, RACK));
-  for (let z = zR + 0.6; z <= zF - 1.1; z += 1.15) parts.push(beam([-hw + 0.2, y + 0.12, z], [hw - 0.2, y + 0.12, z], 0.05, RACK));
-  parts.push(slab(-0.22, 0.22, 3.0, 3.03, zR + 0.4, zF - 0.5, BONE));                                   // the line's stripe
-  parts.push(slab(-hw + 0.04, hw - 0.04, 3.0, 3.03, zF - 0.75, zF - 0.32, BONE));                         // a bone nose band
+  for (const x of [-hw + 0.2, hw - 0.2]) R.push(beam([x, y + 0.12, zR + 0.6], [x, y + 0.12, zF - 1.2], 0.06, RACK));
+  for (let z = zR + 0.6; z <= zF - 1.1; z += 1.15) R.push(beam([-hw + 0.2, y + 0.12, z], [hw - 0.2, y + 0.12, z], 0.05, RACK));
+  R.push(slab(-0.22, 0.22, 3.0, 3.03, zR + 0.4, zF - 0.5, BONE));                                   // the line's stripe
+  R.push(slab(-hw + 0.04, hw - 0.04, 3.0, 3.03, zF - 0.75, zF - 0.32, BONE));                         // a bone nose band
   const bags = [[-0.7, -3.6, 0.9, 0.5, 0.45, '#5c4a32'], [0.45, -3.3, 0.7, 0.6, 0.4, '#6b5537'], [-0.4, -2.1, 0.8, 0.5, 0.35, '#4b5338'], [0.6, -1.4, 0.6, 0.7, 0.4, '#7a5a3a'],
     [-0.6, 0.2, 0.7, 0.45, 0.5, '#3e4a46'], [0.5, 0.9, 0.8, 0.55, 0.42, '#5c4a32'], [-0.5, 1.9, 0.6, 0.6, 0.38, '#6a4a32']];
-  for (const [x, z, w, d, h, c] of bags) parts.push(slab(x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2, c));
-  parts.push(tag(new THREE.CylinderGeometry(0.5, 0.5, 0.26, 14).translate(0.35, y + 0.15, 2.9).toNonIndexed(), TYRE, PART.body));
-  parts.push(slab(-0.45, 0.45, 3.0, 3.12, zF - 2.6, zF - 1.8, '#4a4642'));
+  for (const [x, z, w, d, h, c] of bags) R.push(slab(x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2, c));
+  R.push(tag(new THREE.CylinderGeometry(0.5, 0.5, 0.26, 14).translate(0.35, y + 0.15, 2.9).toNonIndexed(), TYRE, PART.body));
+  R.push(slab(-0.45, 0.45, 3.0, 3.12, zF - 2.6, zF - 1.8, '#4a4642'));
   // Wheels: one steer axle, a doubled rear.
   axle(parts, zF - 1.9, 0.55, 0.38, hw - 0.12, true);
   axle(parts, zR + 2.0, 0.55, 0.38, hw - 0.12, false);
@@ -668,6 +695,22 @@ function boatBody(parts, s, base, paint) {
   }
 }
 
+// A raft: logs lashed over oil drums, a pole; a ferry: a plank deck on two steel pontoons, rails, the cable post.
+function raftBody(parts, s, base) {
+  const L = s.len, W = s.wid;
+  if (base === 'raft') {
+    for (let i = 0; i < 6; i++) parts.push(coloredBox(W / 6 - 0.04, 0.3, L * (0.94 + (i % 2) * 0.05), -W / 2 + (i + 0.5) * (W / 6), 0.22, 0, i % 2 ? '#6b5236' : '#7a5e3e'));
+    for (const z of [-L * 0.32, L * 0.32]) parts.push(coloredBox(W * 1.02, 0.08, 0.16, 0, 0.39, z, '#4a3a28'));
+    for (const [x, z] of [[-0.8, -1.3], [0.8, -1.3], [-0.8, 1.3], [0.8, 1.3]]) parts.push(coloredBox(0.6, 0.5, 0.6, x, 0.0, z, '#3d4a44'));
+    parts.push(coloredBox(0.07, 0.07, 3.6, 0.7, 0.5, -0.2, '#8a7458', PART.frame)); // the pole
+  } else {
+    for (const sd of [-1, 1]) parts.push(coloredBox(0.9, 0.7, L * 0.98, sd * (W / 2 - 0.5), 0.1, 0, '#4b4f4a'));
+    parts.push(coloredBox(W, 0.14, L, 0, 0.48, 0, '#7d6446'));
+    for (const sd of [-1, 1]) { parts.push(coloredBox(0.08, 0.08, L, sd * (W / 2 - 0.05), 1.4, 0, '#6a6660', PART.frame)); for (let z = -L / 2 + 0.3; z <= L / 2; z += 1.6) parts.push(coloredBox(0.08, 0.9, 0.08, sd * (W / 2 - 0.05), 0.98, z, '#6a6660', PART.frame)); }
+    parts.push(coloredBox(0.3, 1.8, 0.3, W / 2 - 0.3, 1.4, -L / 2 + 0.4, '#5a5650', PART.frame)); // the cable post
+  }
+}
+
 // ---- lamps ------------------------------------------------------------------------------------------
 
 function lenses(parts, s, type) {
@@ -684,6 +727,7 @@ export function lampAnchors(s, type) {
   const car = { beamW: 6 + W * 2.4, beamL: 15 + W * 2, halo: 1.15 };
   if (base === 'bike') return { head: [[0, 0.98, L / 2 - 0.42]], tail: [[0, 0.82, -L / 2 + 0.2]], beamW: 7, beamL: 16, halo: 0.8 };
   if (base === 'jetski') return { head: [[0, 0.75, L / 2 - 0.45]], tail: [], beamW: 5, beamL: 20, halo: 0.7 };
+  if (base === 'raft' || base === 'ferry') return { head: [], tail: [], beamW: 4, beamL: 8, halo: 0.5 };
   if (base === 'airboat' || base === 'gunboat') return { head: [[0, 0.95, L / 2 - 0.75]], tail: [[0, 0.9, -L / 2 + 0.25]], beamW: 6, beamL: 26, halo: 1 };
   if (base === 'rig') return { head: pair(W / 2 - 0.35, 1.3, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.22, -L / 2 + 0.18), ...car };
   if (base === 'buggy') return { head: pair(0.3, 0.72, L / 2 - 0.02), tail: pair(0.32, 1.02, -L / 2 + 0.22), ...car };

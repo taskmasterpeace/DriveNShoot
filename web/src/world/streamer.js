@@ -9,6 +9,7 @@ import { roadAtlasTexture, radialGlow } from './textures.js';
 import { roofSurface, wallSurface, groundSurface } from './surfaces.js';
 import { poolName } from './flora.js';
 import GOLDEN from '../data/golden.json';
+import { BillboardAtlas } from './roadside-art.js'; // the roadside's billboard faces (world/roadside.js, docs/design/WEB_ROADSIDE.md)
 import { EXT as WATER_EXT } from './water.js';
 
 // The streamer (docs/design/WEB_STREAMING.md §3.2-3.3, P1 "Streamed Arizona").
@@ -140,6 +141,12 @@ export class Streamer {
       glows: P('glows', flatPlane, glowMat, { cast: false, receive: false }),
       signsfl: P('signsfl', new THREE.PlaneGeometry(1, 1), signFL, { extra: { name: 'aRect', size: 4 } }),
     };
+    // THE ROADSIDE's billboards and price boards (world/roadside.js): their faces in their own atlas, drawn like the signs.
+    if (this.W.roadside) {
+      this.billAtlas = new BillboardAtlas(this.W.roadside.faces);
+      const bm = sign.clone(); bm.map = this.billAtlas.texture; bm.emissiveMap = this.billAtlas.texture; bm.onBeforeCompile = sign.onBeforeCompile;
+      this.pools.bills = P('bills', new THREE.PlaneGeometry(1, 1), bm, { extra: { name: 'aRect', size: 4 } });
+    }
     // Trees and desert plants (world/flora.js): one pool per species, shared with the island (it holds a permanent range).
     for (const [k, p] of Object.entries(w.flora.pools)) this.pools[poolName(k)] = p;
     this.pools.glows.mesh.renderOrder = 2;
@@ -269,7 +276,7 @@ export class Streamer {
       this.frameWrites++;
       h.step++;
     }
-    if (!h.done) { h.done = true; this.applied++; }
+    if (!h.done) { h.done = true; this.applied++; this.g.wrecks?.chunkOn(L); } // its dead cars: our bodies (systems/wrecks.js)
     return true;
   }
   release(L) {
@@ -277,6 +284,7 @@ export class Streamer {
     if (!h) return;
     if (h.slot) this.surfaces.release(h.slot);
     for (const [name, [start, n]] of Object.entries(h.ranges)) this.pools[name].release(start, n);
+    this.g.wrecks?.chunkOff(L);
     this.ringOff(L);
     L.hot = null;
     this.hot.delete(L.key);
@@ -528,11 +536,14 @@ export class Streamer {
     if (!!on === !!W.terrain) return { on: !!W.terrain, changed: false };
     let T = null;
     if (on) {
-      const { loadTerrain, RealTerrain } = await import('./realterrain.js');
-      this.terrainAsset ??= await loadTerrain(new URL('../data/terrain/i10.bin', import.meta.url).href);
-      T = new RealTerrain(this.terrainAsset, W);
+      const { loadTerrain, RealTerrain, PACK_FILES } = await import('./realterrain.js');
+      // The strip and the sheet packs (docs/design/WEB_SITES_TERRAIN.md §3.3), fetched once, in parallel.
+      [this.terrainAsset, this.terrainPacks] = await Promise.all([this.terrainAsset ?? loadTerrain(new URL('../data/terrain/i10.bin', import.meta.url).href),
+        this.terrainPacks ?? Promise.all(PACK_FILES.map((f) => loadTerrain(new URL(`../data/terrain/${f}.bin`, import.meta.url).href)))]);
+      T = new RealTerrain(this.terrainAsset, W, this.terrainPacks);
     }
     W.terrain = T;
+    this.g.citygen?.onTerrain?.(T); // settlements stand on their pads (systems/citygen.js): live ones are stamped again
     W.mesaCache?.clear(); // mesas read the biome, which reads the landcover now
     // L1 water sits in the land now (its surfaces and beds from the real heights); L2 plans its decks again (a river far
     // below a road on a fill is a gorge: a deck, not a culvert).

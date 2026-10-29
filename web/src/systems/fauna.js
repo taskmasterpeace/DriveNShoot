@@ -31,7 +31,7 @@ function hash3(a, b, c) { let h = 0x9e3779b1 ^ Math.imul(a | 0, 0x85ebca6b); h =
 const phaseIndex = (hour) => { const h = ((hour % 24) + 24) % 24; for (let i = 0; i < PHASES.length; i++) { const P = PHASES[i]; if (P.from < P.to ? h >= P.from && h < P.to : h >= P.from || h < P.to) return i; } return 2; };
 // Where an animal wants to be this frame, in its own object (no garbage).
 function W(a, x, z, v, face = undefined) { const w = a.w; w.x = x; w.z = z; w.v = v; w.face = face; return w; }
-const _p = { x: 0, z: 0 }, HIT = { t: 0, animal: null }, _pick = { t: null, d: 0, k: null };
+const _p = { x: 0, z: 0 }, HIT = { t: 0, animal: null }, _pick = { t: null, d: 0, k: null }, SKY = { ang: 0, slope: 0 };
 
 export class Fauna {
   constructor(game) {
@@ -484,7 +484,7 @@ export class Fauna {
       if (!c.alive || c.hidden || c.inVehicle || Math.abs(c.x - a.x) > look || Math.abs(c.z - a.z) > look) continue;
       if (c.hf || c.fauna) continue; // the hot ground's own, and a region's animals (systems/regions.js)
       let d = Math.hypot(c.x - a.x, c.z - a.z);
-      const crouch = c === P && (P.crouch || P.crouched) ? 0.55 : 1;
+      const crouch = c === P ? (P.prone && g.stance ? g.stance.seenRange(P, sight, 0.55, a.x, a.z) / (sight || 1) : (P.crouch || P.crouched) ? 0.55 : 1) * (g.outdoors?.fx.preyNoticeMul ?? 1) : 1; // the still hunter's talent (systems/outdoors.js); prone: systems/stance.js
       const seen = d < sight * crouch && g.statics.lineOfSight(a.x, a.z, c.x, c.z, RAY_SOLID);
       const smelt = d < smell * 0.5 * crouch;
       if (!seen && !smelt) continue;
@@ -763,13 +763,14 @@ export class Fauna {
     if (a.wheelT > 0) { a.wheelT -= dt; a.state = 'wheel'; return W(a, a.x + Math.sin(a.face) * 4, a.z + Math.cos(a.face) * 4, S.speed.run * 0.6); }
     if (a.fleeT > 0) { a.state = 'flee'; const dx = a.x - a.fx, dz = a.z - a.fz, l = Math.hypot(dx, dz) || 1; return W(a, a.x + (dx / l) * 10, a.z + (dz / l) * 10, S.speed.run * 0.9); }
     // Something on its ground: the boldest warn (a huff, a stamp), then charge; the rest of the sounder bolts.
-    if (t && a.tk !== 'car' && a.tdist < S.territory) {
+    const terr = S.territory * (t === g.player ? g.outdoors?.fx.territorialMul ?? 1 : 1); // the calm hand's talent (systems/outdoors.js)
+    if (t && a.tk !== 'car' && a.tdist < terr) {
       const bold = !gr || gr.members.indexOf(a) < 2;
       if (!bold) { a.fleeT = 4; a.fx = t.x; a.fz = t.z; return null; }
       if (!a.warned) { a.warned = true; a.warnT = 0; this.voice(a, 'grunt'); g.emit('faunaWarn', { id: a.id, species: a.sp, target: t.id ?? null, kind: 'huff' }); }
       a.warnT += dt;
       a.state = 'warn'; A.head = -0.15 + Math.sin(this.t * 14) * 0.08;
-      if (a.warnT > 1.1 || a.tdist < S.territory * 0.55) { a.charge = { t, k: a.tk, T: 3.5 }; a.warned = false; this.stats.charges++; g.emit('faunaCharge', { id: a.id, species: a.sp, target: t.id ?? null, kind: a.tk, dist: +a.tdist.toFixed(1) }); this.voice(a, 'squeal'); }
+      if (a.warnT > 1.1 || a.tdist < terr * 0.55) { a.charge = { t, k: a.tk, T: 3.5 }; a.warned = false; this.stats.charges++; g.emit('faunaCharge', { id: a.id, species: a.sp, target: t.id ?? null, kind: a.tk, dist: +a.tdist.toFixed(1) }); this.voice(a, 'squeal'); }
       return W(a, a.x, a.z, 0, Math.atan2(t.x - a.x, t.z - a.z));
     }
     a.warned = false;
@@ -928,6 +929,7 @@ export class Fauna {
     const g = this.g;
     a.air = true; a.alt = Math.max(a.alt, 0.3); a.altTo = 6 + Math.random() * 6; a.state = 'scatter'; a.fx = x; a.fz = z; a.fleeT = Math.max(a.fleeT, 4 + Math.random() * 3);
     if (a.circ?.body) { a.state = 'circle'; a.altTo = a.B.alt ? a.B.alt[0] + Math.random() * (a.B.alt[1] - a.B.alt[0]) : 9; a.circ.until = this.hours() + 30 / 60; } // up again; down again in half a game hour if it is quiet
+    else if (a.S.body.ground) { const k = Math.hypot(a.home.x - x, a.home.z - z) || 1, d = 35 + Math.random() * 25, s = Math.random() < 0.5 ? -1 : 1; a.landAt = { x: a.home.x + ((a.home.x - x) / k) * d + ((a.home.z - z) / k) * 12 * s, z: a.home.z + ((a.home.z - z) / k) * d - ((a.home.x - x) / k) * 12 * s }; a.home.x = a.landAt.x; a.home.z = a.landAt.z; } // a ground flock settles again further off
     else if (a.S.body.wader) { const b = this.bankNear(a.home.x + (a.home.x - x) * 0.8, a.home.z + (a.home.z - z) * 0.8, 30); a.landAt = b ?? { x: a.home.x + (a.home.x - x), z: a.home.z + (a.home.z - z) }; a.home.x = a.landAt.x; a.home.z = a.landAt.z; }
     if (!a.scT || this.t - a.scT > 4) {
       a.scT = this.t;
@@ -937,7 +939,7 @@ export class Fauna {
       g.emit('birdsScatter', { id: a.id, species: a.sp, x: +a.x.toFixed(1), z: +a.z.toFixed(1), from: { x: +x.toFixed(1), z: +z.toFixed(1) }, n, byYou });
       this.voice(a, 'flap');
       // The warning: birds going up off the water near you, and it was not you that put them up.
-      if (a.S.body.wader && !byYou && Math.hypot(a.x - P.x, a.z - P.z) < 70 && this.t - (this.scToastT ?? -99) > 40) { this.scToastT = this.t; g.hud?.toast?.('BIRDS GO UP OFF THE WATER · SOMETHING IS COMING', 'warn'); }
+      if ((a.S.body.wader || a.S.body.ground) && !byYou && Math.hypot(a.x - P.x, a.z - P.z) < 70 && this.t - (this.scToastT ?? -99) > 40) { this.scToastT = this.t; g.hud?.toast?.(a.S.body.wader ? 'BIRDS GO UP OFF THE WATER · SOMETHING IS COMING' : 'BIRDS GO UP ALL AT ONCE · SOMETHING IS COMING', 'warn'); g.emit('theQuiet', { species: a.sp, x: +a.x.toFixed(1), z: +a.z.toFixed(1), from: { x: +x.toFixed(1), z: +z.toFixed(1) } }); }
     }
   }
 
@@ -1010,7 +1012,8 @@ export class Fauna {
     a.alive = false; a.dead = true; a.deadT = 0; a.deadAt = this.hours(); a.speed = 0; a.hold = null; a.held = null;
     a.rec.dead = true; a.rec.deadAt = a.deadAt;
     this.stats.killed++;
-    if (S.form === 'bird' && a.air) { a.vy = 0; a.y = a.alt; }
+    if (S.form === 'bird' && a.air) { a.vy = 0; a.y = a.alt; g.outdoors?.onBirdDown(a, by); } // it falls (tick) and lies as a carcass
+    if (by === g.player && S.form !== 'bird') g.outdoors?.gain('hunting', 4);
     const byId = by === g.player ? g.player.id : by?.isFauna ? `animal:${by.sp}` : by?.id ?? null;
     g.emit('faunaKilled', { id: a.id, species: a.sp, by: byId, cause, x: +a.x.toFixed(1), z: +a.z.toFixed(1), roadkill: cause === 'vehicle' });
     if (cause === 'vehicle') { this.stats.roadkill++; g.emit('roadkill', { id: a.id, species: a.sp, vehicle: by?.id ?? null, x: +a.x.toFixed(1), z: +a.z.toFixed(1) }); }
@@ -1029,17 +1032,56 @@ export class Fauna {
   }
 
   // A round's line (combat.js hitscan): the nearest animal it crosses before maxT. One result object, reused.
-  raycast(ox, oz, dx, dz, maxT) {
+  // slope: a round aimed up at something in the sky (aimLift: metres up a metre out, from the muzzle's 1.45 m) meets a
+  // flying bird where its height matches the bird's, and passes over anything on the ground once past head height.
+  raycast(ox, oz, dx, dz, maxT, slope = 0) {
     let best = null, bt = maxT;
     for (const a of this.live) {
-      if (a.dead || a.S.onlyBy || (a.form === 'bird' && a.alt > 2.2)) continue;
-      const r = a.form === 'gator' ? 0.55 : a.form === 'snake' ? 0.28 : a.form === 'bird' ? 0.3 : 0.24 + 0.22 * (a.p.scale ?? 1) * (a.B.lenK ?? 1);
+      const high = a.form === 'bird' && a.alt > 2.2;
+      if (a.dead || a.S.onlyBy || (high && !slope)) continue;
+      const span = a.B.span ?? 1, r = a.form === 'gator' ? 0.55 : a.form === 'snake' ? 0.28 : a.form === 'bird' ? (high ? 0.3 + span * 0.3 : 0.3) : 0.24 + 0.22 * (a.p.scale ?? 1) * (a.B.lenK ?? 1);
       const t = rayCircle(ox, oz, dx, dz, a.x, a.z, r, bt);
-      if (t >= 0.3 && t < bt) { bt = t; best = a; }
+      if (!(t >= 0.3 && t < bt)) continue;
+      const h = 1.45 + slope * t;
+      if (high ? Math.abs(h - a.alt) > 0.35 + span * 0.3 : slope > 0 && h > 2.6) continue;
+      bt = t; best = a;
     }
     if (!best) return null;
     HIT.t = bt; HIT.animal = best;
     return HIT;
+  }
+
+  // The mouse is where you aim, in the sky too (main.js, after the mouse ray meets the ground): a flying bird under the
+  // cursor's ray (within its own size of it) becomes the aim point, at its height. out: g.aim ({ x, z, y }).
+  skyAim(ray, out) {
+    let best = null, bd = Infinity;
+    const o = ray.origin, d = ray.direction;
+    for (const a of this.live) {
+      if (a.dead || a.form !== 'bird' || !a.air || a.alt <= 2.2) continue;
+      const vx = a.x - o.x, vy = a.alt - o.y, vz = a.z - o.z, t = vx * d.x + vy * d.y + vz * d.z;
+      if (t <= 0) continue;
+      const k = Math.sqrt(Math.max(0, vx * vx + vy * vy + vz * vz - t * t));
+      if (k < 0.7 + (a.B.span ?? 1) * 0.5 && k < bd) { bd = k; best = a; }
+    }
+    if (best) { out.x = best.x; out.z = best.z; out.y = best.alt; } else out.y = 0;
+    return best;
+  }
+  // A shot from ch at the aim point in the sky (combat.fire): the rise it needs to meet the aim's height, and its heading.
+  // A bird on the wing has moved on by the time the shot goes: the shot lands `lag` seconds of its flight behind it
+  // (less with the HUNTING skill), so a single bullet misses a fast bird and a shotgun's spread is what catches it.
+  // Returns null when the aim is on the ground, or when the shot is not going where the aim is (a `fire x= z=` from an
+  // agent, a scripted shot at someone else: the bird under a resting cursor must not take it). One result object, reused.
+  skyShot(ch, ang) {
+    const aim = this.g.aim, y = aim?.y ?? 0;
+    if (!(y > 2.2)) return null;
+    const toAim = Math.atan2(aim.x - ch.x, aim.z - ch.z), off = Math.atan2(Math.sin(ang - toAim), Math.cos(ang - toAim));
+    if (Math.abs(off) > 0.3) return null;
+    let b = null, bd = 2.5;
+    for (const a of this.live) { if (a.dead || !a.air || a.form !== 'bird') continue; const k = Math.hypot(a.x - aim.x, a.z - aim.z) + Math.abs(a.alt - y); if (k < bd) { bd = k; b = a; } }
+    const lag = R.wingLag * Math.max(0.3, 1 - 0.06 * (this.g.outdoors?.lv('hunting') ?? 0));
+    const tx = aim.x - (b ? b.vx * lag : 0), tz = aim.z - (b ? b.vz * lag : 0), d = Math.max(1, Math.hypot(tx - ch.x, tz - ch.z));
+    SKY.ang = Math.atan2(tx - ch.x, tz - ch.z); SKY.slope = (y - 1.45 - (ch.gy ?? 0)) / d;
+    return SKY;
   }
 
   // An animal near an aim point (the dogs' SIC: systems/dogs.js sicTarget).
@@ -1250,13 +1292,14 @@ export class Fauna {
     }
     const n = this.rawCount();
     if (n) { const h = this.heatNear(p.x, p.z); if (h) return { verb: 'cook', heat: h, text: `Cook ${n} raw meat on the ${h.kind}` }; }
-    return null;
+    return this.g.outdoors?.nearFor(p) ?? null; // a line to cast, a trap, the camp, the ground to search (systems/outdoors.js)
   }
   interact(o) {
     if (!o) return { ok: false, why: 'nothing here' };
     if (o.verb === 'butcher') return this.startButcher(o.a);
     if (o.verb === 'cook') return this.cook();
-    if (o.verb === 'busy') return { ok: true, text: 'STILL CUTTING' };
+    if (o.verb === 'busy' && o.a) return { ok: true, text: 'STILL CUTTING' };
+    if (!o.a && o.verb !== 'cook' && this.g.outdoors) return this.g.outdoors.interact(o);
     return { ok: false, why: o.text };
   }
   startButcher(a) {
@@ -1265,7 +1308,8 @@ export class Fauna {
     const b = this.bladeOf();
     if (!b) return { ok: false, why: 'you need a blade: a knife, a machete, an axe' };
     const dex = g.skillsSys?.lv?.dexterity ?? 0;
-    const need = S.butcher.time * b.k * Math.max(0.5, 1 - R.butcher.timeDex * dex);
+    const O = g.outdoors; // the hunting skill (systems/outdoors.js)
+    const need = S.butcher.time * b.k * Math.max(0.5, 1 - R.butcher.timeDex * dex) * Math.max(0.5, 1 + (O ? O.per('butcherTime', 'hunting') : 0));
     this.job = { a, t: 0, need, x: P.x, z: P.z, blade: b.id, dex };
     g.emit('butcherStart', { id: a.id, species: a.sp, seconds: +need.toFixed(1), blade: b.id });
     return { ok: true, text: `BUTCHERING THE ${S.name.toUpperCase()} · ${Math.ceil(need)} S`, seconds: need };
@@ -1282,18 +1326,23 @@ export class Fauna {
     const g = this.g, J = this.job, a = J.a, S = a.S, inv = g.inventory, B = R.butcher;
     this.job = null;
     const dex = J.dex, picked = Math.min(0.6, (a.picked ?? 0) / 60); // what the vultures and coyotes already had
-    const hideOk = Math.random() < Math.min(0.97, (B.base + B.perDex * dex) / Math.max(0.6, (R.butcher.blades[J.blade] ?? 1.5)));
+    const O = g.outdoors, X = O?.fx; // the hunting skill and its talents (systems/outdoors.js)
+    const hideOk = Math.random() < Math.min(0.97, (B.base + B.perDex * dex + (O ? O.per('hideChance', 'hunting') : 0)) / Math.max(0.6, (R.butcher.blades[J.blade] ?? 1.5)));
+    let meatBonus = X?.meatBonus ?? 0;
     const got = [];
     for (const [id, lo, hi] of S.butcher.yields) {
       let n = lo + Math.floor(Math.random() * (hi - lo + 1));
       const it = ITEMS[id];
-      if (it?.kind === 'food') { n = Math.max(lo ? 1 : 0, Math.round(n * (1 - picked) + (dex >= 5 ? 1 : 0))); }
+      if (it?.kind === 'food') { n = Math.max(lo ? 1 : 0, Math.round(n * (1 - picked) + (dex >= 5 ? 1 : 0)) + meatBonus); meatBonus = 0; }
+      else if (id === 'sinew') n += X?.sinewBonus ?? 0;
+      else if (id === 'bone') n += X?.boneBonus ?? 0;
       let item = id;
       if (S.butcher.hide === id && !hideOk) item = 'torn_hide';
       if (n > 0) { inv.stow(item, n, { made: inv.hours() }); got.push({ item, n }); }
     }
     a.butchered = true; a.rec.butchered = true;
     g.skillsSys?.gain?.('dexterity', B.xp);
+    O?.gain('hunting', 3);
     this.stats.butchered++;
     inv.changed?.();
     g.emit('butchered', { id: a.id, species: a.sp, items: got, hide: S.butcher.hide ? (hideOk ? 'clean' : 'torn') : null, seconds: +J.need.toFixed(1), blade: J.blade });
@@ -1310,7 +1359,8 @@ export class Fauna {
       if (!it?.raw || !it.cooks) continue;
       const t = inv.take(C, i, s.n);
       if (!t) continue;
-      inv.add(C, it.cooks, t.n, { made: inv.hours() });
+      inv.add(C, it.cooks, t.n, { made: inv.hours() + (g.outdoors ? g.outdoors.per('cookKeepH', 'cooking') : 0) }); // a good cook's food keeps longer
+      g.outdoors?.gain('cooking', t.n);
       out.push({ from: t.id, to: it.cooks, n: t.n });
     }
     if (!out.length) return { ok: false, why: 'nothing raw to cook' };
@@ -1344,10 +1394,11 @@ export class Fauna {
       this.lastSeq = e.seq;
       if (e.type !== 'itemUsed') continue;
       const it = ITEMS[e.item];
+      if (it?.poison && !g.godMode) { g.survival?.sicken?.('poisoning'); g.emit('poisoned', { item: e.item }); } // a pale cap (data/outdoors.js)
       if (!it?.raw) continue;
       const stove = E.some((x) => x.type === 'cooked' && x.item === e.item && Math.abs(x.t - e.t) < 0.05);
       if (it.hot && g.hotground && !g.godMode) g.hotground.dose += R.cook.hotDose;
-      if (!stove && Math.random() < R.cook.rawSick && !g.godMode) { g.survival?.sicken?.('poisoning'); g.emit('rawMeat', { item: e.item, sick: true }); }
+      if (!stove && Math.random() < R.cook.rawSick * (g.outdoors?.fx.rawSickMul ?? 1) && !g.godMode) { g.survival?.sicken?.('poisoning'); g.emit('rawMeat', { item: e.item, sick: true }); }
     }
   }
 
@@ -1380,6 +1431,9 @@ export class Fauna {
     else if (kind === 'snort') A.burst?.({ dur: 0.12, freq: 700, q: 1, type: 'bandpass', vol: 0.25 * f, decay: 0.1, pan });
     else if (kind === 'flap') { for (let i = 0; i < 3; i++) A.burst?.({ dur: 0.06, freq: 900, type: 'lowpass', vol: 0.2 * f, decay: 0.05, at: i * 0.09, pan }); }
     else if (kind === 'squawk') A.tone?.(760, 0.18, 0.06 * f, 'sawtooth', -0.5, pan);
+    else if (kind === 'caw') A.tone?.(520, 0.22, 0.07 * f, 'sawtooth', -0.6, pan);
+    else if (kind === 'quack' || kind === 'honk') A.tone?.(kind === 'honk' ? 330 : 440, 0.16, 0.07 * f, 'square', -0.3, pan);
+    else if (kind === 'coo') A.tone?.(380, 0.3, 0.04 * f, 'sine', -0.1, pan);
     else if (kind === 'growl') A.tone?.(90, 0.5, 0.12 * f, 'sawtooth', 0.2, pan);
     else A.burst?.({ dur: 0.15, freq: 400, vol: 0.2 * f, decay: 0.12, pan });
   }
@@ -1554,7 +1608,7 @@ class FaunaRenderer {
   // primaries spread like fingers at the tips - spread and still to soar, beating to climb - and a wader's legs and neck.
   // In the sun its real shadow (castShadow) lies on the ground: the clue you see before you look up.
   bird(a, t) {
-    const B = a.B, A = a.a, f = a.face, y = a.dead ? 0.06 : Math.max(0.05, a.y), span = B.span ?? 1.6, L = B.len ?? 0.65;
+    const B = a.B, A = a.a, f = a.face, y = a.dead ? Math.max(0.06, a.y) : Math.max(0.05, a.y), span = B.span ?? 1.6, L = B.len ?? 0.65;
     const fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
     const standing = !a.air && !a.dead, wader = B.wader, bodyY = standing && wader ? 0.85 : y + (standing ? 0.3 : 0);
     const roll = a.air ? -(a.bank ?? 0) : 0;

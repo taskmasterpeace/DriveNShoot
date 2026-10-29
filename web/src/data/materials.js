@@ -95,8 +95,24 @@ export const MATERIAL_RULES = {
     sandbags: 'sandbags',
     barrier: 'concrete', pool: 'concrete', storey: 'concrete', building: { finish: true }, // a solid block: by its finish
     tree: 'timber', cactus: 'timber',
+    soundwall: 'concrete', windmill: 'steel', homestead: 'wood', barn: 'wood', // the roadscape (world/roadscape.js; its billboards share the roadside's 'billboard' row below)
     husk: 'timber', drum: 'sheet_metal', hut: 'wood', // the hot ground's dead trunks and rusted drums, a Greyborn settlement's huts (they stand up at runtime)
     rock: 'rock', boulder: 'rock',
+    // below the street (systems/underground.js): a bunker's poured walls, a cave's living rock, a fallen roof, the stairs'
+    // flanks, the lift's gate, the collar round an open hatch, a pool's lip
+    'ug-wall': 'concrete', 'ug-rock': 'rock', 'ug-rubble': 'rock', 'ug-flank': 'concrete', 'ug-endblock': 'concrete', 'ug-rail': 'steel',
+    'ug-gate': 'steel', 'ug-collar': 'concrete', 'ug-water': 'rock', 'ug-door': 'steel',
+    // THE ROADSIDE (world/roadside.js): a pylon's lattice, a hulk, a silo, a billboard's legs, a canal's lining, the dam,
+    // a substation's chain-link.
+    pylon: 'steel', hulk: 'carbody', silo: 'sheet_metal', billboard: 'wood', canal: 'concrete', dam: 'concrete', wirefence: 'chainlink',
+    // THE BACK LOTS (world/citygen/backlots-build.js, data/backlots.js): yard fences (a round goes through chain-link and
+    // splinters a picket), yard things, the alley's poles, dumpsters and bins, a loading dock's platform.
+    'bl-picket': 'wood', 'bl-privacy': 'wood', 'bl-rail': 'wood', 'bl-chain': 'chainlink', 'bl-adobe': 'adobe', 'bl-gatepost': 'wood',
+    'bl-shed': 'sheet_metal', 'bl-barrel': 'sheet_metal', 'bl-carblocks': 'carbody', 'bl-dumpster': 'sheet_metal', 'bl-bin': 'sheet_metal',
+    'bl-pole': 'timber', 'bl-dock': 'concrete',
+    tractor: 'carbody', boatwreck: 'wood', // the roadside's old tractor and the drained lake's boat (not cars: data/wrecks.js)
+    'mb-fence': 'chainlink', 'mb-blast': 'steel', // THE MILITARY BASES (world/citygen/milbase.js): the double wire and its gate leaves, the bunker's blast door
+    'bl-burnt': 'carbody', 'bl-junk': 'sheet_metal', 'bl-tires': 'rubber', 'bl-woodpile': 'wood', // BACK-LOTS 2: alley wrecks, yard junk
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },
@@ -107,7 +123,7 @@ export const MATERIAL_RULES = {
   // doors break like the island's): walls of these tags break in strips (only a material that breaks: in practice the
   // drywall partitions), boxes of these tags break whole. Placed pieces always can.
   breakable: { walls: ['wall'], props: ['crate', 'shelf', 'furniture', 'table', 'desk', 'bench', 'booth', 'stall', 'tent', 'barricade'] },
-  doors: { wood: 'wood', metal: 'steel' },
+  doors: { wood: 'wood', metal: 'steel', blast: 'steel' }, // blast: the underground's blast doors (systems/underground.js)
   boards: 'wood',
   car: { body: 'sheet_metal', plated: 'steel', glass: 'glass', tyres: 'rubber' },
 };

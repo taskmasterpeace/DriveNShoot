@@ -185,6 +185,8 @@ export const BUILDS = [
   { id: 'tall', label: 'TALL', w: 0.98, h: 1.07 },
   { id: 'short', label: 'SHORT', w: 1.03, h: 0.92 },
 ];
+// hand: the gun hand (data/arms.js CARRY; systems/characters.js): every carry mirrors for a lefty. "Left must be left."
+export const HANDS = [{ id: 'R', label: 'RIGHT-HANDED' }, { id: 'L', label: 'LEFT-HANDED' }];
 export const SKIN = ['#f1c9a5', '#e0ac85', '#c68863', '#a86b45', '#8d5532', '#6e3f22', '#4f2c17'];
 export const HAIR = ['#1b1410', '#3b2516', '#6a4428', '#a0794a', '#c9b48a', '#7a7672', '#d8d4cc', '#b0301e'];
 // hair: drawn in the hair colour; hats: in the hat colour (characters.js HAIR_STYLES)
@@ -211,7 +213,7 @@ export function freshPicks() {
     v: 1, name: '', flag: 'US', state: 'FL', background: 'trucker',
     attrs: Object.fromEntries(ATTRS.map((a) => [a.k, CREATOR.rankStart])),
     traits: [],
-    look: { build: 'average', skin: 2, hair: 1, hairStyle: 'short', hat: 0, face: 'none', scar: 'none', scarStory: 0, shirt: 0, pants: 0, boots: 0, sleeves: 'long' },
+    look: { build: 'average', hand: 'R', skin: 2, hair: 1, hairStyle: 'short', hat: 0, face: 'none', scar: 'none', scarStory: 0, shirt: 0, pants: 0, boots: 0, sleeves: 'long' },
   };
 }
 
@@ -360,7 +362,7 @@ export function randomPicks(rng, { names, flags = ['US'] } = {}) {
 export function randomLook(rng) {
   const pick = (a) => a[Math.floor(rng() * a.length)], n = (a) => Math.floor(rng() * a.length);
   return {
-    build: pick(BUILDS).id, skin: n(SKIN), hair: n(HAIR), hairStyle: pick(HAIR_STYLES).id, hat: n(HAT_COLORS),
+    build: pick(BUILDS).id, hand: rng() < 0.08 ? 'L' : 'R', skin: n(SKIN), hair: n(HAIR), hairStyle: pick(HAIR_STYLES).id, hat: n(HAT_COLORS),
     face: rng() < 0.6 ? 'none' : pick(FACES).id, scar: rng() < 0.55 ? 'none' : pick(SCARS.slice(1)).id, scarStory: n(SCAR_STORIES),
     shirt: n(SHIRTS), pants: n(PANTS), boots: n(BOOTS), sleeves: rng() < 0.35 ? 'short' : 'long',
   };

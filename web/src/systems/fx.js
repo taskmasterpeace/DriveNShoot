@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { splatTexture, radialGlow } from '../world/textures.js';
+import { DECAL_Y, TRACK_Y, layerMesh } from '../engine/depthlayers.js';
 
 // Blood, sparks, smoke, decals, tracers and muzzle lights.
 // Everything is a fixed-size InstancedMesh ring buffer: no allocation after boot.
@@ -46,9 +47,7 @@ export class FX {
     scene.add(this.softMesh);
     // --- decals: blood pools, splats, skid marks, scorch ---
     const dGeo = new THREE.PlaneGeometry(1, 1); dGeo.rotateX(-Math.PI / 2);
-    this.dMesh = new THREE.InstancedMesh(dGeo, new THREE.MeshLambertMaterial({
-      map: splatTexture(5), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }), D_MAX);
+    this.dMesh = layerMesh(new THREE.InstancedMesh(dGeo, new THREE.MeshLambertMaterial({ map: splatTexture(5), transparent: true }), D_MAX), 'blood'); // engine/depthlayers.js
     this.dMesh.frustumCulled = false;
     this.dMesh.receiveShadow = true;
     for (let i = 0; i < D_MAX; i++) { this.dMesh.setMatrixAt(i, ZERO); this.dMesh.setColorAt(i, _c.set(0, 0, 0)); }
@@ -61,7 +60,7 @@ export class FX {
     this.growing = []; // {i,x,z,rot,cur,target,y}
     this.pools = [];   // {x,z,r}
     // Skids use a plain quad (no splat shape).
-    this.sMesh = new THREE.InstancedMesh(dGeo, new THREE.MeshLambertMaterial({ color: '#111', transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }), 900);
+    this.sMesh = layerMesh(new THREE.InstancedMesh(dGeo, new THREE.MeshLambertMaterial({ color: '#111', transparent: true, opacity: 0.55 }), 900), 'groundDecal');
     this.sMesh.frustumCulled = false;
     for (let i = 0; i < 900; i++) this.sMesh.setMatrixAt(i, ZERO);
     scene.add(this.sMesh);
@@ -170,11 +169,12 @@ export class FX {
     }
     this.flash(x, 2, z, 14, 0.35);
     this.light(x, 3, z, '#ff9a3a', 60, 0.6);
+    this.onBlast?.(x, z); // the history's scorch, the hit-stop and kick near you (systems/lookfeel.js)
     if (this.scorch) this.scorch(x, z, 7.5, '#151210'); // a soft burn (systems/blood.js), not an ink splat
-    else this.decal(x, z, 7, '#151210', Math.random() * 6, 0.12);
+    else this.decal(x, z, 7, '#151210', Math.random() * 6);
   }
 
-  decal(x, z, size, color, rot = Math.random() * Math.PI * 2, y = 0.13) {
+  decal(x, z, size, color, rot = Math.random() * Math.PI * 2, y = DECAL_Y) { // y: over the ground (engine/depthlayers.js: over every floor and rug)
     const i = this.dNext;
     this.dNext = (i + 1) % D_MAX;
     _o.position.set(x, y + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(size, 1, size); _o.updateMatrix();
@@ -185,6 +185,9 @@ export class FX {
     this.dMesh.instanceColor.needsUpdate = true;
     return i;
   }
+
+  // A decal's height for someone standing at c (over the ground: upstairs, their floor): fx.decal(c.x, c.z, s, col, rot, fx.onFloor(c)).
+  onFloor(c) { return (c?.storey ? (c.gy ?? 0) - (this.ground ? this.ground(c.x, c.z) : 0) : 0) + DECAL_Y; }
 
   // Bookkeeping for drying (systems/blood.js): a decal whose colour (in _c) is blood red is blood.
   markDecal(i, size) {
@@ -203,7 +206,7 @@ export class FX {
   footprint(x, z, rot, strength = 1) {
     const i = this.dNext;
     this.dNext = (i + 1) % D_MAX;
-    _o.position.set(x, 0.135 + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(0.16, 1, 0.32); _o.updateMatrix();
+    _o.position.set(x, DECAL_Y + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(0.16, 1, 0.32); _o.updateMatrix();
     this.dMesh.setMatrixAt(i, _o.matrix);
     this.dMesh.setColorAt(i, _c.set('#5a0606').multiplyScalar(0.6 + strength * 0.4));
     this.markDecal(i, 0.32);
@@ -215,14 +218,14 @@ export class FX {
     this.pools.push({ x, z, r: target * 0.4 });
     if (this.pools.length > 64) this.pools.shift();
     const i = this.decal(x, z, 0.3, '#4e0303');
-    this.growing.push({ i, x, z, rot: Math.random() * 6, cur: 0.3, target, y: 0.14 + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0) });
+    this.growing.push({ i, x, z, rot: Math.random() * 6, cur: 0.3, target, y: DECAL_Y + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0) });
     if (this.growing.length > 40) this.growing.shift();
   }
 
   skid(x, z, rot) {
     const i = this.sNext;
     this.sNext = (i + 1) % 900;
-    _o.position.set(x, this.ground ? 0.1 + this.ground(x, z) : 0.1, z); _o.rotation.set(0, rot, 0); _o.scale.set(0.32, 1, 0.9); _o.updateMatrix();
+    _o.position.set(x, TRACK_Y + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(0.32, 1, 0.9); _o.updateMatrix();
     this.sMesh.setMatrixAt(i, _o.matrix);
     this.sMesh.instanceMatrix.needsUpdate = true;
   }

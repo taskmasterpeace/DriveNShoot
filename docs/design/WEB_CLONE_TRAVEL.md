@@ -4,6 +4,13 @@ Rows: `web/src/data/clones.js` (rules, vats, slang) and `web/src/data/travel.js`
 Systems: `web/src/systems/clone.js` (g.clone), `web/src/systems/travel.js` (g.travel), `web/src/ui/travelpanel.js` (the boards, the
 brine counter, the arrivals hall, the cards). Agent rows and the selftest: `web/src/agent/clone-api.js` (`clone`, `travel`).
 
+> **Extended 2026-10-27 by [WEB_INSURANCE_JOURNEYS.md](WEB_INSURANCE_JOURNEYS.md):** the pressing is now sold as LIFE INSURANCE
+> (DUST / ROAD / IRON COVER: premiums from the brine book, a lapse is a flat death); only the major cities grow bodies (Phoenix,
+> Los Angeles, Miami, Houston, New York, Chicago; El Paso, Meridian, New Orleans and Ohio are pressing offices); dying shows a
+> city picker; every bus leg and long haul rolls a seeded incident with choices; passengers ride the coach; the cord drops you
+> at the roadside; the planner names the pole nearest your base; hitching. Where this doc and that one disagree (Meridian's vat,
+> the en-route rolls on the trundle, brine money as the premium), that one is current.
+
 ## 1. Overview
 
 Robert's settled call (EM3 Briefing, WEB_WORLD_EDITOR_PLAN §1.1): death is cloning, as Autoduel had it. "You wake as your clone

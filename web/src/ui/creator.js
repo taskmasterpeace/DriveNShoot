@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './creator.css';
 import {
-  CREATOR, ATTRS, ATTR_COST, RANKS, BACKGROUNDS, TRAITS, FLAWS, STATES, STATE_KEYS, BUILDS, SKIN, HAIR, HAIR_STYLES, HAT_COLORS,
+  CREATOR, ATTRS, ATTR_COST, RANKS, BACKGROUNDS, TRAITS, FLAWS, STATES, STATE_KEYS, BUILDS, HANDS, SKIN, HAIR, HAIR_STYLES, HAT_COLORS,
   FACES, SCARS, SCAR_STORIES, SHIRTS, PANTS, BOOTS, PER_RANK, tally, validate, effects, lookColors, buildOf, backgroundById, traitById, isFlaw, priceOfTrait,
 } from '../data/creator.js';
 import { FLAGS, FLAG_KEYS, drawFlag } from './portrait.js';
@@ -75,6 +75,7 @@ class Preview {
     const ch = this.ch;
     ch.colors = lookColors(picks);
     const b = buildOf(picks); ch.build = b.w === 1 && b.h === 1 ? null : b;
+    ch.hand = picks.look?.hand === 'L' ? 'L' : 'R';
     ch.weapon = WEAPONS[weapon] ? weapon : 'pistol';
     this.charR.paint(ch);
   }
@@ -403,6 +404,7 @@ export class CreatorUI {
       };
       const sw = (c) => `<span class="cr-swatch" style="background:${c}"></span>`;
       cyl('BUILD', 'how you carry your weight', BUILDS, 'build', (b) => `<span class="txt">${b.label}</span>`);
+      cyl('GUN HAND', 'which side the gun rides on', HANDS, 'hand', (h) => `<span class="txt">${h.label}</span>`);
       cyl('SKIN', '', SKIN, 'skin', (c, i) => `${sw(c)}<span class="txt">TONE ${i + 1}</span>`);
       cyl('HAIR · HAT', 'what is on your head', HAIR_STYLES, 'hairStyle', (h) => `<span class="txt">${h.label}</span>`);
       const hatOn = !['short', 'long', 'mohawk', 'bald'].includes(L.hairStyle);

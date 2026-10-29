@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
+import { STEP } from '../engine/depthlayers.js';
 import { MATERIALS, PUNCH, PEN, BLAST, RAM, FIRE, MATERIAL_RULES as R, PIECES } from '../data/materials.js';
 import { DOOR } from '../data/interiors.js';
 import { wallFinish } from '../world/surfaces.js';
@@ -816,7 +817,8 @@ export class Materials {
       this.debrisNext = (i + 1) % DEBRIS_MAX;
       const x = x0 - 0.3 + rng() * (x1 - x0 + 0.6), z = z0 - 0.3 + rng() * (z1 - z0 + 0.6);
       const sx = flat ? rng.range(0.5, 1.4) : rng.range(0.12, 0.35), sy = flat ? rng.range(0.03, 0.06) : rng.range(0.08, 0.22), sz = flat ? rng.range(0.1, 0.22) : rng.range(0.12, 0.35);
-      _o.position.set(x, sy / 2 + 0.06 + rng() * 0.05, z); _o.rotation.set(rng.range(-0.15, 0.15), rng() * Math.PI, rng.range(-0.15, 0.15)); _o.scale.set(sx, sy, sz); _o.updateMatrix();
+      rng(); // (the height it used to roll: kept, so every pile lies as it did)
+      _o.position.set(x, (this.g.fx?.ground?.(x, z) ?? 0) + sy / 2 + 0.06 + k * STEP / 2, z); // on the land; each piece of a pile half a depth step over the last (engine/depthlayers.js) _o.rotation.set(rng.range(-0.15, 0.15), rng() * Math.PI, rng.range(-0.15, 0.15)); _o.scale.set(sx, sy, sz); _o.updateMatrix();
       D.setMatrixAt(i, _o.matrix);
       _c.set(M.color).multiplyScalar(0.7 + rng() * 0.45);
       if (charred) _c.lerp(_c2.set(M.fire?.char ?? '#1a1512'), 0.85 + rng() * 0.13);

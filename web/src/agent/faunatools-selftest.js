@@ -61,7 +61,10 @@ export async function faunaChecks(api, check, C) {
 
   // ---- 1. the formula ---------------------------------------------------------------------------------------------
   await check('fauna: the formula - a desert chunk holds more coyotes at night than by day, a town chunk next to none, gunfire thins it, and rolled records average the formula', async () => stage(async () => {
-    const far = { cx: 5, cz: 1 }; // open desert east of the island on the corridor
+    // open desert east of the island on the corridor: (5, 1) on the flat world; on real terrain (the default) the land
+    // cover there is Phoenix's real sprawl, so the first chunk east whose middle reads desert (WEB_SITES_TERRAIN)
+    let far = { cx: 5, cz: 1 };
+    if (g.streamer.W.terrain) for (let k = 5; k < 40; k++) { const x = (k + 0.5) * FAUNA_RULES.chunk, z = 1.5 * FAUNA_RULES.chunk; if (g.streamer.W.biomeAt(x, z) === 'd' && F.density(k, 1, { hour: 23 }).rows.some((r) => r.species === 'coyote' && r.expected > 0)) { far = { cx: k, cz: 1 }; break; } }
     const day = F.density(far.cx, far.cz, { hour: 12 }), night = F.density(far.cx, far.cz, { hour: 23 }), dawn = F.density(far.cx, far.cz, { hour: 6 });
     const row = (D, s) => D.rows.find((r) => r.species === s)?.expected ?? 0;
     const ratio = row(night, 'coyote') / Math.max(1e-9, row(day, 'coyote')), want = ACTIVE.nocturnal.night / ACTIVE.nocturnal.day;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TRAPS, TRAPCRAFT } from '../data/greyborn.js';
+import { layerMesh } from '../engine/depthlayers.js';
 
 // Traps as world objects (docs/design/WEB_GREYBORN_GRAPEVINE.md §3.1; rows in data/greyborn.js TRAPS). A trap has a
 // place, an owner (a Greyborn settlement, a Grapevine pack, or nobody), a kind and a state: armed, sprung or disarmed.
@@ -25,7 +26,7 @@ export class Traps {
     this.parts.castShadow = true; this.parts.receiveShadow = true; this.parts.count = 0; this.parts.frustumCulled = false;
     const rg = new THREE.RingGeometry(0.93, 1.0, 48); rg.rotateX(-Math.PI / 2);
     this.rings = new THREE.InstancedMesh(rg, new THREE.MeshBasicMaterial({ color: '#f0a52a', transparent: true, opacity: 0.75, depthWrite: false }), MAX_RINGS);
-    this.rings.count = 0; this.rings.renderOrder = 2; this.rings.frustumCulled = false;
+    this.rings.count = 0; layerMesh(this.rings, 'ring'); this.rings.frustumCulled = false; // engine/depthlayers.js
     game.scene.add(this.parts, this.rings);
     this.dirty = true;
   }

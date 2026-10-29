@@ -1,0 +1,118 @@
+{
+ "v": 1,
+ "stations": {
+  "kdst": {
+   "genre": "dust",
+   "tracks": [
+    {
+     "f": "kdst/0.ogg",
+     "dur": 100.89,
+     "bpm": 111.6,
+     "key": 38,
+     "seed": 1003,
+     "bytes": 796557
+    },
+    {
+     "f": "kdst/1.ogg",
+     "dur": 92.83,
+     "bpm": 103,
+     "key": 40,
+     "seed": 1010,
+     "bytes": 755264
+    },
+    {
+     "f": "kdst/2.ogg",
+     "dur": 84.32,
+     "bpm": 96.2,
+     "key": 45,
+     "seed": 1017,
+     "bytes": 637446
+    },
+    {
+     "f": "kdst/3.ogg",
+     "dur": 83.49,
+     "bpm": 94.2,
+     "key": 40,
+     "seed": 1024,
+     "bytes": 645976
+    },
+    {
+     "f": "kdst/4.ogg",
+     "dur": 88.85,
+     "bpm": 99.5,
+     "key": 45,
+     "seed": 1031,
+     "bytes": 684088
+    }
+   ]
+  },
+  "relay": {
+   "genre": "relay",
+   "tracks": [
+    {
+     "f": "relay/0.ogg",
+     "dur": 103.64,
+     "bpm": 70.8,
+     "key": 43,
+     "seed": 2003,
+     "bytes": 690747
+    },
+    {
+     "f": "relay/1.ogg",
+     "dur": 110.04,
+     "bpm": 75.5,
+     "key": 40,
+     "seed": 2010,
+     "bytes": 798986
+    },
+    {
+     "f": "relay/2.ogg",
+     "dur": 107.67,
+     "bpm": 72.7,
+     "key": 43,
+     "seed": 2017,
+     "bytes": 721368
+    },
+    {
+     "f": "relay/3.ogg",
+     "dur": 108.48,
+     "bpm": 74.4,
+     "key": 38,
+     "seed": 2024,
+     "bytes": 799898
+    }
+   ]
+  },
+  "remnant": {
+   "genre": "march",
+   "tracks": [
+    {
+     "f": "remnant/0.ogg",
+     "dur": 65.41,
+     "bpm": 109.8,
+     "key": 43,
+     "seed": 3003,
+     "bytes": 444450
+    },
+    {
+     "f": "remnant/1.ogg",
+     "dur": 63.48,
+     "bpm": 109.3,
+     "key": 43,
+     "seed": 3010,
+     "bytes": 426482
+    },
+    {
+     "f": "remnant/2.ogg",
+     "dur": 77.33,
+     "bpm": 117.9,
+     "key": 48,
+     "seed": 3017,
+     "bytes": 562261
+    }
+   ]
+  }
+ },
+ "note": "tools/radio-compose.mjs writes this: original music composed by code (ours outright). data/radio.js reads it.",
+ "bytes": 7963523
+}

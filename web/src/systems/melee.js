@@ -85,7 +85,7 @@ export class Melee {
       const d = Math.hypot(dx, dz);
       if (d > K.reach + (c.radius ?? 0.45)) continue;
       if (d > 0.2 && Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d))) > K.arc) continue;
-      if (!g.storeys.sameFloor(p, c) || !g.statics.lineOfSight(p.x, p.z, c.x, c.z)) continue;
+      if (!g.storeys.sameFloor(p, c) || !g.statics.lineOfSight(p.x, p.z, c.x, c.z, undefined, p.ug ? (p.gy ?? 0) + 1.2 : -1)) continue; // below the street: the level's walls
       if (d < bd) { bd = d; best = c; }
     }
     g.noise(p.x, p.z, K.noise, p);
@@ -97,7 +97,7 @@ export class Melee {
     const combo = strike && this.chain >= M.combo.at;
     if (combo) { this.chain = 0; this.counts.combos++; }
     const str = 1 + 0.05 * (g.skillsSys?.lv?.strength ?? 0); // strength, grown by doing (skills.js)
-    const dmg = K.dmg * (a.weak ? 0.5 : 1) * (combo ? M.combo.mul : 1) * str;
+    const dmg = K.dmg * (a.weak ? 0.5 : 1) * (combo ? M.combo.mul : 1) * str * (g.deep?.fx.meleeMul ?? 1); // Brawn, Blunt/Unarmed, Pacifist (systems/stats.js)
     const dl = Math.max(0.01, bd), ux = (best.x - p.x) / dl, uz = (best.z - p.z) / dl;
     const hp0 = best.hp;
     g.combat.damage(best, dmg, p, ux, uz, 'bash');

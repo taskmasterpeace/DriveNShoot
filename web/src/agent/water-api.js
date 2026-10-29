@@ -2,6 +2,7 @@
 // Spread into the COMMANDS table by agent/api.js (after its own rows: this `water` replaces the island-only one and
 // answers the same questions everywhere, the island included).
 import { WATER, WATER_ROWS, validateWater } from '../data/water.js';
+import { waveAnswer } from './sealife-api.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -15,10 +16,13 @@ export function waterCommands(api, need) {
   return {
     water: {
       group: 'observe',
-      desc: 'Water at x,z (default: you): depth (m) and what it means for a person (dry | wade | swim), the water\'s surface, the carved ground (bed) and the floor a mover stands on (relative to the ground), which body it is (river, creek, canal, wash, lake), whether a bridge deck is over it (and whether the asker is up on it: y=), and the nearest crossing. On the island it lists the island\'s own river, lake, bridge and dock. THE water authority: wading, swimming, drowning, flooding cars, boats and fords all read it (docs/design/WEB_RIVERS.md).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, y: { type: 'number' } },
-      run: async ({ x, z, y }) => {
+      desc: 'action=depth (default) | wave | current. Water at x,z (default: you): depth (m) and what it means for a person (dry | wade | swim), the water\'s surface, the carved ground (bed) and the floor a mover stands on (relative to the ground), which body it is (river, creek, canal, wash, lake), whether a bridge deck is over it (and whether the asker is up on it: y=), and the nearest crossing. On the island it lists the island\'s own river, lake, bridge and dock. THE water authority: wading, swimming, drowning, flooding cars, boats and fords all read it (docs/design/WEB_RIVERS.md).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, y: { type: 'number' }, action: { type: 'string', enum: ['depth', 'wave', 'current'], default: 'depth' } },
+      run: async ({ x, z, y, action = 'depth' }) => {
         const px = x ?? (P().inVehicle?.x ?? P().x), pz = z ?? (P().inVehicle?.z ?? P().z);
+        // action=wave: the surface moving here (world/waves.js: kind, amp, height, slope, whitecap pinch, the sea state, the
+        // boats riding it); action=current: the river's push here (m/s, downstream).
+        if (action === 'wave' || action === 'current') { need(g.waves, 'no waves system'); return waveAnswer(g, action, px, pz); }
         const ay = y ?? (x === undefined ? (P().inVehicle ? P().inVehicle.y : P().gy) : undefined);
         const out = { x: r1(px), z: r1(pz), depth: r2(g.water.depthAt(px, pz, false, ay)), state: g.water.stateAt(px, pz, ay) };
         const inside = Math.abs(px) <= 464 && Math.abs(pz) <= 464;

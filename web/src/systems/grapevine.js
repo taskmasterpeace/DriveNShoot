@@ -80,7 +80,8 @@ export class Grapevine {
   // ---- what the pack perceives (each scan) -------------------------------------------------------------------------
   sightOf(c) {
     const g = this.g, n = g.sky?.night ?? 0, lit = n > 0.3 && g.flashMat?.opacity > 0;
-    return (GV.sightDay * (1 - n) + GV.sightNight * n) * (lit ? GV.lit : 1) * (g.player.crouch ? 0.75 : 1);
+    const base = (GV.sightDay * (1 - n) + GV.sightNight * n) * (lit ? GV.lit : 1), P = g.player;
+    return P.prone && g.stance ? g.stance.seenRange(P, base, 0.75, c.x, c.z, c) : base * (P.crouch ? 0.75 : 1); // prone: systems/stance.js (D2)
   }
   seesPlayer(c) {
     const g = this.g, P = g.player;
@@ -338,8 +339,7 @@ export class Grapevine {
   // The body is gone; a stain and a scatter of bone are what's left.
   eat(pk, b) {
     const g = this.g, x = b.x, z = b.z;
-    g.inventory?.boxes?.delete(`body:${b.id}`);
-    g.removeChar(b);
+    if (!g.rites?.eaten(b)) g.removeChar(b); // the flesh goes; the bones and what was on them stay (systems/rites.js)
     g.fx.decal(x, z, 1.6, '#2a0505'); g.fx.decal(x + 0.4, z - 0.3, 0.9, '#3a0808');
     for (let k = 0; k < 6; k++) g.fx.decal(x + (Math.random() - 0.5) * 2, z + (Math.random() - 0.5) * 2, 0.18, '#d8d0b8');
     this.clues.push({ x: r1(x), z: r1(z), t: r1(g.time), pack: pk.id, who: b.name });

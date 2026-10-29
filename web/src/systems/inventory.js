@@ -218,6 +218,8 @@ export class Inventory {
       d[part] = Math.min(1, d[part] + amt);
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
+    if (verb === 'gadget' || verb === 'drone' || verb === 'barricade' || verb === 'wedge' || verb === 'keys') return g.gadgets?.useItem(verb, s.id) ?? { ok: false, why: 'not here' }; // set, thrown or flown (systems/gadgets.js)
+    if (verb === 'kit' || verb === 'doggear') return g.kit?.useItem(verb, s.id) ?? { ok: false, why: 'not here' }; // switched on and off, or put on your dog (systems/kit.js)
     if (verb === 'sleep') return g.survival?.sleepAt('bedroll') ?? { ok: false, why: 'not now' }; // where you stand
     if (verb === 'snare') return g.fauna?.setSnare() ?? { ok: false, why: 'not here' }; // a snare a stride ahead (systems/fauna.js)
     if (verb === 'flare') { // struck and put down: a small fire at your feet for a minute (dogs keep off it, systems/dogs.js)
@@ -240,7 +242,7 @@ export class Inventory {
       this.forceLock(door, verb, false);
       return { ok: true, text: verb === 'pick' ? 'LOCK PICKED' : 'PRIED OPEN' };
     }
-    return { ok: false, why: 'not here' };
+    return g.outdoors?.act(verb, s, it) ?? { ok: false, why: 'not here' }; // a rod, a fish trap, a net, a tarp (systems/outdoors.js)
   }
 
   // Open a locked door with what you carry: picks are quiet and leave it shut (a pick snaps: one use), a crowbar
@@ -533,7 +535,7 @@ export class Inventory {
   // Register a container (loot rolls the first time it's opened). kind names its LOOT table.
   place(id, kind, x, z, cap, label, seed) {
     // The dead are remembered as containers until there are too many; the oldest unsearched go first.
-    if (id.startsWith('body:')) { let n = 0; for (const k of this.boxes.keys()) if (k.startsWith('body:')) n++; if (n >= MAX_BODIES) for (const [k, b] of this.boxes) if (k.startsWith('body:') && !b.slots.length) { this.boxes.delete(k); if (--n < MAX_BODIES) break; } }
+    if (id.startsWith('body:')) { let n = 0; for (const k of this.boxes.keys()) if (k.startsWith('body:')) n++; if (n >= MAX_BODIES) for (const [k, b] of this.boxes) if (k.startsWith('body:') && b.rolled && !b.slots.length) { this.boxes.delete(k); if (--n < MAX_BODIES) break; } }
     const box = new Container(id, label ?? kind.toUpperCase(), cap, kind);
     box.x = x; box.z = z; box.seed = seed ?? hash(id); box.rolled = false;
     this.boxes.set(id, box);

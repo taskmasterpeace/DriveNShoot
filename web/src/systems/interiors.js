@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RAY_SOLID, RAY_SIGHT, RAY_BULLET } from '../engine/collision.js';
+import { STEP } from '../engine/depthlayers.js';
 import { DOOR, DOOR_MATERIALS, WINDOW, WINDOW_LOOK, WINDOW_MIX, RING_OPENINGS as RO } from '../data/interiors.js';
 import { glassMaterial } from './carcombat.js';
 import { windowGlassTexture } from '../world/textures.js';
@@ -67,7 +68,7 @@ export class Interiors {
     const door = {
       id: row.id, row, kind: row.kind, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width,
       material: row.material, mat, color: row.color, locked: !!row.locked, lockHp: mat.lockHp, kicks: mat.kicks,
-      bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [],
+      bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [], y: row.y, // y: a door on raised ground (a settlement's pad, WEB_SITES_TERRAIN) or below the street
       broken: !!this.g.materials?.brokenDoors.has(row.id), // off its hinges for good (systems/materials.js)
     };
     const half = row.width / 2;
@@ -95,7 +96,7 @@ export class Interiors {
   makeWindow(row, reg, slot) {
     const ux = row.axis === 'x' ? 1 : 0, uz = row.axis === 'x' ? 0 : 1;
     const W = {
-      kind: 'window', id: row.id, row, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width, half: row.width / 2,
+      kind: 'window', id: row.id, row, x: row.x, z: row.z, y: row.y ?? 0, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width, half: row.width / 2,
       ax: row.x - ux * row.width / 2, az: row.z - uz * row.width / 2, state: row.state, hp: row.state === 'intact' ? WINDOW.hp : 0,
       boardHp: row.state === 'boarded' ? WINDOW.boardHp : 0, boardSide: row.boardSide ?? -1, hits: 0, slot, bi: row.b, planks: row.state === 'boarded' ? 3 : 0,
       roll: [frac(row.x * 7.3 + row.z * 3.1) * 0.3 - 0.15, frac(row.x * 1.7 + row.z * 9.7) * 0.3 - 0.15, frac(row.x * 5.1 + row.z * 2.3) * 0.3 - 0.15], // planks nailed up crooked
@@ -297,7 +298,7 @@ export class Interiors {
       if (speed > DOOR.bashSpeed && !(c.knockT > 0) && (c.knockCool ?? 0) <= time) { this.bash(L, c, speed, sg); continue; }
       const need = rr - Math.abs(off) + 0.01;
       _p.x = c.x + L.px * sg * need; _p.z = c.z + L.pz * sg * need;
-      g.statics.resolveCircle(_p, c.radius ?? 0.4);
+      g.statics.resolveBody(_p, c.radius ?? 0.4, c, null); // below the street: that level's walls (resolveBody routes them)
       const ox = _p.x - L.hx, oz = _p.z - L.hz, still = ox * L.px + oz * L.pz;
       if (still < rr && still > -rr && ox * L.dx + oz * L.dz < L.len) { L.th = prev; this.orient(L); L.w = 0; L.jamT = 0.2; return; }
       c.x = _p.x; c.z = _p.z;
@@ -308,7 +309,7 @@ export class Interiors {
     const g = this.g;
     const by = L.pusher && g.time - L.pushT < 1.5 && L.pusher !== c ? L.pusher : null;
     _p.x = c.x + L.px * sg * 0.75; _p.z = c.z + L.pz * sg * 0.75;
-    g.statics.resolveCircle(_p, c.radius ?? 0.4);
+    g.statics.resolveBody(_p, c.radius ?? 0.4, c, null);
     c.x = _p.x; c.z = _p.z;
     c.face = Math.atan2(-L.px * sg, -L.pz * sg); // facing the door, so they go over backwards
     this.knockDown(c, DOOR.knockDown);
@@ -358,7 +359,7 @@ export class Interiors {
       if (door.locked) {
         // Rounds into the lock (or near it) break it.
         const near = Math.hypot(hx - door.lockX, hz - door.lockZ) < 0.6;
-        door.lockHp -= dmg * (near ? 1 : 0.4);
+        door.lockHp -= dmg * (near ? 1 : 0.4) * (door.mat.bulletLock ?? 1); // a blast door's lock does not shoot off (systems/underground.js)
         g.emit('lockHit', { door: door.id, lockHp: Math.max(0, Math.round(door.lockHp)), by: shooter?.id ?? null });
         if (door.lockHp <= 0) {
           // The lock's shot off: the door swings ajar the way the rounds were going.
@@ -398,7 +399,7 @@ export class Interiors {
     dx /= dl; dz /= dl;
     for (let i = 0; i < 22; i++) {
       const a = (Math.random() - 0.5) * W.width;
-      g.fx.spawn(1, W.x + W.ux * a, WINDOW.sill + Math.random() * (WINDOW.top - WINDOW.sill), W.z + W.uz * a, dx * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.5 + Math.random() * 3, dz * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.9, 0.06, Math.random() < 0.5 ? '#cfe6ee' : '#9fc2d0', 18);
+      g.fx.spawn(1, W.x + W.ux * a, W.y + WINDOW.sill + Math.random() * (WINDOW.top - WINDOW.sill), W.z + W.uz * a, dx * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.5 + Math.random() * 3, dz * (2 + Math.random() * 5) + (Math.random() - 0.5) * 3, 0.9, 0.06, Math.random() < 0.5 ? '#cfe6ee' : '#9fc2d0', 18);
     }
     for (const k of [0.7, -0.5]) g.fx.decal(W.x + dx * k, W.z + dz * k, 0.55, '#8f9ea4'); // glass on the floor
     g.audio.glass?.(g.pan(W.x));
@@ -461,6 +462,7 @@ export class Interiors {
       else if (W.state === 'boarded') this.damageBoards(W, 260 * f, by);
     }
     for (const door of this.doors) {
+      if (door.ug) continue; // a door below the street: a blast up top never reaches it (a charge set on it does: systems/underground.js)
       const dx = door.x - x, dz = door.z - z;
       if (dx > R || dx < -R || dz > R || dz < -R) continue;
       const d = Math.hypot(dx, dz);
@@ -531,7 +533,7 @@ export class Interiors {
   // The cells are kept by world position (the nav grid's window moves; its pinned island store does not).
   navBlock(door, on) {
     const n = this.g.nav?.foot;
-    if (!n) return;
+    if (!n || door.ug) return; // a door below the street is on its level's own grid (systems/underground.js), not the street's
     if (!on) { if (door.nav) for (let k = 0; k < door.nav.length; k += 2) if (n.getCell(door.nav[k], door.nav[k + 1]) === 3) n.setCell(door.nav[k], door.nav[k + 1], 0); door.nav = null; return; }
     if (door.nav) return;
     door.nav = [];
@@ -595,7 +597,7 @@ export class Interiors {
       // a tap still kicks. Without either, E kicks on the press as before.
       const inv = g.inventory, tool = !t.locked || !inv ? null : inv.carried.slots.some((s) => s.id === 'lockpicks' && s.left > 0) ? 'pick' : inv.hasTag('pry') ? 'pry' : null;
       if (tool) {
-        const need = tool === 'pick' ? 2.6 : 1.3, verb = tool === 'pick' ? 'Picking the lock' : 'Prying it';
+        const need = (tool === 'pick' ? 2.6 : 1.3) * (g.deep?.fx.lockMul ?? 1), verb = tool === 'pick' ? 'Picking the lock' : 'Prying it';
         if (down && this.hold >= 0) {
           this.hold += dt;
           const k = (this.hold - WINDOW.holdTap) / need;
@@ -727,13 +729,13 @@ export class Interiors {
     const L = WINDOW_LOOK, b = W.bi >= 0 ? this.g.world.buildings[W.bi] : null, town = b?.district === 'town';
     const hash = (k) => frac(W.x * (3.7 + k) + W.z * (1.3 + k * 2.1));
     // A box in the window's own frame: a along the wall from its centre, y up, n out of the wall.
-    const put = (a, y, n, sa, sy, sn, color, roll = 0) => items.push({ x: W.x + W.ux * a + W.nx * n, y, z: W.z + W.uz * a + W.nz * n, sa, sy, sn, color, yaw: W.axis === 'x' ? 0 : Math.PI / 2, roll });
+    const put = (a, y, n, sa, sy, sn, color, roll = 0) => items.push({ x: W.x + W.ux * a + W.nx * n, y: W.y + y, z: W.z + W.uz * a + W.nz * n, sa, sy, sn, color, yaw: W.axis === 'x' ? 0 : Math.PI / 2, roll });
     const wallH = W.row.wallH ?? b?.h ?? WINDOW.top, T = W.row.t ?? 0.5;
     const pal = town ? L.frame.town : L.frame.ruins, frame = pal[Math.floor(hash(0) * pal.length)];
     const oh = WINDOW.top - WINDOW.sill, fw = L.frame.w;
-    if (wallH > WINDOW.top + 0.05) put(0, (WINDOW.top + wallH) / 2, 0, W.width, wallH - WINDOW.top, T, W.row.color ?? b?.color ?? '#a39b8d'); // the lintel: the wall goes on over the window
+    if (wallH > WINDOW.top + 0.05) put(0, (WINDOW.top + wallH - STEP) / 2, 0, W.width, wallH - WINDOW.top - STEP, T, W.row.color ?? b?.color ?? '#a39b8d'); // the lintel: the wall goes on over the window (a depth step under the wall's own top, which some buildings carry over the opening too)
     for (const s of [-1, 1]) put(s * (W.half - fw / 2), (WINDOW.sill + WINDOW.top) / 2, 0, fw, oh, L.frame.depth, frame);
-    put(0, WINDOW.top - fw / 2, 0, W.width, fw, L.frame.depth, frame);
+    put(0, WINDOW.top - fw / 2 + STEP / 2, 0, W.width, fw + STEP, L.frame.depth, frame); // the head: a depth step over the jambs' and bars' tops it caps (engine/depthlayers.js)
     put(0, WINDOW.sill, L.sill.out, W.width + 0.24, L.sill.h, L.sill.depth, L.sill.color);
     // Shutters, outside, either side: Rust Haven paints them; a ruin's may hang off one hinge.
     if (hash(3) < (town ? L.shutter.town : L.shutter.ruins)) {
@@ -753,7 +755,7 @@ export class Interiors {
   }
 
   placeGlass(W, boot = false) {
-    _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z);
+    _o.position.set(W.x, W.y + (WINDOW.sill + WINDOW.top) / 2, W.z);
     _o.rotation.set(0, W.axis === 'x' ? 0 : Math.PI / 2, 0);
     _o.scale.set(W.width - 0.04, WINDOW.top - WINDOW.sill, 0.1);
     _o.updateMatrix();
@@ -766,9 +768,9 @@ export class Interiors {
     const L = WINDOW_LOOK.bars, oh = WINDOW.top - WINDOW.sill, on = W.state !== 'shattered' ? 1 : 0;
     const yaw = W.axis === 'x' ? 0 : Math.PI / 2;
     _o.rotation.set(0, yaw, 0);
-    _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z); _o.scale.set(L.w * on, oh * on, 0.12 * on); _o.updateMatrix();
+    _o.position.set(W.x, W.y + (WINDOW.sill + WINDOW.top) / 2, W.z); _o.scale.set(L.w * on, oh * on, 0.12 * on); _o.updateMatrix();
     this.barMesh.setMatrixAt(W.slot * 2, _o.matrix);
-    _o.position.set(W.x, WINDOW.sill + oh * L.transom, W.z); _o.scale.set(W.width * on, L.w * on, 0.12 * on); _o.updateMatrix();
+    _o.position.set(W.x, W.y + WINDOW.sill + oh * L.transom, W.z); _o.scale.set(W.width * on, L.w * on, 0.12 * on); _o.updateMatrix();
     this.barMesh.setMatrixAt(W.slot * 2 + 1, _o.matrix);
     if (!boot) this.barMesh.instanceMatrix.needsUpdate = true;
   }
@@ -781,7 +783,7 @@ export class Interiors {
       const up = W.state === 'boarded' ? Math.ceil(3 * W.boardHp / WINDOW.boardHp) : 0;
       for (let k = 0; k < up; k++) {
         const off = W.boardSide * 0.32;
-        _o.position.set(W.x + W.nx * off, WINDOW.sill + 0.3 + k * 0.5, W.z + W.nz * off);
+        _o.position.set(W.x + W.nx * off, W.y + WINDOW.sill + 0.3 + k * 0.5, W.z + W.nz * off);
         _o.rotation.set(0, yaw(W), W.roll[k]);
         _o.scale.set(W.width + 0.5, 0.3, 0.12);
         _o.updateMatrix();
@@ -797,7 +799,7 @@ export class Interiors {
 
   writeLeaf(L) {
     if (L.door.broken) { this.leafMesh.setMatrixAt(L.slot, ZERO); return; }
-    _o.position.set(L.hx + L.dx * L.len / 2, DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2);
+    _o.position.set(L.hx + L.dx * L.len / 2, (L.door.y ?? 0) + DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2); // y: a door below the street hangs on its own floor
     _o.rotation.set(0, Math.atan2(-L.dz, L.dx), 0);
     _o.scale.set(L.len, DOOR.height, DOOR.thick);
     _o.updateMatrix();
@@ -816,7 +818,7 @@ export class Interiors {
   syncLock(door, boot = false) {
     if (door.lockSlot < 0) return; // a ring door: never locked, no padlock slot
     if (door.locked) {
-      _o.position.set(door.x + door.nx * 0.32, 1.15, door.z + door.nz * 0.32);
+      _o.position.set(door.x + door.nx * 0.32, (door.y ?? 0) + 1.15, door.z + door.nz * 0.32);
       _o.rotation.set(0, door.axis === 'x' ? 0 : Math.PI / 2, 0);
       _o.scale.set(door.width + 0.5, 0.16, 0.14);
       _o.updateMatrix();
@@ -865,6 +867,7 @@ export class Interiors {
       }
     }
     for (const [id, rec] of this.ringOpen) {
+      if (id.startsWith('cg:')) continue; // a generated settlement's openings: citygen.openings() attaches and detaches those
       const dx = Math.max(rec.x0 - P.x, 0, P.x - rec.x1), dz = Math.max(rec.z0 - P.z, 0, P.z - rec.z1);
       if (!seen.has(id) || dx * dx + dz * dz > far * far) { this.detachRing(id); continue; }
       // A chunk slot that changed hands emptied its cells: put the openings back.
@@ -885,10 +888,10 @@ export class Interiors {
     const rows = [];
     geo.doors.forEach((d, k) => {
       if (d.kind === 'bay' || d.barricade) return;
-      rows.push({ id: `${id}:d${k}`, kind: d.kind, x: d.x, z: d.z, axis: d.nx ? 'z' : 'x', width: d.w - 0.1, nx: d.nx, nz: d.nz,
+      rows.push({ id: `${id}:d${k}`, kind: d.kind, x: d.x, z: d.z, y: lot.y, axis: d.nx ? 'z' : 'x', width: d.w - 0.1, nx: d.nx, nz: d.nz,
         leaves: d.kind === 'front' && d.w >= 2.3 ? 2 : 1, inner: false });
     });
-    (geo.innerDoors ?? []).forEach((d, k) => rows.push({ id: `${id}:i${k}`, kind: 'inner', x: d.x, z: d.z, axis: d.axis, width: d.w - 0.1,
+    (geo.innerDoors ?? []).forEach((d, k) => rows.push({ id: `${id}:i${k}`, kind: 'inner', x: d.x, z: d.z, y: lot.y, axis: d.axis, width: d.w - 0.1,
       nx: d.axis === 'x' ? 0 : 1, nz: d.axis === 'x' ? 1 : 0, leaves: 1, inner: true }));
     for (const r of rows) {
       if (this.freeLeaf.length < r.leaves) break; // the pool is full: these stay gaps
@@ -911,7 +914,7 @@ export class Interiors {
     geo.windows.forEach((w, k) => {
       if (!this.freeWin.length) return;
       const mix = WINDOW_MIX[w.ruined ? 'ruined' : 'ruins'], q = h01(w.x, w.z, 9);
-      const row = { ...w, id: `${id}:w${k}`, state: q < mix[0] ? 'intact' : q < mix[0] + mix[1] ? 'shattered' : 'boarded', boardSide: h01(w.x, w.z, 10) < 0.75 ? -1 : 1, b: -1 };
+      const row = { ...w, y: lot.y ?? w.y, id: `${id}:w${k}`, state: q < mix[0] ? 'intact' : q < mix[0] + mix[1] ? 'shattered' : 'boarded', boardSide: h01(w.x, w.z, 10) < 0.75 ? -1 : 1, b: -1 };
       const W = this.makeWindow(row, reg, this.freeWin.pop());
       W.ring = id;
       const v = this.ringState.get(row.id);
@@ -1004,6 +1007,7 @@ export class Interiors {
   save() {
     const d = {}, w = {};
     for (const door of this.doors) {
+      if (door.ug) continue; // the underground's doors are on its own records (systems/underground.js)
       const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01);
       if (moved || door.locked !== !!door.row.locked || (door.locked && (door.kicks !== door.mat.kicks || door.lockHp !== door.mat.lockHp)))
         d[door.id] = { a: door.leaves.map((L) => +L.th.toFixed(3)), l: door.locked ? 1 : 0, h: Math.round(door.lockHp), k: door.kicks };

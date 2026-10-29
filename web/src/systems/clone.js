@@ -6,6 +6,8 @@ import { WEAPONS } from './combat.js';
 import { randomName } from '../data/npcs.js';
 import { STREAM } from '../data/streaming.js';
 import { outfit } from './characters.js';
+import { Insurance } from './insurance.js';
+import { POLICIES, INSURANCE_RULES } from '../data/insurance.js';
 
 // CLONING (docs/design/WEB_CLONE_TRAVEL.md, rows in data/clones.js). Death as Autoduel had it:
 //   - a PRESSING (backup) is bought at a vat's counter: the skills and xp of that moment, your look and flag. A vat holds
@@ -42,7 +44,11 @@ export class Clone {
     this.lastWake = null;   // what the last waking did (agents, the selftest)
     this.vatMeshes = [];
     this.started = false;
+    this.ins = new Insurance(game, this); // life insurance: the pressing with terms, the centres, the city picker (systems/insurance.js)
+    this.wakeAt = null;                   // the centre the next waking takes (the picker's answer)
   }
+  // The INSURANCE tab (the pause menu): everything about your cover (systems/insurance.js view).
+  policyView() { return this.ins.view(); }
 
   // ---- places --------------------------------------------------------------------------------------------------------
   get W() { return this.g.streamer?.W ?? null; }
@@ -93,23 +99,28 @@ export class Clone {
   price(row = this.vatHere()) { return Math.round(CLONE_RULES.price * (row?.priceMul ?? 1)); }
   upkeep(row = this.vat(this.pressing?.vat)) { return Math.round(CLONE_RULES.upkeepPerDay * (row?.upkeepMul ?? 1)); }
   // What your pressing costs a day: Rust Haven's free starter pressing pays no brine money (the town covers its newcomers).
-  due() { return this.pressing && !this.pressing.free ? this.upkeep() : 0; }
+  // Life insurance (systems/insurance.js): the policy's premium; the starter pressing is free for the town's first week.
+  due() { return this.ins.premium(); }
 
   // ---- the counter -----------------------------------------------------------------------------------------------------
   // Get pressed at the vat you stand at (or `vatId` with force, for agents staging). Pays from your pockets, then the brine
   // book. The scan takes an hour in the chair (the clock runs). Replaces the pressing you held (wherever it was).
-  press(vatId = null, { free = false, force = false } = {}) {
+  // policy: the life-insurance row (data/insurance.js POLICIES; `clone press` is DUST COVER). repress: IRON COVER's fresh
+  // pressing as you come up (no charge, no hour in the chair, not a starter).
+  press(vatId = null, { free = false, force = false, policy = 'basic', repress = false } = {}) {
     const g = this.g, row = vatId ? this.vat(vatId) : this.vatHere();
     if (!row) return { ok: false, why: vatId ? `no vat called ${vatId}` : 'not at a vat counter (a clinic brine room, or a knot that has one)' };
     if (!force && !free && this.vatHere()?.id !== row.id) return { ok: false, why: `you are not at ${row.name}` };
-    const cost = free ? 0 : this.price(row);
+    if (!POLICIES[policy]) return { ok: false, why: `no policy ${policy}: ${Object.keys(POLICIES).join(', ')}` };
+    const cost = free || repress ? 0 : this.ins.signPrice(policy, row);
     if (!this.pay(cost)) return { ok: false, why: `a pressing here is $${cost}: you have $${g.cash} on you and $${this.bank} in the brine book` };
     const p = g.player, was = this.pressing;
-    this.pressing = { vat: row.id, at: +this.hours().toFixed(2), day: g.society?.day ?? 0, skills: JSON.parse(JSON.stringify(g.skillsSys.save())), look: { name: p.name, flag: p.flag, colors: p.colors ? JSON.parse(JSON.stringify(p.colors)) : null }, free };
+    this.pressing = { vat: row.id, at: +this.hours().toFixed(2), day: g.society?.day ?? 0, skills: JSON.parse(JSON.stringify(g.skillsSys.save())), look: { name: p.name, flag: p.flag, colors: p.colors ? JSON.parse(JSON.stringify(p.colors)) : null }, free, policy, home: this.ins.homeFor(row.id) };
     this.owed = 0;
-    if (!free && CLONE_RULES.pressHours > 0) this.g.travel?.advanceHours(CLONE_RULES.pressHours, 'pressed');
-    g.emit('pressed', { vat: row.id, cost, replaced: was?.vat ?? null, skills: this.pressing.skills.lv });
-    if (!free) g.hud?.toast?.(`PRESSED AT ${row.short} · $${cost} · BRINE MONEY $${this.upkeep(row)}/DAY`, 'job');
+    if (!free && !repress && CLONE_RULES.pressHours > 0) this.g.travel?.advanceHours(CLONE_RULES.pressHours, 'pressed');
+    const pol = POLICIES[policy], home = this.vat(this.pressing.home);
+    g.emit('pressed', { vat: row.id, cost, replaced: was?.vat ?? null, skills: this.pressing.skills.lv, policy, home: home?.id ?? null, office: !row.major });
+    if (!free) g.hud?.toast?.(`LIFE INSURANCE · ${pol.name} · PRESSED AT ${row.short}${row.major ? '' : ` · GROWN AT ${home?.short}`} · $${cost} · $${this.due()}/DAY FROM THE BRINE BOOK`, 'job');
     return { ok: true, vat: row.id, cost, pressing: this.pressingView() };
   }
   // Pay from the pockets first, then the brine book.
@@ -147,15 +158,31 @@ export class Clone {
   newDay() {
     if (!this.pressing) { this.owed = 0; return; }
     const g = this.g, cost = this.due();
-    if (this.bank >= cost) { this.bank -= cost; this.settle(); g.emit('brineMoney', { paid: cost, bank: this.bank }); return; }
+    this.staleWarn();
+    if (this.bank >= cost) { this.bank -= cost; this.settle(); g.emit('brineMoney', { paid: cost, bank: this.bank }); if (cost > 0) g.hud?.toast?.(`LIFE INSURANCE · ${this.ins.policy().name} · -$${cost} · BRINE BOOK $${this.bank}`, 'job'); return; }
     this.owed++;
     g.emit('brineMoney', { owed: this.owed, bank: this.bank });
-    if (this.owed > CLONE_RULES.graceDays) {
-      const v = this.vat(this.pressing.vat);
-      this.pressing = null; this.owed = 0;
-      g.hud?.toast?.(`THE VAT AT ${v?.short ?? 'THE BRINE ROOM'} DRAINED YOUR PRESSING: NOBODY PAID THE BRINE MONEY`, 'hot');
-      g.emit('pressingLost', { vat: v?.id, why: 'unpaid' });
-    } else g.hud?.toast?.(`BRINE MONEY OWED · ${this.owed} DAY${this.owed > 1 ? 'S' : ''} · PUT SCRIP IN THE BRINE BOOK`, 'warn');
+    const pol = this.ins.policy();
+    if (this.owed > pol.graceDays) this.lapse('unpaid');
+    else g.hud?.toast?.(`LIFE INSURANCE BEHIND · ${this.owed} DAY${this.owed > 1 ? 'S' : ''} OF ${pol.graceDays} · PUT SCRIP IN THE BRINE BOOK OR IT LAPSES`, 'warn');
+  }
+  // The policy lapses: the vat pours the pressing out. The next death is flat.
+  lapse(why = 'unpaid') {
+    const g = this.g, P = this.pressing;
+    if (!P) return { ok: false, why: 'no policy' };
+    const v = this.vat(P.vat), pol = this.ins.policy(P);
+    this.pressing = null; this.owed = 0;
+    g.hud?.toast?.(`LIFE INSURANCE LAPSED · ${pol.name} · THE VAT AT ${v?.short ?? 'THE BRINE ROOM'} POURED YOUR PRESSING OUT`, 'hot');
+    g.emit('pressingLost', { vat: v?.id, why });
+    g.emit('policyLapsed', { policy: pol.id, vat: v?.id, why });
+    return { ok: true, lapsed: pol.id, why, insurance: this.ins.view() };
+  }
+  // Once a day: a pressing going cold says so.
+  staleWarn() {
+    const P = this.pressing, I = this.ins;
+    if (!P || this.lastDay === I.warnedDay) return;
+    const pol = I.policy(P), age = I.ageHours(P), lim = pol.staleDays * 24;
+    if (age > lim * INSURANCE_RULES.warnStale) { I.warnedDay = this.lastDay; this.g.hud?.toast?.(age > lim ? `YOUR PRESSING IS COLD · ${pol.name} GROWS IT ONLY AT HOME · GET PRESSED AGAIN` : `YOUR PRESSING IS GOING COLD · ${Math.round(lim - age)} H LEFT · GET PRESSED AGAIN`, 'warn'); }
   }
   settle() {
     while (this.owed > 0 && this.bank >= this.due()) { this.bank -= this.due(); this.owed--; }
@@ -196,38 +223,58 @@ export class Clone {
     return h;
   }
 
-  // The waking: main.js calls this when the black is over. Comes up in the pressing's vat, or dies flat.
+  // The waking: main.js calls this when the black is over (every frame until you are up). Comes up at the major centre you
+  // choose on the city picker (systems/insurance.js; an agent's vat=, or the home centre while a command runs), or dies flat.
   wake() {
-    const g = this.g, p = g.player, P = this.pressing;
+    const g = this.g, p = g.player, P = this.pressing, I = this.ins;
     if (!P) return this.dieFlat();
-    const row = this.vat(P.vat), place = this.vatPlace(row);
+    if (I.picking) { if (!(g.api?.deadline != null)) return { ok: false, picking: true }; I.picking = null; clearTimeout(I.pickTimer); if (g.travel?.ui?.model?.picker) g.travel.ui.close(); } // a command came while the board was up
+    const home = I.homeOf(P);
+    if (!this.wakeAt) {
+      const named = I.pick && I.isMajor(I.pick) ? I.pick : null;
+      I.pick = null;
+      if (named) this.wakeAt = I.cold(P) ? home : named;
+      else if ((g.api?.deadline != null) || !g.travel?.ui?.wrap || I.cold(P)) this.wakeAt = home;
+      else { I.openPicker((id) => { this.wakeAt = id; }); if (!this.wakeAt) return { ok: false, picking: true }; }
+    }
+    const centre = this.wakeAt; this.wakeAt = null;
+    // The transfer: the brine shipped to a centre that is not the policy's home (the brine book pays: your pockets are on
+    // your husk). Short of it, you come up at home.
+    let row = this.vat(centre), fee = I.transferFee(home, centre, P);
+    if (!row?.major || (fee > 0 && !this.pay(fee))) { row = this.vat(home); fee = 0; }
+    const place = I.place(row), pol = I.policy(P);
+    this.lastWakeVat = row.id;
     this.pressing = null; this.reruns++;
     this.revive(P.look);
     g.skillsSys.load(JSON.parse(JSON.stringify(P.skills))); // what you knew the day you were pressed: no more, no less
-    this.kit();
-    const N = g.needs;
-    N.sick = { kind: BRINE, until: +(this.hours() + CLONE_RULES.sickHours).toFixed(2) };
+    this.kit(P);
+    const N = g.needs, sickH = I.sickHours(P);
+    N.sick = { kind: BRINE, until: +(this.hours() + sickH).toFixed(2) };
     let where;
     if (place?.onMap) {
       const t = { x: place.wake.x, z: place.wake.z };
+      g.streamer?.ensureHot(t.x, t.z, 'load');
       g.statics.resolveCircle(t, 0.5);
       p.x = t.x; p.z = t.z; p.gy = 0; p.storey = null; g.standOn?.(p);
       p.face = Math.atan2(place.x - p.x, place.z - p.z); // looking at the vat you came out of
       g.camLook.x = p.x; g.camLook.z = p.z;
-      g.streamer?.ensureHot(p.x, p.z, 'load');
       where = row.short;
     } else {
-      g.travel?.hold(place?.node ?? null, { why: 'wake', vat: row?.id });
+      g.travel?.hold(place?.node ?? row.port ?? null, { why: 'wake', vat: row?.id });
       where = row?.short ?? 'OFF THE MAP';
     }
     const h = this.husks[this.husks.length - 1];
-    this.lastWake = { vat: row?.id, x: r1(p.x), z: r1(p.z), skills: P.skills.lv, husk: h?.id ?? null, at: +this.hours().toFixed(2), onMap: !!place?.onMap };
-    g.emit('cloneWake', { vat: row?.id, x: r1(p.x), z: r1(p.z), reruns: this.reruns, husk: h?.id ?? null, stale: Math.max(0, r1(this.hours() - P.at)) });
+    const towed = pol.tow && h ? I.tow(h, place) : null;
+    // IRON COVER: the centre takes a fresh pressing of the new body as it comes up; the policy goes on.
+    if (pol.repress) this.press(row.id, { force: true, repress: true, policy: pol.id });
+    this.lastWake = { vat: row?.id, x: r1(p.x), z: r1(p.z), skills: P.skills.lv, husk: h?.id ?? null, at: +this.hours().toFixed(2), onMap: !!place?.onMap, chose: centre, home, fee, policy: pol.id, sickHours: sickH, towed, repressed: !!pol.repress };
+    g.emit('cloneWake', { vat: row?.id, x: r1(p.x), z: r1(p.z), reruns: this.reruns, husk: h?.id ?? null, stale: Math.max(0, r1(this.hours() - P.at)), fee, policy: pol.id, towed: !!towed });
     g.emit('respawn', { x: r1(p.x), z: r1(p.z) });
     if (h && !h.gone) g.qol?.setWaypoint?.({ x: h.x, z: h.z });
-    g.hud?.toast?.(`YOU CAME UP IN THE BRINE · ${where}`, 'hot');
-    g.hud?.toast?.(`BRINE-SICK FOR A DAY · NO PRESSING IN THE VAT NOW`, 'warn');
-    if (h) g.hud?.subtitle?.(`Your husk lies ${this.placeName(h.x, h.z)}${h.car ? `, your ${h.car.name} beside it` : ''}. The pickers are already walking. [M] map`, 7);
+    g.hud?.toast?.(`YOU CAME UP IN THE BRINE · ${where}${fee ? ` · TRANSFER $${fee}` : ''}`, 'hot');
+    g.hud?.toast?.(pol.repress ? `BRINE-SICK ${sickH} H · ${pol.name} PRESSED YOU AGAIN` : `BRINE-SICK ${sickH} H · NO PRESSING IN THE VAT NOW`, 'warn');
+    if (towed) g.hud?.toast?.(`YOUR ${h.car.name} WAS TOWED TO THE LOT OUTSIDE`, 'job');
+    if (h) g.hud?.subtitle?.(`Your husk lies ${this.placeName(h.x, h.z)}${h.car && !towed ? `, your ${h.car.name} beside it` : ''}. The pickers are already walking. [M] map`, 7);
     g.travel?.card?.('cloneWake', { where: row?.name ?? where, husk: h ? this.placeName(h.x, h.z) : null, stale: Math.max(0, r1(this.hours() - P.at)) });
     return { ok: true, ...this.lastWake };
   }
@@ -249,16 +296,20 @@ export class Clone {
     }
   }
 
-  // What the vat hands you: a worn loaner pistol, empty, a bottle of water, a rag. No pack.
-  kit() {
-    const g = this.g, I = g.inv, inv = g.inventory, K = CLONE_RULES.wakeKit, W = WEAPONS[K.gun];
+  // What the centre hands you (the policy's kit, data/insurance.js KITS): a worn loaner pistol, a bottle, a rag; the better
+  // covers load the loaner and add a bandage, a canteen, a satchel.
+  kit(P = null) {
+    const g = this.g, I = g.inv, inv = g.inventory, K = this.ins.kit(P), W = WEAPONS[K.gun], R = CLONE_RULES.wakeKit;
     I.weapons = [K.gun]; I.current = K.gun; I.mag = { [K.gun]: Math.min(W?.mag ?? 0, K.loaded) }; I.cond = { [K.gun]: K.cond }; I.jam = {};
-    for (const k of Object.keys(I.throwables ?? {})) I.throwables[k] = K.throwables?.[k] ?? 0;
+    for (const k of Object.keys(I.throwables ?? {})) I.throwables[k] = R.throwables?.[k] ?? 0;
     inv.worn = null; inv.carried.cap = BODY_LITRES; inv.carried.slots.length = 0;
+    if (K.pack) inv.wear(K.pack);
     for (const [id, n] of K.items) inv.add(inv.carried, id, n);
+    if (K.ammo > 0) inv.add(inv.carried, 'ammo_pistol', K.ammo);
     g.gear?.load(null);
     g.player.weapon = K.gun; g.player.reloading = 0;
     inv.changed();
+    inv.bindAmmo?.();
   }
 
   // No pressing in the brine: this character is over. Shard: gone for good (the shard refuses it). Local: flagged in the
@@ -375,7 +426,7 @@ export class Clone {
       else if (bi >= 0) { const s = box.slots[bi]; box.slots.splice(bi, 1); took = { what: s.id, n: s.n, hour }; }
     }
     // The car's trunk, at half the rate; after carStripDays its tyres go.
-    const v = h.car && g.vehicles.find((x) => x.id === h.car.id);
+    const v = h.car && !h.car.towed && g.vehicles.find((x) => x.id === h.car.id); // a towed car stands in the centre's lot
     if (v && rng() < odds * P.trunkMul) {
       const t = inv.trunks.get(v.id);
       if (t?.slots.length) { let bi = 0, bv = -1; for (let i = 0; i < t.slots.length; i++) { const s = t.slots[i], val = (ITEMS[s.id]?.value ?? 1) * s.n; if (val > bv) { bv = val; bi = i; } } const s = t.slots.splice(bi, 1)[0]; h.lost.push({ what: s.id, n: s.n, hour, from: 'trunk' }); }
@@ -430,6 +481,7 @@ export class Clone {
     this.quests0 = JSON.parse(JSON.stringify(g.quests ?? {}));
     if (CLONE_RULES.starterPressing && !this.pressing && !this.husks.length && !this.lineage.length && !this.loaded) this.press(this.startVat(), { free: true, force: true });
     this.buildVats();
+    g.qol?.addTab?.('insurance', 'INSURANCE', (el) => this.ins.renderTab(el)); // the pause menu's INSURANCE tab (feat/web-qol)
   }
   // The body on the ground: a real dead body near you, drawn by the character renderer; nothing far off.
   drawHusks() {
@@ -523,7 +575,7 @@ export class Clone {
     const P = this.pressing;
     if (!P) return null;
     const row = this.vat(P.vat);
-    return { vat: P.vat, name: row?.name, at: P.at, day: P.day, staleHours: Math.max(0, r1(this.hours() - P.at)), skills: P.skills.lv, xp: P.skills.xp, look: P.look?.name ?? null, free: !!P.free };
+    return { vat: P.vat, name: row?.name, at: P.at, day: P.day, staleHours: Math.max(0, r1(this.hours() - P.at)), skills: P.skills.lv, xp: P.skills.xp, look: P.look?.name ?? null, free: !!P.free, policy: P.policy ?? 'basic', home: this.ins.homeOf(P), cold: this.ins.cold(P) };
   }
   view() {
     const g = this.g, here = this.vatHere();
@@ -539,7 +591,7 @@ export class Clone {
           drawn: !!h.corpse, dist: Math.round(Math.hypot(h.x - g.player.x, h.z - g.player.z)) };
       }),
       vats: VATS.map((v) => { const pl = this.vatPlace(v); return { id: v.id, name: v.name, town: v.town, onMap: !!pl?.onMap, x: pl?.onMap ? r1(pl.x) : null, z: pl?.onMap ? r1(pl.z) : null, price: this.price(v), upkeep: this.upkeep(v) }; }),
-      keeps: CLONE_KEEPS, lastWake: this.lastWake,
+      keeps: CLONE_KEEPS, lastWake: this.lastWake, insurance: this.ins.view(),
     };
   }
   // Marks on the big map (qol.js calls every layer with its own world->canvas transform).
@@ -560,7 +612,7 @@ export class Clone {
   save() {
     const inv = this.g.inventory;
     return {
-      v: 1, pressing: this.pressing ? JSON.parse(JSON.stringify(this.pressing)) : null, bank: this.bank, owed: this.owed, reruns: this.reruns, flat: this.flat, nHusk: this.nHusk, lastDay: this.lastDay,
+      v: 1, base: this.ins.base ? { ...this.ins.base } : null, pressing: this.pressing ? JSON.parse(JSON.stringify(this.pressing)) : null, bank: this.bank, owed: this.owed, reruns: this.reruns, flat: this.flat, nHusk: this.nHusk, lastDay: this.lastDay,
       lineage: this.lineage.map((x) => ({ ...x })),
       husks: this.husks.map((h) => ({ ...h, corpse: null, lost: h.lost.map((x) => ({ ...x })), throwables: { ...h.throwables }, car: h.car ? { ...h.car } : null, slots: (inv.boxes.get(h.id)?.slots ?? []).map((s) => ({ ...s })) })),
     };
@@ -575,6 +627,7 @@ export class Clone {
     this.pressing = s.pressing ? JSON.parse(JSON.stringify(s.pressing)) : null;
     this.bank = s.bank ?? 0; this.owed = s.owed ?? 0; this.reruns = s.reruns ?? 0; this.flat = s.flat ?? null; this.nHusk = s.nHusk ?? 0;
     this.lastDay = s.lastDay ?? null;
+    this.ins.base = s.base ? { ...s.base } : null; this.wakeAt = null;
     this.lineage = (s.lineage ?? []).map((x) => ({ ...x }));
     this.husks = (s.husks ?? []).map((h) => {
       const { slots, ...rest } = h;

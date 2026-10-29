@@ -213,6 +213,8 @@ its sheriff's canal job counts this layer's gator kills too (`faunaKilled` with 
 (`WorldIndex.holdouts`: Meridian) is presence 1 inside its walls, fading over the town fade past them. Characters with
 `c.fauna` (the region's own animals) are skipped by this layer's senses; an animal of this layer carries `isFauna`.
 
+- **WEB_WILDS** (`systems/outdoors.js`) reads and extends this layer: birds as SPECIES rows (crow, dove, duck, goose), sinew/feather yields, `skyAim`/`skyShot`/`raycast(slope)` for shooting birds at their height, HUNTING and COOKING in the butcher and cook paths, THE QUIET for ground flocks; `nearFor`/`interact` fall through to it.
+
 ## 7. Tuning knobs
 
 | Knob | Where | Value | Safe range | What it changes |

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CARRY } from '../data/arms.js';
+import { LswBodies } from './lswbodies.js';
 
 // People: one articulated low-poly body for everyone, drawn by InstancedMeshes shared by all 160
 // characters (left+right limbs pack into one mesh; hat, gear, accessory and gun variants pack only
@@ -14,6 +16,7 @@ export const MAX_CHARS = 160;
 
 // ---- the body, in metres --------------------------------------------------------------------------
 const HIP_X = 0.125, HIP_Y = 0.92, THIGH = 0.44, SHIN = 0.4, ANKLE_Y = 0.08;
+const PRONE_HIP = 0.2, PRONE_LEAN = 1.42; // prone (data/stance.js): the hips 0.2 m up, the chest leant almost flat forward
 const WAIST_UP = 0.08, SHOULDER_X = 0.33, SHOULDER_UP = 0.56, UPPER = 0.3, FORE = 0.3, HEAD_UP = 0.86;
 const AIM_Y = 0.55; // hands and gun when aiming: above the waist, so 1.55 m standing
 
@@ -36,6 +39,18 @@ export function gunModel(w) {
 }
 export function muzzleForward(w) { const m = GUN_MODELS[gunModel(w) ?? 'revolver']; return m.grip + m.muzzle; }
 export const MUZZLE_FORWARD = muzzleForward({ ammo: 'pistol' });
+// Handedness (data/arms.js CARRY): 'R' or 'L', stable from a name (or the slot): about CARRY.leftShare are lefties.
+export function handOf(seed) {
+  const s = String(seed ?? '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 1000) / 1000 < CARRY.leftShare ? 'L' : 'R';
+}
+// How far off the chest centre the aimed gun sits (m, toward the dominant side), for this gun and grip.
+export function carryLateral(ch, w) {
+  const m = GUN_MODELS[gunModel(w) ?? 'revolver'];
+  return m.carry === 'low' ? CARRY.longGun.lateral : ch.oneHand ? CARRY.pistolOneHand.lateral : CARRY.pistolTwoHand.lateral;
+}
 
 // Gait: step length grows with speed, so cadence stays human (2 steps/s shuffling, 4 sprinting).
 // The walk phase advances π per step; movers call stridePhase instead of a fixed rate.
@@ -58,6 +73,7 @@ export class Character {
     this.maxHp = this.hp;
     this.faction = opts.faction ?? 'drifter';
     this.name = opts.name ?? null;
+    this.hand = opts.hand ?? (opts.faction === 'player' ? 'R' : handOf(opts.name ?? slot)); // the gun hand (data/arms.js CARRY)
     this.npc = opts.npc ?? null;           // dialogue definition for named NPCs
     this.weapon = opts.weapon ?? null;      // weapon key or null
     this.colors = opts.colors;
@@ -251,8 +267,9 @@ const _root = new THREE.Matrix4(), _U = new THREE.Matrix4(), _LF = new THREE.Mat
 const PAIRS = new Set(['thigh', 'shin', 'boot', 'upper', 'fore', 'hand']);
 const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = V(), _w = V(), _dir = V(), _n = V(), _pole = V(), _one = new THREE.Vector3(1, 1, 1);
 const _DOWN = new THREE.Vector3(0, -1, 0), _X = V(), _Y = V(), _Z = V();
+const _GS = new THREE.Matrix4(), _grip = [0, 0]; // LSW-BODIES: the gear frame on a near body, which hands are closed
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
-const _c = new THREE.Color(), _blood = new THREE.Color('#4a0606'), _soot = new THREE.Color('#141110');
+const _c = new THREE.Color(), _blood = new THREE.Color('#4a0606'), _soot = new THREE.Color('#141110'), _rot = new THREE.Color('#4e4a30');
 // Joints, index 0 = left (+x), 1 = right (-x). Legs live in the leg frame, arms in the root frame.
 const hip = [V(), V()], knee = [V(), V()], ankle = [V(), V()], sh = [V(), V()], el = [V(), V()], hand = [V(), V()], tgt = [V(), V()];
 const footPitch = [0, 0], SIDE = [1, -1];
@@ -317,14 +334,18 @@ export class CharacterRenderer {
     for (const k of GUN_KEYS) { const m = make(G[k], gunMat, MAX_CHARS, false); this.meshes[`gun_${k}`] = m; this.variant.push(`gun_${k}`); }
     // Small parts don't need shadows from a top-down camera: skip them in the shadow pass.
     for (const k of ['face', 'hand', 'boot', 'fore', 'hips', 'hat_short', 'hat_mohawk', 'hat_cap', 'hat_bandana', 'gear_pads', 'gear_vest', 'gear_bandolier', 'acc_goggles', 'acc_mask', 'acc_eyepatch', ...SCARS.map((s) => `scar_${s}`), ...GUN_KEYS.map((k) => `gun_${k}`)]) this.meshes[k].castShadow = false;
+    for (const k in this.meshes) for (const m of [this.meshes[k].material].flat()) m.userData.noCut = true; // people are never cut away (systems/cutaway.js)
     this.packed = {};
+    // LSW-BODIES (systems/lswbodies.js): the nearest people wear Robert's LSW bodies, driven by this same pose solution.
+    this.lsw = new LswBodies(scene, MAX_CHARS); this.lsw.charMeshes = this.meshes;
   }
 
   // Colours: clothes darken toward dried blood as the character gets hurt, and char black in fire.
   paint(ch) {
     const c = ch.colors, M = this.meshes, i = ch.slot;
     const b = Math.min(0.75, ch.blood * 0.85), burnt = Math.min(0.9, ch.charred ?? 0);
-    const set = (mesh, idx, hex, bloody = true) => { _c.set(hex); if (bloody && b > 0) _c.lerp(_blood, b); if (burnt > 0) _c.lerp(_soot, burnt); mesh.setColorAt(idx, _c); mesh.instanceColor.needsUpdate = true; };
+    const rot = ch.alive ? 0 : Math.min(0.85, ch.rot ?? 0); // the dead go the way of their stage (systems/rites.js)
+    const set = (mesh, idx, hex, bloody = true) => { _c.set(hex); if (bloody && b > 0) _c.lerp(_blood, b); if (rot > 0) _c.lerp(_rot, rot); if (burnt > 0) _c.lerp(_soot, burnt); mesh.setColorAt(idx, _c); mesh.instanceColor.needsUpdate = true; };
     const sleeve = c.sleeves === 'short' ? c.skin : c.shirt;
     set(M.torso, i, c.shirt); set(M.hips, i, c.pants); set(M.head, i, c.skin, b > 0.5);
     for (const k of [0, 1]) {
@@ -344,9 +365,10 @@ export class CharacterRenderer {
   }
 
   // A packed variant instance at frame F * T(x, y, z) * Rx(rx).
-  put(key, F, x, y, z, rx, color) {
+  put(key, F, x, y, z, rx, color, ry) {
     const mesh = this.meshes[key], k = this.packed[key]++;
     _t.makeTranslation(x, y, z);
+    if (ry) _t.multiply(_r.makeRotationY(ry));
     if (rx) _t.multiply(_r.makeRotationX(rx));
     mesh.setMatrixAt(k, _m.multiplyMatrices(F, _t));
     if (color && mesh.instanceColor) mesh.setColorAt(k, _c.set(color));
@@ -363,6 +385,7 @@ export class CharacterRenderer {
     let maxSlot = 0;
     for (const k of this.variant) this.packed[k] = 0;
     const cu = this.cullAbove; // inside a storeyed building: who is on a floor above yours there is not drawn (main.js)
+    this.lsw.choose(chars, cu); // who is near enough to wear an LSW body this frame
     for (const ch of chars) {
       const i = ch.slot;
       maxSlot = Math.max(maxSlot, i + 1);
@@ -372,6 +395,7 @@ export class CharacterRenderer {
       if (cu && (ch.gy ?? 0) > cu.y && ch.x > cu.b.minX && ch.x < cu.b.maxX && ch.z > cu.b.minZ && ch.z < cu.b.maxZ) { this.hideSlot(i); ch._rx = undefined; continue; }
       this.pose(ch, sp, dt);
     }
+    this.lsw.finish(dt);
     for (const key in M) {
       const n = key in this.packed ? this.packed[key] : PAIRS.has(key) ? maxSlot * 2 : maxSlot;
       M[key].count = n;
@@ -385,6 +409,7 @@ export class CharacterRenderer {
     const M = this.meshes, i = ch.slot, alive = ch.alive;
     const w = ch.weapon && !ch.holstered && !ch.work ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null; // holstered: hands empty (systems/arms.js)
     const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
+    const L = this.lsw, near = L.near[i] === 1; // an LSW body: the same solution, a different skin (systems/lswbodies.js)
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false, knocked = false;
@@ -394,7 +419,7 @@ export class CharacterRenderer {
       _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
       _root.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
     } else if (alive) {
-      _root.makeRotationY(ch.face).setPosition(ch.x, gy, ch.z);
+      _root.makeRotationY(ch.prone && !(ch.knockT > 0) ? ch.proneH ?? ch.face : ch.face).setPosition(ch.x, gy, ch.z); // prone: the body's own heading
       if (ch.knockT > 0) {
         // Knocked down (a door to the face): over backwards fast, flat on the floor, up at the end.
         const lie = Math.min(1, ((ch.knockMax ?? 1.5) - ch.knockT) / 0.2, ch.knockT / 0.45);
@@ -409,7 +434,7 @@ export class CharacterRenderer {
         _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
       }
       if (ch.underwater) _root.multiply(_t.makeTranslation(0, -1.6, 0));
-      else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.95, 0)).multiply(_r.makeRotationX(1.2));
+      else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.5 + (ch.waveY ?? 0), 0)).multiply(_r.makeRotationX(1.2)); // waveY: on the swell (systems/sealife.js scanPeople)
     } else {
       // Lying on the back, head away from the killer.
       lying = true;
@@ -440,7 +465,8 @@ export class CharacterRenderer {
 
     const v = moving ? ch.speed : 0;
     const k = clamp01(v / 1.2), run = clamp01((v - 3.2) / 3.2);
-    const crouch = alive && !sp && !downed && (ch.crouch || ch.vault) ? 1 : 0;
+    const prone = alive && !sp && !downed && !ch.swim && !ch.dive && ch.prone ? 1 : 0; // data/stance.js: flat on the belly, gun forward
+    const crouch = alive && !sp && !downed && !prone && (ch.crouch || ch.vault || ch.stoop) ? 1 : 0; // stoop: a cabin lower than you stand
     const aim = alive && !!gm && ch.aiming && !ch.handsUp && !(infected) && !downed && !ch.vault;
     const limp = infected ? (ch.limp ?? (i % 5 < 2 ? (i % 2 ? 1 : -1) : 0)) : 0; // ~40% of the infected drag a leg
     const phase = ch.walk * dirSign;
@@ -474,13 +500,19 @@ export class CharacterRenderer {
     if (lying) {
       tgt[0].set(0.2, ANKLE_Y, 0.02); tgt[1].set(-0.12, 0.34, 0.32); // one knee up
     }
+    if (prone) { // the legs out flat behind the hips, a crawl's knee drawn up on alternate sides
+      hipY = PRONE_HIP;
+      const cr = moving ? Math.sin(ch.walk * 1.6) * 0.18 : 0;
+      tgt[0].set(0.11, ANKLE_Y * 0.6, -0.8 + Math.max(0, cr)); tgt[1].set(-0.09, ANKLE_Y * 0.6, -0.82 + Math.max(0, -cr));
+      footPitch[0] = footPitch[1] = 1.2;
+    }
     if (ch.swim || ch.underwater) {
       const kick = Math.sin(ch.walk * 3) * 0.12;
       tgt[0].set(0.14, ANKLE_Y + 0.05, kick); tgt[1].set(-0.14, ANKLE_Y + 0.05, -kick);
     }
     // The pelvis rides on the stance leg: it dips when the feet are far apart, so a planted boot
     // stays planted instead of floating at the end of each stride.
-    if (moving && !crouch) hipY = Math.min(hipY, ANKLE_Y + Math.sqrt(Math.max(0, 0.832 * 0.832 - stanceZ * stanceZ)));
+    if (moving && !crouch && !prone) hipY = Math.min(hipY, ANKLE_Y + Math.sqrt(Math.max(0, 0.832 * 0.832 - stanceZ * stanceZ)));
     _pole.set(0, 0, 1);
     for (let s = 0; s < 2; s++) {
       const side = SIDE[s];
@@ -509,6 +541,7 @@ export class CharacterRenderer {
     if (bike && aim && sp) twist = wrap(ch.face - sp.h); // the rider turns at the waist to shoot any way
     if (sp?.twist) twist += sp.twist;   // shooting from the saddle: the upper body turns, the legs stay on the machine
     if (ch.swim || ch.underwater) lean = 0;
+    if (prone) { lean = PRONE_LEAN; twist = wrap(ch.face - (ch.proneH ?? ch.face)); headTilt = 0; } // the chest on the ground, turned to the gun
     _U.makeTranslation(0, hipY + WAIST_UP, 0);
     if (twist) _U.multiply(_r.makeRotationY(twist));
     if (lean) _U.multiply(_r.makeRotationX(lean));
@@ -516,21 +549,22 @@ export class CharacterRenderer {
     M.torso.setMatrixAt(i, _g);
     const headless = ch.headless;
     // The head stays level when the body leans (eyes on the road), and lolls on the infected.
-    _t.makeTranslation(0, HEAD_UP, 0).multiply(_r.makeRotationX(-lean * 0.6));
+    _t.makeTranslation(0, near ? L.headUp : HEAD_UP, 0).multiply(_r.makeRotationX(-lean * 0.6));
     if (headTilt) _t.multiply(_r.makeRotationZ(headTilt));
+    if (near) _t.multiply(L.hatScale); // hats, hair, scars and accessories sized to the LSW head
     const headFrame = _H.multiplyMatrices(_g, _t);
     if (headless) { M.head.setMatrixAt(i, ZERO); M.face.setMatrixAt(i, ZERO); }
     else { M.head.setMatrixAt(i, headFrame); M.face.setMatrixAt(i, headFrame); }
     const c = ch.colors;
     if (!headless) {
       const hat = c.hatStyle ?? 'short';
-      if (hat !== 'bald' && M[`hat_${hat}`]) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
+      if (hat !== 'bald' && M[`hat_${hat}`] && !(near && L.ownsHair(ch))) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
       const acc = c.accStyle ?? 'none';
       if (acc !== 'none' && M[`acc_${acc}`]) this.put(`acc_${acc}`, headFrame, 0, 0, 0, 0, acc === 'mask' ? c.mask ?? '#6a2a1e' : '#2a2622');
       if (c.scar && M[`scar_${c.scar}`]) this.put(`scar_${c.scar}`, headFrame, 0, 0, 0, 0, c.scarColor ?? '#d9a58a');
     }
     const gear = c.gearStyle ?? 'none';
-    if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');
+    if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, near ? _GS.multiplyMatrices(_g, L.gearScale) : _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');
 
     // ---- arms ----------------------------------------------------------------------------------
     // Targets are set in the upper-body frame, then everything is solved in the root frame.
@@ -548,15 +582,25 @@ export class CharacterRenderer {
     else if (gm && gm.carry === 'low') mode = 'low';
     ch._pose = mode; // what the arms are doing (the selftest reads it)
     let gunKey = null, gunHand = false;
+    // The dominant hand: fh holds the gun (1 = the right, -x), sup supports; hs mirrors a lefty's carry across the body.
+    const lefty = ch.hand === 'L', fh = lefty ? 0 : 1, sup = 1 - fh, hs = lefty ? -1 : 1;
+    let aimX = 0, aimY = AIM_Y, aimYaw = 0;
     for (let s = 0; s < 2; s++) sh[s].set(SIDE[s] * SHOULDER_X, SHOULDER_UP, 0);
     const ikArm = (s, x, y, z) => { tgt[s].set(x, y, z); };
     let useIK = true;
     switch (mode) {
       case 'aim': {
-        ikArm(1, -0.03, AIM_Y - 0.01, gm.grip);
+        // The gun at the side (data/arms.js CARRY): off the centre line on the dominant side, toed in to the aim point.
+        const long = gm.carry === 'low', one = ch.oneHand && !long;
+        const lat = long ? CARRY.longGun.lateral : one ? CARRY.pistolOneHand.lateral : CARRY.pistolTwoHand.lateral;
+        aimX = -hs * lat;
+        if (one) aimY = Math.min(AIM_Y, CARRY.pistolOneHand.height - hipY - WAIST_UP);
+        aimYaw = hs * Math.min(CARRY.toeInMax * Math.PI / 180, Math.atan2(lat, ch.aimD ?? CARRY.toeInDefault));
+        ikArm(fh, aimX, aimY - 0.01, gm.grip);
         // One hand (systems/arms.js): the support hand drops to the side; two hands: it cups the grip or the fore-end.
-        if (ch.oneHand) ikArm(0, SIDE[0] * 0.36, 0.06, 0.08);
-        else ikArm(0, gm.support === gm.grip ? 0.03 : 0.02, AIM_Y, gm.support);
+        if (ch.oneHand) ikArm(sup, SIDE[sup] * 0.36, 0.06, 0.08);
+        else ikArm(sup, aimX + hs * (gm.support === gm.grip ? 0.06 : 0.05), aimY, gm.support);
+        ch._gunX = aimX; // the selftest reads it (the gun at the side)
         gunKey = model;
         break;
       }
@@ -579,9 +623,9 @@ export class CharacterRenderer {
       }
       case 'low': {
         // Low ready: the gun across the body, muzzle down and to the left, finger off the trigger.
-        _X.set(0.3, -0.4, 0.87).normalize();
-        ikArm(1, -0.12, 0.14, 0.22);
-        ikArm(0, -0.12 + _X.x * (gm.support - gm.grip + 0.06), 0.14 + _X.y * (gm.support - gm.grip + 0.06), 0.22 + _X.z * (gm.support - gm.grip + 0.06));
+        _X.set(0.3 * hs, -0.4, 0.87).normalize();
+        ikArm(fh, -0.12 * hs, 0.14, 0.22);
+        ikArm(sup, -0.12 * hs + _X.x * (gm.support - gm.grip + 0.06), 0.14 + _X.y * (gm.support - gm.grip + 0.06), 0.22 + _X.z * (gm.support - gm.grip + 0.06));
         gunKey = model;
         break;
       }
@@ -641,7 +685,7 @@ export class CharacterRenderer {
       this.seg(M.upper, j, _g, sh[s], el[s]);
       const fm = this.seg(M.fore, j, _g, el[s], hand[s]);
       M.hand.setMatrixAt(j, fm);
-      if (gunHand && s === 1) {
+      if (gunHand && s === fh) {
         // The revolver in the right fist: grip at the hand, barrel along the forearm, tipped forward.
         _t.makeTranslation(0, -FORE, 0).multiply(_r.makeRotationX(1.25));
         const key = `gun_${gunKey}`;
@@ -649,15 +693,21 @@ export class CharacterRenderer {
       }
     }
     if (gunKey && !gunHand) {
-      if (mode === 'aim') this.put(`gun_${gunKey}`, _g, 0, AIM_Y, gm.grip, -lean, null); // level, even from a crouch
+      if (mode === 'aim') this.put(`gun_${gunKey}`, _g, aimX, aimY, gm.grip, -lean, null, aimYaw); // level, even from a crouch; at the side
       else if (mode === 'melee') this.put(`gun_${gunKey}`, _g, 0, AIM_Y + 0.04, 0.2 + 0.36 * (ch._buttExt ?? 0), -lean, null); // the butt-stroke
       else {
         // Low ready: orient the gun along its carry line through the right hand.
-        _Z.set(0.3, -0.4, 0.87).normalize(); _X.crossVectors(_v.set(0, 1, 0), _Z).normalize(); _Y.crossVectors(_Z, _X);
-        _t.makeBasis(_X, _Y, _Z).setPosition(-0.12, 0.14, 0.22);
+        _Z.set(0.3 * hs, -0.4, 0.87).normalize(); _X.crossVectors(_v.set(0, 1, 0), _Z).normalize(); _Y.crossVectors(_Z, _X);
+        _t.makeBasis(_X, _Y, _Z).setPosition(-0.12 * hs, 0.14, 0.22);
         const key = `gun_${gunKey}`, k2 = this.packed[key]++;
         M[key].setMatrixAt(k2, _m.multiplyMatrices(_g, _t));
       }
+    }
+    if (near) {
+      // Which hands are closed on something: the gun hand (and the support hand on a two-hand hold), bars, a tool, fists.
+      const both = mode === 'low' || mode === 'bars' || mode === 'work' || mode === 'melee' || (mode === 'aim' && !ch.oneHand);
+      _grip[0] = both || ((mode === 'aim' || gunHand) && fh === 0) ? 1 : 0; _grip[1] = both || ((mode === 'aim' || gunHand) && fh === 1) ? 1 : 0;
+      if (L.drive(ch, _LF, hipY, hip, knee, ankle, footPitch, _g, headFrame, el, hand, useIK, gunHand ? fh : -1, _grip)) this.hideSlot(i); // the classic body steps aside; hats, gear and guns stay
     }
   }
 
@@ -682,13 +732,16 @@ const STYLE = {
   player: { hats: ['cap'], gear: ['vest'], acc: ['none'], bare: 0 },
 };
 // The infected wear what they turned in: civilian, worker and soldier clothes, torn and stained.
-const INFECTED_SHIRTS = ['#4a4038', '#3d4248', '#5a4a3a', '#6a5a4a', '#7a5a2a', '#4a4f38', '#6b6048', '#5a3a3a'];
+// From above a herd must read as people, not one brown blob: a spread of values and hues (faded denim, a white work shirt
+// gone grey, hospital scrubs, a faded hi-vis vest, mustard, black), never purple.
+const INFECTED_SHIRTS = ['#4a4038', '#3d4248', '#5a4a3a', '#7a5a2a', '#4a4f38', '#5a3a3a', '#5b7088', '#8a95a0', '#b8b2a4', '#4f8a84', '#a8742a', '#b0a052', '#262422', '#c46a2a', '#6a7a5a'];
+const INFECTED_PANTS = ['#2e2c28', '#3a3630', '#3e4a52', '#4a4f38', '#4f6680', '#8a7a5a', '#5a5248', '#1e1c1a'];
 
 export function outfit(faction, rng = Math.random) {
   const pick = (a) => a[Math.floor(rng() * a.length)];
   if (faction === 'zombie') return {
-    skin: pick(['#8a9a74', '#7d8a6a', '#9a9f86', '#6f7a5e', '#a3a08a', '#8a8070']), hair: pick(['#2a2a24', '#4a463c', '#6a665a', '#1b1410']),
-    shirt: pick(INFECTED_SHIRTS), pants: pick(['#2e2c28', '#3a3630', '#3e4a52', '#4a4f38']), boots: pick(BOOTS),
+    skin: pick(['#8a9a74', '#7d8a6a', '#9a9f86', '#6f7a5e', '#a3a08a', '#8a8070', '#6a5a4a', '#4f4236', '#b0a898']), hair: pick(['#2a2a24', '#4a463c', '#6a665a', '#1b1410', '#8a7a5a', '#a09a8a', '#5a3a22']),
+    shirt: pick(INFECTED_SHIRTS), pants: pick(INFECTED_PANTS), boots: pick(BOOTS),
     hat: pick(['#3a3630', '#4a4f38']), hatStyle: pick(['short', 'short', 'long', 'bald', 'beanie', 'cap', 'helmet']), gearStyle: pick(['none', 'none', 'none', 'none', 'pack']), gear: '#2a2622',
     accStyle: 'none', sleeves: rng() < 0.6 ? 'short' : 'long',
   };

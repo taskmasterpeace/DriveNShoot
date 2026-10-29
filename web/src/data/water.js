@@ -40,7 +40,7 @@ export const WATER = {
     washBed: '#b39d79', washLip: '#76593e',                                         // a wash's pale bed, its dark cut lip
     // A region's water by kind (world/regions.js WK: 1 swamp, 2 canal, 3 lagoon, 4 ocean), shallow -> deep (over 2.2 m;
     // the ocean over 6 m): tea-dark swamp water, a canal, the lagoon, the sea (Florida's, docs/design/WEB_FLORIDA.md).
-    region: { 1: ['#4a4a2c', '#1d2518'], 2: ['#465236', '#1c2e26'], 3: ['#3d6f68', '#1c4648'], 4: ['#4f8e90', '#16445e'] } },
+    region: { 1: ['#4a4a2c', '#1d2518'], 2: ['#465236', '#1c2e26'], 3: ['#3d6f68', '#1c4648'], 4: ['#3b8580', '#0d3a40'] } },
   flow: 0.9,                // m/s: how fast the ripples run downstream (0.3-2)
 
   // ---- where water may stand (the bake clips, the validator warns, the engine never carves inside these)

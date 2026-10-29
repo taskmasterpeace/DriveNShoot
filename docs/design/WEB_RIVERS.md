@@ -235,6 +235,8 @@ of 5.1 m over 191 m has curvature 6 · 5.1 / 191² = 8.4e-4 per metre, v² κ = 
 | Materials / destruction (another agent) | each deck's `hp`, `hpMax`, `state` and the `bridge` event | what a blown deck does |
 | `agent/api.js` | `water` (replaces the island-only row, same answers there), `rivers`, `bridges`; the checks run before devtools' | `C`, `check`, `need` |
 
+- **WEB_WILDS** (`systems/outdoors.js waterKind`) asks this authority what water is where to fish it (depth >= 0.45 m to cast; the body's kind picks the fish) and where a fish trap or net may sink.
+
 ## 7. Tuning Knobs
 
 All in `web/src/data/water.js` (WATER).
@@ -312,3 +314,6 @@ machine's shared RTX 4090 with other agents' browsers running.
 `colorado-bridge-low.jpg`, `wash-culvert.jpg` (the Hassayampa's dry wash under I-10), `wash-bed-low.jpg`,
 `colorado-ford.jpg`, `riverbank-night.jpg`, `san-pedro-bridge.jpg`, `terrain-colorado-viaduct.jpg`,
 `terrain-hassayampa-viaduct.jpg`, `salton-sea.jpg`, and `l1-water-map.svg` (the corridor with every channel).
+
+
+**Used by WEB_WATER_LIFE (2026-10-28):** world/waves.js reads `sample()` (the L1 kind and its flow tangent `tx, tz`) for the wave kind and the river current; it lifts and shades the streamed sheets through `streamMat` (chained after this doc's colouring). `depthAt` stays the authority; Gull Key adds `EXT.dry` in world/water.js.

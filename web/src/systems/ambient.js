@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { TRACK_Y, layerMesh } from '../engine/depthlayers.js';
 import { roadLines } from '../world/city.js';
 
 // Ambient detail: the small things that make the wasteland feel lived-in and reactive.
@@ -51,7 +52,7 @@ export class Ambient {
     const scene = game.scene;
     // Tyre tracks: faint darker sand, slightly transparent so they read as impressions.
     this.tracks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#5e4228', transparent: true, opacity: 0.28, depthWrite: false }), TRACK_MAX);
-    this.tracks.frustumCulled = false; this.tracks.renderOrder = 1;
+    this.tracks.frustumCulled = false; layerMesh(this.tracks, 'groundDecal'); // engine/depthlayers.js
     for (let i = 0; i < TRACK_MAX; i++) { _o.position.set(0, -50, 0); _o.scale.set(0.001, 1, 0.001); _o.updateMatrix(); this.tracks.setMatrixAt(i, _o.matrix); }
     this.tNext = 0;
     scene.add(this.tracks);
@@ -139,7 +140,7 @@ export class Ambient {
         const fx = Math.sin(v.h), fz = Math.cos(v.h), half = v.bike ? 0 : v.wid * 0.38;
         for (const s of v.bike ? [0] : [-1, 1]) for (const ax of v.bike ? [0.3] : [0.35, -0.35]) {
           const x = v.x + fx * v.len * ax + fz * s * half, z = v.z + fz * v.len * ax - fx * s * half;
-          _o.position.set(x, 0.035 + (this.tNext % 5) * 0.001, z); _o.rotation.set(0, v.h, 0); _o.scale.set(v.bike ? 0.18 : 0.3, 1, 1.05); _o.updateMatrix();
+          _o.position.set(x, TRACK_Y + (g.fx.ground?.(x, z) ?? 0), z); // over every road layer, on the land (engine/depthlayers.js) _o.rotation.set(0, v.h, 0); _o.scale.set(v.bike ? 0.18 : 0.3, 1, 1.05); _o.updateMatrix();
           this.tracks.setMatrixAt(this.tNext, _o.matrix); this.tNext = (this.tNext + 1) % TRACK_MAX; this.laid = (this.laid ?? 0) + 1;
         }
         wrote = true;
@@ -157,8 +158,9 @@ export class Ambient {
     for (const s of this.shells) {
       if (!s || s.rest) continue;
       s.vy -= 22 * dt; s.x += s.vx * dt; s.z += s.vz * dt; s.y += s.vy * dt; s.rot += s.spin * dt;
-      if (s.y < 0.04) {
-        s.y = 0.04;
+      const fl = (g.fx.ground?.(s.x, s.z) ?? 0) + 0.04; // the land under it (real terrain)
+      if (s.y < fl) {
+        s.y = fl;
         if (Math.abs(s.vy) < 1.2) { s.rest = true; s.vx = s.vz = 0; }
         else { s.vy *= -0.35; s.vx *= 0.5; s.vz *= 0.5; s.spin *= 0.6; if (Math.random() < 0.3 && Math.hypot(s.x - p.x, s.z - p.z) < 16) g.audio.clink?.(g.pan(s.x)); }
       }

@@ -3,6 +3,7 @@ import { stridePhase } from './characters.js';
 import { angleLerp } from '../engine/rng.js';
 import { MAX_FACTIONS } from './factions.js';
 import { TOWN_NIGHT } from '../data/survival.js';
+import { LEAD } from '../data/ballistics.js';
 
 const NO_BEDS = [];
 // Floor spots tried around home, nearest first: a body lies along z (2 m), so rows sit 1.2 m apart across and 2.2 along.
@@ -30,7 +31,7 @@ export class AI {
       const along = ox * fx + oz * fz;
       if (along <= 0.3 || along >= d) continue;
       if (Math.abs(ox * fz - oz * fx) >= (o.radius ?? 0.45) + 0.4) continue;
-      if (o === c || o === t || !o.alive || o.inVehicle || o.hidden || this.hostile(c, o)) continue;
+      if (o === c || o === t || !o.alive || o.inVehicle || o.hidden || (o.ug ?? null) !== (c.ug ?? null) || this.hostile(c, o)) continue; // a floor of earth between: not in the way
       return false;
     }
     return true;
@@ -38,6 +39,8 @@ export class AI {
 
   hostile(a, b) {
     if (!a.alive || !b.alive || a === b) return false;
+    if (b.captive || a.captive) return false; // tied up at a camp (systems/crew.js): nobody's fight until cut loose
+
     // The dead hunt every living thing; anyone armed (and the player) fights them.
     if (a.faction === 'zombie') return b.faction !== 'zombie';
     if (b.faction === 'zombie' || b.faction === 'grapevine') return !!a.weapon || a === this.g.player; // the Grapevine too (systems/grapevine.js)
@@ -61,10 +64,11 @@ export class AI {
   // quiet: the caller already recorded the deed (a carjack is not also an assault).
   onDamaged(c, attacker, quiet = false) {
     c.hitAt = this.g.time; // a resident hit in the last seconds is never demoted out from under you (systems/residents.js)
+    if (c.faction === 'zombie') this.g.zombies?.onHurt(c, attacker === c ? null : attacker); // legs, falls, which way it came from (systems/zombies.js)
     if (c.sleeping) this.wake(c, 'hurt');
     if (!attacker || attacker === c || c === this.g.player) return;
     if (!quiet) this.g.society?.deeds.onHurt(c, attacker); // witnesses decide whether the law hears of it
-    if (c.faction === 'zombie') { if (attacker.alive) c.ztarget = attacker; return; } // the dead don't flee
+    if (c.faction === 'zombie') return; // the dead don't flee; what they know of the attacker is zombies.onHurt's (law 6: a direction, not a position)
     if (c.faction !== attacker.faction || attacker === this.g.player) c.grudge = attacker;
     if (c.weapon) { c.target = attacker; c.state = 'fight'; }
     else { c.flee = 8; c.fleeX = attacker.x; c.fleeZ = attacker.z; }
@@ -79,8 +83,9 @@ export class AI {
 
   // Gunfire is heard: civilians scatter, fighters investigate.
   onNoise(x, z, r, src) {
+    if (src?.weapon) this.g.tactics?.onShot(src); // rounds passing close pin people down (systems/tactics.js suppression)
     for (const c of this.g.chars) {
-      if (!c.alive || c === this.g.player || c === src || c.inVehicle) continue;
+      if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug) continue; // below the street: it never reaches them (systems/underground.js)
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r) continue;
       if (c.sleeping) { if (d > r * TOWN_NIGHT.hearAsleep) continue; this.wake(c, 'a noise'); } // asleep: half an ear
@@ -157,6 +162,11 @@ export class AI {
 
   move(c, dx, dz, speed, dt) {
     if (c.perch) { c.speed = 0; return; } // a sentry on a tower deck turns and shoots, but never steps off it
+    if (c.ug && this.g.under) { // below the street: the level's own grid round its walls, a flight's pace (systems/underground.js)
+      const w = this.g.under.waypoint(c, c.x + dx, c.z + dz);
+      if (w) { dx = w.x - c.x; dz = w.z - c.z; }
+      speed *= this.g.under.speedMul(c);
+    }
     const len = Math.hypot(dx, dz);
     if (len < 0.001) { c.speed = 0; return; }
     dx /= len; dz /= len;
@@ -189,6 +199,7 @@ export class AI {
   // 1.2 m. The dead never go deeper once past 0.6 m: the rule used to be "don't cross the waterline",
   // so a crowd shoving one of the infected 1 cm past it freed it to walk out into the lake after its prey.
   wades(c, x, z) {
+    if (c.ug) return false; // below the street the water is the drains' (systems/understreet.js carries them in it)
     const w = this.g.water;
     if (!w || (x <= 290 && x >= -464 && z >= -464 && z <= 464)) return false; // the island's water is all east of x 290; the streamed world's is anywhere
     const d = w.depthAt(x, z), d0 = w.depthAt(c.x, c.z);
@@ -202,14 +213,63 @@ export class AI {
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
       // A coat that breaks your outline (systems/gear.js seenMul): they have to be closer to pick you out.
-      if (d < bd * (o.crouch ? 0.6 : 1) * (o === this.g.player ? this.g.gear?.seenMul() ?? 1 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
+      // Prone (systems/stance.js, D2): 0.25x in the open, unseen past 12 m in grass or cover, never past a deck's rail.
+      const seenAt = o.prone && this.g.stance ? this.g.stance.seenRange(o, bd, 0.6, c.x, c.z, c) : bd * (o.crouch ? 0.6 : 1);
+      if (d < seenAt * (o === this.g.player ? (this.g.gear?.seenMul() ?? 1) * (this.g.kit?.seenMul() ?? 1) : 1) && this.g.sees(c, o)) { bd = d; best = o; }
     }
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
+  }
+
+  // ---- leading a moving target (docs/design/WEB_BALLISTICS.md §3.4) ------------------------------------------------
+  // watch: every frame c SEES t (the same sight it shoots by). It keeps a velocity smoothed out of the positions it saw;
+  // a new target, or half a second out of sight, starts the estimate over. The error it will lead with is rolled here
+  // every 0.4 s (LEAD.err, a person's own leadErr, worse when suppressed), so the aim does not twitch frame to frame.
+  watch(c, t, dt) {
+    if (!(dt > 0) || !t) return;
+    const W = (c._lead ??= { who: null, x: 0, z: 0, vx: 0, vz: 0, at: -1e9, age: 0, err: 1, errT: 0 });
+    const tx = t.inVehicle ? t.inVehicle.x : t.x, tz = t.inVehicle ? t.inVehicle.z : t.z, now = this.g.time;
+    if (W.who !== t || now - W.at > LEAD.forget) { W.who = t; W.x = tx; W.z = tz; W.vx = 0; W.vz = 0; W.at = now; W.age = 0; return; }
+    const a = Math.min(1, dt / LEAD.smooth);
+    W.vx += ((tx - W.x) / dt - W.vx) * a; W.vz += ((tz - W.z) / dt - W.vz) * a;
+    W.x = tx; W.z = tz; W.at = now; W.age += dt;
+    if ((W.errT -= dt) <= 0) { W.errT = 0.4; W.err = 1 + (Math.random() - 0.5) * 2 * (c.leadErr ?? LEAD.err) * (c.tac ? this.g.tactics.aimMul(c) : 1); }
+  }
+
+  // The heading to shoot along at t (seen at tx, tz) with a round of row `round`: where the velocity it watched puts them
+  // when the round arrives (their velocity less the shooter's own car's, which the round inherits), off by its error.
+  leadAngle(c, t, tx, tz, round) {
+    const W = c._lead, B = this.g.ballistics;
+    let ax = tx, az = tz;
+    if (W && W.who === t && W.age > 0.15 && B?.on && round) {
+      const pv = B.platformV(c), rvx = W.vx - (pv ? pv.vx : 0), rvz = W.vz - (pv ? pv.vz : 0);
+      if (Math.hypot(rvx, rvz) >= LEAD.minSpeed) {
+        let d = Math.hypot(tx - c.x, tz - c.z), lx = 0, lz = 0;
+        for (let k = 0; k < 2; k++) {
+          const tf = B.flightTime(round, d) ?? 0;
+          lx = rvx * tf * W.err; lz = rvz * tf * W.err;
+          const L = Math.hypot(lx, lz); if (L > LEAD.maxLead) { lx *= LEAD.maxLead / L; lz *= LEAD.maxLead / L; }
+          d = Math.hypot(tx + lx - c.x, tz + lz - c.z);
+        }
+        ax = tx + lx; az = tz + lz;
+      }
+    }
+    return Math.atan2(ax - c.x, az - c.z);
+  }
+
+  // Where c believes t is now, from what it last SAW (law 6, WEB_DEPTH_PLAN.md): the last sighting carried on along the
+  // motion it saw, for at most LEAD.coast s (a man who ducked behind a wall is shot at where he was heading, not where he
+  // is). With no sighting of t, (fx, fz): the caller's own last-known point. One object, reused.
+  seenAt(c, t, fx, fz) {
+    const W = c._lead, S = this._seen ??= { x: 0, z: 0, fresh: false };
+    if (W && W.who === t) { const k = Math.min(LEAD.coast, Math.max(0, this.g.time - W.at)); S.x = W.x + W.vx * k; S.z = W.z + W.vz * k; S.fresh = this.g.time - W.at < 0.1; }
+    else { S.x = fx; S.z = fz; S.fresh = false; }
+    return S;
   }
 
   update(dt) {
     const g = this.g;
     const chars = g.chars;
+    g.tactics?.beginFrame(); // the tactical plans this frame may run (systems/tactics.js: staggered, perFrame at most)
     // Stagger hostility scans: ~12 per frame.
     for (let k = 0; k < 12 && chars.length; k++) {
       this.scanIdx = (this.scanIdx + 1) % chars.length;
@@ -218,7 +278,10 @@ export class AI {
     }
 
     for (const c of chars) {
-      if (c === g.player || c.inVehicle) continue;
+      if (c === g.player) continue;
+      // A follower riding as a passenger: their window (or the roof turret, data/decks.js TURRET_SEAT). The driver is the
+      // vehicle AI's; everyone else in a seat just rides.
+      if (c.inVehicle) { if (c.follower && c.alive && c.inVehicle.driver !== c && !c.crewRec) g.seats.followThink(c, dt); continue; }
       if (!c.alive) {
         c.deadTime += dt;
         if (c.downedT > 0 && (c.downedT -= dt) <= 0) {
@@ -245,9 +308,14 @@ export class AI {
       // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
       // hold = true stays until cleared; a number counts down in seconds.
       if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
+      if (c.ugRole && g.under?.think(c, dt)) continue; // below the street: the holdout's posts and its drone (systems/underground.js)
       if (c.fauna) { g.regions?.think(c, dt); continue; } // an animal (systems/regions.js: FAUNA rows)
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.gv) { g.grapevine.think(c, dt); continue; } // a Grapevine pack's own mind (systems/grapevine.js)
+      if (c.occRec && g.workforce?.think(c, dt)) continue; // a settlement's worker: to the shift, the work, home (systems/workforce.js)
+      if ((c.pullRec || c.barRole) && g.pulls?.think(c, dt)) continue; // a road person walks their shoulder; a barkeep keeps the bar (systems/pulls.js)
+      if ((c.storyM || c.storyCamp || c.storyGarrison) && g.stories?.think(c, dt)) continue; // a party on the road, a camp, a fallen place's master (systems/sitestories.js)
+      if (c.crewRec && g.crew.think(c, dt)) continue; // your crew: orders, jobs, downed, drift (systems/crew.js)
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
       if (c.grabbing) { c.cool -= dt; continue; } // riding on a car: CarCombat drives them
@@ -256,7 +324,7 @@ export class AI {
       c.aiming = false;
 
       // Bleeding out leaves a trail.
-      if (c.bleed > 0.2 && Math.random() < dt * 4 * c.bleed) g.fx.decal(c.x, c.z, 0.25 + Math.random() * 0.3, '#5a0606');
+      if (c.bleed > 0.2 && Math.random() < dt * 4 * c.bleed) g.fx.decal(c.x, c.z, 0.25 + Math.random() * 0.3, '#5a0606', undefined, g.fx.onFloor(c));
 
       // A witness running home to tell it (systems/witnesses.js): runs at any distance, deaf to the rest.
       if (c.telling && g.witnesses.think(c, dt)) continue;
@@ -300,20 +368,24 @@ export class AI {
         }
         if (los && d < w.range * 0.9) {
           c.aiming = true;
-          const want = Math.atan2(tx - c.x, tz - c.z);
+          this.watch(c, t, dt); // what it sees of them moving (the lead's only source: no cheating)
+          const want = this.leadAngle(c, t, tx, tz, g.ballistics?.rowKey(w));
           c.face = angleLerp(c.face, want, Math.min(1, dt * 7));
           // Strafe a little so firefights move.
           c.strafeT = (c.strafeT || 0) - dt;
           if (c.strafeT <= 0) { c.strafeT = 0.8 + Math.random() * 1.4; c.strafeDir = Math.random() < 0.5 ? -1 : 1; if (Math.random() < 0.3) c.strafeDir = 0; }
-          if (c.strafeDir) this.move(c, Math.cos(want) * c.strafeDir, -Math.sin(want) * c.strafeDir, 2.2, dt);
+          // Where to stand is the tactics brain's (cover, band, flank: systems/tactics.js); the old strafe is the fallback.
+          if (g.tactics?.fight(c, t, tx, tz, d, true, dt)) { /* moved by tactics */ }
+          else if (c.strafeDir) this.move(c, Math.cos(want) * c.strafeDir, -Math.sin(want) * c.strafeDir, 2.2, dt);
           else c.speed = 0;
           c.aiming = true;
           if (c.mag <= 0 && c.reloading <= 0) { c.reloading = w.reload * 1.3; }
+          else if (c.tac?.holdFire) { /* HOLD FIRE (a crew order) */ }
           else if ((c.react = (c.react ?? 0) - dt) <= 0 && c.cool <= 0 && c.reloading <= 0 && Math.abs(angleLerp(c.face, want, 1) - c.face) < 0.3 && (this.clearShot(c, t, want, d) || (c.strafeT = 0, false))) {
             // AI is deliberately worse than the player: reaction delay, burst discipline,
             // spread that grows with range and with a moving target.
             const tMoving = (t.inVehicle ? g.vehiclesSys.speed(t.inVehicle) : t.speed) > 2;
-            const sloppy = 0.1 + d * 0.006 + (tMoving ? 0.1 : 0);
+            const sloppy = (0.1 + d * 0.006 + (tMoving ? 0.1 : 0)) * (c.tac ? g.tactics.aimMul(c) : 1); // suppressed: worse aim
             if (g.combat.fire(c, c.weapon, c.face + (Math.random() - 0.5) * sloppy)) {
               c.mag--;
               if (w.auto) {
@@ -322,8 +394,18 @@ export class AI {
               } else c.cool = w.rate * 2.6 + Math.random() * 0.4;
             }
           }
+        } else if (!(t.storey || c.storey) && g.tactics?.fight(c, t, tx, tz, d, los, dt)) {
+          // Out of sight or out of range: the tactics brain moves them (flank, bound, cover in band). The pinning element
+          // keeps the target's head down: rounds at the cover they went behind (suppressive fire).
+          const U = c.tac;
+          if (!los && U && !U.holdFire && d < w.range * 0.9 && c.mag > 0 && c.cool <= 0 && c.reloading <= 0 && U.lastX && g.tactics.suppressive(c)) {
+            const S = this.seenAt(c, t, U.lastX, U.lastZ), ang = Math.atan2(S.x - c.x, S.z - c.z); // where they were heading (law 6)
+            c.aiming = true; c.face = angleLerp(c.face, ang, Math.min(1, dt * 7));
+            if (Math.abs(angleLerp(c.face, ang, 1) - c.face) < 0.3 && g.combat.fire(c, c.weapon, c.face + (Math.random() - 0.5) * 0.18)) { c.mag--; c.cool = w.rate * 3 * 1.6 + Math.random() * 0.5; }
+          }
         } else {
           const wp = t.inVehicle ? null : g.storeys.steer(c, tx, tz, t.gy ?? 0); // upstairs (or down): by the stairs
+
           if (wp) this.move(c, wp.x - c.x, wp.z - c.z, 4.6, dt);
           else this.move(c, tx - c.x, tz - c.z, 4.6, dt);
         }
@@ -339,6 +421,9 @@ export class AI {
       if (c.bed && !this.night()) { if (c.bed.by === c.id) c.bed.by = null; c.bed = null; } // the claim ends with the night
       // A base's soldiers keep their posts, walk their patrols, close on a trespasser (systems/bases.js).
       if (c.baseId && g.bases?.think(c, dt)) continue;
+      if (c.mbId && g.milbases?.think(c, dt)) continue; // a generated base's garrison (systems/milbases.js)
+      // A hunter or a skip tracer on somebody's trail works their sign (systems/outdoors.js trailStep).
+      if (c.trailing && g.outdoors?.trailStep(c, dt)) continue;
       // Idle wander.
       c.timer -= dt;
       const dh = Math.hypot(c.wx - c.x, c.wz - c.z);

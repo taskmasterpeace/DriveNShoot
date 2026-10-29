@@ -201,7 +201,7 @@ export class VehicleDamage {
     const leak = d.tank < 0.65 ? (0.65 - d.tank) * 1.2 * dt : 0;
     v.fuel = Math.max(0, v.fuel - burn - leak);
     if (leak > 0) { d.trailT = (d.trailT ?? 0) - dt; if (d.trailT <= 0) { d.trailT = 0.18; g.fx.decal(v.x - Math.sin(v.h) * v.len * 0.45, v.z - Math.cos(v.h) * v.len * 0.45, 0.35 + Math.random() * 0.2, '#1c1a14'); g.fuelTrail?.push({ x: v.x, z: v.z, t: g.time }); } }
-    if (v.fuel <= 0) power = 0;
+    if (v.fuel <= 0 && !v.noEngine) power = 0; // a raft or a ferry is poled or hauled, not fuelled (data/sealife.js)
     // Tyres: flats cost grip, pull the steering, cap speed, throw sparks off the rim.
     let grip = 1, pull = 0, top = 1;
     const flat = v.utility?.runflat ? 0.4 : 1; // run-flat inserts: a blown tyre still rolls (data/workshop.js UTILITY)
@@ -233,6 +233,7 @@ export class VehicleDamage {
     v.dmg.off = {}; v.dmg.temp = 0; v.dmg.dirty = true; v.dmg.deformT = 0;
     if (v.baseCol) v.mesh.geometry.attributes.color.array.set(v.baseCol);
     v.hp = v.maxHp;
+    this.g.look?.clean(v); // a garage repair washes the dust and mud off too (systems/lookfeel.js)
   }
 
   update(dt) {

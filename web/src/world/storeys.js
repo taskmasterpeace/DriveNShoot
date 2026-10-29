@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
+import { STEP } from '../engine/depthlayers.js';
 import { Hasher } from './geo.js';
 import { STOREY, FLIGHT, RAIL, WINDOWS, LEVEL, RISE, UPSTAIRS, QUARTERS } from '../data/storeys.js';
 import { ROOMS, SCATTER } from '../data/floorplans.js';
@@ -39,17 +40,49 @@ export class Storeys {
     this.mesh = null;
     this.viewS = null; this.viewL = -1;
     this.boxes = 0;
+    this.ext = null; this.extN = 0; // generated settlements' records (systems/citygen.js addExt): S.cg, drawn by ext
+  }
+
+  // A generated building's record (systems/citygen.js: world/citygen/build.js makes it in this file's shape - b, n, Y,
+  // flights, ix0..iz1) joins the grid, so heightAt/levelOf/sameFloor/steer/setView take it as their own. Not in `list`
+  // (the island's buildings, its hash and the storeys command stay as they were).
+  addExt(S) {
+    const b = S.b;
+    for (let cx = Math.floor(b.minX / CELL); cx <= Math.floor(b.maxX / CELL); cx++)
+      for (let cz = Math.floor(b.minZ / CELL); cz <= Math.floor(b.maxZ / CELL); cz++) {
+        const k = `${cx},${cz}`;
+        if (!this.grid.has(k)) this.grid.set(k, []);
+        this.grid.get(k).push(S);
+      }
+    this.extN++;
+  }
+  removeExt(S) {
+    const b = S.b;
+    for (let cx = Math.floor(b.minX / CELL); cx <= Math.floor(b.maxX / CELL); cx++)
+      for (let cz = Math.floor(b.minZ / CELL); cz <= Math.floor(b.maxZ / CELL); cz++) {
+        const L = this.grid.get(`${cx},${cz}`);
+        const i = L ? L.indexOf(S) : -1;
+        if (i >= 0) L.splice(i, 1);
+      }
+    this.extN--;
   }
 
   // ---- building ------------------------------------------------------------------------------------------------------
   build() {
     const g = this.g, W = g.world;
+    // Downtown's tower (data/storeys.js RISE.ruins.tower): the biggest rising building of the ruins goes up to six storeys
+    // (WEB_CITYGEN.md §3.3). Its own rng stream is read exactly as before; only n changes, so the island hash holds.
+    const towers = W.buildings.filter((b) => b.district === 'ruins' && b.enterable && !b.ruined && b.roofIdx?.length && !b.noRise && riseOf(b))
+      .sort((a, b) => (b.maxX - b.minX) * (b.maxZ - b.minZ) - (a.maxX - a.minX) * (a.maxZ - a.minZ));
+    let towerDone = !RISE.ruins.tower;
     for (const b of W.buildings) {
       if (!b.enterable || b.ruined || !b.roofIdx?.length || b.noRise) continue; // noRise: city.js found no room for a stair hall
       const rise = riseOf(b);
       if (!rise) continue;
-      const { rng, n } = rise;
-      const S = this.plan(b, n, rng);
+      let { rng, n } = rise;
+      if (!towerDone && towers.slice(0, 4).includes(b)) { n = RISE.ruins.tower; b.tower = true; }
+      let S = this.plan(b, n, rng);
+      if (b.tower) { if (S) towerDone = true; else { b.tower = false; const r2 = riseOf(b); rng = r2.rng; n = r2.n; S = this.plan(b, n, rng); } }
       if (!S) continue; // no wall has room for a staircase clear of doors, the partition and the furniture
       this.raise(S, rng);
       this.list.push(S);
@@ -232,7 +265,7 @@ export class Storeys {
     // ---- floors: a slab over the footprint with the arriving flight's hole left open (visual; the deck is heightAt).
     const slabCol = b.district === 'town' ? '#6b5543' : '#5a524a'; // boards in town, concrete in the ruins: a floor, not more wall
     for (let k = 1; k <= n; k++) {
-      const hole = S.flights[k - 1], y = Y[k] - STOREY.slab / 2;
+      const hole = S.flights[k - 1], y = Y[k] - STOREY.slab / 2 + STEP / 2; // drawn half a depth step proud of the wall tops it overlaps, under the floor finishes (engine/depthlayers.js)
       const x0 = S.ix0, x1 = S.ix1, z0 = S.iz0, z1 = S.iz1;
       const rect = (a, bb, c, d) => { if (bb - a > 0.05 && d - c > 0.05) vis((a + bb) / 2, y, (c + d) / 2, bb - a, STOREY.slab, d - c, slabCol, k); };
       rect(x0, x1, z0, hole.minZ); rect(x0, x1, hole.maxZ, z1);
@@ -417,12 +450,12 @@ export class Storeys {
       if (dd < bd) { bd = dd; best = hy; }
     }
     if (best !== null) return best;
-    if (x < S.ix0 || x > S.ix1 || z < S.iz0 || z > S.iz1) return 0;
+    if (x < S.ix0 || x > S.ix1 || z < S.iz0 || z > S.iz1) return S.y0 ?? 0; // y0: the street floor of a building on raised ground (citygen on real terrain)
     for (let k = S.n; k >= 1; k--) {
       const hole = S.flights[k - 1];
       if (y > S.Y[k] - 2.2 && !(x >= hole.minX && x <= hole.maxX && z >= hole.minZ && z <= hole.maxZ)) return S.Y[k];
     }
-    return 0;
+    return S.y0 ?? 0;
   }
 
   levelOf(S, y) {
@@ -433,7 +466,12 @@ export class Storeys {
 
   // Two people share a floor: outside these buildings, always (the old flat rule: dunes, ramps and bridges unchanged).
   sameFloor(a, b) {
-    if (!this.list.length) return true;
+    // Under the street (systems/underground.js): the street and a level below never share a floor; two people below do
+    // when their feet are at one height.
+    const ua = a.ug ?? null, ub = b.ug ?? null;
+    if (ua !== ub) return false;
+    if (ua) return Math.abs((a.gy ?? 0) - (b.gy ?? 0)) <= LEVEL.same;
+    if (!this.list.length && !this.extN) return true;
     const ay = a.gy ?? 0, by = b.gy ?? 0;
     if (Math.abs(ay - by) <= LEVEL.same) return true;
     return !(this.at(a.x, a.z) || this.at(b.x, b.z));
@@ -442,11 +480,15 @@ export class Storeys {
   // The point to head for to reach (tx, tz) at height ty, when the stairs are the way: on a flight, its far end; on a
   // floor, the end of the flight that leads toward the target's floor (its near landing first, then through it).
   steer(c, tx, tz, ty = 0) {
+    const u = this.g.under?.steer(c, tx, tz, ty); // down a hatch, along a level, up a flight (systems/underground.js)
+    if (u !== undefined) return u;
     if (!this.list.length) return null;
     const S = this.at(c.x, c.z), cy = c.gy ?? 0;
     if (!S) return null;
     const want = this.at(tx, tz) === S ? ty : 0; // a target outside is on the street
-    if (Math.abs(want - cy) < LEVEL.same) return null;
+    // On the target's floor already: nothing to steer (on a flight between its ends is not on a floor, however near the top)
+    const onFlight = S.flights.some((f) => c.x >= f.minX && c.x <= f.maxX && c.z >= f.minZ && c.z <= f.maxZ && cy > f.from + 0.05 && cy < f.to - 0.05);
+    if (Math.abs(want - cy) < LEVEL.same && !onFlight) return null;
     const up = want > cy;
     for (const f of S.flights) {
       if (c.x < f.minX || c.x > f.maxX || c.z < f.minZ || c.z > f.maxZ) continue;
@@ -458,6 +500,9 @@ export class Storeys {
     const f = up ? S.flights[k] : S.flights[k - 1];
     if (!f) return null;
     const near = up ? f.bottomOut : f.topOut, far = up ? f.topOut : f.bottomOut;
+    // A generated building's flight (systems/citygen.js): up, come at its foot from the room side (its approach), never
+    // along the stair's own strips; once in the foot landing's column, straight on.
+    if (S.cg && up && f.approach && !(c.x > f.footBox.minX && c.x < f.footBox.maxX && c.z > f.footBox.minZ && c.z < f.footBox.maxZ)) return f.approach;
     if (Math.hypot(near.x - c.x, near.z - c.z) < 0.9) return up && f.entry ? f.entry : far; // a stair hall's foot: onto the first step square, then up
     // On the street floor of a planned building the stairs are in their own hall, rooms and doorways away: the way to
     // their foot is a route on the foot nav grid (kept a second, then asked again), not a straight line through the walls.
@@ -475,6 +520,18 @@ export class Storeys {
 
   // Inside S at height y: what is above that floor is not drawn (walls, floors, flights, furniture); leaving shows it all.
   setView(S, y) {
+    // A generated building (systems/citygen.js draws it): the same law, its own mesh. Leaving one for an island one (or
+    // the other way) shows the old one whole first.
+    if (S?.cg || this.viewS?.cg) {
+      const L = S ? Math.max(0, this.levelOf(S, y)) : -1;
+      if (S === this.viewS && L === this.viewL) return;
+      if (this.viewS?.cg) this.ext?.showAll(this.viewS);
+      else if (this.viewS && this.mesh) { for (const i of this.viewS.idx) this.place(this.mesh, i, this.items[i], true); this.mesh.instanceMatrix.needsUpdate = true; }
+      if (S && !S.cg) { this.viewS = null; this.viewL = -1; this.setView(S, y); return; }
+      if (S) this.ext?.view(S, L);
+      this.viewS = S; this.viewL = L;
+      return;
+    }
     const L = S ? Math.max(0, this.levelOf(S, y)) : -1;
     if (S === this.viewS && L === this.viewL) return;
     const M = this.mesh;

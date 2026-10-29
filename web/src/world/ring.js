@@ -13,6 +13,7 @@
 // the answer is the same when it is computed again.
 import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES, RESIDENTS, RES_RULES, YARD } from '../data/ring.js';
 import { C, hash32, rngOf } from './geo.js';
+import { wreckOf } from '../data/wrecks.js';
 import { H_NAMES, V_NAMES } from './city.js';
 import { floorplan, NavProbe } from './floorplan.js';
 import { ROOMS, PLAN_RULES } from '../data/floorplans.js';
@@ -405,7 +406,7 @@ export class Ring {
     if (L.geo) return L.geo;
     this.geoBuilt++;
     const K = KINDS[L.kind], Z = ZONES[L.zone], rng = rngOf(L.seed ^ 0x5bd1e995);
-    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [], flora: [], windows: [], innerDoors: [] });
+    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [], flora: [], windows: [], innerDoors: [], wrecks: [] });
     const { x0, z0, x1, z1 } = L, w = x1 - x0, d = z1 - z0;
     // An authored building (world/authored.js): its own plan, doors and heights in place of the generator's.
     const A = L.authored;
@@ -999,9 +1000,8 @@ export class Ring {
         const box = { x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, h: 1.8, tag: 'wreck', holes: null };
         if (ctx.on) { P.add(box); if (!ctx.verify()) { P.add(box, -1); P.flood(ctx.starts); continue; } }
         const col = rng.pick(['#6a3a22', '#4f5a52', '#704a2a', '#5a4a36']);
-        g.props.push([x, 0.85, z, lx, 0.8, lz, col, 0, 1]); // the body, up on stands (no wheels: they went first)
-        g.props.push([x + (along ? -0.3 : 0), 1.5, z + (along ? 0 : -0.3), along ? 2.1 : 1.7, 0.5, along ? 1.7 : 2.1, col, 0, 0.8]); // the cab
-        for (const [a, b] of [[-1.5, -0.7], [1.5, -0.7], [-1.5, 0.7], [1.5, 0.7]]) g.props.push([x + (along ? a : b), 0.22, z + (along ? b : a), 0.3, 0.44, 0.3, '#3d3a36', 0, 1]); // axle stands
+        void col; // our own body, stripped and up on blocks (data/wrecks.js; systems/wrecks.js draws it)
+        g.wrecks.push({ x, z, rot: along ? Math.PI / 2 : 0, ...wreckOf(hash32(L.seed, Math.round(x * 10), Math.round(z * 10), 0xc409), 'blocks'), fit: [4.4, 1.9] });
         g.boxes.push(box);
         ctx.placed.push({ r, wall: 7, type: 'car', room, solid: true, box });
         break;
@@ -1055,9 +1055,8 @@ export class Ring {
         if (r.x0 < room.x0 + 1.4 || r.x1 > room.x1 - 1.4 || r.z0 < room.z0 + 1.4 || r.z1 > room.z1 - 1.4 || !clear(r, 'car', 1.4)) continue;
         if (keep.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < 3.2)) continue;
         const col = rng.pick(['#6a3a22', '#4f5a52', '#704a2a', '#5a4a36']);
-        g.props.push([x, 0.85, z, lx, 0.8, lz, col, 0, 1]); // the body, up on stands (no wheels: they went first)
-        g.props.push([x + (along ? -0.3 : 0), 1.5, z + (along ? 0 : -0.3), along ? 2.1 : 1.7, 0.5, along ? 1.7 : 2.1, col, 0, 0.8]); // the cab
-        for (const [a, b] of [[-1.5, -0.7], [1.5, -0.7], [-1.5, 0.7], [1.5, 0.7]]) g.props.push([x + (along ? a : b), 0.22, z + (along ? b : a), 0.3, 0.44, 0.3, '#3d3a36', 0, 1]); // axle stands
+        void col; // our own body, stripped and up on blocks (data/wrecks.js; systems/wrecks.js draws it)
+        g.wrecks.push({ x, z, rot: along ? Math.PI / 2 : 0, ...wreckOf(hash32(L.seed, Math.round(x * 10), Math.round(z * 10), 0xc409), 'blocks'), fit: [4.4, 1.9] });
         g.boxes.push({ x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, h: 1.8, tag: 'wreck', holes: null });
         placed.push({ r, wall: 'car' });
         break;

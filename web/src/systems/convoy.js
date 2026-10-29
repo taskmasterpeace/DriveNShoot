@@ -1,3 +1,4 @@
+import { WEAPONS } from './combat.js';
 import { HALF } from '../world/city.js';
 import { makeRng } from '../engine/rng.js';
 import { RAIL } from '../world/rail.js';
@@ -137,16 +138,20 @@ export class Convoy {
     for (const o of v.occ ?? []) {
       if (!o || o === v.driver || !o.alive || !o.weapon || dP > 45) continue;
       o.cool -= dt;
-      if (o.cool <= 0 && g.statics.lineOfSight(v.x, v.z, px, pz)) {
+      const seen = g.statics.lineOfSight(v.x, v.z, px, pz);
+      if (seen) g.ai.watch(o, g.player, dt); // what the gunner sees of you moving: the lead (WEB_BALLISTICS.md)
+      if (o.cool <= 0 && seen) {
         o.cool = 0.3 + Math.random() * 0.45;
-        g.carCombat.fireFromVehicle(o, v, o.weapon, Math.atan2(px - v.x, pz - v.z) + (Math.random() - 0.5) * 0.22);
+        g.carCombat.fireFromVehicle(o, v, o.weapon, g.ai.leadAngle(o, g.player, px, pz, g.ballistics?.rowKey(WEAPONS[o.weapon])) + (Math.random() - 0.5) * 0.22);
       }
     }
     // The bed gunner stands up on the deck and shoots over the side (a round from the bed never hits its own truck).
     for (const o of v.deckRiders ?? []) {
       if (!o.alive || !o.weapon || dP > 45 || o.knockT > 0) continue;
       o.cool -= dt;
-      const ang = Math.atan2(px - o.x, pz - o.z);
+      const seen = g.statics.lineOfSight(o.x, o.z, px, pz), S = seen ? null : g.ai.seenAt(o, g.player, px, pz); // law 6: unseen, where you were heading
+      if (seen) g.ai.watch(o, g.player, dt);
+      const ang = seen ? g.ai.leadAngle(o, g.player, px, pz, g.ballistics?.rowKey(WEAPONS[o.weapon])) : Math.atan2(S.x - o.x, S.z - o.z);
       o.face = ang; o.aiming = true;
       if (o.cool <= 0 && g.statics.lineOfSight(o.x, o.z, px, pz)) { o.cool = 0.3 + Math.random() * 0.45; g.combat.fire(o, o.weapon, ang + (Math.random() - 0.5) * (0.12 + sp * 0.004)); }
     }

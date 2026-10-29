@@ -8,6 +8,11 @@ import { buildWorld, TOWN, roadLines, HALF, OUTSIDE } from './world/city.js';
 import { Streamer } from './world/streamer.js';
 import { buildTerrain, drawTerrainOnMinimap } from './world/terrain.js';
 import { Water, WATER_AVOID, DOCK, LAKE } from './world/water.js';
+import { Waves } from './world/waves.js';
+import { Sealife } from './systems/sealife.js';
+import { WaterPlace } from './systems/waterplace.js';
+import { Diving } from './systems/diving.js';
+import { Swamp } from './systems/swamp.js';
 import { RAIL_AVOID } from './world/rail.js';
 import { Train } from './systems/train.js';
 import { Convoy } from './systems/convoy.js';
@@ -15,16 +20,25 @@ import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
+import { LookFeel } from './systems/lookfeel.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
+import { Ballistics } from './systems/ballistics.js';
 import { Arms } from './systems/arms.js';
 import { Gunpoint } from './systems/gunpoint.js';
 import { Melee } from './systems/melee.js';
+import { CamRig } from './systems/camrig.js';
+import { Cutaway } from './systems/cutaway.js';
 import { WeaponBar } from './ui/weaponbar.js';
 import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
+import { Stats } from './systems/stats.js';
+import { Soundscape } from './systems/soundscape.js';
+import { LlmTalk } from './systems/llmtalk.js';
+import { CharSheet } from './ui/charsheet.js';
+import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
 import { WorkshopUI } from './ui/workshop.js';
@@ -39,25 +53,41 @@ import { LEVEL } from './data/storeys.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
-import { ZOOM } from './data/camera.js';
+import { ZOOM, CAMERA } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
+import { Population } from './systems/population.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
+import { Underground } from './systems/underground.js';
+import { UnderStreet } from './systems/understreet.js'; // UNDER THE STREET: storm drains under every town (docs/design/WEB_UNDERSTREET.md)
+import { Milbases } from './systems/milbases.js'; // the military bases' garrisons, hordes and sealed doors (docs/design/WEB_MILITARY_BASES.md)
+import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
+import { Wrecks } from './systems/wrecks.js';
+import { BackLots } from './systems/backlots.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
+import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
+import { PullsBoard } from './ui/pullsboard.js';
+import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
+import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
+import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
+import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
 const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
+import { Stance } from './systems/stance.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
+import { Gadgets } from './systems/gadgets.js';
+import { Rites } from './systems/rites.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -73,6 +103,9 @@ import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
 import { Creator } from './systems/creator.js';
 import { CreatorUI } from './ui/creator.js';
+import { Crew } from './systems/crew.js';       // the crew: records, orders, jobs, trust, the fallen (docs/design/WEB_CREW.md)
+import { Tactics } from './systems/tactics.js'; // cover, bands, flanking, suppression for the crew and every hostile side
+import { CrewUI } from './ui/crew.js';          // U: the CREW panel (tap) and the orders radial (hold)
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -113,9 +146,12 @@ class Game {
     this.audio = new Audio();
     this.statics = new StaticWorld();
     this.world = buildWorld(this.scene, this.statics);
+    this.wrecks = new Wrecks(this); // every static car is one of our bodies, dead, in one batched mesh (systems/wrecks.js)
+    this.wrecks.add('island', this.world.wrecks);
     // Mountains (outer desert ring) and water (east river → lake), before the nav grids.
     this.terrain = buildTerrain(this.scene, this.statics, { avoid: [...this.world.spawns.camps.map((c) => ({ x: c.x, z: c.z, r: 34 })), ...WATER_AVOID, ...RAIL_AVOID] });
     this.water = new Water(this);
+    this.waves = new Waves(this); // the surface moving: swell, chop, whitecaps, surf, wakes; boats ride it (world/waves.js, WEB_WATER_LIFE.md)
     drawTerrainOnMinimap(this.world.minimap, this.terrain, HALF);
     this.water.drawOnMinimap(this.world.minimap, HALF);
     // Ramps, dunes and the Thrill Show (data/stunts.js): drivable relief, built before the nav grids see its solids.
@@ -141,6 +177,7 @@ class Game {
     OUTSIDE.region = (x, z) => this.streamer.W.regionAt(x, z);
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
+    this.look = new LookFeel(this);
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
     this.charR.groundAt = (x, z, y) => this.stunts.heightAt(x, z, y); // people stand on ramps and dunes, not inside them
     this.chars = [];
@@ -148,10 +185,12 @@ class Game {
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
     this.vehicles = [];
     this.combat = new Combat(this);
+    this.ballistics = new Ballistics(this, this.scene); // rounds in flight (docs/design/WEB_BALLISTICS.md)
     this.arms = new Arms(this);         // stance, grip, fire modes, recoil (WEB_CONTROLLER §3.2-3.4)
     this.gunpoint = new Gunpoint(this); // a raised gun held on a person is a state (§3.5)
     this.melee = new Melee(this);       // shove, strike, kick (§3.6)
     this.ai = new AI(this);
+    this.tactics = new Tactics(this); // where a fighter stands (data/doctrine.js); ai.js still decides when they shoot
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
     this.witnesses = new Witnesses(this);
@@ -159,6 +198,7 @@ class Game {
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
+    this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
     this.throwables = new Throwables(this);
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
@@ -167,8 +207,17 @@ class Game {
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.workshop = new Workshop(this); // THE WORKSHOP: six faces, mounts with arcs, the counter (data/workshop.js, WEB_WORKSHOP.md)
     this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
+    // Caves, bunker levels, the secret facilities (docs/design/WEB_UNDERGROUND.md): levels below the street on their own
+    // StaticWorld, promoted near you; after the interiors (their doors hang its leaves).
+    this.under = new Underground(this);
+    this.stunts.under = this.under;
+    this.understreet = new UnderStreet(this); // a town's storm drains: the underground's `drains` sites (systems/understreet.js)
     this.materials = new Materials(this); // what everything is made of: rounds through it, blasts, fire, rams, breaking; blood on walls (this.blood)
     this.zombies = new Zombies(this);
+    this.population = new Population(this); // the far fold: ambient people left far behind hand their slots back (systems/population.js)
+    this.milbases = new Milbases(this); // before citygen: a stamped base hands its garrison here (systems/milbases.js)
+    this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
+    this.backlots = new BackLots(this); // their alleys, yard fences and gates, back-door locks, town pathing (docs/design/WEB_BACK_LOTS.md)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
@@ -180,6 +229,9 @@ class Game {
     this.qol = new QOL(this, ui);
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
+    this.crew = new Crew(this);
+    this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
+    this.crewUI = new CrewUI(this, ui);
 
     this.cash = 120;
     this.wanted = 0;
@@ -191,6 +243,11 @@ class Game {
     this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6 }, cond: { pistol: 0.82 }, jam: {}, ammo: { pistol: 36, smg: 0, shells: 0, rifle: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
+    this.deep = new Stats(this); // the deep sheet: attributes, 36 skills, perks, traits, conditions, injuries, stress, reputation (g.deep.fx)
+    this.soundscape = new Soundscape(this); // the sound sets heard: beds, the engine you drive, the fight's barks
+    this.llmtalk = new LlmTalk(this); // strangers' small talk through the local model, grounded in the live world (offline: authored)
+    this.charSheet = new CharSheet(this); // ` the character sheet
+    this.radio = new Radio(this); // the stations: in a car or with a portable radio, , and . walk the dial
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
@@ -200,7 +257,15 @@ class Game {
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
+    this.kit = new Kit(this); // what you wear and look through, and what feeds it (systems/kit.js, WEB_GADGETS2.md)
+    this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
+    this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
+    this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
+    this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
+    this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
+    this.stories = new SiteStories(this); // site stories and the bounty guild (systems/sitestories.js)
+    this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -208,7 +273,8 @@ class Game {
     this.camPos = new THREE.Vector3(0, 40, 0);
     this.camLook = new THREE.Vector3();
     this.camHeight = 34;
-    this.zoomLevel = ZOOM.start; // index into ZOOM.levels (data/camera.js)
+    this.cam = new CamRig(this);  // the boom, the views, the zoom (systems/camrig.js); g.zoomLevel = the nearest named stop
+    this.cutaway = new Cutaway(this); // what stands between the camera and you fades (systems/cutaway.js)
     this.viewR = 30;             // radius of ground the camera shows (m): what 'out of sight' means right now
     this.aim = { x: 0, z: 0 };
     this.boxRing = { x: 0, z: 0, len: 1.6 }; // the highlight ring on a container in reach
@@ -223,6 +289,7 @@ class Game {
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
     this.recorder = new Recorder(this); // the session ring the observer replays (agent/recorder.js, WEB_OBSERVER.md)
     this.regions.placeAtStart(); // ?start=florida (the players' default): a new game begins at Meridian's clinic door
+    this.crew.seed(); // who you can meet: two in Rust Haven, one at Meridian, captives at a Dustwolf camp (data/crew.js CREW_SEEDS)
     this.api = new AgentAPI(this);
     this.title(ui);
     this.creator = new Creator(this); // point-buy survivors (data/creator.js, docs/design/WEB_CREATOR.md): the draft, the sheet, BEGIN
@@ -262,6 +329,7 @@ class Game {
     const i = this.chars.indexOf(c);
     // Someone already gone: their slot is free already (pushing it twice gave two people one slot and the cap 161).
     if (i < 0) { (this.doubleRemoves ??= []).push(new Error().stack?.split('\n').slice(2, 5).join(' <- ')); return; }
+    if (!c.alive) this.rites?.fold(c); // the dead leave the world as their body's record (systems/rites.js), never as nothing
     this.chars.splice(i, 1);
     this.charR.clear(c.slot);
     this.freeSlots.push(c.slot);
@@ -301,12 +369,12 @@ class Game {
           gearStyle: p.gear === 'bandolier' ? 'bandolier' : n.faction === 'warden' ? 'vest' : 'none', gear: '#3a3128',
           accStyle: { goggles: 'goggles', bandana: 'mask', eyepatch: 'eyepatch' }[p.gear] ?? 'none', mask: '#6a2a1e', sleeves: 'long' } });
     }
-    for (const w of S.wardens) this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+    for (const w of S.wardens) { const c = this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) }); if (c) c.amb = true; }
     for (const d of S.drifters) {
       for (let k = 0; k < (Math.max(Math.abs(d.x), Math.abs(d.z)) < TOWN ? 2 : 1); k++)
-        this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+        { const c = this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) }); if (c) c.amb = true; } // amb: may fold far away (systems/population.js)
     }
-    for (const r of S.raiders) this.spawnRaider(r.x, r.z, rng);
+    for (const r of S.raiders) { const c = this.spawnRaider(r.x, r.z, rng); if (c) c.amb = true; }
 
     // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
@@ -380,7 +448,7 @@ class Game {
         let text;
         if (it.type === 'ammo') { const A = this.inv.ammo, W = new Set(this.inv.weapons.map((k) => WEAPONS[k]?.ammo)); A.pistol += 12; if (W.has('smg')) A.smg += 32; if (W.has('shells')) A.shells += 4; if (W.has('rifle')) A.rifle += 10; text = '+ AMMO'; } // by the rounds your guns eat
         else if (it.type === 'med' || it.type === 'water' || it.type === 'food') text = this.pickItem(it.type, it.x, it.z);
-        else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
+        else { const c = it.amount ?? 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; } // amount: a purse that spilled (systems/pulls.js)
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
         continue;
       }
@@ -420,25 +488,35 @@ class Game {
   los(ax, az, bx, bz) { return this.statics.lineOfSight(ax, az, bx, bz) && !this.throwables.blocksSight(ax, az, bx, bz); }
   // The same at a floor's height (world/storeys.js): y = the floor (0 on the street, where it is exactly los()).
   losAt(ax, az, bx, bz, y = 0) {
-    if (y < 0.5) return this.los(ax, az, bx, bz);
+    if (y < 0.5 && y > -0.5) return this.los(ax, az, bx, bz);
     return this.statics.lineOfSight(ax, az, bx, bz, RAY_SIGHT, y + LEVEL.eye) && !this.throwables.blocksSight(ax, az, bx, bz);
   }
   // Can person a see person b: on their floor, and nothing in the way at its height. Outside the storeyed buildings,
   // exactly the old flat line of sight.
+  // THE FOOTING line on the HUD prompt while you ride an open deck (WEB_DECKS_STANCE.md §3.3): the band (SURE FOOTING ..
+  // GOING OVER), your stance and its footing multiplier (QUICKNESS x brace), and how to brace harder.
+  footingText(p) {
+    const H = this.decks.hud, d = p.onDeck;
+    if (!d?.D.open || !H.show || H.v !== d.v) return null;
+    const st = this.stance.kind(p), hot = H.share >= 0.8;
+    return `<b${hot ? ' class="warn"' : ''}>FOOTING · ${H.word}</b> ${st.toUpperCase()} ×${H.footing.toFixed(2)}${p.prone ? '' : st === 'crouch' ? ' · <kbd>ALT</kbd> prone' : ' · <kbd>CTRL</kbd> brace · <kbd>ALT</kbd> prone'}`;
+  }
+
   sees(a, b) {
     if (!this.storeys.sameFloor(a, b)) return false;
-    return this.losAt(a.x, a.z, b.x, b.z, a.storey || b.storey ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0);
+    return this.losAt(a.x, a.z, b.x, b.z, a.ug ? Math.min(a.gy ?? 0, b.gy ?? 0) - (this.under?.y0 ?? 0) : a.storey || b.storey ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0); // below the street: that level's walls (over its street: a town's pad for its drains)
   }
 
   // Throw the selected throwable at the aim point (cooked = seconds already held).
   throwSelected(cooked = 0) {
     const k = this.inv.throwable, n = this.inv.throwables[k] ?? 0;
+    if (this.player.ug) { this.hud.toast('NO ROOM TO LOB ONE DOWN HERE · SET IT ON A DOOR (HOLD E)', 'warn'); return null; } // v1: throws are the street's (WEB_UNDERGROUND §5)
     if (n <= 0) { this.hud.toast(`No ${THROWABLES[k].name.toLowerCase()} left`, 'warn'); return null; }
     this.inv.throwables[k] = n - 1;
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.milbases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); this.sealife?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -458,6 +536,7 @@ class Game {
     if (c.perchY) { c.gy = c.perchY; return; }
     c.gy = this.stunts.heightAt(c.x, c.z, c.gy ?? 0);
     c.storey = this.storeys.at(c.x, c.z);
+    c.ug = this.under?.siteOf(c) ?? null; // below the street: which site's level (systems/underground.js)
   }
 
   // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
@@ -551,6 +630,8 @@ class Game {
   onKill(c, attacker, cause = 'bullet') {
     this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0, cause });
     this.society.deeds.onKill(c, attacker, cause); // witnesses and rumors; wanted stars only on a lawful witness's word
+    this.crew?.onKill(c, attacker); // a fight won outnumbered moves the crew's trust
+
     if (attacker === this.player) {
       this.stats.kills++;
       if (c.faction === 'raider') {
@@ -566,11 +647,14 @@ class Game {
     // held and its spare rounds in it (a soldier's rifle is the prize).
     if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
       const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
-      if ((c.gy ?? 0) > 0.5 && c.storey) body.y = c.gy; // the dead lie on their own floor
+      if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
     }
+    this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
+    this.stories?.onKill(c, attacker); // a party's person, a fallen place's master, a hunter (systems/sitestories.js)
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); this.clone.onDeath(c); } // the husk lies where you fell
     if (c.res) this.residents.onKill(c, attacker); // a ring resident: the death goes on their household's record
+    this.rites?.onDeath(c, attacker, cause); // the body's record: it rots on the clock until buried, burned or dragged off
   }
 
   // A pickup box is a find: it goes in your pack (or, with no room, you use it on the spot - drink the water, eat
@@ -681,9 +765,15 @@ class Game {
     // Mouse -> ground.
     _ndc.set(I.mouse.nx, I.mouse.ny);
     _ray.setFromCamera(_ndc, this.camera);
+    _plane.constant = -((p.gy ?? 0) + 1.2); // upstairs, the cursor meets your floor (a tilted camera shows the offset)
     if (this.aimOverride) { this.aim.x = this.aimOverride.x; this.aim.z = this.aimOverride.z; }
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
+    if (this.aimOverride) this.aim.y = this.aimOverride.y ?? 0; else this.fauna?.skyAim(_ray.ray, this.aim); // a bird under the cursor: aim at it, at its height (systems/fauna.js)
     if (!this.aimOverride) this.controls.aimAt(p, dt, p.inVehicle ?? p); // the pad in hand: the right stick aims
+    // Something on the wing under the cursor (the wilds lane's hook: fauna.pickAir(ray) -> { x, z, y } or null): aim at it.
+    this.aimAir = this.aimOverride ? null : this.fauna?.pickAir?.(_ray.ray) ?? null;
+    if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
+    p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
     if (this.dialogue.active) { p.speed = 0; return; }
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
@@ -703,9 +793,11 @@ class Game {
     }
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.workshopUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.workshopUI.input(I); return; }
-    if (I.hit('KeyU')) { this.workshopUI.toggle(true); return; }
+    if (I.hit('KeyU') && this.workshop.siteAt(p.x, p.z)) { this.workshopUI.toggle(true); return; } // at a garage U is the workshop; anywhere else it is the crew (ui/crew.js)
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
+    // Flying a drone (systems/drones.js): the keys fly it, your body stays put (a car you sit in is held parked).
+    if (this.drones?.piloting) { p.speed = 0; const dv = p.inVehicle; if (dv?.driver === p) { dv.throttle = 0; dv.steer = 0; dv.handbrake = true; } this.drones.input(I); return; }
     if (I.hit('KeyN')) { if (!this.travel.napRide()) this.trySleep(); return; } // on the trundle with a punch: sleep through the trip
     if (I.hit('KeyV')) this.quickUse();
 
@@ -736,11 +828,12 @@ class Game {
         this.hud.prompt('<kbd>G</kbd> Jump onto the train');
         if (I.hit('KeyG')) { this.exitVehicle(true); this.train.board(p); this.hud.prompt(null); return; }
       }
-      if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
+      if (I.hit('KeyF') || I.hit('Enter')) { if (!this.travel.cord()) this.exitVehicle(); return; } // aboard a moving coach (or a lift): pull the cord (systems/travel.js)
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
       if (I.hit('KeyB') && driving) this.garage.drop(v); // the tail: oil, caltrops, smoke, mines, flares, paint (group 2)
-      if (driving && v.mounts && this.controls.held('fireTurret')) this.workshop.fireMount(v, 3, Math.atan2(this.aim.x - v.x, this.aim.z - v.z), p); // the roof turret (group 3)
+      if (v.mounts && this.controls.held('fireTurret') && this.seats.turretFor(p, v)) this.workshop.fireMount(v, 3, Math.atan2(this.aim.x - v.x, this.aim.z - v.z), p); // the roof turret (group 3): the driver's, or a passenger's who mans it (seats.turretFor)
+      else if (!driving && v.mounts?.top && !this.seats.turretOwner(v)) this.hud.prompt('<kbd>RMB</kbd> Man the roof turret');
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       p.aiming = this.arms.stance === 'raised'; // a rider (bike saddle, truck bed) shows the gun up only when it is
@@ -781,15 +874,19 @@ class Game {
     if (I.key('KeyD') || I.key('ArrowRight')) mx += 1;
     const pm = this.controls.move, tilt = !mx && !mz && pm.mag ? Math.max(PAD.walkMin, pm.mag) : 1; // the left stick: a light tilt creeps
     if (pm.mag) { mx += pm.x; mz += pm.z; }
-    p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
+    if (this.cam.yaw) { const w = this.cam.toWorld(mx, mz); mx = w.x; mz = w.z; } // ISO/CHASE: W is up the screen
+    p.crouch = (I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride) && !p.prone;
+    if (this.controls.hit('prone')) { const r = this.stance.setProne(p, !p.prone); if (!r.ok) this.hud.toast(`CAN'T GO PRONE · ${r.why.toUpperCase()}`, 'warn'); } // data/stance.js PRONE (D2)
+    if (p.proneT > 0) p.proneT -= dt; // getting down or up: no shooting, no crawl
     p.stamina = p.stamina ?? 1;
-    const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
+    const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch && !p.prone;
     const sprint = wantSprint && p.stamina > 0.04 && !this.skills.overloaded; // over your carry weight: no sprinting
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
     p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul * this.arms.sprintDrain() : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
-    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I) + pm.x, mz0(I) + pm.z);
+    if (I.hit('Space') && p.prone) this.stance.setProne(p, false); // Space from prone: up, not a dive
+    else if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); this.startDive(p, w.x, w.z); }
     p.diveCool = (p.diveCool ?? 0) - dt;
     if (p.dive > 0) {
       p.dive -= dt;
@@ -807,15 +904,18 @@ class Game {
     const wet = this.water.stateAt(p.x, p.z, p.gy); // gy: up on a river's bridge deck you are dry (world/rivers.js)
     p.swim = wet === 'swim';
     p.breath = p.breath ?? 1;
+    if (p.prone && wet !== 'dry') this.stance.setProne(p, false); // into the water: up on your feet
     p.underwater = p.swim && p.crouch;
+    this.waves.swimmer(p, wet, dt); // the current carries a swimmer, a kick leaves a wake, going in splashes
+    this.diving.step(p, dt, wet); // how deep: the view darkens and closes, sound goes thick, a gasp coming up (systems/diving.js)
     if (p.underwater) {
-      p.breath = Math.max(0, p.breath - dt / 20);
+      p.breath = Math.max(0, p.breath - dt / 20 * this.diving.drainMul(p)); // deeper drains faster
       if (p.breath <= 0) this.combat.damage(p, 9 * dt, null, 0, 0, 'drown');
     } else p.breath = Math.min(1, p.breath + dt / 4);
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1) * (p.swampSlow ?? 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -845,7 +945,7 @@ class Game {
     const px = p.x, pz = p.z;
     if (len) {
       const t = { x: p.x + (mx / len) * speed * dt, z: p.z + (mz / len) * speed * dt };
-      this.statics.resolveBody(t, p.radius, p); // doors swing open ahead of you; broken windows get climbed
+      this.statics.resolveBody(t, this.stance.radius(p), p, p.prone ? null : p); // doors swing open ahead of you; broken windows get climbed (a crawl pushes no door)
       p.x = t.x; p.z = t.z;
       this.standOn(p); // up a stair, onto a floor, down off a ramp
       if (p.vault) return;
@@ -855,7 +955,7 @@ class Game {
     p.walk += stridePhase(p.speed, dt);
     if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
       const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
-      this.audio.step(this.insideBuilding ? 'floor' : onRoad ? 'road' : 'sand', 0);
+      this.audio.step(this.insideBuilding || p.ug ? 'floor' : onRoad ? 'road' : 'sand', 0);
     }
     if (this.qol.settings.aimAssist && !this.aimOverride) {
       // Aim assist: snap to the closest living character within 2.2m of the cursor.
@@ -869,77 +969,84 @@ class Game {
     }
     const wk = this.arms.work; // hands busy at something (systems/arms.js): face it, not the aim
     const aimAng = wk ? Math.atan2(wk.x - p.x, wk.z - p.z) : Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
-    p.face = angleLerp(p.face, aimAng, Math.min(1, dt * 18));
+    if (p.prone) { p.face = this.stance.steer(p, aimAng, len && p.speed > 0.05 ? Math.atan2(mx, mz) : null, dt); if (!p.onDeck) this.stance.fitNow(p); } // the body crawls round; the gun stays in its arc; no head through a wall
+    else p.face = angleLerp(p.face, aimAng, Math.min(1, dt * 18));
     p.aiming = true;
     // QOL: slow regen to 60% after 6s without taking damage.
     p.sinceHit = (p.sinceHit ?? 99) + dt;
     if (p.sinceHit > 6 && p.hp < 60) p.hp = Math.min(60, p.hp + dt * 4 * this.needs.healMul); // healMul: hunger, cold, gloom, an infection (survival.js)
-    if (p.bleed > 0) { p.bleed = Math.max(0, p.bleed - dt * 0.05); if (Math.random() < dt * 5 * p.bleed) this.fx.decal(p.x, p.z, 0.2 + Math.random() * 0.25, '#5a0606'); }
+    if (p.bleed > 0) { p.bleed = Math.max(0, p.bleed - dt * 0.05); if (Math.random() < dt * 5 * p.bleed) this.fx.decal(p.x, p.z, 0.2 + Math.random() * 0.25, '#5a0606', undefined, this.fx.onFloor(p)); } // on their floor (engine/depthlayers.js)
     if (sprint && len && Math.random() < dt * 6) this.fx.dust(p.x, p.z, 1);
 
     // Weapon select.
     this.arms.slotKeys(I, dt); // a new number selects the slot; the same number again (or held) steps its fire modes
-    if (I.wheel) {
+    if (I.wheelAlt) { // the plain wheel zooms (systems/camrig.js); Alt+wheel cycles the guns
       const i = this.inv.weapons.indexOf(this.inv.current);
-      this.switchWeapon(this.inv.weapons[(i + I.wheel + this.inv.weapons.length) % this.inv.weapons.length]);
+      this.switchWeapon(this.inv.weapons[(i + I.wheelAlt + this.inv.weapons.length) % this.inv.weapons.length]);
     }
     if (I.hit('KeyR')) this.reload();
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
     this.updateThrowAim(dt, I);
-    if (!p.swim) this.handleShooting(dt, p.face);
+    if (!p.swim && !(p.proneT > 0)) this.handleShooting(dt, p.face);
     p.aiming = !p.swim && this.arms.stance === 'raised'; // lowered or holstered: no aim pose (systems/arms.js)
 
     // Interactions. A person held at gunpoint takes E first (hand it over, open the door, walk with me).
     if (this.gunpoint.playerInteract(p, I, dt)) return;
     let best = null, bd = 2.8;
     for (const c of this.chars) {
-      if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.target === p) continue;
+      if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.faction === 'zombie' || c.target === p) continue; // nobody talks to the dead
       if (!this.storeys.sameFloor(p, c)) continue; // the floor between you
       const d = Math.hypot(c.x - p.x, c.z - p.z);
       if (d < bd) { bd = d; best = c; }
     }
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same)) continue; // the street's cars, from upstairs: no
+      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v) continue; // the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
     // A dog at your feet (systems/dogs.js): E feeds it, bandages it, or tells yours to stay or follow. C whistles (taps and a
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
-    const dog = !best && !bestV ? this.dogs.nearFor(p) : null;
+    // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
+    const rsSpot = !best ? this.roadside.spotNear(p) : null;
+    const dog = !best && !bestV && !rsSpot ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
+    const foot = this.footingText(p); // riding an open deck: how near the floor is to throwing you (systems/decks.js feel)
+    this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
-    const op = !best && !bestV && !dog && !dk && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
+    const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
+    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
-    const game = !best && !bestV && !op && !dog && !dk ? this.fauna.nearFor(p) : null;
+    const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
-    const spot = !best && !bestV && !op && !dog && !dk && !game ? this.travel.spotNear(p) : null;
-    const box = !best && !bestV && !op && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    // ... or the roadside's: a tank's caps (a car beside them is what you siphon into: E stays the caps'), a hulk, a water tank, the dam's wheel.
+    const spot = !best && !op && !ugI && !dog && !dk && !game ? (!bestV ? this.travel.spotNear(p) : null) ?? rsSpot : null;
+    const box = !best && !bestV && !op && !ugI && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !ugI && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
-    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? (box || bed ? this.boxRing : null));
+    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed ? this.boxRing : null));
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
-    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
+    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op) this.hud.prompt(null);
+    else if (!op && !ugI) this.hud.prompt(null);
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
-    else if (spot && I.hit('KeyE')) { this.travel.interact(spot); this.hud.prompt(null); }
+    else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
@@ -1041,53 +1148,41 @@ class Game {
         this.hud.toast(`${w.short} JAMMED · R TO CLEAR`, 'warn');
       } else if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
       this.hud.shake(w.shake * 0.4 * this.arms.kickMul()); // one hand kicks harder
+      this.look.onShot(p, k, ang); // the camera kick by calibre
     }
   }
 
   // ---- camera ----------------------------------------------------------------------------
   // Step the zoom (Z out, Shift+Z in; - and =). Clamped at both ends rather than wrapping: a jump from the widest
   // view back to the closest mid-fight is disorienting.
-  setZoom(i) {
-    const n = Math.max(0, Math.min(ZOOM.levels.length - 1, i));
-    if (n === this.zoomLevel) return this.zoomLevel;
-    this.zoomLevel = n;
-    this.hud.toast(`ZOOM · ${ZOOM.levels[n].name}`);
-    this.emit('zoom', { level: n, name: ZOOM.levels[n].name });
-    return n;
-  }
+  setZoom(i) { return this.cam.setStop(i); }
 
   updateCamera(dt) {
-    const p = this.player, v = p.inVehicle, L = ZOOM.levels[this.zoomLevel];
-    let tx = p.x, tz = p.z, h = L.foot;
+    const p = this.player, v = p.inVehicle, C = this.cam;
+    let tx = p.x, tz = p.z;
     if (v) {
-      const sp = this.vehiclesSys.speed(v);
-      h = Math.min(ZOOM.maxHeight, L.drive + sp * ZOOM.speedLift);
       tx = v.x + v.vx * 0.55; tz = v.z + v.vz * 0.55;
+      if (C.eff() === 'CHASE') { const a = CAMERA.view.CHASE.ahead; tx = v.x + Math.sin(v.h) * a + v.vx * 0.3; tz = v.z + Math.cos(v.h) * a + v.vz * 0.3; }
     } else {
       // Lean the view toward the cursor so you can see what you shoot (further out at a wider zoom).
-      const lean = 8 * Math.max(1, L.foot / 33);
-      tx += clamp((this.aim.x - p.x) * 0.25, -lean, lean);
-      tz += clamp((this.aim.z - p.z) * 0.25, -lean, lean);
-      if (this.insideBuilding) h = Math.min(h, ZOOM.indoor);
+      // Look far (held): all the way to the cursor, out to most of the screen (systems/camrig.js leanMax).
+      const lean = C.leanMax(), share = C.looking ? 1 : CAMERA.lean;
+      tx += clamp((this.aim.x - p.x) * share, -lean, lean);
+      tz += clamp((this.aim.z - p.z) * share, -lean, lean);
     }
-    // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
-    this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
     // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
     // On real terrain (flag, world/realterrain.js) it keeps its height above the ground it looks at.
     const T = this.streamer?.W?.terrain;
-    const floorY = this.insideBuilding?.storey && !v ? p.gy ?? 0 : T ? T.at(this.camLook.x, this.camLook.z) : 0;
+    const floorY = (this.insideBuilding?.storey || p.ug) && !v ? p.gy ?? 0 : T ? T.at(this.camLook.x, this.camLook.z) : 0;
     this.camFloor = (this.camFloor ?? 0) + (floorY - (this.camFloor ?? 0)) * (1 - Math.exp(-dt * ZOOM.heightRate));
     if (T) this.camLook.y = this.camFloor; // the sun's shadow box follows it up and down (sky.js)
+    if (this.droneCam?.active) { tx = this.droneCam.x; tz = this.droneCam.z; } // the drone's eye (systems/drones.js) while you fly it; its height: camrig.js
     const k = 1 - Math.exp(-dt * ZOOM.follow);
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - this.camLook.z) * k;
-    // How much ground is on screen: the half-diagonal of the footprint, with room for the camera's tilt.
-    const halfZ = this.camHeight * Math.tan((this.camera.fov * Math.PI) / 360), halfX = halfZ * this.camera.aspect;
-    this.viewR = Math.hypot(halfX, halfZ) * 1.15;
-    const s = this.hud.shakeV;
-    const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
-    this.camera.position.set(this.camLook.x + sx, this.camHeight + this.camFloor, this.camLook.z + this.camHeight * 0.14 + sz);
-    this.camera.lookAt(this.camLook.x + sx, this.camFloor, this.camLook.z + sz);
+    C.update(dt, this.camLook, this.camFloor, this.insideBuilding || p.ug); // places the camera; sets camHeight and viewR (below the street: the indoor framing)
+    this.cutaway.update(dt);
+    this.under?.view(this.camera); // below the street: the clipping plane, the level shown, the light (systems/underground.js)
   }
 
   updateInterior() {
@@ -1100,10 +1195,12 @@ class Game {
       }
       // Past the island: a building of the Phoenix ring (world/ring.js; its roof hides through the streamer's pool).
       if (!inside && (Math.abs(p.x) > 464 || Math.abs(p.z) > 464)) inside = this.streamer.ringBuildingAt(p.x, p.z);
+      if (!inside) inside = this.citygen?.buildingAt(p.x, p.z) ?? null; // a generated settlement's (systems/citygen.js)
     }
     const S = inside?.storey ?? null;
     this.storeys.setView(S, p.gy ?? 0);
     this.charR.cullAbove = S ? { b: inside, y: (p.gy ?? 0) + LEVEL.same } : null;
+    this.charR.lsw.focus = p; // LSW-BODIES: the people nearest you wear the LSW bodies (systems/lswbodies.js)
     if (inside !== this.insideBuilding) {
       if (this.insideBuilding) this.world.setRoofVisible(this.insideBuilding, true);
       if (inside) {
@@ -1117,11 +1214,12 @@ class Game {
   }
 
   updatePopulation(dt) {
-    // Bodies far from view eventually get cleaned up (the blood stays).
+    // Bodies far from view fold into their records (systems/rites.js draws them and ages them; the blood stays).
     for (let i = this.chars.length - 1; i >= 0; i--) {
       const c = this.chars[i];
       if (!c.alive && c !== this.player && !c.npc && !c.res && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
     }
+    this.population.update(dt); // far ambient people fold when the pool runs low, unfold when you come back
     // Dustwolves keep coming.
     this.raiderTimer -= dt;
     if (this.raiderTimer <= 0) {
@@ -1132,7 +1230,7 @@ class Game {
       if (alive < cap && this.freeSlots.length > AMBIENT_RESERVE && this.time > ARRIVAL_QUIET) { // leave the director room (systems/director.js needs 10 free)
         const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
-        if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
+        if (camp) for (let k = 0; k < 2; k++) { const c = this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10); if (c) c.amb = true; }
       }
     }
     // Wanted level cools off.
@@ -1185,17 +1283,18 @@ class Game {
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
     if (I.hit('KeyT') && !this.survival.sleep) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
-    if (I.hit('KeyZ')) this.setZoom(this.zoomLevel + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
-    if (I.hit('Minus')) this.setZoom(this.zoomLevel + 1);
-    if (I.hit('Equal')) this.setZoom(this.zoomLevel - 1);
+    if (!this.paused && !this.invUI.open && !this.dialogue.active) this.cam.input(I, dt); // wheel, Z / - / =, O, [ ]; a panel keeps the wheel
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
       this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
     }
 
+    dt = this.look.warp(dt); // a hit-stop: the sim runs near frozen for its real 40-80 ms (systems/lookfeel.js)
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
     if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
+    if (simDt) this.crew.input(I); // E beside a downed crew member is theirs: patch up, or hold to drag
+    if (simDt) this.rites.input(I); // beside the dead: hold E to drag, G to bury, F to burn (systems/rites.js)
     this.updatePlayer(dt);
     this.arms.update(dt);  // H, J, B, RB: stance, grip, fire mode, the wheel; who has noticed your gun
     this.melee.update(dt); // RMB / R3: the blow in flight lands at its moment of contact
@@ -1208,6 +1307,7 @@ class Game {
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
+      this.deep.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
       this.garage.update(simDt);
       this.workshop.update(simDt); // rockets in flight, seeker locks, power, nitrous, the fire bottles
@@ -1218,48 +1318,73 @@ class Game {
       this.ambient.update(simDt);
       this.gunpoint.update(simDt); // after ambient: the held keep their hands up
       this.carCombat.update(simDt);
+      this.ballistics.update(simDt); // rounds in the air fly on and meet what is in their way
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
+      this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.kit.update(simDt); // cells drain, the glass marks, the scanner listens, bad air, dog gear, car kit (systems/kit.js)
+      this.rites.update(simDt); // the dead age on the clock, the cemeteries near you, funerals (systems/rites.js)
       this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
+      this.waves.update(simDt);
+      this.waterplace.update(simDt); // the drowned blocks, the key, the ferry (systems/waterplace.js)
+      this.sealife.update(simDt);    // sharks, the deep one, piranhas, bait and gulls (systems/sealife.js)
+      this.swamp.update(simDt);      // the nasty water: pads, knees, weed, fog, rot; filth in an open wound (systems/swamp.js)
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.dogs.update(simDt);
+      this.crew.update(simDt); // the downed bleed, deeds move trust, jobs on the game clock, dawn
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
+      this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
+      this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
+      this.stories.update(simDt); // places on the world clock, traders, raids, refugees, hunters (systems/sitestories.js)
+      this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.nanGuard('late');
     }
     this.dialogue.update(dt, I);
     this.fx.update(dt);
+    this.look.update(dt);
     this.updatePickups(dt);
     this.updateFootprints();
     this.updateInterior();
     this.updateCamera(dt);
+    this.milbases.update(simDt); // the bases' gate rule, the horde's moans (systems/milbases.js)
+    this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
+    this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
+    this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
+    this.understreet.update(simDt, dt); // the drains: the flood and its current, who stands up near you, the rats, the dead following a sound down
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
     this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat, this.viewR);
     this.streamer.postSky(); // the dust wall thickens the fog; streamed surfaces follow the sky's wet/dry tint
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
-    const flashOn = this.flashOverride ?? this.sky.night > 0.55;
+    const flashOn = (this.flashOverride ?? (this.sky.night > 0.55 || !!p.ug)) && this.kit.beamOk(); // below the street it comes on by itself (L still switches it); it needs a carried light with charge (systems/kit.js)
     // The darker the night (the Night setting, systems/sky.js nightLight), the more your light carries: brighter and longer
-    // (an additive cone, no light of its own: the fixed light count holds).
-    const dark = this.sky.night * (1 - this.sky.nightLight);
-    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 + 0.35 * dark : 0;
-    this.flashlight.scale.set(1, 1, 1 + 0.45 * dark);
-    this.flashlight.position.set(p.x, 0, p.z);
+    // (an additive cone, no light of its own: the fixed light count holds). Below the street: the underground's cone.
+    const dark = p.ug ? 0 : this.sky.night * (1 - this.sky.nightLight);
+    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? (p.ug ? this.under.coneOpacity : 0.55 + 0.35 * dark) : 0;
+    this.flashlight.scale.set(1, 1, (1 + 0.45 * dark) * this.kit.beamReach()); // a headlamp throws shorter than a torch
+    this.flashlight.position.set(p.x, p.ug ? p.gy ?? 0 : 0, p.z);
     this.flashlight.rotation.y = p.face;
+    this.kit.frame(dt); // the goggles' and the scope's overlay, body heat, dog and car kit drawn (systems/kit.js)
+    this.charR.lsw.heat.value = this.kit.eyes === 'thermal_scope' ? 1 : 0; // veins are not warm: their glow goes dark under the scope
     this.charR.sync(this.chars, dt);
     this.dogs.draw(dt);
     this.fauna.draw(dt);
     const pv = p.inVehicle;
-    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
+    this.soundscape.update(dt);
+    this.radio.update(dt);
+    const amb = p.ug ? 0 : 1; // below the street no wind, no rain on the roof
+    this.audio.ambience(this.sky.cur.rain * amb, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5) * amb, pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.weaponBar.update(dt);
     this.qol.update(dt);
     this.invUI.update(dt);
+    this.crewUI.update(dt);
     this.workshopUI.update(dt);
     this.feedback.update(dt);
     this.recorder.tick(); // a time check; 4 times a game second, one sample into preallocated arrays
@@ -1267,7 +1392,7 @@ class Game {
   }
 
   render(dt) {
-    this.renderer.render(this.scene, this.camera);
+    this.look.render(this.camera); // the scene, then the grade pass (systems/lookfeel.js)
     if (this.showStats) {
       const r = this.renderer.info.render;
       this.hud.stats(`FPS       ${this.fps.toFixed(0)}\nDRAWS     ${r.calls}\nTRIS      ${(r.triangles / 1000).toFixed(1)}k\nCHARS     ${this.chars.length} (${this.chars.filter((c) => c.alive).length} alive)\nVEHICLES  ${this.vehicles.length}\nSTATICS   ${this.statics.boxes.length}\nPOS       ${this.player.x.toFixed(0)}, ${this.player.z.toFixed(0)}`);
@@ -1298,8 +1423,9 @@ loadContentPacks(game.api).then(async () => {
   // Dev QOL: a full page reload (code edit) keeps your place in the world.
   const keep = sessionStorage.getItem('dl.hmr');
   if (keep) { sessionStorage.removeItem('dl.hmr'); try { restore(game, JSON.parse(keep)); game.emit('hmrRestored'); } catch (e) { console.warn('hmr restore failed', e); } }
-  // Real terrain (docs/design/WEB_TERRAIN.md) is a flag, off by default: ?terrain=real turns it on before agents connect.
-  if (new URLSearchParams(location.search).get('terrain') === 'real') try { await game.streamer.setTerrain(true); } catch (e) { console.warn('terrain', e); }
+  // Real terrain (docs/design/WEB_TERRAIN.md, WEB_SITES_TERRAIN.md) is ON by default, before agents connect; ?terrain=flat
+  // keeps the old flat world (the escape hatch).
+  if (new URLSearchParams(location.search).get('terrain') !== 'flat') try { await game.streamer.setTerrain(true); } catch (e) { console.warn('terrain', e); }
   startBridge(game.api);
   const sc = new URLSearchParams(location.search).get('scenario');
   if (sc) console.log('[scenario]', sc, await game.api.call('scenario', { name: sc }));

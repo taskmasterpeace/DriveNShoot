@@ -106,3 +106,20 @@ export const MELEE = {
   lunge: 0.35,       // m you step into a blow
   infectedKnock: 0.7, // the infected stagger for less (they don't feel it)
 };
+
+// ---- the carry: the gun at the side, on the dominant hand (docs/design/WEB_CAMERA.md §3.6; gap G2) -------------------
+// Aimed, a gun sits off the body's centre line on the shooter's dominant side (m, from the chest centre):
+//   pistolOneHand  arm out from the shoulder, the gun at `height` m off the ground, `reach` m in front
+//   pistolTwoHand  both hands on a short gun: it comes in toward the middle
+//   longGun        a rifle, shotgun or SMG shouldered on the dominant side (stock in the shoulder pocket)
+// The muzzle ray still converges on the aim point: the shot toes in by atan(lateral / distance), never more than
+// `toeInMax` degrees (a target nearer than ~3 m is shot from the hip line). `leftShare`: the share of people who are
+// left-handed (stable per person from their name; the player picks in the creator). A lefty mirrors every carry.
+export const CARRY = {
+  pistolOneHand: { lateral: 0.20, height: 1.35, reach: 0.55 },
+  pistolTwoHand: { lateral: 0.10 },
+  longGun: { lateral: 0.16, stockAtShoulder: true },
+  toeInMax: 4,
+  toeInDefault: 15, // m: the distance a shot toes in to when the shooter has no aim point or target
+  leftShare: 0.08,
+};

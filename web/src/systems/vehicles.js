@@ -14,25 +14,34 @@ import { Decks } from './decks.js';
 // can be shot / grabbed directly.
 const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
-// `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed,
+// `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed, the
+// boats' decks; `roofDeck`: a roof you climb onto by its ladder),
 // the van's cargo box, the RV's coach; systems/decks.js carries the people on it) - a walkable vehicle is a row.
 export const VEHICLES = {
   rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, reverse: 11, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
   interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, reverse: 15, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
+  // A town's patrol car (systems/security.js): a LAWMAN gone to seed - primer, mismatched panels, a dead lightbar, a welded ram bar (vehiclebodies.js look: 'rundown').
+  bullcar: { name: 'BULL CAR', base: 'interceptor', look: 'rundown', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 41, reverse: 14, accel: 19, turn: 2.3, grip: 6.2, mass: 1.55, hp: 210, armor: 0.36, fuelCap: 60, seats: S2 },
   buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, tall: 1.6, maxSpeed: 40, reverse: 14, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
   // The pickup's bed is a deck now (data/decks.js pickupBed): stand in it, crouch behind its sides, shoot any way, fall
   // out. Its old standing seats (bedL, bedR) are gone: the bed is somewhere you are, not a seat.
   pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, tall: 1.95, maxSpeed: 36, reverse: 13, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80, seats: S2, deck: 'pickupBed' },
   sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, tall: 1.8, maxSpeed: 40, reverse: 14, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
   // Two seats up front, then a cargo box you walk round in (data/decks.js vanCargo): a bench, a locker, a mattress.
-  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, reverse: 12, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75, seats: S2, deck: 'vanCargo' },
+  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, reverse: 12, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75, seats: S2, deck: 'vanCargo', roofDeck: 'vanRoof' },
   // A home on wheels (data/decks.js rvCoach): slow, heavy, tall, and somewhere to live. Parked, it makes camp.
-  rv:          { name: 'RV', len: 8.0, wid: 2.5, tall: 3.3, maxSpeed: 27, reverse: 10, accel: 10, turn: 1.35, grip: 5.4, mass: 3.6, hp: 380, armor: 0.22, fuelCap: 200, springs: 'rig', seats: S2, deck: 'rvCoach' },
+  rv:          { name: 'RV', len: 8.0, wid: 2.5, tall: 3.3, maxSpeed: 27, reverse: 10, accel: 10, turn: 1.35, grip: 5.4, mass: 3.6, hp: 380, armor: 0.22, fuelCap: 200, springs: 'rig', seats: S2, deck: 'rvCoach', roofDeck: 'rvRoof' },
   airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, tall: 2.2, maxSpeed: 34, reverse: 7, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
-                 seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }] },
+                 seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }], deck: 'airboatDeck' },
   jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, reverse: 5, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
+  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4, deck: 'gunboatDeck' },
+  // Water-place (docs/design/WEB_WATER_LIFE.md): a log-and-drum raft you pole across (it goes where the current takes it
+  // unless you push), and a cable ferry that shuttles a river by itself (systems/waterplace.js); both decks you stand on.
+  raft:        { name: 'RAFT', len: 4.4, wid: 2.8, tall: 0.6, maxSpeed: 3.2, reverse: 1.6, accel: 1.4, turn: 0.9, grip: 1.2, mass: 0.9, hp: 90, armor: 0.7, fuelCap: 0, open: true, boat: true, shallow: true, noEngine: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'stand', at: [0.4, 0.42, -1.4] }], deck: 'raftDeck' },
+  ferry:       { name: 'RIVER FERRY', len: 8.4, wid: 4.6, tall: 1.6, maxSpeed: 4, reverse: 4, accel: 1.2, turn: 0.4, grip: 1.5, mass: 6, hp: 600, armor: 0.3, fuelCap: 0, open: true, boat: true, shallow: true, noEngine: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'stand', at: [1.6, 0.55, -3.2] }], deck: 'ferryDeck' },
   // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
   atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, reverse: 12, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
@@ -149,7 +158,7 @@ export class Vehicles {
   // screen-right, so the sign flips. drive() already turns the tail the car's way in reverse, so the same rule makes
   // a reversing car's tail swing to screen-left. Latched while held: hold A and the car keeps turning, full circle.
   screenSteer(v, s) {
-    if (!s || !DRIVING.screenSteer) { v.steerLatch = 0; return s; }
+    if (!s || !DRIVING.screenSteer || this.g.cam?.eff() === 'CHASE') { v.steerLatch = 0; return s; } // CHASE: the car's own left (systems/camrig.js)
     const dir = Math.sign(s);
     if (!v.steerLatch || v.steerDir !== dir) { v.steerDir = dir; v.steerLatch = this.noseUp(v) ? 1 : -1; }
     return s * v.steerLatch;
@@ -308,7 +317,7 @@ export class Vehicles {
       }
       if (fwd < -rev) fwd = -rev;
       // Steering bites with speed, softens at top speed.
-      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
+      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a
       // crash, a shove) settled on the target + 2πk instead and spun at ~28 rad/s for good, in place, at 16 m/s,
       // flattening anyone near it (a traffic LAWMAN spinning by the sheriff's corner ran bounty-run's player down).
@@ -328,7 +337,7 @@ export class Vehicles {
     if (pivot) { v.x += pivot * (Math.sin(v.h + dh) - Math.sin(v.h)); v.z += pivot * (Math.cos(v.h + dh) - Math.cos(v.h)); }
     v.h += dh;
     // Rolling drag and lateral grip (handbrake = drift).
-    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); treadGrip: the tyres on this ground (workshop.js)
+    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js); treadGrip: the tyres on this ground (workshop.js)
     if (v.bike) {
       // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
       const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);
@@ -378,6 +387,7 @@ export class Vehicles {
         const d = Math.hypot(dx, dz) || 1;
         const nx = dx / d, nz = dz / d;
         const vn = v.vx * nx + v.vz * nz;
+        g.look?.scrape(v, t.x - nx * r, t.z - nz * r, nx, nz); // scraped metal and sparks along the wall (systems/lookfeel.js)
         if (vn < 0) { v.vx -= vn * nx * 1.35; v.vz -= vn * nz * 1.35; if (-vn > hitN) { v._hitX = t.x - nx * r; v._hitZ = t.z - nz * r; } hitN = Math.max(hitN, -vn); }
         // Glancing hits spin the car.
         v.av += (off > 0 ? 1 : -1) * (nx * fz - nz * fx) * Math.min(3, -vn * 0.08);
@@ -390,6 +400,7 @@ export class Vehicles {
       this.damage(v, (hitN - 8) * 2.2 / v.mass * 2, null);
       g.fx.sparks(v.x + fx * v.len * 0.5, 0.8, v.z + fz * v.len * 0.5, -fx, -fz, 8);
       if (v.driver === g.player) { g.hud.shake(Math.min(1, hitN / 25)); g.audio.crash(hitN / 30); }
+      g.look?.onCrash(v, hitN); // skids, the hit-stop, the screen dirt, cracked glass (systems/lookfeel.js)
     }
     // Vehicle vs vehicle: each body is a chain of discs along its length (a long rig is
     // 3-4 discs, a buggy 2), so cars can't slide into the side of a truck.
@@ -430,6 +441,7 @@ export class Vehicles {
           this.damage(v, -rv * 1.6 * (o.mass / v.mass) * (o.plates ? G.ramMul(o, best.px, best.pz) : 1), o.driver);
           g.fx.sparks(best.px, 1, best.pz, nx, nz, 10);
           if (v.driver === g.player || o.driver === g.player) { g.hud.shake(Math.min(1, -rv / 20)); g.audio.crash(-rv / 25); }
+          g.look?.onCrash(v, -rv, o);
         }
       }
     }
@@ -569,6 +581,7 @@ export class Vehicles {
         }
       }
     }
+    g.gadgets?.steer(v, dt); // a chain or a strip in the road: brake, or go round it (systems/gadgets.js)
   }
 
   // ---- harpoon -------------------------------------------------------------------------
@@ -591,6 +604,7 @@ export class Vehicles {
   yank() {
     const h = this.harpoon;
     const g = this.g;
+    if (g.kit?.winchYank(h)) { g.hud.shake(0.6); this.releaseHarpoon(); return; } // the winch pulls the near door off instead (systems/kit.js)
     const v = h.from;
     if (h.kind === 'veh') {
       const t = h.target;
@@ -667,6 +681,7 @@ export class Vehicles {
         g.audio.clank();
       } else if (wallT < step) {
         h.x += h.dx * wallT; h.z += h.dz * wallT;
+        if (g.kit?.hookDoor(v, h.x, h.z)) { g.audio.clank(); this.releaseHarpoon(); return; } // a winch bites the door by the wall it struck (systems/kit.js)
         g.fx.sparks(h.x, 1.2, h.z, -h.dx, -h.dz, 8);
         g.audio.clank();
         h.state = 'retract';
@@ -754,10 +769,13 @@ export class Vehicles {
         // the ground when beached. v.y follows, so a deck and the piers know where the hull is.
         const wy = g.water.surfaceAt ? g.water.surfaceAt(v.x, v.z, NaN) : 0, base = Number.isFinite(wy) ? wy : (g.stunts?.ext && g.stunts.outside(v.x, v.z) ? g.stunts.heightAt(v.x, v.z) : 0);
         if (afloat || g.stunts?.outside?.(v.x, v.z)) { v.y = base; v.gy = base; }
-        v.group.position.y = afloat ? base - 0.18 + Math.sin(t * 2.1) * 0.06 : base + 0.05;
-        v.group.rotation.x = afloat ? Math.sin(t * 1.7) * 0.03 - Math.min(0.12, this.speed(v) * 0.004) : 0;
-        v.group.rotation.z = afloat ? Math.sin(t * 1.3) * 0.04 + clamp(-v.av * this.speed(v) * 0.01, -0.2, 0.2) : 0.06;
-        v.lean = v.group.rotation.z; v.wheelie = -v.group.rotation.x;
+        if (g.waves) g.waves.ride(v, dt, base, afloat); // heave, pitch and roll off the real swell; a waterbike flies a crest (world/waves.js)
+        else {
+          v.group.position.y = afloat ? base - 0.18 + Math.sin(t * 2.1) * 0.06 : base + 0.05;
+          v.group.rotation.x = afloat ? Math.sin(t * 1.7) * 0.03 - Math.min(0.12, this.speed(v) * 0.004) : 0;
+          v.group.rotation.z = afloat ? Math.sin(t * 1.3) * 0.04 + clamp(-v.av * this.speed(v) * 0.01, -0.2, 0.2) : 0.06;
+          v.lean = v.group.rotation.z; v.wheelie = -v.group.rotation.x;
+        }
         const sp = this.speed(v);
         if (afloat && sp > 3 && Math.random() < dt * (10 + sp)) {
           const bx = v.x - Math.sin(v.h) * v.len * 0.5, bz = v.z - Math.cos(v.h) * v.len * 0.5;
