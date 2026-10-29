@@ -1,7 +1,7 @@
 import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision.js';
 import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
-import { BALLISTICS as BL } from '../data/ballistics.js';
+import { BALLISTICS as BL, ROUNDS, calOf } from '../data/ballistics.js';
 
 const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, nobody's floor
 
@@ -10,6 +10,9 @@ const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, no
 //   burst  rounds per pull: 1 single, n a burst (fired at `rate`, then `after` s before the next pull), 0 automatic
 //   rate   s between rounds (cyclic); spread x the row's spread; kick: the recoil bloom one round adds
 //   dmg / pellets / range: an alternate use replaces the row's (the sawn-off's slug)
+// cal: the calibre it fires (data/ballistics.js ROUNDS; docs/design/WEB_CALIBERS.md): the round's speed, drop,
+//   penetration, report, casing and the wound it leaves all come from it. Every gun names one (the check holds it); a
+//   shell mode names its own. `ammo` is the box in your pack it loads from (data/items.js AMMO_ITEM).
 // A row with no modes gets one from `auto` (systems/arms.js). `mode` names the default.
 // A shotgun's modes are the SHELLS it loads (data/items.js ammo_shells / ammo_birdshot / ammo_slug). Each draws on its
 // own rounds in your pack (`ammo`); switching shell works the loaded ones back into the pack and the gun loads the new
@@ -17,28 +20,52 @@ const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, no
 // cloud and a short reach (it stops a dog or a bird; a man in a coat it only stings). SLUG: one lump, tight, long.
 function SHELLS(buck, slug) {
   return [
-    { id: 'buck', name: 'BUCK', burst: 1, rate: buck.rate, spread: 1, kick: buck.kick },
-    { id: 'bird', name: 'BIRD', burst: 1, rate: buck.rate, spread: 1.45, kick: buck.kick * 0.7, dmg: Math.round(buck.dmg * 0.27), pellets: buck.pellets * 2, range: Math.round(buck.range * 0.65), ammo: 'birdshot' },
-    { id: 'slug', name: 'SLUG', burst: 1, rate: slug.rate, spread: 0.11, kick: slug.kick, dmg: slug.dmg, pellets: 1, range: slug.range, ammo: 'slug', round: 'slug' },
+    { id: 'buck', name: 'BUCK', burst: 1, rate: buck.rate, spread: 1, kick: buck.kick, cal: '12ga' },
+    { id: 'bird', name: 'BIRD', burst: 1, rate: buck.rate, spread: 1.45, kick: buck.kick * 0.7, dmg: Math.round(buck.dmg * 0.27), pellets: buck.pellets * 2, range: Math.round(buck.range * 0.65), ammo: 'birdshot', cal: '12ga_bird' },
+    { id: 'slug', name: 'SLUG', burst: 1, rate: slug.rate, spread: 0.11, kick: slug.kick, dmg: slug.dmg, pellets: 1, range: slug.range, ammo: 'slug', cal: '12ga_slug' },
   ];
 }
 export const WEAPONS = {
-  pistol:  { name: '.45 REVOLVER', short: 'PISTOL', dmg: 38, rate: 0.26, mag: 6, reload: 1.3, spread: 0.025, range: 55, auto: false, pellets: 1, ammo: 'pistol', sound: 'pistol', shake: 0.25,
+  pistol:  { name: '.45 REVOLVER', short: 'PISTOL', cal: '45acp', dmg: 38, rate: 0.26, mag: 6, reload: 1.3, spread: 0.025, range: 55, auto: false, pellets: 1, ammo: 'pistol', sound: 'pistol', shake: 0.25,
     modes: [{ id: 'single', name: 'SINGLE', burst: 1, rate: 0.26, spread: 1, kick: 0.35 }, { id: 'fan', name: 'FAN', burst: 3, rate: 0.085, spread: 2.6, kick: 0.45, after: 0.5 }] },
-  smg:     { name: 'RUST-9 SMG', short: 'SMG', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15, mode: 'auto',
+  smg:     { name: 'RUST-9 SMG', short: 'SMG', cal: '9mm', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15, mode: 'auto',
     modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.12, spread: 0.6, kick: 0.22 }, { id: 'burst', name: 'BURST', burst: 3, rate: 0.065, spread: 0.85, kick: 0.2, after: 0.3 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.075, spread: 1, kick: 0.18 }] },
-  shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6,
+  shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', cal: '12ga', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6,
     modes: SHELLS({ dmg: 14, pellets: 8, range: 22, rate: 0.75, kick: 0.8 }, { dmg: 82, range: 40, rate: 0.85, kick: 1.0 }) },
   // The Federal Remnant's issue rifle (systems/bases.js arms its sentries): reaches further and hits harder than the
   // SMG, fires slower. Generic by design: no make, no model.
-  rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22, mode: 'auto',
+  rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', cal: '556', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22, mode: 'auto',
     modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.17, spread: 0.55, kick: 0.26 }, { id: 'burst', name: 'BURST', burst: 3, rate: 0.09, spread: 0.8, kick: 0.24, after: 0.35 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.12, spread: 1, kick: 0.22 }] },
   // The original game's pistol and pump shotgun (game/proto3d/weapon.gd rows), at this engine's scale: its pistol hit for
   // 18 against a 9-a-pellet pump; here the revolver hits 38, so both scale by about two. The self-loader eats the SMG's
   // small fast rounds; the pump takes shells, five in the tube, a slower pump between shots than the sawn-off's two.
-  auto:    { name: 'SELF-LOADER', short: 'AUTO', dmg: 22, rate: 0.17, mag: 12, reload: 1.2, spread: 0.04, range: 50, auto: false, pellets: 1, ammo: 'smg', sound: 'pistol', shake: 0.18, model: 'auto' },
-  pump:    { name: 'PUMP SHOTGUN', short: 'PUMP', dmg: 15, rate: 0.95, mag: 5, reload: 2.4, spread: 0.16, range: 26, auto: false, pellets: 7, ammo: 'shells', sound: 'shotgun', shake: 0.55, model: 'pump',
+  auto:    { name: 'SELF-LOADER', short: 'AUTO', cal: '9mm', dmg: 22, rate: 0.17, mag: 12, reload: 1.2, spread: 0.04, range: 50, auto: false, pellets: 1, ammo: 'smg', sound: 'pistol', shake: 0.18, model: 'auto' },
+  pump:    { name: 'PUMP SHOTGUN', short: 'PUMP', cal: '12ga', dmg: 15, rate: 0.95, mag: 5, reload: 2.4, spread: 0.16, range: 26, auto: false, pellets: 7, ammo: 'shells', sound: 'shotgun', shake: 0.55, model: 'pump',
     modes: SHELLS({ dmg: 15, pellets: 7, range: 26, rate: 0.95, kick: 0.7 }, { dmg: 85, range: 45, rate: 1.0, kick: 0.95 }) },
+  // ---- the calibres' guns (docs/design/WEB_CALIBERS.md): more guns, more kinds, every one on a real calibre. Generic by
+  // design: no make, no model. They wear the models the game has (a long gun looks like a rifle, a revolver a revolver).
+  // A .22 rifle: the farm gun every porch had. Light, quiet, ten in the tube; it wounds more than it kills.
+  rimfire: { name: '.22 RIFLE', short: 'RIMFIRE', cal: '22lr', dmg: 12, rate: 0.3, mag: 10, reload: 1.8, spread: 0.02, range: 50, auto: false, pellets: 1, ammo: '22lr', shake: 0.08, model: 'rifle' },
+  // A .357 revolver: six heavy rounds that crack past; more kick and more reach than the .45.
+  magnum:  { name: '.357 MAGNUM', short: 'MAGNUM', cal: '357mag', dmg: 46, rate: 0.32, mag: 6, reload: 1.4, spread: 0.022, range: 58, auto: false, pellets: 1, ammo: '357mag', shake: 0.32, model: 'revolver' },
+  // A surplus carbine in 7.62x39: the steel-cased short round, thirty in a curved magazine; hits harder than the 5.56,
+  // drops faster past 100 m.
+  carbine: { name: 'SURPLUS CARBINE', short: 'CARBINE', cal: '762x39', dmg: 29, rate: 0.1, mag: 30, reload: 2.2, spread: 0.045, range: 62, auto: true, pellets: 1, ammo: '762x39', shake: 0.24, mode: 'auto', model: 'rifle',
+    modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.15, spread: 0.55, kick: 0.3 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.1, spread: 1, kick: 0.28 }] },
+  // A battle rifle in 7.62x51 (.308): twenty heavy rounds, semi by default; through what stops the carbine.
+  battle:  { name: 'BATTLE RIFLE', short: 'BATTLE', cal: '762x51', dmg: 40, rate: 0.14, mag: 20, reload: 2.4, spread: 0.028, range: 85, auto: false, pellets: 1, ammo: '762x51', shake: 0.34, mode: 'semi', model: 'rifle',
+    modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.2, spread: 0.6, kick: 0.4 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.12, spread: 1.3, kick: 0.42 }] },
+  // A light machine gun in 5.56: a hundred-round box, a long reload, a hose of rounds that walks off its target.
+  lmg:     { name: 'LIGHT MACHINE GUN', short: 'LMG', cal: '556', dmg: 22, rate: 0.075, mag: 100, reload: 4.5, spread: 0.06, range: 72, auto: true, pellets: 1, ammo: 'rifle', shake: 0.24, mode: 'auto', model: 'rifle',
+    modes: [{ id: 'burst', name: 'BURST', burst: 5, rate: 0.075, spread: 0.75, kick: 0.2, after: 0.35 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.075, spread: 1, kick: 0.2 }] },
+  // A medium machine gun in 7.62x51: a belt of a hundred, a gun meant for a bipod or a car's cradle, carried anyway.
+  mmg:     { name: 'MEDIUM MACHINE GUN', short: 'MMG', cal: '762x51', dmg: 36, rate: 0.095, mag: 100, reload: 5.2, spread: 0.065, range: 85, auto: true, pellets: 1, ammo: '762x51', shake: 0.34, mode: 'auto', model: 'rifle',
+    modes: [{ id: 'burst', name: 'BURST', burst: 5, rate: 0.095, spread: 0.75, kick: 0.32, after: 0.4 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.095, spread: 1, kick: 0.32 }] },
+  // An anti-materiel rifle in .50: five rounds, a kick that sits you down, a round that goes through a block wall,
+  // an engine block and the man behind it. The heavy machine gun on a car's mount fires the same round
+  // (data/workshop.js MOUNT_WEAPONS hmg).
+  amr:     { name: 'ANTI-MATERIEL RIFLE', short: '.50 RIFLE', cal: '50bmg', dmg: 120, rate: 1.4, mag: 5, reload: 3.6, spread: 0.008, range: 140, auto: false, pellets: 1, ammo: '50bmg', shake: 1.0, model: 'rifle',
+    modes: [{ id: 'single', name: 'SINGLE', burst: 1, rate: 1.4, spread: 1, kick: 1.2 }] },
 };
 
 export class Combat {
@@ -75,21 +102,22 @@ export class Combat {
     if (ch === g.player) g.arms?.onShot(); // a shot raises the gun, whatever path fired it
     g.fx.flash(hug ? ox : mx, 1.5 + fy, hug ? oz : mz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
-    g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
+    const cal = calOf(w.cal ?? w.round ?? w.ammo); // the round it fires (data/ballistics.js ROUNDS; docs/design/WEB_CALIBERS.md)
+    g.audio.gun(w.sound ?? ROUNDS[cal]?.sound ?? 'pistol', Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
     g.noise(ch.x, ch.z, 45, ch);
-    g.ambient?.eject(ch, ang);
+    g.ambient?.eject(ch, ang, cal); // its casing, of its calibre (systems/forensics.js reads the ground back)
     g.ambient?.onShot(ch.x, ch.z);
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)
     const sky = ch === g.player ? g.fauna?.skyShot(ch, ang) : null; // the mouse on a bird in the sky: the shot rises to it (systems/fauna.js skyAim)
     const lift = sky ? sky.slope : 0, ang0 = sky ? sky.ang : ang;
     // The pull's seed (systems/ballistics.js): every pellet's spread and reach rolls from it, so the record replays it.
-    const B = g.ballistics, round = B ? B.rowKey(w) : w.ammo;
+    const B = g.ballistics, round = cal ?? w.ammo;
     if (B) { if (seed !== null) B.reseed(seed); else B.seed(ch, w.ammo, round, hug ? ch.x : ox, hug ? ch.z : oz, ang0, w.pellets); }
     for (let p = 0; p < w.pellets; p++) {
       const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
       const a = ang0 + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp;
       const reach = w.range * (0.85 + (B ? B.rand() : Math.random()) * 0.15), rise = lift ? lift + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp : 0;
-      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, w.ammo, rise, round);
+      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, round, rise, round); // the calibre is what it punches through with
     }
     return true;
   }
@@ -171,6 +199,7 @@ export class Combat {
     if (tracer) g.fx.tracer(ox, oz, hx, hz, 1.45 + fy);
     let o = null;
     if (kind === 'char') {
+      g.forensics?.wound(target, ammo, dx, dz, shooter === NOBODY ? null : shooter, hx, hz, this.inFlight); // the wound keeps its calibre and its line (systems/forensics.js)
       this.damage(target, dmg, shooter === NOBODY ? null : shooter, dx, dz);
       if (shooter === g.player) g.skillsSys?.onHit();
     } else if (kind === 'veh') {

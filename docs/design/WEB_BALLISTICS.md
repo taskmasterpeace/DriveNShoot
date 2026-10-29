@@ -60,6 +60,8 @@ they were. A mid-dive dodge still rolls on the victim's side.
 ### 3.3 Tracers and sound
 - `tracerEvery` (per row): the Nth round a shooter fires of that kind draws a streak; the streak grows out of the muzzle
   to `tracerLen`, then runs ahead of its tail, and lingers 0.04 s at the impact (so a 3 m shot still draws muzzle to hit).
+  Since the calibres pass (`WEB_CALIBERS.md`) the streak is `min(tracerLen, speed x streakT, flown)`: half the old caps,
+  and a slow round barely streaks. The rows are now keyed by calibre (`ROUNDS['556']`; `ROUND_OF` maps the old ammo keys).
 - A round that passes within 1.6 m of the player: faster than sound (343 m/s) it **cracks** (`audio.crack`, new); slower
   it **whispers** (the old `audio.whiz`). The pistol (305 m/s) is the subsonic round; the counters are in `ballistics`.
 
@@ -169,6 +171,8 @@ the lead is 0.83 m, more than his 0.5 m body. Unled, a steady hand misses; led w
   `carcombat.js`, `vehicledamage.js`, `dogs.js`/`fauna.js`/`train.js` raycasts, `storeys.js` (floors), `decks.js`
   (covered), `fx.js` (sparks, decals, `up`), `audio.js` (whiz, new `crack`), `tactics.js` (aimMul).
 - **Used by:** every gun; `ai.js` (lead); `convoy.js` (lead); the `ballistics` command; the shard (record + contract).
+- **Calibres** (`WEB_CALIBERS.md`): the rows are calibres; `combat.segment` stamps each wound with the round's calibre
+  for `systems/forensics.js`; `ambient.eject` drops the calibre's casing.
 - Shared-file hooks: `main.js` (construct + one update call), `api.js` (commands, checks, the `fire` command settles its
   rounds), `arms.js` (a mode's `round`), `audio.js` (`crack`), `convoy.js` (lead).
 

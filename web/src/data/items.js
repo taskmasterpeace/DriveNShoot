@@ -110,19 +110,30 @@ export const ITEMS = {
   // Rounds are real things in your pack: they weigh, take room, sit in a trunk, get looted and traded. The gun you
   // fire draws them through g.inv.ammo (inventory.bindAmmo), so a reload takes rounds out of the pack. Bulk is per
   // round (a box of fifty pistol rounds is about a third of a litre; a shotgun shell is fat).
-  ammo_pistol: { name: 'Pistol rounds', kind: 'ammo', kg: 0.012, bulk: 0.006, stack: 200, value: 0.4, ammo: 'pistol',
+  ammo_pistol: { name: 'Pistol rounds (.45 ACP)', kind: 'ammo', kg: 0.012, bulk: 0.006, stack: 200, value: 0.4, ammo: 'pistol',
     desc: 'Big, slow revolver rounds, loose in a paper box gone soft at the corners.' },
-  ammo_smg: { name: 'SMG rounds', kind: 'ammo', kg: 0.008, bulk: 0.004, stack: 300, value: 0.3, ammo: 'smg',
+  ammo_smg: { name: 'SMG rounds (9mm)', kind: 'ammo', kg: 0.008, bulk: 0.004, stack: 300, value: 0.3, ammo: 'smg',
     desc: 'Small, fast rounds for a submachine gun. Some are reloads; you can tell by the dents.' },
-  ammo_shells: { name: 'Shotgun shells', kind: 'ammo', kg: 0.045, bulk: 0.04, stack: 50, value: 1.2, ammo: 'shells',
+  ammo_shells: { name: 'Shotgun shells (12 gauge buck)', kind: 'ammo', kg: 0.045, bulk: 0.04, stack: 50, value: 1.2, ammo: 'shells',
     desc: 'Twelve-gauge buckshot in faded red hulls. Bulky; every one counts.' },
   // The other two shells a shotgun loads (combat.js SHELLS: its BIRD and SLUG modes).
   ammo_birdshot: { name: 'Birdshot shells', kind: 'ammo', kg: 0.04, bulk: 0.04, stack: 50, value: 0.8, ammo: 'birdshot',
     desc: 'Green hulls of fine lead shot for ducks and doves. Peppers a man; stops a dog.' },
   ammo_slug: { name: 'Slug shells', kind: 'ammo', kg: 0.05, bulk: 0.04, stack: 50, value: 2, ammo: 'slug',
     desc: 'Black hulls, each with one soft lead slug the size of your thumb. Goes through a car door.' },
-  ammo_rifle: { name: 'Rifle rounds', kind: 'ammo', kg: 0.025, bulk: 0.012, stack: 150, value: 0.9, ammo: 'rifle',
+  ammo_rifle: { name: 'Rifle rounds (5.56)', kind: 'ammo', kg: 0.025, bulk: 0.012, stack: 150, value: 0.9, ammo: 'rifle',
     desc: 'Long brass rounds on stripper clips, the old government\'s issue.', tags: ['military'] },
+  // The calibres' own boxes (data/ballistics.js ROUNDS `ammo`; docs/design/WEB_CALIBERS.md).
+  ammo_22lr: { name: '.22 rounds', kind: 'ammo', kg: 0.003, bulk: 0.002, stack: 500, value: 0.1, ammo: '22lr',
+    desc: 'A brick of five hundred little rimfire rounds. Every farmhouse had one in a drawer.' },
+  ammo_357mag: { name: '.357 Magnum rounds', kind: 'ammo', kg: 0.016, bulk: 0.007, stack: 150, value: 0.7, ammo: '357mag',
+    desc: 'Long-cased revolver rounds with soft lead noses. Loud, and they go where you point them.' },
+  ammo_762x39: { name: '7.62x39 rounds', kind: 'ammo', kg: 0.016, bulk: 0.009, stack: 200, value: 0.6, ammo: '762x39',
+    desc: 'Short fat rounds in grey-green lacquered steel cases, a surplus spam can of them.' },
+  ammo_762x51: { name: '.308 rounds (7.62x51)', kind: 'ammo', kg: 0.025, bulk: 0.013, stack: 150, value: 1.2, ammo: '762x51',
+    desc: 'Full-power rifle rounds, some still on their links. The battle rifle and the medium gun eat them.', tags: ['military'] },
+  ammo_50bmg: { name: '.50 rounds (12.7mm)', kind: 'ammo', kg: 0.115, bulk: 0.05, stack: 40, value: 6, ammo: '50bmg',
+    desc: 'Each one as long as your hand and heavy as a full can of beans. Made to stop trucks.', tags: ['military'] },
   // A gun as a thing: in a trunk, on a body, on the ground. On you, a gun is in your loadout (g.inv.weapons), not the
   // list: it hangs on a sling or sits in a holster. `cond` 1 = clean, 0 = broken; `loaded` = rounds in it.
   gun_pistol: { name: '.45 revolver', kind: 'gun', kg: 1.2, bulk: 0.8, stack: 1, value: 80, weapon: 'pistol',
@@ -138,6 +149,21 @@ export const ITEMS = {
     desc: 'A twelve-round semi-automatic pistol in the small, fast calibre the SMGs eat. Quick to hand, quick to empty.' },
   gun_pump: { name: 'Pump shotgun', kind: 'gun', kg: 3.4, bulk: 4.5, stack: 1, value: 190, weapon: 'pump',
     desc: 'A full-length pump gun with five in the tube. Slower to fire than the sawn-off, slower to run dry.' },
+  // The calibres' guns (combat.js WEAPONS rimfire .. amr; docs/design/WEB_CALIBERS.md).
+  gun_rimfire: { name: '.22 rifle', kind: 'gun', kg: 2.4, bulk: 4, stack: 1, value: 70, weapon: 'rimfire',
+    desc: 'A tube-fed .22 with a scratched walnut stock. Kept the crows off the corn; now it keeps worse off.' },
+  gun_magnum: { name: '.357 Magnum', kind: 'gun', kg: 1.3, bulk: 0.9, stack: 1, value: 140, weapon: 'magnum',
+    desc: 'A heavy-framed six-shot revolver. The rounds crack and the muzzle jumps.' },
+  gun_carbine: { name: 'Surplus carbine', kind: 'gun', kg: 3.6, bulk: 4.6, stack: 1, value: 260, weapon: 'carbine',
+    desc: 'A stamped-steel carbine with a curved thirty-round magazine. Rattles when you run; fires when it is filthy.' },
+  gun_battle: { name: 'Battle rifle', kind: 'gun', kg: 4.4, bulk: 6, stack: 1, value: 480, weapon: 'battle',
+    desc: 'A long, heavy rifle in .308, twenty to a magazine. Every shot shoves your shoulder back.', tags: ['military'] },
+  gun_lmg: { name: 'Light machine gun', kind: 'gun', kg: 7.5, bulk: 8, stack: 1, value: 700, weapon: 'lmg',
+    desc: 'A 5.56 machine gun with a hundred-round box under it and a bipod folded flat.', tags: ['military'] },
+  gun_mmg: { name: 'Medium machine gun', kind: 'gun', kg: 11, bulk: 10, stack: 1, value: 950, weapon: 'mmg',
+    desc: 'A belt-fed .308 gun built for a tripod or a cradle. You can carry it. You will not enjoy it.', tags: ['military'] },
+  gun_amr: { name: 'Anti-materiel rifle', kind: 'gun', kg: 13, bulk: 12, stack: 1, value: 1400, weapon: 'amr',
+    desc: 'A .50 rifle as long as a man, with a muzzle brake like a fist. It stops engines.', tags: ['military'] },
   cleaning_kit: { name: 'Gun cleaning kit', kind: 'tool', kg: 0.35, bulk: 0.4, stack: 1, value: 25, uses: 5, use: { act: 'clean' },
     desc: 'A rod, brushes, patches and a little can of oil. Takes the grit out of whatever you are holding.' },
   // ---- valuables and keepsakes -----------------------------------------------------------------------------
@@ -175,9 +201,9 @@ export const LOOT = {
   bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1], ['bedroll', 2, 1, 1]] },
   garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
   // Ike's shop: rounds of every kind, the odd second-hand gun, the kit to keep one running.
-  gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_birdshot', 2, 4, 12], ['ammo_slug', 1, 2, 8], ['ammo_rifle', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
+  gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_birdshot', 2, 4, 12], ['ammo_slug', 1, 2, 8], ['ammo_rifle', 1, 10, 30], ['ammo_22lr', 2, 25, 100], ['ammo_357mag', 2, 6, 24], ['ammo_762x39', 2, 15, 45], ['ammo_762x51', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['gun_rimfire', 1, 1, 1], ['gun_magnum', 1, 1, 1], ['gun_carbine', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
   office: { rolls: [1, 2], none: 5, rows: [['photograph', 2, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 3], ['lockpicks', 1, 1, 1], ['road_atlas', 2, 1, 1], ['painkillers', 1, 1, 1], ['ammo_pistol', 1, 6, 18]] },
-  military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1], ['ammo_rifle', 4, 15, 60], ['cleaning_kit', 1, 1, 1]] },
+  military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1], ['ammo_rifle', 4, 15, 60], ['ammo_762x51', 2, 20, 60], ['ammo_50bmg', 1, 5, 15], ['gun_battle', 1, 1, 1], ['gun_lmg', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
   wreck: { rolls: [0, 2], none: 5, rows: [['scrap', 5, 1, 3], ['fuel_can', 1, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 2], ['duct_tape', 1, 1, 1], ['photograph', 1, 1, 1]] },
   desert: { rolls: [1, 1], none: 1, rows: [['cactus_fruit', 6, 1, 3], ['water_bottle', 1, 1, 1], ['jerky', 1, 1, 2]] },
   // The Phoenix ring's shops (data/ring.js): a corner store's shelves, a fuel stop's counter and back room.
@@ -192,8 +218,8 @@ export const LOOT = {
 // What you start with: pockets, a satchel on your back, a bottle and a little food (plus the guns in g.inv).
 
 // The rounds each gun's ammo type is (g.inv.ammo keys) and the item a loadout gun becomes when you put it down.
-export const AMMO_ITEM = { pistol: 'ammo_pistol', smg: 'ammo_smg', shells: 'ammo_shells', birdshot: 'ammo_birdshot', slug: 'ammo_slug', rifle: 'ammo_rifle' };
-export const GUN_ITEM = { pistol: 'gun_pistol', smg: 'gun_smg', shotgun: 'gun_shotgun', rifle: 'gun_rifle', auto: 'gun_auto', pump: 'gun_pump' };
+export const AMMO_ITEM = { pistol: 'ammo_pistol', smg: 'ammo_smg', shells: 'ammo_shells', birdshot: 'ammo_birdshot', slug: 'ammo_slug', rifle: 'ammo_rifle', '22lr': 'ammo_22lr', '357mag': 'ammo_357mag', '762x39': 'ammo_762x39', '762x51': 'ammo_762x51', '50bmg': 'ammo_50bmg' };
+export const GUN_ITEM = { pistol: 'gun_pistol', smg: 'gun_smg', shotgun: 'gun_shotgun', rifle: 'gun_rifle', auto: 'gun_auto', pump: 'gun_pump', rimfire: 'gun_rimfire', magnum: 'gun_magnum', carbine: 'gun_carbine', battle: 'gun_battle', lmg: 'gun_lmg', mmg: 'gun_mmg', amr: 'gun_amr' };
 // What each gun loses per shot (condition: 1 clean, 0 broken) and how readily it jams once worn (x the base rate).
 // A revolver at 0.82 has ~680 shots in it before it breaks; the stamped SMG wears least per shot but fires the most.
 export const GUN_WEAR = {

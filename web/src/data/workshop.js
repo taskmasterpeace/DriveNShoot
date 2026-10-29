@@ -91,11 +91,16 @@ export const POWER = { alternator: { cap: 20, regen: 4 } };
 // The old ids (mg, oil, caltrops, smoke) are the same rows they always were (data/parts.js MOUNTS), with the new fields.
 export const MOUNT_WEAPONS = {
   mg1:        { name: 'MACHINE GUN', kind: 'hitscan', size: 1, kg: 40, price: 180, labour: 0.5, faces: ['front', 'left', 'right', 'rear', 'top'], type: 'bullet',
-                dmg: 12, rate: 0.11, spread: 0.04, range: 55, mag: 200, ammo: 'belt_mg', perItem: 100, sound: 'smg',
+                dmg: 12, rate: 0.11, spread: 0.04, range: 55, mag: 200, ammo: 'belt_mg', perItem: 100, sound: 'smg', cal: '762x51',
                 desc: 'One belt-fed gun on a welded cradle. Cheap, reliable, chews through tyres.' },
   mg:         { name: 'TWIN MG', kind: 'hitscan', size: 1, kg: 60, price: 300, labour: 0.75, faces: ['front', 'left', 'right', 'rear', 'top'], type: 'bullet',
-                dmg: 15, rate: 0.07, spread: 0.035, range: 60, mag: 240, ammo: 'belt_mg', perItem: 100, sound: 'smg',
+                dmg: 15, rate: 0.07, spread: 0.035, range: 60, mag: 240, ammo: 'belt_mg', perItem: 100, sound: 'smg', cal: '762x51',
                 desc: 'Two guns on one trigger, alternating. The standard nose of anything that wants to live on the interstate.' },
+  // The heavy machine gun (docs/design/WEB_CALIBERS.md): a .50 on a ring or a cradle. Through a car door, an engine
+  // block and the man behind it; its belts are their own (belt_50).
+  hmg:        { name: 'HEAVY MACHINE GUN', kind: 'hitscan', size: 2, kg: 85, price: 820, labour: 1, faces: ['front', 'top', 'left', 'right'], type: 'bullet', cal: '50bmg',
+                dmg: 60, rate: 0.13, spread: 0.03, range: 90, mag: 100, ammo: 'belt_50', perItem: 50, sound: 'heavy',
+                desc: 'A .50 on a welded ring. Every round a hammer; the car shudders under it.' },
   autocannon: { name: 'AUTOCANNON', kind: 'hitscan', size: 2, kg: 140, price: 650, labour: 1.5, faces: ['front', 'top', 'left', 'right'], type: 'bullet',
                 dmg: 34, rate: 0.32, spread: 0.02, range: 75, mag: 60, ammo: 'ac_shells', perItem: 20, sound: 'shotgun',
                 desc: 'A slow, heavy thump that dents plate a slab at a time. Every shot rocks the car.' },
@@ -184,6 +189,7 @@ export const UTILITY = {
 // ---- AMMO as items (registered into data/items.js ITEMS by systems/workshop.js) ----------------------------------------
 export const AMMO_ITEMS = {
   belt_mg:        { name: 'MG belt', kind: 'ammo', kg: 2.8, bulk: 1.6, stack: 4, value: 30, tags: ['car_ammo'], desc: 'A hundred linked rounds in a steel can. Feeds either hood gun.' },
+  belt_50:        { name: '.50 belt', kind: 'ammo', kg: 6, bulk: 3, stack: 3, value: 90, tags: ['car_ammo'], desc: 'Fifty linked .50 rounds in a can you need both hands for. Feeds the heavy gun.' },
   ac_shells:      { name: 'Autocannon shells', kind: 'ammo', kg: 6, bulk: 3, stack: 3, value: 60, tags: ['car_ammo'], desc: 'Twenty fat shells in a crate with rope handles.' },
   rocket:         { name: 'Rocket', kind: 'ammo', kg: 3, bulk: 2.4, stack: 6, value: 45, tags: ['car_ammo'], desc: 'A tube with fins and a bad attitude. Fits the pods.' },
   heavy_rocket:   { name: 'Heavy rocket', kind: 'ammo', kg: 9, bulk: 7, stack: 1, value: 110, tags: ['car_ammo'], desc: 'One round for the big tube. Carry it like it is asleep.' },

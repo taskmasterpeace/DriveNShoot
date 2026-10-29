@@ -13,6 +13,7 @@ import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
 import { ITEMS, LOOT, GUN_ITEM, GUN_CARE } from '../data/items.js';
+import { calOf } from '../data/ballistics.js';
 import { ZOOM, CAMERA } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS, RING_OPENINGS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
@@ -74,6 +75,7 @@ import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay,
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
+import { calibersCommands, calibersChecks } from './calibers-api.js'; // calibres and forensics (WEB_CALIBERS.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
@@ -1954,7 +1956,7 @@ function buildCommands(api) {
     registerWeapon: {
       group: 'content', desc: 'Add/override a weapon row at runtime. def: {name, short, dmg, rate, mag, reload, spread, range, auto, pellets, ammo:pistol|smg|shells, sound:pistol|smg|shotgun, shake}. Then give {weapon:key}.',
       args: { key: { type: 'string', required: true }, def: { type: 'object', required: true } },
-      run: async ({ key, def }) => { WEAPONS[key] = { ...(WEAPONS[key] ?? WEAPONS.pistol), ...def }; return { weapon: key, def: WEAPONS[key] }; },
+      run: async ({ key, def }) => { const base = WEAPONS[key] ?? WEAPONS.pistol; WEAPONS[key] = { ...base, ...def, cal: def.cal ?? (def.ammo && def.ammo !== base.ammo ? calOf(def.ammo) : base.cal), content: !GUN_ITEM[key] }; return { weapon: key, def: WEAPONS[key] }; }, // a pack's gun fires the calibre of the box it loads (WEB_CALIBERS.md)
     },
     registerVehicle: {
       group: 'content', desc: 'Add/override a vehicle handling row. Base body shape is copied from def.base (rig|interceptor|buggy|pickup).',
@@ -2102,6 +2104,7 @@ function buildCommands(api) {
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
+    ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
@@ -2882,6 +2885,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
   await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
+  await calibersChecks({ g, api, C, check, extra }); // calibres: every gun a row, a .50 through a wall, casings, a body's wounds, shorter tracers
   await lookfeelChecks({ g, api, C, check }); // LOOK-FEEL: rows and no purple, the horizon law, the grade's blend, wind, skids and the crash, hit-stop and kick, wear
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
