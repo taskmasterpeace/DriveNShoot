@@ -368,7 +368,8 @@ export async function siteStoriesChecks(api, check0, C) {
         const w = B.workers.find((q) => OCCUPATIONS[q.occ].makes && q.alive && OCCUPATIONS[q.occ].shift[0] < OCCUPATIONS[q.occ].shift[1] && OCCUPATIONS[q.occ].shift[1] - OCCUPATIONS[q.occ].shift[0] >= 6);
         if (!w) return JSON.stringify({ off, why: 'no maker' });
         const [item, per] = OCCUPATIONS[w.occ].makes, gd = S.goodOf(item);
-        S.harvest(); const s0 = L.stock[gd], banked0 = L.banked ?? 0, formula = S.makeOf(L, gd, PLACE_KINDS[L.kind] ?? PLACE_KINDS.landmark);
+        const shelf = () => Object.values(B.stock).reduce((n, sv) => n + (S.goodOf(sv.item) === gd ? sv.n : 0), 0);
+        S.harvest(); const s0 = L.stock[gd], sh0 = shelf(), formula = S.makeOf(L, gd, PLACE_KINDS[L.kind] ?? PLACE_KINDS.landmark);
         g.sky.time = w.shift[0] + 0.1;
         WF.promote(w, { ...w.work, at: 'work' }); if (!w.c) return JSON.stringify({ off, why: 'maker not promoted' });
         w.c.x = w.work.x; w.c.z = w.work.z; WF.think(w.c, 0.05);
@@ -376,8 +377,8 @@ export async function siteStoriesChecks(api, check0, C) {
         for (let i = 0; i < Math.round(per * 2 / 0.25); i++) { g.sky.time += 0.25; B.lastGh = WF.gh() - 0.25; WF.think(w.c, 0.05); WF.produce(); }
         const made = w.made - made0;
         S.harvest();
-        const live = { item, gd, made, took: r1(L.stock[gd] - s0), banked: (L.banked ?? 0) - banked0, formula };
-        const ok = Math.abs(got - want) < 0.6 && off.fuel === 0 && made >= 1 && live.took === made && live.banked === made && formula === 0;
+        const live = { item, gd, made, took: r1(L.stock[gd] - s0), shelves: shelf() - sh0, formula }; // (other workers of the town on shift bank too: all of it counts, and only it)
+        const ok = Math.abs(got - want) < 0.6 && off.fuel === 0 && made >= 1 && live.took === live.shelves && live.shelves >= made && formula === 0;
         return ok ? true : JSON.stringify({ off, live });
       } finally { WF.enabled = wfWas; }
     });
