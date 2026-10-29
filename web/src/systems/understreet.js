@@ -34,6 +34,7 @@ export class UnderStreet {
     for (const [k, L] of Object.entries(US_LOGS)) if (!LOGS[k]) LOGS[k] = L;
     if (!DOOR_MATERIALS.bars) DOOR_MATERIALS.bars = { ...BARS };
     this.M = makeLookMaterials();
+    if (g.water?.normal) { this.M.water.normalMap = g.water.normal; this.M.water.normalScale.set(0.5, 0.5); } // the water lane's ripples: your lamp glints off the flood
     this.byTown = new Map();   // citygen rec id -> its drain row
     this.collars = new Map();  // way id -> its collar boxes (an open manhole's lip) in the street's extra
     this.below = null;         // the live level's own meshes (buildBelow)
@@ -88,9 +89,12 @@ export class UnderStreet {
     if (!R.inCity(p.x, p.z, 420)) { if (!this.ringRows?.size) return; }
     this.ringRows ??= new Map();
     const [k0, j0] = ringTileOf(p.x, p.z), N = RING_DRAINS.near;
+    let made = 0;
     for (let k = k0 - N; k <= k0 + N; k++) for (let j = j0 - N; j <= j0 + N; j++) {
       const key = `${k},${j}`;
       if (this.ringRows.has(key)) continue;
+      // one district a scan (a row is 10-40 ms to plan): yours first, then the rest as you stand there
+      if (made++ && !(k === k0 && j === j0)) continue;
       const row = this.ringRow(k, j);
       this.ringRows.set(key, row);
       if (!row) continue;
@@ -126,7 +130,8 @@ export class UnderStreet {
       const I = R.I ?? 470, desert = (x, z) => !(Math.abs(x) <= I && Math.abs(z) <= I) && R.depth(x, z) < -RING_DRAINS.edgeIn;
       const out = Math.abs(cx) > Math.abs(cz) ? { x: Math.sign(cx), z: 0 } : { x: 0, z: Math.sign(cz) };
       const viaWash = Math.hypot(nx, nz) < RING_DRAINS.washReach;
-      const world = { wet: (x, z) => Math.max(g.water?.depthAt?.(x, z) ?? 0, washD(x, z) < RING_DRAINS.washW || desert(x, z) ? 2 : 0), ground: (x, z) => (W.groundAt ? W.groundAt(x, z) : y0), toward: viaWash ? (Math.abs(nx) > Math.abs(nz) ? { x: Math.sign(nx), z: 0 } : { x: 0, z: Math.sign(nz) }) : out, pump: false, culvert: false, search: RING_DRAINS.search };
+      const mine = (x, z) => x >= T.x0 && x < T.x1 && z >= T.z0 && z < T.z1, other = (x, z) => !mine(x, z) && !(Math.abs(x) <= I && Math.abs(z) <= I) && R.inCity(x, z);
+      const world = { wet: (x, z) => (other(x, z) ? -1 : Math.max(g.water?.depthAt?.(x, z) ?? 0, washD(x, z) < RING_DRAINS.washW || desert(x, z) ? 2 : 0)), ground: (x, z) => (W.groundAt ? W.groundAt(x, z) : y0), toward: viaWash ? (Math.abs(nx) > Math.abs(nz) ? { x: Math.sign(nx), z: 0 } : { x: 0, z: Math.sign(nz) }) : out, pump: false, culvert: false, search: RING_DRAINS.search };
       let row = null;
       try { row = drainSite({ id: T.id, seed: ((k * 73856093) ^ (j * 19349663)) >>> 0, y: y0, name: T.name }, T, world); } catch (e) { console.warn('[understreet] ring', key, e); }
       if (row) row.ring = [k, j];
@@ -341,7 +346,7 @@ export class UnderStreet {
   update(simDt, dt) {
     if (!this.enabled) return;
     const g = this.g, U = this.U, A = U.A, p = g.player;
-    if ((this.scanT -= dt) <= 0) { this.scanT = 2; this.ringScan(); }
+    if ((this.scanT -= dt) <= 0) { this.scanT = 0.5; this.ringScan(); }
     const hour = (g.society?.day ?? 0) * 24 + (g.sky?.time ?? 12);
     const mins = this.lastHour === null ? 0 : Math.max(0, Math.min(600, (hour - this.lastHour) * 60));
     this.lastHour = hour;

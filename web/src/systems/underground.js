@@ -478,7 +478,7 @@ export class Underground {
   heightAt(x, z, y) {
     const A = this.A;
     if (!A || x < A.x0 || x > A.x1 || z < A.z0 || z > A.z1) return null;
-    const F = A.plan.flights;
+    const G = A.plan.fgrid, F = G ? G.get(Math.floor(x / A.plan.fcell) * 65536 + Math.floor(z / A.plan.fcell)) ?? EMPTY : A.plan.flights; // a town's drains: only the ways in this 16 m cell
     for (let i = 0; i < F.length; i++) { const f = F[i], R0 = f.rect; if (x < R0.minX || x > R0.maxX || z < R0.minZ || z > R0.maxZ || (f.lid && !this.ext?.isOpen(f))) continue; const h = flightHeight(f, x, z, y); if (h !== null) return h; } // a shut lid is no way (systems/understreet.js)
     const R = A.liftR;
     if (R && x > R.minX && x < R.maxX && z > R.minZ && z < R.maxZ) { const ly = A.rec.lift.y; if (Math.abs(ly - y) < 2.2) return ly; }

@@ -112,6 +112,7 @@ function planNet(T, world, seed, y0) {
       for (let d = 4; d <= (world.search ?? O.search); d += 2) {
         const a = end + s * d, x = P.axis === 'x' ? a : P.at, z = P.axis === 'x' ? P.at : a;
         const wv = wet(x, z);
+        if (wv < 0) break; // another district's ground: its own drains take the water there
         if (wv > 0.3) { if (d >= 14) out = { pipe: P, s, bank: a - s * 3, water: wv < 2 }; else if (wv >= 2) out = { pipe: P, s, bank: end + s * 14, water: false }; break; } // wet 2: dry ground that takes the water (a wash, the desert): the ramp may stand right in it
       }
       if (out) break;
@@ -277,6 +278,9 @@ function planDrains(site) {
     f.way = w.id; f.wkind = w.kind; f.lid = !!WAYS[w.kind].lid;
     P.flights.push(f); P.ways.push({ ...w, flight: f.id, top: { x: r2(f.top.x), z: r2(f.top.z) }, bottom: { x: r2(f.bottom.x), z: r2(f.bottom.z) }, rect: f.rect });
   }
+  // a bucket of flights per 16 m cell (the underground's heightAt asks for every person, every frame: a town has a hundred ways)
+  P.fcell = 16; P.fgrid = new Map();
+  for (const f of P.flights) { const R = f.rect; for (let i = Math.floor((R.minX - 1) / 16); i <= Math.floor((R.maxX + 1) / 16); i++) for (let j = Math.floor((R.minZ - 1) / 16); j <= Math.floor((R.maxZ + 1) / 16); j++) { const k = i * 65536 + j; const L = P.fgrid.get(k); if (L) L.push(f); else P.fgrid.set(k, [f]); } }
   return P;
 }
 
@@ -319,7 +323,7 @@ function genDrains(site, k, P) {
   for (const g of N.lights) {
     const a = g.at, lo = Math.min(g.from, g.to), hi = Math.max(g.from, g.to);
     if (g.axis === 'x') fill(a, lo, a + 1, hi, CLS.stub, true); else fill(lo, a, hi, a + 1, CLS.stub, true);
-    L.grates.push({ x: r2(g.x), z: r2(g.z), loose: g.loose, fx: g.axis === 'x' ? a + 0.5 : (g.from + g.to) / 2, fz: g.axis === 'x' ? (g.from + g.to) / 2 : a + 0.5 });
+    L.grates.push({ x: r2(g.x), z: r2(g.z), loose: g.loose, fx: g.axis === 'x' ? a + 0.5 : (g.from + g.to) / 2, fz: g.axis === 'x' ? (g.from + g.to) / 2 : a + 0.5, px: g.axis === 'x' ? a + 0.5 : g.from - g.side * 0.8, pz: g.axis === 'x' ? g.from - g.side * 0.8 : a + 0.5 }); // px, pz: where its light spills into the pipe
   }
   for (const w of N.ways) if (w.stub) { const lo = Math.min(w.stub.from, w.stub.to), hi = Math.max(w.stub.from, w.stub.to); if (w.axis === 'z') fill(w.b0, lo, w.b0 + 1, hi, CLS.stub, true); else fill(lo, w.b0, hi, w.b0 + 1, CLS.stub, true); }
   for (const f of P.flights) {

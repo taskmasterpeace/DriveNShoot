@@ -62,7 +62,7 @@ export const WAYS = {
 // brings up to (knee deep in the trunk); storm: an acid storm's flood (the trunk full to the soffit). rise/fall: metres
 // a game minute; pump: what a running pump station takes off a game minute. wade/swim: depths (the water lane's own
 // 0.25 / 1.3, data/water.js); air: below this much headroom you are under (breath, then drowning).
-export const FLOOD = { dry: 0.1, rain: 0.5, storm: 2.45, rise: 0.02, fall: 0.006, pump: 0.03, wade: 0.25, swim: 1.3, air: 0.3, drown: 9, colour: '#3b3a2a', murk: 0.85 };
+export const FLOOD = { dry: 0.1, rain: 0.5, storm: 2.45, rise: 0.02, fall: 0.006, pump: 0.03, wade: 0.25, swim: 1.3, air: 0.3, drown: 9, colour: '#6e6848', sheen: '#24200f', murk: 0.85 }; // colour/sheen: the murk's surface (lit by your lamp; the sheen keeps it a surface in the dark)
 
 // The current: water runs toward the outfall at k m/s per metre of depth (at most max); it carries whoever stands in it
 // (a swimmer at full speed, a wader at `wade` of it).
@@ -130,7 +130,7 @@ export function validateUnderstreet(rows = { SEWER, PIPES, CHAMBERS, WAYS, FLOOD
   if (!(R.LIFE.nestSize[0] >= 1 && R.LIFE.nestSize[0] <= R.LIFE.nestSize[1] && R.LIFE.rats <= 64)) bad.push('LIFE: nestSize, rats <= 64 (one instanced mesh)');
   for (const [k, T] of Object.entries(R.US_LOOT)) for (const [id] of T.rows) if (items && !items[id]) bad.push(`loot ${k}: no item "${id}"`);
   for (const [k, L] of Object.entries(R.US_LOGS)) { if (!L.title || !L.text) bad.push(`log ${k}: title and text`); if (L.text.length > 320) bad.push(`log ${k}: keep a log to 320 chars`); }
-  colours.push(R.FLOOD.colour, R.SEWER.fill, ...BARS.colors);
+  colours.push(R.FLOOD.colour, R.FLOOD.sheen, R.SEWER.fill, ...BARS.colors);
   for (const c of colours) if (!/^#[0-9a-f]{6}$/i.test(c) || !hueOk(c)) bad.push(`colour ${c}: hue 270-320 is banned (or not #rrggbb)`);
   return { ok: !bad.length, bad, counts: { pipes: Object.keys(R.PIPES).length, chambers: Object.keys(R.CHAMBERS).length, ways: Object.keys(R.WAYS).length, loot: Object.keys(R.US_LOOT).length, logs: Object.keys(R.US_LOGS).length, colours: colours.length } };
 }
