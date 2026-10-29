@@ -143,7 +143,7 @@ export class SiteStories {
 
   // ---- the clock ---------------------------------------------------------------------------------------------------------
   update(dt) {
-    if (!this.enabled) return;
+    if (!this.enabled) { this.lastMove = null; this.clock = null; return; } // off: nothing moved, so nothing catches up when it comes back on
     // the few live cars steer every frame (their records are moved by the tick)
     for (let i = 0; i < this.movers.length; i++) { const m = this.movers[i]; if (m.live && m.car?.v && m.state === 'road') this.steer(m, dt); }
     this.t += dt;
@@ -824,17 +824,20 @@ export class SiteStories {
         const mate = m.people.find((q) => !q.dead);
         // the partner remembers: he saw who did it if he was there to see, and he keeps after you without a contract
         if (mate) { m.grudge = true; if (mate.c && Math.hypot(mate.c.x - c.x, mate.c.z - c.z) < GUILD.sightR) this.seen(m.holder, 'where his partner fell', P.x, P.z, 'player', this.youName()); }
-        const row = g.society.chronicle.query({ verb: 'kill', actor: 'player', limit: 4 }).find((r) => r.o === c.id);
+        const row = this.deedOf(c);
         const hall = this.place(m.hall);
         if (row && hall) { this.story(hall, 'hunterdown', { who: p?.name ?? 'a tallyman', target: this.youName() }, { quiet: true, cause: row.seq }); hall.coin = Math.max(hall.coin, 0) + 400; this.post({ target: { kind: 'player', name: this.youName() }, by: { name: GUILD.name, place: hall.id }, deed: { seq: row.seq, verb: 'kill', text: `killing ${p?.name ?? 'a tallyman'}` }, pay: iroll(rngOf(m.seed), GUILD.pay.hunter) }); }
       } else if (attacker === P && m) {
         // a killing of one of a place's people, seen: the place posts your name
-        const row = g.society.chronicle.query({ verb: 'kill', actor: 'player', limit: 4 }).find((r) => r.o === c.id);
+        const row = this.deedOf(c);
         const home = this.place(m.home);
         if (row && row.ws > 0 && home && home.pop > 0 && !this.raids(home)) this.post({ target: { kind: 'player', name: this.youName() }, by: { name: home.name, place: home.id }, deed: { seq: row.seq, verb: 'kill', text: `the killing of ${p?.name ?? 'one of ours'}` }, pay: iroll(rngOf(m.seed), GUILD.pay.kill) });
       }
     }
   }
+
+  // Your deed against this person: the chronicle's row of the killing (a 'silence' when they had seen something of yours).
+  deedOf(c) { return this.g.society.chronicle.query({ actor: 'player', limit: 8 }).find((r) => r.o === c.id && (r.v === 'kill' || r.v === 'silence')) ?? null; }
 
   // ---- what you can see: the halls' signs, every town's board, the marks a raid leaves, a refugee camp ----------------------
   // One instanced mesh of lit boxes, rebuilt only when what is near you changes (never per frame).
@@ -920,7 +923,7 @@ export class SiteStories {
     for (const m of this.movers) if (m.live) this.demote(m);
     for (const p of this.places.values()) if (p.garrison?.c) this.demoteGarrison(p);
     if (this.mesh) this.mesh.count = 0;
-    this.sig = null;
+    this.sig = null; this.lastMove = null; this.clock = null;
   }
 
   // ---- views ---------------------------------------------------------------------------------------------------------------

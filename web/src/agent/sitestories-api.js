@@ -103,7 +103,7 @@ export async function siteStoriesChecks(api, check0, C) {
   const sv = (await C('save')).save;
   const was = { zombies: g.zombies.enabled, raiders: g.raiderTimer, convoyNext: g.convoy.next, grapevine: g.grapevine?.enabled, director: g.society.director.paused, pulls: g.pulls.enabled, cash: g.cash };
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy.despawn?.(); g.convoy.next = 1e9; if (g.grapevine) g.grapevine.enabled = false; g.society.director.paused = true;
-  g.pulls.enabled = true; S.enabled = true; S.ensure();
+  g.pulls.enabled = true; S.enabled = true; S.ensure(); S.tick(); // on again: its clock starts from this hour
   const out = async () => { if (p.inVehicle) g.exitVehicle(true); if (!p.alive) { g.respawnT = 0; await C('step', { seconds: 0.3 }); } };
   const stand = async (x, z) => { await out(); await C('teleport', { x, z }); g.camLook.x = p.x; g.camLook.z = p.z; await C('step', { seconds: 0.2 }); };
   // keep the world's own parties out of the way of a staged one (they would fill the live slots and the road)
@@ -339,10 +339,10 @@ export async function siteStoriesChecks(api, check0, C) {
       g.combat.kill(a, p, 0, 0, 'bullet');
       const sawIt = K.holders.get(H.holder)?.facts.some((c) => c.subject === 'sight:player' && c.source.channel === 'saw');
       const post = S.bounties.slice(posted0).find((x) => x.by.name === GUILD.name && x.target.kind === 'player');
-      const row = post ? g.society.chronicle.query({ verb: 'kill', actor: 'player', limit: 5 }).find((r) => r.seq === post.deed.seq) : null;
-      const ok = H.grudge && sawIt && post && row?.o === a.id && post.escrow > 0;
+      const row = post ? S.deedOf(a) : null;
+      const ok = H.grudge && sawIt && post && row?.seq === post.deed.seq && post.escrow > 0;
       S.demote(H);
-      return ok ? true : JSON.stringify({ grudge: H.grudge, sawIt, post: post && S.bview(post), row: row && { o: row.o, a: a.id } });
+      return ok ? true : JSON.stringify({ grudge: H.grudge, sawIt, post: post && S.bview(post), row: row && { seq: row.seq, v: row.v, o: row.o, a: a.id }, posted: S.bounties.slice(posted0).map((x) => S.bview(x)) });
     });
 
     await check('stories: what it draws stays one instanced mesh (a hall\'s sign, a board with a paper for each posting, a raided place\'s scorch and rubble, a camp) and the frame stays under the draw-call budget', async () => {

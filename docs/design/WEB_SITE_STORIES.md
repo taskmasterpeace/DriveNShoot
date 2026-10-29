@@ -149,6 +149,8 @@ Shared-file hooks (exact):
 | `web/src/systems/ai.js` | 1 line after the pulls' line: `if ((c.storyM \|\| c.storyCamp \|\| c.storyGarrison) && g.stories?.think(c, dt)) continue;` |
 | `web/src/agent/api.js` | 1 import; `...siteStoriesCommands(api, need)` after the pulls' (it extends `site`); the system off for the battery (`storiesWas`, `sleep()`) and `siteStoriesChecks` after the pulls' checks; the snapshot skips `storyMover`/`storyGarrison`/`storyCamp` characters and `storyCar` vehicles and saves `stories`; restore calls `g.stories.load` before the pulls |
 | `web/docs/COMMANDS.md` | regenerated |
+| `docs/design/WEB_PULLS.md` | one line in §6 "What other lanes can use": site stories builds on the knowledge model |
+| `docs/design/INDEX.md` | one row |
 
 What other lanes can use:
 - `g.stories.post({ target, by, deed, pay })` posts a bounty for any real deed.
