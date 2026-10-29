@@ -111,10 +111,10 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
         const r = await C('death', { action: 'play', type, x: at.x, z: at.z });
         const c = api.findChar(r.id); made.push(c);
         const v = await settle(c, 10);
-        out[type] = v ? { clip: v.clip, phase: v.phase, gap: v.restGap, hang: v.hang, stretch: v.stretch, low: v.lowY, on: v.onVehicle } : null;
+        out[type] = v ? { clip: v.clip, cut: v.cut, phase: v.phase, gap: v.restGap, hang: v.hang, stretch: v.stretch, low: v.lowY, on: v.onVehicle } : null;
         if (r.vehicle) { const car = api.findVeh(r.vehicle); if (car) g.vehiclesSys.remove(car); }
       }
-      const bad = Object.entries(out).filter(([k, v]) => !v || v.clip !== k || v.phase !== 'still' || v.gap > 0.15 || v.stretch > 0.15);
+      const bad = Object.entries(out).filter(([k, v]) => !v || v.clip !== k || v.cut > 0.03 || v.phase !== 'still' || v.gap > 0.15 || v.stretch > 0.15);
       return bad.length ? JSON.stringify(out) : true;
     } finally { gone(...made); g.godMode = false; }
   }));
@@ -167,7 +167,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
     } finally { if (P().inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(v); gone(c); g.godMode = false; }
   }));
 
-  await check('deaths: a body dying on a flight of stairs settles ON the stairs - every point rests on its own step (no float, none under the treads), the body spread over more than one step', async () => hush(async () => {
+  await check('deaths: a body dying on a flight of stairs settles ON the stairs - every point rests on its own step, no limb or torso cuts through a tread (segments probed along their length), the body spread over more than one step', async () => hush(async () => {
     await stage();
     await C('teleport', { x: 0, z: -40 });
     const S = g.storeys.list.find((s) => s.flights[0] && s.flights[0].len > 2.5);
@@ -182,7 +182,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       const v = await settle(c, 9);
       const ys = []; for (let i = 0; i < 12; i++) ys.push(c.rag.P[i * 3 + 1]);
       const spread = Math.max(...ys) - Math.min(...ys);
-      return v.phase === 'still' && v.restGap < 0.15 && v.hang < 0.6 && mid > 0.4 && spread > 0.25 && v.lowY > 0.1 ? true : JSON.stringify({ v, mid: r1(mid), spread: r1(spread), f: { from: f.from, to: f.to, len: f.len } });
+      return v.phase === 'still' && v.restGap < 0.15 && v.hang < 0.6 && v.cut < 0.03 && mid > 0.4 && spread > 0.25 && v.lowY > 0.1 ? true : JSON.stringify({ v, mid: r1(mid), spread: r1(spread), f: { from: f.from, to: f.to, len: f.len } });
     } finally { gone(c); }
   }));
 

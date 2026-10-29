@@ -22,6 +22,10 @@ const LINKS = [
   [0, 2, THIGH], [1, 3, THIGH], [2, 4, SHIN], [3, 5, SHIN], [6, 8, UPPER], [7, 9, UPPER], [8, 10, FORE], [9, 11, FORE],
   [0, 4, 0.35, 'min'], [1, 5, 0.35, 'min'], [6, 10, 0.2, 'min'], [7, 11, 0.2, 'min'], // a knee or an elbow never folds flat
 ];
+// Segment probes: a body lies across stair treads and kerbs between its points; these links are sampled along their
+// length (at `at` of the way), and a sample under what is beneath it lifts both ends (radius r: the limb's half-thickness).
+const PROBES = [[0, 6, 0.12], [1, 7, 0.12], [0, 7, 0.12], [1, 6, 0.12], [0, 2, 0.08], [1, 3, 0.08], [2, 4, 0.06], [3, 5, 0.06], [6, 8, 0.06], [7, 9, 0.06]];
+const PROBE_AT = [0.25, 0.5, 0.75];
 const RAD = new Float32Array(NP).fill(RG.radius); for (const i of [0, 1, 6, 7]) RAD[i] = RG.radiusTorso;
 const LIMB_PTS = { armL: [6, 10, 8], armR: [7, 11, 9], legL: [0, 4, 2], legR: [1, 5, 3] }; // root, end, middle
 const smooth = (x) => x * x * (3 - 2 * x);
@@ -234,6 +238,7 @@ export class Deaths {
       if (wy < f) wy = f;
       out[i * 3] = wx; out[i * 3 + 1] = wy; out[i * 3 + 2] = wz;
     }
+    this.lift(out, null);
     return out;
   }
   // The clip hands over to the ragdoll: the points carry the clip's own speed plus the row's kick.
@@ -358,6 +363,7 @@ export class Deaths {
       }
       this.collide(R, it === RG.iters - 1);
     }
+    this.lift(P, Q);
     for (let j = 0; j < N3; j++) { const v = Math.abs(P[j] - Q[j]); if (v > vmax) vmax = v; }
     // still: slow relative to what it lies on (a body riding a moving bed is still on the bed)
     const rel = R.onSurf ? Math.max(0, vmax - Math.hypot(R.svx, R.svz) * h) : vmax;
@@ -387,6 +393,21 @@ export class Deaths {
       }
     }
   }
+  // Lift every probed segment clear of what is under it (a stair's nosing, a kerb): both ends go up by the deficit.
+  // Q (when given) goes up with P, so a lift is not a launch.
+  lift(P, Q) {
+    for (const [a0, b0, r] of PROBES) {
+      const a = a0 * 3, b = b0 * 3;
+      let need = 0;
+      for (const u of PROBE_AT) {
+        const x = P[a] + (P[b] - P[a]) * u, y = P[a + 1] + (P[b + 1] - P[a + 1]) * u, z = P[a + 2] + (P[b + 2] - P[a + 2]) * u;
+        const d = this.surface(x, z, y + 0.3) + r - y;
+        if (d > need) need = d;
+      }
+      if (need > 0) { P[a + 1] += need; P[b + 1] += need; if (Q) { Q[a + 1] += need; Q[b + 1] += need; } }
+    }
+  }
+
   // After each update: the body's spot (c.x/z the pelvis), in the air or not (blood.js smears only on the ground), the car.
   track(c, R) {
     const P = R.P, px = (P[0] + P[3]) / 2, py = (P[1] + P[4]) / 2, pz = (P[2] + P[5]) / 2;
@@ -492,12 +513,18 @@ export class Deaths {
       const y = P[i * 3 + 1]; lo = Math.min(lo, y); hi = Math.max(hi, y);
       const f = this.surface(P[i * 3], P[i * 3 + 2], y + 0.3) + RAD[i]; gap = Math.min(gap, y - f); hang = Math.max(hang, y - f);
     }
+    // cut: how far any probed segment dips under what is beneath it (a torso through a stair's nosing)
+    let cut = 0;
+    for (const [a0, b0, r] of PROBES) for (const u of PROBE_AT) {
+      const a = a0 * 3, b = b0 * 3, x = P[a] + (P[b] - P[a]) * u, y = P[a + 1] + (P[b + 1] - P[a + 1]) * u, z = P[a + 2] + (P[b + 2] - P[a + 2]) * u;
+      cut = Math.max(cut, this.surface(x, z, y + 0.3) + r * 0.5 - y);
+    }
     let stretch = 0;
     for (const L of LINKS) { if (L[3]) continue; const a = L[0] * 3, b = L[1] * 3; stretch = Math.max(stretch, Math.abs(Math.hypot(P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]) - L[2]) / L[2]); }
     return {
       id: c.id, clip: R.id, part: R.part, cause: R.cause, phase: R.phase, t: r2(R.t), age: r2(R.age), air: R.air, airT: r2(R.airT ?? 0),
       onVehicle: R.on?.id ?? null, carSp: R.carSp !== undefined ? r2(R.carSp) : null, x: r2(c.x), z: r2(c.z), lowY: r2(lo), highY: r2(hi), maxLift: r2(R.maxY),
-      restGap: r2(gap), hang: r2(hang), stretch: r2(stretch), lost: c.lost ?? 0, moved: r2(Math.hypot(c.x - R.x0, c.z - R.z0)),
+      restGap: r2(gap), hang: r2(hang), cut: r2(cut), stretch: r2(stretch), lost: c.lost ?? 0, moved: r2(Math.hypot(c.x - R.x0, c.z - R.z0)),
       cross: R.cross ? { a0: r2(R.cross.a0), aMin: r2(R.cross.aMin), overTop: R.cross.overTop, len: R.cross.len } : null,
     };
   }

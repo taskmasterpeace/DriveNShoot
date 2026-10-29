@@ -120,6 +120,8 @@ does five things.
 - **The cap:** at most `maxActive` (16) ragdolls step at once. A 17th freezes the oldest live one where it is.
 - **Moved by someone:** a body dragged, harpooned or teleported takes all its points with it. While `c.dragged` the
   ragdoll does not step.
+- **Segment probes:** the torso's sides and diagonals, the thighs, shins and upper arms are sampled at a quarter, a half and three quarters of their length. A sample under what is beneath it lifts both ends (and their previous positions, so a lift is not a launch), so a body across stair treads or a kerb rests on the nosings instead of cutting through them. `death action=view` reports `cut`: the worst dip, under 0.03 m on the stairs check.
+- **The bodies** are LSW's faceted kit (feat/web-lsw-faceted, merged here): `ragPose` hands its frames to the kit's `drive()` and keeps its own-hair rule.
 - **Death rites** keeps working on the same Character: the rot colours come through `paint()`, then the bone pile. The
   frozen pose is what rots.
 
