@@ -54,6 +54,7 @@ import { zfightCommands, zfightChecks } from './zfight.js';
 import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-fight detector (WEB_DEPTH_LAYERS.md)
 import { townJobs, rolesChecks } from './roles-api.js'; // the work of a settlement: town action=jobs|who|diversity (WEB_OCCUPATIONS.md)
 import { pullsCommands, pullsChecks } from './pulls-api.js'; // pulls: bars, road people, the radio, boards, needs; what reached you (WEB_PULLS.md)
+import { worldVoiceCommands, worldVoiceChecks } from './worldvoice-api.js'; // the world's voice: ambience, far real events, the radio feed, leftovers, the campfire (WEB_WORLD_VOICE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys, fenced back yards, docks, back doors (WEB_BACK_LOTS.md)
@@ -2056,6 +2057,7 @@ function buildCommands(api) {
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
+    ...worldVoiceCommands(api, need), // the world's voice (WEB_WORLD_VOICE.md)
     ...hudCommands(api, need), // hud (WEB_UI_EDITOR.md)
     ...zfightCommands(api), // zfight (WEB_DEPTH_LAYERS.md)
     selftest: {
@@ -2234,6 +2236,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // The pulls (systems/pulls.js) would grow road people on the I-10 round unrelated drive checks: off for the battery;
   // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
   const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
+  // The world's voice (systems/farsound.js, feed.js, marks.js, campfire.js) paints, captions and lights fires on its own:
+  // off for the battery; its checks (agent/worldvoice-api.js) turn it on in a stage of their own.
+  const voiceWas = { far: g.farsound.on, feed: g.feed.on, marks: g.marks.on, fire: g.campfire.on }; g.farsound.on = g.feed.on = g.marks.on = g.campfire.on = false;
   // The workforce (systems/workforce.js) would put workers into every town an unrelated check stamps: off for the battery;
   // its own checks (agent/roles-api.js) turn it on.
   const workWas = g.workforce.enabled; g.workforce.enabled = false;
@@ -6008,6 +6013,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
+  await worldVoiceChecks(api, check, C); g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
@@ -6058,6 +6064,7 @@ export function snapshot(g) {
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
+    voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
     roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
   };
 }
@@ -6083,6 +6090,7 @@ export function restore(g, s) {
   g.residents.load(s.residents);
   g.wilds.load(s.wilds); // theirs too: promoted again near you from the saved records (an old save: fresh records)
   g.pulls?.load(s.pulls ?? null); // the pulls' people back onto their records (promoted again near you), what everyone knows
+  g.feed?.load(s.voice?.feed ?? null); g.marks?.load(s.voice?.marks ?? null); g.campfire?.out?.('loaded'); g.farsound?.clear?.(); // the world's voice (WEB_WORLD_VOICE.md)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));

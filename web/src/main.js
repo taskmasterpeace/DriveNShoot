@@ -73,6 +73,11 @@ import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressin
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
+import { FarSound } from './systems/farsound.js'; // the world's voice: ambience layers, far real events (WEB_WORLD_VOICE.md)
+import { Feed } from './systems/feed.js';
+import { Marks } from './systems/marks.js';
+import { Campfire } from './systems/campfire.js';
+import { RadioFeedUI } from './ui/radiofeed.js';
 import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
@@ -257,6 +262,8 @@ class Game {
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
+    this.farsound = new FarSound(this); this.feed = new Feed(this); this.marks = new Marks(this); this.campfire = new Campfire(this); // the world's voice (WEB_WORLD_VOICE.md)
+    this.feedUI = new RadioFeedUI(this, ui); // the radio feed's lines on the HUD (ui/radiofeed.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
     this.insideBuilding = null;
     this.paused = true;
@@ -1328,6 +1335,7 @@ class Game {
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
+      this.feed.update(simDt); this.marks.update(simDt); this.campfire.update(simDt); // news from what was seen, the world's leftovers, the fire (WEB_WORLD_VOICE.md)
       this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.nanGuard('late');
     }
@@ -1361,6 +1369,7 @@ class Game {
     const pv = p.inVehicle;
     this.soundscape.update(dt);
     this.radio.update(dt);
+    this.farsound.update(dt); this.feedUI.update(); // ambience layers by biome; far real events from their bearing, late by distance / 343 m/s
     const amb = p.ug ? 0 : 1; // below the street no wind, no rain on the roof
     this.audio.ambience(this.sky.cur.rain * amb, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5) * amb, pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
