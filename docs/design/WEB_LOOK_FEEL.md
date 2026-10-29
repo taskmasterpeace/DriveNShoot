@@ -48,7 +48,7 @@ What stands: the `HORIZONS` rows (mesas, swamp_treeline, ridges, flat_plains, de
 - **Cloth** (the streamed `props` pool and citygen's batch): a unit-cube instance that is a thin hanging panel (thin < 0.09 m, 0.25 < height < 1.45 m, area < 2.2 m², wider than 0.2 m) swings its lower edge downwind and flutters. That covers laundry on the back-lots clotheslines, hung sheets and banners.
 
 ### 3.4 History decals
-Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfire 2.6, blood 0.5×0.8 (life 48 h). Each kind lies on the `groundDecal` band (ground + TRACK_Y + a hair per kind). Slots 0–383 are seeded history; slots 384–1023 are a ring for events.
+Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfire 2.6, blood 0.5×0.8 (life 48 h). Each kind lies at ground + DECAL_Y + 4 mm + 3 mm per kind (over every floor and rug: the zfight check found two seeded marks under a Phoenix floor at TRACK_Y), with the `groundDecal` polygonOffset. Slots 0–383 are seeded history; slots 384–1023 are a ring for events.
 - **Events**:
   - a hard stop (from over 9 m/s, decelerating more than 7 m/s²) lays a pair every 0.9 m behind the rear wheels;
   - a crash (over 8.4 m/s) lays a pair;
@@ -130,6 +130,8 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
   - `world/flora.js`: `variantPatch` exported.
   - `ui/qol.js`: 4 settings (DEFAULTS, menu, apply).
   - `agent/api.js`: import, commands spread, checks call, and the `screenshot` render through the pass.
+  - `agent/zfight.js`: `twinSafe` strips the wind's `|wind-*` program keys like the cutaway's `|cut1` (a vertex-only patch: same-colour twins in the prop batch are still twins, not fights).
+  - `look` is the observer's command (`agent/devtools.js`): look-feel extends it. Without `action=` it is the observer's screenshot-and-who's-in-it, unchanged; with `action=` it is look-feel.
   - `docs/COMMANDS.md`: regenerated.
 - **For other lanes**:
   - SITE-STORIES lays history with `g.look.history(kind, x, z, opts)`;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { LOOK_REGIONS, TIME_GRADES, GRADE, HORIZONS, WIND, DECALS, IMPACT, WEAR, IDENTITY, applyGrade, composeGrade } from '../data/looks.js';
-import { TRACK_Y, layerMesh } from '../engine/depthlayers.js';
+import { DECAL_Y, layerMesh } from '../engine/depthlayers.js';
 import { WEAPONS } from './combat.js';
 import { PART } from './vehiclebodies.js';
 import { variantPatch } from '../world/flora.js';
@@ -387,7 +387,7 @@ void main() {
     const D = DECALS[kind]; if (!D) return -1;
     const i = slot >= 0 ? slot : this.evNext;
     if (slot < 0) this.evNext = this.evNext + 1 >= DECALS.pool ? SEED_CAP : this.evNext + 1;
-    const G = this.g.fx?.ground, y = (G ? G(x, z) : 0) + TRACK_Y + 0.004 + (D.cell % 4) * 0.003 + (i % 5) * 0.0008; // the groundDecal band, a hair per kind (never y = 0)
+    const G = this.g.fx?.ground, y = (G ? G(x, z) : 0) + DECAL_Y + 0.004 + (D.cell % 4) * 0.003 + (i % 5) * 0.0008; // over every floor and rug (engine/depthlayers.js DECAL_Y), a hair per kind, never y = 0
     _o.position.set(x, y, z); _o.rotation.set(0, rot, 0); _o.scale.set(D.w * s, 1, D.l * s * len); _o.updateMatrix();
     this.hist.setMatrixAt(i, _o.matrix); this.hist.setColorAt(i, _c.set(D.color));
     this.aCell.array[i * 2] = D.cell; this.aCell.array[i * 2 + 1] = D.opacity * a;

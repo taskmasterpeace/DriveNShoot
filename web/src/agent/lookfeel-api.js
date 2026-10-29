@@ -5,6 +5,7 @@ import { CAMERA } from '../data/camera.js';
 import { RAY_BULLET } from '../engine/collision.js';
 import { outfit } from '../systems/characters.js';
 import { roadLines } from '../world/city.js';
+import { devtoolsCommands } from './devtools.js'; // `look` is the observer's command: look-feel answers it only when action= is given
 
 const r3 = (v) => (v === null || v === undefined ? v : +(+v).toFixed(3));
 
@@ -55,15 +56,18 @@ export function lookfeelCommands(api) {
   const g = api.g;
   const need = (ok, msg) => { if (!ok) throw new Error(msg); };
   const L = () => { need(g.look, 'no look-feel system'); return g.look; };
+  const obs = devtoolsCommands(api, need).look; // the observer's look (agent/devtools.js): a screenshot and what is in it
   return {
     look: {
-      group: 'world', desc: 'LOOK-FEEL (docs/design/WEB_LOOK_FEEL.md, rows in src/data/looks.js): the region colour grade, the horizon rows, the wind, the history decals and the impact feel. action=grade (default): the grade in force (regions blended round the view, the time-of-day weights, the composed numbers, the 16^3 LUT and its rebuilds); x,z,hour preview the blend somewhere else without moving anything; on=false turns the pass off (true back); strength= sets the pause menu\'s Colour grade (0..1). action=region: every look row (states, grade, horizon, wind, decal mix) and which row x,z (or you) is in. action=horizon: each region\'s band row and the camera law\'s verdict (whether a horizon can ever be on screen). action=wind: the wind in force (region x weather) and how far a vertex h m up a plant (default 10) moves now. action=decals: history decal counts, the seeded stories near you, the last one laid; kind=skid|scorch|oil|bonfire|blood with x,z lays one (a history hook). action=impact: hit-stop and kick state; stop=<ms> triggers a hit-stop (testing).',
-      args: { action: { type: 'string', default: 'grade', enum: ['grade', 'region', 'horizon', 'wind', 'decals', 'impact'] }, x: { type: 'number' }, z: { type: 'number' }, hour: { type: 'number' }, on: { type: 'boolean' }, strength: { type: 'number' }, h: { type: 'number', default: 10 }, kind: { type: 'string' }, stop: { type: 'number' } },
-      run: async ({ action, x, z, hour, on, strength, h, kind, stop }) => {
+      group: 'observe', desc: `${obs.desc} WITH action= it is LOOK-FEEL instead (docs/design/WEB_LOOK_FEEL.md, rows in src/data/looks.js): the region colour grade, the horizon rows, the wind, the history decals and the impact feel. action=grade (default): the grade in force (regions blended round the view, the time-of-day weights, the composed numbers, the 16^3 LUT and its rebuilds); x,z,hour preview the blend somewhere else without moving anything; on=false turns the pass off (true back); strength= sets the pause menu\'s Colour grade (0..1). action=region: every look row (states, grade, horizon, wind, decal mix) and which row x,z (or you) is in. action=horizon: each region\'s band row and the camera law\'s verdict (whether a horizon can ever be on screen). action=wind: the wind in force (region x weather) and how far a vertex h m up a plant (default 10) moves now. action=decals: history decal counts, the seeded stories near you, the last one laid; kind=skid|scorch|oil|bonfire|blood with x,z lays one (a history hook). action=impact: hit-stop and kick state; stop=<ms> triggers a hit-stop (testing). on=/strength= alone set the pass and return the grade.`,
+      args: { ...obs.args, action: { type: 'string', enum: ['grade', 'region', 'horizon', 'wind', 'decals', 'impact'] }, hour: { type: 'number' }, on: { type: 'boolean' }, strength: { type: 'number' }, h: { type: 'number', default: 10 }, kind: { type: 'string' }, stop: { type: 'number' } },
+      run: async (a) => {
+        const { action, x, z, hour, on, strength, h, kind, stop } = a;
+        if (!action && on === undefined && strength === undefined) return obs.run(a); // the observer's look
         const F = L(), W = g.streamer?.W;
         if (on !== undefined) F.on = !!on;
         if (strength !== undefined) { need(strength >= 0 && strength <= 1, 'strength 0..1'); F.settings.grade = strength; }
-        if (action === 'grade') {
+        if (!action || action === 'grade') {
           if (x !== undefined || z !== undefined || hour !== undefined) {
             const px = x ?? g.player.x, pz = z ?? g.player.z, hr = hour ?? g.sky.time;
             const w = F.regionWeights(px, pz, {}), G = F.gradeAt(px, pz, hr, undefined, w);

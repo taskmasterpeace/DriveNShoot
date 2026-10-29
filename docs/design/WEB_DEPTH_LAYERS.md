@@ -69,7 +69,7 @@ from their row. Measured from the code (audit 2026-10-28):
 | blood (floor, wall, car) | `systems/blood.js` | Lambert, transparent | blood -4/-8 | 3 | floor: ground or storey floor + **DECAL_Y 0.16**; car: roof top (bbox) + 0.02, rides the car's y |
 | fx decals, footprints, pools | `systems/fx.js` dMesh | Lambert, transparent | blood -4/-8 | 3 | ground + DECAL_Y; upstairs `fx.onFloor(c)` |
 | skids | `systems/fx.js` sMesh | Lambert, transparent | groundDecal -2/-4 | 2 | ground + **TRACK_Y 0.095** |
-| history decals (skid, scorch, oil, bonfire ring, blood trail) | `systems/lookfeel.js` (WEB_LOOK_FEEL.md) | Lambert, transparent | groundDecal | 2 | ground + TRACK_Y + 0.004 + 0.003 x kind (< DECAL_Y) |
+| history decals (skid, scorch, oil, bonfire ring, blood trail) | `systems/lookfeel.js` (WEB_LOOK_FEEL.md) | Lambert, transparent | groundDecal | 2 | ground + DECAL_Y + 0.004 + 0.003 x kind (over every floor and rug) |
 | tyre tracks | `systems/ambient.js` | Basic, transparent | groundDecal | 2 | ground + TRACK_Y (was 0.035 absolute) |
 | foot tracks | `systems/outdoors.js` | Basic, transparent | groundDecal | 2 | ground + DECAL_Y (was 0.115: under floors) |
 | hot-ground stain / glow | `systems/hotground.js` | Std / additive | - | 1 / 3 | 0.06 / 0.12 (Phoenix ring, flat datum) |
