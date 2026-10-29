@@ -1098,7 +1098,7 @@ class Game {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
     if (p.reloading > 0) return;
     if (this.inv.jam[k]) { p.reloading = GUN_CARE.clearTime * this.skills.reloadMul; p.clearing = true; this.audio.reload(); return; }
-    if (this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
+    if (this.inv.mag[k] >= w.mag || this.inv.ammo[this.arms.ammoOf(k)] <= 0) return;
     p.clearing = false;
     p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
@@ -1117,8 +1117,9 @@ class Game {
         if (p.clearing) { p.clearing = false; this.inventory.cleared(k); }
         else {
           const need = w.mag - this.inv.mag[k];
-          const take = Math.min(need, this.inv.ammo[w.ammo]); // out of the rounds in your pockets
-          this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
+          const kind = this.arms.ammoOf(k); // the shell its mode loads (combat.js SHELLS), else its own rounds
+          const take = Math.min(need, this.inv.ammo[kind]); // out of the rounds in your pockets
+          this.inv.mag[k] += take; this.inv.ammo[kind] -= take;
           this.skillsSys.gain('dexterity', 1.5);
         }
       }
@@ -1126,7 +1127,7 @@ class Game {
     }
     // Auto-reload: an empty gun loads itself as soon as there are rounds for it in the pack (bought, looted, picked up
     // after it ran dry) - not only at the trigger. It used to sit at 0 over 60 spare until you pulled.
-    if (this.inv.mag[k] === 0 && this.inv.ammo[w.ammo] > 0 && this.qol.settings.autoReload && !this.inv.jam[k] && this.inventory.cond(k) > 0) this.reload();
+    if (this.inv.mag[k] === 0 && this.inv.ammo[this.arms.ammoOf(k)] > 0 && this.qol.settings.autoReload && !this.inv.jam[k] && this.inventory.cond(k) > 0) this.reload();
     const want = this.arms.trigger(I, k); // raises or draws the gun; single, burst or automatic by the mode
     if (!want || p.cool > 0) return;
     // A jammed gun's trigger goes dead: the pull starts clearing it. A broken one does nothing at all.

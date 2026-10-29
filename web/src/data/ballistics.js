@@ -1,29 +1,34 @@
 // Rounds in flight (systems/ballistics.js, docs/design/WEB_BALLISTICS.md). One row per round: the ammo key a gun fires
-// (combat.js WEAPONS `ammo`) or a fire mode's own `round` (the sawn-off's slug).
+// (combat.js WEAPONS `ammo`), a fire mode's own `ammo` (the shotguns' SHELL modes load birdshot or slugs) or its `round`.
 //   velocity     m/s at the muzzle. Sound is BALLISTICS.sound (343 m/s): faster, the round CRACKS as it passes you;
 //                slower, it whispers (the old whiz)
 //   drag         1/s, linear: speed falls by drag x metres flown (v = velocity - drag * x), so no round flies further than
 //                velocity / drag, and the time to a distance has a closed form (systems/ballistics.js flightTime)
 //   tracerEvery  every Nth round a shooter fires of it draws a streak in flight (1: every round, 0: never)
 //   tracerW      the streak's width (m)
-//   tracerLen    the streak's longest length (m): it grows out of the muzzle to this, then runs ahead of its tail
+//   tracerLen    the streak's longest length (m): it grows out of the muzzle to this, then runs ahead of its tail.
+//                Kept thin and short (Robert, 2026-10-29: the first ones read as planks, not bullets): a pellet is a
+//                spark, a rifle round a needle.
 // Gravity pulls every round down (BALLISTICS.gravity) with the same drag on its fall, so a round fired level from the hip
 // meets the ground at last. At the game's ranges (22-68 m) the drop is centimetres; at 400 m a rifle round is about
 // 1.4 m under its line (the `ballistics` command's test round reports it).
 export const ROUNDS = {
   // The .45 revolver: a heavy, slow round, under the speed of sound (it whispers past; it never cracks).
-  pistol: { velocity: 305, drag: 0.55, tracerEvery: 1, tracerW: 0.11, tracerLen: 5 },
+  pistol: { velocity: 305, drag: 0.55, tracerEvery: 1, tracerW: 0.045, tracerLen: 2.2 },
   // The small fast round the SMGs and the self-loader eat: just over the speed of sound.
-  smg:    { velocity: 380, drag: 0.9, tracerEvery: 3, tracerW: 0.1, tracerLen: 6 },
+  smg:    { velocity: 380, drag: 0.9, tracerEvery: 3, tracerW: 0.04, tracerLen: 2.6 },
   // The Remnant's service rifle: fast and flat. A 300 m shot lands 0.40 s after the trigger, a 30 m one 0.036 s.
-  rifle:  { velocity: 850, drag: 0.64, tracerEvery: 2, tracerW: 0.13, tracerLen: 10 },
-  // Buckshot: eight pellets, quick off the muzzle, bled fast by the air (none flies past 180 m).
-  shells: { velocity: 400, drag: 2.2, tracerEvery: 1, tracerW: 0.07, tracerLen: 3 },
-  // The sawn-off's slug (its SLUG mode): one heavy lump, slower to lose speed than the shot.
-  slug:   { velocity: 450, drag: 1.1, tracerEvery: 1, tracerW: 0.13, tracerLen: 4 },
+  rifle:  { velocity: 850, drag: 0.64, tracerEvery: 2, tracerW: 0.05, tracerLen: 4 },
+  // Buckshot (the BUCK shell): eight fat pellets, quick off the muzzle, bled fast by the air (none flies past 180 m).
+  shells: { velocity: 400, drag: 2.2, tracerEvery: 1, tracerW: 0.03, tracerLen: 1.1 },
+  // Birdshot (the BIRD shell): a cloud of tiny pellets, slower and bled faster still. Peppers at 10 m, stings at 20,
+  // nothing past about 110 m.
+  birdshot: { velocity: 370, drag: 3.4, tracerEvery: 2, tracerW: 0.02, tracerLen: 0.6 },
+  // The slug (the SLUG shell): one heavy lump, slower to lose speed than the shot.
+  slug:   { velocity: 450, drag: 1.1, tracerEvery: 1, tracerW: 0.055, tracerLen: 1.8 },
   // A crossbow bolt (no gun fires it yet: the crossbow guards of the atlas are its first users). Slow enough to lead by
   // a body's width at 20 m, and you see it fly.
-  bolt:   { velocity: 90, drag: 0.12, tracerEvery: 1, tracerW: 0.08, tracerLen: 0.9 },
+  bolt:   { velocity: 90, drag: 0.12, tracerEvery: 1, tracerW: 0.05, tracerLen: 0.9 },
 };
 
 // The flight's laws.

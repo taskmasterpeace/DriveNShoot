@@ -130,8 +130,8 @@ export function gearValue(r) { return r.value ?? (r.soak ? 40 : 18) * Math.max(1
 export const GEAR_LOOT = {
   buried_cache: { rolls: [2, 4], none: 1, rows: [['scrap', 9, 2, 5], ['dried_meat', 6, 1, 2], ['first_aid', 2, 1, 1], ['scrap_vest', 2, 1, 1], ['backpack', 2, 1, 1], ['leather_duster', 2, 1, 1], ['knuckle_ring', 1, 1, 1], ['utility_belt', 2, 1, 1], ['ammo_bandolier', 2, 1, 1], ['mechanic_wraps', 2, 1, 1], ['rabbit_foot', 1, 1, 1], ['gold_ring', 2, 1, 2], ['ammo_pistol', 3, 6, 18]] },
   cache_rare: { rolls: [1, 3], none: 1, rows: [['machete', 3, 1, 1], ['first_aid', 4, 1, 1], ['gun_pistol', 2, 1, 1], ['gun_auto', 2, 1, 1], ['ammo_pistol', 4, 6, 18], ['soft_vest', 3, 1, 1], ['combat_helmet', 2, 1, 1], ['brush_poncho', 1, 1, 1], ['ruck', 1, 1, 1], ['brass_knuckles', 2, 1, 1]] },
-  armor_cache: { rolls: [2, 3], none: 0, rows: [['soft_vest', 5, 1, 1], ['service_armor', 2, 1, 1], ['combat_helmet', 4, 1, 1], ['plate_leggings', 3, 1, 1], ['arm_guards', 4, 1, 1], ['gun_pump', 3, 1, 1], ['ammo_shells', 5, 8, 20]] },
-  gun_safe: { rolls: [1, 3], none: 1, rows: [['gun_pistol', 5, 1, 1], ['gun_pump', 3, 1, 1], ['ammo_pistol', 7, 5, 40], ['ammo_shells', 4, 2, 16], ['cleaning_kit', 3, 1, 1]] },
+  armor_cache: { rolls: [2, 3], none: 0, rows: [['soft_vest', 5, 1, 1], ['service_armor', 2, 1, 1], ['combat_helmet', 4, 1, 1], ['plate_leggings', 3, 1, 1], ['arm_guards', 4, 1, 1], ['gun_pump', 3, 1, 1], ['ammo_shells', 5, 8, 20], ['ammo_slug', 3, 4, 10]] },
+  gun_safe: { rolls: [1, 3], none: 1, rows: [['gun_pistol', 5, 1, 1], ['gun_pump', 3, 1, 1], ['ammo_pistol', 7, 5, 40], ['ammo_shells', 4, 2, 16], ['ammo_birdshot', 3, 4, 16], ['ammo_slug', 2, 2, 8], ['cleaning_kit', 3, 1, 1]] },
   police_locker: { rolls: [1, 3], none: 2, rows: [['ammo_smg', 6, 6, 24], ['gun_auto', 2, 1, 1], ['bandage', 4, 1, 2], ['riot_helmet', 3, 1, 1], ['soft_vest', 2, 1, 1], ['arm_guards', 2, 1, 1]] },
 };
 // Rows added to the tables that already exist: issue armor in the armory and on soldiers, junk armor on raiders.
