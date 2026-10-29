@@ -302,7 +302,7 @@ export class Reactions {
     if (Math.hypot(gx - c.x, gz - c.z) < arrive) { c.speed = 0; return true; }
     rx.repath = (rx.repath ?? 0) - dt;
     if (!rx.route || (rx.repath <= 0 && (Math.abs(rx.gx - gx) + Math.abs(rx.gz - gz) > drift || (c.stuck ?? 0) > 0.6))) {
-      rx.route = g.footPath?.(c.x, c.z, gx, gz) ?? null;
+      rx.route = this.inWindow(c.x, c.z, gx, gz) ? g.footPath?.(c.x, c.z, gx, gz) ?? null : null; // never drag the shared nav window (tactics pays the rebuild): outside it, straight
       if (!rx.route?.length) rx.route = [{ x: gx, z: gz }];
       rx.ri = 0; rx.gx = gx; rx.gz = gz; rx.repath = 1.5;
     }
@@ -311,11 +311,23 @@ export class Reactions {
     g.ai.move(c, wp.x - c.x, wp.z - c.z, speed, dt);
     return false;
   }
-  // Go and look (the law, a gun) or go and help (a medic): to the HEARD spot, then a look round.
+  // Is the box round both ends already inside the foot nav window (engine/nav.js ensureCovers' own test, margin 24 m)?
+  inWindow(ax, az, bx, bz) {
+    const n = this.g.nav?.foot;
+    if (!n) return false;
+    const M = 24, m = n.cell * 2;
+    return Math.min(ax, bx) - M >= n.ox + m && Math.max(ax, bx) + M < n.ox + n.W - m && Math.min(az, bz) - M >= n.oz + m && Math.max(az, bz) + M < n.oz + n.W - m;
+  }
+  // Go and look (the law, a gun) or go and help (a medic): to the HEARD spot, then a look round. In hops of at most
+  // REACT.hop m along the heard line (a short path each; the window stays where the fights are).
   toward(c, rx, row, dt) {
     const H = rx.heard;
     if (row.wait && this.g.time - rx.t0 < row.wait) { c.speed = 0; return; } // the kit first
-    if (rx.phase === 0 && this.walk(c, rx, H.x, H.z, row.speed, dt, 3, 6)) rx.phase = 1;
+    if (rx.phase === 0) {
+      const dx = H.x - c.x, dz = H.z - c.z, d = Math.hypot(dx, dz), k = d > REACT.hop ? REACT.hop / d : 1;
+      if (!rx.hopX || Math.hypot(rx.hopX - c.x, rx.hopZ - c.z) < 3 || Math.abs(rx.hopH - H.x) + Math.abs(rx.hopHz - H.z) > 6) { rx.hopX = c.x + dx * k; rx.hopZ = c.z + dz * k; rx.hopH = H.x; rx.hopHz = H.z; rx.route = null; }
+      if (this.walk(c, rx, rx.hopX, rx.hopZ, row.speed, dt, 3, 6) && k === 1) rx.phase = 1;
+    }
     if (rx.phase === 1) { c.speed = 0; c.face = wrap(c.face + dt * 0.9); }
   }
   // Inside and bar the door: the nearest unlocked door within reach, through it, and shut it hard behind them.
