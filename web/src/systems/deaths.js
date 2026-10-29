@@ -470,6 +470,14 @@ export class Deaths {
     M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
   }
 
+  // A body death rites folded and brings back (rites.link): it lies as it lay, wherever it is now (x0, z0: where it lay).
+  restore(c, pose, x0 = c.x, z0 = c.z) {
+    const P = new Float32Array(pose), dx = c.x - x0, dz = c.z - z0;
+    for (let i = 0; i < NP; i++) { P[i * 3] += dx; P[i * 3 + 2] += dz; }
+    c.rag = { P, Q: new Float32Array(P), clip: CLIPS.front, id: 'restored', t: 0, phase: 'still', yaw: c.face ?? 0, ox: c.x, oz: c.z, oy: 0, still: 1, age: 0, air: false, on: null, lv: null, acc: 0, cx: c.x, cz: c.z, x0: c.x, z0: c.z, part: null, cause: null, pooled: true, maxY: 0, cross: null };
+    if (!this.bodies.includes(c)) this.bodies.push(c);
+  }
+
   // ---- agents ------------------------------------------------------------------------------------------------------------
   view(c) {
     const R = c?.rag;
