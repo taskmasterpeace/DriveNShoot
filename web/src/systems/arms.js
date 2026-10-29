@@ -51,7 +51,15 @@ export class Arms {
     const M = this.modes(k), m = M.find((x) => x.id === id);
     if (!m) return false;
     if (this.modeOf(k).id !== m.id) { this.counts.modeChanges++; this.g.audio?.blip?.(); this.g.emit('fireMode', { weapon: k, mode: m.id, burst: m.burst }); }
+    // A shotgun's mode is its shell (combat.js SHELLS): switching kind works the loaded shells back into the pack, and
+    // the gun loads the new kind (auto-reload or R). A reload under way is cancelled.
+    const was = this.ammoOf(k), inv = this.g.inv;
     this.mode[k] = m.id; this.burstLeft = 0;
+    if (inv && was !== this.ammoOf(k) && inv.mag?.[k] > 0) {
+      if (inv.ammo) inv.ammo[was] = (inv.ammo[was] ?? 0) + inv.mag[k];
+      inv.mag[k] = 0;
+      if (inv.current === k && this.g.player && !this.g.player.clearing) this.g.player.reloading = 0;
+    }
     this.barT = this.g.time + 4;
     return true;
   }
@@ -62,6 +70,8 @@ export class Arms {
     return this.setMode(k, M[(i + step + M.length) % M.length].id);
   }
 
+  // The rounds gun k loads right now: its mode's shell, else its own (the pack pool g.inv.ammo[...] reload draws on).
+  ammoOf(k) { return this.modeOf(k)?.ammo ?? WEAPONS[k]?.ammo; }
   gun(k) { return GRIP.guns[k] ?? GRIP.guns.default; }
   gripSpread(k) { return this.grip === 'one' ? 1 + (GRIP.one.spread - 1) * this.gun(k).oneHand : GRIP.two.spread; }
   gripKick(k) { return this.grip === 'one' ? 1 + (GRIP.one.kick - 1) * this.gun(k).oneHand : GRIP.two.kick; }
@@ -76,6 +86,7 @@ export class Arms {
     r.rate = m.rate ?? w.rate; r.dmg = m.dmg ?? w.dmg; r.pellets = m.pellets ?? w.pellets; r.range = m.range ?? w.range;
     r.auto = m.burst === 0; r.after = m.after ?? r.rate; r.kick = m.kick ?? 0.25;
     r.spread = w.spread * (m.spread ?? 1) * this.gripSpread(k) * (1 + this.bloom);
+    r.ammo = m.ammo ?? w.ammo; // the shell it loads (birdshot, slug), and so its flight row unless `round` names one
     r.round = m.round ?? w.round; // the flight row (data/ballistics.js): the slug flies as a slug
     r.grip = this.grip;
     return r;
