@@ -210,9 +210,9 @@ export class Marks {
       if (R.state === 'overrun') this.warning(this.placeAt(R.id), 'dead', { type: 'state', place: R.id, state: 'overrun' });
     }
     for (const S of g.stories?.places?.values?.() ?? []) {
-      const w = S.problem && MR.warnFor[S.problem.id ?? S.problem]; if (!w || Math.abs(S.x - me.x) > 2500 || Math.abs(S.z - me.z) > 2500) continue;
+      const w = S.problem && MR.warnFor[S.problem.kind]; if (!w || Math.abs(S.x - me.x) > 2500 || Math.abs(S.z - me.z) > 2500) continue;
       const P = this.placeAt(S.id) ?? { id: S.id, name: S.name, x: S.x, z: S.z, r: 50 };
-      this.warning(P, w, { type: 'story', place: S.id, problem: S.problem.id ?? S.problem });
+      this.warning(P, w, { type: 'story', place: S.id, problem: S.problem.kind });
     }
     // DON'T GO: only from what the painting town holds (law 6).
     const k = g.pulls?.k;

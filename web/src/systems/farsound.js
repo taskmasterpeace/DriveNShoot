@@ -175,7 +175,7 @@ export class FarSound {
       this.emit('engine', v.x, v.z, 'vehicle', v.id);
     }
     // A record moving on the road (site stories' parties by car, when that system runs).
-    for (const m of g.stories?.movers ?? []) if (m.car && m.x !== undefined) this.emit('engine', m.x, m.z, 'mover', m.id);
+    for (const m of g.stories?.movers ?? []) if (m.car && m.state === 'road' && !m.live) this.emit('engine', m.x, m.z, 'mover', m.id); // a live party's car is a real vehicle, heard above
     // The dead in a body (systems/overrun.js hordes).
     for (const H of g.citygen?.overrun?.hordes ?? []) if ((H.strength ?? 1) > 0) this.emit('horde', H.x, H.z, 'horde', H.id ?? `${Math.round(H.x)}:${Math.round(H.z)}`);
     // A place with people barks; something real moving near it stirs the dogs.
@@ -203,7 +203,7 @@ export class FarSound {
     const g = this.g, R = FAR.dogsAt.stirR;
     for (const H of g.citygen?.overrun?.hordes ?? []) if (Math.hypot(H.x - x, H.z - z) < R) return 'horde';
     for (const v of g.vehicles ?? []) if (v.driver && Math.abs(v.x - x) < R && Math.abs(v.z - z) < R) return 'vehicle';
-    for (const m of g.stories?.movers ?? []) if (m.x !== undefined && Math.hypot(m.x - x, m.z - z) < R) return 'mover';
+    for (const m of g.stories?.movers ?? []) if (m.state === 'road' && Math.hypot(m.x - x, m.z - z) < R) return 'mover';
     return null;
   }
 

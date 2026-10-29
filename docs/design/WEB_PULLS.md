@@ -150,7 +150,7 @@ Shared-file hooks (exact):
 
 What other lanes can use:
 - `g.pulls.k`, the knowledge model: `holder`, `record`, `see`, `tell`, `broadcast`, `sendWire`, `holds`, `copyOf`, `view`.
-- The bounty guild (SITE-STORIES) should post through `pulls.post('bounty')` and hunt from copies, never from your true position.
+- SITE-STORIES (WEB_SITE_STORIES.md) builds on this model: places, boards (`board:<id>`, the same holder the saloon board reads), Tally halls, parties and hunters are holders; travellers carry postings and news with `put`/`tell`; the town grapevine carries sightings; three fact kinds (`story`, `posting`, `sighting`) join `FACT_KINDS` at load. Its bounties are the Tally's own (`stories.post`), hunted from copies, never from your true position.
 - DEATH-RITES: already bridged (`rites.learn` calls `deathNews`).
 - UI-EDITOR: the chip is the `pulls` row.
 

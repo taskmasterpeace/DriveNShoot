@@ -69,8 +69,9 @@ export function worldVoiceCommands(api, need) {
 export async function worldVoiceChecks(api, check, C) {
   const g = api.g, p = g.player;
   const sv = (await C('save')).save;
-  const was = { zombies: g.zombies.enabled, raiders: g.raiderTimer, convoyNext: g.convoy.next, director: g.society.director.paused, pulls: g.pulls.enabled, time: g.sky.time, wilds: g.wilds?.enabled };
+  const was = { stories: g.stories?.enabled, zombies: g.zombies.enabled, raiders: g.raiderTimer, convoyNext: g.convoy.next, director: g.society.director.paused, pulls: g.pulls.enabled, time: g.sky.time, wilds: g.wilds?.enabled };
   const on = { far: g.farsound.on, feed: g.feed.on, marks: g.marks.on, fire: g.campfire.on };
+  if (g.stories) { g.stories.enabled = false; g.stories.sleep?.(); } // site stories hold still: these checks write their rows by hand
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy.despawn?.(); g.convoy.next = 1e9; g.society.director.paused = true; g.pulls.enabled = true; if (g.wilds) g.wilds.enabled = false;
   g.farsound.on = true; g.feed.on = true; g.marks.on = true; g.campfire.on = false;
   const out = async () => { if (p.inVehicle) g.exitVehicle(true); if (!p.alive) { g.respawnT = 0; await C('step', { seconds: 0.3 }); } };
@@ -289,6 +290,7 @@ export async function worldVoiceChecks(api, check, C) {
   } finally {
     for (const c of made) if (c && g.chars.includes(c)) g.removeChar(c);
     g.campfire.out('test over');
+    if (g.stories) g.stories.enabled = was.stories;
     g.zombies.enabled = was.zombies; g.raiderTimer = was.raiders; g.convoy.next = was.convoyNext; g.society.director.paused = was.director; g.pulls.enabled = was.pulls; if (g.wilds) g.wilds.enabled = was.wilds;
     g.farsound.on = on.far; g.feed.on = on.feed; g.marks.on = on.marks; g.campfire.on = on.fire;
     g.radio.tune(0);

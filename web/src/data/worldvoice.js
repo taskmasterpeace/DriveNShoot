@@ -149,7 +149,7 @@ export const MARK_RULES = {
   tagsPerRaid: [2, 4],
   tallyVerbs: ['kill', 'silence', 'raided', 'skirmish'],
   tallyMax: 40,
-  warnFor: { overrun: 'dead', sickness: 'sick', raider_toll: 'toll', dry_well: 'dry', infected_nest: 'dead' },
+  warnFor: { overrun: 'dead', sickness: 'sick', toll: 'toll', dry_well: 'dry', nest: 'dead' }, // site stories' problem kinds (data/sitestories.js PROBLEMS)
   dontgoR: 14000,       // m: a town paints a warning about a fallen place this close that it HOLDS news of
   near: 240,            // m: marks this close to you are drawn
   redraw: 18,           // m you move before the near set is looked at again

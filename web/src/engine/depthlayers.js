@@ -36,6 +36,11 @@ export const LAYERS = {
   cemHollow:   { on: 'ground',  lift: 0.126, order: 0, write: true },   // a sunk grave's hollow
   cemMound:    { on: 'ground',  lift: 0.166, order: 0, write: true },   // the lowest (oldest) mound top; younger ones stand to 0.25, a fresh one 0.32
   cemKerb:     { on: 'ground',  lift: 0.146, order: 0, write: true },   // a rich plot's stone kerb: under every mound top (it meets their ends where a row bends)
+  // UNDER THE STREET's ways on the street (systems/understreetlook.js, one InstancedMesh a town): a shaft's dark mouth and a
+  // ramp's opening at usHole, a lid, a grate's bars and a manhole's frame at usLid: over every citygen street and kerb
+  // (to 0.112) and the ring's floors (0.12 / 0.132 sit inside buildings, never under a lid)
+  usHole:      { on: 'ground',  lift: 0.118, order: 0, write: true },
+  usLid:       { on: 'ground',  lift: 0.14,  order: 0, write: true },
   // ---- decals: depthWrite off, polygonOffset, fixed order (separated by offset + order) ----
   groundDecal: { on: 'surface', lift: 0.03, factor: -2, units: -4, order: 2, write: false }, // tyre tracks, skid marks, ground patches
   blood:       { on: 'surface', lift: 0.03, factor: -4, units: -8, order: 3, write: false }, // blood pools, splats, scorch (fx + blood.js)
