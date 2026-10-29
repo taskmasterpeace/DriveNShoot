@@ -165,10 +165,18 @@ Selftest checks (`only=look-feel`, all green):
 6. **`look-feel: a big hit freezes 40–80 ms and a small one does not …`**: a 12-damage hit gives no stop; a 48-damage shotgun hit gives 60 ms. The shotgun's kick is more than 2× the SMG's.
 7. **`look-feel: a car gets dustier off-road than on the road, rain washes some off, and a garage repair cleans it`**: sand gives more than 3× the dust of a paved street. The uniform carries the value, and the wear program compiled. Rain lowers it; `vehDamage.repair` zeroes it.
 
-Measured:
-- **Draw calls**: stress 96–103 (base 91–92, which never counted shadow draws; the pass keeps that convention: scene + 1).
-- **Stress ms/frame** on a loaded PC: base 7.9 / 9.56 / 8.8. This lane's runs ranged 8.3–12.1, drifting upward with the machine load for pass on and pass off alike: on/off pairs on one page were 10.69/10.61, 9.75/10.84, 11.96/12.1.
-- **The pass's own cost**: render-only A/B at 1280×720 gives a median +0.01 ms (6 interleaved pairs × 40 frames, GPU-synced).
+Measured (port 3484, a PC loaded by other lanes):
+- **Batteries** (full selftest, budget 2900, fresh pages):
+
+  | Run | Commit | Result | What failed |
+  |---|---|---|---|
+  | B1 | 5a869e29 | 568/571 | the observer's `look` and `zfight` (both **mine**, fixed in 8557e08f), and the tactics band |
+  | B2 | 1fc28fce | 567/571 | walk-vehicles pickup shot, ring residents, journeys cord, clone husk. Alone: the first three pass; clone husk fails with the error recorded on main |
+  | B3 | 1fc28fce | **571/571** | |
+
+- **Draw calls**: stress 93–95 (base 91–92). The pass is +1 and the history decals are +1. The counter keeps its old meaning (three counts from after the shadow pass): the scene's calls plus the pass's one.
+- **Stress ms/frame** (same port): base 7.9 / 9.56 / 8.8. Final 7.21 / 7.6 / 8.84. No regression.
+- **The pass's own cost**: render-only A/B at 1280×720 gives a median +0.01 ms (6 interleaved pairs × 40 frames, GPU-synced), inside a ±0.7 ms noise band. A LUT rebuild costs 0.5 ms of CPU, at most every 0.25 s and only when the blend moved.
 - `ip-lint`: 0 deny.
 
 Renders, game camera, before (grade off) and after: `florida-day`, `arizona-dusk`, `cold-night`, `muddy-car` (+ `-side` at tilt 0.9), `skid-into-ditch` (+ `-close`).
