@@ -22,9 +22,9 @@ export const BINDINGS = [
   { id: 'left', label: 'Move west / steer left', group: 'MOVE', code: 'KeyA', keys: ['KeyA', 'ArrowLeft'], pad: { menu: 'left' } },
   { id: 'right', label: 'Move east / steer right', group: 'MOVE', code: 'KeyD', keys: ['KeyD', 'ArrowRight'], pad: { menu: 'right' } },
   { id: 'sprint', label: 'Sprint / boost (pad: click to run, stop to drop it)', group: 'MOVE', code: 'ShiftLeft', keys: ['ShiftLeft', 'ShiftRight'], pad: { foot: 'l3', drive: 'l3' } },
-  { id: 'crouch', label: 'Crouch (hold) / dive under water', group: 'MOVE', code: 'ControlLeft', keys: ['ControlLeft', 'ControlRight'], pad: { foot: 'b' } },
+  { id: 'crouch', label: 'Crouch (hold) / at a sprint: slide / dive under water', group: 'MOVE', code: 'ControlLeft', keys: ['ControlLeft', 'ControlRight'], pad: { foot: 'b' } },
   { id: 'prone', label: 'Go prone / get up (toggle): low, slow, hidden in grass', group: 'MOVE', code: 'AltLeft', keys: ['AltLeft'], pad: { foot: 'back+lt' } },
-  { id: 'dive', label: 'Dive roll / handbrake', group: 'MOVE', code: 'Space', keys: ['Space'], pad: { foot: 'a', drive: 'a', menu: 'y' } },
+  { id: 'dive', label: 'Dive to prone / vault, climb, jump what is ahead / roll (crouched) / drop-hang (a roof edge) / handbrake', group: 'MOVE', code: 'Space', keys: ['Space'], pad: { foot: 'a', drive: 'a', menu: 'y' } },
 
   // ---- on foot -----------------------------------------------------------------------------------------------------
   { id: 'fire', label: 'Fire (at the wheel: out of the window, or the hood gun)', group: 'WEAPONS', code: null, keys: ['mouse:left'], pad: { foot: 'rt', ride: 'rt', drive: 'lb' } },

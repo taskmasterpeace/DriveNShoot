@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { deckOf } from '../data/decks.js';
 import { RUNDOWN } from '../data/gadgets.js';
+import { HULLS, LOOKS, hullLamps } from './movetowbodies.js'; // the boats, the boat trailer, the wrecker (WEB_MOVE_TOW.md)
 
 // Vehicle bodies, built to measurements in code: ONE merged, vertex-coloured mesh per vehicle with a
 // per-vertex `part` id, so damage (vehicledamage.js) can dent, scrape and drop exact pieces.
@@ -90,22 +91,25 @@ function axle(parts, z, r, w, x, front) {
 // can hide while someone is inside (systems/decks.js): the coach seen from above with its roof cut away, as a building's
 // is. Everything a builder pushes into ROOF while it runs ends up there (the greenhouse's roof panel too).
 let ROOF = null;
+// The helpers movetowbodies.js builds with (its hulls are lofted; everything else is these same parts).
+const K = { tag, slab, beam, coloredBox, wheel, axle, greenhouse, GREENHOUSE, PART };
 export function buildBody(s, type, paint, out = null) {
   const base = s.base ?? type;
   const parts = [];
   const roof = ROOF = deckOf(s.deck)?.open === false ? [] : null;
-  if (base === 'rig') rigBody(parts, s, paint);
+  if (HULLS[base]) HULLS[base](parts, s, paint, K); // lofted hulls and the trailer (systems/movetowbodies.js)
+  else if (base === 'rig') rigBody(parts, s, paint);
   else if (base === 'buggy') buggyBody(parts, s, paint);
   else if (base === 'van') vanBody(parts, s, paint);
   else if (base === 'rv') rvBody(parts, s, paint);
   else if (base === 'bike') bikeBody(parts, s, paint);
   else if (base === 'atv') atvBody(parts, s, paint);
-  else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
   else if (base === 'raft' || base === 'ferry') raftBody(parts, s, base);
   else if (base === 'patrol') patrolBody(parts, s, paint);
   else if (base === 'apc') apcBody(parts, s, paint);
   else if (base === 'bus') busBody(parts, s, paint);
   else carBody(parts, s, GREENHOUSE[base] ? base : 'sedan', paint);
+  if (s.look && LOOKS[s.look]) LOOKS[s.look](parts, s, paint, K); // the wrecker's boom over a pickup
   lenses(parts, s, type);
   ROOF = null;
   if (out) out.roof = roof?.length ? mergeGeometries(roof) : null;
@@ -672,29 +676,6 @@ function bikeBody(parts, s, paint) {
   parts.push(coloredBox(0.1, 0.1, 0.7, -0.22, 0.42, -0.45, '#9a948c', PART.frame));     // exhaust
 }
 
-function boatBody(parts, s, base, paint) {
-  const L = s.len, W = s.wid, hullC = base === 'gunboat' ? '#3a3632' : paint;
-  // Flat-bottomed hulls with a raked bow (two angled boxes), decks, fittings.
-  parts.push(coloredBox(W, base === 'jetski' ? 0.45 : 0.7, L * 0.78, 0, 0.32, -L * 0.1, hullC));
-  for (const sd of [-1, 1]) { const g = new THREE.BoxGeometry(W * 0.62, base === 'jetski' ? 0.45 : 0.7, L * 0.36).toNonIndexed(); g.rotateY(sd * 0.42); g.translate(sd * W * 0.2, 0.32, L * 0.32); parts.push(tag(g, hullC, PART.bumperF)); }
-  if (base === 'airboat') {
-    parts.push(coloredBox(0.9, 0.9, 0.9, 0, 1.0, -0.4, '#2a2826'));                     // raised driver seat
-    const ring = new THREE.TorusGeometry(1.05, 0.08, 6, 20).toNonIndexed(); ring.translate(0, 1.5, -L / 2 + 0.5); parts.push(tag(ring, '#8a8580', PART.frame));
-    for (let k = 0; k < 3; k++) { const b = new THREE.BoxGeometry(0.16, 1.9, 0.06).toNonIndexed(); b.rotateZ(k * Math.PI / 3); b.translate(0, 1.5, -L / 2 + 0.55); parts.push(tag(b, '#5a5550', PART.frame)); }
-    parts.push(coloredBox(0.5, 0.5, 0.5, 0, 1.1, -L / 2 + 0.95, '#3a3632'));          // engine
-  } else if (base === 'jetski') {
-    parts.push(coloredBox(0.4, 0.2, 1.1, 0, 0.7, -0.2, '#1a1816'));                    // saddle
-    parts.push(coloredBox(0.7, 0.06, 0.06, 0, 1.0, 0.55, '#8a8580', PART.frame));       // bars
-  } else {
-    const G = GREENHOUSE.gunboat;
-    parts.push(slab(-G.wB / 2, G.wB / 2, 0.85, G.yB, G.zC, G.zA, '#4a3a2a'));         // cabin walls
-    greenhouse(parts, G, '#4a3a2a', '#4a3a2a');
-    parts.push(coloredBox(0.6, 0.5, 0.6, 0, 0.95, L / 2 - 1.3, '#2d2a28'));            // gun mount
-    parts.push(coloredBox(0.14, 0.14, 1.4, 0, 1.25, L / 2 - 0.8, '#6a6560'));          // barrel
-    parts.push(coloredBox(0.8, 0.6, 0.8, 0, 0.8, -L / 2 + 0.7, '#7a3a1c'));            // fuel drums
-  }
-}
-
 // A raft: logs lashed over oil drums, a pole; a ferry: a plank deck on two steel pontoons, rails, the cable post.
 function raftBody(parts, s, base) {
   const L = s.len, W = s.wid;
@@ -723,6 +704,7 @@ function lenses(parts, s, type) {
 // vehiclelights.js throws the light from here.
 export function lampAnchors(s, type) {
   const base = s.base ?? type, L = s.len, W = s.wid;
+  const hl = hullLamps(base, s); if (hl) return hl;
   const pair = (x, y, z) => [[x, y, z], [-x, y, z]];
   const car = { beamW: 6 + W * 2.4, beamL: 15 + W * 2, halo: 1.15 };
   if (base === 'bike') return { head: [[0, 0.98, L / 2 - 0.42]], tail: [[0, 0.82, -L / 2 + 0.2]], beamW: 7, beamL: 16, halo: 0.8 };

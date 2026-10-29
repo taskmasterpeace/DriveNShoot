@@ -284,6 +284,7 @@ export class Vehicles {
       return { fwd, side };
     }
     let topSpeed = v.maxSpeed * fxm.top;
+    const mud = this.g.towing ? this.g.towing.ground(v, dt, fxm) : 1; // soft ground holds a car that spins in it (systems/towing.js)
     // Water: boats need it, everything else drowns in it.
     const depth = this.g.water ? this.g.water.depthAt(v.x, v.z, false, v.boat ? -Infinity : v.y) : 0; // y: a car up on a river's deck is dry; a boat under it is not
     v.depth = depth;
@@ -343,7 +344,7 @@ export class Vehicles {
       const wantWheelie = !v.fallen && v.boost && v.throttle > 0 && sp > 3 && sp < 24;
       v.wheelie += ((wantWheelie ? 0.42 : 0) - v.wheelie) * Math.min(1, dt * (wantWheelie ? 2.5 : 6));
     }
-    fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : 1.4));
+    fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : v.towedBy ? this.g.towing.drag(v) : 1.4)) * mud; // towed: it rolls in neutral (systems/towing.js)
     side *= Math.exp(-dt * grip);
     const nfx = Math.sin(v.h), nfz = Math.cos(v.h);
     v.vx = nfx * fwd + nfz * side;
@@ -407,6 +408,7 @@ export class Vehicles {
       const reach = (v.len + o.len) * 0.5 + 1;
       if (Math.abs(o.x - v.x) > reach || Math.abs(o.z - v.z) > reach) continue;
       if (v.y > o.y + o.tall * 0.85 || o.y > v.y + v.tall * 0.85) continue; // one is flying over the other
+      if (g.towing && (v.carriedBy === o || o.carriedBy === v || v.hauling === o || o.hauling === v || (g.towing.links.length && g.towing.linked(v, o)))) continue; // a hitch's two halves, a boat on its trailer (systems/towing.js)
       const vd = this.discs(v), od = this.discs(o);
       let best = null;
       for (const a of vd) for (const b of od) {
@@ -444,7 +446,7 @@ export class Vehicles {
     // Run people over.
     const sp = this.speed(v);
     for (const c of g.chars) {
-      if (!c.alive || c.inVehicle || c.dragged || c.grabbing || c.onDeck) continue; // a deck's riders are up on a vehicle, not on the road
+      if (!c.alive || c.inVehicle || c.dragged || c.grabbing || c.onDeck || (c.mv && sp < 2)) continue; // a deck's riders are up on a vehicle, not on the road; a vault goes over a parked one (systems/moves.js)
       const dx = c.x - v.x, dz = c.z - v.z;
       if (Math.abs(dx) > v.len || Math.abs(dz) > v.len) continue;
       const along = dx * fx + dz * fz, across = dx * fz - dz * fx;
@@ -727,6 +729,7 @@ export class Vehicles {
     const g = this.g;
     this.coneMat.opacity = 0.04 + night * 0.62;
     if (!this.decks.placed) this.decks.placeWorld(); // the RV in the middle of nowhere (data/decks.js PLACED)
+    g.towing?.pre(dt); // tow lines pull before anything drives (systems/towing.js)
     for (const v of this.list) {
       this.decks.capture(v); // its deck's riders back into its frame before it moves (systems/decks.js)
       if (v.driver && v.driver !== g.player && !v.dead) this.aiDrive(v, dt);
@@ -806,6 +809,7 @@ export class Vehicles {
         if (Math.random() < dt * 6) g.fx.smoke(v.x, 2, v.z, true);
       }
     }
+    g.towing?.post(dt); // bars place what they tow, boats ride their trailers, the lines are drawn
     g.stunts?.update(); // blob shadows under whatever is in the air
     this.lights.update(night, g.time);
     this.updateHarpoon(dt);

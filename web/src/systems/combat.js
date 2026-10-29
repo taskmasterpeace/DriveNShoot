@@ -117,13 +117,12 @@ export class Combat {
     let target = null, kind = null;
     for (const c of g.chars) {
       if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
-      if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
       if (c.underwater) continue;                          // bullets don't reach under water
       // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
       // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
       if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) - (F.storey?.y0 ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey)) continue;
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-      if (t >= 0 && t < best && t < over) { best = t; target = c; kind = 'char'; }
+      if (t >= 0 && t < best && t < over && (!(c.prone || c.mv || c.dive > 0) || !g.moves || Math.random() < g.moves.hitShare(c, t))) { best = t; target = c; kind = 'char'; } // a low body (a dive, prone, a roll): the round can pass over it (data/moves.js LOW_BODY)
     }
     for (const v of g.vehicles) {
       if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
