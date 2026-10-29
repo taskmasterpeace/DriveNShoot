@@ -215,7 +215,7 @@ harnesses were left running (4–5 headless games besides this one).
 | P2 | **585/585** | 958 s | all pass |
 | P3 | 584/585 | 955 s | all pass. The one failure is `tactics band: a rifleman holds 25-45 m` (a known flake, not one of the eight); its new tag reads `[entry arms:holstered …]`, a lead for whoever takes it |
 
-Hunting runs before the last fixes (same code otherwise): a full battery 583/585 (grapevine eat-a-body and understreet
+Before the fixes: a full battery on the base code 583/585 (grapevine eat-a-body and understreet
 manhole failed, neither one of the eight), and one stopped at 495 checks with the eight that had run all passing.
 
 Alone, 5 fresh pages each, final code:
