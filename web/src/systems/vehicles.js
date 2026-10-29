@@ -398,6 +398,7 @@ export class Vehicles {
       const reach = (v.len + o.len) * 0.5 + 1;
       if (Math.abs(o.x - v.x) > reach || Math.abs(o.z - v.z) > reach) continue;
       if (v.y > o.y + o.tall * 0.85 || o.y > v.y + v.tall * 0.85) continue; // one is flying over the other
+      if ((v.climbing || o.climbing) && g.workshop?.climbs(v, o)) continue; // a monster truck up on (or going up onto) a car
       const vd = this.discs(v), od = this.discs(o);
       let best = null;
       for (const a of vd) for (const b of od) {
@@ -412,6 +413,7 @@ export class Vehicles {
       v.x -= nx * pen * (o.mass / tm); v.z -= nz * pen * (o.mass / tm);
       o.x += nx * pen * (v.mass / tm); o.z += nz * pen * (v.mass / tm);
       const rv = (o.vx - v.vx) * nx + (o.vz - v.vz) * nz;
+      if (rv < 0 && g.workshop?.climbStart(v, o, -rv)) continue; // fast enough, nose-first, on monster tyres: up and over
       if (rv < 0) {
         const j = -1.4 * rv / (1 / v.mass + 1 / o.mass);
         v.vx -= (j / v.mass) * nx; v.vz -= (j / v.mass) * nz;
@@ -729,7 +731,7 @@ export class Vehicles {
       if (!v.dead) { const dmg = 1 - v.hp / v.maxHp; v.mesh.material.color.setRGB(1 - dmg * 0.6, 1 - dmg * 0.65, 1 - dmg * 0.7); }
       // The body: ride height (a landing can sink it into its springs, but never the tyres into the dirt), pitched and
       // rolled to the ground or to the arc it is flying; a bike adds its lean and its wheelie.
-      v.group.position.set(v.x, Math.max(v.y, v.gy - 0.07), v.z);
+      v.group.position.set(v.x, Math.max(v.y, v.gy - 0.07) + (v.liftY ?? 0) + (v.climbY ?? 0), v.z); // liftY: monster tyres; climbY: up on a car it is crushing (workshop.js)
       v.group.rotation.set(-v.pitch, v.h, v.roll);
       if (v.bike) { v.group.rotation.z += v.lean; v.group.rotation.x -= v.wheelie; v.group.position.y += v.wheelie * 0.25; }
       if (v.boat) {

@@ -168,7 +168,10 @@ export const UTILITY = {
   tread_allterrain: { name: 'ON/OFF-ROAD TYRES', tab: 'wheels', set: 'tread', kg: 15, space: 0, price: 260, labour: 0.5, tread: { paved: 1.06, dirt: 1.06 },
                   desc: 'Half and half. Better than what came on the car everywhere, best nowhere.' },
   monster:      { name: 'MONSTER TYRES', tab: 'wheels', set: 'tread', kg: 240, space: 0, price: 1600, labour: 3, rare: 'uncommon',
-                  tread: { paved: 0.92, dirt: 1.2, wade: 0.5 }, monster: { scale: 1.8, turn: 0.8, top: 0.93, crush: 1.6 },
+                  tread: { paved: 0.92, dirt: 1.2, wade: 0.5 }, monster: { scale: 2.2, lift: 0.6, turn: 0.8, top: 0.93, crush: 1.6,
+                    // climbing: hit a car nose-first this fast (closing m/s) and you go up over it instead of off it; under
+                    // `under` metres tall only. On top you cave its roof (dps a second), it is pinned (keeps `pin` of its speed).
+                    climb: { speed: 7, under: 2.2, dps: 60, pin: 0.25, part: 14 } },
                   chassis: ['buggy', 'sedan', 'interceptor', 'pickup', 'patrol', 'van'],
                   desc: 'Tractor tyres on a lift kit. Wades rivers, climbs over cars, corners like a wardrobe.' },
   hubspikes:    { name: 'HUB SPIKES', tab: 'wheels', kg: 24, space: 0, price: 320, labour: 0.75, hub: { reach: 0.6, car: 24, tyre: 0.45, person: 35, grip: 3 },

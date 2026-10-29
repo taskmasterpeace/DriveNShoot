@@ -13,7 +13,7 @@ import { FACES6, ARMOR, CHASSIS, PERF, POWER, MOUNT_WEAPONS, UTILITY, PAINTS } f
 // Weight re-tunes the car from its base row (data/workshop.js PERF: slower off the line, a lower top speed, a lazier turn,
 // longer stops). The counter, the guns and the screen are systems/workshop.js and ui/workshop.js.
 // Plates and mounts are drawn by one InstancedMesh packed each frame from the cars near the player.
-const MAX_INST = 420, VIEW_R = 90, MAX_HAZARDS = 32;
+const MAX_INST = 420, MAX_SPIKES = 96, VIEW_R = 90, MAX_HAZARDS = 32;
 const FACES = ['front', 'rear', 'left', 'right'];
 const STEEL = new THREE.Color('#4b4945'), GUN = new THREE.Color('#1c1c1c'), RUST = new THREE.Color('#6a3a22'), BRASS = new THREE.Color('#9a7a3a'),
   TILE = new THREE.Color('#77705f'), BLADE = new THREE.Color('#5d5a54'), TIP = new THREE.Color('#9b2a1c'), TANK = new THREE.Color('#5a4a22'), COIL = new THREE.Color('#3f6f78'),
@@ -35,6 +35,11 @@ export class Garage {
     this.mesh.castShadow = true;
     this.mesh.count = 0;
     game.scene.add(this.mesh);
+    // Hub spikes are cones (one more instanced draw, only while a spiked car is near): tip along +x.
+    this.spikes = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 10).rotateZ(-Math.PI / 2).translate(0.5, 0, 0), new THREE.MeshStandardMaterial({ color: '#cfc8b8', roughness: 0.3, metalness: 0.8 }), MAX_SPIKES);
+    this.spikes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.spikes.frustumCulled = false; this.spikes.castShadow = true; this.spikes.count = 0; this.spikes.visible = false;
+    game.scene.add(this.spikes);
     this.hazards = [];
   }
 
@@ -86,6 +91,7 @@ export class Garage {
     // Tyres: the tread's grip is sampled live (workshop.update: pavement or not); with no tread fitted it is 1.
     const T = this.tread(v);
     v.wadeLift = T?.wade ?? 0;
+    v.liftY = v.utility?.monster ? UTILITY.monster.monster.lift : 0; // monster tyres: the body rides this much higher
     if (!T) { v.treadGrip = undefined; v.treadTop = undefined; }
     if (v.fuel > v.fuelCap) v.fuel = v.fuelCap;
     // Power: the alternator, plus a battery bank and a power plant.
@@ -311,8 +317,15 @@ export class Garage {
 
   // Plates and mounts on every car near the player: one instanced draw.
   pack() {
-    const g = this.g, P = g.player, M = this.mesh;
-    let n = 0;
+    const g = this.g, P = g.player, M = this.mesh, SP = this.spikes;
+    let n = 0, ns = 0;
+    // A cone from the hub out: (lx, ly, lz) its base in the body frame, `len` long, pointing yaw (0 = +x) and tipped `tilt`.
+    const spike = (lx, ly, lz, len, rad, yaw, tilt = 0) => {
+      if (ns >= MAX_SPIKES) return;
+      _q.setFromEuler(_e.set(0, yaw, tilt));
+      _l.compose(_p.set(lx, ly, lz), _q, _s.set(len, rad, rad));
+      SP.setMatrixAt(ns++, _l.premultiply(_m));
+    };
     const put = (lx, ly, lz, sx, sy, sz, col, yaw = 0, pitch = 0) => {
       if (n >= MAX_INST) return;
       _q.setFromEuler(_e.set(pitch, yaw, 0));
@@ -341,15 +354,21 @@ export class Garage {
         if (pl.top > 0) put(0, roof + 0.03, -0.25, W * 0.72, 0.05, L * 0.34, tone('top'));
         if (pl.under > 0) put(0, 0.28, 0, W * 0.94, 0.06, L * 0.86, tone('under'));
       }
-      // Monster tyres stand out past the body; hub spikes stick out past the tyres.
+      // Monster tyres stand out past the body and carry it 0.6 m higher (vehicles.js liftY); hub spikes are cones out of
+      // the hub, one long blade straight out and four short ones round it.
       const U = v.utility;
       if (U?.monster || U?.hubspikes) {
-        const mo = U.monster ? UTILITY.monster.monster.scale : 1, r = 0.36 * mo, tw = U.monster ? 0.62 : 0.24, ax = L / 2 - Math.max(0.8, r * 1.1);
+        const MO = U.monster ? UTILITY.monster.monster : null;
+        const r = 0.36 * (MO?.scale ?? 1), tw = MO ? 0.7 : 0.24, ax = L / 2 - Math.max(0.8, r * 0.95), cy = r - (MO?.lift ?? 0); // on the ground (or the roof it is climbing)
         const reach = U.hubspikes ? UTILITY.hubspikes.hub.reach : 0;
         for (const sx of [1, -1]) for (const az of [ax, -ax]) {
-          const wx = sx * (W / 2 + (U.monster ? tw * 0.45 : 0.02));
-          if (U.monster) put(wx, r, az, tw, r * 2, r * 2, RUBBER);
-          if (U.hubspikes) { const hx = wx + sx * (tw / 2 + reach / 2); put(hx, r, az, reach, 0.12, 0.14, EDGE); put(hx + sx * reach * 0.3, r, az, 0.12, 0.42, 0.42, EDGE, 0, Math.PI / 4); }
+          const wx = sx * (W / 2 + (MO ? tw * 0.42 : 0.02));
+          if (MO) { put(wx, cy, az, tw, r * 2, r * 1.7, RUBBER); put(wx, cy, az, tw * 1.02, r * 1.7, r * 2, RUBBER); put(wx + sx * tw * 0.52, cy, az, 0.05, r * 0.9, r * 0.9, STEEL); }
+          if (U.hubspikes) {
+            const hx = wx + sx * (tw / 2 + 0.02), yaw = sx > 0 ? 0 : Math.PI;
+            spike(hx, cy, az, reach + 0.15, 0.1, yaw);
+            for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; spike(hx, cy + Math.sin(a) * r * 0.45, az + Math.cos(a) * r * 0.45, reach * 0.55, 0.06, yaw); }
+          }
         }
       }
       const hy = (v.anchors?.head?.[0]?.[1] ?? 0.92) + 0.32;
@@ -374,6 +393,7 @@ export class Garage {
     }
     M.count = n;
     M.visible = n > 0;
+    SP.count = ns; SP.visible = ns > 0; SP.instanceMatrix.needsUpdate = true;
     M.instanceMatrix.needsUpdate = true;
     if (M.instanceColor) M.instanceColor.needsUpdate = true;
   }

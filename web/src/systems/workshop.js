@@ -538,6 +538,43 @@ export class Workshop {
     return W.projectAny(x, z, 40).d < 11;
   }
 
+  // MONSTER TYRES climb (data/workshop.js UTILITY monster.climb): a monster truck that hits a lower car nose-first fast
+  // enough goes up and over it instead of bouncing off. vehicles.js asks climbStart on an impact and skips the pair's
+  // collision while climbs() holds; climbTick rides it across the roof and caves it in.
+  climbStart(a, b, closing) {
+    for (const [m, o] of [[a, b], [b, a]]) {
+      const C = m.utility?.monster && UTILITY.monster.monster.climb;
+      if (!C || m.climbing || m.dead || o.utility?.monster || o.boat || (o.tall ?? 2) > C.under || closing < C.speed) continue;
+      if (this.g.garage.faceAt(m, o.x, o.z) !== 'front') continue;
+      m.climbing = o.id; m.climbHitT = 0; // an id, not the car: the row stays plain JSON for saves and the shard
+      this.g.emit('monsterClimb', { vehicle: m.id, over: o.id, speed: Math.round(closing * 10) / 10 });
+      if (m.driver === this.g.player) this.g.hud?.toast?.(`UP AND OVER THE ${o.name}`, 'job');
+      return true;
+    }
+    return false;
+  }
+  climbs(a, b) { return a.climbing === b.id || b.climbing === a.id; }
+  climbTick(v, dt) {
+    const g = this.g, o = v.climbing ? g.vehicles.find((x) => x.id === v.climbing) : null, C = UTILITY.monster.monster.climb;
+    let target = 0;
+    if (o && !o.sunk) {
+      const fx = Math.sin(v.h), fz = Math.cos(v.h), along = (o.x - v.x) * fx + (o.z - v.z) * fz;
+      if (along < -(o.len / 2 + v.len * 0.45) || along > o.len / 2 + v.len * 0.6) v.climbing = null; // rolled off the far end (or backed off)
+      else {
+        if (Math.abs(along) < o.len / 2 + v.len * 0.15) target = (o.tall ?? 1.8) * (0.85 - 0.25 * (o.crushed ?? 0)); // on the roof
+        const k = Math.exp(-dt * 6); o.vx *= k; o.vz *= k; o.av *= k; // pinned under it
+        if (target > 0) {
+          g.vehiclesSys.damage(o, C.dps * dt, v.driver);
+          o.crushed = Math.min(1, (o.crushed ?? 0) + dt * 1.5); o.group.scale.y = 1 - 0.38 * o.crushed; // the roof caves
+          for (const c of o.occ ?? []) if (c?.alive) g.combat.damage(c, C.dps * 0.3 * dt, v.driver, 0, 0, 'vehicle');
+          if ((v.climbHitT -= dt) <= 0) { v.climbHitT = 0.25; g.vehDamage.hit(o, o.x, o.z, C.part, 'crash'); if (v.driver === g.player || o.driver === g.player) g.hud?.shake?.(0.35); }
+        }
+      }
+    } else v.climbing = null;
+    v.climbY = (v.climbY ?? 0) + (target - (v.climbY ?? 0)) * Math.min(1, dt * 8);
+    if (!v.climbing && v.climbY < 0.01) v.climbY = 0;
+  }
+
   // HUB SPIKES (data/workshop.js UTILITY hubspikes): blades out past the tyres. Anything alongside at speed gets them:
   // the other car's tyre on that side and its flank, somebody on foot by your wheels, a hand on your door.
   hubSpikes(v, dt) {
@@ -601,6 +638,7 @@ export class Workshop {
           v.treadT = 0.25; v.paved = this.paved(v.x, v.z);
           v.treadGrip = v.paved ? T.paved : T.dirt; v.treadTop = v.paved ? T.topPaved ?? 1 : 1;
         }
+        if (v.climbing || v.climbY) this.climbTick(v, dt);
         if (U.hubspikes && (v.hubT = (v.hubT ?? 0) - dt) <= 0) { v.hubT = 0.25; this.hubSpikes(v, 0.25); }
       }
       if (v.mounts) this.lockTick(v, dt);

@@ -243,6 +243,28 @@ export async function workshopChecks({ g, api, C, check, stage, person }) {
     return ok.ok && !no.ok && out.turn[1] < out.turn[0] && out.wade === UTILITY.monster.tread.wade && out.crush === UTILITY.monster.monster.crush ? true : JSON.stringify(out);
   });
 
+  await check('workshop: monster tyres ride high, and at speed a monster truck climbs over a car and caves its roof; slow, it only shoves', async () => {
+    await stage();
+    const run = async (throttle, gap) => {
+      const m = await spawn('pickup', 0, 0, Math.PI / 2), o = await spawn('sedan', gap, 0, 0); // the sedan broadside, gap m ahead (east)
+      fit(m, 'monster');
+      const hp0 = o.hp, seq0 = g.eventSeq;
+      await C('enterVehicle', { id: m.id, force: true });
+      await api._step(2);
+      const ride = m.group.position.y - Math.max(m.y, m.gy - 0.07);
+      g.driveOverride = { throttle, steer: 0 };
+      let peak = 0;
+      for (let i = 0; i < 240; i++) { await api._step(1); peak = Math.max(peak, m.climbY ?? 0); if (m.x > o.x + 8) break; }
+      g.driveOverride = null;
+      const climbed = ((await C('events', { since: seq0, type: 'monsterClimb' })).events ?? []).some((e) => e.over === o.id);
+      const out = { ride: r2(ride), climbed, peak: r2(peak), hp: [Math.round(hp0), Math.round(o.hp)], crushed: r2(o.crushed ?? 0), past: r2(m.x - o.x) };
+      g.exitVehicle(true); cleanup(m, o);
+      return out;
+    };
+    const fast = await run(1, 26), slow = await run(0.12, 7);
+    return fast.ride === UTILITY.monster.monster.lift && fast.climbed && fast.peak > 1 && fast.crushed > 0 && fast.hp[1] < fast.hp[0] && !slow.climbed ? true : JSON.stringify({ fast, slow });
+  });
+
   await check('workshop: hub spikes - drive alongside and they eat the other car\'s tyre and flank on that side', async () => {
     await stage();
     const v = await spawn('sedan', 0, -14, 0), o = await spawn('sedan', 2.5, 0, 0); // o parked 2.5 m to v's left (+x), 14 m up the road

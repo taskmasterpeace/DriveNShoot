@@ -83,11 +83,17 @@ X take off, R repair the face, U/Tab/Esc close. Pad (menu context): D-pad, A fit
 **Wheels** (Robert, 2026-10-29; the WHEELS tab). One TREAD a car (`set: 'tread'`: fitting one swaps the last out; stock
 tyres are 1.0 everywhere): ROAD (grip +18% on pavement, -20% off it, top speed +4% on pavement), OFF-ROAD (-12% / +22%,
 wades 0.15 m deeper), ON/OFF-ROAD (+6% / +6%), and MONSTER TYRES (scarce; buggy, sedan, interceptor, pickup, patrol, van
-only: -8% / +20%, hull held 0.5 m out of a ford, handling x0.8, top x0.93, 240 kg, and a nose that hits like a ram x1.6).
+only: -8% / +20%, the body rides 0.6 m higher on tyres 2.2x stock, hull held 0.5 m out of a ford, handling x0.8, top x0.93,
+240 kg, a nose that hits like a ram x1.6). AND THEY CLIMB: a monster that hits a car under 2.2 m tall nose-first at 7 m/s
+closing or more does not bounce off it, it goes up and over. On the roof (body up to 0.85 x the car's height, sagging
+as it caves) it does 60 hp/s to the car, 18/s to everyone inside, a 14-point crash to the car's parts every 0.25 s, pins
+the car (its speed decays e^-6t), and caves the roof (the body squashes to 62% height for good). It rolls off the far end
+and comes down. Slower than 7 m/s it is an ordinary (ram x1.6) shunt. A monster cannot climb another monster or a boat.
 "Pavement" is sampled 4 times a second (`workshop.paved`): the island's streets, the ring city's, an interstate's lanes;
 everything else is dirt. HUB SPIKES: blades out past the tyres. Anything alongside at speed takes them every 0.25 s: the
 other car's flank (24/s, scaled by closing speed) and its nearer tyre on that side (45% a tick, gone in three), anyone on
-foot by your wheels (35/s), and hands on your doors (grip -3/s). Run-flat and puncture-proof tyres moved to this tab.
+foot by your wheels (35/s), and hands on your doors (grip -3/s). Drawn as steel cones out of each hub: one long blade
+straight out, four short ones round it (one instanced draw, only while a spiked car is near). Run-flat and puncture-proof tyres moved to this tab.
 
 **THE OPEN FRONT LAW** (Robert, 2026-10-29). From inside a car you shoot out over the hood only when nothing is in the
 way: an open rig (buggy, bike, quad, airboat: no glass), a windshield pulled at the workshop (`nowindshield`, $30: the
@@ -112,6 +118,8 @@ brake = ratio ^ 0.5                                 (multiplies vehicledamage/up
 plate stops = pts x absorb x vs[type]; rail: plate stops at most 35% of the slug, the rest goes on
 grip  = row.grip x solid(0.95) x tread[paved ? 'paved' : 'dirt'] x oil slick     (stock tyres: tread = 1)
 top  *= monster.top(0.93) x (road tyres on pavement: 1.04);  turn *= monster.turn(0.8)
+climb starts when monster && closing >= 7 m/s && the other car is in the monster's FRONT face && other.tall < 2.2
+on the roof: climbY -> other.tall x (0.85 - 0.25 x crushed); crushed += 1.5/s (max 1); other body scale.y = 1 - 0.38 x crushed
 ford depth seen by the hull = max(0, water depth - tread.wade)          (wade: off-road 0.15, monster 0.5 m)
 hub spikes per 0.25 s tick: flank dmg = 24 x 0.25 x min(2, closing/8 + 0.5); tyre -= 0.45; person dmg = 35 x 0.25 x min(2, speed/8)
 ```
@@ -139,6 +147,8 @@ side face and 6 on top = 54 pts x 14 kg = 756 kg. mass 2.256, ratio 0.665 → ac
 - Fitting a second tread swaps the first out (no refund for the old set; its weight comes off the load check first).
   Monster tyres on a bike, quad, RV, rig or APC are refused ("won't go on"); a windshield cannot be pulled from a car with
   no glass. Puncture-proof tyres shrug off hub spikes as they do caltrops.
+- A climbing monster keeps the car it is on as an id (`v.climbing`), never the car itself, so the row stays plain JSON.
+  The pair's collision is skipped while it climbs; if the car under it is removed or sinks, it comes down.
 - An NPC gunner in a closed car facing you kicks out its own windshield on its first forward pull, so a chase costs the
   chaser its glass; a pulled windshield survives save/load (`loadBuild` re-pulls it).
 
@@ -172,6 +182,8 @@ face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flar
 | monster handling / top / ram | `UTILITY.monster.monster` | 0.8 / 0.93 / 1.6 | 0.65-0.95 / 0.85-1 / 1.2-2 |
 | ford lift | `tread.wade` | 0.15 / 0.5 m | 0-0.8 |
 | hub spike car / tyre / person | `UTILITY.hubspikes.hub` | 24 / 0.45 / 35 | 10-40 / 0.25-1 / 15-60 |
+| monster climb speed / max height car / roof dps | `monster.climb` | 7 m/s / 2.2 m / 60 | 5-12 / 1.8-2.6 / 30-120 |
+| monster ride height | `monster.lift` | 0.6 m | 0.3-1 |
 | windshield bust-out time | `carcombat.js FRONT_KICK` | 0.8 s | 0.3-1.5 |
 
 ## 8. Acceptance criteria (the selftest checks, `only=workshop`)
@@ -189,14 +201,16 @@ face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flar
 8. TYRES: in the same slide on the same ground, road tyres kill a sideways slide faster on pavement and off-road tyres
    faster on dirt; fitting a third tread leaves exactly one.
 9. MONSTER TYRES: a buggy takes them and a bike refuses; handling drops, the ford lift and the ram multiplier are the rows'.
-10. HUB SPIKES: driven past a parked car, they hit its flank (hp drops) and only its tyres on the facing side.
-11. THE OPEN FRONT: behind glass the first forward pull fires nothing and kicks the windshield out, a second at once is still
+10. MONSTER CLIMB: the body rides exactly `lift` higher; driven flat out at a broadside sedan it climbs (event), rides more
+    than 1 m up, caves the roof and costs it hp; crept into the same car at 12% throttle it does not climb.
+11. HUB SPIKES: driven past a parked car, they hit its flank (hp drops) and only its tyres on the facing side.
+12. THE OPEN FRONT: behind glass the first forward pull fires nothing and kicks the windshield out, a second at once is still
     busy, after 1 s it fires; a buggy and a pulled windshield fire ahead at once (the pulled pane draws nothing); a side shot
     still shoots out its own window.
-12. The screen opens with seven tabs, every tab lists rows, E fits a part, F walks to the next tab, Esc closes.
-13. What the car wears (plate kinds, every mount, gadgets, paint) rides a save and a load.
+13. The screen opens with seven tabs, every tab lists rows, E fits a part, F walks to the next tab, Esc closes.
+14. What the car wears (plate kinds, every mount, gadgets, paint) rides a save and a load.
 
 `scenario name=arena-night`: the loaner against three built Dustwolf cars at night in the Glass Flats; reports fire, rockets,
 breaches, slicks and kills. Renders: `docs/renders/web/workshop/01-armor.png` ... `06-paint.png` (Playwright, 1920x1080 full
 page), `07-game-camera-builds.jpg` (three builds from the game camera), `08-wheels.png` (the WHEELS tab), `09-wheels-game.jpg`
-(a monster buggy with hub spikes and a twin MG, a pickup on off-road tyres with hub spikes, a sedan with its windshield pulled).
+(a monster buggy with hub spikes and a twin MG, a pickup on off-road tyres with hub spikes, a sedan with its windshield pulled), `10-monster-climb.jpg` (a monster pickup up on a sedan, roof caving, cone spikes).
