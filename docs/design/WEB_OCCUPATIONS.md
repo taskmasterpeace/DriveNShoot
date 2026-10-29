@@ -15,7 +15,7 @@ improve our algorithm... build a loop system. Like imagine dream loop, but for a
 keep going back until it reaches that goal."
 
 Three parts:
-1. **Occupations as rows.** 67 jobs. Each says where it is worked (building kinds, a site's hero structure, or an open-air
+1. **Occupations as rows.** 68 jobs (67 drafted, the harvest crew added by the loop). Each says where it is worked (building kinds, a site's hero structure, or an open-air
    spot), its shift, what the worker carries, what the work makes (an `ITEMS` id, the work hours per unit, the most a
    workplace keeps), what kind of place it fits, who it serves under, and three things the worker says about it.
 2. **A town's mix is a pure function** of its plan record (archetype, biome, its SITE row: kind, what it makes, its hero
@@ -24,6 +24,13 @@ Three parts:
    their shift and do visible work there.
 3. **The goal loop** pushes a measured quality to a target by repeated one-row changes, each kept only if the number
    rose and the checks stayed green. Its first goal is role diversity.
+
+**The goal loop's first result** (`docs/design/goal-loop-log/role-diversity.md`): the first-draft rows scored **0.9634**
+(220 of 246 settlements met all three criteria; 3 had one job over 25%, 24 were too like their same-kind neighbour).
+Twenty stepwise rounds (15 by a Sonnet subagent, 5 by the lead; 11 kept, 9 rejected, 3 of those by the guard) and two
+algorithm changes by the lead (the seeded tail, core trades exempt) reached **1.0**: 246 of 246, min Shannon 1.889, mean
+2.717, worst share 0.25. The headless run (`--agent "claude -p"`) could not run on this machine (the org refuses CLI
+subscription access to a child process); the log keeps that run too.
 
 Which of scarcity, distance and consequence it makes bite harder:
 - **Scarcity:** goods come only from hours actually worked (law 2). A fishing town has smoked fish because its fishers
@@ -61,6 +68,10 @@ or `deals` (trade kinds), `fit {tag: weight}`, `needs` (any of), `bans`, `fac {c
 ### 3.3 The mix (`mixOf`, pure)
 A job is in the running only if its `needs` are met, no `bans` hit, the workforce is at least its `minN`, and the place
 has a workplace for it. Its score (§4) shares out the workforce under caps, then whole people by largest remainder.
+**The tail**: in a workforce of at least `MIX.tailFrom`, a job that would keep fewer than `MIX.tailN` people is present
+only with chance `MIX.tailKeep` (by the seed), unless it is `one` (a post) or CORE (its fit to the place times its holder
+factor is at least `MIX.tailCore`: the mine's diggers, the raiders' scouts, the base's sentries). Not every farm town has
+a beekeeper; every mine has diggers.
 
 ### 3.4 The people (`systems/workforce.js`)
 - **Books**: a built town's roster (pure) becomes worker records with a name (the ring's name pools), a real flag
@@ -138,7 +149,10 @@ ordinary characters, so they wear LSW bodies when near).
 | `MIX.minWorkers / maxWorkers` | 8 / 64 | 6–12 / 40–80 | workforce bounds |
 | `MIX.minPop` | 6 | 4–10 | below this, nobody works there |
 | `MIX.cap` | 0.4 | 0.15–0.4 | default most share of one job |
-| `MIX.jitter` | 0.35 | 0–0.6 | per-settlement noise on scores (neighbours differ) |
+| `MIX.jitter` | 0.5 (loop round 4) | 0–0.6 | per-settlement noise on scores (neighbours differ) |
+| `MIX.tailN` / `tailKeep` | 2 / 0.7 (loop) | 0–3 / 0.5–1 | the long tail of small trades and how often each is there |
+| `MIX.tailCore` | 1.5 | 0.8–3 | how strongly a job must fit a place to be its core (never dropped) |
+| `MIX.tailFrom` | 24 | 12–48 | the smallest workforce the tail thins |
 | `MIX.offWealth` | 0.35 | 0.1–1 | a job outside its wealth band |
 | `MIX.neighbourKm` | 80 | 40–150 | how far a same-kind neighbour counts |
 | `WORK.maxLive` | 24 | 12–32 | workers real at once (CPU, character slots) |
