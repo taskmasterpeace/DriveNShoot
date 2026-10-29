@@ -182,6 +182,8 @@ export class Combat {
     if (fh) { best = fh.t; target = fh.animal; kind = 'fauna'; }
     const sh = !up && g.sealife ? g.sealife.raycast(ox, oz, dx, dz, best) : null; // a shark's back at the surface, an arm of the deep one (systems/sealife.js)
     if (sh) { best = sh.t; target = sh.a; kind = 'sea'; this.seaArm = sh.arm; }
+    const cd = !up && g.casinos && shooter === g.player ? g.casinos.raycast(ox, oz, dx, dz, best) : null; // a house's security drone over its property (systems/casinos.js)
+    if (cd) { best = cd.t; target = cd.drone; kind = 'cdrone'; }
     if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
       const th = g.train.raycast(ox, oz, dx, dz, best);
       if (th) { best = th.t; target = th.car; kind = 'train'; }
@@ -219,6 +221,9 @@ export class Combat {
     } else if (kind === 'sea') {
       g.sealife.hurt(target, dmg, shooter, dx, dz, 'bullet', this.seaArm);
       if (shooter === g.player) g.qol.hit(!!target.dead);
+    } else if (kind === 'cdrone') {
+      g.casinos.hurtDrone(target, dmg, shooter === NOBODY ? null : shooter);
+      if (shooter === g.player) g.qol.hit(target.state === 'falling');
     } else if (kind === 'train') {
       g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
       g.train.hitCar(target, dmg, shooter);

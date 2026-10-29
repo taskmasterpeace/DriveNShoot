@@ -122,6 +122,7 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
 - **A hired gun:** `seats.recruit` gives followers `mag 99`. The hire puts the gun's own magazine back. The engine's AI reload still refills from nothing; that is the AI's law, not this lane's.
 
 ## 6. Dependencies
+- **CASINOS** (`WEB_CASINOS.md`, systems/casinos.js) reads a saloon's bar: its back-room blackjack table sits on `plan(bar).tables[0]` (read only) and its house is the bar's own `till` (bets in, payouts out, never a second purse).
 | Uses | For |
 |---|---|
 | `citygen` (plan, live towns, buildings) | towns as nodes; saloons; rural parcels |
