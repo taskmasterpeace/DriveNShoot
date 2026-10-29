@@ -54,7 +54,13 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
   const Z = g.zombies, P = () => g.player;
   const FLATS = { x: 250, z: 430 };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  const clearRound = (x, z, r) => { for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c); };
+  // A cleared round: no one left in it, and no body records either (an earlier check's dead, bloated by the battery's
+  // clock, SMELL - systems/rites.js smell() turns any of the infected here toward them).
+  const clearRound = (x, z, r) => {
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c);
+    const B = g.rites?.bodies;
+    if (B) { for (const [k, R] of B) if (!R.c && Math.hypot(R.x - x, R.z - z) < r) B.delete(k); g.rites.dirty = true; }
+  };
   const flats = async () => { await stage(); await C('teleport', FLATS); clearRound(FLATS.x, FLATS.z, 140); g.godMode = true; await C('step', { seconds: 0.2 }); };
   const facing = (c, o) => { c.face = Math.atan2(o.x - c.x, o.z - c.z); };
   const standStill = (c) => { c.timer = 99; c.wx = c.x; c.wz = c.z; };
