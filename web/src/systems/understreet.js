@@ -169,6 +169,9 @@ export class UnderStreet {
     const A = this.U.A, P = A.plan, F = P.fgrid?.get(Math.floor(x / P.fcell) * 65536 + Math.floor(z / P.fcell));
     if (F) for (const f of F) { const R = f.rect; if (x >= R.minX && x <= R.maxX && z >= R.minZ && z <= R.maxZ && this.isOpen(f) && flightHeight(f, x, z, y) !== null) return true; }
     if (y > P.Y[1] + 2.2) return false;
+    // over a town's own pad the ground is the pad (the terrain under it may read lower); off it, and in the ring, the land
+    const S = A.site, onPad = !S.ring && Math.abs(x - S.x) < S.half && Math.abs(z - S.z) < S.half;
+    if (onPad) return y < P.Y[0] - 1;
     const W = this.g.streamer?.W, g0 = W?.groundAt ? W.groundAt(x, z) : P.Y[0];
     const gr = Number.isFinite(g0) && g0 > P.Y[1] + 1 ? g0 : P.Y[0]; // terrain not laid out yet (0, NaN): the street's height
     return y < gr - 1; // a metre under the ground over them (W.groundAt reads the pads)

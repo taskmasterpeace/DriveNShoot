@@ -122,7 +122,7 @@ export async function understreetChecks({ api, g, check, C }) {
   let town = null;
   const live = async () => {
     staged = true;
-    if (!town || !g.citygen.live.has(town.id)) town = await C('citygen', { action: 'stamp', archetype: 'county_seat', seed: 7, teleport: true });
+    if (!town || !g.citygen.live.has(town.id)) town = await C('citygen', { action: 'stamp', archetype: 'county_seat', seed: 7, at: '2784,-16', teleport: true }); // a fixed spot on I-10 east (no base or vault near: a site's own entrance takes over from the drains)
     await api._step(4);
     return U.byId.get(`us_${town.id}`);
   };
