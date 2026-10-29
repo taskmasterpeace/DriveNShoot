@@ -32,7 +32,9 @@ export class Reactions {
     this.barkAt = -9;
     this.last = null;            // the last shot's summary (the `react` command, the selftest)
     this.stats = { shots: 0, heard: 0, kinds: {}, callIns: 0, screams: 0, barred: 0, slams: 0, woke: 0 };
-    this._near = [];             // scratch: [d, c] pairs for the nearest-first cut
+    this._near = [];             // scratch: [d, c] pairs for the nearest-first cut (pooled: an SMG fires a dozen times a second)
+    this._pairs = [];
+    this._raised = new Map();    // scratch: place key -> the loudest ear there, this shot
   }
 
   // ---- the picks -------------------------------------------------------------------------------------------------------
@@ -130,16 +132,16 @@ export class Reactions {
     this.stats.shots++;
     const loudMul = REACT.loud[wkey] ?? REACT.loud.default, night = g.ai?.night?.() ?? false;
     const base = r * REACT.earMul * loudMul;
-    const near = this._near; near.length = 0;
+    const near = this._near, pool = this._pairs; near.length = 0;
     for (const c of g.chars) {
-      if (!this.listens(c, src)) continue;
       const dx = x - c.x, dz = z - c.z;
-      if (Math.abs(dx) > base * 1.5 || Math.abs(dz) > base * 1.5) continue;
-      near.push([Math.hypot(dx, dz), c]);
+      if (Math.abs(dx) > base * 1.5 || Math.abs(dz) > base * 1.5 || !this.listens(c, src)) continue;
+      const pr = pool[near.length] ?? (pool[near.length] = [0, null]);
+      pr[0] = Math.hypot(dx, dz); pr[1] = c; near.push(pr);
     }
     near.sort((a, b) => a[0] - b[0]);
     const sum = { seq, x: Math.round(x), z: Math.round(z), wkey, by: src?.id ?? null, at: +g.time.toFixed(2), heard: [], deaf: 0, deafs: [], kinds: {} };
-    const raised = new Map(); // place key -> the loudest ear there
+    const raised = this._raised; raised.clear();
     let moved = 0;
     for (const [d, c] of near) {
       const T = TEMPERAMENTS[this.temperOf(c)];
@@ -160,6 +162,7 @@ export class Reactions {
       if (c.rx) sum.kinds[c.rx.kind] = (sum.kinds[c.rx.kind] ?? 0) + 1;
     }
     for (const [k, loud] of raised) this.raise(k, x, z, REACT.jump.perShot * Math.max(0.25, loud));
+    for (const pr of near) pr[1] = null; // let the pool forget who was in it
     this.stats.heard += sum.heard.length;
     this.last = sum;
     g.emit('shotHeard', { seq, x: sum.x, z: sum.z, by: sum.by, n: sum.heard.length, kinds: sum.kinds });
@@ -176,7 +179,6 @@ export class Reactions {
     rx.err = +err.toFixed(2); rx.errBound = +bound.toFixed(2); rx.d = +d.toFixed(1); rx.wall = wall; rx.seqHeard = seq;
     const H = rx.heard ?? (rx.heard = { x: 0, z: 0, bearing: 0, d: 0 });
     H.bearing = bearing; H.d = dGuess; H.x = c.x + Math.sin(bearing) * dGuess; H.z = c.z + Math.cos(bearing) * dGuess;
-    rx.route = null; rx.ri = 0;
   }
 
   react(c, x, z, d, wall, seq, loud, band, j, night, src) {
@@ -225,7 +227,7 @@ export class Reactions {
     if (!rx.started) this.start(c, rx);
     if (rx.done) return false;
     const row = rx.row;
-    if (row.calm) { this.end(c); return false; }
+    if (row.calm) { if (now >= rx.t1) this.end(c); return false; } // they carry on: whatever had them before still has them
     if (now >= rx.t1 && !(row.move === 'kin' && rx.phase < 2)) { this.end(c); return false; }
     c.flee = 0; c.work = false;
     switch (row.move) {
@@ -292,14 +294,17 @@ export class Reactions {
     const b = rx.heard.bearing;
     this.g.ai.move(c, -Math.sin(b), -Math.cos(b), speed, dt);
   }
-  // Along a foot path (planned once per goal, re-planned when stuck); true when there.
-  walk(c, rx, gx, gz, speed, dt, arrive = 1.2) {
+  // Along a foot path; true when there. Planned when there is none (a new leg sets rx.route = null), and re-planned at
+  // most every 1.5 s when the goal has drifted more than `drift` m (a heard spot re-heard, a child on the move) or they
+  // are stuck. (Re-planning on every shot heard made an SMG fight plan a path per frame per listener.)
+  walk(c, rx, gx, gz, speed, dt, arrive = 1.2, drift = 0.5) {
     const g = this.g;
     if (Math.hypot(gx - c.x, gz - c.z) < arrive) { c.speed = 0; return true; }
-    if (!rx.route || rx.gx !== gx || rx.gz !== gz || ((c.stuck ?? 0) > 0.6 && (rx.repath = (rx.repath ?? 0) - dt) <= 0)) {
+    rx.repath = (rx.repath ?? 0) - dt;
+    if (!rx.route || (rx.repath <= 0 && (Math.abs(rx.gx - gx) + Math.abs(rx.gz - gz) > drift || (c.stuck ?? 0) > 0.6))) {
       rx.route = g.footPath?.(c.x, c.z, gx, gz) ?? null;
       if (!rx.route?.length) rx.route = [{ x: gx, z: gz }];
-      rx.ri = 0; rx.gx = gx; rx.gz = gz; rx.repath = 2;
+      rx.ri = 0; rx.gx = gx; rx.gz = gz; rx.repath = 1.5;
     }
     let wp = rx.route[rx.ri];
     while (rx.ri < rx.route.length - 1 && Math.hypot(wp.x - c.x, wp.z - c.z) < 1.2) wp = rx.route[++rx.ri];
@@ -310,7 +315,7 @@ export class Reactions {
   toward(c, rx, row, dt) {
     const H = rx.heard;
     if (row.wait && this.g.time - rx.t0 < row.wait) { c.speed = 0; return; } // the kit first
-    if (rx.phase === 0 && this.walk(c, rx, H.x, H.z, row.speed, dt, 3)) rx.phase = 1;
+    if (rx.phase === 0 && this.walk(c, rx, H.x, H.z, row.speed, dt, 3, 6)) rx.phase = 1;
     if (rx.phase === 1) { c.speed = 0; c.face = wrap(c.face + dt * 0.9); }
   }
   // Inside and bar the door: the nearest unlocked door within reach, through it, and shut it hard behind them.
@@ -322,7 +327,7 @@ export class Reactions {
     }
     const D = rx.door;
     if (rx.phase === 3) { if (g.time - rx.t0 < 1.1) this.away(c, rx, row.speed, dt); else { c.speed = 0; c.crouch = true; } return; } // no door: down where they are
-    if (rx.phase === 1 && this.walk(c, rx, D.x + D.nx * 1.3, D.z + D.nz * 1.3, row.speed, dt, 0.9)) rx.phase = 2;
+    if (rx.phase === 1 && this.walk(c, rx, D.x + D.nx * 1.3, D.z + D.nz * 1.3, row.speed, dt, 0.9)) { rx.phase = 2; rx.route = null; }
     if (rx.phase === 2 && this.walk(c, rx, D.x - D.nx * REACT.inside, D.z - D.nz * REACT.inside, row.speed * 0.7, dt, 0.8)) {
       rx.phase = 4;
       if (rx.follow) for (const o of g.chars) if (o.rx?.follow === c.id && Math.hypot(o.x - D.x, o.z - D.z) > 4) { rx.phase = 2.5; break; } // the family is not in yet
@@ -368,7 +373,7 @@ export class Reactions {
   toKin(c, rx, row, dt) {
     const g = this.g, k = rx.kinC;
     if (!k?.alive) { rx.kind = 'hide'; rx.row = REACTIONS.hide; rx.phase = 0; rx.route = null; return; }
-    if (rx.phase === 0 && this.walk(c, rx, k.x, k.z, row.speed, dt, 1.6)) {
+    if (rx.phase === 0 && this.walk(c, rx, k.x, k.z, row.speed, dt, 1.6, 2.5)) {
       rx.phase = 1; rx.reached = g.time;
       g.emit('kinReached', { id: c.id, kin: k.id });
       // The one they came for goes with them.

@@ -53,6 +53,7 @@ export const REACT = {
 // move:  none | away (from the heard bearing) | cover (a dash away, then down) | toward (the heard spot) | door (inside,
 //        and bar it) | bed (under the nearest bed) | kin (to their family, then inside together) | fight (return fire)
 // secs:  how long they keep it up      speed: m/s moving      calm: does not count as scared (jumpiness thins these)
+// (calm: they carry on with what they were doing; the reaction is only the bark and a few seconds of not caring)
 // scared: weighted up by jumpiness     scream: makes noise for the infected     callIn: a fact into the knowledge model
 // needs: 'armed' (only someone carrying a gun)     lines: barks (one picked; said through the voice system)
 export const REACTIONS = {
@@ -70,8 +71,8 @@ export const REACTIONS = {
   scream:       { pose: 'handsUp', move: 'away', secs: [4, 7], speed: 5.2, scared: true, scream: true, lines: ['AAAH!', 'HELP! SOMEBODY!'] },
   wail:         { pose: 'handsUp', move: 'none', secs: [4, 8], speed: 0, scared: true, scream: true, lines: ['MAMA!', 'AAAAH!'] }, // a child screams where they stand
   pray:         { pose: 'kneel', move: 'none', secs: [6, 12], speed: 0, lines: ['Lord, not here...', 'Keep us. Keep us.'] },
-  keep_working: { pose: 'stand', move: 'none', secs: [0, 0], speed: 0, calm: true, lines: ['Not my business.', 'Every night, this.'] },
-  ignore:       { pose: 'stand', move: 'none', secs: [0, 0], speed: 0, calm: true, lines: ['Fireworks... *hic*', 'Somebody\'s celebrating.'] },
+  keep_working: { pose: 'stand', move: 'none', secs: [2, 4], speed: 0, calm: true, lines: ['Not my business.', 'Every night, this.'] },
+  ignore:       { pose: 'stand', move: 'none', secs: [2, 4], speed: 0, calm: true, lines: ['Fireworks... *hic*', 'Somebody\'s celebrating.'] },
 };
 
 // ---- temperaments ------------------------------------------------------------------------------------------------------

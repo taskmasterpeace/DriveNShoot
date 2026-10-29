@@ -4,11 +4,13 @@
 import { REACT, REACT_ROWS, validateReactions } from '../data/reactions.js';
 import { outfit } from '../systems/characters.js';
 import { dirWord } from '../systems/reactions.js';
+import { drawFlag, FLAGS } from '../ui/portrait.js';
+import * as THREE from 'three';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const R2D = 180 / Math.PI;
-const ACTIONS = ['summary', 'profile', 'test', 'hear', 'places', 'validate', 'clear'];
+const ACTIONS = ['summary', 'profile', 'test', 'shot', 'hear', 'places', 'validate', 'clear', 'enable'];
 
 // The street scene: who stands where, in a door's frame (a = metres out from the wall along its outward normal, b =
 // along the wall), what they are. The shooter stands out in the street and fires away from the building.
@@ -36,13 +38,16 @@ export function reactionsCommands(api, need) {
         + '(freeze, cover, flee, drop_run, hide (inside, door slammed and barred), hide_low (under a bed), run_kin, look (to the HEARD spot), tend, return_fire (only a shooter in sight), call_in (a fact into the knowledge model), scream (noise for the infected), pray, keep_working, ignore). '
         + 'action=summary (default): stats, who is reacting now, jumpy places, barred doors, the last shot. profile [id=] [r=]: one person (or everyone within r of you): profile, temperament, kin, odds per band, what they are doing. '
         + 'test [x= z=] [seconds=1.2] [keep=false]: stage a street (ten townsfolk by a door: deputy, medic, trader, mother and child, drunk, veteran, coward, preacher, radio operator) and fire ONE real shot; returns every reaction. keep=true leaves them (for screenshots). '
+        + 'shot [stage=true] [seconds=1.4] [x= z=] [zoom=20] [tilt=0.14]: the game camera render with every reacting person labelled (their flag, name and what they are doing) - stage=true stages the street and fires first. CLI: --out file.jpg. '
+        + 'enable on=true|false: switch the system (off: the old behaviour - the unarmed flee the true spot, the armed target a hostile shooter). '
         + 'hear x= z= [gun=pistol]: the hearing alone at that spot (no bullet, no muzzle). places: jumpiness by place. validate: validateReactions. clear: end every reaction (doors unbarred) and remove a staged street.',
-      args: { action: { type: 'string', enum: ACTIONS, default: 'summary' }, id: { type: 'string' }, r: { type: 'number', default: 30 }, x: { type: 'number' }, z: { type: 'number' }, seconds: { type: 'number', default: 1.2 }, keep: { type: 'boolean', default: false }, gun: { type: 'string', default: 'pistol' } },
+      args: { action: { type: 'string', enum: ACTIONS, default: 'summary' }, id: { type: 'string' }, r: { type: 'number', default: 30 }, x: { type: 'number' }, z: { type: 'number' }, seconds: { type: 'number', default: 1.2 }, stage: { type: 'boolean', default: false }, zoom: { type: 'number', default: 20 }, tilt: { type: 'number', default: 0.14 }, keep: { type: 'boolean', default: false }, gun: { type: 'string', default: 'pistol' }, on: { type: 'boolean' } },
       run: async (a) => {
         const S = RX();
         need(S, 'no reactions system');
         switch (a.action) {
           case 'summary': return S.summary();
+          case 'enable': need(a.on !== undefined, 'on=true|false'); if (!a.on) S.clear(); S.enabled = !!a.on; return { enabled: S.enabled };
           case 'validate': return validateReactions(REACT_ROWS);
           case 'places': return { places: S.summary().places, cell: REACT.jump.cell, halfLife: REACT.jump.halfLife };
           case 'clear': { S.clear(); const n = unstage(g); return { ok: true, removed: n }; }
@@ -52,6 +57,17 @@ export function reactionsCommands(api, need) {
             const p = g.player, out = [];
             for (const c of g.chars) if (c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) <= a.r && S.listens(c, null)) out.push(S.profileView(c));
             return { n: out.length, people: out.slice(0, 30) };
+          }
+          case 'shot': {
+            let cx = a.x, cz = a.z, res = null;
+            if (a.stage) {
+              const st = await stageStreet(api, a.x, a.z);
+              need(st.door, st.why ?? 'no door to stage at');
+              res = await shootStreet(api, st, a.seconds === 1.2 ? 1.4 : a.seconds);
+              cx = res.center.x; cz = res.center.z;
+            }
+            const img = await labelledShot(api, cx ?? g.player.x, cz ?? g.player.z, a.zoom, a.tilt);
+            return { image: img.image, labelled: img.n, kinds: res?.kinds ?? null, rows: res?.rows.map((r) => `${r.role}: ${r.kind}`) ?? null };
           }
           case 'test': {
             const st = await stageStreet(api, a.x, a.z);
@@ -69,7 +85,9 @@ export function reactionsCommands(api, need) {
 }
 
 // ---- staging -------------------------------------------------------------------------------------------------------------
-function unstage(g) { let n = 0; for (const c of [...g.chars]) if (c.rxStaged) { g.removeChar(c); n++; } return n; }
+// (a staged person brought back by a save's load has lost its tag: its name still gives it away)
+const CAST_NAMES = new Set([...STREET_CAST.map((s) => s.name), 'Shooter (staged)']);
+function unstage(g) { let n = 0; for (const c of [...g.chars]) if (c.rxStaged || (!c.npc && CAST_NAMES.has(c.name))) { g.removeChar(c); n++; } return n; }
 const at = (D, a, b) => ({ x: D.x + D.nx * a + D.ux * b, z: D.z + D.nz * a + D.uz * b });
 
 // A street door with room in front for the cast and the shooter (nothing solid where anyone stands, the shooter's line
@@ -136,8 +154,58 @@ export async function shootStreet(api, st, seconds = 1.2) {
       doing: v ? { kind: v.kind, started: v.started, phase: v.phase, door: v.door } : null, pose: { crouch: !!c.crouch, handsUp: !!c.handsUp, aiming: !!c.aiming, stoop: !!c.stoop, speed: r1(c.speed ?? 0) }, target: c.target ? `${c.target.id}:${c.target.faction}@${r1(Math.hypot(c.target.x - c.x, c.target.z - c.z))}` : null, cower: r1(c.cowerT ?? 0) };
   });
   const kinds = [...new Set(rows.map((r) => r.kind).filter((k) => k !== 'none'))];
-  return { fired, door: D.id, doorLocked: D.locked, near: st.cast.map(({ role, c }) => `${role}:${g.reactions.doorNear(c)?.id ?? '-'}`).join(' '), shooter: sh?.id, shot: shot ? { seq: shot.seq, heard: shot.heard.length, deaf: shot.deaf } : null, kinds, distinct: kinds.length, rows,
+  const ctr = at(D, 13, 0);
+  return { fired, door: D.id, center: { x: r1(ctr.x), z: r1(ctr.z) }, doorLocked: D.locked, near: st.cast.map(({ role, c }) => `${role}:${g.reactions.doorNear(c)?.id ?? '-'}`).join(' '), shooter: sh?.id, shot: shot ? { seq: shot.seq, heard: shot.heard.length, deaf: shot.deaf } : null, kinds, distinct: kinds.length, rows,
     slams: g.events.filter((e) => e.seq > since && e.type === 'doorSlam').length, calledIn: g.events.filter((e) => e.seq > since && e.type === 'shotCalledIn').length };
+}
+
+// ---- the labelled shot ---------------------------------------------------------------------------------------------------
+// The game camera's own render (the `screenshot` command), then every reacting person within the frame labelled where the
+// camera puts them: their flag (drawn, never letters), their name and what they are doing. Labels are drawn on a 2D canvas
+// over the JPEG, never in the world (the scene keeps its draw calls).
+const KIND_COLOR = { look: '#e0a526', return_fire: '#ff3b3b', tend: '#7fc8a0', call_in: '#e0a526', hide: '#d9782a', hide_low: '#d9782a', run_kin: '#ff7a3b', follow: '#ff7a3b',
+  flee: '#ff5a3b', drop_run: '#ff3b3b', scream: '#ff3b3b', wail: '#ff3b3b', cover: '#d9a05a', freeze: '#cfc3a8', pray: '#f2e6c9', keep_working: '#9a9284', ignore: '#9a9284' };
+const KIND_WORD = { look: 'GOES TO LOOK', return_fire: 'RETURNS FIRE', tend: 'GRABS THE KIT', call_in: 'CALLS IT IN', hide: 'INSIDE, BARS DOOR', hide_low: 'UNDER THE BED', run_kin: 'RUNS TO FAMILY', follow: 'TAKEN IN BY FAMILY',
+  flee: 'RUNS', drop_run: 'DROPS IT ALL, RUNS', scream: 'SCREAMS', wail: 'SCREAMS', cover: 'DUCKS FOR COVER', freeze: 'FREEZES', pray: 'PRAYS', keep_working: 'KEEPS WORKING', ignore: 'IGNORES IT' };
+export async function labelledShot(api, x, z, zoom = 20, tilt = 0.14, W = 1280, H = 720) {
+  const g = api.g;
+  const shot = await api.call('screenshot', { x, z, zoom, tilt, width: W, height: H, quality: 0.9 });
+  const img = new Image(); img.src = shot.image; await img.decode();
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, W, H);
+  // The same camera the screenshot used (its position and aim; the field of view is the game camera's).
+  const cam = g.camera.clone(); cam.aspect = W / H;
+  const by = g.streamer.W.terrain ? g.streamer.W.groundAt(x, z) : 0, t = Math.max(-1.6, Math.min(1.6, tilt));
+  cam.position.set(x, by + zoom, z + zoom * t); cam.lookAt(x, by, z); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  const v = new THREE.Vector3();
+  let n = 0;
+  const boxes = [];
+  ctx.font = '600 15px Inter, system-ui, sans-serif'; ctx.textBaseline = 'middle';
+  const people = g.chars.filter((c) => c.alive && c !== g.player && (c.rx || c.rxStaged));
+  for (const c of people) {
+    v.set(c.x, (c.gy ?? 0) + 1.9, c.z).project(cam);
+    const sx = (v.x + 1) / 2 * W, sy = (1 - v.y) / 2 * H;
+    if (sx < -40 || sx > W + 40 || sy < -20 || sy > H + 20 || v.z > 1) continue;
+    const kind = c.rx?.kind ?? (c.hold ? 'shooter' : null);
+    let word = kind === 'shooter' ? 'FIRED THE SHOT' : KIND_WORD[kind] ?? (c.target ? 'RETURNS FIRE' : 'CARRIES ON');
+    if (kind === 'hide_low' && c.rx.phase >= 2 && !c.rx.bed) word = 'FLAT ON THE GROUND'; // no bed near: down where they are
+    if (kind === 'hide' && c.rx.phase === 3) word = 'NO DOOR NEAR, GETS DOWN';
+    if (kind === 'hide' && c.rx.phase > 0 && c.rx.phase < 4) word = 'RUNS INSIDE';
+    const col = kind === 'shooter' ? '#f5b21a' : KIND_COLOR[kind] ?? (c.target ? '#ff3b3b' : '#9a9284');
+    const name = (c.npc?.name ?? c.name ?? '').replace(/ \(.*\)$/, '');
+    const text = `${name} · ${word}`, tw = ctx.measureText(text).width, fw = 24, fh = 16, pad = 7, bw = fw + tw + pad * 3, bh = 26;
+    const bx = Math.max(4, Math.min(W - bw - 4, sx - bw / 2));
+    let byy = Math.max(4, sy - bh - 14);
+    for (const off of [0, -30, 30, -60, 60, -90, 90]) { const y = Math.max(4, sy - bh - 14 + off); if (!boxes.some((b) => bx < b[0] + b[2] + 4 && bx + bw + 4 > b[0] && y < b[1] + b[3] + 3 && y + bh + 3 > b[1])) { byy = y; break; } } // never over another label
+    boxes.push([bx, byy, bw, bh]);
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx, sy - 2); ctx.lineTo(sx, byy + bh); ctx.stroke();
+    ctx.fillStyle = 'rgba(20,16,12,0.86)'; ctx.fillRect(bx, byy, bw, bh);
+    ctx.fillStyle = col; ctx.fillRect(bx, byy, 3, bh);
+    if (FLAGS[c.flag]) ctx.drawImage(drawFlag(c.flag, fw, fh), bx + pad, byy + (bh - fh) / 2);
+    ctx.fillStyle = '#f2e6c9'; ctx.fillText(text, bx + pad * 2 + fw, byy + bh / 2 + 1);
+    n++;
+  }
+  return { image: cv.toDataURL('image/jpeg', 0.9), n };
 }
 
 // ---- the selftest share --------------------------------------------------------------------------------------------------
