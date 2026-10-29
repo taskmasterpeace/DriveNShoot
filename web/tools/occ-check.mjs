@@ -20,6 +20,7 @@ ok(v.ok, `rows: ${v.errors.join('; ')}`);
 // the knobs stay in their safe ranges (docs/design/WEB_OCCUPATIONS.md §7)
 ok(MIX.jitter >= 0 && MIX.jitter <= 0.6, `MIX.jitter ${MIX.jitter} outside [0, 0.6]`);
 ok(MIX.cap >= 0.15 && MIX.cap <= 0.4, `MIX.cap ${MIX.cap} outside [0.15, 0.4]`);
+ok(MIX.tailN >= 0 && MIX.tailN <= 3 && MIX.tailKeep >= 0.5 && MIX.tailKeep <= 1, `MIX tail knobs outside tailN [0, 3] / tailKeep [0.5, 1]`);
 ok(MIX.workShare >= 0.4 && MIX.workShare <= 0.7, `MIX.workShare ${MIX.workShare} outside [0.4, 0.7]`);
 ok(MIX.minWorkers >= 6 && MIX.minWorkers <= 12 && MIX.maxWorkers >= 40 && MIX.maxWorkers <= 80, 'MIX workforce bounds outside 6-12 / 40-80');
 ok(GOAL.shannon === 1.6 && GOAL.maxShare === 0.25 && GOAL.jaccard === 0.3, 'GOAL is the target, not a knob');

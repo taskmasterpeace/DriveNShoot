@@ -90,24 +90,37 @@ export function scoreOf(id, o, P, mix = MIX) {
 // The mix: [{ id, n, share }] by count (desc, then id), summing to P.n. Shares go by score, a job never past its cap
 // (row `max`, else MIX.cap; `one` = a single worker) unless every job is capped and people are left over.
 export function mixOf(P, rows = OCCUPATIONS, mix = MIX) {
-  const ids = [], w = [], cap = [];
+  let ids = [], w = [], cap = [];
   for (const [id, o] of Object.entries(rows)) {
     const s = scoreOf(id, o, P, mix);
     if (s > 0) { ids.push(id); w.push(s); cap.push(o.one ? 1 / P.n : Math.max(1 / P.n, o.max ?? mix.cap)); }
   }
   if (!ids.length) return [];
-  // water-fill the shares under the caps
-  const sh = new Array(ids.length).fill(0), fixed = new Array(ids.length).fill(false);
+  // THE TAIL: a trade that would keep fewer than MIX.tailN people here is here only by the seed's say (MIX.tailKeep): not
+  // every farm town has a beekeeper. One-of-a-kind posts (`one`) are a town's or not by their own rows.
+  if (mix.tailN > 0 && mix.tailKeep < 1) {
+    const sh0 = waterFill(w, cap), keep = ids.map((id, i) => rows[id].one || sh0[i] * P.n >= mix.tailN || hashU(P.seed, `${id}|tail`) < mix.tailKeep);
+    if (keep.some(Boolean)) { ids = ids.filter((_, i) => keep[i]); w = w.filter((_, i) => keep[i]); cap = cap.filter((_, i) => keep[i]); }
+  }
+  const sh = waterFill(w, cap);
+  return apportion(P, ids, w, cap, sh);
+}
+// Shares under the caps (water-filling); if every job is capped and people are left over, the best fit takes them.
+function waterFill(w, cap) {
+  const sh = new Array(w.length).fill(0), fixed = new Array(w.length).fill(false);
   let left = 1;
-  for (let it = 0; it < ids.length && left > 1e-9; it++) {
-    let tw = 0; for (let i = 0; i < ids.length; i++) if (!fixed[i]) tw += w[i];
+  for (let it = 0; it < w.length && left > 1e-9; it++) {
+    let tw = 0; for (let i = 0; i < w.length; i++) if (!fixed[i]) tw += w[i];
     if (tw <= 0) break;
     let over = false;
-    for (let i = 0; i < ids.length; i++) if (!fixed[i] && left * w[i] / tw > cap[i]) { sh[i] = cap[i]; fixed[i] = true; over = true; }
-    if (!over) { for (let i = 0; i < ids.length; i++) if (!fixed[i]) sh[i] = left * w[i] / tw; left = 0; break; }
+    for (let i = 0; i < w.length; i++) if (!fixed[i] && left * w[i] / tw > cap[i]) { sh[i] = cap[i]; fixed[i] = true; over = true; }
+    if (!over) { for (let i = 0; i < w.length; i++) if (!fixed[i]) sh[i] = left * w[i] / tw; left = 0; break; }
     left = 1 - sh.reduce((a, b, i) => a + (fixed[i] ? b : 0), 0);
   }
   if (left > 1e-9) { const top = w.indexOf(Math.max(...w)); sh[top] += left; } // everyone capped: the rest go to the best fit
+  return sh;
+}
+function apportion(P, ids, w, cap, sh) {
   // whole people: floors, then the largest remainders, never past a cap's whole count unless nothing else can take one
   const N = P.n, cnt = sh.map((s) => Math.floor(s * N + 1e-9)), maxN = cap.map((c) => Math.max(1, Math.floor(c * N + 1e-9)));
   let rest = N - cnt.reduce((a, b) => a + b, 0);

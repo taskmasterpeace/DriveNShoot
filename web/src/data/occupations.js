@@ -31,6 +31,8 @@ export const MIX = {
   jitter: 0.5,     // per settlement and job: score x exp(jitter x u), u in [-1, 1] from the seed
   offWealth: 0.35, // a job outside its wealth band
   neighbourKm: 80, // same-kind settlements this close are neighbours for the diversity goal
+  tailN: 1.5,      // a trade that would keep fewer people than this here (the long tail of one-hand jobs)...
+  tailKeep: 1,     // ...is here with this chance, by the seed (1 = always: every town keeps its whole tail)
 };
 
 // THE DIVERSITY GOAL (tools/role-diversity.mjs; WEB_DEPTH_PLAN §5): per settlement, Shannon diversity of its jobs at

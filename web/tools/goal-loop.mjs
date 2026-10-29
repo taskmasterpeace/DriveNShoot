@@ -50,7 +50,7 @@ const diffStat = () => sh(`git diff --stat -- ${G.files.join(' ')}`).out.trim().
 const diffOf = (S) => { // a small unified-ish diff of what the round changed, against the snapshot (not git)
   const out = [];
   for (const [f, before] of S) {
-    const a = before.split('\n'), b = readFileSync(join(web, f), 'utf8').split('\n');
+    const a = before.split(/\r?\n/), b = readFileSync(join(web, f), 'utf8').split(/\r?\n/);
     let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
     let ja = a.length - 1, jb = b.length - 1; while (ja >= i && jb >= i && a[ja] === b[jb]) { ja--; jb--; }
     if (ja < i && jb < i) continue;
