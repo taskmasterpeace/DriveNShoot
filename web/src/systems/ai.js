@@ -312,6 +312,7 @@ export class AI {
       if (c.fauna) { g.regions?.think(c, dt); continue; } // an animal (systems/regions.js: FAUNA rows)
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.gv) { g.grapevine.think(c, dt); continue; } // a Grapevine pack's own mind (systems/grapevine.js)
+      if (c.occRec && g.workforce?.think(c, dt)) continue; // a settlement's worker: to the shift, the work, home (systems/workforce.js)
       if ((c.pullRec || c.barRole) && g.pulls?.think(c, dt)) continue; // a road person walks their shoulder; a barkeep keeps the bar (systems/pulls.js)
       if (c.crewRec && g.crew.think(c, dt)) continue; // your crew: orders, jobs, downed, drift (systems/crew.js)
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
@@ -419,6 +420,7 @@ export class AI {
       if (c.bed && !this.night()) { if (c.bed.by === c.id) c.bed.by = null; c.bed = null; } // the claim ends with the night
       // A base's soldiers keep their posts, walk their patrols, close on a trespasser (systems/bases.js).
       if (c.baseId && g.bases?.think(c, dt)) continue;
+      if (c.mbId && g.milbases?.think(c, dt)) continue; // a generated base's garrison (systems/milbases.js)
       // A hunter or a skip tracer on somebody's trail works their sign (systems/outdoors.js trailStep).
       if (c.trailing && g.outdoors?.trailStep(c, dt)) continue;
       // Idle wander.
