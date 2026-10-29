@@ -329,8 +329,9 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       // NEAR: 24 m out, the door in its sight
       const ea = at(24, 6);
       e = Z.spawnKind('echo', ea.x, ea.z);
-      const sa = at(20, 10), sh = Z.spawn(sa.x, sa.z, false); sh.timer = 99; sh.wx = sh.x; sh.wz = sh.z; sh.face = Math.atan2(D.nx, D.nz); // a shambler idling up the street, its back to it all
       await walk(e, 20, 10);
+      // a shambler idling 18 m off you, inside the Echo's call of the door (it never heard your walk: it was not there)
+      const sa = [at(14, 18), at(18, 14), at(8, 20), at(22, 10)].find((q) => n.free(q.x, q.z)) ?? at(20, 6), sh = Z.spawn(sa.x, sa.z, false); sh.timer = 99; sh.wx = sh.x; sh.wz = sh.z; sh.face = Math.atan2(D.nx, D.nz);
       const knew = e.em?.known.has(D) ?? false;
       let trap = false, there = 99, called = false;
       for (let t = 0; t < 14 && !(trap && there < 2.6 && called); t += 0.25) {
@@ -338,9 +339,10 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
         const v = mindOf(e); trap = v.state === 'ambush' && v.door === D.id; there = r1(Math.hypot(e.x - D.x, e.z - D.z));
         called = called || (sh.zm?.src === 'echo' && Math.hypot(sh.zm.x - D.x, sh.zm.z - D.z) < 5);
       }
+      const shv = { alive: sh.alive, in: g.chars.includes(sh), zm: sh.zm ? { src: sh.zm.src, x: r1(sh.zm.x), z: r1(sh.zm.z) } : null, see: sh.zsee?.id ?? null, toEcho: r1(dist(sh, e)), toDoor: r1(Math.hypot(sh.x - D.x, sh.z - D.z)), phraseT: r1(e.phraseT ?? -1) };
       gone(sh);
       const ok = !farKnew && !farTrap && knew && trap && there < 2.6 && called;
-      return ok ? true : JSON.stringify({ door: D.id, farKnew, farTrap, farView, knew, trap, there, called, mind: mindOf(e) });
+      return ok ? true : JSON.stringify({ door: D.id, farKnew, farTrap, farView, knew, trap, there, called, shv, mind: mindOf(e) });
     } finally { g.aimOverride = null; g.zombies.enabled = false; gone(far, e); g.godMode = false; }
   }));
 

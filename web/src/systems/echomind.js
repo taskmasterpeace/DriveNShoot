@@ -28,7 +28,7 @@ export class EchoMind {
     m.state = state; m.spotT = 0; m.spot.ok = false;
     if (state === 'hide') { m.hideT = EM.hideFor; this.counts.hides++; }
     if (state === 'stalk') this.counts.stalks++;
-    if (state === 'ambush') { m.waitT = 0; this.counts.ambushes++; }
+    if (state === 'ambush') { m.waitT = 0; this.counts.ambushes++; c.phraseT = Math.min(c.phraseT ?? 1, 1); } // it calls the dead to the door as it goes
     if (state !== 'ambush') m.door = null;
     this.g.emit('echoMind', { id: c.id, state, why });
   }

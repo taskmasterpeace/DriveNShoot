@@ -324,6 +324,6 @@ Not done: it does not open or block doors itself to funnel you (the interiors AP
     more than 3 m further off within 3 s.
 14. **Echo trap:** an Echo 42 m off sees you walk 10 m toward a door it has never seen: it does not know it and does not
     wait at it. An Echo 24 m off that has seen the door sees you walk toward it: it waits in ambush AT it (< 2.6 m),
-    and a shambler idling 22 m off is called to that door.
+    and a shambler idling 18 m from you, inside the Echo's call, is called to that door.
 15. **Echo lure:** an Echo that knows where you were but cannot see you calls out; the `echoLure` x,z is within 0.3 m
     of where it stands and its pan is `g.pan(its x)`.
