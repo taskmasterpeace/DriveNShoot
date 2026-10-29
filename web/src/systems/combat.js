@@ -77,6 +77,7 @@ export class Combat {
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
     g.noise(ch.x, ch.z, 45, ch);
+    g.farsound?.shot(ch, w); // heard far off, late, from its bearing (systems/farsound.js)
     g.ambient?.eject(ch, ang);
     g.ambient?.onShot(ch.x, ch.z);
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)

@@ -56,6 +56,7 @@ import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-f
 import { siteStoriesCommands, siteStoriesChecks } from './sitestories-api.js'; // site stories and the Tally: places' living state, parties on the roads, stories, bounties (WEB_SITE_STORIES.md)
 import { townJobs, rolesChecks } from './roles-api.js'; // the work of a settlement: town action=jobs|who|diversity (WEB_OCCUPATIONS.md)
 import { pullsCommands, pullsChecks } from './pulls-api.js'; // pulls: bars, road people, the radio, boards, needs; what reached you (WEB_PULLS.md)
+import { worldVoiceCommands, worldVoiceChecks } from './worldvoice-api.js'; // the world's voice: ambience, far real events, the radio feed, leftovers, the campfire (WEB_WORLD_VOICE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys, fenced back yards, docks, back doors (WEB_BACK_LOTS.md)
@@ -2067,6 +2068,7 @@ function buildCommands(api) {
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
     ...siteStoriesCommands(api, need), // site (state, story, log), bounty (WEB_SITE_STORIES.md)
+    ...worldVoiceCommands(api, need), // the world's voice (WEB_WORLD_VOICE.md)
     ...hudCommands(api, need), // hud (WEB_UI_EDITOR.md)
     ...zfightCommands(api), // zfight (WEB_DEPTH_LAYERS.md)
     selftest: {
@@ -2202,6 +2204,7 @@ function compileNpc(def) {
 async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
+  g.selftestLive = { results, ms: [], done: false, at: Date.now() }; // what has run so far: exec can read it while a long battery runs (the bridge may stop waiting first)
   const check = async (name, fn) => {
     // a|b|c: any of them (only="witnesses|storeys" replays a pair in battery order).
     const any = (pat) => pat.split('|').some((s) => s && name.includes(s));
@@ -2210,8 +2213,10 @@ async function runSelfTest(api, only = null, skip = null) {
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
+    const t0 = performance.now();
     try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : v }); }
     catch (e) { results.push({ name, pass: false, detail: String(e.message ?? e) }); }
+    g.selftestLive.ms.push(Math.round(performance.now() - t0));
   };
   const C = (cmd, a) => api.call(cmd, a);
   await C('start');
@@ -2252,6 +2257,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // force the flashlight on (flashOverride) with an emptied pack. Its own checks (agent/kit-api.js) clear this.
   const kitWas = g.kit.staged; g.kit.staged = true;
   const storiesWas = g.stories.enabled; g.stories.enabled = false; g.stories.sleep(); // site stories: off too, its own stage below
+  // The world's voice (systems/farsound.js, feed.js, marks.js, campfire.js) paints, captions and lights fires on its own:
+  // off for the battery; its checks (agent/worldvoice-api.js) turn it on in a stage of their own.
+  const voiceWas = { far: g.farsound.on, feed: g.feed.on, marks: g.marks.on, fire: g.campfire.on }; g.farsound.on = g.feed.on = g.marks.on = g.campfire.on = false;
   // The workforce (systems/workforce.js) would put workers into every town an unrelated check stamps: off for the battery;
   // its own checks (agent/roles-api.js) turn it on.
   const workWas = g.workforce.enabled; g.workforce.enabled = false;
@@ -6033,6 +6041,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
+  await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
@@ -6041,9 +6050,11 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
+  g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice back on
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
+  g.selftestLive.done = true; g.selftestLive.ms = Date.now() - g.selftestLive.at;
   return { ok: passed === results.length, passed, total: results.length, results };
 }
 
@@ -6085,6 +6096,7 @@ export function snapshot(g) {
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
+    voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
     roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
   };
 }
@@ -6111,6 +6123,7 @@ export function restore(g, s) {
   g.wilds.load(s.wilds); // theirs too: promoted again near you from the saved records (an old save: fresh records)
   g.stories?.load(s.stories ?? null); // the parties' people back onto their records (promoted again near you)
   g.pulls?.load(s.pulls ?? null); // the pulls' people back onto their records (promoted again near you), what everyone knows
+  g.feed?.load(s.voice?.feed ?? null); g.marks?.load(s.voice?.marks ?? null); g.campfire?.out?.('loaded'); g.farsound?.clear?.(); g.airwaves?.clear?.(); // the world's voice (WEB_WORLD_VOICE.md)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));

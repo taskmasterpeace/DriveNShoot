@@ -290,9 +290,14 @@ export class Kit {
   }
 
   // ---- the scanner -------------------------------------------------------------------------------------------------------
-  // A transmitter at (x, z) keyed up: f is the world's fact. You hear it only with a live scanner switched on, inside
-  // its range. Returns the copy, or null.
+  // A transmitter at (x, z) keyed up: f is the world's fact. It goes on THE AIRWAVES (systems/airwaves.js, the one
+  // broadcast source the radio feed shares); the scanner hears it from there (hearKey). Returns your copy, or null.
   keyUp(f, x, z, from) {
+    const A = this.g.airwaves;
+    return A ? A.send({ channel: 'scanner', fact: f, x, z, from, text: f.text }).copy : this.hearKey(f, x, z, from);
+  }
+  // The scanner's ear (the airwaves' listener for `scanner`): only with a live scanner switched on, inside its range.
+  hearKey(f, x, z, from) {
     const g = this.g, P = g.player, k = g.pulls?.k ?? g.knowledge, id = this.live('ears');
     this.lastKeyUp = { fact: f.id, x: Math.round(x), z: Math.round(z), from, at: r1(g.time) };
     if (!id || !k) return null;

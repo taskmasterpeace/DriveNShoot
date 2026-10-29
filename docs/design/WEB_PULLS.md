@@ -146,6 +146,8 @@ Shared-file hooks (exact):
 | `web/src/agent/api.js` | import, `...pullsCommands`, `await pullsChecks(...)` before the perf budget; the snapshot excludes `pullRec`/`barRole` characters and saves `pulls`; restore calls `g.pulls.load` before the characters |
 | `web/docs/COMMANDS.md` | regenerated |
 
+| WORLD-VOICE (`WEB_WORLD_VOICE.md`) | reads this knowledge model: chronicle rows a town witnessed become `news` facts, a town's own market a `market` fact; feed stations air only copies their mast town holds; towns paint DON'T GO only from facts they hold; the grapevine's trucks set when the radio can know |
+
 What other lanes can use:
 - `g.pulls.k`, the knowledge model: `holder`, `record`, `see`, `tell`, `broadcast`, `sendWire`, `holds`, `copyOf`, `view`.
 - SITE-STORIES (WEB_SITE_STORIES.md) builds on this model: places, boards (`board:<id>`, the same holder the saloon board reads), Tally halls, parties and hunters are holders; travellers carry postings and news with `put`/`tell`; the town grapevine carries sightings; three fact kinds (`story`, `posting`, `sighting`) join `FACT_KINDS` at load. Its bounties are the Tally's own (`stories.post`), hunted from copies, never from your true position.
