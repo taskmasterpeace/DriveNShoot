@@ -54,3 +54,17 @@ settlements 246 | H>=1.6 246 | cap<=25% 243 | neighbours>=0.3 222 | all three 22
 | 13 | 0.9864 | 0.9864 | REJECTED (no gain) | Add a pueblo silversmith that only the better-off pueblos keep, so Taos and Acoma stop hiring alike | green; green |
 | 14 | 0.9864 | 0.9892 | KEPT | A tannery needs a workforce of 45 or more to run, so the smaller farm and ranch places go without a tanner and stop matching their neighbours | green; green |
 | 15 | 0.9892 | 0.9905 | KEPT | Trapping is a poor man's living: give the trapper a wealth band of 0 to 0.4 so the better-off forest places go without one and stop matching their neighbours | green; green |
+
+## Stepwise run 2026-10-29 02:10 (start 0.9905, target 1; the editor is whoever runs --begin/--judge)
+
+| round | before | after | verdict | change | checks |
+|---|---|---|---|---|---|
+| 1 | 0.9905 | 0.9919 | REJECTED (checks red) | MIX.tailKeep 1 -> 0.7: a trade that would keep about one hand in a place is there seven times in ten, so big same-kind neighbours stop sharing every one-hand trade | green; red:   cg-38 (mining) has no diggers /   cg-41 (military) has no sentry /   cg-94 (mining) has no diggers /   cg-179 (military) has no sentry /   cg-196 (military) h |
+| 2 | 0.9905 | 0.9905 | REJECTED (no gain) | MIX.tailN 1.5 -> 2: two-hand trades are in the seeded tail too, so the larger pairs differ in more than their single hands | green; green |
+| 3 | 0.9905 | 0.9919 | KEPT | MIX.tailKeep 1 -> 0.7: a one-hand trade that is not the place's core is there seven times in ten, so big same-kind neighbours stop sharing every one-hand trade | green; green |
+| 4 | 0.9919 | 0.9973 | REJECTED (checks red) | MIX.tailN 1.5 -> 2: two-hand trades are in the seeded tail too, so the larger pairs differ in more than their single hands | green; red: occ-check: 4 failing /   cg-20 (raider-held) has no scouts or lookouts /   cg-27 (raider-held) has no scouts or lookouts /   cg-145 (raider-held) has no scouts  |
+| 5 | 0.9946 | 1 | KEPT | MIX.tailN 1.5 -> 2: two-hand trades are in the seeded tail too (core trades and hamlets exempt), so the larger pairs differ in more than their single hands | green; green |
+
+**Result:** 0.9905 -> 1 in 5 rounds; TARGET MET.
+
+*Note (lead):* between rounds 2 and 3 and between rounds 4 and 5 the lead changed the ALGORITHM (`web/src/world/occupations.js`, outside the loop's files), each committed on its own: the seeded tail (`MIX.tailN/tailKeep`, neutral when added), then a core-trade exemption (`MIX.tailCore`, after round 1's tail stripped mines of diggers and bases of sentries and occ-check went red), then the holder factor in "core" and `MIX.tailFrom` (after round 4 stripped raider camps of scouts). That is why round 5's "before" (0.9946) is above round 4's. Rounds 1-15 of the first stepwise run were edited by a Sonnet subagent in its own worktree; rounds 1-5 of this run by the lead.

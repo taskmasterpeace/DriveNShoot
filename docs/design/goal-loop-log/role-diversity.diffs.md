@@ -82,3 +82,17 @@ src/data/occupations.js @224
 - trapper: J({ name: 'trapper', at: ['cabin'], out: 'edge', shift: DAWN, needs: ['cold', 'forest', 'hunting'], carry: ['knife', 'leather_vest'], makes: ['leather_vest', 12, 4, 'furs and a stitched vest'], base: 0.2, fit: {
 + trapper: J({ name: 'trapper', at: ['cabin'], out: 'edge', shift: DAWN, needs: ['cold', 'forest', 'hunting'], carry: ['knife', 'leather_vest'], makes: ['leather_vest', 12, 4, 'furs and a stitched vest'], base: 0.2, fit: {
 ```
+
+### round 3 (2026-10-29 02:11): 0.9905 -> 0.9919
+```diff
+src/data/occupations.js @35
+- tailKeep: 1,     // ...is here with this chance, by the seed (1 = always: every town keeps its whole tail)
++ tailKeep: 0.7,   // ...is here with this chance, by the seed (1 = always: every town keeps its whole tail)
+```
+
+### round 5 (2026-10-29 02:11): 0.9946 -> 1
+```diff
+src/data/occupations.js @34
+- tailN: 1.5,      // a trade that would keep fewer people than this here (the long tail of one-hand jobs)...
++ tailN: 2,        // a trade that would keep fewer people than this here (the long tail of one-hand jobs)...
+```

@@ -31,7 +31,7 @@ export const MIX = {
   jitter: 0.5,     // per settlement and job: score x exp(jitter x u), u in [-1, 1] from the seed
   offWealth: 0.35, // a job outside its wealth band
   neighbourKm: 80, // same-kind settlements this close are neighbours for the diversity goal
-  tailN: 1.5,      // a trade that would keep fewer people than this here (the long tail of one-hand jobs)...
+  tailN: 2,        // a trade that would keep fewer people than this here (the long tail of one-hand jobs)...
   tailKeep: 0.7,   // ...is here with this chance, by the seed (1 = always: every town keeps its whole tail)
   tailFrom: 24,    // the tail only thins a workforce at least this big (a hamlet keeps what little it has)
   tailCore: 1.5,   // ...unless it fits the place at least this well (the sum of its fit over the place's tags): a core trade stays
