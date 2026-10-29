@@ -460,8 +460,12 @@ export class UnderStreet {
       if (D) {
         if (t > D.until) { c.usDown = null; continue; }
         if (c.ug === A.site.id) { g.zombies.remember(c, D.x, D.z, 'sound'); c.wx = D.x; c.wz = D.z; c.timer = 10; c.usDown = null; this.counts.followedDown++; g.emit('drainFollowed', { id: c.id, way: D.f.way }); continue; }
-        const dt2 = Math.hypot(D.f.top.x - c.x, D.f.top.z - c.z);
-        const aim = dt2 < 1.4 ? D.f.bottom : D.f.top;
+        // round to the shaft's open end first (its lip stops anyone coming at it from the side), then onto the rungs
+        const f = D.f, ax = f.axis === 'x', out = { x: f.top.x - (ax ? f.u * 1.6 : 0), z: f.top.z - (ax ? 0 : f.u * 1.6) };
+        if (D.stage === undefined) D.stage = 0;
+        if (D.stage === 0 && Math.hypot(out.x - c.x, out.z - c.z) < 0.8) D.stage = 1;
+        if (D.stage === 1 && Math.hypot(f.top.x - c.x, f.top.z - c.z) < 0.7) D.stage = 2;
+        const aim = D.stage === 0 ? out : D.stage === 1 ? f.top : f.bottom;
         g.zombies.remember(c, aim.x, aim.z, 'sound'); c.wx = aim.x; c.wz = aim.z; c.timer = 10;
         continue;
       }

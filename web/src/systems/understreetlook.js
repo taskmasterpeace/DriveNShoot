@@ -104,6 +104,7 @@ export function buildWays(site, plan, M, open) {
   const idx = items.map((it) => (it[9] === 'disc' ? -1 - discs.indexOf(it) : boxes.indexOf(it)));
   const group = new THREE.Group(); group.name = `us:${site.id}:street`;
   const mb = batch(boxes, M.iron), md = batch(discs, M.iron, DISC);
+  mb.name = `us:${site.id}:ways`; md.name = `us:${site.id}:lids`; // named, so the depth-layer detector can say whose they are
   layerMesh(mb, 'usLid'); layerMesh(md, 'usLid');
   group.add(mb, md);
   for (const [, l] of lids) { l.ids = l.ids.map((i) => idx[i]); l.rim = l.rim.map((i) => idx[i]); }
@@ -161,7 +162,7 @@ export function buildBelow(L, M) {
     for (let t = 0; t < 60; t++) { const qq = (q + t * 6151) % (W * H); if (L.cells[qq] === OPEN && L.cls[qq] === CLS.channel) { const k = hash(i, 9); floats.push([L.ox + (qq % W) + hash(i, 1), y, L.oz + Math.floor(qq / W) + hash(i, 2), k < 0.5 ? 0.5 + k : 0.25, 0.03, k < 0.5 ? 0.12 : 0.25 + k * 0.3, k < 0.5 ? '#c8c2a8' : k < 0.75 ? '#5a4a36' : '#8a8a78', k * 6]); break; } }
   }
   const group = new THREE.Group(); group.name = `us:${L.site}:below`;
-  const mw = batch(water, M.water); group.add(mw);
+  const mw = batch(water, M.water); group.add(mw); mw.name = `us:${L.site}:water`;
   const mf = batch(floats, M.solid); group.add(mf);
   const mg = batch(glows, M.glow, PLANE); mg.renderOrder = 2; group.add(mg);
   const ms = batch(shafts, M.shaft); ms.renderOrder = 2; group.add(ms);
