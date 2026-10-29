@@ -23,7 +23,8 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
 // killFeed, dmgNumbers.
 const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
-  autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw' };
+  autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw',
+  grade: 1, hitStop: 1, camKick: 1, crashDirt: 1 }; // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
 const FOOT_MPS = 4.2;   // the ORDERS tag's on-foot ETA: a walk with some running
 const AGENT_TAB = (() => { try { return new URLSearchParams(location.search).has('agent'); } catch { return false; } })();
@@ -86,6 +87,10 @@ export class QOL {
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
         <label>People <select data-s="bodies"><option value="lsw">LSW bodies (the nearest 24)</option><option value="classic">Classic rig</option></select></label>
         <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
+        <label>Colour grade <select data-s="grade"><option value="0">Off</option><option value="0.5">Soft</option><option value="1">Full (by region and hour)</option></select></label>
+        <label>Hit-stop <select data-s="hitStop"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full</option></select></label>
+        <label>Camera kick <select data-s="camKick"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full (by calibre)</option></select></label>
+        <label>Crash dirt <select data-s="crashDirt"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full</option></select></label>
         <label>Steering <select data-s="steer"><option value="screen">Left is screen-left (whichever way the car points)</option><option value="car">Left is the car's left (classic top-down)</option></select></label>
         <label><input type="checkbox" data-s="autoReload"> Auto-reload when empty</label>
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
@@ -242,6 +247,7 @@ export class QOL {
     g.showStats = !!s.showFps;
     DRIVING.screenSteer = s.steer !== 'car';
     g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? 0.12)));
+    if (g.look) { const L = g.look.settings, n = (v) => Math.max(0, Math.min(1, Number(v ?? 1))); L.grade = n(s.grade); L.hitStop = n(s.hitStop); L.kick = n(s.camKick); L.dirt = n(s.crashDirt); }
     g.hud.el.stats.classList.toggle('hidden', !g.showStats);
     g.hud.rescale?.(); // the HUD size setting multiplies the screen-fit scale (ui/hud.js)
     this.ui?.classList.toggle('no-killfeed', !s.killFeed);

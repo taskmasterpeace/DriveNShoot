@@ -1,0 +1,1021 @@
+{
+ "version": 1,
+ "body": "faceted-v1",
+ "skeleton": "ual-deform-v1",
+ "file": "kit.bin",
+ "sha256": "fc99a40adf168693f7f7a0810974e46d24fc98642b78f2fa6c81b3d042579829",
+ "vertices": 8812,
+ "triangles": 4126,
+ "layout": {
+  "position": {
+   "offset": 0,
+   "length": 26436
+  },
+  "normal": {
+   "offset": 105744,
+   "length": 26436
+  },
+  "uv": {
+   "offset": 211488,
+   "length": 17624
+  },
+  "bone": {
+   "offset": 281984,
+   "length": 35248
+  },
+  "weight": {
+   "offset": 317232,
+   "length": 35248
+  },
+  "part": {
+   "offset": 458224,
+   "length": 8812
+  },
+  "muscleSmall": {
+   "offset": 467036,
+   "length": 26436
+  },
+  "muscleLarge": {
+   "offset": 572780,
+   "length": 26436
+  },
+  "waistNarrow": {
+   "offset": 678524,
+   "length": 26436
+  },
+  "index": {
+   "offset": 784268,
+   "length": 12378
+  }
+ },
+ "morphs": [
+  "muscleSmall",
+  "muscleLarge",
+  "waistNarrow"
+ ],
+ "modules": [
+  {
+   "name": "module.arms.suit",
+   "slot": "arms",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.backpack.dark",
+   "slot": "backpack",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.belt.accent",
+   "slot": "belt",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.belt.dark",
+   "slot": "belt",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.boots.dark",
+   "slot": "boots",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.boxingGloves.accent",
+   "slot": "boxingGloves",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.calves.suit",
+   "slot": "calves",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.cape.accent",
+   "slot": "cape",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.coat.accent",
+   "slot": "coat",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.coat.dark",
+   "slot": "coat",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.coat.suit",
+   "slot": "coat",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.collar.suit",
+   "slot": "collar",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.deltoids.suit",
+   "slot": "deltoids",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.emblem.face",
+   "slot": "emblem",
+   "variant": null,
+   "mat": "face"
+  },
+  {
+   "name": "module.emblemBack.face",
+   "slot": "emblemBack",
+   "variant": null,
+   "mat": "face"
+  },
+  {
+   "name": "module.expression.face",
+   "slot": "expression",
+   "variant": null,
+   "mat": "face"
+  },
+  {
+   "name": "module.eyepatch.dark",
+   "slot": "eyepatch",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.forearms.suit",
+   "slot": "forearms",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.gauntlets.accent",
+   "slot": "gauntlets",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.glasses.dark",
+   "slot": "glasses",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.hair.dark.afro",
+   "slot": "hair",
+   "variant": "afro",
+   "mat": "dark"
+  },
+  {
+   "name": "module.hair.dark.braids",
+   "slot": "hair",
+   "variant": "braids",
+   "mat": "dark"
+  },
+  {
+   "name": "module.hair.dark.bun",
+   "slot": "hair",
+   "variant": "bun",
+   "mat": "dark"
+  },
+  {
+   "name": "module.hair.dark.swept",
+   "slot": "hair",
+   "variant": "swept",
+   "mat": "dark"
+  },
+  {
+   "name": "module.hands.dark",
+   "slot": "hands",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.handTips.dark",
+   "slot": "handTips",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.head.skin",
+   "slot": "head",
+   "variant": null,
+   "mat": "skin"
+  },
+  {
+   "name": "module.helmet.dark",
+   "slot": "helmet",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.knees.accent",
+   "slot": "knees",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.legs.suit",
+   "slot": "legs",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.neck.skin",
+   "slot": "neck",
+   "variant": null,
+   "mat": "skin"
+  },
+  {
+   "name": "module.pouches.metal",
+   "slot": "pouches",
+   "variant": null,
+   "mat": "metal"
+  },
+  {
+   "name": "module.robe.accent",
+   "slot": "robe",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.robe.dark",
+   "slot": "robe",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.robe.suit",
+   "slot": "robe",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.shoes.dark",
+   "slot": "shoes",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.shoulders.accent",
+   "slot": "shoulders",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.sleeves.suit",
+   "slot": "sleeves",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.tornClothes.suit",
+   "slot": "tornClothes",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.torso.dark",
+   "slot": "torso",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.torso.suit",
+   "slot": "torso",
+   "variant": null,
+   "mat": "suit"
+  },
+  {
+   "name": "module.vest.dark",
+   "slot": "vest",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.vest.metal",
+   "slot": "vest",
+   "variant": null,
+   "mat": "metal"
+  },
+  {
+   "name": "module.visor.accent",
+   "slot": "visor",
+   "variant": null,
+   "mat": "accent"
+  },
+  {
+   "name": "module.waist.dark",
+   "slot": "waist",
+   "variant": null,
+   "mat": "dark"
+  },
+  {
+   "name": "module.wristbands.accent",
+   "slot": "wristbands",
+   "variant": null,
+   "mat": "accent"
+  }
+ ],
+ "joints": [
+  {
+   "name": "root",
+   "parent": -1,
+   "p": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "name": "DEF-hips",
+   "parent": 0,
+   "p": [
+    0,
+    0.9167,
+    -0.0501
+   ]
+  },
+  {
+   "name": "DEF-spine.001",
+   "parent": 1,
+   "p": [
+    0,
+    1.0505,
+    -0.0156
+   ]
+  },
+  {
+   "name": "DEF-spine.002",
+   "parent": 2,
+   "p": [
+    0,
+    1.1736,
+    -0.0004
+   ]
+  },
+  {
+   "name": "DEF-spine.003",
+   "parent": 3,
+   "p": [
+    0,
+    1.3148,
+    -0.0049
+   ]
+  },
+  {
+   "name": "DEF-neck",
+   "parent": 4,
+   "p": [
+    0,
+    1.4876,
+    -0.0105
+   ]
+  },
+  {
+   "name": "DEF-head",
+   "parent": 5,
+   "p": [
+    0,
+    1.5687,
+    0.0051
+   ]
+  },
+  {
+   "name": "DEF-shoulder.L",
+   "parent": 4,
+   "p": [
+    0.0188,
+    1.4579,
+    0.0714
+   ]
+  },
+  {
+   "name": "DEF-upper_arm.L",
+   "parent": 7,
+   "p": [
+    0.1919,
+    1.4408,
+    -0.0654
+   ]
+  },
+  {
+   "name": "DEF-forearm.L",
+   "parent": 8,
+   "p": [
+    0.4663,
+    1.4408,
+    -0.0701
+   ]
+  },
+  {
+   "name": "DEF-hand.L",
+   "parent": 9,
+   "p": [
+    0.7389,
+    1.4408,
+    -0.0654
+   ]
+  },
+  {
+   "name": "DEF-f_index.01.L",
+   "parent": 10,
+   "p": [
+    0.8588,
+    1.4388,
+    -0.0345
+   ]
+  },
+  {
+   "name": "DEF-f_index.02.L",
+   "parent": 11,
+   "p": [
+    0.8995,
+    1.4388,
+    -0.0345
+   ]
+  },
+  {
+   "name": "DEF-f_index.03.L",
+   "parent": 12,
+   "p": [
+    0.9343,
+    1.4388,
+    -0.0345
+   ]
+  },
+  {
+   "name": "DEF-f_middle.01.L",
+   "parent": 10,
+   "p": [
+    0.8605,
+    1.4412,
+    -0.0602
+   ]
+  },
+  {
+   "name": "DEF-f_middle.02.L",
+   "parent": 14,
+   "p": [
+    0.9028,
+    1.4412,
+    -0.0622
+   ]
+  },
+  {
+   "name": "DEF-f_middle.03.L",
+   "parent": 15,
+   "p": [
+    0.9367,
+    1.4412,
+    -0.0637
+   ]
+  },
+  {
+   "name": "DEF-f_pinky.01.L",
+   "parent": 10,
+   "p": [
+    0.8466,
+    1.4392,
+    -0.1062
+   ]
+  },
+  {
+   "name": "DEF-f_pinky.02.L",
+   "parent": 17,
+   "p": [
+    0.8868,
+    1.4392,
+    -0.1089
+   ]
+  },
+  {
+   "name": "DEF-f_pinky.03.L",
+   "parent": 18,
+   "p": [
+    0.9144,
+    1.4392,
+    -0.1108
+   ]
+  },
+  {
+   "name": "DEF-f_ring.01.L",
+   "parent": 10,
+   "p": [
+    0.858,
+    1.4409,
+    -0.0825
+   ]
+  },
+  {
+   "name": "DEF-f_ring.02.L",
+   "parent": 20,
+   "p": [
+    0.8973,
+    1.4409,
+    -0.0839
+   ]
+  },
+  {
+   "name": "DEF-f_ring.03.L",
+   "parent": 21,
+   "p": [
+    0.9282,
+    1.4409,
+    -0.085
+   ]
+  },
+  {
+   "name": "DEF-thumb.01.L",
+   "parent": 10,
+   "p": [
+    0.7662,
+    1.418,
+    -0.0318
+   ]
+  },
+  {
+   "name": "DEF-thumb.02.L",
+   "parent": 23,
+   "p": [
+    0.8004,
+    1.3988,
+    -0.0141
+   ]
+  },
+  {
+   "name": "DEF-thumb.03.L",
+   "parent": 24,
+   "p": [
+    0.8394,
+    1.3769,
+    0.0061
+   ]
+  },
+  {
+   "name": "DEF-shoulder.R",
+   "parent": 4,
+   "p": [
+    -0.0188,
+    1.4579,
+    0.0714
+   ]
+  },
+  {
+   "name": "DEF-upper_arm.R",
+   "parent": 26,
+   "p": [
+    -0.1919,
+    1.4408,
+    -0.0654
+   ]
+  },
+  {
+   "name": "DEF-forearm.R",
+   "parent": 27,
+   "p": [
+    -0.4663,
+    1.4408,
+    -0.0701
+   ]
+  },
+  {
+   "name": "DEF-hand.R",
+   "parent": 28,
+   "p": [
+    -0.7389,
+    1.4408,
+    -0.0654
+   ]
+  },
+  {
+   "name": "DEF-f_index.01.R",
+   "parent": 29,
+   "p": [
+    -0.8588,
+    1.4388,
+    -0.0345
+   ]
+  },
+  {
+   "name": "DEF-f_index.02.R",
+   "parent": 30,
+   "p": [
+    -0.8995,
+    1.4388,
+    -0.0345
+   ]
+  },
+  {
+   "name": "DEF-f_index.03.R",
+   "parent": 31,
+   "p": [
+    -0.9343,
+    1.4388,
+    -0.0345
+   ]
+  },
+  {
+   "name": "DEF-f_middle.01.R",
+   "parent": 29,
+   "p": [
+    -0.8605,
+    1.4412,
+    -0.0602
+   ]
+  },
+  {
+   "name": "DEF-f_middle.02.R",
+   "parent": 33,
+   "p": [
+    -0.9028,
+    1.4412,
+    -0.0622
+   ]
+  },
+  {
+   "name": "DEF-f_middle.03.R",
+   "parent": 34,
+   "p": [
+    -0.9367,
+    1.4412,
+    -0.0637
+   ]
+  },
+  {
+   "name": "DEF-f_pinky.01.R",
+   "parent": 29,
+   "p": [
+    -0.8466,
+    1.4392,
+    -0.1062
+   ]
+  },
+  {
+   "name": "DEF-f_pinky.02.R",
+   "parent": 36,
+   "p": [
+    -0.8868,
+    1.4392,
+    -0.1089
+   ]
+  },
+  {
+   "name": "DEF-f_pinky.03.R",
+   "parent": 37,
+   "p": [
+    -0.9144,
+    1.4392,
+    -0.1108
+   ]
+  },
+  {
+   "name": "DEF-f_ring.01.R",
+   "parent": 29,
+   "p": [
+    -0.858,
+    1.4409,
+    -0.0825
+   ]
+  },
+  {
+   "name": "DEF-f_ring.02.R",
+   "parent": 39,
+   "p": [
+    -0.8973,
+    1.4409,
+    -0.0839
+   ]
+  },
+  {
+   "name": "DEF-f_ring.03.R",
+   "parent": 40,
+   "p": [
+    -0.9282,
+    1.4409,
+    -0.085
+   ]
+  },
+  {
+   "name": "DEF-thumb.01.R",
+   "parent": 29,
+   "p": [
+    -0.7662,
+    1.418,
+    -0.0318
+   ]
+  },
+  {
+   "name": "DEF-thumb.02.R",
+   "parent": 42,
+   "p": [
+    -0.8004,
+    1.3988,
+    -0.0141
+   ]
+  },
+  {
+   "name": "DEF-thumb.03.R",
+   "parent": 43,
+   "p": [
+    -0.8394,
+    1.3769,
+    0.0061
+   ]
+  },
+  {
+   "name": "DEF-thigh.L",
+   "parent": 1,
+   "p": [
+    0.089,
+    0.9321,
+    0.0014
+   ]
+  },
+  {
+   "name": "DEF-shin.L",
+   "parent": 45,
+   "p": [
+    0.089,
+    0.5318,
+    -0.0014
+   ]
+  },
+  {
+   "name": "DEF-foot.L",
+   "parent": 46,
+   "p": [
+    0.089,
+    0.1037,
+    -0.0358
+   ]
+  },
+  {
+   "name": "DEF-toe.L",
+   "parent": 47,
+   "p": [
+    0.089,
+    0.0152,
+    0.1132
+   ]
+  },
+  {
+   "name": "DEF-thigh.R",
+   "parent": 1,
+   "p": [
+    -0.089,
+    0.9321,
+    0.0014
+   ]
+  },
+  {
+   "name": "DEF-shin.R",
+   "parent": 49,
+   "p": [
+    -0.089,
+    0.5318,
+    -0.0014
+   ]
+  },
+  {
+   "name": "DEF-foot.R",
+   "parent": 50,
+   "p": [
+    -0.089,
+    0.1037,
+    -0.0358
+   ]
+  },
+  {
+   "name": "DEF-toe.R",
+   "parent": 51,
+   "p": [
+    -0.089,
+    0.0152,
+    0.1132
+   ]
+  }
+ ],
+ "faces": {
+  "worker": {
+   "file": "faces/worker.png",
+   "sha256": "0229c17898948407bb3d7c114d193b65855e689f0691362307e4e2b8a8c03d87",
+   "source": {
+    "path": "public/authored-assets/body.faceted-civilian-worker/v1/model.glb",
+    "sha256": "3eb553a5e19e2c02183be72286c8e613c6402f7c71c1ea5b3a1cde3576957cb9"
+   },
+   "extras": {
+    "actorScale": [
+     1.38,
+     0.92,
+     1.18
+    ],
+    "headBoneScale": [
+     0.69565,
+     1.05435,
+     0.84746
+    ],
+    "frameRatios": [
+     1.38,
+     0.92,
+     1.18
+    ],
+    "frame": "heavy",
+    "size": 1,
+    "variantScale": 1,
+    "variant": "worker",
+    "body": "faceted-v1",
+    "skeleton": "ual-deform-v1",
+    "source": "public/models/modular-hero/modular-hero.glb",
+    "recipe": "{\"name\":\"Worker \\u00b7 FACETNPC1\",\"frame\":\"heavy\",\"hair\":\"swept\",\"skin\":\"#a36d4a\",\"primary\":\"#FFBE0B\",\"secondary\":\"#c9c3b0\",\"trim\":\"#2a2622\",\"emblemColor\":\"#b52e23\",\"emblem\":\"none\",\"cape\":false,\"armor\":false,\"shoulders\":false,\"muscle\":0.89,\"mouthpiece\":\"none\",\"bodySurface\":\"normal\",\"hairline\":\"normal\",\"outfit\":\"separates\",\"hoodie\":\"none\",\"handModule\":\"none\",\"glowRegion\":\"none\",\"aura\":\"none\",\"headwear\":\"none\",\"eyeShape\":\"round\",\"browStyle\":\"medium\",\"noseShape\":\"long\",\"mouthShape\":\"medium\",\"headShape\":\"box\",\"wings\":\"none\",\"coatStyle\":\"short\",\"weapon\":\"none\",\"anatomy\":\"male\",\"infection\":\"none\",\"patternRegion\":\"all\",\"pattern\":\"solid\",\"shorts\":\"none\",\"footwear\":\"boots\",\"gloves\":\"bare\",\"expression\":\"neutral\",\"hairColor\":\"#141210\",\"eyeColor\":\"#7a5226\",\"browColor\":\"#141210\",\"aged\":false,\"necktie\":false,\"goldChain\":false,\"businessSuit\":false,\"mustache\":false,\"centerPanel\":false,\"skirt\":false,\"beard\":false,\"claws\":false,\"tentacles\":false,\"wristBlasters\":false,\"lasso\":false,\"kilt\":false,\"metallic\":false,\"shimmer\":false,\"shield\":false,\"coat\":false,\"wristbands\":false,\"tornClothes\":false,\"robe\":false,\"sleeves\":false,\"collar\":false,\"glasses\":false,\"gauntlets\":false,\"knees\":false,\"belt\":false,\"backpack\":false,\"bareArms\":true,\"helmet\":false,\"visor\":false,\"eyepatch\":false,\"eyeGlow\":false,\"headWidth\":0.96,\"headHeight\":0.97,\"bust\":0,\"patternScale\":1,\"regionColors\":{\"torso\":\"#FFBE0B\",\"waist\":\"#2c3b52\",\"legs\":\"#2c3b52\",\"boots\":\"#33251a\"},\"skinMarks\":[]}"
+   }
+  },
+  "cop-off-duty": {
+   "file": "faces/cop-off-duty.png",
+   "sha256": "49fba1fef57d70c829abb33bf8827cb45a1ee9600ccfeec1e0c4233d0901feb8",
+   "source": {
+    "path": "public/authored-assets/body.faceted-civilian-cop-off-duty/v1/model.glb",
+    "sha256": "050d5cee182f56e45cd4db3ed255c2a4df3af0553541c75f57cb45aa1ec9ab9e"
+   },
+   "extras": {
+    "actorScale": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "headBoneScale": [
+     1.12048,
+     1.02041,
+     1.13636
+    ],
+    "frameRatios": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "frame": "agile",
+    "size": 1,
+    "variantScale": 1,
+    "variant": "cop-off-duty",
+    "body": "faceted-v1",
+    "skeleton": "ual-deform-v1",
+    "source": "public/models/modular-hero/modular-hero.glb",
+    "recipe": "{\"name\":\"Cop off duty \\u00b7 FACETNPC1\",\"frame\":\"agile\",\"hair\":\"swept\",\"skin\":\"#a36d4a\",\"primary\":\"#2854DB\",\"secondary\":\"#e9e7de\",\"trim\":\"#1a1714\",\"emblemColor\":\"#b52e23\",\"emblem\":\"none\",\"cape\":false,\"armor\":false,\"shoulders\":false,\"muscle\":0.89,\"mouthpiece\":\"none\",\"bodySurface\":\"normal\",\"hairline\":\"receding\",\"outfit\":\"separates\",\"hoodie\":\"none\",\"handModule\":\"none\",\"glowRegion\":\"none\",\"aura\":\"none\",\"headwear\":\"none\",\"eyeShape\":\"almond\",\"browStyle\":\"bushy\",\"noseShape\":\"medium\",\"mouthShape\":\"medium\",\"headShape\":\"full-cheeks\",\"wings\":\"none\",\"coatStyle\":\"short\",\"weapon\":\"none\",\"anatomy\":\"male\",\"infection\":\"none\",\"patternRegion\":\"all\",\"pattern\":\"solid\",\"shorts\":\"none\",\"footwear\":\"shoes\",\"gloves\":\"bare\",\"expression\":\"neutral\",\"hairColor\":\"#4a3222\",\"eyeColor\":\"#29221b\",\"browColor\":\"#141210\",\"aged\":false,\"necktie\":false,\"goldChain\":false,\"businessSuit\":false,\"mustache\":false,\"centerPanel\":false,\"skirt\":false,\"beard\":false,\"claws\":false,\"tentacles\":false,\"wristBlasters\":false,\"lasso\":false,\"kilt\":false,\"metallic\":false,\"shimmer\":false,\"shield\":false,\"coat\":false,\"wristbands\":false,\"tornClothes\":false,\"robe\":false,\"sleeves\":false,\"collar\":false,\"glasses\":false,\"gauntlets\":false,\"knees\":false,\"belt\":false,\"backpack\":false,\"bareArms\":false,\"helmet\":false,\"visor\":false,\"eyepatch\":false,\"eyeGlow\":false,\"headWidth\":0.93,\"headHeight\":1,\"bust\":0,\"patternScale\":1,\"regionColors\":{\"torso\":\"#2854DB\",\"waist\":\"#4a4f57\",\"legs\":\"#4a4f57\",\"calves\":\"#4a4f57\",\"shoes\":\"#1a1714\",\"forearms\":\"#a36d4a\"},\"skinMarks\":[]}"
+   }
+  },
+  "nurse": {
+   "file": "faces/nurse.png",
+   "sha256": "3b63b358ae11fac269e5a38c3728b9d7a7c39bb0b68d256390819497f8929515",
+   "source": {
+    "path": "public/authored-assets/body.faceted-civilian-nurse/v1/model.glb",
+    "sha256": "a849580e0ed5cf2115a907cd5b41dbc7dc0ce53feebbc88998c7ae06e064d5f5"
+   },
+   "extras": {
+    "actorScale": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "headBoneScale": [
+     1.15663,
+     0.9898,
+     1.13636
+    ],
+    "frameRatios": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "frame": "agile",
+    "size": 1,
+    "variantScale": 1,
+    "variant": "nurse",
+    "body": "faceted-v1",
+    "skeleton": "ual-deform-v1",
+    "source": "public/models/modular-hero/modular-hero.glb",
+    "recipe": "{\"name\":\"Nurse \\u00b7 FACETNPC1\",\"frame\":\"agile\",\"hair\":\"bun\",\"skin\":\"#774a30\",\"primary\":\"#20BF55\",\"secondary\":\"#e9e7de\",\"trim\":\"#1d1f22\",\"emblemColor\":\"#b52e23\",\"emblem\":\"none\",\"cape\":false,\"armor\":false,\"shoulders\":false,\"muscle\":0.89,\"mouthpiece\":\"none\",\"bodySurface\":\"normal\",\"hairline\":\"normal\",\"outfit\":\"separates\",\"hoodie\":\"none\",\"handModule\":\"none\",\"glowRegion\":\"none\",\"aura\":\"none\",\"headwear\":\"none\",\"eyeShape\":\"monolid\",\"browStyle\":\"thick\",\"noseShape\":\"small\",\"mouthShape\":\"medium\",\"headShape\":\"box\",\"wings\":\"none\",\"coatStyle\":\"short\",\"weapon\":\"none\",\"anatomy\":\"female\",\"infection\":\"none\",\"patternRegion\":\"all\",\"pattern\":\"solid\",\"shorts\":\"none\",\"footwear\":\"sneakers\",\"gloves\":\"bare\",\"expression\":\"neutral\",\"hairColor\":\"#141210\",\"eyeColor\":\"#7a5226\",\"tieColor\":\"#143051\",\"browColor\":\"#141210\",\"aged\":false,\"necktie\":false,\"goldChain\":false,\"businessSuit\":false,\"mustache\":false,\"centerPanel\":false,\"skirt\":false,\"beard\":false,\"claws\":false,\"tentacles\":false,\"wristBlasters\":false,\"lasso\":false,\"kilt\":false,\"metallic\":false,\"shimmer\":false,\"shield\":false,\"coat\":false,\"wristbands\":false,\"tornClothes\":false,\"robe\":false,\"sleeves\":false,\"collar\":false,\"glasses\":false,\"gauntlets\":false,\"knees\":false,\"belt\":false,\"backpack\":false,\"bareArms\":false,\"helmet\":false,\"visor\":false,\"eyepatch\":false,\"eyeGlow\":false,\"headWidth\":0.96,\"headHeight\":0.97,\"bust\":0.56,\"patternScale\":1,\"regionColors\":{\"torso\":\"#20BF55\",\"waist\":\"#20BF55\",\"legs\":\"#20BF55\",\"calves\":\"#20BF55\",\"shoes\":\"#e9e7de\",\"forearms\":\"#774a30\"},\"skinMarks\":[]}"
+   }
+  },
+  "kid": {
+   "file": "faces/kid.png",
+   "sha256": "49fba1fef57d70c829abb33bf8827cb45a1ee9600ccfeec1e0c4233d0901feb8",
+   "source": {
+    "path": "public/authored-assets/body.faceted-civilian-kid/v1/model.glb",
+    "sha256": "b6082e9fe812754865dda5d89766949886c29f29b2b89b30272dc0889f390eae"
+   },
+   "extras": {
+    "actorScale": [
+     0.581,
+     0.686,
+     0.616
+    ],
+    "headBoneScale": [
+     1.21429,
+     1.21429,
+     1.21429
+    ],
+    "frameRatios": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "frame": "agile",
+    "size": 1,
+    "variantScale": 0.7,
+    "variant": "kid",
+    "body": "faceted-v1",
+    "skeleton": "ual-deform-v1",
+    "source": "public/models/modular-hero/modular-hero.glb",
+    "recipe": "{\"name\":\"Kid \\u00b7 FACETNPC1\",\"frame\":\"agile\",\"hair\":\"afro\",\"skin\":\"#8d5a3b\",\"primary\":\"#E71D36\",\"secondary\":\"#e9e7de\",\"trim\":\"#1d1f22\",\"emblemColor\":\"#b52e23\",\"emblem\":\"none\",\"cape\":false,\"armor\":false,\"shoulders\":false,\"muscle\":0.85,\"mouthpiece\":\"none\",\"bodySurface\":\"normal\",\"hairline\":\"receding\",\"outfit\":\"separates\",\"hoodie\":\"none\",\"handModule\":\"none\",\"glowRegion\":\"none\",\"aura\":\"none\",\"headwear\":\"none\",\"eyeShape\":\"almond\",\"browStyle\":\"bushy\",\"noseShape\":\"medium\",\"mouthShape\":\"medium\",\"headShape\":\"full-cheeks\",\"wings\":\"none\",\"coatStyle\":\"short\",\"weapon\":\"none\",\"anatomy\":\"male\",\"infection\":\"none\",\"patternRegion\":\"all\",\"pattern\":\"solid\",\"shorts\":\"none\",\"footwear\":\"sneakers\",\"gloves\":\"bare\",\"expression\":\"neutral\",\"hairColor\":\"#141210\",\"eyeColor\":\"#29221b\",\"browColor\":\"#141210\",\"aged\":false,\"necktie\":false,\"goldChain\":false,\"businessSuit\":false,\"mustache\":false,\"centerPanel\":false,\"skirt\":false,\"beard\":false,\"claws\":false,\"tentacles\":false,\"wristBlasters\":false,\"lasso\":false,\"kilt\":false,\"metallic\":false,\"shimmer\":false,\"shield\":false,\"coat\":false,\"wristbands\":false,\"tornClothes\":false,\"robe\":false,\"sleeves\":false,\"collar\":false,\"glasses\":false,\"gauntlets\":false,\"knees\":false,\"belt\":false,\"backpack\":false,\"bareArms\":false,\"helmet\":false,\"visor\":false,\"eyepatch\":false,\"eyeGlow\":false,\"headWidth\":1.15,\"headHeight\":1.15,\"headDepth\":1.15,\"bust\":0,\"patternScale\":1,\"regionColors\":{\"torso\":\"#E71D36\",\"waist\":\"#2f4f7a\",\"legs\":\"#2f4f7a\",\"calves\":\"#2f4f7a\",\"shoes\":\"#e9e7de\",\"forearms\":\"#8d5a3b\"},\"skinMarks\":[]}"
+   }
+  },
+  "elder": {
+   "file": "faces/elder.png",
+   "sha256": "f69ee28054e36fbb96f962fe23c12eda7fe2071c7f0914201c222a0e425695f9",
+   "source": {
+    "path": "public/authored-assets/body.faceted-civilian-elder/v1/model.glb",
+    "sha256": "438e848b108b37d176260cf664f7d1d9ca33bf53399f15c468afbfc6339176fe"
+   },
+   "extras": {
+    "actorScale": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "headBoneScale": [
+     1.15663,
+     0.9898,
+     1.13636
+    ],
+    "frameRatios": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "frame": "agile",
+    "size": 1,
+    "variantScale": 1,
+    "variant": "elder",
+    "body": "faceted-v1",
+    "skeleton": "ual-deform-v1",
+    "source": "public/models/modular-hero/modular-hero.glb",
+    "recipe": "{\"name\":\"Elder \\u00b7 FACETNPC1\",\"frame\":\"agile\",\"hair\":\"swept\",\"skin\":\"#a36d4a\",\"primary\":\"#7a5a3a\",\"secondary\":\"#f2efe6\",\"trim\":\"#2a2622\",\"emblemColor\":\"#b52e23\",\"emblem\":\"none\",\"cape\":false,\"armor\":false,\"shoulders\":false,\"muscle\":0.89,\"mouthpiece\":\"none\",\"bodySurface\":\"normal\",\"hairline\":\"receding\",\"outfit\":\"separates\",\"hoodie\":\"none\",\"handModule\":\"none\",\"glowRegion\":\"none\",\"aura\":\"none\",\"headwear\":\"none\",\"eyeShape\":\"hooded\",\"browStyle\":\"thick\",\"noseShape\":\"hooked\",\"mouthShape\":\"medium\",\"headShape\":\"box\",\"glassesStyle\":\"classic\",\"wings\":\"none\",\"coatStyle\":\"short\",\"weapon\":\"none\",\"anatomy\":\"male\",\"infection\":\"none\",\"patternRegion\":\"all\",\"pattern\":\"solid\",\"shorts\":\"none\",\"footwear\":\"shoes\",\"gloves\":\"bare\",\"expression\":\"neutral\",\"hairColor\":\"#dddbd5\",\"eyeColor\":\"#7a5226\",\"browColor\":\"#8f8f8a\",\"glassesColor\":\"#b8913a\",\"aged\":true,\"necktie\":false,\"goldChain\":false,\"businessSuit\":false,\"mustache\":false,\"centerPanel\":false,\"skirt\":false,\"beard\":false,\"claws\":false,\"tentacles\":false,\"wristBlasters\":false,\"lasso\":false,\"kilt\":false,\"metallic\":false,\"shimmer\":false,\"shield\":false,\"coat\":false,\"wristbands\":false,\"tornClothes\":false,\"robe\":false,\"sleeves\":false,\"collar\":false,\"glasses\":true,\"gauntlets\":false,\"knees\":false,\"belt\":false,\"backpack\":false,\"bareArms\":false,\"helmet\":false,\"visor\":false,\"eyepatch\":false,\"eyeGlow\":false,\"headWidth\":0.96,\"headHeight\":0.97,\"bust\":0,\"patternScale\":1,\"regionColors\":{\"torso\":\"#7a5a3a\",\"waist\":\"#b8a07a\",\"legs\":\"#b8a07a\",\"calves\":\"#b8a07a\",\"shoes\":\"#3b2618\"},\"skinMarks\":[]}"
+   }
+  },
+  "gang-member": {
+   "file": "faces/gang-member.png",
+   "sha256": "0229c17898948407bb3d7c114d193b65855e689f0691362307e4e2b8a8c03d87",
+   "source": {
+    "path": "public/authored-assets/body.faceted-civilian-gang-member/v1/model.glb",
+    "sha256": "c24ad72ad0478aa7b6d3d6f872338f9abb412e492b6346f0dfd5c55784335ac8"
+   },
+   "extras": {
+    "actorScale": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "headBoneScale": [
+     1.15663,
+     0.9898,
+     1.13636
+    ],
+    "frameRatios": [
+     0.83,
+     0.98,
+     0.88
+    ],
+    "frame": "agile",
+    "size": 1,
+    "variantScale": 1,
+    "variant": "gang-member",
+    "body": "faceted-v1",
+    "skeleton": "ual-deform-v1",
+    "source": "public/models/modular-hero/modular-hero.glb",
+    "recipe": "{\"name\":\"Gang member \\u00b7 FACETNPC1\",\"frame\":\"agile\",\"hair\":\"braids\",\"skin\":\"#a36d4a\",\"primary\":\"#141204\",\"secondary\":\"#E71D36\",\"trim\":\"#141204\",\"emblemColor\":\"#b52e23\",\"emblem\":\"none\",\"cape\":false,\"armor\":false,\"shoulders\":false,\"muscle\":0.89,\"mouthpiece\":\"none\",\"bodySurface\":\"normal\",\"hairline\":\"normal\",\"outfit\":\"separates\",\"hoodie\":\"long\",\"handModule\":\"none\",\"glowRegion\":\"none\",\"aura\":\"none\",\"headwear\":\"none\",\"eyeShape\":\"round\",\"browStyle\":\"medium\",\"noseShape\":\"hooked\",\"mouthShape\":\"medium\",\"headShape\":\"box\",\"glassesStyle\":\"classic\",\"wings\":\"none\",\"coatStyle\":\"short\",\"weapon\":\"none\",\"anatomy\":\"male\",\"infection\":\"none\",\"patternRegion\":\"all\",\"pattern\":\"solid\",\"shorts\":\"none\",\"footwear\":\"sneakers\",\"gloves\":\"bare\",\"expression\":\"neutral\",\"hairColor\":\"#141210\",\"eyeColor\":\"#7a5226\",\"browColor\":\"#141210\",\"glassesColor\":\"#141204\",\"aged\":false,\"necktie\":false,\"goldChain\":false,\"businessSuit\":false,\"mustache\":false,\"centerPanel\":false,\"skirt\":false,\"beard\":false,\"claws\":false,\"tentacles\":false,\"wristBlasters\":false,\"lasso\":false,\"kilt\":false,\"metallic\":false,\"shimmer\":false,\"shield\":false,\"coat\":false,\"wristbands\":false,\"tornClothes\":false,\"robe\":false,\"sleeves\":false,\"collar\":false,\"glasses\":true,\"gauntlets\":false,\"knees\":false,\"belt\":false,\"backpack\":false,\"bareArms\":false,\"helmet\":false,\"visor\":false,\"eyepatch\":false,\"eyeGlow\":false,\"headWidth\":0.96,\"headHeight\":0.97,\"bust\":0,\"patternScale\":1,\"regionColors\":{\"torso\":\"#141204\",\"waist\":\"#2b2d33\",\"legs\":\"#2b2d33\",\"calves\":\"#2b2d33\",\"shoes\":\"#E71D36\"},\"skinMarks\":[]}"
+   }
+  }
+ },
+ "source": {
+  "repo": "Living Superweapon",
+  "root": "C:/lswwt/gunkit1",
+  "branch": "alpine/facetnpc1-kc21df3d3",
+  "path": "public/models/modular-hero/modular-hero.glb",
+  "sha256": "8c24bc5145cf9801d1ac8de879f7d5764bffbce93d0043513eb13286c6a5e840"
+ },
+ "licence": "Proprietary-Internal studio geometry (Machine King Studios), runtime embed only; skeleton UAL CC0-1.0. See PROVENANCE.md."
+}
