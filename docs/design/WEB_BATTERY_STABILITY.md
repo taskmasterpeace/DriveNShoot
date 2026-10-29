@@ -18,6 +18,7 @@ re-staged or retried the STAGING, never the claim. Every bar, count and distance
 | crew order FALL BACK… | not reproduced (alone 8/8, the crew section 2/2) | — | richer failure detail |
 | storeys: a raider with a grudge… | not reproduced (alone 10/10; 16 timed trials 3–15 s against the 20 s bar, day and night) | — | richer failure detail |
 | tactics band: a rifleman holds 25-45 m… (added later, §3.9) | the rifleman killed you inside the window, dropped you and wandered home 12 m off; separately, an open goal at the band's edge left him `arrive` short of it, out of band | staging + **real game bug** | godMode for the window; `systems/tactics.js` (an edge goal goes `arrive` into the band) |
+| tactics band, again (§3.10, on integrate) | with many characters spawned (slot 60) the probe spin left no probe that beat `stay`, so a pin unit stood at 12 m all fight; a cover spot at the band edge was a second, rarer cause | **real game bugs** (2) | `systems/tactics.js`: out of band, search round the nearest in-band point; edge cover scores as open |
 
 ## 2. Player Fantasy
 
@@ -169,6 +170,33 @@ Added after the first eight, at the lead's ask: on main `ca1d5c4d` it failed bot
 - **Diagnostic (on failure only):** the detail adds his position, sight and LOS, storeys, hold/cower/knock/flee, state,
   whether he still targets you, **whether you are down**, your hp, his goal, cover, `why`, plan count and path.
 
+### 3.10 tactics band, again: the probes' spin pinned him at 12 m (integrate `7d7d5cca`)
+
+Our debugging went past the lead's ask. The ask was "the town sleeps", which passed in the repro battery R1. The
+same battery failed `tactics band` again, this time with the player alive: `distance 12.0-12.0 role pin … you up hp 100
+speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
+
+- **Reproduces every time** with `only="crew|tactics"` (2/2) and `only="crew|tactics flank|tactics band"`, but never
+  alone (3/3 pass) and never after the flank check alone (2/2 pass). What the crew checks leave behind is characters.
+  The rifleman spawns at **slot 60** instead of ~22.
+- **Cause (real game bug).** A `pin` unit searches round **where he stands** (`ax = c.x`), with probe radii of
+  4.9–12.9 m in 8 directions, spun by `c.slot · 0.618`. The spot he stands on also gets the `stay` bonus (+0.6). At
+  slot 60 the spin is 0.08 (29°), and no probe lands far enough out:
+  - staying at 12 m scores `1.5 × (1 − 23/10) + 0.6 = −1.35`;
+  - the best probe (344°, 6.0 m out, 17.9 m from you) scores `1.5 × −0.71 − 0.05 × 6.0 = −1.37`.
+  So staying wins, at every plan, all fight. Nothing was blocked: an 8 × 2 ring of `pointBlocked` and sight tests round him was all clear.
+- **Fix 1 (`systems/tactics.js` `plan`):** when he is **out of band** and no other role sets the anchor, he searches round
+  the nearest in-band point on the line from the threat: `k = clamp(d, b0, b1) / d`. The anchor at 25 m scores
+  `1.5 × 0 − 0.05 × 13 = −0.65`, which beats staying (−1.35). The band-edge nudge (§3.9) then puts it at 25.9 m.
+  Flank, retreat, bound, hold and crew-forced anchors are unchanged.
+- **Cause 2, found by the slot sweep (real game bug).** At slot 122 a parked car was cover with its goal at 25.3 m, and
+  he stopped `arrive` short of it, at 24.9 m. The §3.9 nudge only moves open goals.
+- **Fix 2 (`search` `score`):** a cover spot within `arrive` of a band edge (the same zone as the §3.9 nudge) is scored
+  as **open**. It then has to beat other spots on band alone; if it wins anyway, the nudge moves it into the band. This
+  only applies to full-band searches (`bandW === 1`); retreat, holdpos and cover orders are unchanged.
+- **Measured after:** a sweep of 72 slots (`band-slots.js`, godMode) put 0/72 out of band, against 1/72 with Fix 1
+  alone. `only="crew|tactics"` passed 35/35 twice on integrate + fix, against 34/35 twice without it.
+
 ## 4. Formulas
 
 - **Town give-up:** asleep-or-floor by `t_bed + TOWN_NIGHT.giveUp` (25 s). The check now waits
@@ -188,6 +216,10 @@ Added after the first eight, at the lead's ask: on main `ca1d5c4d` it failed bot
 - **Band edge:** for an open goal at distance `d` from the threat, band `[b0, b1]`, `A = T.arrive` = 0.9 m:
   `d' = b0 + A` if `b0 − 2A < d < b0 + A`; `d' = b1 − A` if `b1 − A < d < b1 + 2A`; else `d' = d`. Example: rifle
   `[25, 45]`, a goal at 25.1 m → 25.9 m; he stops ≤ 0.9 m short → ≥ 25.0 m.
+- **Out-of-band anchor (§3.10):** `d` is his distance from the threat at (tx, tz). If `d < b0` or `d > b1`, the anchor is
+  `(tx, tz) + (c − t) · clamp(d, b0, b1) / d`. Example: rifle at 12 m → anchor at 25 m on the same bearing. The score
+  there is `W.band · bandFit − W.travel · 13 = 1.5 · 0 − 0.65 = −0.65`, against `stay` at 12 m:
+  `1.5 · (1 − |12 − 35| / 10) + 0.6 = −1.35`.
 
 ## 5. Edge Cases
 
@@ -201,6 +233,10 @@ Added after the first eight, at the lead's ask: on main `ca1d5c4d` it failed bot
 - A check whose fighter can kill you inside its window: if you die, the fight ends and the fighter goes idle (correct game
   behaviour). Keep you alive (`g.godMode`) for checks about where they stand, not about their damage (§3.9).
 - A band goal next to a wall: the nudged point is tested with `pointBlocked`; if it is blocked the goal stays at the edge.
+- A pin unit out of band whose in-band anchor is inside a wall: the anchor is not scored (`pointBlocked`), but the 8
+  probes still search round it. If they are all blocked too, he stays where he is (the old behaviour).
+- A unit beyond `b1` (e.g. 70 m) now anchors at `b1`, so he closes to the band instead of holding.
+- A cover spot inside the edge zone: it gets no cover credit. A car at 25.3 m is no longer picked for its cover alone.
 - You, or a car, pressing a leaf at its stop: unchanged (the push-out only). Only the AI's walkers turn round its end.
 
 ## 6. Dependencies

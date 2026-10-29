@@ -121,6 +121,12 @@ export class Tactics {
       const dd = d || 1, step = clamp(d - mid, -8, 8); ax = c.x - ((c.x - tx) / dd) * step; az = c.z - ((c.z - tz) / dd) * step; r = R * 0.7;
     } else if (role === 'hold') { ax = c.home.x; az = c.home.z; r = Math.min(R, D.holdR * 0.6); }
     else if (U.force === 'cover' || U.force === 'holdpos') { ax = U.anchorX ?? c.x; az = U.anchorZ ?? c.z; r = U.force === 'holdpos' ? 3.5 : R * 0.8; }
+    else if (d > 0 && (d < b0 || d > b1)) {
+      // Out of band: search round the nearest in-band point on the line from the threat, not round where he stands. Round
+      // himself, the probes' spin (by slot) could leave no probe far enough out to beat staying put (a rifleman at slot 60
+      // stood at 12 m all fight: stay -1.35, best probe -1.37; docs/design/WEB_BATTERY_STABILITY.md §3.10).
+      const k = clamp(d, b0, b1) / d; ax = tx + (c.x - tx) * k; az = tz + (c.z - tz) * k;
+    }
     this.search(c, t, tx, tz, ax, az, r, b0, b1, D, U, role);
     // An open spot at the band's edge: steer stops `arrive` short of a goal, so a goal at 25.1 m walked to from inside
     // left a rifleman at 24.3 m, out of his band. Such a goal goes `arrive` into the band along the line from the threat
@@ -172,6 +178,9 @@ export class Tactics {
     for (const o of g.chars) { const ot = o.tac; if (o === c || !ot?.goal || !o.alive || o.faction !== c.faction) continue; if (Math.abs(ot.gx - ax) > r + 20 || Math.abs(ot.gz - az) > r + 20) continue; mates.push(ot); }
     const score = (px, pz, cover, veh, stay) => {
       const dT = Math.hypot(px - tx, pz - tz);
+      // Cover hugging the band's edge is not cover in band: steer stops `arrive` short of it (a car at 25.3 m left a
+      // rifleman at 24.9 m). Scored as open, the band-edge nudge in plan() then moves it in (§3.10).
+      if (cover && role !== 'retreat' && bandW === 1 && (dT > b0 - 2 * T.arrive && dT < b0 + T.arrive || dT > b1 - T.arrive && dT < b1 + 2 * T.arrive)) cover = 0;
       const bandFit = clamp(1 - Math.abs(dT - mid) / half, -3, 1); // out of band counts more the further out
       const walk = Math.hypot(px - c.x, pz - c.z);
       let crowd = 0;
