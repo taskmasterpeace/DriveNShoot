@@ -340,7 +340,7 @@ export class Workshop {
       if (!shooter) return false;
       g.fx.flash(mz.x, mz.y, mz.z, W.size > 1 ? 1.8 : 1.1, 0.04);
       g.audio.gun(W.sound ?? 'smg', near, g.pan(mz.x));
-      g.combat.hitscan(shooter, mz.x, mz.z, dx, dz, W.range, W.dmg);
+      g.combat.hitscan(shooter, mz.x, mz.z, dx, dz, W.range, W.dmg, W.cal ?? null, 0, null); // its calibre punches and wounds (WEB_CALIBERS.md); it still lands now
       if (W.size > 1) { v.vx -= dx * 0.6 / v.mass; v.vz -= dz * 0.6 / v.mass; } // the autocannon rocks the car
     } else if (W.kind === 'rocket') this.launch(v, mz, dx, dz, W, shooter, m);
     else if (W.kind === 'flame') this.flame(v, mz, a, W, shooter);

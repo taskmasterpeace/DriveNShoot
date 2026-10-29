@@ -97,6 +97,7 @@ import { Stance } from './systems/stance.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Gadgets } from './systems/gadgets.js';
 import { Rites } from './systems/rites.js';
+import { Forensics } from './systems/forensics.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -242,6 +243,7 @@ class Game {
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
     this.crew = new Crew(this);
     this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
+    this.forensics = new Forensics(this); // wounds keep their calibre, casings lie on the ground (WEB_CALIBERS.md)
     this.crewUI = new CrewUI(this, ui);
 
     this.cash = 120;

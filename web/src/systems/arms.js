@@ -88,6 +88,7 @@ export class Arms {
     r.spread = w.spread * (m.spread ?? 1) * this.gripSpread(k) * (1 + this.bloom);
     r.ammo = m.ammo ?? w.ammo; // the shell it loads (birdshot, slug), and so its flight row unless `round` names one
     r.round = m.round ?? w.round; // the flight row (data/ballistics.js): the slug flies as a slug
+    r.cal = m.cal ?? w.cal; // the calibre (data/ballistics.js ROUNDS): the shell it loads is the round it fires
     r.grip = this.grip;
     return r;
   }

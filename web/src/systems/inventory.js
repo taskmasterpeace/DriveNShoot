@@ -545,6 +545,7 @@ export class Inventory {
   open(box) {
     if (!box.rolled) { this.roll(box, this.g.gear?.luckRolls() ?? 0); box.rolled = true; this.g.roles?.onSearch(box); } // first time through: a search (a lucky charm: more turns up)
     this.opened = box;
+    this.g.forensics?.onSearch(box); // going through a body you read its wounds (systems/forensics.js; a timed search ends here too)
     this.g.emit('containerOpened', { id: box.id, kind: box.kind, items: box.slots.length });
     return box;
   }

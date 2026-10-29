@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { TRACK_Y, layerMesh } from '../engine/depthlayers.js';
 import { roadLines } from '../world/city.js';
+import { roundRow } from '../data/ballistics.js';
 
 // Ambient detail: the small things that make the wasteland feel lived-in and reactive.
 //  - tyre tracks pressed into the sand (ring buffer), dust plumes scaled to speed off-road
-//  - brass: shell casings that eject, bounce and pile up where fights happened
+//  - brass: shell casings that eject, bounce and pile up where fights happened, each of its calibre (its size and colour:
+//    data/ballistics.js ROUNDS casing; a 12-gauge hull is red, green or black by its shell). They remember the calibre
+//    (s.cal) and when they fell (s.t): systems/forensics.js reads them back off the ground
 //  - tumbleweeds rolling downwind, bouncing off walls and wrecks
 //  - vultures circling over the dead (their shadows sweep the ground); gunfire scatters them
 //  - the horn: people in front of a honking car leap out of the way
@@ -57,8 +60,9 @@ export class Ambient {
     this.tNext = 0;
     scene.add(this.tracks);
     // Brass.
-    this.brass = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.035, 0.11, 6).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#c9a24a', metalness: 0.85, roughness: 0.3 }), BRASS_MAX);
+    this.brass = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.035, 0.11, 6).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ffffff', metalness: 0.85, roughness: 0.3 }), BRASS_MAX);
     this.brass.frustumCulled = false; this.brass.count = 0;
+    for (let i = 0; i < BRASS_MAX; i++) this.brass.setColorAt(i, _c.set('#c9a24a')); // each casing's own colour (its calibre)
     this.shells = []; this.bNext = 0;
     scene.add(this.brass);
     // Tumbleweeds: a scruffy ball of twigs.
@@ -81,9 +85,14 @@ export class Ambient {
 
   // ---- hooks ---------------------------------------------------------------------------
   // Called from Combat.fire: brass flies out to the shooter's right.
-  eject(ch, ang) {
+  // cal: the calibre fired (data/ballistics.js ROUNDS): its casing's size and colour; a round with no casing (a bolt)
+  // drops nothing.
+  eject(ch, ang, cal = null) {
+    const C = cal ? roundRow(cal)?.casing ?? null : { size: 1, color: '#c9a24a' };
+    if (!C) return;
     const rx = Math.cos(ang), rz = -Math.sin(ang); // shooter's right
-    const s = { x: ch.x + rx * 0.3, z: ch.z + rz * 0.3, y: 1.3, vx: rx * (2 + Math.random() * 1.5) - Math.sin(ang) * 0.6, vz: rz * (2 + Math.random() * 1.5) - Math.cos(ang) * 0.6, vy: 2.4 + Math.random(), spin: Math.random() * 6, rot: Math.random() * 6, rest: false, i: this.bNext };
+    const s = { x: ch.x + rx * 0.3, z: ch.z + rz * 0.3, y: 1.3, vx: rx * (2 + Math.random() * 1.5) - Math.sin(ang) * 0.6, vz: rz * (2 + Math.random() * 1.5) - Math.cos(ang) * 0.6, vy: 2.4 + Math.random(), spin: Math.random() * 6, rot: Math.random() * 6, rest: false, i: this.bNext, cal, size: C.size, t: this.g.time ?? 0 };
+    this.brass.setColorAt(s.i, _c.set(C.color)); this.brass.instanceColor.needsUpdate = true;
     this.bNext = (this.bNext + 1) % BRASS_MAX;
     this.ejected = (this.ejected ?? 0) + 1;
     this.shells[s.i] = s;
@@ -158,13 +167,13 @@ export class Ambient {
     for (const s of this.shells) {
       if (!s || s.rest) continue;
       s.vy -= 22 * dt; s.x += s.vx * dt; s.z += s.vz * dt; s.y += s.vy * dt; s.rot += s.spin * dt;
-      const fl = (g.fx.ground?.(s.x, s.z) ?? 0) + 0.04; // the land under it (real terrain)
+      const fl = (g.fx.ground?.(s.x, s.z) ?? 0) + 0.035 * (s.size ?? 1); // the land under it (real terrain); a fat .50 case lies higher
       if (s.y < fl) {
         s.y = fl;
         if (Math.abs(s.vy) < 1.2) { s.rest = true; s.vx = s.vz = 0; }
         else { s.vy *= -0.35; s.vx *= 0.5; s.vz *= 0.5; s.spin *= 0.6; if (Math.random() < 0.3 && Math.hypot(s.x - p.x, s.z - p.z) < 16) g.audio.clink?.(g.pan(s.x)); }
       }
-      _o.position.set(s.x, s.y, s.z); _o.rotation.set(0, s.rot, 0); _o.scale.set(1, 1, 1); _o.updateMatrix();
+      _o.position.set(s.x, s.y, s.z); _o.rotation.set(0, s.rot, 0); _o.scale.setScalar(s.size ?? 1); _o.updateMatrix();
       this.brass.setMatrixAt(s.i, _o.matrix); moved = true;
     }
     if (moved) this.brass.instanceMatrix.needsUpdate = true;

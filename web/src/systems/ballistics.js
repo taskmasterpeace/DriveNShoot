@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ROUNDS, BALLISTICS as B } from '../data/ballistics.js';
+import { ROUNDS, BALLISTICS as B, roundRow, calOf } from '../data/ballistics.js';
 
 // BULLET SPEED (docs/design/WEB_BALLISTICS.md). A gun's round is no longer a ray that lands the frame it is fired: it is
 // a body in the air with the speed its row gives it (data/ballistics.js ROUNDS), slowed by the air, pulled down by
@@ -58,22 +58,23 @@ export class Ballistics {
   }
 
   // ---- the rows ------------------------------------------------------------------------------------------------------
-  // The round a gun fires: a fire mode's own `round` (the slug), else its ammo.
-  rowKey(w) { return w?.round ?? w?.ammo ?? null; }
-  takes(key, slope = 0) { return this.on && !slope && !!ROUNDS[key]; }
+  // The round a gun fires: its calibre (data/ballistics.js ROUNDS, docs/design/WEB_CALIBERS.md), a fire mode's own
+  // (the slug), else what its ammo key names. Old names (an ammo key, 'rifle', 'slug') resolve to their calibre.
+  rowKey(w) { return calOf(w?.cal ?? w?.round ?? w?.ammo); }
+  takes(key, slope = 0) { return this.on && !slope && !!roundRow(key); }
 
   // Closed-form flight (linear drag): time to fly d m along the line; null if the round never gets there.
   flightTime(key, d, v0 = null) {
-    const r = ROUNDS[key]; if (!r) return null;
+    const r = roundRow(key); if (!r) return null;
     const v = v0 ?? r.velocity, k = r.drag;
     if (k < 1e-6) return d / v;
     const f = 1 - (d * k) / v;
     return f <= 0 ? null : -Math.log(f) / k;
   }
-  speedAt(key, d) { const r = ROUNDS[key]; return r ? Math.max(0, r.velocity - r.drag * d) : 0; }
+  speedAt(key, d) { const r = roundRow(key); return r ? Math.max(0, r.velocity - r.drag * d) : 0; }
   // Below the line after d m, fired level: the fall under gravity with the same drag (vy' = -g - k vy).
   dropAt(key, d) {
-    const r = ROUNDS[key], t = this.flightTime(key, d); if (!r || t === null) return null;
+    const r = roundRow(key), t = this.flightTime(key, d); if (!r || t === null) return null;
     const k = r.drag, gr = B.gravity;
     if (k < 1e-6) return 0.5 * gr * t * t;
     return (gr / k) * t - (gr / (k * k)) * (1 - Math.exp(-k * t));
@@ -121,7 +122,7 @@ export class Ballistics {
   // (dx, dz): the aimed line (unit). The shooter's platform velocity adds to the muzzle's: the round's line and speed
   // over the ground are the sum (a passenger firing sideways out of a car at 25 m/s sends the round forward too).
   launch(shooter, ox, oz, dx, dz, range, dmg, ammo, key = ammo, opts = null) {
-    const row = ROUNDS[key]; if (!row) return null;
+    key = calOf(key); const row = ROUNDS[key]; if (!row) return null;
     const p = this.pool[this.next];
     this.next = (this.next + 1) % this.cap;
     if (p.live) { this.stats.recycled++; this.live--; }
@@ -228,6 +229,8 @@ export class Ballistics {
 
   // ---- the streaks ----------------------------------------------------------------------------------------------------
   // A tracer round draws from max(muzzle, head - its length) to its head: out of the muzzle it grows, then it runs.
+  // Its length is how far it flies in B.streakT at the speed it has now (capped by the row): a slow round barely streaks.
+  streakLen(p) { return Math.min(p.row.tracerLen, p.sp * B.streakT, Math.hypot(p.x - p.mx, p.z - p.mz)); }
   draw(dt) {
     if (!this.live && !this.drawn) return;
     const g = this.g, up = g.fx?.ground ? g.fx : null;
@@ -237,7 +240,7 @@ export class Ballistics {
       let on = p.tracer && (p.live || p.show > 0) && !p.ghost;
       if (!p.live && p.show > 0) { p.show -= dt; if (p.show <= 0) on = false; }
       if (!on) { if (p._drawn) { this.mesh.setMatrixAt(i, ZERO); p._drawn = false; } continue; }
-      const back = Math.min(p.row.tracerLen, Math.hypot(p.x - p.mx, p.z - p.mz));
+      const back = this.streakLen(p);
       const ax = p.x - p.dx * back, az = p.z - p.dz * back;
       const y = up ? up.up(p.x, p.y + p.fy, p.z) : p.y + p.fy;
       _o.position.set((ax + p.x) / 2, y, (az + p.z) / 2);
