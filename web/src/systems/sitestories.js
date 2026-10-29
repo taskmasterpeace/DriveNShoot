@@ -736,14 +736,17 @@ export class SiteStories {
       if (v) { v.storyCar = m.id; v.ai = 'story'; m.car.v = v; v.fuel = Math.max(0.2, m.car.fuel ?? 1); g.seats.init?.(v); }
     }
     let i = 0;
+    const here = m.state === 'stay' ? this.place(m.at ?? m.hall) : null, spot = here && !here.spot ? this.boardSpot(here) : null; // a pair staying in a town waits by its board
     for (const p of m.people) {
       if (p.dead || p.c) continue;
-      const back = this.at(m, m.s - 1.6 * (i + 1), {});
+      const side = (this.movers.filter((o) => o.kind === 'hunters' && o.hall === m.hall).indexOf(m) % 2 ? 1 : -1) * 3.2 + (i - 0.5) * 1.3;
+      const back = spot ? { x: spot.x + Math.sin(spot.ry) * 3.6 + Math.cos(spot.ry) * side, z: spot.z + Math.cos(spot.ry) * 3.6 - Math.sin(spot.ry) * side } : this.at(m, m.s - 1.6 * (i + 1), {});
       const c = g.addChar({ x: m.car?.v ? q.x + 2 : back.x, z: m.car?.v ? q.z + 2 : back.z, faction: M.faction, weapon: p.weapon, hp: p.hp, colors: outfit(M.faction, rngOf(hash32(m.seed, p.n, 1))), name: p.name, flag: p.flag });
       if (!c) break;
       c.storyMover = m.id; c.storyM = m; c.storyN = p.n; c.home = { x: c.x, z: c.z }; c.hp = Math.max(1, p.hp);
       if (m.kind === 'hunters') { c.fid = GUILD.id; g.society.factions.assign(c); }
       if (m.car?.v) g.seats.board(c, m.car.v, i < (m.car.v.seats?.length ?? 2) ? i : -1);
+      if (spot) c.face = spot.ry;
       g.standOn?.(c);
       p.c = c; i++;
     }
@@ -877,10 +880,12 @@ export class SiteStories {
       }
       // a raided or fallen place: scorch on the ground, rubble, a burned-out barricade at its middle
       if (p.fallen || (p.raidedAt !== null && this.hours() - p.raidedAt < 72)) {
-        const rng = rngOf(hash32(p.seed, 0x5343, 2));
-        for (let i = 0; i < 14; i++) { const a = rng() * 6.28, d = 6 + rng() * 26, x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d; box(x, y + 0.03, z, 3 + rng() * 4, 0.04, 3 + rng() * 4, '#1a1612', rng() * 3); }
-        for (let i = 0; i < 18; i++) { const a = rng() * 6.28, d = 4 + rng() * 22, x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d; box(x, y + 0.3, z, 0.6 + rng() * 1.2, 0.4 + rng() * 0.6, 0.5 + rng() * 1, rng() < 0.5 ? '#3a3028' : '#5a4a3a', rng() * 3, rng() * 0.4); }
-        for (let i = 0; i < 6; i++) box(p.x - 8 + i * 3.2, y + 0.5, p.z + 10, 2.6, 1, 0.5, '#2a2018', 0.2 * i, 0.3);
+        // along the street in front of the place's board (open ground: the middle of a place is built over)
+        const rng = rngOf(hash32(p.seed, 0x5343, 2)), ax = Math.cos(spot.ry), az = -Math.sin(spot.ry), fx = Math.sin(spot.ry), fz = Math.cos(spot.ry);
+        const at = (u, w) => [spot.x + ax * u + fx * w, spot.z + az * u + fz * w];
+        for (let i = 0; i < 14; i++) { const [x, z] = at((rng() - 0.5) * 50, 3 + rng() * 9), r = rng() * 3, w = 1.6 + rng() * 2.4; box(x, y + 0.03, z, w, 0.04, w * (0.5 + rng() * 0.6), '#3a2c22', r); box(x, y + 0.045, z, w * 0.55, 0.04, w * 0.45, '#221a14', r + 0.7); } // soot: a burn, darker at its heart
+        for (let i = 0; i < 18; i++) { const [x, z] = at((rng() - 0.5) * 44, 2 + rng() * 10); box(x, y + 0.25, z, 0.5 + rng() * 1, 0.3 + rng() * 0.5, 0.4 + rng() * 0.8, rng() < 0.5 ? '#3a3028' : '#5a4a3a', rng() * 3, rng() * 0.4); }
+        for (let i = 0; i < 6; i++) { const [x, z] = at(-9 + i * 3.4, 8 + (i % 2) * 0.8); box(x, y + 0.45, z, 2.8, 0.9, 0.5, '#2a2018', spot.ry + 0.25 * (i - 3), 0.35); } // the barricade they burned
         this.dressed.push({ kind: 'raided', place: p.id, fallen: p.fallen });
       }
       // a refugee camp: lean-to tents, bedrolls, a fire ring and its embers
