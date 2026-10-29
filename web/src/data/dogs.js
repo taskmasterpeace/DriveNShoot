@@ -139,7 +139,7 @@ export const CACHES = [
 //   collar   the bark collar: when your dog's own senses (dogs.sense: its nose and ears, threatR round you) pick out a
 //            threat, the collar barks and that one is MARKED for `mark` s (minimap). Only what the dog itself sensed.
 export const DOG_GEAR = {
-  dog_vest: { name: 'Dog vest', part: 'vest', soak: 0.45, colour: '#5b4a2e', item: { kg: 1.8, bulk: 1.4, value: 60, stack: 1, desc: 'A cut-down flak vest laced round a dog\'s chest with paracord. Turns a knife and most of a bite.' } },
+  dog_vest: { name: 'Dog vest', part: 'vest', soak: 0.45, colour: '#4f5434', item: { kg: 1.8, bulk: 1.4, value: 60, stack: 1, desc: 'A cut-down flak vest laced round a dog\'s chest with paracord. Turns a knife and most of a bite.' } },
   dog_lamp: { name: 'Dog lamp', part: 'lamp', glow: 6, power: { cell: 'battery_cell', life: 1800 }, item: { kg: 0.3, bulk: 0.2, value: 25, stack: 1, desc: 'A bike lamp zip-tied to a collar. Where the dog goes, the ground lights up.' } },
   bark_collar: { name: 'Bark collar', part: 'collar', mark: 20, item: { kg: 0.2, bulk: 0.1, value: 45, stack: 1, desc: 'A training collar rewired to a buzzer you carry. When the dog smells trouble, you know where.' } },
 };

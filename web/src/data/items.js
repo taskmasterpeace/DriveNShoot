@@ -66,6 +66,8 @@ export const ITEMS = {
     desc: 'The little army kind that lives on a keyring.' },
   lockpicks: { name: 'Lockpicks', kind: 'tool', kg: 0.05, bulk: 0.05, stack: 1, value: 30, uses: 6, use: { act: 'pick' }, tags: ['picks'],
     desc: 'A roll of picks and a tension wrench. Quiet. Each lock costs you a pick or two.' },
+  hacksaw: { name: 'Hacksaw', kind: 'tool', kg: 0.7, bulk: 0.6, stack: 1, value: 14, tags: ['cut', 'steel'], // UNDER THE STREET: cuts an outfall's bars, slowly and quietly (data/understreet.js WAYS.outfall)
+    desc: 'A bow saw for metal and a spare blade. Slow work, and nobody hears it.' },
   crowbar: { name: 'Crowbar', kind: 'tool', kg: 2.4, bulk: 1.2, stack: 1, value: 18, use: { act: 'pry' }, tags: ['pry', 'steel'],
     desc: 'Forged steel, the paint worn off the end that does the work. Opens what keys don\'t. Loudly.' },
   // The portable radio (systems/radio.js): the stations anywhere, not only in a car. Not in any loot table yet (a content call).

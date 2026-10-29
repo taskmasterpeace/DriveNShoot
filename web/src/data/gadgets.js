@@ -260,11 +260,11 @@ export const HEAT = {
 //   smoke     inside any smoke cloud (throwables.smokes: canisters, the smoke layer, choke gas)
 //   chem      the CHEM_ZONES rows: burned-out chemical ground
 //   under     below the street where the air is dead: an underground site of a kind in `kinds`, or one with no power
-//             (the fans are off) - the storm drains and sewers when they land (kinds drain, sewer)
+//             (the fans are off): the storm drains under every town (systems/understreet.js, kind drains), sewers
 export const AIR_ZONES = {
   smoke: { name: 'SMOKE', dps: 1.6, cough: 2.2, shake: 0.4 },
   chem: { name: 'CHEMICALS', dps: 6, cough: 1.2, shake: 0.8 },
-  under: { name: 'BAD AIR', dps: 2.5, cough: 1.8, shake: 0.5, kinds: ['drain', 'sewer', 'facility'], unpowered: true },
+  under: { name: 'BAD AIR', dps: 2.5, cough: 1.8, shake: 0.5, kinds: ['drains', 'sewer', 'facility'], unpowered: true },
 };
 // Burned-out chemical ground (one decal each, the look all yellow-olive and rust: never purple).
 export const CHEM_ZONES = [
@@ -273,10 +273,13 @@ export const CHEM_ZONES = [
 
 // THE SCANNER'S CHATTER: who keys up, and what they say (the fact the scanner copies). Each row is a real source the
 // kit polls: `convoy` while a convoy rolls (its lead's set, from where the lead really is, every `every` s); `bulls`
-// when security sends a car (the dispatcher at the station). Only these speak: nothing is made up to fill the air.
+// when security sends a car (the dispatcher at the station); `party` a SITE STORIES party on the road in a car
+// (traders and raiders: the set in their car, from the record's spot, every `every` s; systems/sitestories.js movers).
+// Only these speak: nothing is made up to fill the air.
 export const CHATTER = {
   convoy: { every: 40, life: 2, say: 'convoy chatter: {road}, {dir}bound, {n} rigs rolling' },
   bulls: { every: 0, life: 1, say: 'the bulls\' dispatcher: a car to {place}, {why}' },
+  party: { every: 90, life: 3, kinds: ['trader', 'raiders'], say: '{who} on the road to {to}: {n} of them, one car' },
 };
 
 // The validator (the World Forge and the selftest): every powered row names a real consumable, slots are known, the

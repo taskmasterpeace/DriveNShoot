@@ -131,7 +131,7 @@ of smoked fish; the same 9 hours with the fisher away bank nothing.
 `data/items.js`, `data/ring.js` (name pools), `systems/characters.js` (`outfit`, the `work` pose), `main.js` (`addChar`,
 `removeChar`, `footPath`, `randomFlag`), `systems/ai.js` (`move`).
 **Used by**: `ui/dialogue.js` (talk), the selftest, the goal loop. **Next users**: trade (buying from `stock` via `take`),
-SITE-STORIES (a site's problem can be its missing worker), SIM-CORE (off-screen production), LSW-BODIES (workers are
+SITE-STORIES (built: a place's off-screen make is its mix's work, and a built town's stock gains exactly what its workers bank; WEB_SITE_STORIES §3.1), SIM-CORE (off-screen production), LSW-BODIES (workers are
 ordinary characters, so they wear LSW bodies when near).
 
 **Shared-file hooks (exact):**

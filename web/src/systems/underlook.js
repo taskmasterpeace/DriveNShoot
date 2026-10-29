@@ -52,7 +52,7 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   const walls = [], lumps = [], fill = [], floors = [], water = [], props = [], strips = [], stripItems = [], glows = [], glowItems = [];
   // The solid rock between the passages: black, a metre up (it stops your light where a wall would).
   // In a cave, black a metre up; in a built level, the solid mass between the rooms level with the wall tops, dark.
-  const fh = built ? wallH : 1.2, fc = built ? '#5a564d' : '#000000';
+  const fh = built ? wallH : 1.2, fc = L.fillColor ?? (built ? '#5a564d' : '#000000'); // a town's drains: the earth between the pipes (data/understreet.js SEWER.fill)
   { const mask = new Uint8Array(W * H); for (let q = 0; q < W * H; q++) if (L.cells[q] === ROCK && !L.edge[q]) mask[q] = 1; for (const [i0, j0, i1, j1] of mergeRects(mask, W, H)) fill.push(span(L.ox + i0, L.oz + j0, L.ox + i1, L.oz + j1, y, y + fh, fc));
     // ...and the rock past the level's own grid, as far as any view reaches
     const R = 90, x0 = L.ox, z0 = L.oz, x1 = L.ox + W, z1 = L.oz + H;

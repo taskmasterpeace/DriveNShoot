@@ -77,13 +77,14 @@ EM3 checks: **cost** (cells, filters, weight, scrip; a lit torch gets you seen; 
 - `CHANNELS.scanner`: conf 0.8, range 1800 m. The scanner row's own range is also 1800 m.
 - **Sources:**
   - a convoy's lead checks in 2 s after the convoy sets off, then every `CHATTER.convoy.every` (40 s), from where the lead really is;
-  - the bulls' dispatcher keys up from the station whenever security dispatches a car.
+  - the bulls' dispatcher keys up from the station whenever security dispatches a car;
+  - a SITE STORIES party on the road in a car (traders, raiders; `systems/sitestories.js` movers) keys up every `CHATTER.party.every` (90 s) from the record's own spot.
 - Each key-up records a `chatter` fact and calls `keyUp`. The player gets a copy only with a live scanner switched on and within range (`factHeard`, `scannerHeard`).
 - The fact is recorded whether or not anyone hears it, so the world still said it (`kit.lastKeyUp`).
 
 ### 3.7 Bad air
 Every 0.25 s the kit checks the air where you stand, worst first:
-1. **under:** below the street, a site of kind drain, sewer or facility, or a site whose generator is off;
+1. **under:** below the street, a site of kind `drains` (the UNDERSTREET storm drains under every town), sewer or facility, or a site whose generator is off;
 2. **chem:** inside a `CHEM_ZONES` row (THE TANK FARM, (−215, −330), r 22 m);
 3. **smoke:** inside 85% of a live smoke cloud (canisters, the smoke layer, choke gas).
 
@@ -93,6 +94,7 @@ With a carried mask and a filter it breathes for you, and the filter drains. Wit
 - `doggear` from the PACK screen puts the gear on your nearest dog within 8 m (`kit dog=`). One of each part per dog.
 - **Vest:** `dogs.hurt` multiplies the damage by `1 − soak`.
 - **Lamp:** a ground pool ahead of the dog at night, while its cell lasts.
+- **How it looks:** the gear is part of the dog's own model (`dogs.js gear`): an olive vest wrapping the barrel from the ribs to the loin with a dark plate along the back, a red collar at the base of the neck, the lamp on top of the collar. It poses with the dog: walking, sitting, lying.
 - **Collar:** when `dogs.sense` sets a new `d.threat` (the dog's own threat reach round you), that target is marked for `mark` s (`barkMark`). Nothing outside the dog's senses is ever marked.
 
 ### 3.9 Car kit
@@ -143,7 +145,7 @@ Variables: `d` (m) distance; `r` a row's radius; `night` = `sky.night` 0..1; `t`
 |---|---|
 | `main.js` | import `Kit`; `this.kit = new Kit(this)` before gadgets; `this.kit.update(simDt)` after `gadgets.update`; `flashOn &&= this.kit.beamOk()`; the cone's z-scale `× this.kit.beamReach()`; `this.kit.frame(dt)` before `charR.sync` |
 | `systems/ai.js` | `scan`: the player's seen multiplier also `× g.kit.seenMul()` |
-| `systems/dogs.js` | `hurt`: `dmg *= g.kit?.dogSoak(d) ?? 1` |
+| `systems/dogs.js` | `hurt`: `dmg *= g.kit?.dogSoak(d) ?? 1`; `pose`: `if (d.kit) this.gear(...)`, a `gear()` method that draws the vest (wrapping the barrel), its back plate, the collar and the lamp as four more limb segments of the dog's own model (LIMBS 11 → 15, no new mesh or draw call) |
 | `systems/vehicles.js` | `yank()`: `if (g.kit?.winchYank(h)) …return`; the harpoon's wall-hit branch: `if (g.kit?.hookDoor(v, h.x, h.z)) …return` |
 | `systems/gadgets.js` | `drawMinimap`: `g.kit?.drawMinimap(...)` (cars the glass marked) |
 | `systems/garage.js` | `addUtility`: a row with `needs` refuses without that gun (the winch) |
@@ -156,7 +158,7 @@ Variables: `d` (m) distance; `r` a row's radius; `night` = `sky.night` 0..1; `t`
 | `data/dogs.js` | DOG_GEAR + `validateDogGear` (appended) |
 | `agent/api.js` | import and spread `kitCommands`; `g.kit.staged = true` for the battery (restored before the runtime-errors check); `kitChecks` after `gadgetsChecks` |
 
-**Others may use:** `g.kit.seenMul()` (any sight model), `g.kit.heatOf(c)` (any heat-seeking thing), `g.kit.keyUp(fact, x, z, from)` (any new transmitter: a faction's patrol radio when factionsim speaks), `g.kit.airAt(c)` (any breathing NPC), `AIR_ZONES.under.kinds` (the UNDERSTREET lane's storm drains and sewers: kinds `drain`/`sewer` are already listed).
+**Others may use:** `g.kit.seenMul()` (any sight model), `g.kit.heatOf(c)` (any heat-seeking thing), `g.kit.keyUp(fact, x, z, from)` (any new transmitter: a faction's patrol radio when factionsim speaks), `g.kit.airAt(c)` (any breathing NPC), `AIR_ZONES.under.kinds` (the UNDERSTREET storm drains, kind `drains`, are listed). **This lane uses** SITE STORIES' `movers` (`state`, `car`, `kind`, `to`, `x`, `z`) and `place(id)` for the scanner's party chatter.
 
 ## 7. Tuning Knobs
 | Knob | Default | Safe range | Affects |

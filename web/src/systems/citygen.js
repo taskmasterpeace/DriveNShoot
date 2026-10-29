@@ -306,6 +306,7 @@ export class CityGen {
     this.overrun.populate(t);
     this.g.milbases?.onBuilt(t); // a military base's garrison, horde or sealed doors (systems/milbases.js)
     this.g.rites?.onBuilt(t); // its cemetery stands off its buildings now (systems/rites.js)
+    this.g.understreet?.onBuilt(t); // its storm drains under its streets (systems/understreet.js)
     const ms = performance.now() - t0;
     this.counts.stamped++; this.counts.buildMs = +ms.toFixed(1); this.counts.maxMs = Math.max(this.counts.maxMs, +ms.toFixed(1));
     this.g.emit?.('settlementBuilt', { id: rec.id, name: rec.name, arch: rec.arch, buildings: T.buildings.length, ms: Math.round(ms) });
@@ -318,6 +319,7 @@ export class CityGen {
     this.overrun.depopulate(t);
     this.g.milbases?.onReleased(t);
     this.g.rites?.onReleased(t);
+    this.g.understreet?.onReleased(t);
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);

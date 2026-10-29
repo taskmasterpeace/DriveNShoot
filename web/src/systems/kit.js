@@ -321,6 +321,16 @@ export class Kit {
         this.keyUp(f, lead.x, lead.z, 'the convoy\'s lead');
       }
     }
+    // SITE STORIES parties that drive (systems/sitestories.js movers): the set in their car keys up from the record's spot.
+    const PR = CHATTER.party;
+    for (const m of g.stories?.enabled ? g.stories.movers : []) {
+      if (m.state !== 'road' || !m.car || !PR.kinds.includes(m.kind)) continue;
+      if ((m.kitT = (m.kitT ?? 2 + (m.seed % 30)) - dt) > 0) continue;
+      m.kitT = PR.every;
+      const to = g.stories.place(m.to)?.name ?? 'the next town', n = m.people.filter((q) => !q.dead).length;
+      const f = k.record({ what: 'chatter', subject: `party:${m.id}`, text: this.say('party', { who: m.kind === 'raiders' ? 'raiders' : 'a trade party', to, n }), where: { x: m.x, z: m.z }, life: PR.life, data: { mover: m.id, kind: m.kind } });
+      this.keyUp(f, m.x, m.z, m.kind === 'raiders' ? 'a raider\'s set' : 'a trader\'s set');
+    }
     // The bulls' dispatcher: a car sent is said on the air, from the station.
     const S = g.security, n = S?.counts?.dispatched ?? 0;
     if (n > this.dispatched) {
@@ -560,16 +570,12 @@ export class Kit {
       _o.position.set(x, y, z); _o.rotation.set(0, rot, 0); _o.scale.set(sx, 1, sz); _o.updateMatrix();
       G.setMatrixAt(k, _o.matrix); G.setColorAt(k++, _c.set(col));
     };
-    // Your dogs' gear.
+    // Your dogs' gear is drawn by the dog renderer as parts of the dog's own body (systems/dogs.js gear); here only the
+    // lamp's pool of light on the ground ahead of it at night.
     for (const d of this.myDogs()) {
-      if (!d.kit || Math.abs(d.x - P.x) > 90 || Math.abs(d.z - P.z) > 90) continue;
-      const s = d.p?.scale ?? 1, y = (d.y ?? 0) + (d.a?.lie > 0.5 ? 0.2 : 0.46) * s, f = d.face ?? 0, fx = Math.sin(f), fz = Math.cos(f);
-      if (d.kit.vest) { box(d.x - fx * 0.02 * s, y, d.z - fz * 0.02 * s, f, 0.36 * s, 0.24 * s, 0.46 * s, DOG_GEAR[d.kit.vest].colour); box(d.x, y + 0.13 * s, d.z, f, 0.08 * s, 0.04 * s, 0.4 * s, '#2a241c'); }
-      if (d.kit.collar) box(d.x + fx * 0.3 * s, y + 0.1 * s, d.z + fz * 0.3 * s, f, 0.2 * s, 0.06 * s, 0.07 * s, '#9a3a1e');
-      if (d.kit.lamp) {
-        box(d.x + fx * 0.33 * s, y + 0.15 * s, d.z + fz * 0.33 * s, f, 0.08, 0.08, 0.1, '#e8d8a0');
-        if (night > 0.45 && (this.charge[`dog:${d.id}`] ?? 0) > 0) pool(d.x + fx * 2.2, d.z + fz * 2.2, f, DOG_GEAR[d.kit.lamp].glow, DOG_GEAR[d.kit.lamp].glow * 1.3, '#6a5a38');
-      }
+      if (!d.kit?.lamp || night <= 0.45 || !((this.charge[`dog:${d.id}`] ?? 0) > 0) || Math.abs(d.x - P.x) > 90 || Math.abs(d.z - P.z) > 90) continue;
+      const f = d.face ?? 0, r = DOG_GEAR[d.kit.lamp].glow;
+      pool(d.x + Math.sin(f) * 2.4, d.z + Math.cos(f) * 2.4, f, r, r * 1.3, '#6a5a38');
     }
     // The car kit.
     for (const v of g.vehicles) {

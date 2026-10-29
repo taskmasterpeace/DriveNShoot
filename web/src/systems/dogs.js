@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { DOG_TYPES, BREEDS, DOG_NAMES, BOND_TIERS, BOND_AT, BOND, WHISTLE, GAIT, DOG_RULES as R, STRAY_PACKS, LONE_STRAYS, CACHES } from '../data/dogs.js';
+import { DOG_TYPES, BREEDS, DOG_NAMES, BOND_TIERS, BOND_AT, BOND, WHISTLE, GAIT, DOG_RULES as R, STRAY_PACKS, LONE_STRAYS, CACHES, DOG_GEAR } from '../data/dogs.js';
 import { ITEMS } from '../data/items.js';
 import { makeRng, angleLerp } from '../engine/rng.js';
 import { RAY_SOLID, rayCircle } from '../engine/collision.js';
@@ -933,11 +933,12 @@ const _p = { x: 0, z: 0 };
 // tail drawn from one tapered limb (two segments a leg: a real elbow, stifle and hock). Five InstancedMeshes for every dog
 // in the world; a variant nobody uses costs no draw call. Poses are solved per frame into joint positions in the dog's own
 // frame (+z forward), like the people's (characters.js).
-const MAXD = 32, LIMBS = 11; // 8 leg segments + neck + tail + saddle
+const MAXD = 32, LIMBS = 15; // 8 leg segments + neck + tail + saddle; the gear's vest, back plate, collar and lamp (WEB_GADGETS2.md)
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _M = new THREE.Matrix4(), _T = new THREE.Matrix4(), _S = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _dir = new THREE.Vector3(), _sc = new THREE.Vector3(), _c = new THREE.Color();
 const _DOWN = new THREE.Vector3(0, -1, 0);
+const _ga = new THREE.Vector3(), _gb = new THREE.Vector3(), _gd = new THREE.Vector3(), _gn = new THREE.Vector3(), _cg = new THREE.Color(); // the gear's own scratch
 // Legs: [x side, z, upper, lower, front]
 const LEGS = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
 
@@ -1049,6 +1050,27 @@ export class DogRenderer {
     this.limb.setMatrixAt(this.nl, _M); this.limb.setColorAt(this.nl++, color);
   }
 
+  // Your dog's gear (data/dogs.js DOG_GEAR, put on by systems/kit.js): parts of the dog's own body, posed with it. The vest
+  // wraps the barrel from the ribs to the loin with a darker plate along the back; the collar rings the base of the neck;
+  // the lamp sits on the collar's top. Scratch vectors of their own, so the head's pose after this is untouched.
+  gear(d, F, s, wx, wy, L) {
+    const K = d.kit;
+    if (K.vest) {
+      _ga.set(0, 0.01 * s * wy, -0.18 * s * L); _gd.set(0, 0, 1); _gb.copy(_ga).addScaledVector(_gd, 0.44 * s * L); _gn.copy(_gd).negate();
+      this.seg(F, _gb, _gn, 0.44 * s * L, 0.205 * s * wx, _cg.set(DOG_GEAR[K.vest].colour)); // wider than the barrel (0.29 x 0.29): it wraps it
+      _ga.set(0, 0.15 * s * wy, -0.14 * s * L); _gb.copy(_ga).addScaledVector(_gd, 0.36 * s * L);
+      this.seg(F, _gb, _gn, 0.36 * s * L, 0.11 * s * wx, _cg.set('#2e2a20')); // the plate along the back
+    }
+    if (K.collar) {
+      _ga.set(0, 0.085 * s * wy, 0.3 * s * L); _gd.set(0, 0.55, 0.85).normalize(); _gb.copy(_ga).addScaledVector(_gd, 0.05 * s); _gn.copy(_gd).negate();
+      this.seg(F, _gb, _gn, 0.05 * s, 0.102 * s * wx, _cg.set('#8a2e16'));
+    }
+    if (K.lamp) {
+      _ga.set(0, 0.2 * s * wy, 0.3 * s * L); _gd.set(0, 0, 1); _gb.copy(_ga).addScaledVector(_gd, 0.08 * s); _gn.copy(_gd).negate();
+      this.seg(F, _gb, _gn, 0.08 * s, 0.035 * s, _cg.set('#d8cc98'));
+    }
+  }
+
   prop1(x, y, z, sx, sy, sz, ry, hex) {
     if (this.np >= 96) return;
     _e.set(0, ry, 0); _q.setFromEuler(_e);
@@ -1154,6 +1176,7 @@ export class DogRenderer {
     _b.copy(_a).addScaledVector(_dir, neckLen);
     _nd.copy(_dir).negate();
     this.seg(F, _b, _nd, neckLen, 0.085 * s * wx * (B.neckR ?? 1), B.collar ? _cs.set(B.collar) : coatC);
+    if (d.kit) this.gear(d, F, s, wx, wy, L);
     _e.set(-hp * 0.9 - 0.1, 0, 0, 'YXZ'); _q.setFromEuler(_e);
     _b.addScaledVector(_dir, 0.06 * s);
     _M.compose(_b, _q, _sc.set(s * (build === 'heavy' ? 1.15 : 1), s, s)).premultiply(F);
