@@ -1,5 +1,6 @@
 // LSW-BODIES as COMMANDS rows and selftest checks (docs/design/WEB_LSW_BODIES.md; systems/lswbodies.js, data/lswbodies.js).
 // buildCommands() in api.js spreads lswBodiesCommands into COMMANDS; runSelfTest calls lswBodiesChecks.
+import * as THREE from 'three';
 import { LSW_RULES, validateLswBodies } from '../data/lswbodies.js';
 import { outfit } from '../systems/characters.js';
 import { FLAG_KEYS } from '../ui/portrait.js';
@@ -247,6 +248,34 @@ export async function lswBodiesChecks(api, check, C) {
       if (purple) out.push(`${k}: ${purple} purple-range pixels`);
     });
     return out.length ? out.join('; ') : true;
+  }));
+
+  await check('lsw-bodies: the vein glow is light, not heat - through the heat scope (systems/kit.js) the infected stay COLD: the vein glow is switched off while the scope is live (and back on after), and a close night frame of a red shambler and a neon echo through the scope has no glowing vein pixels (the same frame with the glow left on has them)', () => stage(async () => {
+    const K = g.kit, W = 320, H = 180, rt = new THREE.WebGLRenderTarget(W, H), buf = new Uint8Array(W * H * 4), base = new Uint8Array(W * H * 4);
+    const cam = new THREE.PerspectiveCamera(40, W / H, 0.1, 60); // close in, so a vein is a few pixels wide
+    cam.position.set(STAGE.x, 3.2, STAGE.z - 4.5); cam.lookAt(STAGE.x, 1, STAGE.z - 1); cam.updateMatrixWorld();
+    const sham = g.zombies.spawn(STAGE.x - 0.6, STAGE.z - 1, false), echo = g.zombies.spawnKind('echo', STAGE.x + 0.6, STAGE.z - 1);
+    if (!sham || !echo) return 'could not spawn a shambler and an echo';
+    for (const z of [sham, echo]) { z.hold = true; z.facing = Math.PI; staged.push(z); }
+    const shot = (out) => { frame(); g.renderer.setRenderTarget(rt); g.renderer.render(g.scene, cam); g.renderer.setRenderTarget(null); g.renderer.readRenderTargetPixels(rt, 0, 0, W, H, out); };
+    const had = { eyes: K.on.eyes, charge: K.charge.thermal_scope };
+    try {
+      await C('setTime', { hour: 22 });
+      g.inventory.stow('thermal_scope', 1); K.charge.thermal_scope = 100; K.on.eyes = 'thermal_scope';
+      await C('step', { seconds: 0.2 });
+      const on = L.heat.value, drawn = L.veinDrawn(sham) === 'rupture' && L.veinDrawn(echo) === 'neon';
+      g.paused = true;
+      // The pixels the glow brightens: the scope frame with the glow forced on against the frame the game draws (off).
+      shot(base); L.heat.value = 0; shot(buf); L.heat.value = on;
+      let lit = 0; for (let p = 0; p < buf.length; p += 4) if (buf[p] + buf[p + 1] + buf[p + 2] - base[p] - base[p + 1] - base[p + 2] > 24) lit++;
+      g.paused = false;
+      K.on.eyes = null; await C('step', { seconds: 0.2 });
+      const off = L.heat.value;
+      return on === 1 && off === 0 && drawn && lit > 20 ? true : `glow off under the scope=${on === 1} back on after=${off === 0} veins drawn=${drawn} pixels the glow would warm=${lit}`;
+    } finally {
+      g.paused = false; K.on.eyes = had.eyes; K.charge.thermal_scope = had.charge; g.inventory.spend('thermal_scope', 1); rt.dispose();
+      await C('setTime', { hour: 12 });
+    }
   }));
 
   await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {

@@ -126,6 +126,10 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 - **A hat over hair:** the hair module is off and the classic hat is drawn, so nothing pokes through a cap.
 - **A mohawk:** the kit has no mohawk module; the classic mohawk piece rides the faceted head.
 - **A slot reused by a new person:** the recipe cache keys on the person's `colors` object, so it is rebuilt.
+- **The heat scope** (`WEB_GADGETS2.md` §3.3). The vein glow is light, not heat: the infected run cold. While the scope is
+  the live optic (`kit.eyes === 'thermal_scope'`), `main.js` sets `lswBodies.heat` to 1 and the shader multiplies the
+  emissive by `1 − lswHeat`, so the glow goes dark. The vein map still darkens the skin, which reads as cold. With the
+  scope off, the glow is back on the next frame. A flat scope is not live, so the glow stays on.
 - **An infected breed with no row in `VEIN_BY_BREED`** (or a plain shambler with no `zkind`) wears red rupture veins.
   A dormant sprinter already shows black veins up close, so it no longer passes for a shambler near the camera. Robert
   chose that legibility over the canon's surprise. At the classic distance it still looks like the rest.
@@ -145,7 +149,7 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 - **Shared-file hooks (minimal):**
   - `systems/characters.js`: +16 lines from the first cut (import, constructor, choose/finish, `near`, head height, hat
     and gear scale, `drive`), and **+1 condition** in this cut (the classic hair piece skips when `ownsHair`).
-  - `main.js`: +1 (focus). `ui/qol.js`: +3 (default, the select, apply). `agent/api.js`: +3 (import, commands, checks).
+  - `main.js`: +1 (focus), +1 (the heat scope switch, `charR.lsw.heat.value`). `systems/kit.js`: +1 (`this.eyes`, the optic live this frame). `ui/qol.js`: +3 (default, the select, apply). `agent/api.js`: +3 (import, commands, checks).
   - `docs/COMMANDS.md`: regenerated.
 
 ## 7. Tuning knobs (`data/lswbodies.js`; safe ranges)
@@ -182,7 +186,10 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 8. **The infected.** A crawler, a fallen one getting up, an overheated one, a shambler: legs on the solver within 3 cm.
 8b. **The vein infected.** A near shambler's GPU row carries rupture, a sprinter's black, an echo's neon, the
     Choir-Touched's and a living drifter's none; the vein atlas has vein pixels in every cell but hollow, glow pixels in
-    the rupture (≥80% red) and neon (≥80% green) cells only, and no pixel in the purple range. Render pair: `docs/renders/web/lsw-faceted/veins-*.jpg`.
+    the rupture (≥80% red) and neon (≥80% green) cells only, and no pixel in the purple range. Render pairs: `docs/renders/web/lsw-faceted/veins-*.jpg` (veins-heat-scope.jpg: naked eye | heat scope).
+8c. **Cold under the heat scope.** With the scope live, `lswBodies.heat` is 1, and it is 0 again once the scope is off.
+    A close night render of a red shambler and a neon echo through the scope differs in more than 20 pixels from the same
+    render with the glow forced on, so the glow is really gone (the selftest renders both).
 9. **Decay.** A bloated body (rot 0.6) wears exactly the classic rig's rotted shirt, trousers and skin, and the tint
    really changes them.
 10. **Budget.** With 160 people, draw calls stay under 150, faceted bodies add at most 3, 24 are drawn, and the CPU cost

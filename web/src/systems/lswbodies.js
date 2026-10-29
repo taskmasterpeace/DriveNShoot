@@ -148,6 +148,7 @@ export class LswBodies {
     this.candD = new Float64Array(rules.maxNear); this.candS = new Int16Array(rules.maxNear);
     this.hairKey = new Array(maxChars).fill(null); this.hairRGB = new Float32Array(maxChars * 3);
     this.bodies = []; // one: the kit
+    this.heat = { value: 0 }; // 1 while you look through the heat scope: the vein glow is light, not heat, so it goes dark (systems/kit.js)
     this.focus = null; // a Vector3 (the camera); nearest to it wear faceted bodies
     this.t = 0;
     this.stats = { frames: 0, ms: 0, last: 0, drawn: 0 };
@@ -288,7 +289,7 @@ export class LswBodies {
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.78 });
     mat.onBeforeCompile = (sh) => {
       skinPatch(sh, tex, morphs, false);
-      sh.uniforms.lswFaces = { value: faceTex }; sh.uniforms.lswVeins = { value: veinTex };
+      sh.uniforms.lswFaces = { value: faceTex }; sh.uniforms.lswVeins = { value: veinTex }; sh.uniforms.lswHeat = this.heat;
       // The colour is per module (LSW's material slots), resolved per vertex: one varying, no per-fragment branching.
       // The vein zombies (texel 7.z = the style): bare skin (skin, or a forearm the skin colour) takes the vein map, or
       // hollow's pale lerp; the clothes take 14% of the grave. All resolved per vertex but the map itself.
@@ -302,7 +303,7 @@ export class LswBodies {
     else if (lswS < 1.5 || (lswS > 3.5 && lswS < 4.5)) vLook = mix(vLook, ${glsl(VEIN_RULES.clothes)}, ${VEIN_RULES.clothesMix.toFixed(3)});
   }
   float lswF = lswW.w; vFace = vec3((uv + vec2(mod(lswF, 3.0), floor(lswF / 3.0))) * vec2(1.0 / 3.0, 0.5), step(6.5, lswS));`);
-      sh.fragmentShader = 'uniform sampler2D lswFaces; uniform sampler2D lswVeins; varying vec3 vLook; varying vec3 vFace; varying vec3 vVein;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      sh.fragmentShader = 'uniform sampler2D lswFaces; uniform sampler2D lswVeins; uniform float lswHeat; varying vec3 vLook; varying vec3 vFace; varying vec3 vVein;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
   diffuseColor.rgb = vLook; vec3 lswGlow = vec3(0.0);
   if (vVein.x > 0.5) { vec2 vu = vec2((fract(vVein.y) + floor(vVein.x + 0.5) - 1.0) / ${VEINS.length.toFixed(1)}, fract(vVein.z) * 0.5);
     diffuseColor.rgb *= texture2D(lswVeins, vu).rgb; lswGlow = texture2D(lswVeins, vu + vec2(0.0, 0.5)).rgb; }
@@ -310,7 +311,7 @@ export class LswBodies {
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   roughnessFactor = 0.78;`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-  totalEmissiveRadiance += lswGlow * ${VEIN_RULES.glowIntensity.toFixed(3)};`);
+  totalEmissiveRadiance += lswGlow * ${VEIN_RULES.glowIntensity.toFixed(3)} * (1.0 - lswHeat);`);
     };
     mat.customProgramCacheKey = () => 'lsw-faceted';
     mat.userData.noCut = true;

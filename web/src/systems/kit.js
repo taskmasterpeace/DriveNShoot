@@ -514,6 +514,7 @@ export class Kit {
   frame(dt) {
     const g = this.g, P = g.player, R = g.renderer, eyes = this.on.eyes && this.carried(this.on.eyes) && (this.staged || (this.charge[this.on.eyes] ?? 0) > 0) ? this.on.eyes : null;
     this.baseExposure ??= R.toneMappingExposure;
+    this.eyes = eyes; // the optic actually live this frame (the faceted bodies drop their vein glow under the heat scope)
     const U = this.mul.material.uniforms;
     U.t.value = g.time;
     if (eyes === 'nvg') {
