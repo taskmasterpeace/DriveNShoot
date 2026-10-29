@@ -38,6 +38,26 @@ export const BUILD_TO_FRAME = { average: 'hero', tall: 'hero', short: 'hero', le
 // DSOA has no sex field on a character: the body follows the VOICE (data/voices.js): a named NPC's voice row gender,
 // else genderOf(name), so how someone looks and how they sound never disagree.
 
+// THE VEIN INFECTED (LSW src/engine/modular-surfaces.js INFECTION_STYLES + modular-costume.js, Robert 10-19): a near
+// infected person's bare skin wears a vein map over its own (already infected) complexion. A breed reads by its veins
+// (Robert 10-29): the shamblers, the common slow walkers, LSW's RED rupture veins (glowing fissures, open wounds); the
+// sprinters BLACK veins; the smart ones (the echoes) NEON GREEN, radioactive, glowing. Breed is characters' zkind (a
+// plain shambler has none). The Choir-Touched stays ash-pale (null: no veins).
+//   mark   the vein colour drawn into the map           width  the vein stroke (px on the 256 px tile)
+//   glow   the colour the veins glow (null: they don't)  wounds rupture's three open wounds
+//   skin   hollow only: the bare skin lerps `skinMix` toward it instead of taking a map
+export const VEIN_STYLES = {
+  rupture: { mark: '#bb1725', width: 13, wounds: true, glow: '#ff2a1a' },
+  black: { mark: '#120f0e', width: 9, glow: null },
+  neon: { mark: '#2fd25a', width: 7, glow: '#3dff6e' },
+  hollow: { mark: '#493a34', width: 5, skin: '#857b74', skinMix: 0.3, noMap: true },
+};
+export const VEIN_BY_BREED = { shambler: 'rupture', sprinter: 'black', echo: 'neon', greyborn: 'hollow', choir: null };
+export const VEIN_RULES = {
+  glowIntensity: 0.9,                   // LSW's emissive strength on the glowing veins
+  clothes: '#5b4a38', clothesMix: 0.14, // the clothes take a little of the grave (LSW: 14%, not grey)
+};
+
 export const LSW_RULES = {
   near: 24,            // how many people (nearest the camera) wear a faceted body; the rest are the classic rig
   maxNear: 32,         // the pool: GPU rows reserved for skinned bodies (near may be set up to this)

@@ -24,3 +24,10 @@ What ships here: `kit.bin` / `kit.json` (every module of LSW's modular-hero kit,
 | kid | `public/authored-assets/body.faceted-civilian-kid/v1/model.glb` | `b6082e9fe812754865dda5d89766949886c29f29b2b89b30272dc0889f390eae` | `49fba1fef57d70c829abb33bf8827cb45a1ee9600ccfeec1e0c4233d0901feb8` |
 | elder | `public/authored-assets/body.faceted-civilian-elder/v1/model.glb` | `438e848b108b37d176260cf664f7d1d9ca33bf53399f15c468afbfc6339176fe` | `f69ee28054e36fbb96f962fe23c12eda7fe2071c7f0914201c222a0e425695f9` |
 | gang-member | `public/authored-assets/body.faceted-civilian-gang-member/v1/model.glb` | `c24ad72ad0478aa7b6d3d6f872338f9abb412e492b6346f0dfd5c55784335ac8` | `0229c17898948407bb3d7c114d193b65855e689f0691362307e4e2b8a8c03d87` |
+
+## The vein zombies (code port, no asset)
+`src/systems/lswbodies.js veinAtlas()` redraws LSW's vein tiles from `src/engine/modular-surfaces.js` (`INFECTION_STYLES`,
+`infectionTexture`, `infectionGlowTexture`) and the costume rules from `src/engine/modular-costume.js` (the 14% #5b4a38
+clothes, the #ff2a1a glow at 0.9), read only from `C:/lswwt/eyes-base` at commit 6048f2037 ("The vein zombies are back").
+Same licence as the kit: Proprietary-Internal (Machine King Studios), runtime only. No image file is shipped: the tiles
+are drawn at load.

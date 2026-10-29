@@ -218,6 +218,37 @@ export async function lswBodiesChecks(api, check, C) {
     return out.length ? out.join('; ') : true;
   }));
 
+  await check('lsw-bodies: the VEIN INFECTED (LSW modular-surfaces.js) - a near shambler wears red rupture veins that glow, a sprinter black veins, an echo (the smart one) neon green veins that glow, the Choir-Touched and the living none; the vein atlas holds a map for every veined style, glow only for the red and the neon (red-hued and green-hued), and no vein or glow pixel is in the purple range', () => stage(async () => {
+    const out = [];
+    const sham = g.zombies.spawn(STAGE.x - 1.5, STAGE.z + 1.5, false), sprint = g.zombies.spawn(STAGE.x - 0.3, STAGE.z + 1.5, true);
+    const echo = g.zombies.spawnKind('echo', STAGE.x + 0.9, STAGE.z + 1.5), choir = g.zombies.spawnKind('choir', STAGE.x + 2.1, STAGE.z + 1.5);
+    const live = add('drifter', -1.5, 2.7, { name: 'Still Breathing' });
+    const Z = [[sham, 'rupture'], [sprint, 'black'], [echo, 'neon'], [choir, 'none'], [live, 'none']];
+    for (const [z] of Z) if (z && z !== live) { z.hold = true; staged.push(z); }
+    if (Z.some(([z]) => !z)) return 'could not spawn every breed';
+    frame();
+    for (const [z, want] of Z) { const got = L.veinDrawn(z); if (got !== want) out.push(`${z.zkind ?? z.faction}: ${got ?? 'not drawn'}, want ${want}`); }
+    // The atlas (cells in VEIN_STYLES order): each mapped style has vein pixels, only the red and the neon glow, each in
+    // its own hue, and nothing is purple.
+    const img = L.veinTex.image, x = img.getContext('2d'), cells = ['rupture', 'black', 'neon', 'hollow'];
+    const glowHue = { rupture: 'red', neon: 'green' };
+    cells.forEach((k, i) => {
+      const map = x.getImageData(i * 256, 0, 256, 256).data, glow = x.getImageData(i * 256, 256, 256, 256).data;
+      let veins = 0, lit = 0, red = 0, green = 0, purple = 0;
+      for (let p = 0; p < map.length; p += 4) {
+        if (Math.min(map[p], map[p + 1], map[p + 2]) < 150) veins++;
+        if (glow[p] + glow[p + 1] + glow[p + 2] > 30) { lit++; if (glow[p] > glow[p + 1] + 80) red++; if (glow[p + 1] > glow[p] + 80 && glow[p + 1] > glow[p + 2] + 40) green++; }
+        for (const a of [map, glow]) { const r = a[p], gg = a[p + 1], b = a[p + 2]; if (b > gg + 20 && r > gg + 20 && b > 60) purple++; }
+      }
+      const wantMap = k !== 'hollow', hue = glowHue[k];
+      if (wantMap !== veins > 500) out.push(`${k}: ${veins} vein pixels`);
+      if (!!hue !== lit > 500) out.push(`${k}: ${lit} glow pixels`);
+      if (hue && (hue === 'red' ? red : green) < lit * 0.8) // the rest is anti-aliased edge out.push(`${k}: glow not ${hue} (${red} red, ${green} green of ${lit})`);
+      if (purple) out.push(`${k}: ${purple} purple-range pixels`);
+    });
+    return out.length ? out.join('; ') : true;
+  }));
+
   await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {
     const c = add('drifter', 0.5, 1.5, { name: 'Three Days' });
     c.hp = 0; c.alive = false; c.deadTime = 0; c.rot = 0.6; g.charR.paint(c);

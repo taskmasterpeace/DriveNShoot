@@ -83,6 +83,18 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
    (its own boxes, never a Character). At the bones stage, rites removes the Character for its bone pile.
 7. **The infected** keep faceted bodies. The ZOMBIES lane's poses ride existing solver flags: the crawler is `prone`, the
    fall and get-up is `knockT`, overheating is `crouch`, the lunge is a speed burst.
+   **The vein infected** (branch `feat/web-faceted-veins`). Robert's ask was relayed by the DEATHS lane on 2026-10-29: "the
+   models from the other game with the veins". Robert then set the colours himself the same day: red for the shamblers,
+   black for another breed, and neon green, "radioactive", for the smart ones. A near infected person's BARE skin wears a
+   vein tile multiplied over its own already-infected complexion. Bare skin means the skin slot, or a forearm the skin's
+   colour. LSW's `modular-surfaces.js infectionTexture` is ported line for line as `veinAtlas()`. By breed:
+   - a shambler wears **rupture**: thick red veins and three open wounds, the fissures glowing #ff2a1a;
+   - a sprinter wears **black** veins, which do not glow;
+   - an echo wears **neon** green veins, glowing #3dff6e;
+   - a greyborn wears **hollow**: no map, and the skin lerps 30% toward #857b74;
+   - the Choir-Touched and the living wear none.
+   The glow is 0.9. The clothes of every veined breed take 14% of #5b4a38. The baked face quad keeps its own eyes: LSW's
+   #f5f4dc infected eyes are not ported, because the faces are baked PNGs.
 8. **Breath.** An idle, living chest rises 1.2% at 0.25 Hz. No LSW motion clip is used.
 9. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
    set; the next frame is byte-identical to the classic rig (a check proves it).
@@ -96,6 +108,10 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
   0.995·reach·(|upper| + |fore|)`, then `reach ×= min(stretch, ratio)`.
 - Morphs: `muscleSmall = max(0, (1 − m) / 0.2)`, `muscleLarge = max(0, (m − 1) / 0.3)`, `waistNarrow = female ? 1 : 0`.
 - Hat scale: `k = headScale · max(headHalfX / 0.19, (faceZ − headC.z) / 0.185)`; the kit head sits inside at `headScale / k`.
+- Veins (per fragment, bare skin only): `atlas uv = ((fract(u) + style − 1) / 3, fract(v) / 2)`; `colour = skin ×
+  map(uv)`; `emissive = 0.9 × glow(uv + (0, ½)).rgb` (the glow row is drawn in the style's own glow colour). Styles in `VEIN_STYLES` order (1 rupture, 2 black, 3 neon, 4 hollow); hollow instead
+  `skin = mix(skin, #857b74, 0.3)` per vertex. Clothes: `mix(c, #5b4a38, 0.14)`. *Example:* a sprinter's skin #8f817b
+  under a vein pixel #bb1725 reads ≈#6a0c12 (multiply), and the same texel's glow adds 0.9 × #ff2a1a.
 - *Example:* a male raider of standard build. Preset gang-member; frame agile (0.83, 0.88); muscle 0.89 + 0.12 = 1.01 ±
   0.05 → `muscleLarge ≈ 0.03`; hair `short` → braids; face gang-member. His trunk is `1.15 × 0.83 = 0.95` wide, his
   limbs `1.15 × 0.855 = 0.98`. Aiming an SMG two-handed, each hand sits one palm (0.06 m ± 3 cm) from its grip.
@@ -110,6 +126,11 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 - **A hat over hair:** the hair module is off and the classic hat is drawn, so nothing pokes through a cap.
 - **A mohawk:** the kit has no mohawk module; the classic mohawk piece rides the faceted head.
 - **A slot reused by a new person:** the recipe cache keys on the person's `colors` object, so it is rebuilt.
+- **An infected breed with no row in `VEIN_BY_BREED`** (or a plain shambler with no `zkind`) wears red rupture veins.
+  A dormant sprinter already shows black veins up close, so it no longer passes for a shambler near the camera. Robert
+  chose that legibility over the canon's surprise. At the classic distance it still looks like the rest.
+- **An infected in long sleeves:** the forearm is not the skin's colour, so only the head and hands vein; the sleeve
+  takes the 14% grave tint.
 - **Photo mode, paused:** `sync(chars, 0)` still runs the pose pass, so photos show faceted bodies.
 - **WebGL's 16-attribute limit:** the kit's per-vertex data is 6 attributes (+4 for the instance matrix). Colours and the
   recipe ride the bone texture row (9 extra texels), and the morph deltas ride a second texture fetched by
@@ -143,6 +164,10 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 | `flag` | 0.12 × 0.08 m | 0.08–0.16 m wide | the shoulder patch |
 | `FACET_PRESETS.*.muscle` | 0.85–0.89 | 0.8–1.3 (validated) | LSW's muscle morphs |
 | `FACTION_PRESET`, `HAIR_MODULE`, `BUILD_TO_FRAME` | — | must name a preset / module / frame (validated) | who wears what |
+| `VEIN_BY_BREED` | shambler rupture (red), sprinter black, echo neon (green), greyborn hollow, choir none | a `VEIN_STYLES` key or null | which veins a breed wears |
+| `VEIN_STYLES.*.width` / `glow` | 13 / 9 / 7 px; #ff2a1a / none / #3dff6e | 3–16 px; any hue outside 260–330° | vein thickness and the colour they glow |
+| `VEIN_RULES.glowIntensity` | 0.9 | 0.4–1.5 | how hard glowing veins glow |
+| `VEIN_RULES.clothesMix` | 0.14 | 0–0.3 | how much the clothes take the grave colour |
 
 ## 8. Acceptance criteria (the named selftest checks, `lsw-bodies:`)
 1. **Kit.** The rows validate; the kit loads with 53 bones, 46 modules and six faces; `PROVENANCE.md` names the
@@ -157,6 +182,9 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 6. **Feet on the terrain.** The toes sit at the ground the solver stood them on, within 6 cm.
 7. **Flags.** One patch per body, each showing that person's own flag.
 8. **The infected.** A crawler, a fallen one getting up, an overheated one, a shambler: legs on the solver within 3 cm.
+8b. **The vein infected.** A near shambler's GPU row carries rupture, a sprinter's black, an echo's neon, the
+    Choir-Touched's and a living drifter's none; the vein atlas has vein pixels in every cell but hollow, glow pixels in
+    the rupture (≥80% red) and neon (≥80% green) cells only, and no pixel in the purple range. Render pair: `docs/renders/web/lsw-faceted/veins-*.jpg`.
 9. **Decay.** A bloated body (rot 0.6) wears exactly the classic rig's rotted shirt, trousers and skin, and the tint
    really changes them.
 10. **Budget.** With 160 people, draw calls stay under 150, faceted bodies add at most 3, 24 are drawn, and the CPU cost
