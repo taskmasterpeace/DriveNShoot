@@ -3,6 +3,7 @@ import { OCCUPATIONS } from '../data/occupations.js';
 import { CHANNELS } from '../data/pulls.js';
 import { hash32 } from '../world/geo.js';
 import { angleLerp } from '../engine/rng.js';
+import { TOWN_NIGHT } from '../data/survival.js';
 
 // GUNFIRE REACTIONS (docs/design/WEB_GUNFIRE_REACTIONS.md; rows in data/reactions.js). A shot fired is HEARD by the
 // people in earshot, each at their own loudness, bearing and error (law 6: nobody knows what they weren't told), and each
@@ -147,7 +148,7 @@ export class Reactions {
       const T = TEMPERAMENTS[this.temperOf(c)];
       const j = this.place(c.x, c.z);
       const wall = !g.los(c.x, c.z, x, z);
-      let range = base * T.ear * (1 + REACT.jump.earAdd * j) * (wall ? REACT.wallMul : 1) * (c.sleeping ? REACT.sleepEar : 1);
+      let range = base * T.ear * (1 + REACT.jump.earAdd * j) * (wall ? REACT.wallMul : 1) * (c.sleeping ? REACT.sleepEar * TOWN_NIGHT.hearAsleep / REACT.earMul : 1); // asleep: the town's own half an ear (about 20 m for a pistol)
       if (d >= range) { sum.deaf++; if (sum.deafs.length < 12) sum.deafs.push({ id: c.id, d: Math.round(d), range: Math.round(range), wall, asleep: !!c.sleeping }); continue; }
       if (moved >= REACT.maxPerShot) break;
       const loud = 1 - d / range, band = loud >= REACT.bands.near ? 'near' : loud >= REACT.bands.mid ? 'mid' : 'far';

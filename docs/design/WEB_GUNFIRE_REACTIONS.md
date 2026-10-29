@@ -63,7 +63,7 @@ These keep their own minds:
 - road people, story parties, hunters and anyone already in a fight (`c.target`).
 
 ### 3.2 Hearing (per listener, per shot: `onShot`)
-1. `range = 45 m × earMul (3) × loud[gun] × temper.ear × (1 + earAdd × jumpy) × (wallMul 0.55 if no line of sight) × (sleepEar 0.6 if asleep)`.
+1. `range = 45 m × earMul (3) × loud[gun] × temper.ear × (1 + earAdd × jumpy) × (wallMul 0.55 if no line of sight) × (asleep: sleepEar × TOWN_NIGHT.hearAsleep 0.45 / earMul 3, the town's own half an ear, about 20 m for a pistol)`.
 2. If `d ≥ range`, they did not hear it. Nothing happens to them.
 3. `loudness = 1 − d / range`. It is **near** at 0.62 or more, **mid** at 0.3 or more, and **far** below that.
 4. `bound = min(errMax 70°, (errBase 5° + errPerM 0.22° × d) × (errWall 1.8 behind a wall))`.
@@ -141,9 +141,9 @@ A pistol shot, heard 60 m away in the open by a steady townsman, in a town that 
 
 The same man **asleep**:
 
-- range 135 × 0.6 = **81 m**;
-- loudness 1 − 60/81 = 0.26, so **far**: freeze 1, keep_working 2, hide 1;
-- he is up after **2.6–5 s**.
+- range 135 × 0.45/3 = **20 m**, so at 60 m he sleeps through it. That is the town's own rule (`TOWN_NIGHT.hearAsleep`):
+  gunfire at the wall does not wake the far side of town. The battery's "the town sleeps" check caught an earlier 81 m.
+- At 15 m: loudness 1 − 15/20.25 = 0.26, so **far**, and he is up after **2.6–5 s**.
 
 **Jumpiness:**
 
@@ -226,7 +226,7 @@ The same man **asleep**:
 | earMul | 3 | 2–5 | how far a shot carries (× the 45 m noise) |
 | loud.{gun} | 1–1.3 | 0.6–2 | per gun; a future suppressor row goes < 1 |
 | wallMul | 0.55 | 0.3–0.9 | a building between |
-| sleepEar | 0.6 | 0.3–1 | sleepers' ears |
+| sleepEar | 1 | 0.5–2 | × the town's asleep ear (TOWN_NIGHT.hearAsleep / earMul) |
 | bands.near / mid | 0.62 / 0.3 | mid < near < 1 | the band cut points |
 | errBase / errPerM / errWall / errMax | 5° / 0.22° / 1.8 / 70° | 0–15 / 0.05–0.5 / 1–3 / 30–120 | bearing error |
 | distErr | 0.35 | 0–0.7 | distance guess |
@@ -257,7 +257,7 @@ checks every name it uses.
    an error of 4° or more, walks closer to the heard line than to the true one.
 5. **A person out of earshot does nothing.** At 230 m from a pistol in the open: no `gunReact`, no `rx`, no flee, no
    cower. One at 60 m hears it.
-6. **Someone asleep wakes slower.** Two alike at 50 m, one asleep. The awake one is moving within 1 s while the sleeper
+6. **Someone asleep wakes slower.** Two alike at 16 m (inside the asleep ear), one asleep. The awake one is moving within 1 s while the sleeper
    still lies asleep. The sleeper is up (`npcWoke` why `gunfire`) and reacting by 6 s.
 7. **Repeated shots raise jumpiness, which then decays.** 0 before. Above 0.4 after 6 shots. After 30 s it has fallen by
    `0.5^(30/90)` (±0.06). The next reaction's delay is cut by `delayCut × j`.

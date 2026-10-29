@@ -340,11 +340,11 @@ export async function reactionsChecks(api, check, C) {
       } finally { RX.clear(); unstage(g); }
     });
 
-    await check('react: someone asleep wakes slower (two alike at 50 m, one asleep: the awake one is moving inside a second, the sleeper still lies asleep then, and is up and reacting by 6 s)', async () => {
+    await check('react: someone asleep wakes slower (two alike at 16 m, one asleep - inside the asleep ear, TOWN_NIGHT.hearAsleep: the awake one is moving inside a second, the sleeper still lies asleep then, and is up and reacting by 6 s)', async () => {
       await openGround();
       const S = shooterAt(OPEN.x, OPEN.z);
-      const awake = person(OPEN.x + 50, OPEN.z + 6, { profile: 'civilian', pick: 'flee', name: 'Awake One', flag: 'BR' });
-      const sleeper = person(OPEN.x + 50, OPEN.z - 6, { profile: 'civilian', pick: 'flee', name: 'Sleeper', flag: 'HT' });
+      const awake = person(OPEN.x + 15, OPEN.z + 6, { profile: 'civilian', pick: 'flee', name: 'Awake One', flag: 'BR' });
+      const sleeper = person(OPEN.x + 15, OPEN.z - 6, { profile: 'civilian', pick: 'flee', name: 'Sleeper', flag: 'HT' });
       try {
         sleeper.sleeping = true; // laid down in the same frame as the shot (by day, the AI would wake them at once)
         const since = g.eventSeq;

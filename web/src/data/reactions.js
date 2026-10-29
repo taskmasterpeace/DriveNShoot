@@ -16,7 +16,8 @@ export const REACT = {
   earMul: 3,             // heard out to the shot's noise radius x this x the gun's loudness (a pistol's 45 m noise: 135 m)
   loud: { pistol: 1, auto: 1, smg: 1.05, rifle: 1.3, shotgun: 1.2, pump: 1.2, default: 1 },
   wallMul: 0.55,         // a building between the shot and the ear: heard out to this share of the range
-  sleepEar: 0.6,         // asleep: half an ear (a share of the range)
+  sleepEar: 1,           // asleep: x TOWN_NIGHT.hearAsleep / earMul - the town's own law (data/survival.js: 0.45 of the 45 m
+                         // noise, about 20 m: gunfire at the town wall doesn't wake the far side of town); this scales it
   bands: { near: 0.62, mid: 0.3 }, // loudness (1 at the muzzle, 0 at the edge of hearing): >= near is near, >= mid is mid, else far
   errBase: 5,            // degrees of bearing error at the muzzle...
   errPerM: 0.22,         // ...plus this per metre...
