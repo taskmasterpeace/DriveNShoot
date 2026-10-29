@@ -26,14 +26,16 @@ export function labelOf(o) {
 // The separation a material buys: polygonOffset factor/units (more negative = drawn nearer).
 const offKey = (m) => (m.polygonOffset ? `${m.polygonOffsetFactor}/${m.polygonOffsetUnits}` : '0/0');
 const isDecal = (m) => m.transparent && !m.depthWrite;
+const PROTO_BC = String(THREE.Material.prototype.onBeforeCompile);
 const plainMat = (m) => m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile;
 // Two faces of one instanced batch with one instance colour draw the same pixel whichever wins when the material's shading
 // of that face depends on nothing per instance but the colour: a plain material, the cutaway's screen-space dither
 // (systems/cutaway.js, '|cut1'), and the TOP of a wall (world/surfaces.js wallSurface paints only the sides).
 function twinSafe(m, up) {
   if (plainMat(m)) return true;
-  const key = String(m.customProgramCacheKey?.() ?? '').replace(/\|cut1$/, '');
-  return key === '' || key === String(m.onBeforeCompile) || (up && key === 'wallSurface1'); // (an unkeyed patch keys on its own source: the cutaway's wrapper)
+  // (the wind's patches, systems/lookfeel.js '|wind-*', only move vertices: shading still depends on the colour alone)
+  const key = String(m.customProgramCacheKey?.() ?? '').replace(/\|(cut1|wind-[a-z-]+)/g, '');
+  return key === '' || key === String(m.onBeforeCompile) || key === PROTO_BC || (up && key === 'wallSurface1'); // (an unkeyed patch keys on its own source: the cutaway's wrapper)
 }
 const sameColour = (A, B) => { const c = A.o.instanceColor; if (!c) return true; const a = c.array, i = A.inst * 3, j = B.inst * 3; return a[i] === a[j] && a[i + 1] === a[j + 1] && a[i + 2] === a[j + 2]; };
 const visibleUp = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
