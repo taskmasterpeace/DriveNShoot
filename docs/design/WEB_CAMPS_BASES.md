@@ -168,6 +168,8 @@ Example: a 10 × 9 m one-storey house = 5.5 × 90 = **$495**, rent **$30 a week*
 | `web/src/systems/survival.js` | `shelterKind`: `g.homes?.shelterKind() ?? 'rough'` outside buildings · `shelterFor('camp')` → `g.homes.shelterFor()` · the hold's rest `+ g.homes?.restBonus()` |
 | `web/src/agent/api.js` | import · `...homesCommands` · `await homesChecks` (before rites) · `homes: g.homes?.save()` · `g.homes?.load(s.homes)` |
 
+**One `camp` command**: the wilds lane already had `camp` (`build=firepit|rack|catcher`, `fuel`, `hang`, `take`, `fill`). `homes-api.js` builds its row from `outdoorsCommands(...).camp` and adds `action=pitch|strike|sleep|status`; with no `action=` the row is exactly the wilds' one.
+
 **The timed-actions lane**: every piece of work goes through `Homes.startJob(label, secs, done)`, one function. When `WEB_TIMED_ACTIONS` lands, that function becomes a call to its clock.
 
 ## 7. Tuning Knobs (safe ranges)
