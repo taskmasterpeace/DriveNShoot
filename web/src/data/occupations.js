@@ -28,7 +28,7 @@ export const MIX = {
   minWorkers: 8, maxWorkers: 64,
   minPop: 6,       // a settlement whose most people are fewer than this is nobody's workplace (a dead ruin)
   cap: 0.4,        // the most of a workforce one job may take, unless its row says `max`
-  jitter: 0.35,    // per settlement and job: score x exp(jitter x u), u in [-1, 1] from the seed
+  jitter: 0.5,     // per settlement and job: score x exp(jitter x u), u in [-1, 1] from the seed
   offWealth: 0.35, // a job outside its wealth band
   neighbourKm: 80, // same-kind settlements this close are neighbours for the diversity goal
 };
@@ -105,13 +105,13 @@ export const OCCUPATIONS = {
     talk: ['Grease, flour and whatever the hunters bring. That is the menu.', 'Nobody eats free. Not even the sheriff.', 'Griddle is hot by five. Bread is gone by noon.'] }),
   barkeep: J({ name: 'barkeep', at: ['saloon'], hero: 'saloon|tavern|cantina|roadhouse', shift: LATE, carry: ['rotgut', 'rag'], deals: ['food', 'water'], base: 0.7, fit: { bar: 1, trade: 0.5, leisure: 0.6, road: 0.3 }, max: 0.15,
     talk: ['Drink or talk. Both cost.', 'Every rumour in this valley crosses my bar sooner or later.', 'You start a fight in here, you finish it outside.'] }),
-  storekeeper: J({ name: 'storekeeper', at: ['shop'], hero: 'store|trading_post|general', shift: DAY, carry: ['road_atlas'], deals: ['food', 'tool', 'pack'], base: 0.9, fit: { market: 0.8, trade: 0.6, civic: 0.3 }, max: 0.2,
+  storekeeper: J({ name: 'storekeeper', at: ['shop'], hero: 'store|trading_post|general', shift: DAY, carry: ['road_atlas'], deals: ['food', 'tool', 'pack'], base: 0.9, fit: { market: 0.8, trade: 0.6, civic: 0.3 }, max: 0.2, minN: 10,
     talk: ['Shelves fill when a caravan comes in. Not before.', 'I trade fair. Ask anybody who is still alive.', 'Scrip, brass or something worth more than both.'] }),
   mechanic: J({ name: 'mechanic', at: ['auto_shop', 'garage', 'gas_station', 'truck_stop'], shift: DAY, carry: ['wrench', 'mechanic_wraps', 'spark_plugs'], makes: ['spark_plugs', 6, 8, 'plugs rebuilt from wrecks'], base: 0.7, fit: { road: 0.8, garage: 1, oil: 0.4, trade: 0.3 },
     talk: ['Bring me the part and I fix the car. Bring me nothing and I fix nothing.', 'Half these engines run on prayer and baling wire.', 'Every wreck on that road is a parts shelf to me.'] }),
   water_carrier: J({ name: 'water carrier', out: 'street', shift: DAWN, carry: ['water_can', 'canteen'], makes: ['water_bottle', 2, 16, 'filtered water'], base: 0.4, fit: { desert: 1.2, oasis: 1.4, dry: 0.6, waterworks: 1 },
     talk: ['Two trips to the well before the sun clears the roofs.', 'Clear water is the only money nobody argues with.', 'Boil it twice. The well is not what it was.'] }),
-  scavenger: J({ name: 'scavenger', out: 'edge', shift: DAY, carry: ['crowbar', 'satchel'], makes: ['scrap', 3, 20, 'salvage off the dead streets'], base: 0.5, fit: { ruin: 1.4, salvage: 1.2, suburb: 1, metro: 0.6, hot: 0.6 }, wealth: [0, 0.6],
+  scavenger: J({ name: 'scavenger', out: 'edge', shift: DAY, carry: ['crowbar', 'satchel'], makes: ['scrap', 3, 20, 'salvage off the dead streets'], base: 0.5, fit: { ruin: 1.4, salvage: 1.2, suburb: 1, metro: 0.6, hot: 0.6 }, wealth: [0, 0.6], max: 0.22,
     talk: ['The old houses still give, if you know which wall to open.', 'Copper wire, a good spring, a sealed tin. That is a good day.', 'The dead streets are not empty. Walk quiet.'] }),
   guard: J({ name: 'guard', out: 'gate', shift: DAY, carry: ['gun_shotgun', 'ammo_shells'], base: 0.4, fit: { walled: 1, holdout: 1, market: 0.3, metro: 0.3 }, fac: { raider: 0.6 },
     talk: ['Keep your hands where I can see them inside the wall.', 'Day watch is boring. Night watch is not.', 'We let traders in. We let raiders in once.'] }),
@@ -129,7 +129,7 @@ export const OCCUPATIONS = {
     talk: ['Every board in a barricade went through my hands.', 'Pull nails from the ruins, straighten them, use them again.', 'Good wood is getting scarce. The old barns are my forest.'] }),
   smith: J({ name: 'smith', at: ['auto_shop', 'barn', 'warehouse'], shift: DAY, carry: ['wrench', 'work_gloves'], makes: ['knife', 8, 6, 'blades from leaf springs'], base: 0.45, fit: { farm: 0.7, ranch: 0.6, mine: 0.6, pueblo: 0.5, arms: 0.8 },
     talk: ['A car spring makes the best blade you will ever carry.', 'Shoes for horses, hinges for gates, hooks for meat. All day.', 'Coal is dear. I burn what the woodcutters bring.'] }),
-  tanner: J({ name: 'tanner', at: ['barn', 'warehouse'], shift: DAY, carry: ['knife', 'work_gloves'], makes: ['leather_cap', 8, 6, 'cured leather'], base: 0.3, fit: { ranch: 1.2, hunting: 1.2, swamp: 0.4 },
+  tanner: J({ name: 'tanner', at: ['barn', 'warehouse'], shift: DAY, carry: ['knife', 'work_gloves'], makes: ['leather_cap', 8, 6, 'cured leather'], minN: 45, base: 0.3, fit: { ranch: 1.2, hunting: 1.2, swamp: 0.4 },
     talk: ['Smell does not bother me any more. It bothers my wife.', 'A good hide is a coat, a cap and a pair of boots.', 'Bring me the skin whole. Do not hack at it.'] }),
   hunter: J({ name: 'hunter', out: 'edge', shift: DAWN, carry: ['gun_rifle', 'ammo_rifle', 'knife'], makes: ['dried_meat', 4, 12, 'smoked game'], base: 0.4, fit: { forest: 1, plains: 0.8, cold: 0.8, hunting: 1.4, hills: 0.5 },
     talk: ['Deer went north. The things that ate the deer did not.', 'One round, one animal. Ammo is too dear to miss.', 'I smoke what I shoot before it turns.'] }),
@@ -161,6 +161,8 @@ export const OCCUPATIONS = {
   // the land: farms, ranches, the plains
   grower: J({ name: 'grower', at: ['barn', 'farmhouse'], out: 'field', shift: [5, 17], needs: ['farm', 'plains', 'pueblo', 'river', 'oasis'], bans: ['hot'], carry: ['work_gloves', 'machete'], makes: ['cactus_fruit', 4, 20, 'a crate of greens'], base: 0.6, fit: { farm: 1.6, plains: 0.8, river: 0.6, pueblo: 0.6, oasis: 0.6 },
     talk: ['Seed is life. We guard the seed store like gold.', 'The ground is sick in places. You learn which places.', 'Rain comes, we eat. Rain does not, we pray.'] }),
+  harvest_crew: J({ name: 'harvest crew hand', out: 'field', shift: [5, 17], needs: ['farm'], minN: 45, carry: ['work_gloves', 'machete'], base: 1, fit: { farm: 2, plains: 0.4 }, max: 0.12,
+    talk: ['Wheat does not wait. When it is ripe the whole farm goes into the field.', 'Bring the whole crew or lose the crop, that is the arithmetic.', 'The big farms hire hands by the season. Small ones just pray for rain.'] }),
   miller: J({ name: 'miller', at: ['mill', 'grain_elevator'], shift: DAY, needs: ['farm', 'mill'], carry: ['work_gloves'], makes: ['flatbread', 3, 12, 'flour, milled and baked'], base: 0.35, fit: { farm: 1.2, rail: 0.4 }, one: true,
     talk: ['The wheel turns, the flour falls. Weevils get a share.', 'Every family in the valley owes me a sack.', 'I grind what they grow. Simple.'] }),
   vet: J({ name: 'vet', at: ['barn', 'clinic'], shift: DAY, needs: ['farm', 'ranch'], carry: ['suture_kit', 'antibiotics'], base: 0.3, fit: { ranch: 1, farm: 0.8 }, one: true, minN: 10,
@@ -185,7 +187,7 @@ export const OCCUPATIONS = {
     talk: ['Bring me a rock and I tell you what it is worth.', 'Most bring fool\'s gold. Some bring trouble.', 'Silver is up. Lead is always up.'] }),
 
   // raider camps and warlord holds
-  scout: J({ name: 'scout', out: 'edge', shift: [5, 14], carry: ['gun_rifle', 'ammo_rifle', 'road_atlas'], base: 0.1, fit: { camp: 0.8, raiding: 1, road: 0.3 }, fac: { raider: 6, warlord: 3, garrison: 2, free: 0.4 },
+  scout: J({ name: 'scout', out: 'edge', shift: [5, 14], carry: ['gun_rifle', 'ammo_rifle', 'road_atlas'], base: 0.1, fit: { camp: 0.8, raiding: 1, road: 0.3 }, fac: { raider: 6, warlord: 3, garrison: 2, free: 0.4 }, max: 0.2,
     talk: ['I count your wheels and your guns before you see me.', 'The road tells you everything if you lie still long enough.', 'Three trucks east at noon. Someone will want to know.'] }),
   slaver: J({ name: 'slaver', at: ['barracks', 'warehouse'], hero: 'slave|pen|stockade|cage', shift: DAY, carry: ['road_chain', 'gun_pistol'], base: 0, fit: { slaving: 2, raiding: 0.6, camp: 0.3 }, fac: { raider: 1.6, warlord: 1.6, free: 0, garrison: 0, merchant: 0, company: 0, cult: 0.6 }, max: 0.12,
     talk: ['Everybody is worth something to somebody.', 'Keep walking, outsider. This is not your business.', 'The chains are not mine. I just hold the key.'] }),
@@ -199,7 +201,7 @@ export const OCCUPATIONS = {
     talk: ['Road is ours. Toll is fair.', 'Pay in fuel, ammo or goods. Not in lip.', 'The strip goes down at dusk. Do not race it.'] }),
 
   // garrisons and bases
-  sentry: J({ name: 'sentry', at: ['guardhouse'], out: 'gate', shift: DAY, needs: ['military'], carry: ['gun_rifle', 'ammo_rifle', 'combat_helmet'], base: 0.6, fit: { military: 1.6 }, fac: { garrison: 1.6 },
+  sentry: J({ name: 'sentry', at: ['guardhouse'], out: 'gate', shift: DAY, needs: ['military'], carry: ['gun_rifle', 'ammo_rifle', 'combat_helmet'], base: 0.6, fit: { military: 1.6 }, fac: { garrison: 1.6 }, max: 0.22,
     talk: ['Papers or turn around.', 'The wire is live. That is not a bluff.', 'Twelve hours on, twelve off. Same as before the end.'] }),
   armorer: J({ name: 'armorer', at: ['barracks', 'warehouse', 'quonset'], shift: DAY, needs: ['military', 'arms'], carry: ['cleaning_kit', 'wrench'], makes: ['ammo_pistol', 4, 12, 'reloaded pistol rounds'], base: 0.3, fit: { arms: 1.4, military: 1 }, one: true,
     talk: ['Brass, powder, primer, patience.', 'Every round I reload is a round we did not have to find.', 'Clean your rifle. I do not fix neglect.'] }),
@@ -219,7 +221,7 @@ export const OCCUPATIONS = {
     talk: ['The looms run on the water wheel now.', 'Twelve hours and your ears ring all night.', 'The company keeps the mill. The mill keeps the town.'] }),
   woodcutter: J({ name: 'woodcutter', out: 'edge', shift: [6, 16], needs: ['forest', 'cold', 'timber'], carry: ['fire_axe', 'work_gloves'], makes: ['planks', 4, 16, 'split timber'], base: 0.35, fit: { forest: 1.2, timber: 1.4, cold: 0.6 },
     talk: ['Winter eats a forest a year.', 'Fell, buck, split, stack.', 'Keep your axe sharp and your back straight.'] }),
-  trapper: J({ name: 'trapper', at: ['cabin'], out: 'edge', shift: DAWN, needs: ['cold', 'forest', 'hunting'], carry: ['knife', 'leather_vest'], makes: ['leather_vest', 12, 4, 'furs and a stitched vest'], base: 0.2, fit: { cold: 1.2, hunting: 1, forest: 0.6 },
+  trapper: J({ name: 'trapper', at: ['cabin'], out: 'edge', shift: DAWN, needs: ['cold', 'forest', 'hunting'], carry: ['knife', 'leather_vest'], makes: ['leather_vest', 12, 4, 'furs and a stitched vest'], base: 0.2, fit: { cold: 1.2, hunting: 1, forest: 0.6 }, wealth: [0, 0.4],
     talk: ['The lines run twenty miles. I walk them every three days.', 'Fur keeps you alive in the north. Nothing else does.', 'Something has been robbing my traps. Something big.'] }),
 
   // the road and the trade
@@ -233,7 +235,7 @@ export const OCCUPATIONS = {
     talk: ['House always wins. Even after the end of the world.', 'Play or move along.', 'The big game is upstairs. You need a sponsor.'] }),
   bouncer: J({ name: 'bouncer', at: ['saloon', 'hotel'], shift: [18, 4], carry: ['brass_knuckles'], base: 0.15, fit: { casino: 1.2, leisure: 0.8, bar: 0.4 },
     talk: ['Not tonight.', 'You walk out or you get carried out.', 'Leave the iron at the door.'] }),
-  porter: J({ name: 'porter', out: 'street', shift: DAY, carry: ['backpack'], base: 0.25, fit: { market: 0.6, trade: 0.6, rail: 0.6, casino: 0.4 }, wealth: [0, 0.7],
+  porter: J({ name: 'porter', out: 'street', shift: DAY, carry: ['backpack'], base: 0.25, fit: { market: 0.6, trade: 0.6, rail: 0.6, casino: 0.4 }, wealth: [0, 0.7], minN: 10,
     talk: ['I carry what you cannot. For a price.', 'Two bags, one trip, a quarter-scrip.', 'My back is the only machine I own.'] }),
 
   // civic life
