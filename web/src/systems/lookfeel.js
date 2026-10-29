@@ -314,7 +314,7 @@ void main() {
       this.bakeLut(B.grade);
     }
   }
-  strength() { const below = this.g.sky.below ?? 0; return GRADE.strength * this.settings.grade * (1 - 0.6 * below); }
+  strength() { const below = this.g.sky.below ?? 0; return GRADE.strength * this.settings.grade * (1 - 0.6 * below) * (this.g.kit?.gradeMul() ?? 1); } // goggles and the heat scope make their own picture (systems/kit.js)
 
   // The frame (main.js render; the screenshot command). Without the grade and the dirt it is the plain render.
   render(cam = this.g.camera) {
