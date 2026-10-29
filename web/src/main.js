@@ -75,6 +75,7 @@ import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressin
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
+import { Homes } from './systems/homes.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
 import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
 import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
@@ -263,6 +264,7 @@ class Game {
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
+    this.homes = new Homes(this); // camps, claimed bases, furniture carried home, owners and tenure (systems/homes.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
     this.stories = new SiteStories(this); // site stories and the bounty guild (systems/sitestories.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
@@ -524,7 +526,7 @@ class Game {
     if (p.inVehicle) r = S.sleepAt('car');
     else {
       const bed = this.bedNear(p.x, p.z);
-      r = bed ? S.sleepAt('bed', bed) : this.inventory.carried.count('bedroll') ? S.sleepAt('bedroll') : { ok: false, why: 'nowhere to sleep: a bed, a bedroll or a parked car' };
+      r = bed ? S.sleepAt('bed', bed) : this.homes?.campBed(p) || this.inventory.carried.count('bedroll') ? S.sleepAt('bedroll') : { ok: false, why: 'nowhere to sleep: a bed, a bedroll or a parked car' };
     }
     if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn');
     return r;
@@ -915,7 +917,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1) * (p.swampSlow ?? 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1) * (p.swampSlow ?? 1) * (p.haulSlow ?? 1); // ... and furniture in your arms (systems/homes.js) // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -1340,6 +1342,7 @@ class Game {
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
+      this.homes.update(simDt); // the camp's watch and bells, owners at their doors, rent and raids on the clock (systems/homes.js)
       this.stories.update(simDt); // places on the world clock, traders, raids, refugees, hunters (systems/sitestories.js)
       this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.nanGuard('late');
