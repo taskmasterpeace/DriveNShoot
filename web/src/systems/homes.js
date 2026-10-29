@@ -112,8 +112,8 @@ export class Homes {
     if (bells && !inv.carried.count(CAMP_BELLS.item)) return { ok: false, why: 'no trip bells on you' };
     if (fire && (inv.carried.count('deadwood') ?? 0) < 3) return { ok: false, why: 'a fire takes 3 deadwood' };
     return this.startJob('pitching camp', CR.pitchS, () => {
-      inv.spend(K.item, 1); if (bells) inv.spend(CAMP_BELLS.item, 1);
-      const o = { x: r1(P.x + Math.sin(P.face) * 1.2), z: r1(P.z + Math.cos(P.face) * 1.2), face: +P.face.toFixed(2), kit: kind, bells: !!bells, pit: null, at: +this.hours().toFixed(2), watch: { i: 0, at: this.hours() } };
+      inv.spend(K.item, 1); if (bells) inv.spend(CAMP_BELLS.item, 1); // the bed goes behind you, the fire pit in front (outdoors.build)
+      const o = { x: r1(P.x - Math.sin(P.face) * 1.9), z: r1(P.z - Math.cos(P.face) * 1.9), face: +P.face.toFixed(2), kit: kind, bells: !!bells, pit: null, at: +this.hours().toFixed(2), watch: { i: 0, at: this.hours() } };
       this.camp = o;
       let lit = null;
       if (fire) { const r = g.outdoors?.build?.('firepit'); if (r?.ok) { o.pit = r.id; lit = true; } else lit = r?.why ?? 'no fire'; }
@@ -163,7 +163,7 @@ export class Homes {
     this.factors = f;
     return CR.danger * f.road * f.town * f.horde * f.fire * f.lookout;
   }
-  atCamp(x, z) { const o = this.camp; return !!o && Math.hypot(x - o.x, z - o.z) < 4; }
+  atCamp(x, z) { const o = this.camp; return !!o && Math.hypot(x - o.x, z - o.z) < 4.5; }
   // survival.js asks: are you lying down in your camp? (shelterKind) and what is a night there worth (shelterFor).
   shelterKind() { const P = this.g.player; return !P.inVehicle && this.atCamp(P.x, P.z) ? 'camp' : null; }
   shelterFor() { const K = CAMP_KIT[this.camp.kit]; return { kind: 'camp', rest: K.rest + (this.camp.kit === 'tent' ? 0.02 : 0), danger: this.danger(), parts: null }; }
@@ -506,8 +506,9 @@ export class Homes {
     if (!F) { this.pieceCache.set(bk, NO_PIECES); return NO_PIECES; }
     const rng = rngOf(`furn:${bk}`), n = F.n[0] + Math.floor(rng() * (F.n[1] - F.n[0] + 1)), w = R.maxX - R.minX, d = R.maxZ - R.minZ;
     L = [];
-    for (let i = 0; i < n; i++) {
-      const kind = F.from[Math.floor(rng() * F.from.length)], S = FURNITURE[kind].size;
+    const bag = F.from.slice(); // drawn without putting back: a house has one stove, not two (a list may name a kind twice)
+    for (let i = 0; i < n && bag.length; i++) {
+      const kind = bag.splice(Math.floor(rng() * bag.length), 1)[0], S = FURNITURE[kind].size;
       const x = R.minX + 1.1 + S[0] / 2 + rng() * Math.max(0, w - 2.2 - S[0]), z = R.minZ + 1.1 + S[2] / 2 + rng() * Math.max(0, d - 2.2 - S[2]);
       L.push({ fid: `pc:${bk}:${i}`, kind, x: r1(x), z: r1(z), face: rng() < 0.5 ? 0 : Math.PI / 2, bk });
     }
@@ -683,7 +684,7 @@ export class Homes {
     if (o) {
       const K = CAMP_KIT[o.kit], [sx, sy, sz] = K.size, y = this.groundY(o.x, o.z);
       n = this.put(n, o.x, y + sy / 2, o.z, sx, sy, sz, o.face, K.colour);
-      if (o.kit === 'tent') n = this.put(n, o.x, y + sy + 0.04, o.z, 0.08, 0.08, sz + 0.2, o.face, '#3d3a2a'); // the ridge pole
+      if (o.kit === 'tent') n = this.put(n, o.x, y + sy + 0.04, o.z, 0.08, 0.08, sz + 0.2, o.face, '#6a5a3a'); // the ridge pole
       if (o.bells) for (let k = 0; k < CAMP_BELLS.posts; k++) { const a = (k / CAMP_BELLS.posts) * Math.PI * 2, x = o.x + Math.sin(a) * CAMP_BELLS.r, z = o.z + Math.cos(a) * CAMP_BELLS.r; n = this.put(n, x, this.groundY(x, z) + 0.35, z, 0.06, 0.7, 0.06, 0, CAMP_BELLS.colour); }
     }
     for (const b of this.bases.values()) {
@@ -703,8 +704,8 @@ export class Homes {
       if (b.fort.parts.includes('watchtower')) {
         const Tw = FORTIFY.watchtower.part, tx = R.x0 - 1.5, tz = R.z0 - 1.5;
         for (const [ox, oz] of [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]) n = this.put(n, tx + ox, y + Tw.h / 2, tz + oz, 0.18, Tw.h, 0.18, 0, Tw.colour);
-        n = this.put(n, tx, y + Tw.h, tz, Tw.w, 0.18, Tw.w, 0, '#7a6242');
-        n = this.put(n, tx, y + Tw.h + 0.55, tz, Tw.w, 1.0, 0.08, 0, '#5d4a33');
+        n = this.put(n, tx, y + Tw.h, tz, Tw.w, 0.18, Tw.w, 0, '#b08a5a');
+        n = this.put(n, tx, y + Tw.h + 0.55, tz, Tw.w, 1.0, 0.08, 0, '#8a6a44');
       }
       if (b.fort.parts.includes('turret')) { const Tu = FORTIFY.turret.part, tx = R.x1 + 1.2, tz = R.z1 + 1.2; n = this.put(n, tx, y + Tu.h / 2, tz, Tu.w, Tu.h, Tu.w, 0, Tu.colour); n = this.put(n, tx, y + Tu.h + 0.1, tz + 0.5, 0.12, 0.12, 1.2, 0, '#1f1f1f'); }
     }

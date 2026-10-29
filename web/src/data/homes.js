@@ -9,8 +9,8 @@ import { ITEMS } from './items.js';
 // pieces back. The fire is the wilds' fire pit (data/outdoors.js CAMP.firepit: 3 deadwood, a real fire you cook on); its
 // wood is burnt, so striking leaves the ash ring and returns nothing for it.
 export const CAMP_KIT = {
-  bedroll: { item: 'bedroll', sleep: 'bedroll', rest: 0.85, warm: 0, hide: 1, size: [0.8, 0.12, 2.0], colour: '#6b5a3c' },
-  tent: { item: 'tent', sleep: 'bedroll', rest: 0.95, warm: 4, hide: 0.85, size: [2.2, 1.25, 2.4], colour: '#6e6a4a' }, // walls between you and the eyes: a little harder to see you asleep
+  bedroll: { item: 'bedroll', sleep: 'bedroll', rest: 0.85, warm: 0, hide: 1, size: [0.8, 0.12, 2.0], colour: '#9a7e4e' },
+  tent: { item: 'tent', sleep: 'bedroll', rest: 0.95, warm: 4, hide: 0.85, size: [2.2, 1.25, 2.4], colour: '#a29a6a' }, // walls between you and the eyes: a little harder to see you asleep
 };
 export const CAMP_BELLS = { item: 'trip_bells', r: 18, posts: 10, colour: '#a08a4a' }; // a cord of bells on stakes round the camp, out past a sleeper's own ear (data/survival.js SLEEP.wakeR 12 m)
 
@@ -41,10 +41,10 @@ export const CAMP_RULES = {
 export const FORTIFY = {
   board_windows: { name: 'boarded windows', per: 'window', cost: [['planks', 1]], def: 0.03, secs: 6 },
   bar_doors: { name: 'barred doors', per: 'door', cost: [['planks', 1]], def: 0.06, secs: 5 },
-  wall: { name: 'yard wall', cost: [['scrap', 8], ['planks', 4]], def: 0.22, secs: 90, part: { kind: 'wall', h: 2.2, t: 0.35, colour: '#5d5446' } },
-  gate: { name: 'gate', needs: 'wall', cost: [['scrap', 4], ['planks', 2]], def: 0.06, secs: 40, part: { kind: 'gate', h: 2.4, w: 4, colour: '#4a4038' } },
-  watchtower: { name: 'watchtower', cost: [['planks', 6], ['scrap', 3]], def: 0.12, secs: 120, part: { kind: 'tower', h: 4.5, w: 2.2, colour: '#6a5236' }, warnR: 70 },
-  turret: { name: 'turret', cost: [['turret_kit', 1], ['ammo_rifle', 30]], def: 0.15, secs: 60, part: { kind: 'turret', h: 1.4, w: 0.9, colour: '#3d3b37' } },
+  wall: { name: 'yard wall', cost: [['scrap', 8], ['planks', 4]], def: 0.22, secs: 90, part: { kind: 'wall', h: 2.2, t: 0.35, colour: '#9a8a6e' } },
+  gate: { name: 'gate', needs: 'wall', cost: [['scrap', 4], ['planks', 2]], def: 0.06, secs: 40, part: { kind: 'gate', h: 2.4, w: 4, colour: '#7a5a3a' } },
+  watchtower: { name: 'watchtower', cost: [['planks', 6], ['scrap', 3]], def: 0.12, secs: 120, part: { kind: 'tower', h: 4.5, w: 2.2, colour: '#a07a4e' }, warnR: 70 },
+  turret: { name: 'turret', cost: [['turret_kit', 1], ['ammo_rifle', 30]], def: 0.15, secs: 60, part: { kind: 'turret', h: 1.4, w: 0.9, colour: '#5e5a52' } },
 };
 
 // ---- 4. furniture: pieces of the world, carried home -----------------------------------------------------------------
@@ -52,17 +52,17 @@ export const FORTIFY = {
 // A piece has ONE place in the world: where it was made, your hands, a vehicle, or a room in your base. Lifting it from
 // a house somebody owns is a theft (the steal deed). hands: carried in your arms (you walk at `slow`, no gun up).
 export const FURNITURE = {
-  sofa: { name: 'sofa', kg: 42, bulk: 900, slow: 0.55, size: [2.0, 0.85, 0.9], colour: '#7a5a42', uses: ['bunk', 'lounge'] },
-  armchair: { name: 'armchair', kg: 18, bulk: 420, slow: 0.7, size: [0.9, 0.9, 0.9], colour: '#6a4a3a', uses: ['lounge'] },
-  bed_frame: { name: 'bed', kg: 35, bulk: 800, slow: 0.6, size: [1.4, 0.55, 2.0], colour: '#8a7a62', uses: ['bunk', 'infirmary'] },
-  cot: { name: 'cot', kg: 8, bulk: 200, slow: 0.85, size: [0.75, 0.45, 1.9], colour: '#5f6a52', uses: ['bunk', 'infirmary'] },
-  table: { name: 'table', kg: 22, bulk: 500, slow: 0.7, size: [1.5, 0.75, 0.9], colour: '#7c6446', uses: ['kitchen', 'armory', 'workshop'] },
-  cabinet: { name: 'cabinet', kg: 28, bulk: 450, slow: 0.65, size: [1.0, 1.8, 0.5], colour: '#6c5a44', uses: ['kitchen', 'infirmary', 'storage'], holds: 120 },
-  gun_rack: { name: 'gun rack', kg: 14, bulk: 260, slow: 0.8, size: [1.2, 1.6, 0.35], colour: '#4e4236', uses: ['armory'], holds: 160 },
-  stove: { name: 'wood stove', kg: 60, bulk: 300, slow: 0.45, size: [0.8, 0.9, 0.7], colour: '#3a3836', uses: ['kitchen'] },
-  workbench: { name: 'workbench', kg: 40, bulk: 700, slow: 0.55, size: [1.8, 0.9, 0.8], colour: '#6e5a3e', uses: ['workshop', 'armory'] },
-  dog_bed: { name: 'dog bed', kg: 4, bulk: 120, slow: 0.95, size: [0.9, 0.2, 0.7], colour: '#7a6a4a', uses: ['kennel'] },
-  locker: { name: 'steel locker', kg: 30, bulk: 400, slow: 0.6, size: [0.6, 1.9, 0.5], colour: '#59605a', uses: ['armory', 'storage'], holds: 140 },
+  sofa: { name: 'sofa', kg: 42, bulk: 900, slow: 0.55, size: [2.0, 0.85, 0.9], colour: '#a8744e', uses: ['bunk', 'lounge'] },
+  armchair: { name: 'armchair', kg: 18, bulk: 420, slow: 0.7, size: [0.9, 0.9, 0.9], colour: '#9c5e44', uses: ['lounge'] },
+  bed_frame: { name: 'bed', kg: 35, bulk: 800, slow: 0.6, size: [1.4, 0.55, 2.0], colour: '#c8b48e', uses: ['bunk', 'infirmary'] },
+  cot: { name: 'cot', kg: 8, bulk: 200, slow: 0.85, size: [0.75, 0.45, 1.9], colour: '#8a9a6e', uses: ['bunk', 'infirmary'] },
+  table: { name: 'table', kg: 22, bulk: 500, slow: 0.7, size: [1.5, 0.75, 0.9], colour: '#b08a5c', uses: ['kitchen', 'armory', 'workshop'] },
+  cabinet: { name: 'cabinet', kg: 28, bulk: 450, slow: 0.65, size: [1.0, 1.8, 0.5], colour: '#a08462', uses: ['kitchen', 'infirmary', 'storage'], holds: 120 },
+  gun_rack: { name: 'gun rack', kg: 14, bulk: 260, slow: 0.8, size: [1.2, 1.6, 0.35], colour: '#7e6446', uses: ['armory'], holds: 160 },
+  stove: { name: 'wood stove', kg: 60, bulk: 300, slow: 0.45, size: [0.8, 0.9, 0.7], colour: '#6a6660', uses: ['kitchen'] },
+  workbench: { name: 'workbench', kg: 40, bulk: 700, slow: 0.55, size: [1.8, 0.9, 0.8], colour: '#a88a5a', uses: ['workshop', 'armory'] },
+  dog_bed: { name: 'dog bed', kg: 4, bulk: 120, slow: 0.95, size: [0.9, 0.2, 0.7], colour: '#b0905a', uses: ['kennel'] },
+  locker: { name: 'steel locker', kg: 30, bulk: 400, slow: 0.6, size: [0.6, 1.9, 0.5], colour: '#8a948a', uses: ['armory', 'storage'], holds: 140 },
 };
 // What each kind of building holds (a seeded draw: n pieces from its list).
 export const FURNISHED = {
