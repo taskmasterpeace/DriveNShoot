@@ -200,3 +200,5 @@ dead). The tail reads morale: wide and quick near you and well, stiff and up whe
    bond and its memory.
 Also: the draw-call budget (selftest "perf budget") holds with dogs on screen (measured 75–86 by day and night, at the
 closest and widest zoom, over a pack and over Rust Haven).
+
+**Used by GADGETS-2** (`WEB_GADGETS2.md`): DOG_GEAR (vest, lamp, bark collar). `dogs.hurt` takes the vest share (`g.kit.dogSoak`), and the collar marks only what `dogs.sense` set as `d.threat`.
