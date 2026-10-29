@@ -238,6 +238,7 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 | `data/sites/*.js`, `tools/sites-project.mjs` | SITE rows and their projected anchors | `WEB_LOCATION_BIBLE.md` §9 |
 | `docs/research/GENRE_DEPTH.md` §4 | the overrun levels, heat, spread, siege nights | — |
 | Tactics lane (`systems/tactics.js`) | consumes `coverNear` + box tags | listed in hand-back |
+| Occupations (`systems/workforce.js`, `world/occupations.js`; `WEB_OCCUPATIONS.md`) | consumes the plan records (arch, biome, site, seed), `live` towns' `blds` (B.kind, B.hero, doors) and `T.roads`/`T.gates`, `stampAt` in its checks | `WEB_OCCUPATIONS.md` §6 |
 
 ## 7. Tuning Knobs
 

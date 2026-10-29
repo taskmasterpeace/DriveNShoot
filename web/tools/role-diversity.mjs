@@ -8,11 +8,19 @@
 //   node tools/role-diversity.mjs            the score, after a one-line summary
 //   node tools/role-diversity.mjs --json     the whole report (every settlement, its mix, what fails)
 //   node tools/role-diversity.mjs --fails    the settlements that fail, one line each, then the score
-import { readFileSync } from 'node:fs';
+//   node tools/role-diversity.mjs --refresh  first re-dump the fixture from a running game (DL_URL, default :3141)
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { evaluate } from '../src/world/occupations.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+if (process.argv.includes('--refresh')) {
+  const base = process.env.DL_URL ?? 'http://localhost:3141';
+  const r = await (await fetch(`${base}/agent/cmd`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd: 'town', args: { action: 'dump' } }) })).json();
+  if (!r.ok) { console.error(`refresh failed: ${r.error}`); process.exit(1); }
+  writeFileSync(`${root}tools/fixtures/settlements.json`, JSON.stringify({ note: r.note, records: r.records }).replace(/\},\{/g, '},\n{'));
+  console.log(`refreshed: ${r.records.length} records from ${base}`);
+}
 const recs = JSON.parse(readFileSync(`${root}tools/fixtures/settlements.json`, 'utf8')).records;
 const R = evaluate(recs);
 const S = R.summary;

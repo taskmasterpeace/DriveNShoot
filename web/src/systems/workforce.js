@@ -21,7 +21,7 @@ import { rngOf } from '../world/geo.js';
 export const WORK = {
   promoteR: 170,   // m from you to a worker's place before they are made real
   demoteR: 240,    // m before they fold back into their record
-  maxLive: 18,     // workers real at once, across every town
+  maxLive: 24,     // workers real at once, across every town
   reserve: 28,     // character slots always left free (AMBIENT_RESERVE and the director's events first)
   tick: 0.5,       // s between passes (promotion, production)
   walk: 1.45,      // m/s
@@ -83,10 +83,13 @@ export class Workforce {
       return { x: cx + Math.cos(a) / s, z: cz + Math.sin(a) / s, face: Math.atan2(Math.cos(a), Math.sin(a)), label: 'the edge of town', bid: null, k };
     };
     const street = (u) => {
-      const roads = (T.roads ?? []).filter((r) => r.main) ; const r = roads[Math.floor(u * roads.length)] ?? T.roads?.[0];
+      // on the kerb of a main street (either side), facing the road: a stall, a pump, a washtub, never the crown of the road
+      const roads = (T.roads ?? []).filter((r) => r.main); const r = roads[Math.floor(u * roads.length)] ?? T.roads?.[0];
       if (!r) return { x: cx, z: cz, face: 0, label: 'the street', bid: null };
-      const v = hashU(Math.floor(u * 1e6), 'along');
-      return { x: r.x0 + (r.x1 - r.x0) * (r.axis === 'x' ? v : 0.5), z: r.z0 + (r.z1 - r.z0) * (r.axis === 'z' ? v : 0.5), face: v * Math.PI * 2, label: 'the street', bid: null };
+      const v = 0.1 + 0.8 * hashU(Math.floor(u * 1e6), 'along'), side = hashU(Math.floor(u * 1e6), 'side') < 0.5 ? -1 : 1;
+      if (r.axis === 'x') { const z = side < 0 ? r.z0 + 0.8 : r.z1 - 0.8; return { x: Math.max(T.x0 + 10, Math.min(T.x1 - 10, r.x0 + (r.x1 - r.x0) * v)), z, face: side < 0 ? 0 : Math.PI, label: 'the street', bid: null }; }
+      const x = side < 0 ? r.x0 + 0.8 : r.x1 - 0.8;
+      return { x, z: Math.max(T.z0 + 10, Math.min(T.z1 - 10, r.z0 + (r.z1 - r.z0) * v)), face: side < 0 ? Math.PI / 2 : -Math.PI / 2, label: 'the street', bid: null };
     };
     const count = new Map();
     for (const w of B.workers) {
