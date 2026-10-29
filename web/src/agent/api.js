@@ -2353,7 +2353,6 @@ async function runSelfTest(api, only = null, skip = null) {
     return soaked && c.headless && g.fx.dNext !== decals ? true : `soaked=${soaked} headless=${c.headless} footprints=${g.fx.dNext !== decals}`;
   });
   await check('every building interior + NPC home walkable', async () => {
-    g.reactions?.clear(); // the geometry, not the moment: a resident who barred their door against the opening gunfight (systems/reactions.js) opens it
     const n = g.nav.foot, bad = [];
     for (const b of g.world.buildings) {
       if (!b.enterable || !b.doors.length) continue;

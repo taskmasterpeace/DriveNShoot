@@ -113,7 +113,7 @@ export async function stageStreet(api, x, z) {
   const g = api.g;
   unstage(g); g.reactions.clear();
   if (g.player.inVehicle) g.exitVehicle(true);
-  const D = streetDoor(g, x, z) ?? streetDoor(g, 0, -40, 900);
+  const D = (x !== undefined && z !== undefined ? streetDoor(g, x, z) : null) ?? streetDoor(g, 0, -40, 900); // Phoenix's streets unless told where
   if (!D) return { door: null, why: 'no street door with room in front near you' };
   const S0 = at(D, SHOOTER_AT.a, SHOOTER_AT.b);
   // You watch from across the street, out of everyone's way.

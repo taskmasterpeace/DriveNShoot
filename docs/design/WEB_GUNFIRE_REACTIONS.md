@@ -59,7 +59,7 @@ These keep their own minds:
 - fighters (raiders, soldiers, a base's garrison);
 - your crew and followers;
 - the infected, animals and dogs;
-- witnesses running to tell (`c.telling`);
+- witnesses running to tell (`c.telling`), crew candidates (`c.crewCand`);
 - road people, story parties, hunters and anyone already in a fight (`c.target`).
 
 ### 3.2 Hearing (per listener, per shot: `onShot`)
@@ -120,7 +120,7 @@ These keep their own minds:
 - **Barks:** one line from the reaction's row, through `voice.speak` (a voiced clip, else a subtitle) and the floater.
   At most one every 0.45 s, and only within 70 m of you.
 - **Body language:** on the pose solver's own flags (`crouch`, `handsUp`, `aiming`, `stoop`).
-- **Doors:** a thud and the lock, the moment the hider is in. The door comes unbarred when their reaction ends, or after
+- **Doors:** a thud, the leaves shut and the lock, the moment the hider is in. The door comes unbarred when their reaction ends, or after
   300 s at most.
 
 ### 3.7 Memory: jumpiness
@@ -166,6 +166,13 @@ The same man **asleep**:
 - **No door near** → down where they are. **No bed** → flat on the ground. **No family** → hide.
 - **Family dead mid-run** → hide.
 - **Door already barred by someone else** → the next door.
+- **A barred door and the route planner.** A bar is a real lock (`locked`, kick/shoot it open), but it does **not** stamp
+  the foot nav grid the way `interiors.setLocked` does. A bar lasts seconds, and stamping it sealed whole homes from every
+  other walker's route (the battery's floor-plan, storeys and walkable checks caught it after Phoenix's opening
+  gunfight). Others path to it and stop at the closed door, as they do at any shut door.
+- **Saved while barred.** `interiors.save` records it as locked, and it loads locked (unknown state holds, law 1). Kick it
+  open. Only a door this system barred is ever unbarred by it (`door.rxBar`).
+- **Crew candidates** (`c.crewCand`) are crew.js's: they do not take part.
 - **Below the street** (`c.ug`), in a seat, being dragged, captive → not this system's.
 - **Underground shots** never reach the street (the existing `under.noise` short-circuit is untouched).
 - **The 14 m flinch** (`ambient.onShot`, 55% cower) still happens first for the unarmed close by. The profiled reaction
@@ -204,6 +211,7 @@ The same man **asleep**:
 | `web/src/systems/ai.js` | `onNoise`: `\|\| c.rx` in the skip; `update`: `if (c.rx && g.reactions.think(c, dt)) continue;` after the hold line |
 | `web/src/data/pulls.js` | `CHANNELS.heard` row; `FACT_KINDS.gunfire` row |
 | `web/src/agent/api.js` | import; `...reactionsCommands(api, need)`; `await reactionsChecks(api, check, C)` before the draw-call check |
+| `web/src/systems/interiors.js` | none: barring uses its `orient`, `syncLock`, `flush` and the door's own fields |
 | `web/docs/COMMANDS.md` | regenerated |
 
 ## 7. Tuning Knobs (`data/reactions.js REACT`)

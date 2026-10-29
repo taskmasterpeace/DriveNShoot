@@ -119,7 +119,7 @@ export class Reactions {
     const g = this.g;
     if (!c.alive || c === g.player || c === src || c.inVehicle || c.ug || c.hidden || c.dragged || c.captive) return false;
     if (c.faction === 'zombie' || c.fauna || c.gv || c.crewRec || c.follower || c.baseId || c.mbId || c.ugRole || c.telling || c.trundle || c.husk || c.perch) return false;
-    if (c.storyM || c.storyCamp || c.storyGarrison || c.pullRec || c.barRole || c.wild || c.hunt || c.trailing || c.picker) return false;
+    if (c.crewCand || c.storyM || c.storyCamp || c.storyGarrison || c.pullRec || c.barRole || c.wild || c.hunt || c.trailing || c.picker) return false;
     if (c.target) return false; // already in a fight: the fight's brain has them
     return c.faction === 'drifter' || c.faction === 'warden' || !!c.npc || !!c.res || !!c.occRec || !!c.rxProfile;
   }
@@ -365,10 +365,19 @@ export class Reactions {
     const g = this.g;
     if (D.locked) return; // somebody else got it shut first
     g.audio?.thud?.(g.pan(D.x));
-    g.interiors.setLocked(D, true);
+    this.bar(D, true);
     this.barred.push({ door: D, by: c.id, c, at: g.time });
     this.stats.slams++; this.stats.barred++;
     g.emit('doorSlam', { door: D.id, by: c.id, barred: true });
+  }
+  // Barred from inside: shut and locked for real (kicked or shot open like any lock: interiors.unlock), but the street's
+  // nav grid is not stamped (interiors.setLocked does that for a lock that holds for good). A bar lasts seconds, and
+  // stamping it sealed whole homes from the route planner for every other walker while it held.
+  bar(D, on) {
+    const I = this.g.interiors;
+    if (on) { for (const L of D.leaves) { L.th = 0; L.w = 0; I.orient(L); } D.locked = true; D.lockHp = D.mat.lockHp; D.kicks = D.mat.kicks; D.rxBar = true; }
+    else { if (!D.rxBar) return; D.locked = false; D.rxBar = false; }
+    I.syncLock(D); I.flush();
   }
   // A child under the nearest bed (or flat on the floor where they are, with no bed near).
   toBed(c, rx, row, dt) {
@@ -441,7 +450,7 @@ export class Reactions {
     for (let i = this.barred.length - 1; i >= 0; i--) {
       const b = this.barred[i], c = b.c;
       if (c.alive && g.chars.indexOf(c) >= 0 && c.rx?.door === b.door && g.time - b.at < 300) continue;
-      if (b.door.locked && !b.door.broken) g.interiors.setLocked(b.door, false);
+      if (b.door.locked && !b.door.broken) this.bar(b.door, false);
       this.barred.splice(i, 1);
     }
   }
@@ -469,7 +478,7 @@ export class Reactions {
   clear() {
     for (const c of this.g.chars) if (c.rx) this.end(c);
     this.update(0);
-    for (const b of this.barred) if (b.door.locked) this.g.interiors.setLocked(b.door, false);
+    for (const b of this.barred) if (b.door.locked) this.bar(b.door, false);
     this.barred.length = 0;
   }
 }
