@@ -109,6 +109,10 @@ export async function undergroundChecks({ api, g, check, C }) {
     g.flashOverride = undefined; g.aimOverride = null; g.autopilot = null;
     await C('standing', { faction: 'remnant', set: 0 });
     baseHold(true);
+    // The site as calm as before you came: a record an earlier check left `warned` (walking down Outpost Nine's hatch is
+    // challenged every time, 1.5 s left on the warning) turned hostile in the frames of the next check's arrival - its
+    // soldiers took you as their target and never challenged, its drone hung off you (docs/design/WEB_BATTERY_STABILITY.md §3.5).
+    const rec = U.recs.get(id); if (rec) { rec.alert = 'calm'; rec.warnT = 0; }
     const r = await C('underground', { action: 'enter', id, level });
     for (const c of [...g.chars]) if (c !== p && !c.ug && !c.npc && !c.baseId && !c.res && (c.faction === 'raider' || c.faction === 'drifter' || c.faction === 'zombie') && Math.hypot(c.x - p.x, c.z - p.z) < clearR) g.removeChar(c);
     await api._step(3);
@@ -268,6 +272,9 @@ export async function undergroundChecks({ api, g, check, C }) {
   });
 
   await check('underground: Outpost Nine\'s holdout - soldiers with service rifles at their posts, a drone flying its corridor; a trespasser in sight is challenged once, then shot at', async () => {
+    // Their reading of you is the standing this check sets (0, then 50 for the drone's round): what the battery so far made of
+    // you (systems/roles.js biases every faction's reading) is not part of it, as the world memory checks' stage() has it.
+    g.roles.reset();
     await stage('outpost9_deep', 1);
     const A = U.A, P = A.levels.get(1);
     const soldiers = P.occ.filter((c) => c.ugRole === 'soldier' && c.alive), drone = P.occ.find((c) => c.ugRole === 'drone');
