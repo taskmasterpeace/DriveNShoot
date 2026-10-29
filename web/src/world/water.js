@@ -221,6 +221,7 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
 
   // Wading/swimming state for a character at its position.
   stateAt(x, z, y) {
+    if (this.below) { const u = this.below(x, z, y); if (u !== undefined) return u; } // below the street: the drains' own water, never the river over them (systems/understreet.js)
     if (this.dockDeck && x > this.dockDeck.minX && x < this.dockDeck.maxX && z > this.dockDeck.minZ && z < this.dockDeck.maxZ) return 'dry';
     const d = this.depthAt(x, z, false, y);
     return d <= 0.25 ? 'dry' : d < WATER.swimDepth ? 'wade' : 'swim';

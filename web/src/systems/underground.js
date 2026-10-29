@@ -191,7 +191,7 @@ export class Underground {
 
   // ---- surface entrances -----------------------------------------------------------------------------------------------
   attach(site) {
-    const g = this.g, row = this.rowOf(site), plan = planSite(row), ent = buildEntrance(row, plan, this.M), r = this.rec(site);
+    const g = this.g, row = this.rowOf(site), plan = planSite(row), ent = plan.drains ? this.ext.buildWays(row, plan) : buildEntrance(row, plan, this.M), r = this.rec(site); // a town's drains: all its ways (systems/understreet.js)
     g.scene.add(ent.group);
     const collar = ent.collar.map((b) => StaticWorld.box(b.x0, b.z0, b.x1, b.z1, 'ug-collar', b.h));
     for (const b of collar) g.statics.extra.push(b);
@@ -214,6 +214,7 @@ export class Underground {
     const ex = this.g.statics.extra;
     for (const b of [...T.collar, T.gate]) { const i = ex.indexOf(b); if (i >= 0) ex.splice(i, 1); }
     this.attached.delete(id);
+    if (T.plan.drains) this.ext?.detached(id);
   }
   syncSurfaceGate(id) {
     const T = this.attached.get(id);
@@ -237,6 +238,7 @@ export class Underground {
     this.A = A;
     rec.touched = true;
     this.U.setBounds(A.x0, A.z0, A.x1, A.z1);
+    this.U.y0 = plan.Y[0]; // rays at an underground height route here (engine/collision.js raycast)
     if (plan.lift) {
       A.platform = buildPlatform(plan, this.M); this.g.scene.add(A.platform);
       const R = plan.lift.rect;
@@ -253,13 +255,16 @@ export class Underground {
     for (const k of [...A.levels.keys()]) this.demote(k);
     if (A.platform) { this.g.scene.remove(A.platform); }
     this.U.clearAll();
+    this.U.y0 = 0;
     this.A = null;
     this.occluder.visible = false;
   }
 
+  // The street's height over the live site (0 for the authored sites; a town's pad on real terrain for its drains).
+  get y0() { return this.A?.plan.Y[0] ?? 0; }
   levelOf(y) {
     const A = this.A;
-    if (!A || y > -UG.below) return 0;
+    if (!A || y > A.plan.Y[0] - UG.below) return 0;
     let best = 0, bd = 3.6;
     for (let k = 1; k <= A.plan.n; k++) { const d = Math.abs(A.plan.Y[k] - y); if (d < bd) { bd = d; best = k; } }
     return best;
@@ -310,8 +315,9 @@ export class Underground {
     // People: as the record has them, or as the level was made.
     const list = lr.occ ?? L.spawns.map((s, i) => ({ i, kind: s.kind, x: s.x, z: s.z, hp: null, alive: true, face: 0, weapon: s.weapon }));
     if (!lr.occ) lr.occ = list;
-    list.forEach((o, i) => { if (o.alive !== false) this.spawnOcc(P, o, L.spawns[o.i] ?? null, i); });
+    list.forEach((o, i) => { if (o.alive !== false && !o.gone && (!A.plan.drains || this.ext.wantOcc(P, o))) this.spawnOcc(P, o, L.spawns[o.i] ?? null, i); }); // a town's drains stand up only who is near you (systems/understreet.js lazy)
     this.paint(P);
+    if (A.plan.drains) this.ext.onPromote(P);
     this.counts.promoted++;
     g.emit('ugPromote', { site: site.id, level: k, people: P.occ.length, doors: P.doors.length, boxes: L.boxes.length });
     return P;
@@ -362,6 +368,7 @@ export class Underground {
     for (const b of P.beds) { const i = beds.indexOf(b); if (i >= 0) beds.splice(i, 1); }
     g.scene.remove(P.look.group);
     for (const m of P.look.group.children) m.dispose?.();
+    if (A.plan.drains) this.ext.onDemote(P);
     A.levels.delete(k);
     this.counts.demoted++;
     g.emit('ugDemote', { site: A.site.id, level: k });
@@ -396,7 +403,7 @@ export class Underground {
     for (const id of this.A.rec.collapsed) { const C = L.collapses.find((c) => c.id === id); if (C) for (let j = Math.floor(C.z - C.r - L.oz); j < Math.ceil(C.z + C.r - L.oz); j++) for (let i = Math.floor(C.x - C.r - L.ox); i < Math.ceil(C.x + C.r - L.ox); i++) { const q = j * L.W + i; if (q >= 0 && q < n) walk[q] = 0; } }
     // a door's own cells (shut while it is locked)
     P.doorCells = P.doors.map((d) => { const out = []; for (let s = -1; s <= 0; s++) { const x = d.axis === 'x' ? d.x + s + 0.5 : d.x, z = d.axis === 'x' ? d.z : d.z + s + 0.5; const q = Math.floor(z - L.oz) * L.W + Math.floor(x - L.ox); if (q >= 0 && q < n) out.push(q); } return { d, cells: out }; });
-    P.walk = walk; P.g = new Float32Array(n); P.came = new Int32Array(n); P.seen = new Uint32Array(n); P.stamp = 0; P.heap = new Int32Array(n * 4);
+    P.walk = walk; P.g = new Float32Array(n); P.came = new Int32Array(n); P.seen = new Uint32Array(n); P.stamp = 0; P.heap = new Int32Array(Math.min(n * 4, 7200)); // the open list is capped at the F buffer's 7200
   }
   cellOf(P, x, z) { const L = P.L, i = Math.floor(x - L.ox), j = Math.floor(z - L.oz); return i < 0 || j < 0 || i >= L.W || j >= L.H ? -1 : j * L.W + i; }
   walkable(P, q) { if (q < 0 || !P.walk[q]) return false; return true; }
@@ -472,10 +479,10 @@ export class Underground {
     const A = this.A;
     if (!A || x < A.x0 || x > A.x1 || z < A.z0 || z > A.z1) return null;
     const F = A.plan.flights;
-    for (let i = 0; i < F.length; i++) { const h = flightHeight(F[i], x, z, y); if (h !== null) return h; }
+    for (let i = 0; i < F.length; i++) { const f = F[i], R0 = f.rect; if (x < R0.minX || x > R0.maxX || z < R0.minZ || z > R0.maxZ || (f.lid && !this.ext?.isOpen(f))) continue; const h = flightHeight(f, x, z, y); if (h !== null) return h; } // a shut lid is no way (systems/understreet.js)
     const R = A.liftR;
     if (R && x > R.minX && x < R.maxX && z > R.minZ && z < R.maxZ) { const ly = A.rec.lift.y; if (Math.abs(ly - y) < 2.2) return ly; }
-    if (y > -UG.below) return null;
+    if (y > A.plan.Y[0] - UG.below) return null;
     let best = null, bd = 3.6;
     for (let k = 1; k <= A.plan.n; k++) { const d = Math.abs(A.plan.Y[k] - y); if (d < bd) { bd = d; best = A.plan.Y[k]; } }
     return best;
@@ -483,7 +490,7 @@ export class Underground {
   // main.js standOn: which site a person is under (their `ug`), or null.
   siteOf(c) {
     const A = this.A;
-    if (!A || (c.gy ?? 0) > -UG.below || !this.inBox(c.x, c.z)) return null;
+    if (!A || (c.gy ?? 0) > A.plan.Y[0] - UG.below || !this.inBox(c.x, c.z)) return null;
     return A.site.id;
   }
   // A person on a flight walks it at the flight's pace (a ladder is slow).
@@ -515,12 +522,13 @@ export class Underground {
   steer(c, tx, tz, ty = 0) {
     const A = this.A;
     if (!A) return undefined;
-    const cU = c.ug === A.site.id, tU = ty < -UG.below && this.inBox(tx, tz);
+    const cU = c.ug === A.site.id, tU = ty < A.plan.Y[0] - UG.below && this.inBox(tx, tz);
     if (!cU && !tU) return undefined;
     const ck = cU ? this.levelOf(c.gy) : 0, tk = tU ? this.levelOf(ty) : 0;
     const F = A.plan.flights;
     for (const f of F) { const R = f.rect; if (c.x >= R.minX && c.x <= R.maxX && c.z >= R.minZ && c.z <= R.maxZ && flightHeight(f, c.x, c.z, c.gy ?? 0) !== null) return tk > f.from ? f.bottom : f.top; }
     if (ck === tk) return null;
+    if (A.plan.drains) return this.ext.steer(c, ck, tk, tx, tz); // many ways: the nearest open one toward the target
     const down = tk > ck, f = down ? F.find((q) => q.from === ck) : F.find((q) => q.to === ck);
     if (!f) return null;
     const near = down ? f.top : f.bottom, far = down ? f.bottom : f.top;
@@ -615,6 +623,8 @@ export class Underground {
     if (!A) return false;
     if (src?.ug === A.site.id) { this.levelNoise(this.levelOf(src.gy ?? 0), x, z, r, src); return true; }
     if (src?.ug) return true; // another site's (never live): nobody hears it
+    if (this.climbing) return false; // a noise that just climbed a shaft does not echo back down (it would re-flood the buffer mid-loop)
+    if (A.plan.drains) { this.ext.streetNoise(x, z, r, src); return false; } // down the nearest open shafts
     // street noise at the entrance's top: a share goes down the stair
     const top = A.plan.flights[0].top, d = Math.hypot(top.x - x, top.z - z);
     if (d < r && A.levels.has(1)) { const b = A.plan.flights[0].bottom; this.levelNoise(1, b.x, b.z, (r - d) * NOISE.shaft, src, true); }
@@ -625,7 +635,9 @@ export class Underground {
   levelNoise(k, x, z, r, src, fromStreet = false) {
     const A = this.A, g = this.g, P = A.levels.get(k);
     if (!P || r <= 0.5) return;
-    const L = P.L, W = L.W, H = L.H, dist = this._dist ?? (this._dist = new Float32Array(3600)), q = this._q ?? (this._q = new Int32Array(3600 * 2));
+    const L = P.L, W = L.W, H = L.H, carry = L.carry ?? 1; // a pipe carries sound: a metre of it costs `carry` (data/understreet.js)
+    if (!this._dist || this._dist.length < W * H) { this._dist = new Float32Array(Math.max(3600, W * H)); this._q = new Int32Array(Math.max(7200, W * H)); }
+    const dist = this._dist, q = this._q, QL = q.length; // a ring: a cell can be queued again when a shorter way reaches it
     dist.fill(Infinity, 0, W * H);
     let s = this.cellOf(P, x, z);
     if (s < 0) return;
@@ -633,15 +645,26 @@ export class Underground {
     if (s < 0) return;
     let h = 0, t = 0; dist[s] = 0; q[t++] = s;
     const pass = (c) => c === OPEN || c === POOL || c === STAIR || c === HOLE || c === SHAFT;
+    if (L.kind === 'drains') { // a town's pipes run square: one visit a cell, four ways, `carry` a metre (a town-sized level: no re-queueing)
+      while (h < t) {
+        const p = q[h++], pi = p % W, dp = dist[p] + carry;
+        if (dp > r) continue;
+        if (pi + 1 < W && dist[p + 1] === Infinity && pass(L.cells[p + 1])) { dist[p + 1] = dp; q[t++] = p + 1; }
+        if (pi > 0 && dist[p - 1] === Infinity && pass(L.cells[p - 1])) { dist[p - 1] = dp; q[t++] = p - 1; }
+        if (p + W < W * H && dist[p + W] === Infinity && pass(L.cells[p + W])) { dist[p + W] = dp; q[t++] = p + W; }
+        if (p - W >= 0 && dist[p - W] === Infinity && pass(L.cells[p - W])) { dist[p - W] = dp; q[t++] = p - W; }
+      }
+      h = t;
+    }
     while (h < t) {
-      const p = q[h++], pi = p % W, pj = (p - pi) / W, dp = dist[p];
+      const p = q[h++ % QL], pi = p % W, pj = (p - pi) / W, dp = dist[p];
       for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
         if (!di && !dj) continue;
         const a = pi + di, b = pj + dj;
         if (a < 0 || b < 0 || a >= W || b >= H) continue;
-        const n = b * W + a, nd = dp + (di && dj ? 1.414 : 1);
+        const n = b * W + a, nd = dp + (di && dj ? 1.414 : 1) * carry;
         if (nd > r || nd >= dist[n] || !pass(L.cells[n])) continue;
-        dist[n] = nd; if (t < q.length) q[t++] = n;
+        dist[n] = nd; if (t - h < QL) q[t++ % QL] = n;
       }
     }
     const heard = (cx, cz) => { const c2 = this.cellOf(P, cx, cz); return c2 >= 0 ? dist[c2] : Infinity; };
@@ -670,7 +693,7 @@ export class Underground {
       const dd = heard(end.x, end.z);
       if (dd >= r) continue;
       const left = (r - dd) * NOISE.level, other = f.to === k ? f.from : f.to, at = f.to === k ? f.top : f.bottom;
-      if (other === 0) { if (left > 4) g.noise(at.x, at.z, (r - dd) * NOISE.shaft, null); }
+      if (other === 0) { if (left > 4 && (!f.lid || this.ext?.isOpen(f))) { this.climbing = true; g.noise(at.x, at.z, (r - dd) * NOISE.shaft, null); this.climbing = false; if (A.plan.drains) this.ext.climbed(f, x, z, (r - dd) * NOISE.shaft); } } // a shut lid keeps it down; what climbs a shaft never comes back down another (and never floods this buffer again mid-loop)
       else if (A.levels.has(other)) this.levelNoise(other, at.x, at.z, left, src, true);
     }
   }
@@ -776,7 +799,7 @@ export class Underground {
     for (const c of g.chars) {
       if (!c.alive || c.ug !== A?.site.id || Math.abs((c.gy ?? 0) - ch.y) > 2) continue;
       const dd = Math.hypot(c.x - ch.x, c.z - ch.z);
-      if (dd > C.r || !g.statics.lineOfSight(ch.x, ch.z, c.x, c.z, RAY_SIGHT, ch.y + 1)) continue;
+      if (dd > C.r || !g.statics.lineOfSight(ch.x, ch.z, c.x, c.z, RAY_SIGHT, ch.y + 1 - this.y0)) continue;
       const f = 1 - dd / C.r;
       g.combat.damage(c, C.dmg * f * f + 8 * f, ch.by, (c.x - ch.x) / (dd || 1), (c.z - ch.z) / (dd || 1), f > 0.5 ? 'explosion' : 'bullet');
     }
@@ -803,6 +826,7 @@ export class Underground {
     if (!A || p.ug !== A.site.id) { this.holdT = 0; this.holdOn = null; return null; }
     const P = A.levels.get(this.levelOf(p.gy));
     if (!P) return null;
+    if (A.plan.drains) { const x = this.ext.interact(p, I, dt); if (x) return x; } // lids from below, the outfall's bars
     const down = I.key('KeyE'), hit = I.hit('KeyE'), y = P.L.y;
     const ring = this._ring ?? (this._ring = { x: 0, z: 0, len: 2 });
     // A held E counts for one thing at a time: a new thing in reach starts the count again (a finished hold waits for E up).
@@ -885,17 +909,19 @@ export class Underground {
       this.scanT = 0.5;
       for (const s of this.sites) {
         const dx = s.x - p.x, dz = s.z - p.z;
-        const near = Math.abs(dx) < UG.attachR && Math.abs(dz) < UG.attachR && dx * dx + dz * dz < UG.attachR * UG.attachR;
+        const aR = s.attachR ?? UG.attachR, near = Math.abs(dx) < aR && Math.abs(dz) < aR && dx * dx + dz * dz < aR * aR; // a town's drains: its half-size and a pad
         if (near && !this.attached.has(s.id) && this.place(s)) this.attach(s);
-        else if (this.attached.has(s.id) && Math.abs(dx) + Math.abs(dz) > UG.releaseR * 1.3 && this.A?.site !== s) this.detach(s.id);
+        else if (this.attached.has(s.id) && Math.abs(dx) + Math.abs(dz) > (s.attachR ? aR + 60 : UG.releaseR) * 1.3 && this.A?.site !== s) this.detach(s.id);
       }
     }
     // The live site: the one you are under, or whose entrance you stand at.
-    if (!this.A) {
-      for (const [id, T] of this.attached) { const t = this.entTop(T); if (Math.hypot(t.x - p.x, t.z - p.z) < UG.promoteNear || (T.plan.lift && Math.hypot(T.plan.lift.street.x - p.x, T.plan.lift.street.z - p.z) < UG.promoteNear)) { this.activate(this.byId.get(id)); break; } }
-    } else if (!p.ug) {
-      const t = this.entTop(this.A.T);
-      if (Math.hypot(t.x - p.x, t.z - p.z) > UG.promoteNear * 3.5 && !this.hunted(1)) this.deactivate();
+    const at = (T) => { if (T.plan.drains) return this.ext.nearWay(T, p); const t = this.entTop(T); return Math.hypot(t.x - p.x, t.z - p.z) < UG.promoteNear || (T.plan.lift && Math.hypot(T.plan.lift.street.x - p.x, T.plan.lift.street.z - p.z) < UG.promoteNear); };
+    if (!this.A || (this.A.plan.drains && !p.ug)) { // a town's drains give way to a site's own entrance you walk up to
+      for (const [id, T] of this.attached) { if (this.A?.site.id === id || (this.A && T.plan.drains)) continue; if (at(T)) { this.activate(this.byId.get(id)); break; } }
+    }
+    if (this.A && !p.ug) {
+      const T = this.A.T, far = T.plan.drains ? !this.ext.nearWay(T, p, UG.promoteNear * 3.5) : Math.hypot(this.entTop(T).x - p.x, this.entTop(T).z - p.z) > UG.promoteNear * 3.5;
+      if (far && !this.hunted(1)) this.deactivate();
     }
     const A = this.A;
     if (A) {
@@ -969,7 +995,7 @@ export class Underground {
   // occluder, the light (systems/sky.js reads below/belowFill), the shadow map, the effects' ground.
   view(cam) {
     const g = this.g, p = g.player, A = this.A, S = g.sky;
-    const under = !!A && p.ug === A.site.id && (p.gy ?? 0) < -UG.viewBelow;
+    const under = !!A && p.ug === A.site.id && (p.gy ?? 0) < A.plan.Y[0] - UG.viewBelow;
     const k = under ? this.levelOf(p.gy) : 0;
     if (k !== this.viewK || under !== this.wasUnder) {
       if (A) for (const [n, P] of A.levels) P.look.group.visible = under && n === k;
@@ -987,7 +1013,7 @@ export class Underground {
       const P = A.levels.get(k);
       if (P && !P.look.group.visible) P.look.group.visible = true;
       const fy = A.plan.Y[k] ?? p.gy;
-      this.clip.constant = Math.min((p.gy ?? 0) + UG.clipMin, -0.05);
+      this.clip.constant = Math.min((p.gy ?? 0) + UG.clipMin, A.plan.Y[0] - 0.05);
       // the occluder: under your floor, wide enough for the widest view
       this.occluder.visible = true;
       this.occluder.position.set(cam.position.x, fy - 0.16, cam.position.z);
@@ -1034,7 +1060,7 @@ export class Underground {
         if (da > (LIGHT.eyeCone * Math.PI) / 180 && d > 5) continue;
         const fx = Math.sin(c.face), fz = Math.cos(c.face);
         if ((-dx * fx - dz * fz) / d < 0.35) continue;
-        if (!this.g.statics.lineOfSight(p.x, p.z, c.x, c.z, RAY_SIGHT, (p.gy ?? 0) + 1.5)) continue;
+        if (!this.g.statics.lineOfSight(p.x, p.z, c.x, c.z, RAY_SIGHT, (p.gy ?? 0) + 1.5 - this.y0)) continue;
         const y = (c.gy ?? 0) + 1.55;
         for (const s of [-1, 1]) { _o.position.set(c.x + fx * 0.24 + fz * 0.08 * s, y, c.z + fz * 0.24 - fx * 0.08 * s); _o.rotation.set(0, c.face, 0); _o.scale.set(1, 1, 1); _o.updateMatrix(); M.setMatrixAt(n++, _o.matrix); }
       }
@@ -1077,9 +1103,10 @@ export class Underground {
     this.reset();
     for (const [id, r] of Object.entries(s?.sites ?? {})) this.recs.set(id, r);
     for (const [key, r] of Object.entries(s?.levels ?? {})) this.lvl.set(key, r);
-    if (player && (player.gy ?? 0) < -UG.below) {
+    if (player) {
       for (const site of this.sites) {
         const row = this.rowOf(site), P = planSite(row);
+        if ((player.gy ?? 0) > P.Y[0] - UG.below) continue;
         if (player.x < P.ox - 2 || player.x > P.ox + P.W + 2 || player.z < P.oz - 2 || player.z > P.oz + P.H + 2) continue;
         this.activate(site);
         const k = this.levelOf(player.gy);

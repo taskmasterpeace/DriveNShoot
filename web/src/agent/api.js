@@ -47,6 +47,7 @@ import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
+import { understreetCommands, understreetChecks } from './understreet-api.js'; // the storm drains under every town (WEB_UNDERSTREET.md)
 import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md)
 import { zfightCommands, zfightChecks } from './zfight.js';
@@ -2046,6 +2047,7 @@ function buildCommands(api) {
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     ...creatorCommands(api), // creator, sheet
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
+    ...understreetCommands(api, need), // understreet (WEB_UNDERSTREET.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
@@ -5988,6 +5990,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   await backlotsChecks({ api, g, check, C }); // the back lots: alleys, yards, back doors, fences, pathing (WEB_BACK_LOTS.md §8)
+  await understreetChecks({ api, g, check, C }); // under the street: the drains reach an outfall, manholes, a breach into a locked store, pipe noise, rain, the dead down a shaft (WEB_UNDERSTREET.md §8)
   await zfightChecks({ g, check, C }); // the depth layers: no flicker at seven spots, blood shows from the widest zoom (WEB_DEPTH_LAYERS.md §8)
   await wrecksChecks({ api, g, check, C }); // no static car built from boxes: every one is our body, dead
   g.citygen.enabled = citygenWas;
