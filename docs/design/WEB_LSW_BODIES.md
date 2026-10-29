@@ -162,7 +162,12 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 11. **Classic restore.** classic → faceted → classic gives byte-identical classic matrices and colours, and the faceted
     mesh and patches are gone.
 
-**Measured:** MEASURED_PLACEHOLDER
+**Measured:** `scenario name=stress` (160 people, 24 near), back-to-back fresh pages in one session: faceted
+6.93 / 6.84 ms, 92 / 90 draws; classic 5.87 / 6.42 ms, 88 / 90 draws; so **≈+0.4–1.0 ms/frame and +2 draws** on a PC shared
+with other lanes (±1 ms run to run). The round body read 7.35 ms on the previous head. The CPU retarget is ≈0.21 ms/frame
+(`bodies` stats). The kit is 4,126 triangles (the round body was 14–15 k), so the GPU side got cheaper; one mesh replaces
+two, so the bodies add 3 draw calls (lit, shadow, flag patches) instead of 5. Full selftest: **565/565 twice** on fresh
+pages (head 3be16098 on main c9376990).
 
 **Where the bodies read** (D = camera height in m; renders `close-*`, `default-*`, `extreme-closeup`): at the angled
 close view (D ≈ 6–7) and top-down D 8–9 the cubed body is unmistakable (square head and face, boxy forearms). At the
