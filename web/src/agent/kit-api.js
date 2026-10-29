@@ -212,16 +212,27 @@ export async function kitChecks(api, check, C) {
       await home(Z.x, Z.z); await C('setTime', { hour: 12 });
       if (K.airAt(P()) !== 'chem') return `not in the zone (${K.airAt(P())}) at ${r1(P().x)},${r1(P().z)}`;
       const god = g.godMode; g.godMode = false; P().hp = P().maxHp ?? 100;
+      // Every hit on you, by cause: the claim is about the chemical ground's ('gas'), and a battery's late player can carry a
+      // survival need (hunger, thirst, the noon heat) that bites a whole point (cut by armor) on the same step.
+      const dmg0 = g.combat.damage, took = {};
+      g.combat.damage = function (c, ...a) { const h = c.hp; const r = dmg0.call(this, c, ...a); if (c === P()) took[a[4] ?? '?'] = (took[a[4] ?? '?'] ?? 0) + h - c.hp; return r; };
+      const by = () => { const o = { ...took }; for (const k in took) delete took[k]; return o; };
+      const other = (o) => Object.entries(o).filter(([k]) => k !== 'gas').reduce((s, [, v]) => s + v, 0);
+      const say = (o) => Object.entries(o).map(([k, v]) => `${k} ${r1(v)}`).join(', ') || 'none';
       try {
         const h0 = P().hp, c0 = K.counts.choked;
         await C('step', { seconds: 2 });
-        const hurt = h0 - P().hp, choked = K.counts.choked - c0;
+        const t1 = by(), gas1 = t1.gas ?? 0, choked = K.counts.choked - c0;
         P().hp = h0;
         g.inventory.stow('gas_mask', 1); g.inventory.stow('mask_filter', 1); K.charge.gas_mask = 0;
+        const c1 = K.counts.choked;
         await C('step', { seconds: 2 });
-        const safe = P().hp >= h0 - 0.01 && K.masked, drained = K.charge.gas_mask < KIT.gas_mask.power.life && K.carried('mask_filter') === 0;
-        return hurt > 5 && choked > 0 && safe && drained ? true : `without a mask: -${r1(hurt)} hp (${choked} ticks); with one: hp ${r1(P().hp)}/${r1(h0)} masked=${K.masked} filter ${r1(K.charge.gas_mask)} left ${K.carried('mask_filter')}`;
-      } finally { g.godMode = god; P().hp = P().maxHp ?? 100; g.inventory.spend('gas_mask', K.carried('gas_mask')); }
+        const t2 = by(), gas2 = t2.gas ?? 0, loss = h0 - P().hp;
+        // Masked: not one choke tick, not a point of gas, and nothing off your hp the record cannot name.
+        const safe = K.masked && K.counts.choked === c1 && gas2 === 0 && Math.abs(loss - other(t2)) < 0.01;
+        const drained = K.charge.gas_mask < KIT.gas_mask.power.life && K.carried('mask_filter') === 0;
+        return gas1 > 5 && choked > 0 && safe && drained ? true : `without a mask: gas -${r1(gas1)} hp (${choked} ticks; all hits ${say(t1)}); with one: hp ${r1(P().hp)}/${r1(h0)} hits ${say(t2)} choke ticks ${K.counts.choked - c1} masked=${K.masked} filter ${r1(K.charge.gas_mask)} left ${K.carried('mask_filter')}`;
+      } finally { g.combat.damage = dmg0; g.godMode = god; P().hp = P().maxHp ?? 100; g.inventory.spend('gas_mask', K.carried('gas_mask')); }
     });
 
     await check('kit: the nitrous burst spends a bottle from its tank (3 -> 2), shoves the car on and burns a flame out the back; with the tank empty Shift does nothing', async () => {
