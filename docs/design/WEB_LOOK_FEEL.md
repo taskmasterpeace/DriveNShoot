@@ -175,9 +175,11 @@ Measured (port 3484, a PC loaded by other lanes):
   | B1 | 5a869e29 | 568/571 | the observer's `look` and `zfight` (both **mine**, fixed in 8557e08f), and the tactics band |
   | B2 | 1fc28fce | 567/571 | walk-vehicles pickup shot, ring residents, journeys cord, clone husk. Alone: the first three pass; clone husk fails with the error recorded on main |
   | B3 | 1fc28fce | **571/571** | |
+  | B4 | 8c0e7ec2 (main 13682073 merged) | 592/593 | underground: Outpost Nine's drone check (passes alone, twice) |
+  | B5 | 8c0e7ec2 | 590/593 | materials steel glance and zfight phoenix street (both pass alone, twice), clone husk (the error on main) |
 
 - **Draw calls**: stress 93–95 (base 91–92). The pass is +1 and the history decals are +1. The counter keeps its old meaning (three counts from after the shadow pass): the scene's calls plus the pass's one.
-- **Stress ms/frame** (same port): base 7.9 / 9.56 / 8.8. Final 7.21 / 7.6 / 8.84. No regression.
+- **Stress ms/frame** (same port): base 7.9 / 9.56 / 8.8. At 1fc28fce: 7.21 / 7.6 / 8.84. At 8c0e7ec2: 8.29 / 9.7 / 11.05 (93–95 draws; the PC was loaded by other lanes' batteries). No regression in the same-page on/off pairs.
 - **The pass's own cost**: render-only A/B at 1280×720 gives a median +0.01 ms (6 interleaved pairs × 40 frames, GPU-synced), inside a ±0.7 ms noise band. A LUT rebuild costs 0.5 ms of CPU, at most every 0.25 s and only when the blend moved.
 - `ip-lint`: 0 deny.
 
