@@ -117,6 +117,7 @@ export class Garage {
     const P = C.mounts[face];
     if (!P) return `a ${v.name} has no ${face} mount`;
     if (!W.faces.includes(face)) return `a ${W.name} does not go on the ${face}`;
+    if (P.drops && W.kind !== 'drop') return `the ${face} mount on a ${v.name} only takes droppers (what it pulls is in the way)`;
     if (W.size > P.size) return `the ${face} mount is too small for a ${W.name} (size ${P.size}, it needs ${W.size})`;
     const old = v.mounts?.[face], oldKg = old ? MOUNT_WEAPONS[old.kind]?.kg ?? 0 : 0, oldSz = old ? MOUNT_WEAPONS[old.kind]?.size ?? 1 : 0;
     if (this.spacesUsed(v) - oldSz + W.size > C.spaces) return `no room: ${C.spaces} spaces, ${this.spacesUsed(v) - oldSz} used`;

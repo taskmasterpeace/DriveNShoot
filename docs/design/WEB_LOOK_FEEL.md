@@ -132,6 +132,7 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
   - `ui/qol.js`: 4 settings (DEFAULTS, menu, apply).
   - `agent/api.js`: import, commands spread, checks call, and the `screenshot` render through the pass.
   - `agent/zfight.js`: `twinSafe` strips the wind's `|wind-*` program keys like the cutaway's `|cut1` (a vertex-only patch: same-colour twins in the prop batch are still twins, not fights).
+  - `systems/semis.js` (WEB_SEMIS.md): tractors and trailers wear like any vehicle; `updateWear` skips a `sheltered` vehicle (a car riding in a box trailer's hold).
   - `look` is the observer's command (`agent/devtools.js`): look-feel extends it. Without `action=` it is the observer's screenshot-and-who's-in-it, unchanged; with `action=` it is look-feel.
   - `docs/COMMANDS.md`: regenerated.
 - **For other lanes**:

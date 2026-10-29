@@ -124,6 +124,8 @@ the save (`build`), the controls rows (`fireTurret`, `workshop`, `menuTabPrev`).
 group, angle, shooter)` and `aiFire(vehicle, tx, tz, dt)` (tactics, town security), `hitVehicle(v, x, z, dmg, type, by,
 face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flareUntil` (drones fooled by flares),
 `workshop.addSite({ name, where, x, z, r, rate, rare })` (cities: a town garage), `ARENAS` rows (cities: stamp them).
+**Semis** (WEB_SEMIS.md §3.5b): `systems/semis.js` adds `CHASSIS.semi`; a mount point with `drops: true` takes droppers only
+(`canMount`), and `dropFrom` asks `g.semis.dropTail(v)` so a tractor's oil falls behind its trailer.
 
 ## 7. Tuning knobs (safe ranges)
 
