@@ -271,6 +271,14 @@ export async function ritesChecks(api, check, C) {
       } finally { pack.slots = packWas; g.inventory.changed?.(); }
     });
 
+    await check('rites: not everybody gets a funeral - when a family learns of a death they hold one by the FUNERAL.held roll (likelier the more of them are left), the rest are mourned at home: no funeral, the body stays where it fell', async () => {
+      const H = FUNERAL.held, rec = (k) => ({ members: Array.from({ length: k + 1 }, (_, q) => ({ key: `m${q}`, dead: false })) });
+      const share = (k) => { let n = 0; for (let q = 0; q < 400; q++) if (S.holdsFuneral({ id: `held-test:${q}`, member: 'm0' }, rec(k))) n++; return n / 400; };
+      const s1 = share(1), s5 = share(5), forced = S.holdsFuneral({ id: 'x', funeral: true }, rec(0)) && !S.holdsFuneral({ id: 'x', funeral: false }, rec(9));
+      const near = (v, want) => Math.abs(v - want) < 0.08;
+      return near(s1, Math.min(H.max, H.base + H.mourner)) && near(s5, Math.min(H.max, H.base + H.mourner * 5)) && s1 < 1 && s5 > s1 && forced ? true : JSON.stringify({ s1, s5, forced });
+    });
+
     await check('rites: a ring resident\'s death schedules a funeral within 1-2 game days at their quarter\'s yard; the family WALK there (no teleport, step by step) and stand at the grave', async () => {
       const RS = g.residents, RG = g.streamer?.W?.ring;
       if (!RS || !RG) return 'no ring';
@@ -290,6 +298,7 @@ export async function ritesChecks(api, check, C) {
       await C('teleport', { x: home0.x + 150, z: home0.z }); await api._step(5);
       vc.x = P().x + 2; vc.z = P().z; vc.res.route = null;
       g.combat.kill(vc, null, 0, 1, 'bullet');
+      if (S.bodies.get(vc.id)) S.bodies.get(vc.id).funeral = true; // (staged: this family holds one - not everybody gets a funeral, FUNERAL.held)
       await waitHours(api, 3); await api._step(70);
       const unreported = !S.funerals.some((q) => q.body === vc.id) && S.summary().unreported.some((u) => u.id === vc.id);
       // then you walk back and tell one of them: the funeral is planned from that fact, its source on it
