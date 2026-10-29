@@ -220,6 +220,7 @@ export class Zombies {
         if (o === c || !o.alive || o.faction !== 'zombie' || o.zkind === 'echo' || o.zkind === 'choir' || o.wild || o.zsee || this.fresh(o)) continue;
         if (Math.abs(o.x - c.x) > EC.call || Math.abs(o.z - c.z) > EC.call || Math.hypot(o.x - c.x, o.z - c.z) > EC.call) continue;
         this.remember(o, wx + (Math.random() - 0.5) * 3, wz + (Math.random() - 0.5) * 3, 'echo'); this.counts.called++;
+        g.emit('infectedCalled', { id: o.id, by: c.id, x: +wx.toFixed(1), z: +wz.toFixed(1) });
       }
     }
     if (this.minds.think(c, dt)) return; // it knows of you: it hunts (echomind.js); else it works its door
