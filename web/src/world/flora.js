@@ -56,7 +56,7 @@ export function floraHash(x, z) {
 export const floraVariant = (x, z) => Math.floor(floraHash(x, z) * VARIANTS) % VARIANTS;
 
 // Collapse every vertex not of this instance's variant (the depth material gets the same patch, so shadows agree).
-function variantPatch(sh) {
+export function variantPatch(sh) {
   sh.vertexShader = sh.vertexShader
     .replace('#include <common>', '#include <common>\nattribute float fvar;\n#ifdef USE_INSTANCING\nattribute float aVar;\n#endif')
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\ntransformed *= step(abs(fvar - aVar), 0.5);\n#endif');
