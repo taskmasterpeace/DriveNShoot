@@ -110,7 +110,7 @@ a slow one. Batteries still differ run to run for three reasons, and every flake
 
 ### 3.6 doors, crew FALL BACK, storeys raider: not reproduced
 
-These three pass alone (5/5 each), and none failed in 3 hunting batteries or the proof batteries in §9. Hypotheses
+These three pass alone (5/5 each) and did not fail in the hunting runs or the three proof batteries (§9). Hypotheses
 ruled out with runs:
 
 - **doors: planks** (`plain held=true`): the door picked (each of the 7 nearest gives in 6.5–8 s), the hour (23, 3, 18),
@@ -205,4 +205,30 @@ longer window), `SWELL[0].L` 62 m (period ∝ √L; past ~95 m the 7.2 s window 
 
 ## 9. Proof
 
-(filled in at hand-back)
+All on branch `feat/web-battery-stable`, port 3492, each battery on a **fresh page** (a new tab, nothing run in it before),
+with the lead's arguments exactly (`{"cmd":"selftest","args":{"budget":2900},"timeoutMs":3000000}`). The other lanes'
+harnesses were left running (4–5 headless games besides this one).
+
+| battery | result | time | the eight |
+|---|---|---|---|
+| P1 | **585/585** | 1982 s | all pass |
+| P2 | **585/585** | 958 s | all pass |
+| P3 | 584/585 | 955 s | all pass. The one failure is `tactics band: a rifleman holds 25-45 m` (a known flake, not one of the eight); its new tag reads `[entry arms:holstered …]`, a lead for whoever takes it |
+
+Hunting runs before the last fixes (same code otherwise): a full battery 583/585 (grapevine eat-a-body and understreet
+manhole failed, neither one of the eight), and one stopped at 495 checks with the eight that had run all passing.
+
+Alone, 5 fresh pages each, final code:
+
+| check | `only=` | result |
+|---|---|---|
+| water: a boat's heave | `water: a boat's heave` | 5/5 |
+| the town sleeps | `the town sleeps` | 5/5 |
+| ring residents: by day | `ring residents: by day one of a family` | 5/5 |
+| clone: reaching your husk | `clone:` (the chain it needs: it reclaims the husk the checks before it lay) | 5 × 9/9 |
+| doors: planks | `doors: planks across` | 5/5 |
+| Outpost Nine's holdout | `Outpost Nine's holdout` | 5/5 |
+| crew order FALL BACK | `crew order FALL BACK` | 5/5 |
+| storeys: a raider with a grudge | `storeys: a raider with a grudge` | 5/5 |
+
+`node --check` on every touched file. `node tools/ip-lint.mjs`: 0 deny, 0 review.
