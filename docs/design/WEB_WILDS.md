@@ -196,6 +196,7 @@ Worked examples:
 
 ## 6. Dependencies (and every shared-file hook)
 
+- **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): a pitched camp's fire is `outdoors.build('firepit')`; striking it kicks the pit out (fuel 0, the ash ring stays).
 | File | Hook |
 |---|---|
 | `systems/wilds.js` | makes `Outdoors` (g.outdoors), steps it before the glints flush, saves/loads it |

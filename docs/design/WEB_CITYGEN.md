@@ -217,6 +217,7 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 
 ## 6. Dependencies
 
+- **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): the `claim` deed hook is called by `g.homes`, which keeps ownership as records and writes `B.owner` back after every rebuild; the claimable kinds are what a base, a rented or a bought house can be.
 | Depends on | For | Back-reference added |
 |---|---|---|
 | `world/storeys.js` (`WEB_STOREYS.md`) | the vertical law; `addExt`/`removeExt`, `setView` hands generated buildings to `ext`, `steer` approach + on-flight rule, downtown's 6-storey tower (`RISE.ruins.tower`) | this doc |

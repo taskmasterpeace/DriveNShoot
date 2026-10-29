@@ -266,6 +266,7 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
   old hood gun, then their own gun.
 
 ## 6. Dependencies
+- **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): a claimed base sets `crew.base` (the base jobs and the stash); crew within 30 m of a camp stand its watch in 2-hour turns.
 - **Reads:**
   - `systems/seats.js`: board, leave, cycle, followThink, the chauffeur;
   - `systems/decks.js`: room, climb;
