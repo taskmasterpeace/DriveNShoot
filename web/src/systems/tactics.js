@@ -122,6 +122,14 @@ export class Tactics {
     } else if (role === 'hold') { ax = c.home.x; az = c.home.z; r = Math.min(R, D.holdR * 0.6); }
     else if (U.force === 'cover' || U.force === 'holdpos') { ax = U.anchorX ?? c.x; az = U.anchorZ ?? c.z; r = U.force === 'holdpos' ? 3.5 : R * 0.8; }
     this.search(c, t, tx, tz, ax, az, r, b0, b1, D, U, role);
+    // An open spot at the band's edge: steer stops `arrive` short of a goal, so a goal at 25.1 m walked to from inside
+    // left a rifleman at 24.3 m, out of his band. Such a goal goes `arrive` into the band along the line from the threat
+    // (a cover spot stays put: the thing it hides behind does not move).
+    if (!CAND.cover && role !== 'retreat') {
+      const gx = CAND.x - tx, gz = CAND.z - tz, gd = Math.hypot(gx, gz) || 1, A = T.arrive;
+      const want = gd < b0 + A && gd > b0 - 2 * A ? b0 + A : gd > b1 - A && gd < b1 + 2 * A ? b1 - A : gd;
+      if (want !== gd && !g.statics.pointBlocked(tx + gx / gd * want, tz + gz / gd * want, 0.45)) { CAND.x = tx + gx / gd * want; CAND.z = tz + gz / gd * want; }
+    }
     U.gx = CAND.x; U.gz = CAND.z; U.cover = CAND.cover; U.goal = true; U.veh = CAND.veh;
     // A cover point with no line on the target gets a PEEK spot: a step to one side where the eye clears the edge.
     // (On the street every box stops a round, low or not, so a fighter in cover leans out to shoot and ducks back.)

@@ -38,7 +38,7 @@ import { decksStanceChecks } from './decks-stance-selftest.js';
 import { journeyCommands, journeyChecks } from './journeys-api.js'; // life insurance, the city picker, risky journeys (WEB_INSURANCE_JOURNEYS.md)
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
-import { GARAGE_BAYS } from '../data/survival.js';
+import { GARAGE_BAYS, TOWN_NIGHT } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
 import { forgetoolsCommands } from './forgetools.js';
@@ -2201,10 +2201,36 @@ function compileNpc(def) {
 }
 
 
+// The player-neutral state a check expects to start from (dsoa-land §4's list), as one short string: only what is off
+// neutral is named, then the hour, the weather, the character budget and where you stand.
+function entryState(g) {
+  const p = g.player, out = [];
+  if (g.dialogue?.active) out.push('dialogue');
+  if (g.invUI?.open) out.push('pack');
+  if (p.inVehicle) out.push(`car:${p.inVehicle.id}`);
+  if (p.onDeck) out.push('deck');
+  if (p.onTrain) out.push('train');
+  if (p.ug) out.push(`ug:${p.ug}`);
+  if ((p.gy ?? 0) > 0.3) out.push(`gy:${(+p.gy).toFixed(1)}`);
+  if (p.crouch) out.push('crouch');
+  if (p.prone) out.push('prone');
+  if (p.hidden) out.push('hidden');
+  if (p.underwater || p.swim) out.push('water');
+  if (!p.alive) out.push('dead');
+  if (g.gunpoint?.standoff) out.push('standoff');
+  if (g.arms && g.arms.stance !== 'lowered') out.push(`arms:${g.arms.stance}`);
+  if (g.autopilot) out.push('autopilot');
+  if (g.aimOverride) out.push('aimOverride');
+  if (g.paused) out.push('paused');
+  out.push(`h${(g.sky?.time ?? 0).toFixed(1)}`, `w:${g.sky?.weatherKey ?? '?'}`, `free:${g.freeSlots?.length ?? '?'}`, `chars:${g.chars.length}`, `at:${Math.round(p.x)},${Math.round(p.z)}`);
+  return out.join(' ');
+}
+
 async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
   g.selftestLive = { results, ms: [], done: false, at: Date.now() }; // what has run so far: exec can read it while a long battery runs (the bridge may stop waiting first)
+  globalThis.__selftestResults = results; // the results so far, readable from outside while it runs (or if the bridge drops)
   const check = async (name, fn) => {
     // a|b|c: any of them (only="witnesses|storeys" replays a pair in battery order).
     const any = (pat) => pat.split('|').some((s) => s && name.includes(s));
@@ -2213,9 +2239,15 @@ async function runSelfTest(api, only = null, skip = null) {
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
+    // The check in flight, readable from outside while the battery runs (a debugger paused on a hung page names it).
+    globalThis.__selftestNow = name;
+    // What the earlier checks left as this one began (dsoa-land §4: a check that fails only in the full battery almost
+    // always meets STATE an earlier one left). Read only; on a failure it rides on the detail as [entry ...].
+    const entry = entryState(g);
+    const tag = (d) => `${typeof d === 'string' ? d : JSON.stringify(d)} [entry ${entry}]`;
     const t0 = performance.now();
-    try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : v }); }
-    catch (e) { results.push({ name, pass: false, detail: String(e.message ?? e) }); }
+    try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : tag(v) }); }
+    catch (e) { results.push({ name, pass: false, detail: tag(String(e.message ?? e)) }); }
     g.selftestLive.ms.push(Math.round(performance.now() - t0));
   };
   const C = (cmd, a) => api.call(cmd, a);
@@ -3470,11 +3502,15 @@ async function runSelfTest(api, only = null, skip = null) {
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
-      for (let i = 0; i < 60 && !ike.sleeping; i++) await C('step', { seconds: 0.5 });
+      let since = 0; // game seconds since 23:00
+      for (let i = 0; i < 60 && !ike.sleeping; i++) { await C('step', { seconds: 0.5 }); since += 0.5; }
       const asleep = ike.sleeping === true;
-      // The rest walk to their beds from across town: give them up to 20 s to settle (a bed 90 m off is ~20 s at a walk).
+      // The rest walk to their beds from across town (1.3 m/s: a bed 90 m off is ~70 s), and whoever has not reached one
+      // TOWN_NIGHT.giveUp s after bedtime lies down where they stand. So the town is judged once that has run out on the game
+      // clock, counted from 23:00 and not from when Ike lay down: "20 s after Ike" ended before the give-up whenever he was
+      // quick, and read a town still walking home as awake (24 down, 31 up; docs/design/WEB_BATTERY_STABILITY.md §3.3).
       let town, most = false;
-      for (let i = 0; i < 10 && !most; i++) { await C('step', { seconds: 2 }); town = await C('town', { radius: 150 }); most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6); }
+      for (let i = 0; !most && (i < 10 || since < TOWN_NIGHT.giveUp + 4); i++) { await C('step', { seconds: 2 }); since += 2; town = await C('town', { radius: 150 }); most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6); }
       // He sleeps in his own bedroom behind the shop now (world/city.js, the island's floor plans): the shot is in his place,
       // at the one of his shelves and cupboards nearest his bed (a half-asleep ear reaches 13.5 m).
       const mine = [...inv.boxes.values()].filter((b) => b.owner === ike.id && !(b.y > 0.5)).sort((a, b) => Math.hypot(a.x - ike.x, a.z - ike.z) - Math.hypot(b.x - ike.x, b.z - ike.z));
@@ -3485,7 +3521,8 @@ async function runSelfTest(api, only = null, skip = null) {
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
-        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling }));
+        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling,
+          dBed: c.bed ? r1(Math.hypot(c.bed.x - c.x, c.bed.z - c.z)) : null, home: r1(Math.hypot(c.home.x - c.x, c.home.z - c.z)), busy: ['occRec', 'pullRec', 'barRole', 'storyM', 'crewRec', 'follower', 'knockT', 'cowerT', 'dragged', 'grabbing', 'res'].filter((k) => c[k]).join(',') }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
     } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
@@ -5242,6 +5279,7 @@ async function runSelfTest(api, only = null, skip = null) {
     for (const q of [famL, ...HH]) { if (!q || RG.household(q).kind !== 'family') continue; const r = RS.rec(q); m = r.members.find((x) => !x.dead && RS.plan(r, x, d).out); if (m) { L = q; break; } }
     if (!m) return `nobody in any family goes out on day ${d}`;
     const rec = RS.rec(L), p = RS.plan(rec, m, d);
+    freeUp(front(L)); // room for the household (staged, as atFamily does: alone, the check before it is not there to)
     await C('setTime', { hour: p.leave - 0.15 }); await C('teleport', front(L)); await C('step', { seconds: 2 });
     if (!m.c) return JSON.stringify({ id: rec.id, why: 'not promoted', free: g.freeSlots.length, n: RS.n });
     const homeFirst = RS.inside(rec, m.c);
@@ -5250,11 +5288,14 @@ async function runSelfTest(api, only = null, skip = null) {
     for (; t < 60 && RS.inside(rec, m.c); t++) await C('step', { seconds: 1 });
     for (let s = 0; s < 30 && Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz) < 14; s++) await C('step', { seconds: 1 }); // down the street
     const left = !RS.inside(rec, m.c), out = m.c.res.where, far = Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz);
+    const S = m.c.res, st = p.stops[Math.min(S.stop, p.stops.length - 1)]; // (the why, on a failure: where they were then and why)
+    const then = { at: [+m.c.x.toFixed(1), +m.c.z.toFixed(1)], stop: st && [+st.x.toFixed(1), +st.z.toFixed(1)], route: S.route?.length ?? null, ri: S.ri, wedged: S.wedged ?? 0, lost: S.lost ?? 0, stuck: +(m.c.stuck ?? 0).toFixed(1), hold: m.c.hold, flee: m.c.flee, target: m.c.target?.id ?? null, live: RS.live.size, chars: g.chars.length };
     await C('setTime', { hour: p.back + 0.02 });
     let u = 0;
     for (; u < 120 && !RS.inside(rec, m.c); u++) await C('step', { seconds: 1 });
     const back = RS.inside(rec, m.c);
-    return homeFirst && left && out === 'out' && far >= 14 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: m.c.res.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length } });
+    return homeFirst && left && out === 'out' && far >= 14 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: S.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length },
+      day: d, house: [rec.x0, rec.z0, rec.x1, rec.z1].map((v) => +v.toFixed(1)), then });
   });
   let thief = null;
   await check('ring residents: taking from a lived-in house\'s shelf in front of one of them is a `steal` they witness: the box is theirs, the record names them, their people hear of it, and they hold it against you', async () => {
@@ -5546,7 +5587,7 @@ async function runSelfTest(api, only = null, skip = null) {
         if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
         if (g.storeys.sameFloor(r, p) && g.sees(r, p)) break; // up where it can see you and shoot: it may fight from the top steps
       }
-      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
+      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target, b: S.b.id ?? S.id, foot: [+f.bottomOut.x.toFixed(1), +f.bottomOut.z.toFixed(1)], state: r.state, stuck: +(r.stuck ?? 0).toFixed(1), hold: r.hold, flee: r.flee, cower: r.cowerT, knock: r.knockT, tac: r.tac?.force ?? null, sees: g.sees(r, p) });
     } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
   });
   await check('storeys: inside, you see your floor and the ones below, not the ones above (nor who is up there); outside, every floor shows', async () => {

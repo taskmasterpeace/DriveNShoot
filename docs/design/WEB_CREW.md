@@ -184,6 +184,9 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
   - `bandFit = clamp(1 − |d − mid| / half, −3, 1)`.
   - `crowd`: a squadmate's goal already within 1.6 m.
   - `flankFit` (flankers only): 1 inside 60-120° off the target's facing.
+- **Band edge:** `steer` stops `arrive` (0.9 m) short of a goal, so an OPEN goal within `arrive` of a band edge moves
+  `arrive` into the band along the threat line (a cover goal stays put; retreats are left alone). Without it a rifleman
+  backing off from 12 m stood at 24.2-24.9 m, out of his own band (WEB_BATTERY_STABILITY.md §3.9).
 - **The peek:** on the street every box stops a round, low or not. So a fighter in cover with no line gets a PEEK spot
   1.3 or 2.4 m to one side where the eye clears the edge. They lean out to shoot for 1.6 s and duck back for 1.8 s, and
   stay in while suppressed above 0.55.
@@ -279,6 +282,8 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
   - `agent/api.js`: commands, checks, snapshot, restore;
   - `net/shard.js`: personal and applyPersonal;
   - `data/controls.js`: the `crew` row.
+- **Battery staging:** `tactics band` keeps you alive (`g.godMode`) for its window; a dead target ends the fight
+  (WEB_BATTERY_STABILITY.md §3.9).
 - **Plugs in later:**
   - a base-building lane sets `crew.base` and owns the stash;
   - camp talk and interjections (G3.8) read `crew.members[*].row.values` and the chronicle;
