@@ -7,6 +7,7 @@ import { HIT_ODDS } from '../data/gear.js';
 import { HEADSHOT } from '../data/deaths.js';
 import { BREED_ANSWERS, WARNINGS } from '../data/hordes.js';
 import { Wilds } from './wilds.js';
+import { EchoMind } from './echomind.js';
 
 // The infected (canon: docs/design/THE_INFECTED.md - shamblers, and the rare sprinter; never "zombies" on screen). They hunt by smell (no line of sight needed), swarm to
 // noise (gunfire, engines, horns), claw at cars until the glass gives, reach in for the
@@ -39,6 +40,7 @@ export class Zombies {
     this.buildSites();
     // The Greyborn, the Grapevine, their traps and the hot ground (systems/wilds.js, docs/design/WEB_GREYBORN_GRAPEVINE.md).
     this.wilds = new Wilds(game);
+    this.minds = new EchoMind(game, this); // the smart Echo: stalks, lures, lays traps, learns (systems/echomind.js)
     this.auraRing = null; // the ring on the ground (not this.aura: that is the method think() asks) round a living Choir-Touched (one mesh, shown only while one is near)
   }
 
@@ -203,20 +205,24 @@ export class Zombies {
       if (d < 90) { g.audio.murmur?.(g.pan(c.x), Math.min(25, d * 0.4)); g.feedback?.floater(c.x, c.z, c.ecopyWhat ?? 'BANG', 'bark'); }
       g.emit('echoCopied', { id: c.id, r: Math.round(r), what: c.ecopyWhat ?? 'noise' });
     }
-    // Its phrase, on a loop: the approach tell.
+    // Its phrase, on a loop: the approach tell. Hunting you it keeps quiet (its lure is its only voice), except lying in
+    // wait at a door, where the phrase calls the dead round it to that door (a choke: systems/echomind.js).
+    const em = c.em, hunting = em && em.state !== 'work', trap = em?.state === 'ambush' ? em.door : null;
     c.phraseT = (c.phraseT ?? Math.random() * EC.phrase) - dt;
+    if (c.phraseT <= 0 && hunting && !trap) c.phraseT = EC.phrase;
     if (c.phraseT <= 0) {
       c.phraseT = EC.phrase;
       const d = Math.hypot(c.x - P.x, c.z - P.z);
       if (d < EC.hear) { g.feedback?.floater(c.x, c.z, EC.line, 'bark'); g.audio.murmur?.(g.pan(c.x), d); }
       // The phrase calls: the infected in earshot that know of nothing better come to where it works (they heard it).
-      const wx = c.work ? c.work.x : c.x, wz = c.work ? c.work.z : c.z;
+      const wx = trap ? trap.x : c.work ? c.work.x : c.x, wz = trap ? trap.z : c.work ? c.work.z : c.z;
       for (const o of g.chars) {
         if (o === c || !o.alive || o.faction !== 'zombie' || o.zkind === 'echo' || o.zkind === 'choir' || o.wild || o.zsee || this.fresh(o)) continue;
         if (Math.abs(o.x - c.x) > EC.call || Math.abs(o.z - c.z) > EC.call || Math.hypot(o.x - c.x, o.z - c.z) > EC.call) continue;
         this.remember(o, wx + (Math.random() - 0.5) * 3, wz + (Math.random() - 0.5) * 3, 'echo'); this.counts.called++;
       }
     }
+    if (this.minds.think(c, dt)) return; // it knows of you: it hunts (echomind.js); else it works its door
     if (this.watched(c)) { c.speed = 0; c.frozen = true; return; } // hands still on the wire (handsUp stays as it was: mid-motion)
     c.frozen = false;
     // What it is at: the nearest boarded window or locked door to its post.
@@ -411,6 +417,7 @@ export class Zombies {
     c._hit = part; // the death library's clip reads it (systems/deaths.js)
     // A HEADSHOT drops it clean (data/deaths.js HEADSHOT): whatever its hp, it folds where it stood.
     if (part === 'head' && c.alive && c.hp > 0 && dmg >= HEADSHOT.min && HEADSHOT.causes.includes(c._hitCause)) { c.hp = 0; this.counts.headshots = (this.counts.headshots ?? 0) + 1; g.emit('headshot', { id: c.id, kind: c.zkind ?? 'shambler' }); return; }
+    if (c.zkind === 'echo') this.minds.hurt(c, attacker); // it learns to keep further off
     if (attacker && attacker !== c && attacker.alive && !c.zsee) {
       // It knows which way the hit came from, not who or how far: a spot up to 20 m back along it.
       const dx = attacker.x - c.x, dz = attacker.z - c.z, d = Math.hypot(dx, dz) || 1, k = Math.min(d, 20) / d;

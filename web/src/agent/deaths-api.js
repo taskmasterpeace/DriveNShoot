@@ -4,7 +4,7 @@
 // true or a JSON diagnostic). Deaths are staged (who dies, of what, from where); everything after the kill is the real path.
 import { DEATH_CLIPS, SEVER, HOOD, validateDeaths } from '../data/deaths.js';
 import { UAL_CLIPS } from '../data/deathclips-ual.js';
-import { BREED_ANSWERS, WARNINGS, MIGRATION, validateHordes } from '../data/hordes.js';
+import { BREED_ANSWERS, WARNINGS, MIGRATION, ECHO_MIND, validateHordes } from '../data/hordes.js';
 import { CLIPS } from '../systems/deaths.js';
 import { outfit } from '../systems/characters.js';
 
@@ -269,6 +269,96 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       const ok = quiet && heardShot.every((x) => x === null) && copied && mem.every((m) => m && m.src === 'echo' && m.toEcho < 12) && closed.every((x) => x > 3);
       return ok ? true : JSON.stringify({ quiet, heardShot, copied, mem, closed });
     } finally { g.zombies.enabled = false; gone(e, ...sh); g.godMode = false; }
+  }));
+
+  // THE SMART ECHO (systems/echomind.js). Seen: inside your view cone (where you aim, ECHO_MIND.fov), inside ECHO_MIND.seen m,
+  // a clear line - the truth, measured here, not the Echo's model of it.
+  const inView = (e) => { const p = P(), d = dist(e, p); if (d > ECHO_MIND.seen) return false; const f = Math.atan2(g.aim.x - p.x, g.aim.z - p.z), a = Math.atan2(e.x - p.x, e.z - p.z); let da = Math.abs(a - f) % (Math.PI * 2); if (da > Math.PI) da = Math.PI * 2 - da; return da < ECHO_MIND.fov * Math.PI / 180 && g.sees(p, e); };
+  const mindOf = (e) => Z.minds.view(e);
+
+  await check('infected fun: a smart Echo that knows where you are stalks you without once stepping into your view (you stand still: anything that puts it in sight would be its own doing), closes in behind you, and slips away the moment you turn to it', async () => hush(async () => {
+    await flats();
+    const p = P(); g.aimOverride = { x: p.x + 20, z: p.z };
+    const e = Z.spawnKind('echo', p.x - 21, p.z + 5);
+    try {
+      e.face = Math.atan2(p.x - e.x, p.z - e.z);
+      Z.remember(e, p.x, p.z, 'sound', p); // it heard you
+      g.zombies.enabled = true;
+      let seenT = 0, d0 = dist(e, p), dMin = d0, states = new Set();
+      for (let t = 0; t < 12; t += 0.1) { await C('step', { seconds: 0.1 }); if (inView(e)) seenT += 0.1; dMin = Math.min(dMin, dist(e, p)); states.add(mindOf(e).state); }
+      const before = dist(e, p);
+      const seq0 = g.eventSeq;
+      g.aimOverride = { x: e.x, z: e.z }; // you turn to it
+      let hid = false;
+      for (let t = 0; t < 3; t += 0.1) { await C('step', { seconds: 0.1 }); hid = hid || g.events.some((v) => v.seq > seq0 && v.type === 'echoMind' && v.id === e.id && v.state === 'hide' && v.why === 'faced'); }
+      const after = dist(e, p);
+      const ok = seenT === 0 && states.has('stalk') && dMin < d0 - 4 && hid && after > before + 3;
+      return ok ? true : JSON.stringify({ seenT: r1(seenT), states: [...states], d0: r1(d0), dMin: r1(dMin), hid, before: r1(before), after: r1(after), mind: mindOf(e) });
+    } finally { g.aimOverride = null; g.zombies.enabled = false; gone(e); g.godMode = false; }
+  }));
+
+  await check('infected fun: a smart Echo that saw you walking to a door waits in ambush at that door (one it has seen itself), calling the dead there; an Echo that never saw that door does not wait at it', async () => hush(async () => {
+    await stage(); await C('teleport', { x: 0, z: -40 });
+    const n = g.nav.foot, p0 = P();
+    // a door with open street out its front to 40 m, and a lane 6 m to one side of that
+    const D = g.interiors.doors.filter((d) => !d.ug && Math.hypot(d.x - p0.x, d.z - p0.z) < 220).find((d) => [2, 8, 14, 20, 26, 32, 38, 42].every((k) => n.free(d.x + d.nx * k, d.z + d.nz * k) && n.free(d.x + d.nx * k - d.nz * 6, d.z + d.nz * k + d.nx * 6)) && g.los(d.x + d.nx, d.z + d.nz, d.x + d.nx * 42, d.z + d.nz * 42) && g.los(d.x + d.nx * 0.6, d.z + d.nz * 0.6, d.x + d.nx * 24 - d.nz * 6, d.z + d.nz * 24 + d.nx * 6));
+    if (!D) return 'no door with 40 m of open street in front of it';
+    const at = (k, side = 0) => ({ x: D.x + D.nx * k - D.nz * side, z: D.z + D.nz * k + D.nx * side });
+    // you walk toward the door (staged steps), looking at it, then look off to the side, away from both
+    const walk = async (e, from, to) => {
+      const a = at(from), b = at(to);
+      await C('teleport', a); g.godMode = true;
+      e.face = Math.atan2(a.x - e.x, a.z - e.z); Z.remember(e, a.x, a.z, 'sound', P()); // it heard you come up the street
+      g.aimOverride = { x: D.x, z: D.z };
+      const N = 30;
+      for (let i = 1; i <= N; i++) { const p = P(); p.x = a.x + (b.x - a.x) * i / N; p.z = a.z + (b.z - a.z) * i / N; p.speed = 1.4; await C('step', { seconds: 0.1 }); }
+      P().speed = 0;
+      const p = P(); g.aimOverride = { x: p.x + D.nz * 20, z: p.z - D.nx * 20 }; // the -side: away from the Echo's lane and from the door
+    };
+    let far = null, e = null;
+    try {
+      await C('teleport', at(30)); clearRound(D.x, D.z, 90); g.zombies.enabled = true;
+      // FAR: 40 m out, the door past its sight - it sees you walking that way but has never seen the door
+      const fa = at(42, 6);
+      far = Z.spawnKind('echo', fa.x, fa.z);
+      await walk(far, 36, 26);
+      const farKnew = far.em?.known.has(D) ?? false;
+      let farTrap = false;
+      for (let t = 0; t < 2; t += 0.1) { await C('step', { seconds: 0.1 }); farTrap = farTrap || mindOf(far).door === D.id; }
+      const farView = mindOf(far); gone(far); far = null;
+      // NEAR: 24 m out, the door in its sight
+      const ea = at(24, 6);
+      e = Z.spawnKind('echo', ea.x, ea.z);
+      const sa = at(20, 10), sh = Z.spawn(sa.x, sa.z, false); sh.timer = 99; sh.wx = sh.x; sh.wz = sh.z; sh.face = Math.atan2(D.nx, D.nz); // a shambler idling up the street, its back to it all
+      await walk(e, 20, 10);
+      const knew = e.em?.known.has(D) ?? false;
+      let trap = false, there = 99, called = false;
+      for (let t = 0; t < 14 && !(trap && there < 2.6 && called); t += 0.25) {
+        await C('step', { seconds: 0.25 });
+        const v = mindOf(e); trap = v.state === 'ambush' && v.door === D.id; there = r1(Math.hypot(e.x - D.x, e.z - D.z));
+        called = called || (sh.zm?.src === 'echo' && Math.hypot(sh.zm.x - D.x, sh.zm.z - D.z) < 5);
+      }
+      gone(sh);
+      const ok = !farKnew && !farTrap && knew && trap && there < 2.6 && called;
+      return ok ? true : JSON.stringify({ door: D.id, farKnew, farTrap, farView, knew, trap, there, called, mind: mindOf(e) });
+    } finally { g.aimOverride = null; g.zombies.enabled = false; gone(far, e); g.godMode = false; }
+  }));
+
+  await check('infected fun: a smart Echo that lost sight of you calls out to lure you - and the call comes from exactly where it stands (its floater and stereo pan at its own x,z), so a sharp player can find it by ear', async () => hush(async () => {
+    await flats();
+    const p = P(), e = Z.spawnKind('echo', p.x + 28, p.z + 6);
+    const seq0 = g.eventSeq;
+    try {
+      e.face = Math.atan2(e.x - p.x, e.z - p.z); // facing away: it never sees you
+      Z.remember(e, p.x, p.z, 'sound', p);
+      p.hidden = true; // you went to ground: it knows where you were, it cannot see you
+      g.zombies.enabled = true;
+      let lure = null, pos = null;
+      for (let t = 0; t < 10 && !lure; t += 0.05) { await C('step', { seconds: 0.05 }); lure = g.events.find((v) => v.seq > seq0 && v.type === 'echoLure' && v.id === e.id) ?? null; if (lure) pos = { x: e.x, z: e.z, pan: g.pan(e.x) }; }
+      const off = lure ? Math.hypot(lure.x - pos.x, lure.z - pos.z) : null;
+      const ok = !!lure && off < 0.3 && Math.abs(lure.pan - pos.pan) < 0.03;
+      return ok ? true : JSON.stringify({ lure, pos, off, mind: mindOf(e) });
+    } finally { P().hidden = false; g.zombies.enabled = false; gone(e); g.godMode = false; }
   }));
 
   await check('infected fun: readable warnings - one you cannot see (behind a wall) groans to you before you see it; a crowd of eight on the move kicks up dust, one of them alone does not', async () => hush(async () => {

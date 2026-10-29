@@ -1107,7 +1107,7 @@ function buildCommands(api) {
         const live = g.chars.filter((c) => c.alive && c.faction === 'zombie' && c.zkind);
         return {
           sprinters: live.filter((c) => c.zkind === 'sprinter').map((c) => ({ id: c.id, state: c.zs.state, t: r1(c.zs.t), pace: r1(c.zSpeed), dist: near(c) })),
-          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
+          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, mind: g.zombies.minds.view(c), at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
           choir: live.filter((c) => c.zkind === 'choir').map((c) => ({ id: c.id, site: c.site ?? null, target: c.ztarget?.id ?? null, inAura: g.chars.filter((o) => o.alive && o.faction === 'zombie' && o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 30).length, dist: near(c) })),
           sites: Z.sites.map((q) => ({ id: q.id, name: q.name, x: q.x, z: q.z, lastNight: q.night })),
           counts: { ...Z.counts },
@@ -5602,6 +5602,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('teleport', { x: W.x + W.nx * 8, z: W.z + W.nz * 8 });
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && zdist(c, W) < 30) g.removeChar(c);
     const e = g.zombies.spawnKind('echo', post.x, post.z, post);
+    e.face = Math.atan2(W.x - e.x, W.z - e.z); // at its window, its back to you (it has not seen you: law 6, it works on)
     let drift = 0;
     try {
       g.aimOverride = { x: e.x, z: e.z }; // you watch it
