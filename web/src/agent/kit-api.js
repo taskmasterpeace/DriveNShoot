@@ -96,7 +96,7 @@ export async function kitChecks(api, check, C) {
     const S = stretch();
     if (!S) { await check('kit: open ground to stage on', async () => 'no clear 80 m stretch'); return; }
 
-    await check('kit: night goggles drain their cell by the second (a fresh cell thumbed in from the pack when it goes flat), and a flare 6 m off whites them out; they come back once it is gone', async () => {
+    await check('kit: night goggles drain their cell by the second (a fresh cell thumbed in from the pack when it goes flat), the world grade steps aside for their own picture, and a flare 6 m off whites them out; they come back once it is gone', async () => {
       clean(); await home(S.x, S.z); await C('setTime', { hour: 1 });
       const L0 = lightCount();
       K.on.eyes = null; g.inventory.stow('nvg', 1); g.inventory.stow('battery_cell', 1); K.charge.nvg = 6;
@@ -106,6 +106,7 @@ export async function kitChecks(api, check, C) {
       await C('step', { seconds: 4 }); // past the first cell: the spare goes in
       const swapped = K.carried('battery_cell') === 0 && K.charge.nvg > KIT.nvg.power.life - 3;
       g.render(0); const on = K.mul.visible && g.renderer.toneMappingExposure > K.baseExposure * 1.5;
+      const gradeOff = !g.look || g.look.strength() === 0; // the world's colour grade steps aside for the tubes' own picture (systems/lookfeel.js)
       const f = g.gadgets.place('signal_flare', S.x + S.fx * 6, S.z + S.fz * 6, 0, P(), { state: 'armed', armAt: 0 });
       let blind = 0; for (let k = 0; k < 6; k++) { await C('step', { seconds: 0.25 }); blind = Math.max(blind, K.blind); }
       g.gadgets.remove(f);
@@ -114,8 +115,8 @@ export async function kitChecks(api, check, C) {
       K.charge.nvg = 0.5; await C('step', { seconds: 1.5 }); g.render(0); // flat, no cells left: the picture goes
       const dead = !K.mul.visible;
       K.on.eyes = null; g.render(0);
-      const lights = lightCount() === L0;
-      return drained && swapped && on && blind >= 0.6 && back && dead && lights ? true : `drained=${drained} swapped=${swapped} (cells ${K.carried('battery_cell')}, charge ${r1(K.charge.nvg)}) on=${on} blind=${r1(blind)} back=${back} (${r1(K.blind)}) dead=${dead} lights=${lights}`;
+      const lights = lightCount() === L0, gradeBack = !g.look || !(g.look.settings.grade > 0) || g.look.strength() > 0;
+      return drained && swapped && on && gradeOff && gradeBack && blind >= 0.6 && back && dead && lights ? true : `drained=${drained} swapped=${swapped} (cells ${K.carried('battery_cell')}, charge ${r1(K.charge.nvg)}) on=${on} grade off=${gradeOff} back=${gradeBack} blind=${r1(blind)} back=${back} (${r1(K.blind)}) dead=${dead} lights=${lights}`;
     });
 
     await check('kit: a lit flashlight at night makes a raider 46 m off spot you (unlit he does not); with no torch carried the beam does not come on at all', async () => {

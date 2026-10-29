@@ -156,6 +156,7 @@ Variables: `d` (m) distance; `r` a row's radius; `night` = `sky.night` 0..1; `t`
 | `data/hudlayout.js` | row `kit` (`.kit-chip`, top right under the pulls chip) |
 | `data/workshop.js` | UTILITY `hubspikes`, `spotlight`, `winch`; `validateWorkshop` checks `needs`, `slash`, `beam` |
 | `data/dogs.js` | DOG_GEAR + `validateDogGear` (appended) |
+| `systems/lookfeel.js` | `strength()`: `× g.kit?.gradeMul()`: the world's colour grade steps aside while the goggles or the heat scope draw their own picture (lens dirt still shows) |
 | `agent/api.js` | import and spread `kitCommands`; `g.kit.staged = true` for the battery (restored before the runtime-errors check); `kitChecks` after `gadgetsChecks` |
 
 **Others may use:** `g.kit.seenMul()` (any sight model), `g.kit.heatOf(c)` (any heat-seeking thing), `g.kit.keyUp(fact, x, z, from)` (any new transmitter: a faction's patrol radio when factionsim speaks), `g.kit.airAt(c)` (any breathing NPC), `AIR_ZONES.under.kinds` (the UNDERSTREET storm drains, kind `drains`, are listed). **This lane uses** SITE STORIES' `movers` (`state`, `car`, `kind`, `to`, `x`, `z`) and `place(id)` for the scanner's party chatter.

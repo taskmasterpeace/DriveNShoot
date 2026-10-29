@@ -235,6 +235,10 @@ export class Kit {
     return 1;
   }
 
+  // The world's colour grade (systems/lookfeel.js) steps aside while the goggles or the heat scope draw their own picture:
+  // a tube's green or a heat camera's amber is the device's, not the region's. (Lens dirt still shows.)
+  gradeMul() { return this.mul?.visible ? 0 : 1; }
+
   // ---- heat ------------------------------------------------------------------------------------------------------------
   airC() { const n = this.g.sky?.night ?? 0; return HEAT.air.day + (HEAT.air.night - HEAT.air.day) * n; }
   heatOf(c) {
