@@ -10,9 +10,13 @@ re-staged or retried the STAGING, never the claim. Every bar, count and distance
 | check | cause (one line) | kind | fix |
 |---|---|---|---|
 | clone: reaching your husk… | a full pack spilled the kit-up into a ground pile on the husk's spot | state an earlier check left | staging |
+| ring residents: by day one of a family goes out… | the residents' "wedged" watchdog measured straight-line progress and fired on every correct route away from the goal; a door leaf open to its stop pinned them | **real game bugs** (2) + staging | `systems/residents.js`, `systems/interiors.js`, staging |
 | the town sleeps… | it judged the town "Ike + 20 s", before the game's own 25 s give-up had run | wall-clock-like window, not the game rule | game-time wait |
+| underground: Outpost Nine's holdout… | the hatch walk-down check before it leaves the site `warned`; on arrival that went hostile and the soldiers never challenged | state an earlier check left | staging |
 | water: a boat's heave… | a 4.2 s sample window is shorter than the 6.3 s swell; ~1% of phases sit in a lull | window vs. physics | longer window |
-| (the others) | see §3 | | |
+| doors: planks… | not reproduced (50+ runs alone, after its section, at night, after a burning car, on each of the 7 nearest doors) | — | richer failure detail |
+| crew order FALL BACK… | not reproduced (alone 8/8, the crew section 2/2) | — | richer failure detail |
+| storeys: a raider with a grudge… | not reproduced (alone 10/10; 16 timed trials 3–15 s against the 20 s bar, day and night) | — | richer failure detail |
 
 ## 2. Player Fantasy
 
@@ -46,6 +50,29 @@ a slow one. Batteries still differ run to run for three reasons, and every flake
   the prompt is the husk's.
 - **Not a game bug:** a pile you dropped beside your husk, and nearer to you, *should* take E.
 
+### 3.2 ring residents: by day one of a family goes out on a run on foot
+
+- **Symptom:** `left:false, where:"out"` with `secsOut 6`: out of the house, then back in its doorway when measured.
+- **Reproduced:** the battery's own order (the family put to bed by the night check, then the day run), day 2's member,
+  10 tries: **3 of 7 promoted runs failed**: wedged 5 times outside the door, 13.2 m at 30 s, or back in the doorway
+  (`out43 … IN`, the lead's exact shape). Passing runs took 11–30 s for the "down the street" leg against a 30 s bound.
+- **Cause 1 (real bug, `systems/residents.js` walk):** the progress watchdog ("no closer by 0.3 m in 4 s → wedged: drop
+  the route, random detour, plan again") measured **straight-line distance to the final goal**. This family's front door
+  faces west and its first stop is east. The correct route goes out west and round the house, *away* from the goal, so the
+  watchdog fired every 4 s: a fresh route and a random detour each time, often back into the doorway.
+  **Fix:** progress is measured **along the route** (to its next point plus the rest of it). Straight-line is kept when
+  there is no route.
+- **Cause 2 (real bug, `systems/interiors.js` leafCircle):** with false wedges gone, a slower stall showed. The family's
+  double front door is pushed open outward to its stop (`DOOR.maxAngle` 1.83 rad), so each leaf sticks ~1 m out from the
+  wall. The foot-path grid knows nothing of leaves, and the route south hugs the wall 0.6 m out, straight into the southern
+  leaf. Pressed square on (`broad` 1.00) a leaf at its stop yields nothing, and the push-out alone held the walker there,
+  their next waypoint right behind it (traced: `th 1.83`, contact `s 0.36/1.07`, `broad 1.00`).
+  **Fix:** a leaf at its stop turns an **AI walker** pressing it toward its free end (the remaining push-out goes along
+  the leaf), as round a wall's corner. You and cars push leaves exactly as before.
+- **Cause 3 (staging):** alone, the check came up "not promoted" (13 free character slots; residents never take the
+  reserve). In the battery it borrowed the night check's `freeUp()`. It now stages its own room, as `atFamily()` does.
+- **After:** the night-then-day pair on fresh pages, days 1–6: 12/12. Alone 5/5.
+
 ### 3.3 the town sleeps: at 23:00 Ike goes to bed and most of the town with him
 
 - **Symptom:** `most:false`, ~24 asleep against ~31 awake.
@@ -61,6 +88,43 @@ a slow one. Batteries still differ run to run for three reasons, and every flake
   awake, `bedT 21`. New code: pass.
 - **Fix (game-time wait, `agent/api.js`):** count game seconds since 23:00 and judge the town only once at least
   `giveUp + 4` s have run (still ending early once "most" is true). The bar is the same 60%.
+
+### 3.5 underground: Outpost Nine's holdout - challenged once, then shot at
+
+- **Symptom:** `warned:false` and the drone's `flew` tiny (it should cover > 2 m in 4 s).
+- **Cause (state from the check before):** "walk down Outpost Nine's hatch" takes you to level 1 at standing 0 and back
+  up. The holdout sees you every time and leaves its record `warned` with **~1.3–1.5 s left on the warning** (6 of 6
+  runs measured). `warnT` only counts down while the site is live, so the next visit, the holdout check, arrives with
+  the warning nearly spent. If the drone or a soldier sees you at the foot of the stairs as it runs out, `hostileNow()`
+  fires. Every soldier who sees you takes you as `target` and `grudge`, and a soldier with a target skips the challenge
+  logic for good. The drone holds a grudge too, and a hostile drone that sees you hovers 6–9 m off (so it "flew" almost
+  nothing). The check resets `alert` to `calm` before the challenge test, but not the soldiers' targets, so: `warned:false`.
+  Whether the drone or a soldier is looking at the foot of the stairs in those frames is where the run-to-run variation comes in.
+- **A second leg (state):** your roles bias every faction's reading of you (up to ±50, `systems/roles.js`). The check
+  means a reading it controls (standing 0, then 50 for the drone's round). With a positive bias of 20 or more (staged)
+  the soldiers read you as friendly at standing 0 and hail you instead of challenging: `warned:false` reproduced.
+  Real roles move the Remnant between −31 and +13, so this is defensive staging, not the measured cause.
+- **Fix (staging, `agent/underground-api.js`):** underground `stage()` calms the site's record (`alert`, `warnT`) before
+  entering, and the holdout check resets the roles' bias as the world-memory `stage()` does. The claim (challenged once,
+  then shot at) is unchanged. The underground section stays 11/11, and the walk-down-then-holdout pair passes 3/3.
+
+### 3.6 doors, crew FALL BACK, storeys raider: not reproduced
+
+These three pass alone (5/5 each), and none failed in 3 hunting batteries or the proof batteries in §9. Hypotheses
+ruled out with runs:
+
+- **doors: planks** (`plain held=true`): the door picked (each of the 7 nearest gives in 6.5–8 s), the hour (23, 3, 18),
+  the character budget (full; the infected are never recycled), the security bulls (none left near), a burning car
+  beside the door, and the sections before it (understreet, wrecks, occupations, materials, doors, gadgets, security).
+- **crew order FALL BACK**: refusal (MAN THE GUN is refused below trust −25; a hire starts at 10, and generic rows have no
+  flaw), the crew section run whole.
+- **storeys raider**: the hour (16 timed trials, 3–15 s day and night against 20 s), fear (it only scatters the unarmed).
+
+**What was added instead:** each now reports, *only when it fails*, everything needed to name the cause on the first
+sighting. Planks: each infected's distance, whether it is working the door, who it is after and how, its memory, fire
+and layer, and where you stand. FALL BACK: each member's order, seat or deck, distance to the rig, speed, stuck time,
+trust, and where the rig is. Storeys: the building, the stair foot, the raider's state, stuck, hold, flee, cower,
+knockdown, tactics, and line of sight. Plus the `[entry …]` tag on every failure.
 
 ### 3.8 water: a boat's heave, pitch and roll follow waveAt under its hull
 
@@ -88,12 +152,23 @@ a slow one. Batteries still differ run to run for three reasons, and every flake
   `w = 4.2 s`, `T = 6.3 s` that is 1.5 A on its own, but the other five components can cancel it. Once `w > T` the long
   component alone spans 2A = 2 × 0.62 × 0.42 ≈ 0.52 m before cancellation. Measured worst: 0.288 m.
 
+- **Residents' progress:** `rem = |wp_ri - c| + Σ_{i≥ri} |wp_{i+1} - wp_i|` (no route: `|goal - c|`). Wedged when `rem` has
+  not fallen below `best - 0.3` m for 4 s. Example: a west front door, the stop 50 m east. The straight distance grows
+  for the first ~12 m (out and round the house), which read as wedged at 4 s. Along the route it falls 1.6 m/s from the
+  first step.
+- **A leaf at its stop:** the push-out left over after the leaf yields nothing (`rem` m) is applied along the leaf toward
+  its free end, so an AI walker pressed square on slides `rem` per frame round the tip (1 m leaf, 1.6 m/s: under 1 s).
+
 ## 5. Edge Cases
 
 - A check that fails **only** in the full battery: read the new `[entry …]` tag on its detail (§6, tools) first. It
   names whatever was off neutral as the check began (dialogue, pack, car, deck, underground, upstairs, crouch, the hour,
   the weather, the character budget, where you stood).
 - A full pack before any check that kits you up: stage room first (§3.1). The game spilling to the ground is correct.
+- A check that visits a guarded site: leftovers on the site's own record (an alert, a warning running) carry into the next
+  visit. Stage the record, not just the people (§3.5).
+- A walker with no route (the planner found none): the watchdog falls back to straight-line distance, as before.
+- You, or a car, pressing a leaf at its stop: unchanged (the push-out only). Only the AI's walkers turn round its end.
 
 ## 6. Dependencies
 
@@ -104,10 +179,16 @@ a slow one. Batteries still differ run to run for three reasons, and every flake
     outside while a battery runs, or after the bridge drops.
   - Richer failure details (only on failure) for the planks, crew FALL BACK, storeys raider, ring residents' run, and
     Outpost Nine checks.
+- **Game code changed (real bugs):** `systems/residents.js` `walk` (the progress watchdog measures along the route),
+  `systems/interiors.js` `leafCircle` (a leaf open to its stop turns an AI walker round its free end). Every other change is
+  in `agent/*` (staging, waits, failure details).
 - **Systems these checks read:** `systems/clone.js`, `systems/inventory.js` (stow, groundAt, nearest), `systems/ai.js`
-  (toBed, TOWN_NIGHT), `world/waves.js` (ride, sum), `data/waves.js` (SWELL).
-- **Back-references:** `.claude/skills/dsoa-land/SKILL.md` §4 (state from earlier checks), WEB_CLONE_TRAVEL.md,
-  WEB_SURVIVAL.md (TOWN_NIGHT), WEB_WATER_LIFE.md.
+  (toBed, TOWN_NIGHT), `world/waves.js` (ride, sum), `data/waves.js` (SWELL), `systems/residents.js`, `systems/interiors.js`,
+  `systems/underground.js` (soldier, drone, hostileNow, warnT), `systems/roles.js` (the factions' bias), `data/society.js`
+  (TIERS).
+- **Back-references (added):** WEB_STREAMING.md §1.3 R2 (the watchdog and the leaf), WEB_SURVIVAL.md §3.5 (the give-up),
+  WEB_UNDERGROUND.md §6 (stage calms the record); `.claude/skills/dsoa-land/SKILL.md` §4 (state from earlier checks) is
+  the rule this document applies.
 
 ## 7. Tuning Knobs
 
