@@ -233,6 +233,7 @@ export class VehicleDamage {
     v.dmg.off = {}; v.dmg.temp = 0; v.dmg.dirty = true; v.dmg.deformT = 0;
     if (v.baseCol) v.mesh.geometry.attributes.color.array.set(v.baseCol);
     v.hp = v.maxHp;
+    this.g.look?.clean(v); // a garage repair washes the dust and mud off too (systems/lookfeel.js)
   }
 
   update(dt) {

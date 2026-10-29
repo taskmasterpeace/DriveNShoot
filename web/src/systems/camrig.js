@@ -131,7 +131,7 @@ export class CamRig {
     this.yaw = wrap(this.yaw + wrap(yT - this.yaw) * (1 - Math.exp(-dt * CAMERA.yawRate)));
     g.camHeight = this.D * Math.cos(this.theta);
 
-    const cam = g.camera, s = g.hud.shakeV, sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
+    const cam = g.camera, s = g.hud.shakeV, K = g.look?.kick, sx = (Math.random() - 0.5) * s * 1.2 + (K?.x ?? 0), sz = (Math.random() - 0.5) * s * 1.2 + (K?.z ?? 0); // + the calibre's kick (systems/lookfeel.js)
     const hz = this.D * Math.sin(this.theta);
     cam.position.set(look.x + sx + hz * Math.sin(this.yaw), g.camHeight + floorY, look.z + sz + hz * Math.cos(this.yaw));
     cam.lookAt(look.x + sx, floorY, look.z + sz);

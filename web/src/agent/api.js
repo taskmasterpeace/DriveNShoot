@@ -71,6 +71,7 @@ import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay,
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
+import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
@@ -510,7 +511,7 @@ function buildCommands(api) {
           cam.position.set(cx, by + h, cz + h * t); cam.lookAt(cx, by, cz); cam.near = nearFor(h * Math.hypot(1, t)); cam.updateProjectionMatrix(); // the near plane follows the boom (depthlayers.js)
           if (far) { const vr = Math.hypot(h * 0.3839, h * 0.3839 * cam.aspect) * 1.15; g.sky.update(0, by ? { x: cx, y: by, z: cz } : { x: cx, z: cz }, g.world.groundMat, g.world.roadMat, vr); g.streamer.postSky(); } // the sun's shadow box and the haze go with the shot
         }
-        r.render(g.scene, cam);
+        if (g.look) g.look.render(cam); else r.render(g.scene, cam); // the grade pass too: shots look like the game (systems/lookfeel.js)
         if (far) { const f = g.streamer.focus(); g.streamer.ensureHot(f.x, f.z, 'screenshot'); g.sky.update(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); g.streamer.postSky(); }
         const image = r.domElement.toDataURL('image/jpeg', quality);
         r.setPixelRatio(prevPR); r.setSize(Math.max(1, prevW / prevPR), Math.max(1, prevH / prevPR), false);
@@ -2095,6 +2096,7 @@ function buildCommands(api) {
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
+    ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
@@ -2870,6 +2872,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
   await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
+  await lookfeelChecks({ g, api, C, check }); // LOOK-FEEL: rows and no purple, the horizon law, the grade's blend, wind, skids and the crash, hit-stop and kick, wear
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
