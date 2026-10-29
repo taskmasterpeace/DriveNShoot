@@ -74,6 +74,58 @@ const prompt = (m, detail) => [
   `When you are done, reply with exactly one line: CHANGE: <what you changed and why, in plain words>.`,
 ].filter(Boolean).join('\n\n');
 
+
+// ---- STEPWISE MODE: any agent (a subagent, a person, a session) is the editor --------------------------------------------
+//   node tools/goal-loop.mjs <goal> --begin            measure; met -> exit 0; else snapshot the files, print the prompt
+//   ...the agent changes ONE thing in the goal's files...
+//   node tools/goal-loop.mjs <goal> --judge "<change>" checks + re-measure: keep (and log the diff) or restore exactly; log
+//   node tools/goal-loop.mjs <goal> --abort            restore the snapshot without judging
+// The round's state (snapshot, before value, round number, history) lives in <repo>/scratchpad/goal-loop/<goal>.json.
+const statePath = join(repo, 'scratchpad/goal-loop', `${G.name}.json`);
+const loadState = () => (existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { round: 0, history: [], open: null });
+const saveState = (st) => { mkdirSync(dirname(statePath), { recursive: true }); writeFileSync(statePath, JSON.stringify(st)); };
+if (argv.includes('--begin') || argv.includes('--judge') || argv.includes('--abort')) {
+  const st = loadState();
+  history.push(...st.history);
+  if (argv.includes('--abort')) { if (st.open) { restore(new Map(Object.entries(st.open.snap))); st.open = null; saveState(st); } console.log('[goal-loop] aborted; files restored'); process.exit(0); }
+  if (argv.includes('--begin')) {
+    if (st.open) { console.log(`[goal-loop] round ${st.open.round} is open: --judge "<change>" or --abort first`); process.exit(2); }
+    const m0 = measure(), cs = checks();
+    if (!cs.every((c) => c.ok)) { console.log(`[goal-loop] checks red before the round:\n${cs.filter((c) => !c.ok).map((c) => `  ${c.c}: ${c.out}`).join('\n')}`); process.exit(1); }
+    if (met(m0.v)) { console.log(`[goal-loop] ${G.name}: ${m0.v} - TARGET MET`); process.exit(0); }
+    if (!st.round) appendFileSync(logPath, `\n## Stepwise run ${now()} (start ${m0.v}, target ${G.target}; the editor is whoever runs --begin/--judge)\n\n| round | before | after | verdict | change | checks |\n|---|---|---|---|---|---|\n`);
+    st.round++; st.open = { round: st.round, before: m0.v, snap: Object.fromEntries(snap()), outside: dirty().filter((f) => !G.files.includes(f)) }; st.start ??= m0.v;
+    saveState(st);
+    console.log(prompt(m0, G.detail ? sh(G.detail).out : ''));
+    process.exit(10); // 10 = a round is open, waiting for the edit
+  }
+  // --judge
+  if (!st.open) { console.log('[goal-loop] no open round (--begin first)'); process.exit(2); }
+  const change = String(opt('--judge', '') || '(no description)').replace(/\|/g, '/').slice(0, 300);
+  const S = new Map(Object.entries(st.open.snap)), before = st.open.before, rn = st.open.round;
+  const outside = dirty().filter((f) => !G.files.includes(f) && !st.open.outside.includes(f));
+  const d = diffOf(S);
+  let verdict, after = before, ck = '-';
+  if (outside.length) { restore(S); verdict = `REJECTED (touched ${outside.join(', ')})`; }
+  else if (!d) verdict = 'no change';
+  else {
+    const cs = checks(), green = cs.every((c) => c.ok);
+    try { after = measure().v; } catch { after = NaN; }
+    const keep = green && Number.isFinite(after) && better(after, before);
+    verdict = keep ? 'KEPT' : !green ? 'REJECTED (checks red)' : 'REJECTED (no gain)';
+    if (!keep) restore(S);
+    ck = cs.map((c) => (c.ok ? 'green' : `red: ${c.out.slice(0, 160).replace(/\|/g, '/')}`)).join('; ');
+    if (keep) appendFileSync(logPath.replace(/\.md$/, '.diffs.md'), `\n### round ${rn} (${now()}): ${before} -> ${after}\n\`\`\`diff\n${d}\n\`\`\`\n`);
+  }
+  appendFileSync(logPath, `| ${rn} | ${before} | ${after} | ${verdict} | ${change} | ${ck} |\n`);
+  st.history.push({ round: rn, verdict, before, after, change }); st.open = null;
+  const now2 = measure().v;
+  if (met(now2)) { appendFileSync(logPath, `\n**Result:** ${st.start} -> ${now2} in ${rn} rounds; TARGET MET.\n`); st.round = 0; st.history = []; st.start = undefined; }
+  saveState(st);
+  console.log(`[goal-loop] round ${rn}: ${before} -> ${after} ${verdict}${met(now2) ? ' - TARGET MET' : ''}`);
+  process.exit(met(now2) ? 0 : verdict === 'KEPT' ? 11 : 12);
+}
+
 let m = measure();
 const c0 = checks();
 const start = m.v;
@@ -87,6 +139,7 @@ for (; round < rounds && !met(m.v); round++) {
   const outside0 = new Set(dirty().filter((f) => !G.files.includes(f)));
   const detail = G.detail ? sh(G.detail).out : '';
   const r = sh(agentCmd, prompt(m, detail));
+  if (r.code !== 0) { appendFileSync(logPath, `| ${round + 1} | ${m.v} | - | AGENT FAILED | \`${agentCmd}\` exited ${r.code}: ${(r.out.trim().split(/\r?\n/).pop() ?? '').replace(/\|/g, '/').slice(0, 200)} | - |\n`); console.log(`[goal-loop] the agent command failed (${r.code}); use the stepwise mode (--begin / --judge)`); process.exit(5); }
   const change = (r.out.match(/CHANGE:\s*(.+)/)?.[1] ?? r.out.trim().split(/\r?\n/).pop() ?? '(no reply)').replace(/\|/g, '/').slice(0, 300);
   const outside = dirty().filter((f) => !G.files.includes(f) && !outside0.has(f));
   if (outside.length) {
