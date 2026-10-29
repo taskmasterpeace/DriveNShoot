@@ -242,7 +242,7 @@ export class Inventory {
       this.forceLock(door, verb, false);
       return { ok: true, text: verb === 'pick' ? 'LOCK PICKED' : 'PRIED OPEN' };
     }
-    return g.outdoors?.act(verb, s, it) ?? { ok: false, why: 'not here' }; // a rod, a fish trap, a net, a tarp (systems/outdoors.js)
+    return g.farming?.act(verb, s, it) ?? g.outdoors?.act(verb, s, it) ?? { ok: false, why: 'not here' }; // a hoe, a seed packet, a hen (systems/farming.js); a rod, a fish trap, a net, a tarp (systems/outdoors.js)
   }
 
   // Open a locked door with what you carry: picks are quiet and leave it shut (a pick snaps: one use), a crowbar

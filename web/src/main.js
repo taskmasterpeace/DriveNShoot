@@ -76,6 +76,9 @@ import { Travel } from './systems/travel.js'; // the trundle, the iron, the one 
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
 import { Homes } from './systems/homes.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
+import { Farming } from './systems/farming.js'; // the house garden: beds, hens, the crew's farm job (WEB_FARMING.md)
+import { Cooking } from './systems/cooking.js'; // meals from real ingredients at a fire or a kitchen (WEB_FARMING.md)
+import { GardenPanel } from './ui/gardenpanel.js'; // the garden panel and chip
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
 import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
 import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
@@ -265,6 +268,9 @@ class Game {
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
     this.homes = new Homes(this); // camps, claimed bases, furniture carried home, owners and tenure (systems/homes.js)
+    this.farming = new Farming(this); // beds in the yard you hold, hens, the crew's farm job (systems/farming.js)
+    this.cooking = new Cooking(this); // meals at a fire or a kitchen (systems/cooking.js)
+    this.gardenUI = new GardenPanel(this, ui); // the garden chip and panel (ui/gardenpanel.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
     this.stories = new SiteStories(this); // site stories and the bounty guild (systems/sitestories.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
@@ -1343,6 +1349,8 @@ class Game {
       this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
       this.homes.update(simDt); // the camp's watch and bells, owners at their doors, rent and raids on the clock (systems/homes.js)
+      this.farming.update(simDt); // beds grow on the game clock, hens lay, thieves and the dead trample (systems/farming.js)
+      this.cooking.update(simDt); // well fed: a little hp back an hour (systems/cooking.js)
       this.stories.update(simDt); // places on the world clock, traders, raids, refugees, hunters (systems/sitestories.js)
       this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.nanGuard('late');
