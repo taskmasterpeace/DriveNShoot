@@ -96,7 +96,9 @@ export function siteStoriesCommands(api, need) {
 }
 
 // ---- the selftest's checks ------------------------------------------------------------------------------------------------
-export async function siteStoriesChecks(api, check, C) {
+export async function siteStoriesChecks(api, check0, C) {
+  // each check's wall time kept on the system (stories.checkMs), so a slow one shows itself
+  const check = (name, fn) => check0(name, async () => { const t = performance.now(); try { return await fn(); } finally { (api.g.stories.checkMs ??= {})[name.slice(9, 50)] = Math.round(performance.now() - t); } });
   const g = api.g, S = g.stories, K = g.pulls.k, p = g.player;
   const sv = (await C('save')).save;
   const was = { zombies: g.zombies.enabled, raiders: g.raiderTimer, convoyNext: g.convoy.next, grapevine: g.grapevine?.enabled, director: g.society.director.paused, pulls: g.pulls.enabled, cash: g.cash };
@@ -105,8 +107,18 @@ export async function siteStoriesChecks(api, check, C) {
   const out = async () => { if (p.inVehicle) g.exitVehicle(true); if (!p.alive) { g.respawnT = 0; await C('step', { seconds: 0.3 }); } };
   const stand = async (x, z) => { await out(); await C('teleport', { x, z }); g.camLook.x = p.x; g.camLook.z = p.z; await C('step', { seconds: 0.2 }); };
   // keep the world's own parties out of the way of a staged one (they would fill the live slots and the road)
-  // a town (or else any peopled place) a place trades with: its links, nearest first
-  const linkedTown = (A) => { const L = S.linksOf(A).map((id) => S.place(id)).filter((q) => q && !q.fallen && q.pop > 0 && !S.raids(q) && !q.beyond && q.id !== 'rust_haven'); // (not the town you stand by: a truck you watch drives on frames, not on the clock) return L.find((q) => q.kind === 'town') ?? L[0] ?? null; };
+  // a town (or else any peopled place) a place trades with: its links, nearest first (not Rust Haven, the town you stand
+  // by: a truck you watch drives on frames, not on the clock)
+  const linkedTown = (A) => { const L = S.linksOf(A).map((id) => S.place(id)).filter((q) => q && !q.fallen && q.pop > 0 && !S.raids(q) && !q.beyond && q.id !== 'rust_haven'); return L.find((q) => q.kind === 'town') ?? L[0] ?? null; };
+  // two linked towns on a corridor, both kilometres from you (a truck you watch drives on frames, not on the clock)
+  const townPair = () => {
+    for (const A of S.places.values()) {
+      if (A.kind !== 'town' || A.beyond || A.fallen || A.id === 'rust_haven' || Math.hypot(A.x - p.x, A.z - p.z) < 3000) continue;
+      const B = S.linksOf(A).map((id) => S.place(id)).find((q) => q && q.kind === 'town' && !q.beyond && !q.fallen && q.id !== 'rust_haven' && Math.hypot(q.x - p.x, q.z - p.z) > 3000);
+      if (B) return [A, B];
+    }
+    return [null, null];
+  };
   const quiet = () => { S.hold = true; for (const m of S.movers) if (m.kind !== 'hunters' && m.state === 'road') { if (m.live) S.demote(m); m.state = 'gone'; } S.movers = S.movers.filter((m) => m.state !== 'gone'); };
   try {
     await check('stories: the rows validate - goods are real items, every place kind makes known goods and stands a guard, every problem names its place and runs its course, movers fit their cars, the guild is not purple; a broken row is caught', async () => {
@@ -129,8 +141,8 @@ export async function siteStoriesChecks(api, check, C) {
     await check('stories: a trader\'s goods leave one site\'s stock and arrive in another\'s - the load comes off the first place\'s stock when the truck leaves, it covers the real road at its pace (never a jump), and the same units land in the second place\'s stock (paid for out of its chest) when it gets there', async () => {
       quiet();
       await stand(0, -40);
-      const A = S.place('cg-237'), B = linkedTown(A);
-      if (!A || !B) return 'no Dead Suburb / linked town';
+      const [A, B] = townPair();
+      if (!A || !B) return 'no two linked towns';
       // only B is in the market for water: A is long on it, every other neighbour is full
       A.stock.water = 900; B.stock.water = 2; S.reprice(A); S.reprice(B);
       for (const id of S.linksOf(A)) if (id !== B.id) { const q = S.place(id); if (q) { q.stock.water = 9999; S.reprice(q); } }
@@ -220,16 +232,19 @@ export async function siteStoriesChecks(api, check, C) {
       // the round is the pair's alone: computed with you in Phoenix and with you in Miami, the same towns in the same order
       H.roundIds = null; const roundA = S.round(H).map((q) => q.id); const px = p.x, pz = p.z; p.x = 214500; p.z = 71400; H.roundIds = null; const roundB = S.round(H).map((q) => q.id); p.x = px; p.z = pz;
       const rides = []; const ride0 = S.ride.bind(S);
-      S.ride = (m, x, z, id) => { if (m === H) rides.push({ x: Math.round(x), z: Math.round(z), id, tip: !!m.tip && Math.hypot(m.tip.x - x, m.tip.z - z) < 1, h: r1(S.hours()) }); return ride0(m, x, z, id); };
+      S.ride = (m, x, z, id) => { if (m === H) rides.push({ x: Math.round(x), z: Math.round(z), id, tip: !!m.tip && Math.hypot(m.tip.x - x, m.tip.z - z) < 1, h: S.hours() }); return ride0(m, x, z, id); };
       let firstTipH = null;
       const holdsSight = () => K.holders.get(H.holder)?.facts.some((c) => c.subject === 'sight:player');
       try {
         await waitStory(g, 20, 0.25, (h) => { if (firstTipH === null && holdsSight()) firstTipH = h; });
-        const blind = rides.filter((r) => firstTipH === null || r.h < firstTipH);
+        const blind = rides.slice();
         const blindOk = H.contract === b.bounty.id && firstTipH === null && blind.every((r) => !r.tip && roundA.includes(r.id));
         // you are seen in a Florida town 7-8 km from the hall, then you leave Florida for Phoenix
         const town = S.place('cg-289') ?? [...S.places.values()].find((q) => q.kind === 'town' && q.id !== hall.id && Math.hypot(q.x - hall.x, q.z - hall.z) < 14000);
-        await stand(town.x + 30, town.z + 30); await C('step', { seconds: 0.6 });
+        // the pair is home at its hall again (it may have ridden its round), asking around there
+        if (H.live) S.demote(H);
+        Object.assign(H, { state: 'stay', at: H.hall, route: null, x: hall.x, z: hall.z, huntH: undefined, waitUntil: S.hours() + 30 });
+        await stand(town.x + 30, town.z + 30); S.tick(); await C('step', { seconds: 0.6 });
         const seenAt = { x: p.x, z: p.z }, seenH = S.hours();
         const sight = K.holders.get(town.holder)?.facts.filter((c) => c.subject === 'sight:player').sort((a2, b2) => b2.when - a2.when)[0];
         await stand(0, -40);
@@ -245,7 +260,8 @@ export async function siteStoriesChecks(api, check, C) {
     await check('stories: a bounty posted on you reaches a far board only after a traveller carries it - the poster\'s board has it at once; the next town\'s board does not, while the trader who read it is on the road; it is pinned there when he arrives, told by him', async () => {
       quiet();
       await stand(0, -40);
-      const A = S.place('cg-237'), B = linkedTown(A);
+      const [A, B] = townPair();
+      if (!A || !B) return 'no two linked towns';
       const vic = g.addChar({ x: p.x + 4, z: p.z + 2, faction: 'drifter', weapon: null, name: 'Ona Pell', flag: 'CA' });
       g.combat.kill(vic, p, 0, 0, 'bullet');
       const row = g.society.chronicle.query({ verb: 'kill', actor: 'player', limit: 3 })[0];
@@ -304,7 +320,7 @@ export async function siteStoriesChecks(api, check, C) {
       const cost = Math.round(mine.pay * GUILD.payOff);
       S.hunt(pair, S.hours()); const stillOn = pair.contract === mine.id; // the hall at Rust Haven struck it; this pair is in Florida and has not heard
       K.put(`hall:${far.id}`, K.fact(mine.closedFact), { channel: 'grapevine', from: 'test' }, 0.8, 1); // the word reaches their hall
-      pair.huntH = -1e9; S.hunt(pair, S.hours()); const quit = pair.contract !== mine.id; // (it may take up another open posting it holds)
+      Object.assign(pair, { huntH: -1e9, state: 'stay', at: far.id, route: null }); S.hunt(pair, S.hours()); const quit = pair.contract !== mine.id; // (it may take up another open posting it holds)
       for (const m of S.movers) if (m.kind === 'hunters') m.huntH = undefined;
       const ok = !notHere && took.ok && paidRight && po.ok && po.cost === cost && 1000 - g.cash === cost && far.coin > posterCoin && mine.state === 'paid' && stillOn && quit;
       return ok ? true : JSON.stringify({ notHere, took, cl, paidRight, po, cash: g.cash, coin: [posterCoin, far.coin], stillOn, quit });

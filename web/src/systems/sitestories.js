@@ -936,8 +936,9 @@ export class SiteStories {
   // ---- save ----------------------------------------------------------------------------------------------------------------
   save() {
     const strip = (m) => ({ ...m, live: false, people: m.people.map((q) => ({ ...q, c: null })), car: m.car ? { type: m.car.type, fuel: m.car.v?.fuel ?? m.car.fuel ?? 1, v: null } : null });
-    return { nid: this.nid, clock: this.clock, lastMove: this.lastMove, halls: this.halls, places: [...this.places.values()].map((p) => ({ ...p, links: null, garrison: p.garrison ? { ...p.garrison, c: null, guards: [] } : null })),
-      movers: this.movers.map(strip), arcs: this.arcs, bounties: this.bounties, stats: { ...this.stats } };
+    // a deep copy: a save must not change when the world goes on after it
+    return JSON.parse(JSON.stringify({ nid: this.nid, clock: this.clock, lastMove: this.lastMove, halls: this.halls, places: [...this.places.values()].map((p) => ({ ...p, links: null, garrison: p.garrison ? { ...p.garrison, c: null, guards: [] } : null })),
+      movers: this.movers.map(strip), arcs: this.arcs, bounties: this.bounties, stats: { ...this.stats } }));
   }
   load(s) {
     const g = this.g;
@@ -947,6 +948,7 @@ export class SiteStories {
     for (const v of [...g.vehicles]) if (v.storyCar && !(v.occ ?? []).some((c) => c && !c.storyMover)) g.vehiclesSys.remove(v);
     this.places.clear(); this.movers = []; this.arcs = []; this.bounties = []; this.halls = []; this.built = false; this.clock = null; this.lastMove = null;
     if (!s) { this.dirty = true; return; }
+    s = JSON.parse(JSON.stringify(s));
     this.nid = s.nid ?? 0; this.clock = s.clock ?? null; this.lastMove = s.lastMove ?? null; this.halls = s.halls ?? [];
     for (const p of s.places ?? []) this.places.set(p.id, { ...p, links: null });
     this.movers = s.movers ?? []; this.arcs = s.arcs ?? []; this.bounties = s.bounties ?? []; Object.assign(this.stats, s.stats ?? {});
