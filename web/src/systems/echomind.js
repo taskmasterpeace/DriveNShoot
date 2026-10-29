@@ -8,6 +8,9 @@ import { INFECTED } from '../data/infected.js';
 // zombies.echo() asks think() first; false means it knows nothing of you and goes back to working its door.
 
 const D2R = Math.PI / 180, FOV = Math.cos(EM.fov * D2R), RING = 12;
+// At its work (going to its boards or on them) it is ABSORBED: its eyes reach only `near` (your steps, your smell and a hurt still reach it). So an
+// Echo at work that has not noticed you freezes while you watch it, as it always did; one that has, hunts.
+const ABSORBED = { ...INFECTED.echo, sense: { ...INFECTED.echo.sense, sight: INFECTED.echo.sense.near, night: INFECTED.echo.sense.near, lit: INFECTED.echo.sense.near } };
 const ang = (a, b) => { let d = Math.abs(a - b) % (Math.PI * 2); return d > Math.PI ? Math.PI * 2 - d : d; };
 
 export class EchoMind {
@@ -17,7 +20,7 @@ export class EchoMind {
   }
   mind(c) {
     return c.em ?? (c.em = {
-      state: 'work', senseT: 0, spot: { x: 0, z: 0, ok: false }, spotT: 0, hideT: 0, waitT: 0, cool: 0, unseenT: 0,
+      state: 'work', senseT: EM.sense, spot: { x: 0, z: 0, ok: false }, spotT: 0, hideT: 0, waitT: 0, cool: 0, unseenT: 0,
       sx: 0, sz: 0, st: -1e9, ax: 0, az: 0, at: -1e9, hx: 0, hz: 0, ht: -1e9, face: 0, faceT: -1e9,
       known: new Set(), door: null, lureAt: -1e9, lure: { x: 0, z: 0, t: -1e9, d: 0, on: false },
       lessons: { keep: 0, lure: 0, ambush: 0 },
@@ -89,7 +92,7 @@ export class EchoMind {
     const g = this.g, Z = this.Z, P = g.player, R = INFECTED.echo, m = this.mind(c);
     if ((m.senseT -= dt) <= 0) {
       m.senseT = EM.sense;
-      Z.sense(c, R);
+      Z.sense(c, m.state === 'work' && c.work ? ABSORBED : R);
       if (c.zsee === P) this.saw(c, m);
       this.look(c, m, R);
     }

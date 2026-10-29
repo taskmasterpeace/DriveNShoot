@@ -5370,7 +5370,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('step', { seconds: 5 });
     const froze = rec.barricade.hp === hp1 && !!echo?.frozen;
     g.aimOverride = null;
-    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null });
+    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null, mind: echo ? g.zombies.minds.view(echo) : null, zm: echo?.zm ? { src: echo.zm.src, who: echo.zm.who } : null, work: !!echo?.work });
   });
   // What the R2 checks set off in the world's memory is taken back (see above), and the hour.
   for (const r of D0.rumors) if (r.live && r.seq > seq0) { r.live = false; D0.pending--; }
