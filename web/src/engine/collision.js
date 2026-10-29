@@ -221,8 +221,8 @@ export class StaticWorld {
   // mode: RAY_SOLID | RAY_SIGHT | RAY_BULLET (see the top of the file). y >= 0: the ray's height (a
   // thrown thing): anything lower than it is flown over, so a sill can't hide the glass behind it.
   raycast(x0, z0, dx, dz, maxDist, mode = RAY_SOLID, y = -1) {
-    if (y < -1.5 && this.under) { // a ray at an underground height is the UnderWorld's (systems/underground.js)
-      const t = this.under.raycast(x0, z0, dx, dz, maxDist, mode, y), h = this.under.hit;
+    if (y < -1.5 && this.under) { // a ray at an underground height is the UnderWorld's (systems/underground.js); y is over the street, as up a building
+      const t = this.under.raycast(x0, z0, dx, dz, maxDist, mode, y + (this.under.y0 ?? 0)), h = this.under.hit; // its boxes stand at true heights (a town's pad for its drains)
       this.hit.t = t; this.hit.nx = h.nx; this.hit.nz = h.nz; this.hit.box = h.box;
       return t;
     }
