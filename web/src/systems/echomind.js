@@ -7,7 +7,8 @@ import { INFECTED } from '../data/infected.js';
 // its senses last put you) and c.em (the facing and heading it SAW, the doors it SAW). It never reads where you truly are.
 // zombies.echo() asks think() first; false means it knows nothing of you and goes back to working its door.
 
-const D2R = Math.PI / 180, FOV = Math.cos(EM.fov * D2R), RING = 12;
+const D2R = Math.PI / 180, FOV = Math.cos(EM.fov * D2R), BEAM = Math.cos(EM.beamHalf * D2R), RING = 12;
+const BEAM_LEN = 15.5; // main.js buildFlashlight: the cone's plane reaches 15.5 m before its scale
 // At its work (going to its boards or on them) it is ABSORBED: its eyes reach only `near` (your steps, your smell and a hurt still reach it). So an
 // Echo at work that has not noticed you freezes while you watch it, as it always did; one that has, hunts.
 const ABSORBED = { ...INFECTED.echo, sense: { ...INFECTED.echo.sense, sight: INFECTED.echo.sense.near, night: INFECTED.echo.sense.near, lit: INFECTED.echo.sense.near } };
@@ -21,7 +22,7 @@ export class EchoMind {
   mind(c) {
     return c.em ?? (c.em = {
       state: 'work', senseT: EM.sense, spot: { x: 0, z: 0, ok: false }, spotT: 0, hideT: 0, waitT: 0, cool: 0, unseenT: 0,
-      sx: 0, sz: 0, st: -1e9, ax: 0, az: 0, at: -1e9, hx: 0, hz: 0, ht: -1e9, face: 0, faceT: -1e9,
+      sx: 0, sz: 0, st: -1e9, beamT: -1e9, ax: 0, az: 0, at: -1e9, hx: 0, hz: 0, ht: -1e9, face: 0, faceT: -1e9,
       known: new Set(), door: null, lureAt: -1e9, lure: { x: 0, z: 0, t: -1e9, d: 0, on: false },
       lessons: { keep: 0, lure: 0, ambush: 0 },
     });
@@ -48,19 +49,56 @@ export class EchoMind {
   // Would you see this spot, by its model of you (your view cone, then cover)? Past `seen` m it counts as unseen.
   exposed(c, m, x, z) {
     const zm = c.zm, px = zm.x, pz = zm.z, dx = x - px, dz = z - pz, d = Math.hypot(dx, dz);
+    if (this.night()) {
+      // In the dark you see `seenNight` m, and down your beam if it has seen it burning lately.
+      const B = this.g.time - m.beamT < 3 ? this.beam() : null;
+      if (d > EM.seenNight && !(B && this.inBeam(B, x, z))) return false;
+      return this.g.los(B ? B.x : px, B ? B.z : pz, x, z);
+    }
     if (d > EM.seen) return false;
     const f = this.facing(m);
     if (f !== null && d > 2 && (dx * Math.sin(f) + dz * Math.cos(f)) / d < FOV) return false;
     return this.g.los(px, pz, x, z);
   }
 
+  night() { return (this.g.sky?.night ?? 0) > 0.55 && !this.g.player.ug; }
+  // Your beam as anyone can see it (main.js's cone): from you along your face. null: no lit beam.
+  beam() {
+    const g = this.g, P = g.player;
+    if (!((g.flashMat?.opacity ?? 0) > 0.05) || P.inVehicle || !P.alive) return null;
+    const B = this._b ?? (this._b = { x: 0, z: 0, f: 0, len: 0 });
+    B.x = P.x; B.z = P.z; B.f = P.face; B.len = BEAM_LEN * (g.flashlight?.scale.z ?? 1);
+    return B;
+  }
+  inBeam(B, x, z) { const dx = x - B.x, dz = z - B.z, d = Math.hypot(dx, dz); return d < 0.5 || (d < B.len && (dx * Math.sin(B.f) + dz * Math.cos(B.f)) / d > BEAM); }
+  // It sees the beam (a lit stretch of it in a clear line, inside beamSee): it knows where it starts and which way it points.
+  watchBeam(c, m) {
+    const g = this.g, B = this.beam();
+    if (!B || !this.night()) return;
+    const sf = Math.sin(B.f), cf = Math.cos(B.f);
+    let seen = false;
+    for (const k of [0.35, 0.7]) { const x = B.x + sf * B.len * k, z = B.z + cf * B.len * k; if (Math.abs(x - c.x) < EM.beamSee && Math.abs(z - c.z) < EM.beamSee && Math.hypot(x - c.x, z - c.z) < EM.beamSee && g.los(c.x, c.z, x, z)) { seen = true; break; } }
+    if (!seen) return;
+    const fresh = g.time - m.beamT > 1;
+    m.beamT = g.time;
+    if (c.zsee === g.player) return; // it sees you yourself: saw() has it
+    this.Z.remember(c, B.x, B.z, 'light', g.player);
+    this.fix(c, m, B.x, B.z, B.f);
+    if (fresh) g.emit('echoSawBeam', { id: c.id, x: +B.x.toFixed(1), z: +B.z.toFixed(1), face: +B.f.toFixed(2) });
+  }
   // A sighting of you: where, which way you were going (from two sightings `move` m apart), which way you faced.
   saw(c, m) {
-    const g = this.g, P = g.player, v = P.inVehicle, x = v ? v.x : P.x, z = v ? v.z : P.z, t = g.time;
+    const g = this.g, P = g.player, v = P.inVehicle;
+    if ((g.flashMat?.opacity ?? 0) > 0.05 && !v) m.beamT = g.time; // it sees you, so it sees your light
+    this.fix(c, m, v ? v.x : P.x, v ? v.z : P.z, v ? (v.h ?? 0) : Math.atan2(g.aim.x - P.x, g.aim.z - P.z)); // where your eyes (your gun) point
+  }
+  // A fix on you (seen, or read off your beam): where you were, which way you were going, which way you faced.
+  fix(c, m, x, z, face) {
+    const g = this.g, t = g.time;
     if (t - m.at > 4) { m.ax = x; m.az = z; m.at = t; }
     else { const dx = x - m.ax, dz = z - m.az, d = Math.hypot(dx, dz); if (d >= EM.move) { m.hx = dx / d; m.hz = dz / d; m.ht = t; m.ax = x; m.az = z; m.at = t; } }
     m.sx = x; m.sz = z; m.st = t;
-    m.face = v ? (v.h ?? 0) : Math.atan2(g.aim.x - P.x, g.aim.z - P.z); m.faceT = t; // where your eyes (your gun) point
+    m.face = face; m.faceT = t;
     const L = m.lure;
     if (L.on && t - L.t < EM.lureWin && Math.hypot(x - L.x, z - L.z) < L.d - EM.lureDrew) { L.on = false; this.counts.luresDrew++; this.learn(c, m, 'lure', 1); }
   }
@@ -94,6 +132,7 @@ export class EchoMind {
       m.senseT = EM.sense;
       Z.sense(c, m.state === 'work' && c.work ? ABSORBED : R);
       if (c.zsee === P) this.saw(c, m);
+      if (!(m.state === 'work' && c.work)) this.watchBeam(c, m); // absorbed at its work, it does not look up at a light
       this.look(c, m, R);
     }
     const zm = c.zm;
@@ -116,7 +155,7 @@ export class EchoMind {
     // Within reach and you are not facing it (or it lay in wait): it claws.
     if (seeing && dP < EM.strike && (m.state === 'ambush' || !this.faced(c, m))) { this.claw(c, m, px, pz, dP); return true; }
     // You turned to it (it sees you doing it): it breaks your line of sight.
-    if (seeing && m.state !== 'hide' && this.faced(c, m) && g.sees(P, c)) this.set(c, m, 'hide', 'faced');
+    if ((seeing || this.night()) && m.state !== 'hide' && this.faced(c, m) && g.sees(P, c)) this.set(c, m, 'hide', this.night() ? 'beam' : 'faced');
     if (m.state === 'hide') {
       if (!m.spot.ok || (m.spotT -= dt) <= 0) { this.hideSpot(c, m, px, pz); m.spotT = 1; }
       m.hideT -= dt;
@@ -142,6 +181,7 @@ export class EchoMind {
   }
   faced(c, m) {
     const g = this.g, P = g.player, f = Math.atan2(g.aim.x - P.x, g.aim.z - P.z), d = Math.hypot(c.x - P.x, c.z - P.z);
+    if (this.night()) { const B = this.beam(); return !P.inVehicle && (B ? this.inBeam(B, c.x, c.z) : false) || (d < EM.seenNight && ang(f, Math.atan2(c.x - P.x, c.z - P.z)) < EM.fov * D2R); }
     return !P.inVehicle && d < EM.seen && ang(f, Math.atan2(c.x - P.x, c.z - P.z)) < EM.fov * D2R;
   }
   // Toward its spot. guard: a step that would put it in your view (by its model) it does not take. True: it is there.
@@ -178,7 +218,7 @@ export class EchoMind {
     for (let k = 0; k < 14; k++) {
       const a = away + (k - 7) * 0.28, r = d0 + 4 + (k % 3) * 5, x = px + Math.sin(a) * r, z = pz + Math.cos(a) * r;
       if (!g.nav.foot.free(x, z)) continue;
-      const s = (g.los(px, pz, x, z) ? 0 : 4) + (r > EM.seen ? 2 : 0) - Math.hypot(x - c.x, z - c.z) * 0.08;
+      const s = (this.exposed(c, m, x, z) ? 0 : 4) + (g.los(px, pz, x, z) ? 0 : 1) - Math.hypot(x - c.x, z - c.z) * 0.08; // out of your view (its model: cone, beam, cover), cover best
       if (s > bs) { bs = s; bx = x; bz = z; }
     }
     m.spot.x = bx; m.spot.z = bz; m.spot.ok = true;
@@ -223,6 +263,6 @@ export class EchoMind {
   view(c) {
     const m = c.em;
     if (!m) return { state: 'work' };
-    return { state: m.state, door: m.door?.id ?? null, knownDoors: m.known.size, spot: m.spot.ok ? { x: +m.spot.x.toFixed(1), z: +m.spot.z.toFixed(1) } : null, heading: this.g.time - m.ht < 8 ? { x: +m.hx.toFixed(2), z: +m.hz.toFixed(2) } : null, unseen: +m.unseenT.toFixed(1), lessons: { ...m.lessons } };
+    return { state: m.state, beamSeen: this.g.time - m.beamT < 3, door: m.door?.id ?? null, knownDoors: m.known.size, spot: m.spot.ok ? { x: +m.spot.x.toFixed(1), z: +m.spot.z.toFixed(1) } : null, heading: this.g.time - m.ht < 8 ? { x: +m.hx.toFixed(2), z: +m.hz.toFixed(2) } : null, unseen: +m.unseenT.toFixed(1), lessons: { ...m.lessons } };
   }
 }

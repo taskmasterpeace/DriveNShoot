@@ -183,6 +183,7 @@ of your line of sight... But again, nothing in the game knows stuff they shouldn
 | hide | It sees you turn to it (you aim within 70° of it, it in your line), or you hurt it: it breaks your line of sight (cover first, then distance) at `flee` 2.9 m/s for `hideFor` 3 s, then stalks again |
 | ambush | Your heading points (cos ≥ `align` 0.82) at a door it KNOWS within `ambushR` 40 m of where it last saw you: it goes flat to the wall beside that door, on your side, the side your line misses if one does. Its phrase now calls the dead in earshot to that door (a choke). You come within `strike` 1.6 m: it claws (shambler claw × 1.2). Nobody in `wait` 25 s: the trap failed |
 | lure | Knowing of you but not seeing you for `lureAfter` 3 s, it calls `lureLine` every `lureEvery` 12 s, its floater and stereo pan at its OWN x,z (`echoLure` event carries them): you can find it by ear. While hunting its old phrase is silent |
+| night (the beam) | In the dark your eyes reach `seenNight` 10 m, unless your torch burns: then the BEAM is your eyes (main.js's cone, `beamHalf` 16° each side, its drawn length). A lit beam shows from `beamSee` 70 m off. An Echo that sees a lit stretch of it in a clear line knows where you stand and which way you face (memory `src: 'light'`, `echoSawBeam`) without ever seeing you. It stalks you in the dark, never enters the cone, and slips out when you swing it on (`why: beam`). Night goggles are your answer: it cannot know you wear them |
 | absorbed | At its work (going to its boards or on them, not yet knowing you) its eyes reach only `near` 4 m; your steps, your smell and a hurt still reach it. So an Echo at work you creep up on still freezes while you watch it; one that noticed you hunts |
 | at your door | You are on the far side of the locked door or boarded window it is pressed against (within 10 m): breaking it IS the hunt, so it keeps working it |
 | learn | Its own encounters only (`c.em.lessons`): hurt by you, `keep` +3 m (to `keepMax` 26). A lure that drew you (you came 5 m its way inside 15 s) it uses twice as often; one that failed, half as often. A trap that bit it trusts; two failed traps and it stops laying them (`echoLearned`) |
@@ -230,6 +231,7 @@ Not done: it does not open or block doors itself to funnel you (the interiors AP
 | Echo copy | heard if `d < 60 ∧ r ≥ 10`; copy `r × 1.0` at the Echo | A revolver (45 → onNoise 90) at 45 m: shamblers 70 m beyond the Echo hear the copy (70 < 90), never the shot (115 > 90) |
 | Echo unseen | `d > 34 ∨ (aim·to)/d < cos 70° ∨ ¬los` (its model) | You aim east; an Echo 21 m west, 5 m north: angle ≈ 166° > 70° → unseen; it may close to 13 m there |
 | Echo trap | `cos(heading, door − seen) ≥ 0.82 ∧ 2 < |door − seen| < 40 ∧ door ∈ known` | Seen walking west 10 m short of a door due west: cos 1 → it waits there |
+| Echo unseen at night | `(d > 10 ∧ ¬inBeam) ∨ ¬los`; `inBeam = d < len ∧ (to·face)/d > cos 16°`, `len = 15.5 × scale.z` | A full-dark torch (scale 1.45): the cone is 22.5 m long, 6.3 m wide at its end; 13 m to its side is dark |
 | Migration | `s += dir × 1.5 × tick` | 60 s on the clock = 90 m of I-10 |
 
 ## 5. Edge cases
@@ -248,6 +250,8 @@ Not done: it does not open or block doors itself to funnel you (the interiors AP
 - **Smart Echo with no line of retreat** (open ground, nothing unseen on its ring): it backs off past `seen` m.
 - **Smart Echo, a door it never saw:** you heading for it teaches it nothing; it stalks instead.
 - **Smart Echo and a car:** it does not stalk a car's facing (a car has no aim); `faced` is false in a vehicle.
+- **Smart Echo and night goggles or the heat scope:** your eyes reach further than it thinks. It stalks as if you were blind past 10 m off your beam.
+- **The heat scope:** every infected, alive, crawling or put down by the death library, reads at air + 1.5 °C (`kit.heatOf`: faction zombie or a breed). A man shot dead cools from 37 °C on `HEAT.tau`.
 - **Migration on a corridor's end:** it breaks up into a walking horde (`migrationEnded`).
 - **A drift (lure)** suspends the route walk, so overrun runs it.
 
@@ -257,7 +261,8 @@ Not done: it does not open or block doors itself to funnel you (the interiors AP
 | `combat.js` | — | **hook:** `damage` stores `c._hit / _hitDmg / _hitCause`; `kill` takes `face0` and calls `deaths.onKill` (both branches) |
 | `characters.js` (shared pose solver) | `RIG` export | **hook:** `pose()` hands a body with `c.rag` to `ragPose`; `hideLost` for lost limbs; the LSW drive skipped for a lost limb |
 | `zombies.js` | headshot, sever → crawler, scream, charge, leap, echo copy, groans; `echo()` asks `minds.think()` first, `onHurt` tells `minds.hurt()` | `crawler()`, `burst()`, `onNoise(…, src)`, `sense()`, `fresh()`, `blocker()` |
-| `echomind.js` (new) | the smart Echo | `zombies.sense`, `interiors.doors`, `g.los / sees`, `g.pan`, `feedback.floater`, `audio.murmur` |
+| `echomind.js` (new) | the smart Echo | `zombies.sense`, `interiors.doors`, `g.los / sees`, `g.pan`, `feedback.floater`, `audio.murmur`, main.js's beam (`flashMat`, `flashlight.scale`) |
+| `kit.js` (gadgets 2) | the infected read cold (its `heatOf`; checked here, not re-implemented) | — |
 | `blood.js` | — | **hook:** skips `c.rag?.air` in the smear pass |
 | `overrun.js` | — | **hook:** `if (H.route && g.migrations?.step(H, tick, live)) continue;` |
 | `data/pulls.js` | — | **hook:** the `horde` fact kind |
@@ -285,12 +290,13 @@ Not done: it does not open or block doors itself to funnel you (the interiors AP
 | `ECHO_MIND.fov` | 70° | 45–110 | How wide it thinks your eyes are (wider: more timid) |
 | `ECHO_MIND.align / ambushR` | 0.82 / 40 m | 0.6–0.95 / 15–60 | How readily it reads where you are going |
 | `ECHO_MIND.lureEvery` | 12 s | 5–40 | How chatty its lure is |
+| `ECHO_MIND.seenNight / beamSee` | 10 / 70 m | 4–20 / 30–120 | How bold it is in the dark; how far it reads your torch |
 | `WARNINGS.groan.range` | 50 m | 30–70 | Early warning |
 | `WARNINGS.dust.crowd` | 6 | 4–12 | Which crowds read from far |
 | `MIGRATION.every` | 20–40 h | 8–96 | How often |
 | `MIGRATION.witness / report` | 220 m / 6 min | 100–500 / 0–60 | How soon you hear of one |
 
-## 8. Acceptance criteria (selftest: `only="deaths:|infected fun|hordes:"`, 15 checks)
+## 8. Acceptance criteria (selftest: `only="deaths:|infected fun|hordes:"`, 17 checks)
 1. **Library:** `validateDeaths` and `validateHordes` are clean. There are nine clips, each with a licence; the baked
    ones are CC0. A missing clip, a proprietary source and two breeds with one answer are each caught.
 2. **Every death type:** each of the nine plays its own clip (`death action=play`) and ends SETTLED: frozen, no point
@@ -328,3 +334,8 @@ Not done: it does not open or block doors itself to funnel you (the interiors AP
     and a shambler idling 18 m from you, inside the Echo's call, is called to that door.
 15. **Echo lure:** an Echo that knows where you were but cannot see you calls out; the `echoLure` x,z is within 0.3 m
     of where it stands and its pan is `g.pan(its x)`.
+16. **Echo and the beam:** at 1 am, an Echo 45 m off (past the 34 m it could see you lit) sees your beam. It knows you
+    (`src: 'light'`, facing within 0.2 rad of the beam) without seeing you. In 14 s it is never in the lit cone and
+    closes more than 5 m. You swing the beam onto it: it hides and is out of the cone within 3 s.
+17. **Heat:** at night a shambler, a sprinter, an Echo, a crawler (leg severed) and an infected dropped by a headshot
+    (in its ragdoll) all read within 4 °C of the air. A man shot dead beside them reads more than 15 °C over it.

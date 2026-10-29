@@ -363,6 +363,49 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
     } finally { P().hidden = false; g.zombies.enabled = false; gone(e); g.godMode = false; }
   }));
 
+  await check('infected fun: at night a smart Echo that sees your flashlight beam (never you) knows where you stand and which way you face, stalks you in the dark without once entering the cone, and slips out of it when you swing it on', async () => hush(async () => {
+    await flats(); await C('setTime', { hour: 1 });
+    const p = P(), K = g.kit, staged = K?.staged;
+    if (K) K.staged = true; // the battery's torch: a charged light in hand
+    g.flashOverride = true; g.aimOverride = { x: p.x + 20, z: p.z }; p.face = Math.PI / 2;
+    const e = Z.spawnKind('echo', p.x + 8, p.z + 44);
+    const M = Z.minds, seq0 = g.eventSeq;
+    const lit = () => { const B = M.beam(); return !!B && M.inBeam(B, e.x, e.z) && g.los(B.x, B.z, e.x, e.z); };
+    try {
+      g.zombies.enabled = true;
+      let sawBeam = false;
+      for (let t = 0; t < 2 && !sawBeam; t += 0.1) { await C('step', { seconds: 0.1 }); sawBeam = g.events.some((v) => v.seq > seq0 && v.type === 'echoSawBeam' && v.id === e.id); }
+      const knew = { src: e.zm?.src ?? null, face: e.em ? r1(e.em.face) : null, sawYou: e.zsee === p, d: r1(dist(e, p)) };
+      let litT = 0; const d0 = dist(e, p); let dMin = d0;
+      for (let t = 0; t < 14; t += 0.1) { await C('step', { seconds: 0.1 }); p.face = Math.PI / 2; if (lit()) litT += 0.1; dMin = Math.min(dMin, dist(e, p)); }
+      const seq1 = g.eventSeq;
+      g.aimOverride = { x: e.x, z: e.z }; p.face = Math.atan2(e.x - p.x, e.z - p.z); // you swing the beam onto it
+      let hid = false, out = false;
+      for (let t = 0; t < 3 && !(hid && out); t += 0.1) { await C('step', { seconds: 0.1 }); p.face = Math.atan2(g.aimOverride.x - p.x, g.aimOverride.z - p.z); hid = hid || g.events.some((v) => v.seq > seq1 && v.type === 'echoMind' && v.id === e.id && v.state === 'hide'); out = hid && !lit(); }
+      const ok = sawBeam && knew.src === 'light' && !knew.sawYou && Math.abs(knew.face - Math.PI / 2) < 0.2 && litT === 0 && dMin < d0 - 5 && hid && out;
+      return ok ? true : JSON.stringify({ sawBeam, knew, litT: r1(litT), d0: r1(d0), dMin: r1(dMin), hid, out, mind: mindOf(e) });
+    } finally { g.flashOverride = null; g.aimOverride = null; if (K) K.staged = staged; g.zombies.enabled = false; gone(e); g.godMode = false; }
+  }));
+
+  await check('infected fun: under the heat scope the infected read COLD - a shambler, a sprinter, an Echo, a crawler and one the death library dropped all show within 4 C of the night air, while a man shot dead beside them still shows warm', async () => hush(async () => {
+    await flats(); await C('setTime', { hour: 1 });
+    const p = P(), K = g.kit;
+    if (!K) return 'no kit (gadgets 2)';
+    const sh = Z.spawn(p.x + 6, p.z - 3, false), sp = Z.spawn(p.x + 6, p.z, true), ec = Z.spawnKind('echo', p.x + 6, p.z + 3);
+    const cr = Z.spawn(p.x + 9, p.z - 3, false), hd = Z.spawn(p.x + 9, p.z, false), man = drifter(p.x + 9, p.z + 3);
+    try {
+      for (const c of [sh, sp, ec, cr, hd]) { c.zSpeed = 0; c.timer = 99; c.wx = c.x; c.wz = c.z; }
+      D.sever(cr, 'legL', 1, 0, 3); Z.crawler(cr, 'legs');
+      hd.hitPart = 'head'; g.combat.damage(hd, 40, p, 1, 0, 'bullet', 'head');
+      g.combat.damage(man, 999, p, 1, 0, 'bullet', 'torso');
+      await C('step', { seconds: 2 });
+      const air = K.airC(), heat = Object.fromEntries([['shambler', sh], ['sprinter', sp], ['echo', ec], ['crawler', cr], ['deadInfected', hd], ['deadMan', man]].map(([k, c]) => [k, r1(K.heatOf(c))]));
+      const cold = ['shambler', 'sprinter', 'echo', 'crawler', 'deadInfected'].every((k) => heat[k] < air + 4);
+      const ok = cold && !hd.alive && !!hd.rag && !man.alive && heat.deadMan > air + 15 && cr.crawl;
+      return ok ? true : JSON.stringify({ air: r1(air), heat, deadInfected: { alive: hd.alive, rag: !!hd.rag }, crawl: !!cr.crawl });
+    } finally { gone(sh, sp, ec, cr, hd, man); g.godMode = false; }
+  }));
+
   await check('infected fun: readable warnings - one you cannot see (behind a wall) groans to you before you see it; a crowd of eight on the move kicks up dust, one of them alone does not', async () => hush(async () => {
     await stage();
     await C('teleport', { x: 0, z: -40 });

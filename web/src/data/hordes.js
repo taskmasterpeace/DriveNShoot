@@ -31,6 +31,10 @@ export const BREED_ANSWERS = {
 //           m. Nobody by `wait` s: the trap failed.
 //   LURE    knowing of you but not seeing you for `lureAfter` s, it calls out (`lureLine`) FROM WHERE IT STANDS (pan and
 //           floater at its own x,z) every `lureEvery` s: a sharp player can find it by ear.
+//   NIGHT   in the dark your eyes reach `seenNight` m, unless your torch is on: then the BEAM is your eyes (the cone
+//           main.js draws, `beamHalf` degrees each side). A lit beam shows from `beamSee` m off: an Echo that sees it
+//           knows where you stand and which way you face without ever seeing you, stalks in the dark, keeps out of the
+//           cone, and slips out of it when you swing it on. (Night goggles are your answer: it cannot know you wear them.)
 //   LEARN   its own encounters only: hurt by you, it keeps `learnKeep` m further (to `keepMax`); a lure that drew you
 //           (you came `lureDrew` m its way inside `lureWin` s) it uses twice as often, one that failed half as often; a
 //           trap that bit it trusts, one that failed (twice) it stops laying.
@@ -38,6 +42,7 @@ export const ECHO_MIND = {
   sense: 0.4, keep: 13, keepMax: 26, learnKeep: 3, seen: 34, fov: 70, stalk: 1.9, flee: 2.9, hideFor: 3,
   move: 1.0, ambushR: 40, align: 0.82, strike: 1.6, claw: 1.2, cool: 0.9, wait: 25,
   lureAfter: 3, lureEvery: 12, lureWin: 15, lureDrew: 5, lureLine: 'help... over here...',
+  seenNight: 10, beamSee: 70, beamHalf: 16,
 };
 
 // READABLE WARNINGS:
@@ -75,7 +80,7 @@ export function validateHordes(A = BREED_ANSWERS, W = WARNINGS, M = MIGRATION, E
   num('sprinter.windup', A.sprinter.windup, 0.2, 2); num('sprinter.steer', A.sprinter.steer, 0.2, 4); num('sprinter.carLeap', A.sprinter.carLeap, 1, 12);
   if (A.sprinter.carLeap <= 0 || A.shambler.latchBelow >= 12) bad.push('a car must beat shamblers and not sprinters');
   num('echo.hear', A.echo.hear, 10, 150); num('echo.delay', A.echo.delay, 0.2, 10); num('echo.gain', A.echo.gain, 0.3, 1.5); num('echo.every', A.echo.every, 0.5, 60);
-  num('ECHO_MIND.keep', E.keep, 4, 40); num('ECHO_MIND.fov', E.fov, 20, 180); num('ECHO_MIND.align', E.align, 0, 1); num('ECHO_MIND.strike', E.strike, 0.5, 4);
+  num('ECHO_MIND.keep', E.keep, 4, 40); num('ECHO_MIND.fov', E.fov, 20, 180); num('ECHO_MIND.align', E.align, 0, 1); num('ECHO_MIND.strike', E.strike, 0.5, 4); num('ECHO_MIND.seenNight', E.seenNight, 2, 30); num('ECHO_MIND.beamHalf', E.beamHalf, 5, 45);
   if (!(E.keepMax >= E.keep && E.seen > E.keep)) bad.push('ECHO_MIND: keepMax >= keep, and it must stalk inside your sight range');
   num('WARNINGS.groan.range', W.groan.range, 10, 120); num('WARNINGS.scream.range', W.scream.range, 10, 200);
   num('WARNINGS.dust.crowd', W.dust.crowd, 2, 40); num('WARNINGS.dust.radius', W.dust.radius, 3, 40);
