@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { MARK_KINDS, MARK_RULES as MR, TAGS, MARK_TEXT, PAINT, NEWS, purple } from '../data/worldvoice.js';
 import { FACTIONS } from '../data/society.js';
 import { bearingOf } from './farsound.js';
+import { VERT } from '../data/citygen.js';
+
+const WALL_HALF = 0.2; // world/citygen/build.js WALL / 2: the outer face stands this far out from the footprint's edge
 
 // READABLE LEFTOVERS (docs/design/WEB_WORLD_VOICE.md §3.4): the world writes on itself, and only what really happened.
 //   tag      a place raided, taken or fallen carries the raiders' tag: their letters in their colour on its walls and in
@@ -99,22 +102,34 @@ export class Marks {
           if (side === B.front || B.doors?.some((d) => d.side === side)) continue;
           const len = side === 'N' || side === 'S' ? B.x1 - B.x0 : B.z1 - B.z0;
           if (len < 4) continue;
-          out.push({ B, side, len, y0: (t.rec.y ?? 0) });
+          // the strip in front of the face: a painter stands there, and a wall with another building 6 m off it is a slot nobody reads
+          const fx0 = side === 'E' ? B.x1 : side === 'W' ? B.x0 - 6 : B.x0, fx1 = side === 'E' ? B.x1 + 6 : side === 'W' ? B.x0 : B.x1;
+          const fz0 = side === 'S' ? B.z1 : side === 'N' ? B.z0 - 6 : B.z0, fz1 = side === 'S' ? B.z1 + 6 : side === 'N' ? B.z0 : B.z1;
+          const open = !t.T.buildings.some((o) => o !== B && o.x0 < fx1 && o.x1 > fx0 && o.z0 < fz1 && o.z1 > fz0);
+          out.push({ B, side, len, open, y0: (t.rec.y ?? 0) });
         }
       }
     }
-    out.sort((a, b) => (a.side === 'S' ? 0 : 1) - (b.side === 'S' ? 0 : 1));
+    out.sort((a, b) => (a.open ? 0 : 2) + (a.side === 'S' ? 0 : 1) - (b.open ? 0 : 2) - (b.side === 'S' ? 0 : 1)); // open faces first, then the camera's side
     return out;
   }
   // A spot on wall w for mark n of a cause: along the wall, at chest height, a hand's width off it.
-  onWall(w, h, mw) {
-    const B = w.B, t = 0.2 + ((h >>> 3) % 600) / 1000, off = 0.06;
+  // The widest bare stretch of the face between its ground-floor windows (world/citygen/build.js lays them every
+  // VERT.window.every m, a metre in from each corner), and the mark sized to fit it, just proud of the 0.4 m wall.
+  onWall(w, h, mw, mh) {
+    const B = w.B, off = WALL_HALF + 0.04, horiz = w.side === 'N' || w.side === 'S';
+    const a0 = horiz ? B.x0 : B.z0 + 0.4, a1 = horiz ? B.x1 : B.z1 - 0.4, L = a1 - a0, W = VERT.window;
+    const nw = Math.max(0, Math.floor((L - 2) / W.every)), cuts = [];
+    for (let i = 0; i < nw; i++) { const c = a0 + 1 + (i + 0.5) * ((L - 2) / nw); cuts.push([c - W.w / 2 - 0.15, c + W.w / 2 + 0.15]); }
+    let best = [a0 + 0.3, a1 - 0.3], cur = a0 + 0.3, bw = 0;
+    for (const [p, q] of [...cuts, [a1 - 0.3, a1]]) { if (p - cur > bw) { bw = p - cur; best = [cur, p]; } cur = Math.max(cur, q); }
+    const fit = Math.min(1, Math.max(0.45, (best[1] - best[0]) / mw)), at = (best[0] + best[1]) / 2 + (((h >>> 5) % 100) / 100 - 0.5) * Math.max(0, best[1] - best[0] - mw * fit);
     let x, z, face;
-    if (w.side === 'S') { x = B.x0 + (B.x1 - B.x0) * t; z = B.z1 + off; face = 0; }
-    else if (w.side === 'N') { x = B.x0 + (B.x1 - B.x0) * t; z = B.z0 - off; face = Math.PI; }
-    else if (w.side === 'E') { x = B.x1 + off; z = B.z0 + (B.z1 - B.z0) * t; face = Math.PI / 2; }
-    else { x = B.x0 - off; z = B.z0 + (B.z1 - B.z0) * t; face = -Math.PI / 2; }
-    return { x, z, face, y: w.y0 + 1.45 + (mw > 2 ? 0.25 : 0), wall: `${B.id}:${w.side}` };
+    if (w.side === 'S') { x = at; z = B.z1 + off; face = 0; }
+    else if (w.side === 'N') { x = at; z = B.z0 - off; face = Math.PI; }
+    else if (w.side === 'E') { x = B.x1 + off; z = at; face = Math.PI / 2; }
+    else { x = B.x0 - off; z = at; face = -Math.PI / 2; }
+    return { x, z, face, w: mw * fit, h: mh * fit, y: w.y0 + 0.25 + (mh * fit) / 2 + 0.35, wall: `${B.id}:${w.side}` };
   }
   // Where a mark of `kind` for place P goes (the k-th of its cause). wall -> a real wall when the place is built near
   // you, else paint on the ground; ground -> the street near its centre; board -> at its edge, on the road side.
@@ -122,7 +137,7 @@ export class Marks {
     const K = MARK_KINDS[kind], on = K.on[k % K.on.length], h = hashS(`${seed}|${k}`);
     if (on === 'wall') {
       const W = this.walls(P);
-      if (W.length) { const w = W[(h + k * 7) % Math.min(W.length, 12)]; return { on, ...this.onWall(w, h, K.w) }; }
+      if (W.length) { const w = W[(h + k * 7) % Math.min(W.length, 12)]; return { on, ...this.onWall(w, h, K.w, K.h) }; }
     }
     const a = toward !== null ? toward : ((h % 360) * Math.PI) / 180, rr = on === 'board' ? Math.max(18, P.r * 0.8) : Math.min(P.r * 0.45, 14 + (h % 14));
     const x = P.x + Math.sin(a) * rr, z = P.z - Math.cos(a) * rr;
@@ -256,7 +271,7 @@ export class Marks {
       if (!board) for (let k = 0; k < 5; k++) { const dx = cx + (rnd() - 0.5) * g.measureText(text).width * 0.9; g.fillStyle = color; g.globalAlpha = 0.7; g.fillRect(dx, cy + px * 0.3, 2, 6 + rnd() * px * 0.5); g.globalAlpha = 1; } // drips
     };
     if (m.kind === 'tally') {
-      g.strokeStyle = m.color; g.lineWidth = 5; g.lineCap = 'round';
+      g.strokeStyle = m.color; g.lineWidth = 8; g.lineCap = 'round';
       const n = m.n, per = 5, gw = 44, rowsN = Math.ceil(n / 25) || 1;
       for (let i = 0; i < n; i++) {
         const grp = Math.floor(i / per), j = i % per, gx = x + 14 + (grp % 5) * gw, gy = y + 12 + Math.floor(grp / 5) * (h - 24) / Math.max(rowsN, 2);
@@ -304,9 +319,9 @@ export class Marks {
       const gy = m.y ?? this.ground(m.x, m.z);
       if (m.on === 'wall') { _e.set(0, m.face, 0); _p.set(m.x, gy, m.z); _s.set(m.w, m.h, 1); }
       else if (m.on === 'ground') { _e.set(-Math.PI / 2, 0, (m.face ?? 0), 'XYZ'); _p.set(m.x, gy + 0.04, m.z); _s.set(m.w, m.h, 1); }
-      else { _e.set(-0.95, m.face ?? 0, 0, 'YXZ'); _p.set(m.x, gy + (m.kind === 'grave' ? 0.42 : 0.85), m.z); _s.set(m.w, m.h, 1); } // a board leaned back to the sky
+      else { _e.set(-0.95, m.face ?? 0, 0, 'YXZ'); _p.set(m.x, gy + (m.kind === 'grave' ? 0.5 : 1.25), m.z); _s.set(m.w, m.h, 1); } // a board leaned back to the sky
       _q.setFromEuler(_e); _m.compose(_p, _q, _s); M.setMatrixAt(n, _m);
-      if (m.on === 'board' && posts < MR.cap - 1) for (const sx of [-0.4, 0.4]) { _e.set(0, 0, 0); _q.setFromEuler(_e); _p.set(m.x + sx * m.w, gy + (m.kind === 'grave' ? 0.25 : 0.5), m.z - 0.12); _s.set(0.09, m.kind === 'grave' ? 0.5 : 1, 0.09); _m.compose(_p, _q, _s); this.posts.setMatrixAt(posts++, _m); }
+      if (m.on === 'board' && posts < MR.cap - 1) for (const sx of [-0.4, 0.4]) { _e.set(0, 0, 0); _q.setFromEuler(_e); _p.set(m.x + sx * m.w, gy + (m.kind === 'grave' ? 0.2 : 0.42), m.z - m.h * 0.42); _s.set(0.09, m.kind === 'grave' ? 0.4 : 0.84, 0.09); _m.compose(_p, _q, _s); this.posts.setMatrixAt(posts++, _m); }
       _e.order = 'XYZ';
       n++;
     }

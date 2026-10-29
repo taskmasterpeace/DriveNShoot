@@ -2190,6 +2190,7 @@ function compileNpc(def) {
 async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
+  g.selftestLive = { results, ms: [], done: false, at: Date.now() }; // what has run so far: exec can read it while a long battery runs (the bridge may stop waiting first)
   const check = async (name, fn) => {
     // a|b|c: any of them (only="witnesses|storeys" replays a pair in battery order).
     const any = (pat) => pat.split('|').some((s) => s && name.includes(s));
@@ -2198,8 +2199,10 @@ async function runSelfTest(api, only = null, skip = null) {
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
+    const t0 = performance.now();
     try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : v }); }
     catch (e) { results.push({ name, pass: false, detail: String(e.message ?? e) }); }
+    g.selftestLive.ms.push(Math.round(performance.now() - t0));
   };
   const C = (cmd, a) => api.call(cmd, a);
   await C('start');
@@ -6013,7 +6016,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
-  await worldVoiceChecks(api, check, C); g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after
+  await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
@@ -6021,9 +6024,11 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
+  g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice back on
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
+  g.selftestLive.done = true; g.selftestLive.ms = Date.now() - g.selftestLive.at;
   return { ok: passed === results.length, passed, total: results.length, results };
 }
 

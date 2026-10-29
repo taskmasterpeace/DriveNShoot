@@ -58,7 +58,8 @@ export class Feed {
     const T = NEWS.verbs[r.v]; if (!T) return null;
     const place = r.on && r.v !== 'kill' ? r.on : this.g.society?.places?.[r.p]?.name ?? this.g.citygen?.byId?.get(r.p)?.name ?? 'the flats';
     const other = this.g.citygen?.byId?.get(r.o)?.name ?? this.g.society?.places?.[r.o]?.name ?? 'the next town';
-    const vars = { place, who: r.on || 'a stranger', by: this.fname(r.af || r.a), of: this.fname(r.of), other };
+    const raid = r.v === 'raided'; // a raided row names the raiders in of (site stories' shape)
+    const vars = { place, who: r.on || 'a stranger', by: this.fname(raid ? r.of : r.af || r.a), of: this.fname(raid ? r.af : r.of), other };
     return T.replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
   }
   // Turn the chronicle's new rows into facts held by whoever saw them. Returns the facts made.
@@ -145,12 +146,12 @@ export class Feed {
     // Who hears it: you (if you can hear a radio) and every holder with a set inside the station's range. Each gets the
     // MAST's copy (its where, when, text as read), never the world's.
     const f = k.fact(c.id) ?? c, src = { channel: 'radio', from: `mast:${mast.id}`, fromName: `${S.name} (${mast.name})` };
-    const heard = [];
+    const heard = [], P = k.holders.get('player');
+    if (P) { P.x = me.x; P.z = me.z; } // where you are now, not where the last pulls tick saw you
     for (const H of k.holders.values()) {
       if (H.id === `town:${mast.id}` || Math.hypot(H.x - mast.x, H.z - mast.z) > (S.range ?? 9000)) continue;
       const set = H.id === 'player' ? !!g.radio?.canHear?.() && g.radio.station === S : H.radio;
       if (!set) continue;
-      if (H.id === 'player') { H.x = me.x; H.z = me.z; }
       if (k.put(H.id, { ...f, where: c.where, when: c.when, text: R.line }, src, c.conf * CHANNELS.radio.conf, c.hops + 1)) heard.push(H.id);
     }
     const row = { at: r1(now), t: r1(g.time), station: S.id, freq: S.freq, mast: mast.id, mastName: mast.name, fid: c.id, what: c.what, text: R.line, ageH: R.ageH, conf: c.conf,

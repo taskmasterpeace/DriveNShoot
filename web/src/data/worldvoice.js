@@ -113,7 +113,7 @@ export const FEED = {
   keyLines: ['posting', 'bounty', 'fell', 'took', 'raided'], // these go to the voice (a locked station voice, if rendered)
   log: 12,
   hud: { lines: 3, holdSecs: 50 },
-  ages: [[1, 'just now'], [4, 'a few hours back'], [12, 'this morning'], [30, 'yesterday'], [72, 'a couple of days back'], [9999, 'a while back']],
+  ages: [[1, 'just now'], [6, 'a few hours back'], [18, 'earlier today'], [42, 'yesterday'], [96, 'a couple of days back'], [9999, 'a while back']], // hours old -> the words
   hedges: ['Word is', 'Nobody has confirmed it, but', 'I heard, and I would not swear to it,', 'Somebody came in saying'],
   sure: ['Confirmed:', 'From the road:', 'Folks saw it:', ''],
   lines: { // fact kind -> the read (vars: {text} {age} {place} {conf})
@@ -190,7 +190,7 @@ export const CAMPFIRE = {
   recentR: 6000,        // m: and how near
   sitR: 2.4,            // m from the fire the crew sit
   morale: 'campfire',
-  glow: { r: 9, flicker: 0.18, color: '#ff9a3c' },
+  glow: { r: 5.5, flicker: 0.18, color: '#c2611f', power: 70 }, // r: the warm pool (m); power: the fx pool light kept lit
 };
 MORALE.mods.campfire ??= { v: 4, hours: 14, label: 'A night by the fire' };
 // Lines. when: what must be true (systems/campfire.js pick()); weight; text vars: {you} {name} {place} {area} {region}
@@ -201,7 +201,8 @@ export const CAMP_LINES = [
   { id: 'skirmish_near', when: 'event:skirmish', w: 4, text: ['{by} and {other} at it again near {place}. Let them bleed each other.', 'More shooting around {place}. Nobody wins those.'] },
   { id: 'your_kill', when: 'event:kill:you', w: 5, text: ['{target}. At {place}. I keep thinking about it.', 'You dropped {target} back at {place}. Did they have to go?', '{target} had it coming, at {place}. I will sleep fine.'] },
   { id: 'kill_near', when: 'event:kill', w: 3, text: ['Somebody put {target} down near {place}. Out here that is just a Tuesday.'] },
-  { id: 'heard_far', when: 'heard', w: 4, text: ['That shooting earlier, off to the {dir}. Somebody is having a worse night than us.', 'You heard it too. {dir}. A lot of rounds.', 'Engines to the {dir} before dark. Could be traders. Could be not.'] },
+  { id: 'heard_far', when: 'heard:shot', w: 4, text: ['That shooting earlier, off to the {dir}. Somebody is having a worse night than us.', 'You heard it too. Off to the {dir}. A lot of rounds.'] },
+  { id: 'heard_engine', when: 'heard:engine', w: 3, text: ['Engines to the {dir} before dark. Could be traders. Could be not.', 'Somebody is driving out there, {dir} of us. At night. Think about why.'] },
   { id: 'radio_news', when: 'news', w: 4, text: ['The radio said {heard}. You believe it?', '{heard}. That is what the man on the radio said.'] },
   // your stats
   { id: 'hurt', when: 'stat:hp<0.5', w: 5, text: ['Sit still and let me look at that. You are leaking.', 'You are walking like a dropped radio. Rest.'] },
@@ -256,7 +257,7 @@ export function validateWorldVoice(rows = { AMBIENT_LAYERS, BIOME_AMBIENCE, FAR,
   for (const [f, T] of Object.entries(rows.TAGS ?? {})) { if (!T.text || !T.word) errors.push(`tag ${f}: text and word`); if (purple(T.color)) errors.push(`tag ${f}: purple`); }
   for (const r of rows.CAMP_LINES ?? []) {
     if (!r.id || !r.when || !(r.w > 0) || !r.text?.length) errors.push(`camp line ${r.id ?? '?'}: id, when, w, text`);
-    if (r.when && !/^(event:|stat:|area:|heard$|news$|any$)/.test(r.when)) errors.push(`camp line ${r.id}: when must be event:|stat:|area:|heard|news|any`);
+    if (r.when && !/^(event:|stat:|area:|heard(:shot|:engine)?$|news$|any$)/.test(r.when)) errors.push(`camp line ${r.id}: when must be event:|stat:|area:|heard[:shot|:engine]|news|any`);
     for (const t of r.text ?? []) for (const m of t.matchAll(/\{(\w+)\}/g)) if (!['you', 'name', 'place', 'area', 'region', 'target', 'by', 'dir', 'hp', 'kills', 'cash', 'heard', 'other'].includes(m[1])) errors.push(`camp line ${r.id}: unknown {${m[1]}}`);
   }
   if (!(rows.CAMPFIRE?.leaveR > rows.CAMPFIRE?.sitR)) errors.push('campfire: leaveR > sitR');

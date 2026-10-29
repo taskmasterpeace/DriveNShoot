@@ -58,7 +58,8 @@ export class Campfire {
     this.fire = { id: `fire${++this.nid}`, x: r1(x), z: r1(z), y: g.rites?.ground?.(x, z) ?? 0, lit: r1(this.hours()), lines: 0, nextT: g.time + 2, used: new Set(), log: [], members: here.map((m) => m.id), morale: false };
     // The crew sit round it (they walk to their places; crew.camp keeps them there and hushes their own camp talk).
     if (g.crew) { this.campWas = g.crew.camp; g.crew.camp = { x: this.fire.x, z: this.fire.z, day: g.society?.day ?? 0 }; this.campAtWas = g.crew.campAt; g.crew.campAt = g.time + 1e6; }
-    here.forEach((m, i) => { const t = (i + 1) / (here.length + 1) * Math.PI * 2 + a; m.fireSeat = { x: x + Math.sin(t) * CF.sitR, z: z + Math.cos(t) * CF.sitR }; });
+    // each walks to a seat round the fire (the crew's own holdpos order: systems/crew.js), and gets their order back after
+    here.forEach((m, i) => { const t = (i + 1) / (here.length + 1) * Math.PI * 2 + a; m.fireSeat = { x: x + Math.sin(t) * CF.sitR, z: z + Math.cos(t) * CF.sitR }; m.fireWas = { order: m.order, holdAt: m.holdAt }; m.order = 'holdpos'; m.holdAt = m.fireSeat; });
     this.stats.lit++;
     g.hud?.toast?.('A FIRE · THE CREW SIT DOWN', 'job');
     g.emit?.('campfireLit', { id: this.fire.id, x: this.fire.x, z: this.fire.z, crew: here.length });
@@ -68,7 +69,7 @@ export class Campfire {
     const g = this.g, F = this.fire; if (!F) return null;
     this.fire = null;
     if (g.crew) { g.crew.camp = this.campWas ?? null; g.crew.campAt = g.time + 30; }
-    for (const m of g.crew?.members ?? []) { m.fireSeat = null; if (m.c) m.c.crouch = false; }
+    for (const m of g.crew?.members ?? []) { if (m.fireWas) { m.order = m.fireWas.order; m.holdAt = m.fireWas.holdAt; m.fireWas = null; } m.fireSeat = null; if (m.c) m.c.crouch = false; }
     g.marks?.ash(F.x, F.z, F.id);
     if (this.logs) { this.logs.visible = false; this.glow.visible = false; }
     this.last = { ...F, used: undefined, why, out: r1(this.hours()) };
@@ -110,10 +111,11 @@ export class Campfire {
         const verbs = arg.split('|');
         const r = cx.events.find((e) => verbs.includes(e.v) && (who === 'you' ? e.a === 'player' : arg === 'kill' ? e.a !== 'player' : true));
         if (!r) continue;
-        const vars = { place: this.placeName(r), target: r.on || 'that one', by: fname(r.af || r.a), other: fname(r.of) };
+        const raid = r.v === 'raided', by = raid ? r.of : r.af || r.a, other = raid ? r.af : r.of; // a raided row names the raiders in of (site stories' shape)
+        const vars = { place: this.placeName(r), target: r.on || 'that one', by: fname(by), other: fname(other) };
         out.push({ row, vars, ref: { type: 'chronicle', seq: r.seq, v: r.v, on: r.on, place: vars.place }, w: row.w + 2 });
       } else if (type === 'heard') {
-        const e = cx.heard[0]; if (!e) continue;
+        const want = arg === 'engine' ? ['engine'] : arg === 'shot' ? ['shot', 'volley', 'explosion'] : null, e = cx.heard.find((h) => !want || want.includes(h.kind)); if (!e) continue;
         out.push({ row, vars: { dir: e.dir === 'N' ? 'north' : e.dir === 'S' ? 'south' : e.dir === 'E' ? 'east' : e.dir === 'W' ? 'west' : { NE: 'north-east', NW: 'north-west', SE: 'south-east', SW: 'south-west' }[e.dir] }, ref: { type: 'heard', seq: e.seq, kind: e.kind, dir: e.dir }, w: row.w + 1 });
       } else if (type === 'news') {
         const c = cx.news[cx.news.length - 1]; if (!c) continue;
@@ -127,7 +129,7 @@ export class Campfire {
         out.push({ row, vars: { area: cx.area }, ref: { type: 'area', biome: cx.area }, w: row.w });
       } else if (type === 'any') out.push({ row, vars: {}, ref: null, w: row.w });
     }
-    for (const c of out) c.text = pickT(c.row, (c.ref?.seq ?? 0)).replace(/\{(\w+)\}/g, (mm, k) => c.vars[k] ?? (k === 'you' ? 'boss' : mm));
+    for (const c of out) c.text = pickT(c.row, (c.ref?.seq ?? 0)).replace(/\{(\w+)\}/g, (mm, k) => c.vars[k] ?? (k === 'you' ? 'boss' : mm)).replace(/^\w/, (m) => m.toUpperCase());
     return out.sort((a, b) => b.w - a.w);
   }
   // One exchange: the best line nobody has said tonight, by the member it suits (the one with the strongest feeling for
@@ -161,7 +163,7 @@ export class Campfire {
     if (this.logs || !this.g.scene) return;
     const logs = (this.logs = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: '#5a4630', roughness: 0.95 }), 16));
     logs.name = 'campfire'; logs.frustumCulled = false; logs.visible = false;
-    const gm = new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: CF.glow.color });
+    const gm = new THREE.MeshBasicMaterial({ map: glowTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: CF.glow.color, toneMapped: false, fog: false }); // the night's exposure and fog must not eat the fire
     const glow = (this.glow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), gm, 3)); glow.name = 'campfire-glow'; glow.frustumCulled = false; glow.visible = false;
     this.g.scene.add(logs); this.g.scene.add(glow);
   }
@@ -175,7 +177,7 @@ export class Campfire {
   flicker() {
     const F = this.fire, G = this.glow; if (!G) return;
     const t = this.g.time, f = 1 + Math.sin(t * 13.1) * CF.glow.flicker * 0.6 + Math.sin(t * 7.3) * CF.glow.flicker * 0.4;
-    _e.set(-Math.PI / 2, 0, 0, 'XYZ'); _q.setFromEuler(_e); _p.set(F.x, F.y + 0.05, F.z); _s.set(CF.glow.r * 2 * f, CF.glow.r * 2 * f, 1); _m.compose(_p, _q, _s); G.setMatrixAt(0, _m);
+    _e.set(-Math.PI / 2, 0, 0, 'XYZ'); _q.setFromEuler(_e); _p.set(F.x, F.y + 0.09, F.z); _s.set(CF.glow.r * 2 * f, CF.glow.r * 2 * f, 1); _m.compose(_p, _q, _s); G.setMatrixAt(0, _m);
     _e.set(-0.25, 0, 0, 'XYZ'); _q.setFromEuler(_e); _p.set(F.x, F.y + 0.75, F.z); _s.set(1.1 * f, 1.6 * f, 1); _m.compose(_p, _q, _s); G.setMatrixAt(1, _m);
     _e.set(-Math.PI / 2, 0, t, 'XYZ'); _q.setFromEuler(_e); _p.set(F.x, F.y + 0.3, F.z); _s.set(1.7 * f, 1.7 * f, 1); _m.compose(_p, _q, _s); G.setMatrixAt(2, _m);
     G.count = 3; G.instanceMatrix.needsUpdate = true;
@@ -194,8 +196,8 @@ export class Campfire {
     }
     if (!this.logs?.visible) this.place();
     this.flicker();
-    if ((this.lightT -= dt) <= 0) { this.lightT = 0.35; g.fx?.light?.(F.x, 1.1, F.z, CF.glow.color, 26, 0.5); }
-    for (const m of g.crew?.members ?? []) if (m.fireSeat && m.c?.alive && Math.hypot(m.c.x - m.fireSeat.x, m.c.z - m.fireSeat.z) < 1.4) m.c.crouch = true; // sat down
+    if ((this.lightT -= dt) <= 0) { this.lightT = 0.35; g.fx?.light?.(F.x, 1.1, F.z, CF.glow.color, CF.glow.power, 0.5); }
+    for (const m of g.crew?.members ?? []) if (m.fireSeat && m.c?.alive && Math.hypot(m.c.x - m.fireSeat.x, m.c.z - m.fireSeat.z) < 1.4) { m.c.crouch = true; m.c.face = Math.atan2(F.x - m.c.x, F.z - m.c.z); } // sat down, facing the fire
     if (Math.hypot(p.x - F.x, p.z - F.z) > CF.leaveR || p.inVehicle) { this.out('you walked off'); return; }
     if ((g.sky?.night ?? 0) < 0.3) { this.out('dawn'); return; }
     const t = g.survival?.threat?.(30); if (t) { this.out(`${t} came`); return; }
