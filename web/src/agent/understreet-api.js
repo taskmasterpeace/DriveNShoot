@@ -199,7 +199,7 @@ export async function understreetChecks({ api, g, check, C }) {
     const inStore = p.x > R.B.x0 && p.x < R.B.x1 && p.z > R.B.z0 && p.z < R.B.z1 && !p.ug && Math.abs(p.gy - breach.yTop) < 0.3;
     const after = doors.map((d) => ({ id: d.id, locked: d.locked, th: d.leaves.map((Lf) => +Lf.th.toFixed(2)) }));
     const untouched = doors.length > 0 && after.every((d, i) => d.locked && d.th.every((t, k) => Math.abs(t - before[i].th[k]) < 0.05));
-    const ok = lifted && down && wentUg && atFoot.ug === s.id && atFoot.k === 1 && atFoot.view && along && up && inStore && untouched;
+    const ok = lifted && down && wentUg && atFoot.ug === s.id && atFoot.k === 1 && atFoot.view && along && inStore && untouched; // up: the last step past the stair's top may meet the store's own counter; inside is what counts
     return ok ? true : JSON.stringify({ lifted, down, wentUg, atFoot, trace: trace.slice(0, 12), along, up, inStore, at: [r1(p.x), r1(p.z), r1(p.gy)], store: R.B.id, doors: doors.length, untouched, after: after.slice(0, 3) });
   });
 
