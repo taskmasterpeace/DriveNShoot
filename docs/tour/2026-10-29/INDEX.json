@@ -1,0 +1,1105 @@
+{
+  "date": "2026-10-29",
+  "size": "1600x900",
+  "shots": 129,
+  "skipped": 2,
+  "sections": [
+    {
+      "id": "front",
+      "title": "Front door",
+      "blurb": "What a player meets first: the title screen and the character creator, step by step."
+    },
+    {
+      "id": "hud",
+      "title": "The HUD",
+      "blurb": "The default HUD on foot, at the wheel, at night, and each preset and situation as the F6 editor shows it (names on)."
+    },
+    {
+      "id": "screens",
+      "title": "Screens and panels",
+      "blurb": "Every full screen a player can open: pack, the paperdoll, the character sheet, crew, dialogue, travel, workshop, pulls, map, pause and settings."
+    },
+    {
+      "id": "vehicles",
+      "title": "Vehicles",
+      "blurb": "Driving a car, a boat on waves, riders on a pickup bed, bikes, the big rigs and the trundle."
+    },
+    {
+      "id": "combat",
+      "title": "On foot and in a fight",
+      "blurb": "Postures, a firefight with tracers, melee, thrown weapons and the explosion that follows."
+    },
+    {
+      "id": "infected",
+      "title": "The infected",
+      "blurb": "Every breed with its vein colour, crawlers, the Choir-Touched, a horde, and the same at night."
+    },
+    {
+      "id": "gadgets",
+      "title": "Kit and gadgets",
+      "blurb": "The things you look through and wear: night vision, the heat scope, flashlight, binoculars, gas mask, scanner, the dog's gear, car gadgets and the drone."
+    },
+    {
+      "id": "world",
+      "title": "Places and time of day",
+      "blurb": "Town streets at day and night, back alleys, the cemetery and a funeral, a bar, a hitchhiker, a storm drain, the military base, bounty boards."
+    },
+    {
+      "id": "land",
+      "title": "Terrain and roadsides",
+      "blurb": "Real elevation (canyon, river, forest hills), Florida swamp, and what stands beside the road in each region."
+    }
+  ],
+  "rows": [
+    {
+      "n": 52,
+      "section": "vehicles",
+      "name": "car-driving",
+      "caption": "DRIVING a LAWMAN interceptor flat out down Central Ave, the driving camera pulled out.",
+      "file": "vehicles-car-driving.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 53,
+      "section": "vehicles",
+      "name": "car-night",
+      "caption": "DRIVING at night: headlight cones, the dark world, the night HUD.",
+      "file": "vehicles-car-night.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 54,
+      "section": "vehicles",
+      "name": "car-storm",
+      "caption": "DRIVING in a STORM: rain, spray, low grip.",
+      "file": "vehicles-car-storm.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 55,
+      "section": "vehicles",
+      "name": "boat-waves",
+      "caption": "A BOAT on waves: the airboat running the lake east of Rust Haven, chop and wake.",
+      "file": "vehicles-boat-waves.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 56,
+      "section": "vehicles",
+      "name": "boat-gunboat",
+      "caption": "The RAIDER GUNBOAT on the same water: a bigger hull and a deck you can stand on.",
+      "file": "vehicles-boat-gunboat.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 57,
+      "section": "vehicles",
+      "name": "pickup-bed-rider",
+      "caption": "A PICKUP-BED RIDER: standing on the pickup's walkable bed deck (the floor rides with the truck).",
+      "file": "vehicles-pickup-bed-rider.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 58,
+      "section": "vehicles",
+      "name": "pickup-bed-moving",
+      "caption": "The same pickup with a driver at speed and the rider crouched in the bed.",
+      "file": "vehicles-pickup-bed-moving.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 59,
+      "section": "vehicles",
+      "name": "van-roof",
+      "caption": "A VAN's roof deck (ladder at the back) over the cargo box.",
+      "file": "vehicles-van-roof.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 60,
+      "section": "vehicles",
+      "name": "rv-coach",
+      "caption": "The RV: a coach you can walk through, with a camp kit inside.",
+      "file": "vehicles-rv-coach.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 61,
+      "section": "vehicles",
+      "name": "trundle-bus",
+      "caption": "THE TRUNDLE (SUN LINE bus): its aisle.",
+      "file": "vehicles-trundle-bus.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 62,
+      "section": "vehicles",
+      "name": "motorcycle",
+      "caption": "A MOTORCYCLE at speed: the rider in the saddle.",
+      "file": "vehicles-motorcycle.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 63,
+      "section": "vehicles",
+      "name": "atv",
+      "caption": "An ATV.",
+      "file": "vehicles-atv.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 64,
+      "section": "vehicles",
+      "name": "dune-buggy",
+      "caption": "A DUNE BUGGY in the open desert.",
+      "file": "vehicles-dune-buggy.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 65,
+      "section": "vehicles",
+      "name": "whaler",
+      "caption": "THE WHALER: the harpoon turret and the big hull.",
+      "file": "vehicles-whaler.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 66,
+      "section": "vehicles",
+      "name": "apc",
+      "caption": "The ARMORED CARRIER.",
+      "file": "vehicles-apc.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 67,
+      "section": "vehicles",
+      "name": "rat-rod",
+      "caption": "A RAT ROD.",
+      "file": "vehicles-rat-rod.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 68,
+      "section": "vehicles",
+      "name": "semi-with-car",
+      "caption": "A SEMI with a car riding on its trailer.",
+      "file": null,
+      "status": "skipped",
+      "reason": "no `semi` vehicle on main yet: the semis lane (branch feat/web-semis) is not merged"
+    },
+    {
+      "n": 69,
+      "section": "combat",
+      "name": "crouch",
+      "caption": "CROUCHED: slower, quieter, harder to spot.",
+      "file": "combat-crouch.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 70,
+      "section": "combat",
+      "name": "prone",
+      "caption": "PRONE: flat on the road behind the gun.",
+      "file": "combat-prone.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 71,
+      "section": "combat",
+      "name": "firefight-tracers",
+      "caption": "A FIREFIGHT with tracers: the SMG against four armed Dustwolf raiders, rounds in the air.",
+      "file": "combat-firefight-tracers.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 72,
+      "section": "combat",
+      "name": "firefight-aftermath",
+      "caption": "After the shooting: blood, gibs and the dead in the road.",
+      "file": "combat-firefight-aftermath.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 73,
+      "section": "combat",
+      "name": "melee",
+      "caption": "HAND TO HAND: a punch landing on a raider.",
+      "file": "combat-melee.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 74,
+      "section": "combat",
+      "name": "molotov",
+      "caption": "A MOLOTOV thrown into a crowd: fire spreading on the road.",
+      "file": "combat-molotov.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 75,
+      "section": "combat",
+      "name": "explosion",
+      "caption": "A CAR EXPLODING: the fireball and the debris.",
+      "file": "combat-explosion.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 76,
+      "section": "combat",
+      "name": "wanted",
+      "caption": "WANTED: stars on the HUD after a witnessed killing.",
+      "file": "combat-wanted.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 77,
+      "section": "infected",
+      "name": "shamblers",
+      "caption": "SHAMBLERS: slow, red veins. Three in the street.",
+      "file": "infected-shamblers.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 78,
+      "section": "infected",
+      "name": "sprinters",
+      "caption": "SPRINTERS: black veins; they walk like shamblers until something living runs near.",
+      "file": "infected-sprinters.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 79,
+      "section": "infected",
+      "name": "echoes",
+      "caption": "ECHOES: neon green veins; frozen while you watch them.",
+      "file": "infected-echoes.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 80,
+      "section": "infected",
+      "name": "choir",
+      "caption": "THE CHOIR-TOUCHED: an aura that speeds and steers the herd.",
+      "file": "infected-choir.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 81,
+      "section": "infected",
+      "name": "breeds-lineup",
+      "caption": "ALL THREE BREEDS side by side, vein colours compared (red, black, neon green).",
+      "file": "infected-breeds-lineup.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 82,
+      "section": "infected",
+      "name": "breeds-night",
+      "caption": "THE VEINS AT NIGHT: the glow carries in the dark.",
+      "file": "infected-breeds-night.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 83,
+      "section": "infected",
+      "name": "crawler",
+      "caption": "A CRAWLER: legs taken by a shot.",
+      "file": "infected-crawler.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 84,
+      "section": "infected",
+      "name": "horde",
+      "caption": "A HORDE: forty of the infected, a fifth of them sprinters, coming down the street.",
+      "file": "infected-horde.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 85,
+      "section": "infected",
+      "name": "horde-close",
+      "caption": "The HORDE up close at the barricade line.",
+      "file": "infected-horde-close.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 86,
+      "section": "infected",
+      "name": "siege",
+      "caption": "A SIEGE: a migrating horde bearing down on a settlement at dusk.",
+      "file": "infected-siege.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 95,
+      "section": "world",
+      "name": "town-day",
+      "caption": "A TOWN STREET by day: Rust Haven's Central Ave with its shopfronts.",
+      "file": "world-town-day.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 96,
+      "section": "world",
+      "name": "town-night",
+      "caption": "A TOWN STREET at night.",
+      "file": "world-town-night.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 97,
+      "section": "world",
+      "name": "town-dawn",
+      "caption": "The same street at dawn.",
+      "file": "world-town-dawn.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 98,
+      "section": "world",
+      "name": "town-overview",
+      "caption": "A TOWN from the high camera: blocks, landmarks, the wall.",
+      "file": "world-town-overview.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 99,
+      "section": "world",
+      "name": "ring-city",
+      "caption": "THE PHOENIX RING: the dead metro, block after block.",
+      "file": "world-ring-city.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 100,
+      "section": "world",
+      "name": "back-alley",
+      "caption": "A BACK ALLEY: dumpsters, poles, back gates, fenced yards behind the shops.",
+      "file": "world-back-alley.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 101,
+      "section": "world",
+      "name": "cemetery",
+      "caption": "A CEMETERY: BOOT HILL at Rust Haven, 292 graves in rows.",
+      "file": "world-cemetery.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 102,
+      "section": "world",
+      "name": "grave-dig",
+      "caption": "A GRAVE being dug for a body.",
+      "file": "world-grave-dig.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 103,
+      "section": "world",
+      "name": "funeral",
+      "caption": "A FUNERAL: mourners gathered at a graveside.",
+      "file": null,
+      "status": "skipped",
+      "reason": "rites: no funeral is scheduled or under way to stage (needs a reported death and a game-day wait)"
+    },
+    {
+      "n": 104,
+      "section": "world",
+      "name": "bar",
+      "caption": "A BAR: the barkeep, the board and the talk (PULLS: bars are where you hear).",
+      "file": "world-bar.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 105,
+      "section": "world",
+      "name": "hitchhiker",
+      "caption": "A HITCHHIKER on the road, thumb out: a pull you can take.",
+      "file": "world-hitchhiker.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 106,
+      "section": "world",
+      "name": "stranded-caravan",
+      "caption": "A STRANDED CARAVAN: a road birth with people and cars.",
+      "file": "world-stranded-caravan.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 107,
+      "section": "world",
+      "name": "storm-drain-street",
+      "caption": "A STORM DRAIN from the street: a manhole and a grate.",
+      "file": "world-storm-drain-street.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 108,
+      "section": "world",
+      "name": "storm-drain-below",
+      "caption": "BELOW the street: the drain trunk, the channel and what lives in it.",
+      "file": "world-storm-drain-below.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 109,
+      "section": "world",
+      "name": "military-gate",
+      "caption": "A MILITARY BASE GATE: OUTPOST NINE's chain-link, towers and the sentry at the gate.",
+      "file": "world-military-gate.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 110,
+      "section": "world",
+      "name": "military-state-base",
+      "caption": "A STATE BASE (one per state, at a real installation): the double fence and the checkpoint on the approach.",
+      "file": "world-military-state-base.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 111,
+      "section": "world",
+      "name": "bounty-board",
+      "caption": "A SITE-STORY BOUNTY BOARD: the Tally's board in a settlement, postings pinned.",
+      "file": "world-bounty-board.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 112,
+      "section": "world",
+      "name": "site-story",
+      "caption": "A SITE STORY playing out: a place with a problem (a dry well) and a trader on the road to it.",
+      "file": "world-site-story.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 113,
+      "section": "world",
+      "name": "site-stamped",
+      "caption": "A SITE ROW stamped into the world: a real place built small.",
+      "file": "world-site-stamped.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 114,
+      "section": "land",
+      "name": "canyon",
+      "caption": "REAL TERRAIN: the deep country of the lower Colorado, I-10 mile 8 (ground at -220 m against the datum).",
+      "file": "land-canyon.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 115,
+      "section": "land",
+      "name": "canyon-oblique",
+      "caption": "The same deep country with the camera tipped up so the relief reads.",
+      "file": "land-canyon-oblique.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 116,
+      "section": "land",
+      "name": "colorado-bridge",
+      "caption": "THE COLORADO RIVER and its bridge at mile 16: the carved channel and the deck over it.",
+      "file": "land-colorado-bridge.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 117,
+      "section": "land",
+      "name": "colorado-oblique",
+      "caption": "THE COLORADO from a tipped camera: the carved channel and the deck spanning it.",
+      "file": "land-colorado-oblique.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 118,
+      "section": "land",
+      "name": "desert-high",
+      "caption": "DESERT RELIEF from the highest camera: the road and the ground it climbs.",
+      "file": "land-desert-high.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 119,
+      "section": "land",
+      "name": "forest-hills",
+      "caption": "FOREST HILLS in the east: conifers, ground 880 m up.",
+      "file": "land-forest-hills.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 120,
+      "section": "land",
+      "name": "forest-hills-oblique",
+      "caption": "FOREST HILLS from a tipped camera.",
+      "file": "land-forest-hills-oblique.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 121,
+      "section": "land",
+      "name": "florida-swamp",
+      "caption": "FLORIDA SWAMP: cypress, black water and the narrow causeway (I-75).",
+      "file": "land-florida-swamp.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 122,
+      "section": "land",
+      "name": "florida-coast",
+      "caption": "FLORIDA I-95 near Miami: flatwoods and the coast road.",
+      "file": "land-florida-coast.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 123,
+      "section": "land",
+      "name": "meridian",
+      "caption": "MERIDIAN, the Florida start: the wall, the gates, the clinic.",
+      "file": "land-meridian.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 124,
+      "section": "land",
+      "name": "gators",
+      "caption": "ALLIGATORS in the shallows beside the road.",
+      "file": "land-gators.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 125,
+      "section": "land",
+      "name": "roadside-ca-desert",
+      "caption": "ROADSIDE, California desert: I-10 mile 2.",
+      "file": "land-roadside-ca-desert.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 126,
+      "section": "land",
+      "name": "roadside-az",
+      "caption": "ROADSIDE, Arizona scrub: mile 20, power lines and billboards naming the next exit.",
+      "file": "land-roadside-az.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 127,
+      "section": "land",
+      "name": "roadside-nm",
+      "caption": "ROADSIDE, New Mexico: mile 44.",
+      "file": "land-roadside-nm.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 128,
+      "section": "land",
+      "name": "roadside-fl",
+      "caption": "ROADSIDE, Florida flatwoods: I-95 mile 9.",
+      "file": "land-roadside-fl.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 129,
+      "section": "land",
+      "name": "power-lines",
+      "caption": "THE ROADSIDE: a pylon down across the westbound lanes at mile 11.",
+      "file": "land-power-lines.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 130,
+      "section": "land",
+      "name": "gas-station",
+      "caption": "A ROADSIDE GAS STATION and its pumps.",
+      "file": "land-gas-station.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 131,
+      "section": "land",
+      "name": "dam",
+      "caption": "PALO VERDE DAM: a driveable crest over the spillway.",
+      "file": "land-dam.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 81,
+      "section": "front",
+      "name": "title",
+      "caption": "The title screen: MAKE A SURVIVOR / QUICK START, before anything has started.",
+      "file": "front-title.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 82,
+      "section": "front",
+      "name": "creator-1-origin",
+      "caption": "THE CREATOR, step 1 of 6 (origin): a worked example survivor (Haitian-born mechanic out of Florida).",
+      "file": "front-creator-1-origin.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 83,
+      "section": "front",
+      "name": "creator-2-background",
+      "caption": "THE CREATOR, step 2 of 6 (background): a worked example survivor (Haitian-born mechanic out of Florida).",
+      "file": "front-creator-2-background.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 84,
+      "section": "front",
+      "name": "creator-3-attributes",
+      "caption": "THE CREATOR, step 3 of 6 (attributes): a worked example survivor (Haitian-born mechanic out of Florida).",
+      "file": "front-creator-3-attributes.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 85,
+      "section": "front",
+      "name": "creator-4-traits",
+      "caption": "THE CREATOR, step 4 of 6 (traits): a worked example survivor (Haitian-born mechanic out of Florida).",
+      "file": "front-creator-4-traits.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 86,
+      "section": "front",
+      "name": "creator-5-look",
+      "caption": "THE CREATOR, step 5 of 6 (look): a worked example survivor (Haitian-born mechanic out of Florida).",
+      "file": "front-creator-5-look.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 87,
+      "section": "front",
+      "name": "creator-6-kit",
+      "caption": "THE CREATOR, step 6 of 6 (kit): a worked example survivor (Haitian-born mechanic out of Florida).",
+      "file": "front-creator-6-kit.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 88,
+      "section": "front",
+      "name": "begin",
+      "caption": "BEGIN: the made survivor drops into the world with their flag and name on the HUD.",
+      "file": "front-begin.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 89,
+      "section": "hud",
+      "name": "default-onfoot",
+      "caption": "The default HUD on foot, mid-morning in Rust Haven: health, cash, weapon plate, minimap, objective.",
+      "file": "hud-default-onfoot.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 90,
+      "section": "hud",
+      "name": "default-driving",
+      "caption": "The HUD at the wheel: speedometer and dash replace the gun plate.",
+      "file": "hud-default-driving.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 91,
+      "section": "hud",
+      "name": "default-night",
+      "caption": "The HUD at night: the night situation, headlights, dark world.",
+      "file": "hud-default-night.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 92,
+      "section": "hud",
+      "name": "preset-default",
+      "caption": "HUD PRESET DEFAULT: the standard layout, three quarters of the old size. Edit mode, element names on.",
+      "file": "hud-preset-default.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 93,
+      "section": "hud",
+      "name": "preset-compact",
+      "caption": "HUD PRESET COMPACT: smallest: the world first, the respect chips and role tapes tucked away. Edit mode, element names on.",
+      "file": "hud-preset-compact.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 94,
+      "section": "hud",
+      "name": "preset-streamer",
+      "caption": "HUD PRESET STREAMER: the top-left corner kept clear for a camera; orders and messages down the left edge; big subtitles. Edit mode, element names on.",
+      "file": "hud-preset-streamer.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 95,
+      "section": "hud",
+      "name": "preset-controller",
+      "caption": "HUD PRESET CONTROLLER: couch distance: bigger plates, a bigger prompt and weapon bar. Edit mode, element names on.",
+      "file": "hud-preset-controller.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 96,
+      "section": "hud",
+      "name": "situation-driving",
+      "caption": "HUD SITUATION DRIVING: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-driving.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 97,
+      "section": "hud",
+      "name": "situation-passenger",
+      "caption": "HUD SITUATION PASSENGER: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-passenger.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 98,
+      "section": "hud",
+      "name": "situation-deck",
+      "caption": "HUD SITUATION DECK: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-deck.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 99,
+      "section": "hud",
+      "name": "situation-prone",
+      "caption": "HUD SITUATION PRONE: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-prone.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 100,
+      "section": "hud",
+      "name": "situation-menu",
+      "caption": "HUD SITUATION MENU: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-menu.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 101,
+      "section": "hud",
+      "name": "situation-panel",
+      "caption": "HUD SITUATION PANEL: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-panel.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 102,
+      "section": "hud",
+      "name": "situation-night",
+      "caption": "HUD SITUATION NIGHT: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-night.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 103,
+      "section": "hud",
+      "name": "situation-dead",
+      "caption": "HUD SITUATION DEAD: what the layout shows in that state (Default preset, edit mode, names on).",
+      "file": "hud-situation-dead.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 104,
+      "section": "hud",
+      "name": "f6-editor",
+      "caption": "THE F6 EDITOR: the HUD layout editor with its panel open and the cash plate selected.",
+      "file": "hud-f6-editor.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 105,
+      "section": "screens",
+      "name": "pack",
+      "caption": "THE PACK (I / Tab): carried items, weight, the weapon slots.",
+      "file": "screens-pack.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 106,
+      "section": "screens",
+      "name": "doll-bare",
+      "caption": "THE DOLL, bare: the 19-slot paperdoll before anything is worn.",
+      "file": "screens-doll-bare.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 107,
+      "section": "screens",
+      "name": "doll-kitted",
+      "caption": "THE DOLL, kitted out: one piece worn in every slot that has gear (armor, clothing, accessories), with the soak numbers it adds.",
+      "file": "screens-doll-kitted.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 108,
+      "section": "screens",
+      "name": "sheet-attributes",
+      "caption": "CHARACTER SHEET (`): attributes.",
+      "file": "screens-sheet-attributes.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 109,
+      "section": "screens",
+      "name": "sheet-skills",
+      "caption": "CHARACTER SHEET: skills level by doing.",
+      "file": "screens-sheet-skills.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 110,
+      "section": "screens",
+      "name": "sheet-perks",
+      "caption": "CHARACTER SHEET: perks.",
+      "file": "screens-sheet-perks.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 111,
+      "section": "screens",
+      "name": "sheet-traits",
+      "caption": "CHARACTER SHEET: traits.",
+      "file": "screens-sheet-traits.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 112,
+      "section": "screens",
+      "name": "sheet-body",
+      "caption": "CHARACTER SHEET: the body, wounds and what they tax.",
+      "file": "screens-sheet-body.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 113,
+      "section": "screens",
+      "name": "sheet-standing",
+      "caption": "CHARACTER SHEET: standing with every faction, and the roles the world calls you.",
+      "file": "screens-sheet-standing.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 114,
+      "section": "screens",
+      "name": "sheet-journal",
+      "caption": "CHARACTER SHEET: the journal.",
+      "file": "screens-sheet-journal.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 115,
+      "section": "screens",
+      "name": "crew",
+      "caption": "THE CREW panel (U): crew cards, formation, orders.",
+      "file": "screens-crew.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 116,
+      "section": "screens",
+      "name": "dialogue",
+      "caption": "DIALOGUE: a named character with portrait, line and choices.",
+      "file": "screens-dialogue.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 117,
+      "section": "screens",
+      "name": "travel-board",
+      "caption": "THE TRAVEL BOARD (sample departures: the trundle / SUN LINE).",
+      "file": "screens-travel-board.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 118,
+      "section": "screens",
+      "name": "travel-real",
+      "caption": "THE TRAVEL PANEL at a real pole: the line, the next trundle, the fare.",
+      "file": "screens-travel-real.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 119,
+      "section": "screens",
+      "name": "workshop-armor",
+      "caption": "THE WORKSHOP, ARMOR tab: the car's six faces, mounts with arcs, the rack and the bill.",
+      "file": "screens-workshop-armor.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 120,
+      "section": "screens",
+      "name": "workshop-weapons",
+      "caption": "THE WORKSHOP, WEAPONS tab: the car's six faces, mounts with arcs, the rack and the bill.",
+      "file": "screens-workshop-weapons.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 121,
+      "section": "screens",
+      "name": "workshop-utility",
+      "caption": "THE WORKSHOP, UTILITY tab: the car's six faces, mounts with arcs, the rack and the bill.",
+      "file": "screens-workshop-utility.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 122,
+      "section": "screens",
+      "name": "workshop-ammo",
+      "caption": "THE WORKSHOP, AMMO tab: the car's six faces, mounts with arcs, the rack and the bill.",
+      "file": "screens-workshop-ammo.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 123,
+      "section": "screens",
+      "name": "workshop-repair",
+      "caption": "THE WORKSHOP, REPAIR tab: the car's six faces, mounts with arcs, the rack and the bill.",
+      "file": "screens-workshop-repair.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 124,
+      "section": "screens",
+      "name": "workshop-paint",
+      "caption": "THE WORKSHOP, PAINT tab: the car's six faces, mounts with arcs, the rack and the bill.",
+      "file": "screens-workshop-paint.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 125,
+      "section": "screens",
+      "name": "pulls-board",
+      "caption": "THE PULLS BOARD: why go out today, as the bar board shows it.",
+      "file": "screens-pulls-board.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 126,
+      "section": "screens",
+      "name": "map",
+      "caption": "THE MAP (M): the big map of I-10 and the island.",
+      "file": "screens-map.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 127,
+      "section": "screens",
+      "name": "pause-game",
+      "caption": "PAUSE (Esc): the GAME tab.",
+      "file": "screens-pause-game.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 128,
+      "section": "screens",
+      "name": "pause-you",
+      "caption": "PAUSE: the YOU tab (this run).",
+      "file": "screens-pause-you.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 129,
+      "section": "screens",
+      "name": "pause-log",
+      "caption": "PAUSE: the LOG tab.",
+      "file": "screens-pause-log.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 130,
+      "section": "screens",
+      "name": "settings",
+      "caption": "PAUSE: SETTINGS.",
+      "file": "screens-settings.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 131,
+      "section": "screens",
+      "name": "controls",
+      "caption": "PAUSE: CONTROLS (F11), every bind a rebindable row, key and pad.",
+      "file": "screens-controls.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 124,
+      "section": "gadgets",
+      "name": "night-vision",
+      "caption": "NIGHT VISION (goggles, one battery cell): the green picture of a dark street with infected in it.",
+      "file": "gadgets-night-vision.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 125,
+      "section": "gadgets",
+      "name": "thermal",
+      "caption": "THERMAL (heat scope): warm bodies bright, the infected cold.",
+      "file": "gadgets-thermal.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 126,
+      "section": "gadgets",
+      "name": "flashlight",
+      "caption": "The FLASHLIGHT: a cone in a black street.",
+      "file": "gadgets-flashlight.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 127,
+      "section": "gadgets",
+      "name": "binoculars",
+      "caption": "BINOCULARS: the long look down the road.",
+      "file": "gadgets-binoculars.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 128,
+      "section": "gadgets",
+      "name": "gas-mask",
+      "caption": "THE GAS MASK on: the filter and the choke tick.",
+      "file": "gadgets-gas-mask.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 129,
+      "section": "gadgets",
+      "name": "radio-scanner",
+      "caption": "THE RADIO SCANNER: ears on the road.",
+      "file": "gadgets-radio-scanner.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 130,
+      "section": "gadgets",
+      "name": "car-gadgets",
+      "caption": "CAR GADGETS: a road chain, a spike strip and a car mine laid on the road.",
+      "file": "gadgets-car-gadgets.jpg",
+      "status": "ok"
+    },
+    {
+      "n": 131,
+      "section": "gadgets",
+      "name": "scout-drone",
+      "caption": "THE SCOUT DRONE in flight.",
+      "file": "gadgets-scout-drone.jpg",
+      "status": "ok"
+    }
+  ]
+}
