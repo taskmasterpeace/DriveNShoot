@@ -104,9 +104,10 @@ floors, then largest remainders, never over a cap's whole count unless nobody el
 `site:<kind>`) within 80 km; Jaccard distance of the two job sets. **Score** of the goal = (#H ≥ 1.6 + #max share ≤ 25% +
 #neighbour distance ≥ 0.3) / (3 × settlements).
 
-*Example (the test port, `port_wharf`, gulf coast, seed 4417):* pop 75 → n = round(75 × 0.55) = 41. Tags coast, fishing,
-port, sea, water. Dockhand: base 0.4 + port 2.2 + fishing 0.5 = 3.1 (× jitter) → 7 of 41 (17%). Fisher: 0.4 + fishing 1.6 +
-coast 0.8 = 2.8 → 5. Harbourmaster: `one` → 1. H = 2.79, top share 0.171.
+*Example (the test port, `port_wharf`, gulf coast, seed 4417):* pop 74 → n = round(74 × 0.55) = 41. Tags coast, fishing,
+port, sea, water. Dockhand: base 0.4 + port 2.2 + fishing 0.5 = 3.1, × jitter exp(0.5 × (2u − 1)) = 4.14 → 8 of 41 (19.5%).
+Fisher: 0.4 + fishing 1.6 + coast 0.8 = 2.8 → 2.51 → 5. Harbourmaster: `one` → 1. The tail (n ≥ 24) leaves out this port's
+one-hand carpenter and a few others by the seed; the core trades stay. Result: 19 jobs, H = 2.645, top share 0.195.
 **Production**: a fisher (`makes [dried_meat, 3, 16]`) standing at the waterside from 04:00 to 13:00 banks 9 h → 3 units
 of smoked fish; the same 9 hours with the fisher away bank nothing.
 
