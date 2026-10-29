@@ -75,6 +75,7 @@ import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTIC
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
 import { casinoCommands, casinoChecks } from './casinos-api.js'; // CASINOS: tables, the house's money, robbery, security drones (WEB_CASINOS.md)
+import { homesCommands, homesChecks } from './homes-api.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
@@ -2111,6 +2112,7 @@ function buildCommands(api) {
     ...kitCommands(api, need),
     ...casinoCommands(api, need), // casinos (WEB_CASINOS.md)
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
+    ...homesCommands(api, need), // camp, base, home (src/agent/homes-api.js)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
@@ -6093,6 +6095,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
   g.kit.staged = kitWas;
   await check('no runtime errors during the battery', async () =>
@@ -6140,6 +6143,7 @@ export function snapshot(g) {
     materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
     clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
+    homes: g.homes?.save(), // camps, bases (stash, boards, rooms), every moved piece, owners' purses, tenure, the raid log (systems/homes.js)
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
@@ -6227,6 +6231,7 @@ export function restore(g, s) {
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
   g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
+  g.homes?.load(s.homes ?? null); // after the boxes: the bases put their stashes back
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
 

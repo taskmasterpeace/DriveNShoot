@@ -265,6 +265,7 @@ unless a check drives them. `needs profile=` switches.
 
 ## 6. Dependencies
 
+- **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): `shelterKind()` returns `camp` at a pitched camp and `shelterFor('camp')` takes its danger from `g.homes`; a claimed base is `claim()`ed as your hold, and its infirmary adds `g.homes.restBonus()` to the hold's rest.
 - `systems/combat.js` reads `g.needs.sway`; `damage` on the player calls `survival.hurt()` and emits the `hurt` event the
   body reads (cause, amount, attacker) for wounds and fright. No new hook.
 - `systems/zombies.js` calls `survival.bitten()` on a landed bite; it also spawns the night's prowlers (`spawn`).
