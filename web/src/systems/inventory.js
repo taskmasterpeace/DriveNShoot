@@ -195,6 +195,7 @@ export class Inventory {
   // Tools and parts that work on something nearby: the car you're in or standing at, the lock in front of you.
   act(verb, s, it) {
     const g = this.g, P = g.player;
+    if (verb === 'place_ladder') return g.actions?.beginPlace() ?? { ok: false, why: 'not here' }; // TIMED ACTIONS: set a carried ladder against the wall in front of you
     const v = P.inVehicle ?? g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - P.x, c.z - P.z) < Math.max(3.4, c.len * 0.65));
     const d = v?.dmg;
     if (verb === 'refuel') {
@@ -574,7 +575,7 @@ export class Inventory {
   // y: the asker's height. A box on another floor (world/storeys.js) is out of reach whatever its x, z. Without y, any floor.
   nearest(x, z, reach = 2.2, notGround = false, y = undefined) {
     let best = null, bd = reach;
-    for (const b of this.boxes.values()) { if (notGround && b.kind === 'ground') continue; if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) { if (b.unseen || (notGround && b.kind === 'ground')) continue; /* unseen: lying where nobody has looked (systems/actions.js look-around) */ if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     return best;
   }
 
@@ -582,7 +583,7 @@ export class Inventory {
   // y: the floor it lies on (upstairs: world/storeys.js); by default the player's.
   groundAt(x, z, y = this.g.player?.gy ?? 0) {
     let best = null, bd = 1.6;
-    for (const b of this.boxes.values()) if (b.kind === 'ground' && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) if (b.kind === 'ground' && !b.unseen && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     if (best) return best;
     const b = this.place(`ground:${++this.piles}`, 'ground', x, z, 999, 'THE GROUND');
     if (y > 0.5) b.y = y;
@@ -611,7 +612,7 @@ export class Inventory {
     let n = 0;
     const o = _o;
     for (const b of this.boxes.values()) {
-      if (b.kind !== 'ground' || !b.slots.length || n >= 96) continue;
+      if (b.kind !== 'ground' || b.unseen || !b.slots.length || n >= 96) continue;
       o.position.set(b.x, this.g.stunts?.heightAt(b.x, b.z) ?? 0, b.z); o.rotation.set(0, (b.seed % 628) / 100, 0);
       const k = Math.min(1.6, 0.8 + b.litres() * 0.04); o.scale.set(k, k, k); o.updateMatrix();
       m.setMatrixAt(n++, o.matrix);

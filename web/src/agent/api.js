@@ -70,6 +70,7 @@ import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
+import { actionsCommands, actionsChecks } from './actions-api.js'; // TIMED ACTIONS: search, look around, break in, climb (WEB_TIMED_ACTIONS.md)
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
@@ -2099,6 +2100,7 @@ function buildCommands(api) {
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...kitCommands(api, need),
+    ...actionsCommands(api, need), // act (agent/actions-api.js; docs/design/WEB_TIMED_ACTIONS.md)
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
@@ -6019,6 +6021,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
   await kitChecks(api, check, C); // GADGETS-2: goggles, torch, glass, scanner, heat scope, mask, nitrous, winch, hub spikes, dog gear (src/agent/kit-api.js)
+  await actionsChecks(api, check, C); // TIMED ACTIONS: open vs search, a body's pat-down, damage cancels, kick vs pick noise, cutters vs a padlock, ladders, look-around, ducking under (src/agent/actions-api.js)
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
@@ -6057,6 +6060,7 @@ export function snapshot(g) {
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
+    actions: g.actions?.save(), // TIMED ACTIONS: break-in marks, half-done searches, what a search turned up, ladders you set (systems/actions.js)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
@@ -6144,6 +6148,7 @@ export function restore(g, s) {
   if (s.inventory) g.inventory.load(s.inventory);
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
+  if (s.actions) g.actions?.load(s.actions); // TIMED ACTIONS (after the inventory: it marks the boxes it searched)
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   g.arms?.load(s.arms); g.gunpoint?.clear();
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)

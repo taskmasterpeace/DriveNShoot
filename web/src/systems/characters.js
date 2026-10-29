@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CARRY } from '../data/arms.js';
 import { LswBodies } from './lswbodies.js';
+import { actLegs, actUpper, actArms } from './actposes.js'; // TIMED ACTIONS: the pose a timed action holds (docs/design/WEB_TIMED_ACTIONS.md)
 
 // People: one articulated low-poly body for everyone, drawn by InstancedMeshes shared by all 160
 // characters (left+right limbs pack into one mesh; hat, gear, accessory and gun variants pack only
@@ -273,6 +274,7 @@ const _c = new THREE.Color(), _blood = new THREE.Color('#4a0606'), _soot = new T
 // Joints, index 0 = left (+x), 1 = right (-x). Legs live in the leg frame, arms in the root frame.
 const hip = [V(), V()], knee = [V(), V()], ankle = [V(), V()], sh = [V(), V()], el = [V(), V()], hand = [V(), V()], tgt = [V(), V()];
 const footPitch = [0, 0], SIDE = [1, -1];
+const _AU = { lean: 0, twist: 0, tilt: 0, head: 0 }; // an action pose's upper body (systems/actposes.js)
 const TAU = Math.PI * 2;
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const wrap = (a) => a - TAU * Math.round(a / TAU);
@@ -506,6 +508,8 @@ export class CharacterRenderer {
       tgt[0].set(0.11, ANKLE_Y * 0.6, -0.8 + Math.max(0, cr)); tgt[1].set(-0.09, ANKLE_Y * 0.6, -0.82 + Math.max(0, -cr));
       footPitch[0] = footPitch[1] = 1.2;
     }
+    const act = ch.act && alive && !sp && !downed && !ch.swim ? ch.act : null; // a timed action's pose (systems/actions.js)
+    if (act) hipY = actLegs(act, tgt, footPitch, hipY);
     if (ch.swim || ch.underwater) {
       const kick = Math.sin(ch.walk * 3) * 0.12;
       tgt[0].set(0.14, ANKLE_Y + 0.05, kick); tgt[1].set(-0.14, ANKLE_Y + 0.05, -kick);
@@ -542,6 +546,7 @@ export class CharacterRenderer {
     if (sp?.twist) twist += sp.twist;   // shooting from the saddle: the upper body turns, the legs stay on the machine
     if (ch.swim || ch.underwater) lean = 0;
     if (prone) { lean = PRONE_LEAN; twist = wrap(ch.face - (ch.proneH ?? ch.face)); headTilt = 0; } // the chest on the ground, turned to the gun
+    if (act) { actUpper(act, _AU); lean = _AU.lean; twist = _AU.twist; headTilt = _AU.tilt; }
     _U.makeTranslation(0, hipY + WAIST_UP, 0);
     if (twist) _U.multiply(_r.makeRotationY(twist));
     if (lean) _U.multiply(_r.makeRotationX(lean));
@@ -549,7 +554,7 @@ export class CharacterRenderer {
     M.torso.setMatrixAt(i, _g);
     const headless = ch.headless;
     // The head stays level when the body leans (eyes on the road), and lolls on the infected.
-    _t.makeTranslation(0, near ? L.headUp : HEAD_UP, 0).multiply(_r.makeRotationX(-lean * 0.6));
+    _t.makeTranslation(0, near ? L.headUp : HEAD_UP, 0).multiply(_r.makeRotationX(-lean * 0.6 + (act ? _AU.head : 0)));
     if (headTilt) _t.multiply(_r.makeRotationZ(headTilt));
     if (near) _t.multiply(L.hatScale); // hats, hair, scars and accessories sized to the LSW head
     const headFrame = _H.multiplyMatrices(_g, _t);
@@ -573,6 +578,7 @@ export class CharacterRenderer {
     else if (knocked) mode = 'knocked';
     else if (bike && !(aim)) mode = 'bars';
     else if (ch.handsUp) mode = 'handsUp';
+    else if (act?.pose) mode = 'act';       // a timed action's hands (systems/actposes.js)
     else if (ch.work) mode = 'work';         // both hands on an interaction: boards, a lock, a shelf (systems/arms.js)
     else if (ch.meleeT > 0) mode = 'melee'; // a blow in flight (systems/melee.js)
     else if (infected) mode = 'infected';
@@ -604,6 +610,7 @@ export class CharacterRenderer {
         gunKey = model;
         break;
       }
+      case 'act': actArms(act, tgt); break;
       case 'work': {
         // Both hands out in front at chest height, working (a hammer rhythm while boarding).
         const beat = Math.sin((ch.workT ?? 0) * 11) * 0.05;
@@ -705,7 +712,7 @@ export class CharacterRenderer {
     }
     if (near) {
       // Which hands are closed on something: the gun hand (and the support hand on a two-hand hold), bars, a tool, fists.
-      const both = mode === 'low' || mode === 'bars' || mode === 'work' || mode === 'melee' || (mode === 'aim' && !ch.oneHand);
+      const both = mode === 'low' || mode === 'bars' || mode === 'work' || mode === 'act' || mode === 'melee' || (mode === 'aim' && !ch.oneHand);
       _grip[0] = both || ((mode === 'aim' || gunHand) && fh === 0) ? 1 : 0; _grip[1] = both || ((mode === 'aim' || gunHand) && fh === 1) ? 1 : 0;
       if (L.drive(ch, _LF, hipY, hip, knee, ankle, footPitch, _g, headFrame, el, hand, useIK, gunHand ? fh : -1, _grip)) this.hideSlot(i); // the classic body steps aside; hats, gear and guns stay
     }

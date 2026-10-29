@@ -84,7 +84,7 @@ export class InventoryUI {
     const g = this.g, inv = g.inventory, p = g.player;
     if (inv.opened && (inv.opened.kind === 'trunk' || Math.hypot(inv.opened.x - p.x, inv.opened.z - p.z) < 3 || g.trade?.keeperAt(inv.opened))) return inv.opened; // a counter opened from a talk: anywhere in the shop
     const near = !p.inVehicle && inv.nearest(p.x, p.z, 2.6, true); // a body is long: stand anywhere along it
-    if (near) return inv.open(near);
+    if (near) return g.actions ? g.actions.openTop(near) : inv.open(near); // opened, not searched: what's on top (systems/actions.js)
     const v = p.inVehicle ?? g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - p.x, c.z - p.z) < Math.max(3.4, c.len * 0.65));
     if (v) return inv.trunk(v);
     return inv.groundAt(p.x, p.z);

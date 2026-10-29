@@ -57,6 +57,7 @@ import { ZOOM, CAMERA } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
+import { Actions } from './systems/actions.js'; // TIMED ACTIONS: search, look around, break in, climb (docs/design/WEB_TIMED_ACTIONS.md)
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Population } from './systems/population.js';
@@ -252,6 +253,7 @@ class Game {
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.actions = new Actions(this); // TIMED ACTIONS: every interaction that takes time, its pose, its noise, its ring (systems/actions.js)
     this.workshopUI = new WorkshopUI(this, ui); // the WORKSHOP screen (U at a garage, or Kenji)
     this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
@@ -867,6 +869,7 @@ class Game {
     // takes its time. Neither lets you shoot.
     if (p.knockT > 0) { p.knockT -= dt; p.speed = 0; p.aiming = false; p.dive = 0; this.hud.prompt(null); return; }
     if (p.vault) { this.interiors.stepVault(p, dt * this.arms.vaultMul()); this.hud.prompt(null); return; } // free hands climb faster
+    if (this.actions.busyBody(p, I, dt)) return; // on a ladder, or ducking under a roll-up: no walking, no gun (systems/actions.js)
     let mx = 0, mz = 0;
     if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
@@ -1018,7 +1021,8 @@ class Game {
     this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
+    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
+    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
     const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
@@ -1039,15 +1043,14 @@ class Game {
     else if (dk) this.hud.prompt(dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
-    else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
+    else if (box) this.actions.boxKey(box, I, dt); // tap E opens it (what's on top), hold E searches it properly (systems/actions.js)
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op && !ugI) this.hud.prompt(null);
+    else if (!op && !ugI) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
-    else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
@@ -1296,6 +1299,7 @@ class Game {
     if (simDt) this.crew.input(I); // E beside a downed crew member is theirs: patch up, or hold to drag
     if (simDt) this.rites.input(I); // beside the dead: hold E to drag, G to bury, F to burn (systems/rites.js)
     this.updatePlayer(dt);
+    this.actions.update(dt); // after the E chain: a target it no longer reaches is let go (systems/actions.js)
     this.arms.update(dt);  // H, J, B, RB: stance, grip, fire mode, the wheel; who has noticed your gun
     this.melee.update(dt); // RMB / R3: the blow in flight lands at its moment of contact
     this.nanGuard('player');

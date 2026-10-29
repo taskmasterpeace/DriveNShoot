@@ -11,6 +11,7 @@ import { makeRng } from '../engine/rng.js';
 import { Overrun } from './overrun.js';
 import { RING_OPENINGS as RO } from '../data/interiors.js';
 import { ALLEYS } from '../data/backlots.js';
+import { ROLLUP } from '../data/actions.js'; // TIMED ACTIONS: a jammed roll-up's gap (WEB_TIMED_ACTIONS.md)
 import { MILBASES, MILBASES_BY_ID, MB_RULES } from '../data/milbases.js'; // THE MILITARY BASES (WEB_MILITARY_BASES.md)
 import { layoutMilbase, buildMilbase } from '../world/citygen/milbase.js';
 
@@ -366,6 +367,7 @@ export class CityGen {
     const it = this.items[i], M = this.mesh;
     _o.position.set(it.cx, it.cy, it.cz); _o.rotation.set(0, 0, 0);
     if (on && !(it.rollup && !it.down)) _o.scale.set(it.sx, it.sy, it.sz); else _o.scale.set(0, 0, 0); // a roll-up door's panel only while it is down
+    if (on && it.half && it.down) { const gap = ROLLUP.gap; _o.position.y = it.cy + gap / 2; _o.scale.y = Math.max(0.2, it.sy - gap); } // jammed half up (systems/actions.js): a gap to duck under
     _o.updateMatrix();
     M.setMatrixAt(i, _o.matrix);
     M.setColorAt(i, this.colorOf(it.col));
@@ -495,6 +497,7 @@ export class CityGen {
     if (!q) { this.bayHold = 0; return null; }
     const { t, b } = q, g = this.g, hud = g.hud, down = I.key('KeyE'), hit = I.hit('KeyE');
     const ring = { x: b.x, z: b.z, len: Math.min(4, b.w) };
+    const ta = g.actions?.bayKey(p, I, dt, t, b); if (ta) return ta; // TIMED ACTIONS: a jammed half-up bay, a padlocked one (systems/actions.js)
     if (b.locked && !b.open) {
       const picks = g.inventory?.carried.slots.find((s) => s.id === 'lockpicks' && s.left > 0);
       if (picks && down) {
