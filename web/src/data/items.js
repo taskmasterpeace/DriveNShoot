@@ -113,6 +113,11 @@ export const ITEMS = {
     desc: 'Small, fast rounds for a submachine gun. Some are reloads; you can tell by the dents.' },
   ammo_shells: { name: 'Shotgun shells', kind: 'ammo', kg: 0.045, bulk: 0.04, stack: 50, value: 1.2, ammo: 'shells',
     desc: 'Twelve-gauge buckshot in faded red hulls. Bulky; every one counts.' },
+  // The other two shells a shotgun loads (combat.js SHELLS: its BIRD and SLUG modes).
+  ammo_birdshot: { name: 'Birdshot shells', kind: 'ammo', kg: 0.04, bulk: 0.04, stack: 50, value: 0.8, ammo: 'birdshot',
+    desc: 'Green hulls of fine lead shot for ducks and doves. Peppers a man; stops a dog.' },
+  ammo_slug: { name: 'Slug shells', kind: 'ammo', kg: 0.05, bulk: 0.04, stack: 50, value: 2, ammo: 'slug',
+    desc: 'Black hulls, each with one soft lead slug the size of your thumb. Goes through a car door.' },
   ammo_rifle: { name: 'Rifle rounds', kind: 'ammo', kg: 0.025, bulk: 0.012, stack: 150, value: 0.9, ammo: 'rifle',
     desc: 'Long brass rounds on stripper clips, the old government\'s issue.', tags: ['military'] },
   // A gun as a thing: in a trunk, on a body, on the ground. On you, a gun is in your loadout (g.inv.weapons), not the
@@ -167,7 +172,7 @@ export const LOOT = {
   bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1], ['bedroll', 2, 1, 1]] },
   garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
   // Ike's shop: rounds of every kind, the odd second-hand gun, the kit to keep one running.
-  gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_rifle', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
+  gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_birdshot', 2, 4, 12], ['ammo_slug', 1, 2, 8], ['ammo_rifle', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
   office: { rolls: [1, 2], none: 5, rows: [['photograph', 2, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 3], ['lockpicks', 1, 1, 1], ['road_atlas', 2, 1, 1], ['painkillers', 1, 1, 1], ['ammo_pistol', 1, 6, 18]] },
   military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1], ['ammo_rifle', 4, 15, 60], ['cleaning_kit', 1, 1, 1]] },
   wreck: { rolls: [0, 2], none: 5, rows: [['scrap', 5, 1, 3], ['fuel_can', 1, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 2], ['duct_tape', 1, 1, 1], ['photograph', 1, 1, 1]] },
@@ -184,7 +189,7 @@ export const LOOT = {
 // What you start with: pockets, a satchel on your back, a bottle and a little food (plus the guns in g.inv).
 
 // The rounds each gun's ammo type is (g.inv.ammo keys) and the item a loadout gun becomes when you put it down.
-export const AMMO_ITEM = { pistol: 'ammo_pistol', smg: 'ammo_smg', shells: 'ammo_shells', rifle: 'ammo_rifle' };
+export const AMMO_ITEM = { pistol: 'ammo_pistol', smg: 'ammo_smg', shells: 'ammo_shells', birdshot: 'ammo_birdshot', slug: 'ammo_slug', rifle: 'ammo_rifle' };
 export const GUN_ITEM = { pistol: 'gun_pistol', smg: 'gun_smg', shotgun: 'gun_shotgun', rifle: 'gun_rifle', auto: 'gun_auto', pump: 'gun_pump' };
 // What each gun loses per shot (condition: 1 clean, 0 broken) and how readily it jams once worn (x the base rate).
 // A revolver at 0.82 has ~680 shots in it before it breaks; the stamped SMG wears least per shot but fires the most.

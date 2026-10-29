@@ -11,13 +11,24 @@ const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, no
 //   rate   s between rounds (cyclic); spread x the row's spread; kick: the recoil bloom one round adds
 //   dmg / pellets / range: an alternate use replaces the row's (the sawn-off's slug)
 // A row with no modes gets one from `auto` (systems/arms.js). `mode` names the default.
+// A shotgun's modes are the SHELLS it loads (data/items.js ammo_shells / ammo_birdshot / ammo_slug). Each draws on its
+// own rounds in your pack (`ammo`); switching shell works the loaded ones back into the pack and the gun loads the new
+// kind (systems/arms.js setMode). BUCK: the gun's own pellets. BIRD: twice the pellets at a quarter the bite, a wider
+// cloud and a short reach (it stops a dog or a bird; a man in a coat it only stings). SLUG: one lump, tight, long.
+function SHELLS(buck, slug) {
+  return [
+    { id: 'buck', name: 'BUCK', burst: 1, rate: buck.rate, spread: 1, kick: buck.kick },
+    { id: 'bird', name: 'BIRD', burst: 1, rate: buck.rate, spread: 1.45, kick: buck.kick * 0.7, dmg: Math.round(buck.dmg * 0.27), pellets: buck.pellets * 2, range: Math.round(buck.range * 0.65), ammo: 'birdshot' },
+    { id: 'slug', name: 'SLUG', burst: 1, rate: slug.rate, spread: 0.11, kick: slug.kick, dmg: slug.dmg, pellets: 1, range: slug.range, ammo: 'slug', round: 'slug' },
+  ];
+}
 export const WEAPONS = {
   pistol:  { name: '.45 REVOLVER', short: 'PISTOL', dmg: 38, rate: 0.26, mag: 6, reload: 1.3, spread: 0.025, range: 55, auto: false, pellets: 1, ammo: 'pistol', sound: 'pistol', shake: 0.25,
     modes: [{ id: 'single', name: 'SINGLE', burst: 1, rate: 0.26, spread: 1, kick: 0.35 }, { id: 'fan', name: 'FAN', burst: 3, rate: 0.085, spread: 2.6, kick: 0.45, after: 0.5 }] },
   smg:     { name: 'RUST-9 SMG', short: 'SMG', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15, mode: 'auto',
     modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.12, spread: 0.6, kick: 0.22 }, { id: 'burst', name: 'BURST', burst: 3, rate: 0.065, spread: 0.85, kick: 0.2, after: 0.3 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.075, spread: 1, kick: 0.18 }] },
   shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6,
-    modes: [{ id: 'buck', name: 'BUCK', burst: 1, rate: 0.75, spread: 1, kick: 0.8 }, { id: 'slug', name: 'SLUG', burst: 1, rate: 0.85, spread: 0.11, kick: 1.0, dmg: 82, pellets: 1, range: 40, round: 'slug' }] },
+    modes: SHELLS({ dmg: 14, pellets: 8, range: 22, rate: 0.75, kick: 0.8 }, { dmg: 82, range: 40, rate: 0.85, kick: 1.0 }) },
   // The Federal Remnant's issue rifle (systems/bases.js arms its sentries): reaches further and hits harder than the
   // SMG, fires slower. Generic by design: no make, no model.
   rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22, mode: 'auto',
@@ -26,7 +37,8 @@ export const WEAPONS = {
   // 18 against a 9-a-pellet pump; here the revolver hits 38, so both scale by about two. The self-loader eats the SMG's
   // small fast rounds; the pump takes shells, five in the tube, a slower pump between shots than the sawn-off's two.
   auto:    { name: 'SELF-LOADER', short: 'AUTO', dmg: 22, rate: 0.17, mag: 12, reload: 1.2, spread: 0.04, range: 50, auto: false, pellets: 1, ammo: 'smg', sound: 'pistol', shake: 0.18, model: 'auto' },
-  pump:    { name: 'PUMP SHOTGUN', short: 'PUMP', dmg: 15, rate: 0.95, mag: 5, reload: 2.4, spread: 0.16, range: 26, auto: false, pellets: 7, ammo: 'shells', sound: 'shotgun', shake: 0.55, model: 'pump' },
+  pump:    { name: 'PUMP SHOTGUN', short: 'PUMP', dmg: 15, rate: 0.95, mag: 5, reload: 2.4, spread: 0.16, range: 26, auto: false, pellets: 7, ammo: 'shells', sound: 'shotgun', shake: 0.55, model: 'pump',
+    modes: SHELLS({ dmg: 15, pellets: 7, range: 26, rate: 0.95, kick: 0.7 }, { dmg: 85, range: 45, rate: 1.0, kick: 0.95 }) },
 };
 
 export class Combat {

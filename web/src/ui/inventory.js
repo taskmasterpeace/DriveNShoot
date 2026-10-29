@@ -255,7 +255,7 @@ export class InventoryUI {
       const k = e.gun, W = WEAPONS[k], it = ITEMS[GUN_ITEM[k]], st = inv.gunState(k);
       this.el.dname.textContent = W.name;
       this.el.desc.textContent = it?.desc ?? '';
-      this.el.stats.textContent = [`${Math.round(inv.cond(k) * 100)}% condition${STATE[st] ? ` (${STATE[st].toLowerCase()})` : ''}`, `${g.inv.mag[k] ?? 0} of ${W.mag} loaded`, `${g.inv.ammo[W.ammo] ?? 0} rounds for it on you`, `${(it?.kg ?? 0).toFixed(1)} kg`].join(' · ');
+      this.el.stats.textContent = [`${Math.round(inv.cond(k) * 100)}% condition${STATE[st] ? ` (${STATE[st].toLowerCase()})` : ''}`, `${g.inv.mag[k] ?? 0} of ${W.mag} loaded`, `${g.inv.ammo[g.arms?.ammoOf(k) ?? W.ammo] ?? 0} rounds for it on you`, `${(it?.kg ?? 0).toFixed(1)} kg`].join(' · ');
       useT = g.inv.current === k ? 'IN HAND' : 'TAKE IN HAND'; canUse = g.inv.current !== k;
     } else if (e) {
       const cash = (v) => (v >= 10 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);

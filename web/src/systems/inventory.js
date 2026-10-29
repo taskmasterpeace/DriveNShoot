@@ -478,7 +478,7 @@ export class Inventory {
 
   gunView() {
     const inv = this.g.inv;
-    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[WEAPONS[k]?.ammo] ?? 0, inHand: inv.current === k }));
+    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[this.g.arms?.ammoOf(k) ?? WEAPONS[k]?.ammo] ?? 0, loads: this.g.arms?.ammoOf(k), inHand: inv.current === k }));
   }
 
   // ---- the world's containers ------------------------------------------------------------------------------
