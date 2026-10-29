@@ -182,3 +182,5 @@ What other lanes can use:
 | rewards come out of real stock | a trader's count −1 and purse + price; the board shows the sighting; the chip counts it |
 
 Plus: the draw calls stay under 150 (one instanced mesh for all bar furniture; road people are the instanced rig), `scenario name=stress` shows no regression, and `ip-lint` reports 0 deny.
+
+**Used by GADGETS-2** (`WEB_GADGETS2.md`): the `scanner` channel and the `chatter` fact kind. The radio scanner gets a copy only of a real key-up (a convoy lead, the bulls dispatcher) inside 1800 m (`g.kit.keyUp`).

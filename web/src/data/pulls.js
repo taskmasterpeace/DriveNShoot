@@ -19,6 +19,7 @@ export const CHANNELS = {
   radio:     { name: 'heard on the radio', conf: 0.85, range: 2600, needs: 'radio', desc: 'a broadcast: only inside its range, only with a set' },
   board:     { name: 'read on a board', conf: 0.95, range: 3, desc: 'written on a town board: read where it hangs' },
   note:      { name: 'read a note', conf: 1.0, range: 2, desc: 'written by the one who left it' },
+  scanner:   { name: 'heard on the scanner', conf: 0.8, range: 1800, needs: 'radio_scanner', desc: 'a convoy or the bulls keying up: only inside its range, only with a live scanner (systems/kit.js)' },
   grapevine: { name: 'the grapevine', conf: 0.8, speed: 450, hops: 3, desc: 'town to town with the traders: arrives after the road is driven' },
 };
 
@@ -33,6 +34,7 @@ export const FACT_KINDS = {
   trader:     { name: "Lone trader's cart", pull: true, life: 40, icon: 'cart' },
   wreck:      { name: 'A body by a wreck', pull: true, life: 200, icon: 'wreck' },
   medic:      { name: 'Medic call', pull: true, life: 4, icon: 'cross' },
+  chatter:    { name: 'Radio chatter', pull: false, life: 2, icon: 'radio' }, // the scanner's (systems/kit.js): news, not a pull
   distress:   { name: 'Distress call', pull: true, life: 8, icon: 'radio' },
   bounty:     { name: 'Bounty', pull: true, life: 96, icon: 'skull' },
   work:       { name: 'Work order', pull: true, life: 72, icon: 'board' },
