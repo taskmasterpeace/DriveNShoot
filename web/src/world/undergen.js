@@ -25,12 +25,15 @@ const mix = (a, b) => { let h = (a ^ Math.imul((b + 0x9e3779b9) >>> 0, 0x85ebca6
 const r2 = (v) => Math.round(v * 100) / 100;
 
 // ---- the site plan ----------------------------------------------------------------------------------------------------
+// GEN: a kind whose plan and levels another generator makes (UNDER THE STREET: world/understreet.js registers `drains`,
+// a town's storm drains made from its street plan). { plan(site), level(site, k, plan) }, both pure.
+export const GEN = {};
 const plans = new Map();
 export function planSite(site) {
   const key = `${site.id}|${site.seed}|${site.x}|${site.z}|${site.dir}|${site.levels}`;
   let P = plans.get(key);
   if (P) return P;
-  P = makePlan(site);
+  P = GEN[site.kind] ? GEN[site.kind].plan(site) : makePlan(site);
   if (plans.size > 64) plans.delete(plans.keys().next().value);
   plans.set(key, P);
   return P;
@@ -88,8 +91,9 @@ function makePlan(site) {
 }
 
 // One flight: axis x|z, u the way it goes DOWN along the axis, aTop the along-coordinate of its top end, b0/wc its band.
-function flight(id, kind, from, to, axis, u, aTop, b0, wc, yTop, yBot, open) {
-  const F = FLIGHTS[kind], len = Math.max(2, Math.ceil((yTop - yBot) / F.pitch)), aBot = aTop + u * len;
+// F: its FLIGHTS row (another generator may hand its own: world/understreet.js).
+export function flight(id, kind, from, to, axis, u, aTop, b0, wc, yTop, yBot, open, F = FLIGHTS[kind]) {
+  const len = Math.max(2, Math.ceil((yTop - yBot) / F.pitch)), aBot = aTop + u * len;
   const a0 = Math.min(aTop, aBot), a1 = Math.max(aTop, aBot);
   const rect = axis === 'x' ? { minX: a0, maxX: a1, minZ: b0, maxZ: b0 + wc } : { minX: b0, maxX: b0 + wc, minZ: a0, maxZ: a1 };
   const bc = b0 + wc / 2, pt = (a) => (axis === 'x' ? { x: a, z: bc } : { x: bc, z: a });
@@ -113,7 +117,7 @@ export function genLevel(site, k) {
   const key = `${site.id}|${site.seed}|${k}|${site.x}|${site.z}|${site.dir}`;
   let L = levels.get(key);
   if (L) return L;
-  L = makeLevel(site, k, planSite(site));
+  L = GEN[site.kind] ? GEN[site.kind].level(site, k, planSite(site)) : makeLevel(site, k, planSite(site));
   if (levels.size > 48) levels.delete(levels.keys().next().value);
   levels.set(key, L);
   return L;
@@ -463,7 +467,7 @@ function finish(c) {
 // A flight's own boxes, kept with the LOWER level (its stair stands there): flanks over the flight's whole height range
 // (they are the rails round its hole on the floor above), the block under its top end, the rail across its foot's hole
 // on the floor above.
-function flightColliders(L, f) {
+export function flightColliders(L, f) {
   const T = 0.14, R = f.rect, top = f.yTop + 1.0, bot = f.yBot;
   const out = (L.flightBoxes ??= []);
   if (f.axis === 'x') {

@@ -56,6 +56,7 @@ export const ENTRANCES = {
   mouth: { flight: 'slope', look: 'mouth', name: 'a cave mouth', collar: 1.4 },
   lift: { flight: 'ladder', lift: true, look: 'lift', name: 'a freight lift', collar: 1.1 },
   culvert: { flight: 'ramp', look: 'culvert', name: 'a culvert', collar: 1.2 },
+  manhole: { flight: 'ladder', look: 'manhole', name: 'a manhole', collar: 0 }, // UNDER THE STREET: a town's drains (world/understreet.js makes its flights)
 };
 
 // The freight lift: a platform in a shaft through every level it serves. It runs only on the site's power; the gate on a
@@ -132,6 +133,10 @@ export const KINDS = {
     infected: [[1, 2], [1, 3], [2, 4], [2, 4], [1, 3], [2, 3], [2, 5], [3, 6]], runners: 0.25,
     logs: ['bunker_last', 'bunker_fuel', 'bunker_vault'],
   },
+  // UNDER THE STREET (docs/design/WEB_UNDERSTREET.md): a town's storm drains and sewers, one level made from its street
+  // plan by world/understreet.js (undergen's GEN.drains); its rows are data/understreet.js. size/programme are unused
+  // (the town sets the frame) and kept only so every kind reads the same.
+  drains: { name: 'storm drains', built: true, size: [20, 60], levels: [1, 1], corridor: 2, programme: [[]], infected: [[2, 5]], runners: 0.25, logs: [] },
   cave: {
     name: 'cave', built: false, size: [46, 58], levels: [1, 2], chambers: [6, 9], radius: [3.2, 6.6], tunnel: [2, 3],
     squeeze: 0.22, pools: [1, 3], collapse: [1, 2], nest: 0.75,

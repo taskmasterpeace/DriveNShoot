@@ -149,7 +149,9 @@ light borrowed as the lamp), `data/items.js` (`LOOT` takes `UG_LOOT`), `data/int
 
 Used by: `main.js` (construct, `update`, `standOn` -> `siteOf`, `noise`, the camera's `view`, the E key, the flashlight),
 `agent/api.js` (commands, checks, `snapshot` / `restore`), the World Forge's SITE tab (to come: it edits these rows and
-runs `validateUnderground`).
+runs `validateUnderground`), UNDER THE STREET (`docs/design/WEB_UNDERSTREET.md`: a town's drains are sites of kind
+`drains` made by `world/understreet.js` through `GEN`, run through `under.ext`; heights below are over the live site's
+street `y0`, so a site on a raised pad works).
 
 ## 7. Tuning knobs
 
