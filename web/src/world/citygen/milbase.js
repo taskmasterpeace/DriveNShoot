@@ -46,7 +46,7 @@ export function layoutMilbase(opts) {
   T.roads.push({ axis: 'z', x0: cx - 4, x1: cx + 4, z0: T.z0 + ring - 4, z1: T.z1 - ring + 4, row: 'blacktop2', at: cx });
   for (const z of [T.z0 + ring, T.z1 - ring]) T.roads.push({ axis: 'x', x0: T.x0 + ring - 4, x1: T.x1 - ring + 4, z0: z - 4, z1: z + 4, row: 'gravel', at: z });
   for (const x of [T.x0 + ring, T.x1 - ring]) T.roads.push({ axis: 'z', x0: x - 3, x1: x + 3, z0: T.z0 + ring - 4, z1: T.z1 - ring + 4, row: 'gravel', at: x });
-  T.blocks.push({ x0: T.x0, z0: T.z0, x1: T.x1, z1: T.z1 }); // the base's own ground under everything
+  mb.ground = { x0: T.x0, z0: T.z0, x1: T.x1, z1: T.z1, col: M.status === 'overrun' ? '#6e6a58' : '#7a7564' }; // packed gravel and dust under everything (buildMilbase lays it)
 
   let nid = 0;
   const add = (k, x0, z0, w, d, front, o = {}) => {
@@ -97,7 +97,8 @@ export function layoutMilbase(opts) {
     const ax0 = x0, az0 = z0 + 20, ax1 = x0 + w, az1 = az0 + S.motor.rows * MB_MOTOR.gap[0] + 6;
     piece('apron', ax0, az0, ax1, az1, 0, '#8a8578');
     mb.apron = { x0: ax0, z0: az0, x1: ax1, z1: az1 };
-    for (let r = 0; r < S.motor.rows; r++) for (let c = 0; c < S.motor.cols; c++) {
+    const cols = Math.min(14, Math.max(S.motor.cols, Math.floor((w - 12) / MB_MOTOR.gap[1]))); // the apron's width in bays
+    for (let r = 0; r < S.motor.rows; r++) for (let c = 0; c < cols; c++) {
       const x = ax0 + 6 + c * MB_MOTOR.gap[1], z = az0 + 6 + r * MB_MOTOR.gap[0];
       if (x > ax1 - 4) continue;
       if (rng.chance(0.12)) continue; // an empty bay
@@ -191,7 +192,7 @@ export function layoutMilbase(opts) {
     for (const [k, d] of A.checks.entries()) {
       const x = gx + sgn * d;
       // the chicane: a barrier on the north half, then 9 m on one on the south half (a car slaloms, nobody rushes it)
-      mb.barriers.push({ x0: x - 2, z0: cz - 5, x1: x + 2, z1: cz - 0.6 }, { x0: x + sgn * 9 - 2, z0: cz + 0.6, x1: x + sgn * 9 + 2, z1: cz + 5 });
+      mb.barriers.push({ x0: x - 0.35, z0: cz - 5, x1: x + 0.35, z1: cz - 0.4 }, { x0: x + sgn * 9 - 0.35, z0: cz + 0.4, x1: x + sgn * 9 + 0.35, z1: cz + 5 });
       piece('sandbags', x - 3, cz - 9, x + 3, cz - 7.6, 1.1, '#9a8a62');
       if (k === 0) piece('booth', x - 1.4, cz + 7, x + 1.4, cz + 9.8, 2.7, '#6e6a58');
       if (k === 1) mb.wrecks.push({ x: x + sgn * 16, z: cz + 7.5, rot: Math.PI / 2, type: rng.chance(0.5) ? 'apc' : 'patrol', state: 'burned', paint: 2 });
@@ -203,6 +204,7 @@ export function layoutMilbase(opts) {
   const tw2 = F.tower / 2;
   const towerAt = (x, z, face) => { mb.towers.push({ x, z, face }); };
   for (const [x, z] of [[T.x0, T.z0], [T.x1, T.z0], [T.x0, T.z1], [T.x1, T.z1]]) towerAt(x + (x === T.x0 ? tw2 + 0.6 : -tw2 - 0.6), z + (z === T.z0 ? tw2 + 0.6 : -tw2 - 0.6), Math.atan2(x - cx, z - cz));
+  for (const g of mb.gates) for (const sd of [-1, 1]) towerAt(g.x + (g.side === 'W' ? tw2 + 0.6 : -tw2 - 0.6), g.at + sd * (g.w / 2 + tw2 + 1.5), g.side === 'W' ? -Math.PI / 2 : Math.PI / 2); // the gate's own pair
   for (let x = T.x0 + F.towerEvery; x < T.x1 - F.towerEvery * 0.5; x += F.towerEvery) { towerAt(x, T.z0 + tw2 + 0.6, Math.PI); towerAt(x, T.z1 - tw2 - 0.6, 0); }
   for (let z = T.z0 + F.towerEvery; z < T.z1 - F.towerEvery * 0.5; z += F.towerEvery) if (Math.abs(z - cz) > F.gate) { towerAt(T.x0 + tw2 + 0.6, z, -Math.PI / 2); towerAt(T.x1 - tw2 - 0.6, z, Math.PI / 2); }
   for (const t of mb.towers) {
@@ -228,6 +230,7 @@ export function buildMilbase(T) {
   const out = buildTown(T), mb = T.mb, F = MB_RULES.fence;
   const run = out.mb = { gateLeaves: [], blast: null, fenceBoxes: 0 };
   const vis = (cx, cy, cz, sx, sy, sz, col, o = null) => { out.items.push({ cx, cy, cz, sx, sy, sz, col, lv: 0, R: null, ...(o ?? {}) }); return out.items.length - 1; };
+  const G0 = mb.ground; vis((G0.x0 + G0.x1) / 2, 0.02, (G0.z0 + G0.z1) / 2, G0.x1 - G0.x0, 0.04, G0.z1 - G0.z0, G0.col); // the base's ground (where a town's lots would be)
   const solid = (x0, z0, x1, z1, tag, h, col, base = 0) => { const b = box(x0, z0, x1, z1, tag, h + base, base); out.boxes.push(b); vis((x0 + x1) / 2, base + h / 2, (z0 + z1) / 2, x1 - x0, h, z1 - z0, col); return b; };
   const cover = (x, z, nx, nz, h, kind) => out.cover.push(x, z, 0, nx, nz, h, kind);
   // a see-through run of chain-link: a box whose whole length is a hole (engine/collision.js): it stops walkers and cars,
@@ -272,7 +275,7 @@ export function buildMilbase(T) {
   // the checkpoints' jersey barriers: half cover (kneel behind them), concrete
   for (const q of mb.barriers) {
     solid(q.x0, q.z0, q.x1, q.z1, 'barrier', 0.95, '#a8a49a');
-    cover((q.x0 + q.x1) / 2, q.z0 - 0.7, 0, -1, 0.5, 2); cover((q.x0 + q.x1) / 2, q.z1 + 0.7, 0, 1, 0.5, 2);
+    cover(q.x0 - 0.7, (q.z0 + q.z1) / 2, -1, 0, 0.5, 2); cover(q.x1 + 0.7, (q.z0 + q.z1) / 2, 1, 0, 0.5, 2);
   }
   // the yard's own pieces
   for (const p of mb.pieces) {

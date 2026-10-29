@@ -20,7 +20,7 @@ export function milbasesCommands(api, need) {
   return {
     milbase: {
       group: 'world',
-      desc: 'THE MILITARY BASES (docs/design/WEB_MILITARY_BASES.md; rows data/milbases.js): one large base per state at a real installation, plus the big ones the drivable world reaches (Arizona, Florida). Each a double chain-link perimeter with gates and towers, checkpoints on the approach, a command post over a bunker level, an armory (the best loot, rolled once, never refilled), a hospital, a motor pool of real dead vehicles, a fuel farm, housing; by shape a runway with hangars, piers and a dry dock, or igloo rows. And a STATE: held (a garrison that challenges once then fires, a quartermaster), overrun (a horde that pours out at a noise) or sealed (power, a code, the blast door). action=list: every row and where it stands; goto id=: stand at its west checkpoint (it builds); state id=: the live base; rows: the rows and their check; stamp id= x z: build one anywhere; power|read|keypad id= (code=): the sealed puzzle\'s verbs, from where you stand (E does the same).',
+      desc: 'THE MILITARY BASES (docs/design/WEB_MILITARY_BASES.md; rows data/milbases.js): one large base per state at a real installation, plus the largest ones the drivable world reaches (Arizona, Florida). Each a double chain-link perimeter with gates and towers, checkpoints on the approach, a command post over a bunker level, an armory (the best loot, rolled once, never refilled), a hospital, a motor pool of real dead vehicles, a fuel farm, housing; by shape a runway with hangars, piers and a dry dock, or igloo rows. And a STATE: held (a garrison that challenges once then fires, a quartermaster), overrun (a horde that pours out at a noise) or sealed (power, a code, the blast door). action=list: every row and where it stands; goto id=: stand at its west checkpoint (it builds); state id=: the live base; rows: the rows and their check; stamp id= x z: build one anywhere; power|read|keypad id= (code=): the sealed puzzle\'s verbs, from where you stand (E does the same).',
       args: { action: { type: 'string', default: 'list', enum: ['list', 'goto', 'state', 'rows', 'stamp', 'release', 'power', 'read', 'keypad'] }, id: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' }, code: { type: 'string' }, drive: { type: 'boolean' } },
       run: async ({ action, id, x, z, code, drive }) => {
         const MB = g.milbases, CG = g.citygen;
@@ -82,7 +82,7 @@ export async function milbasesChecks({ api, g, check, C }) {
   const clearNear = (x, z, r) => { for (const c of [...g.chars]) if (c !== p && !c.npc && !c.mbId && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c); };
   const gm = g.godMode;
 
-  await check('milbases: the rows validate - 56 rows, 50 state rows (one per state, each at the atlas\'s own point, class, shape and state), 6 big ones the drivable world reaches (every shape and every state among them); the plan accounts for every row (the drivable ones planned on free ground in the streamed world, the rest beyond it or off the grid)', async () => {
+  await check('milbases: the rows validate - 56 rows, 50 state rows (one per state, each at the atlas\'s own point, class, shape and state), 6 large ones the drivable world reaches (every shape and every state among them); the plan accounts for every row (the drivable ones planned on free ground in the streamed world, the rest beyond it or off the grid)', async () => {
     const bad = validateMilbases(MILBASES, FACTIONS), states = new Set(MILBASES.filter((M) => M.atlas).map((M) => M.state)).size;
     const rep = CG.plan.milbaseReport ?? [], drive = MILBASES.filter((M) => M.drive);
     const planned = drive.filter((M) => rep.find((r) => r.id === M.id)?.status === 'planned').length;
@@ -97,7 +97,7 @@ export async function milbasesChecks({ api, g, check, C }) {
   g.godMode = true;
   const H = await stampBase('camp_blanding', -4000, -9000);
   try {
-    await check('milbases: a stamped base has a closed perimeter with gates - both chain-link fences ring the yard with no gap but the two gates; a walker into the wire stays outside, the way in is a gate, and sight and a round pass through it', async () => {
+    await check('milbases: a stamped base has a closed perimeter with gates - both chain-link fences ring the yard with no gap but the two gates; someone on foot walking into the wire stays outside, the way in is a gate, and sight and a round pass through it', async () => {
       if (!H) return 'no free ground for the base';
       const mb = H.mb, boxes = H.t.built.boxes.filter((b) => b.tag === 'mb-fence');
       const covered = (x, z) => boxes.some((b) => x >= b.minX - 0.05 && x <= b.maxX + 0.05 && z >= b.minZ - 0.05 && z <= b.maxZ + 0.05 && (b.base ?? 0) < 50);
@@ -148,7 +148,7 @@ export async function milbasesChecks({ api, g, check, C }) {
       return fromTable && locked && again && again.rolled && after === 0 ? true : JSON.stringify({ first, fromTable, locked, again: !!again, rolled: again?.rolled, after });
     });
 
-    await check('milbases: a held base challenges a trespasser in sight once, then fires - walk in through the west gate on your own feet: one warning; stay past the grace and the garrison opens fire on you (a Remnant-friendly walker is waved through)', async () => {
+    await check('milbases: a held base challenges a trespasser in sight once, then fires - walk in through the west gate on your own feet: one warning; stay past the grace and the garrison opens fire on you (a Remnant-friendly visitor is waved through)', async () => {
       const s = MB.live.get('camp_blanding');
       if (!s) return 'no base';
       F.set('remnant', FACTIONS.remnant.start); MB.calm(s, 'selftest'); MB.rec(s.id).warnedAt = -1e9;
