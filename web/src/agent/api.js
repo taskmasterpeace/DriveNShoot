@@ -69,10 +69,12 @@ import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
+import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
+import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
@@ -512,7 +514,7 @@ function buildCommands(api) {
           cam.position.set(cx, by + h, cz + h * t); cam.lookAt(cx, by, cz); cam.near = nearFor(h * Math.hypot(1, t)); cam.updateProjectionMatrix(); // the near plane follows the boom (depthlayers.js)
           if (far) { const vr = Math.hypot(h * 0.3839, h * 0.3839 * cam.aspect) * 1.15; g.sky.update(0, by ? { x: cx, y: by, z: cz } : { x: cx, z: cz }, g.world.groundMat, g.world.roadMat, vr); g.streamer.postSky(); } // the sun's shadow box and the haze go with the shot
         }
-        r.render(g.scene, cam);
+        if (g.look) g.look.render(cam); else r.render(g.scene, cam); // the grade pass too: shots look like the game (systems/lookfeel.js)
         if (far) { const f = g.streamer.focus(); g.streamer.ensureHot(f.x, f.z, 'screenshot'); g.sky.update(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); g.streamer.postSky(); }
         const image = r.domElement.toDataURL('image/jpeg', quality);
         r.setPixelRatio(prevPR); r.setSize(Math.max(1, prevW / prevPR), Math.max(1, prevH / prevPR), false);
@@ -2096,9 +2098,11 @@ function buildCommands(api) {
     ...crewCommands(api, need),
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
+    ...kitCommands(api, need),
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
+    ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
@@ -2270,6 +2274,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // The pulls (systems/pulls.js) would grow road people on the I-10 round unrelated drive checks: off for the battery;
   // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
   const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
+  // The kit (systems/kit.js) holds its cells through the battery, and the beam needs no carried torch: unrelated checks
+  // force the flashlight on (flashOverride) with an emptied pack. Its own checks (agent/kit-api.js) clear this.
+  const kitWas = g.kit.staged; g.kit.staged = true;
   const storiesWas = g.stories.enabled; g.stories.enabled = false; g.stories.sleep(); // site stories: off too, its own stage below
   // The workforce (systems/workforce.js) would put workers into every town an unrelated check stamps: off for the battery;
   // its own checks (agent/roles-api.js) turn it on.
@@ -2907,6 +2914,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
   await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
+  await lookfeelChecks({ g, api, C, check }); // LOOK-FEEL: rows and no purple, the horizon law, the grade's blend, wind, skids and the crash, hit-stop and kick, wear
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
@@ -6051,6 +6059,7 @@ async function runSelfTest(api, only = null, skip = null) {
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
+  await kitChecks(api, check, C); // GADGETS-2: goggles, torch, glass, scanner, heat scope, mask, nitrous, winch, hub spikes, dog gear (src/agent/kit-api.js)
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
@@ -6060,6 +6069,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
+  g.kit.staged = kitWas;
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;

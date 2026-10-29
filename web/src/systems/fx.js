@@ -169,6 +169,7 @@ export class FX {
     }
     this.flash(x, 2, z, 14, 0.35);
     this.light(x, 3, z, '#ff9a3a', 60, 0.6);
+    this.onBlast?.(x, z); // the history's scorch, the hit-stop and kick near you (systems/lookfeel.js)
     if (this.scorch) this.scorch(x, z, 7.5, '#151210'); // a soft burn (systems/blood.js), not an ink splat
     else this.decal(x, z, 7, '#151210', Math.random() * 6);
   }

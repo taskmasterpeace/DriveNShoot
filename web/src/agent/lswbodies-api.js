@@ -1,5 +1,6 @@
 // LSW-BODIES as COMMANDS rows and selftest checks (docs/design/WEB_LSW_BODIES.md; systems/lswbodies.js, data/lswbodies.js).
 // buildCommands() in api.js spreads lswBodiesCommands into COMMANDS; runSelfTest calls lswBodiesChecks.
+import * as THREE from 'three';
 import { LSW_RULES, validateLswBodies } from '../data/lswbodies.js';
 import { outfit } from '../systems/characters.js';
 import { FLAG_KEYS } from '../ui/portrait.js';
@@ -10,7 +11,7 @@ const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 function statsOf(g) {
   const L = g.charR.lsw, S = L.stats;
   const people = [];
-  for (const c of g.chars) if (L.drawn[c.slot]) people.push({ id: c.id, name: c.name, body: L.rowOf[c.slot]?.lsw, mesh: L.meshOf[c.slot] ? 'female' : 'male', flag: FLAG_KEYS[L.flagOf[c.slot]], pose: c._pose });
+  for (const c of g.chars) if (L.drawn[c.slot]) { const r = L.recipeOf[c.slot]; people.push({ id: c.id, name: c.name, preset: r?.preset, sex: r?.female ? 'female' : 'male', frame: r?.frame, muscle: r && r2(r.muscle), hair: r?.hair ?? (r ? 'classic piece' : null), face: r?.face, flag: FLAG_KEYS[L.flagOf[c.slot]], pose: c._pose }); }
   return {
     mode: L.mode, ready: L.ready, error: L.error, near: L.nearN, maxNear: L.rules.maxNear, drawn: S.drawn, flags: L.flagN,
     meshes: L.bodies.map((B) => ({ name: B.mesh.name, count: B.count, triangles: B.mesh.geometry.index.count / 3 })),
@@ -84,15 +85,39 @@ export async function lswBodiesChecks(api, check, C) {
   };
   const classicHidden = (c) => { const e = g.charR.meshes.torso.instanceMatrix.array, o = c.slot * 16; return Math.abs(e[o]) + Math.abs(e[o + 5]) + Math.abs(e[o + 10]) < 1e-6; };
 
-  await check('lsw-bodies: the rows are valid (validateLswBodies) and both CC0 bodies loaded - 65 bones each, a male and a female mesh, provenance on disk says Quaternius CC0-1.0', async () => {
+  await check('lsw-bodies: the rows are valid (validateLswBodies) and the faceted kit loaded - LSW modular-hero, 53 ual-deform-v1 bones, 46 modules, six faces; provenance on disk names the studio licence and its source sha256', async () => {
     await L.loaded;
     const bad = validateLswBodies();
     if (!L.ready) bad.push(`not ready: ${L.error}`);
-    if (L.bodies.length !== 2 || L.bodies.some((B) => B.names.length !== 65)) bad.push(`bodies ${L.bodies.map((B) => B.names.length)}`);
-    const meta = await (await fetch(`${(import.meta.env?.BASE_URL ?? '/')}models/lsw/bodies.json`)).json();
-    for (const [id, b] of Object.entries(meta.bodies)) if (b.source?.license !== 'CC0-1.0' || b.source?.author !== 'Quaternius') bad.push(`${id}: ${b.source?.license} / ${b.source?.author}`);
+    if (L.bodies.length !== 1 || L.bodies[0].names.length !== 53) bad.push(`bodies ${L.bodies.map((B) => B.names.length)}`);
+    const base = `${(import.meta.env?.BASE_URL ?? '/')}models/lsw-faceted/`;
+    const meta = await (await fetch(`${base}kit.json`)).json();
+    if (meta.skeleton !== 'ual-deform-v1' || meta.modules.length !== 46 || Object.keys(meta.faces).length !== 6) bad.push(`kit ${meta.skeleton} ${meta.modules.length} modules ${Object.keys(meta.faces).length} faces`);
+    if (!/^[0-9a-f]{64}$/.test(meta.source?.sha256 ?? '')) bad.push('no source sha256');
+    const prov = await (await fetch(`${base}PROVENANCE.md`)).text();
+    if (!/Proprietary-Internal/.test(prov) || !prov.includes(meta.source.sha256)) bad.push('PROVENANCE.md missing the licence or the source sha256');
+    if (/superhero/i.test(JSON.stringify(meta.modules))) bad.push('a superhero part is in the kit');
     return bad.length ? bad.join('; ') : true;
   });
+
+  await check('lsw-bodies: every person gets their OWN faceted body (the generator) - a warden wears the cop preset, a raider the gang preset, a woman (by voice) the nurse preset with the narrow waist, grey hair the elder (glasses); builds pick the frame, hair styles the hair module (the classic hair piece steps aside), and no two of a dozen drifters are identical', () => stage(async () => {
+    const out = [];
+    const mk = (f, x, z, colors, name) => { const c = add(f, x, z, { name }); if (colors) { c.colors = { ...c.colors, ...colors }; g.charR.paint(c); } return c; };
+    const cop = mk('warden', -2, 1, { hatStyle: 'short', hair: '#2a1a10' }, 'Frank Hollis'), gang = mk('raider', -1, 1, { hatStyle: 'short', hair: '#1b1410' }, 'Dax Moreno');
+    const woman = mk('drifter', 0, 1, { hatStyle: 'long', hair: '#3a2416' }, 'Lucia Lopez'), old = mk('drifter', 1, 1, { hatStyle: 'short', hair: '#c8c4bc' }, 'Walter Reed');
+    const crowd = []; for (let k = 0; k < 12; k++) crowd.push(add('drifter', (k % 6) - 3, 3 + Math.floor(k / 6)));
+    await api._step(1); frame();
+    const R = (c) => L.recipeOf[c.slot];
+    if (!L.drawn[cop.slot] || R(cop)?.preset !== 'cop-off-duty') out.push(`warden -> ${R(cop)?.preset}`);
+    if (R(gang)?.preset !== 'gang-member' || R(gang)?.hair !== 'braids') out.push(`raider -> ${R(gang)?.preset}/${R(gang)?.hair}`);
+    if (R(woman)?.preset !== 'nurse' || !R(woman)?.female || R(woman)?.hair !== 'bun' || L.look[woman.slot * 8 + 4] !== 1) out.push(`woman -> ${JSON.stringify(R(woman))}`);
+    if (R(old)?.preset !== 'elder' || !R(old)?.glasses) out.push(`grey hair -> ${R(old)?.preset}`);
+    if (!L.ownsHair(cop)) out.push('a short-haired head kept the classic hair piece');
+    const keys = new Set(crowd.filter((c) => L.drawn[c.slot]).map((c) => JSON.stringify([R(c), [...L.look.subarray(c.slot * 8, c.slot * 8 + 8)], c.colors.shirt, c.colors.pants])));
+    if (keys.size < 12) out.push(`only ${keys.size} distinct bodies in 12 drifters`);
+    const frames = new Set(crowd.map((c) => R(c)?.frame)); if (frames.size < 2) out.push(`one frame for everyone: ${[...frames]}`);
+    return out.length ? out.join('; ') : true;
+  }));
 
   await check('lsw-bodies: the nearest N people (24) wear LSW bodies and everyone else the classic rig - the near set is exactly the 24 nearest you, their classic bodies step aside, the far ones stay drawn classic', () => stage(async () => {
     for (let k = 0; k < 36; k++) { const a = k * 2.4, r = 3 + k * 0.9; add(k % 3 ? 'drifter' : 'warden', Math.sin(a) * r, 6 + Math.cos(a) * r, {}, k % 3 ? null : 'smg'); }
@@ -194,20 +219,80 @@ export async function lswBodiesChecks(api, check, C) {
     return out.length ? out.join('; ') : true;
   }));
 
+  await check('lsw-bodies: the VEIN INFECTED (LSW modular-surfaces.js) - a near shambler wears red rupture veins that glow, a sprinter black veins, an echo (the smart one) neon green veins that glow, the Choir-Touched and the living none; the vein atlas holds a map for every veined style, glow only for the red and the neon (red-hued and green-hued), and no vein or glow pixel is in the purple range', () => stage(async () => {
+    const out = [];
+    const sham = g.zombies.spawn(STAGE.x - 1.5, STAGE.z + 1.5, false), sprint = g.zombies.spawn(STAGE.x - 0.3, STAGE.z + 1.5, true);
+    const echo = g.zombies.spawnKind('echo', STAGE.x + 0.9, STAGE.z + 1.5), choir = g.zombies.spawnKind('choir', STAGE.x + 2.1, STAGE.z + 1.5);
+    const live = add('drifter', -1.5, 2.7, { name: 'Still Breathing' });
+    const Z = [[sham, 'rupture'], [sprint, 'black'], [echo, 'neon'], [choir, 'none'], [live, 'none']];
+    for (const [z] of Z) if (z && z !== live) { z.hold = true; staged.push(z); }
+    if (Z.some(([z]) => !z)) return 'could not spawn every breed';
+    frame();
+    for (const [z, want] of Z) { const got = L.veinDrawn(z); if (got !== want) out.push(`${z.zkind ?? z.faction}: ${got ?? 'not drawn'}, want ${want}`); }
+    // The atlas (cells in VEIN_STYLES order): each mapped style has vein pixels, only the red and the neon glow, each in
+    // its own hue, and nothing is purple.
+    const img = L.veinTex.image, x = img.getContext('2d'), cells = ['rupture', 'black', 'neon', 'hollow'];
+    const glowHue = { rupture: 'red', neon: 'green' };
+    cells.forEach((k, i) => {
+      const map = x.getImageData(i * 256, 0, 256, 256).data, glow = x.getImageData(i * 256, 256, 256, 256).data;
+      let veins = 0, lit = 0, red = 0, green = 0, purple = 0;
+      for (let p = 0; p < map.length; p += 4) {
+        if (Math.min(map[p], map[p + 1], map[p + 2]) < 150) veins++;
+        if (glow[p] + glow[p + 1] + glow[p + 2] > 30) { lit++; if (glow[p] > glow[p + 1] + 80) red++; if (glow[p + 1] > glow[p] + 80 && glow[p + 1] > glow[p + 2] + 40) green++; }
+        for (const a of [map, glow]) { const r = a[p], gg = a[p + 1], b = a[p + 2]; if (b > gg + 20 && r > gg + 20 && b > 60) purple++; }
+      }
+      const wantMap = k !== 'hollow', hue = glowHue[k];
+      if (wantMap !== veins > 500) out.push(`${k}: ${veins} vein pixels`);
+      if (!!hue !== lit > 500) out.push(`${k}: ${lit} glow pixels`);
+      if (hue && (hue === 'red' ? red : green) < lit * 0.8) // the rest is anti-aliased edge out.push(`${k}: glow not ${hue} (${red} red, ${green} green of ${lit})`);
+      if (purple) out.push(`${k}: ${purple} purple-range pixels`);
+    });
+    return out.length ? out.join('; ') : true;
+  }));
+
+  await check('lsw-bodies: the vein glow is light, not heat - through the heat scope (systems/kit.js) the infected stay COLD: the vein glow is switched off while the scope is live (and back on after), and a close night frame of a red shambler and a neon echo through the scope has no glowing vein pixels (the same frame with the glow left on has them)', () => stage(async () => {
+    const K = g.kit, W = 320, H = 180, rt = new THREE.WebGLRenderTarget(W, H), buf = new Uint8Array(W * H * 4), base = new Uint8Array(W * H * 4);
+    const cam = new THREE.PerspectiveCamera(40, W / H, 0.1, 60); // close in, so a vein is a few pixels wide
+    cam.position.set(STAGE.x, 3.2, STAGE.z - 4.5); cam.lookAt(STAGE.x, 1, STAGE.z - 1); cam.updateMatrixWorld();
+    const sham = g.zombies.spawn(STAGE.x - 0.6, STAGE.z - 1, false), echo = g.zombies.spawnKind('echo', STAGE.x + 0.6, STAGE.z - 1);
+    if (!sham || !echo) return 'could not spawn a shambler and an echo';
+    for (const z of [sham, echo]) { z.hold = true; z.facing = Math.PI; staged.push(z); }
+    const shot = (out) => { frame(); g.renderer.setRenderTarget(rt); g.renderer.render(g.scene, cam); g.renderer.setRenderTarget(null); g.renderer.readRenderTargetPixels(rt, 0, 0, W, H, out); };
+    const had = { eyes: K.on.eyes, charge: K.charge.thermal_scope };
+    try {
+      await C('setTime', { hour: 22 });
+      g.inventory.stow('thermal_scope', 1); K.charge.thermal_scope = 100; K.on.eyes = 'thermal_scope';
+      await C('step', { seconds: 0.2 });
+      const on = L.heat.value, drawn = L.veinDrawn(sham) === 'rupture' && L.veinDrawn(echo) === 'neon';
+      g.paused = true;
+      // The pixels the glow brightens: the scope frame with the glow forced on against the frame the game draws (off).
+      shot(base); L.heat.value = 0; shot(buf); L.heat.value = on;
+      let lit = 0; for (let p = 0; p < buf.length; p += 4) if (buf[p] + buf[p + 1] + buf[p + 2] - base[p] - base[p + 1] - base[p + 2] > 24) lit++;
+      g.paused = false;
+      K.on.eyes = null; await C('step', { seconds: 0.2 });
+      const off = L.heat.value;
+      return on === 1 && off === 0 && drawn && lit > 20 ? true : `glow off under the scope=${on === 1} back on after=${off === 0} veins drawn=${drawn} pixels the glow would warm=${lit}`;
+    } finally {
+      g.paused = false; K.on.eyes = had.eyes; K.charge.thermal_scope = had.charge; g.inventory.spend('thermal_scope', 1); rt.dispose();
+      await C('setTime', { hour: 12 });
+    }
+  }));
+
   await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {
     const c = add('drifter', 0.5, 1.5, { name: 'Three Days' });
     c.hp = 0; c.alive = false; c.deadTime = 0; c.rot = 0.6; g.charR.paint(c);
     await api._step(1); frame();
-    const B = L.bodies[L.meshOf[c.slot]], k = L.instOf[c.slot], M = g.charR.meshes;
-    if (!L.drawn[c.slot]) return 'the dead body is not wearing an LSW body';
-    const same = (attr, mesh, idx) => [0, 1, 2].every((j) => Math.abs(attr.array[k * 3 + j] - mesh.instanceColor.array[idx * 3 + j]) < 1e-6);
-    const ok = same(B.inst.iShirt, M.torso, c.slot) && same(B.inst.iPants, M.hips, c.slot) && same(B.inst.iSkin, M.head, c.slot);
+    const M = g.charR.meshes;
+    if (!L.drawn[c.slot]) return 'the dead body is not wearing a faceted body';
+    const same = (j, mesh, idx) => { const v = L.colourOf(c, j); return [0, 1, 2].every((q) => Math.abs(v[q] - mesh.instanceColor.array[idx * 3 + q]) < 1e-6); };
+    const ok = same(0, M.torso, c.slot) && same(1, M.hips, c.slot) && same(3, M.head, c.slot);
+    const rotted = L.colourOf(c, 0)[1];
     c.rot = 0; g.charR.paint(c);
     const fresh = M.torso.instanceColor.array[c.slot * 3 + 1];
-    return ok && Math.abs(fresh - B.inst.iShirt.array[k * 3 + 1]) > 1e-4 ? true : `colours ${ok ? 'match but the tint did nothing' : 'differ from the classic rig'}`;
+    return ok && Math.abs(fresh - rotted) > 1e-4 ? true : `colours ${ok ? 'match but the tint did nothing' : 'differ from the classic rig'}`;
   }));
 
-  await check('lsw-bodies: draw calls stay under 150 with 160 people (24 LSW bodies cost at most 5 draws: two meshes, their shadows, the flag patches) and the skinned cost per frame is measured', () => stage(async () => {
+  await check('lsw-bodies: draw calls stay under 150 with 160 people (24 faceted bodies cost at most 3 draws: the kit mesh, its shadow, the flag patches) and the skinned cost per frame is measured', () => stage(async () => {
     const room = 160 - g.chars.length;
     for (let k = 0; k < room; k++) add(k % 2 ? 'drifter' : 'warden', ((k % 16) - 8) * 1.4, 2 + Math.floor(k / 16) * 1.6, {}, k % 2 ? null : 'smg');
     await api._step(2);
@@ -217,7 +302,7 @@ export async function lswBodiesChecks(api, check, C) {
     const p = await C('perf'), s = statsOf(g);
     const ms = s.cpuMsPerFrame;
     if (!(p.drawCalls < 150)) return `drawCalls=${p.drawCalls}`;
-    if (!(s.drawCallsAdded <= 5)) return `LSW adds ${s.drawCallsAdded} draws`;
+    if (!(s.drawCallsAdded <= 3)) return `LSW adds ${s.drawCallsAdded} draws`;
     if (s.drawn !== LSW_RULES.near) return `drawn ${s.drawn} of ${LSW_RULES.near} with ${g.chars.length} people`;
     return ms < 2 ? true : `skinned bodies cost ${ms} ms/frame on the CPU`;
   }));
