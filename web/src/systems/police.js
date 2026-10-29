@@ -145,8 +145,8 @@ export class Police {
   scan() {
     const g = this.g, CG = g.citygen;
     if (!CG?.live) return;
+    for (const [id, D] of this.towns) if (CG.live.get(id) !== D.t) this.drop(D); // released, or rebuilt under the same id
     for (const [id, t] of CG.live) if (!this.towns.has(id) && t.T.police && t.rec.kind === 'town') this.adopt(t);
-    for (const [id, D] of this.towns) if (!CG.live.has(id)) this.drop(D);
   }
   adopt(t) {
     const g = this.g, T = t.T, B = T.police, A = ARCHETYPES[t.rec.arch] ?? {};
@@ -164,13 +164,26 @@ export class Police {
     const wrecks = (t.built?.wrecks ?? T.wrecks ?? []).map((w) => ({ x: w.x, z: w.z }));
     // (the dead cars in the street are passed a lane wide in driveTo; a crossing a car truly cannot get through is closed
     // then, by the car that tried: SG.blockNode)
-    for (let k = pool.length, j = 0; k < 4; k++, j++) { const ax = F0 ? (SG.roads[F0.i].axis === 'x' ? 1 : 0) : 1, off = 14 + j * 7; pool.push({ x: (F0?.x ?? front.x) + ax * off, z: (F0?.z ?? front.z) + (1 - ax) * off, h: ax ? Math.PI / 2 : 0 }); } // then the curb along the street, clear of the bays
-    const row = STATION_TIERS[tier.id];
+    const row = STATION_TIERS[tier.id], need = Math.max(4, row.cars + (tier.heavy ? 1 : 0));
+    // Then the station's own curb: nose to tail along the street, a car's width in from the kerb on the station's side,
+    // starting past the last bay's stall.
+    const Rd = F0 ? SG.roads[F0.i] : null, ax = Rd ? (Rd.axis === 'x' ? 1 : 0) : 1, half = Rd ? (ax ? Rd.z1 - Rd.z0 : Rd.x1 - Rd.x0) / 2 : 4;
+    const toward = F0 ? Math.sign(ax ? front.z - F0.z : front.x - F0.x) || 1 : 1, kerb = Math.max(0, half - 1.4) * toward;
+    let start = 0; for (const p of pool) start = Math.max(start, (ax ? p.x - (F0?.x ?? front.x) : p.z - (F0?.z ?? front.z)) + 6);
+    for (let k = pool.length, j = 0; k < need; k++, j++) { const off = Math.max(8, start) + j * 6.5; pool.push({ x: (F0?.x ?? front.x) + ax * off + (1 - ax) * kerb, z: (F0?.z ?? front.z) + (1 - ax) * off + ax * kerb, h: ax ? Math.PI / 2 : 0 }); }
     const D = { id: t.rec.id, name: t.rec.name ?? T.name, t, T, B, y, tier: tier.id, heavy: tier.heavy, force, forceRow: FORCES[force], owner: owner?.name ?? null, nBld,
       front, pool, SG, wrecks, cx: (T.x0 + T.x1) / 2, cz: (T.z0 + T.z1) / 2,
-      carsLeft: row.cars, truckLeft: tier.heavy ? 1 : 0, officersLeft: row.officers, cells: row.cells, held: 0,
+      fleet: [], officersLeft: row.officers, cells: row.cells, held: 0,
       beats: [], shift: null, holder: `police:${t.rec.id}`, lastHeard: -99 };
     const k = g.pulls?.k ?? g.knowledge; k?.holder?.(D.holder, { name: FORCES[force].dispatcher, kind: 'desk', x: front.x, z: front.z, cap: 60 });
+    // The motor pool, parked: the town's cars in their stalls (bays first) and the heavy team's truck; a call takes one
+    // of THESE out, and it comes back to the same stall.
+    for (let i = 0; i < row.cars + (tier.heavy ? 1 : 0); i++) {
+      const truck = i === row.cars, spot = D.pool[i], v = g.vehiclesSys.spawn(truck ? 'breach_truck' : D.forceRow.car.type, spot.x, spot.z, spot.h, truck ? BREACH_TRUCK.paint : D.forceRow.car.paint, { ai: null });
+      if (!v) continue;
+      v.pol = { town: D.id, spot: i, parked: true, truck }; v.lights = false; v.handbrake = true;
+      D.fleet.push(v);
+    }
     this.planBeats(D);
     this.towns.set(D.id, D);
     g.emit('policeDesk', { town: D.id, name: D.name, tier: D.tier, heavy: D.heavy, force, buildings: nBld, station: { x: r1(front.x), z: r1(front.z) } });
@@ -178,7 +191,8 @@ export class Police {
   }
   drop(D) {
     for (const u of [...this.units]) if (u.town === D.id) this.retire(u, true);
-    for (const b of D.beats) this.endBeat(D, b, true);
+    for (const b of [...D.beats]) this.endBeat(D, b, true);
+    for (const v of D.fleet) if (!v.dead && v !== this.g.player.inVehicle && this.g.vehicles.includes(v)) { for (const o of [...(v.occ ?? [])]) if (o && o !== this.g.player) this.g.seats.leave(o, true); this.g.vehiclesSys.remove(v); }
     this.cases = this.cases.filter((c) => c.town !== D.id); this.pending = this.pending.filter((r) => r.town !== D.id);
     this.towns.delete(D.id);
   }
@@ -193,12 +207,30 @@ export class Police {
   // ---- the beats (rows: PATROLS; counts: the tier's carBeats/footBeats per shift) -------------------------------------
   planBeats(D) {
     const SG = D.SG, row = STATION_TIERS[D.tier];
-    // Car beats: the crossings round the centre, `ring` blocks out, walked round in order (one loop per beat, rotated).
-    const near = SG.nodes.map((p) => ({ ...p, a: Math.atan2(p.x - D.cx, p.z - D.cz), d: Math.hypot(p.x - D.cx, p.z - D.cz) })).sort((a, b) => a.d - b.d);
-    const ringN = Math.max(4, Math.min(8, near.length)), ring = near.slice(0, ringN).sort((a, b) => a.a - b.a);
-    const loops = [];
-    const nCar = Math.max(row.carBeats.day, row.carBeats.night);
-    for (let k = 0; k < nCar; k++) { const off = Math.floor((k * ring.length) / Math.max(1, nCar)); const L = []; for (let j = 0; j < ring.length; j++) { const p = ring[(j + off) % ring.length]; L.push({ x: p.x, z: p.z }); } loops.push(L); }
+    // Car beats: round a block of the town's own grid - the block nearest the centre, `ring` blocks wide, a block
+    // wider for each further car - driven clockwise through every crossing on its edge (no U-turns on a beat).
+    const xs = [...new Set(SG.roads.filter((r) => r.axis === 'z').map((r) => r.at))].sort((a, b) => a - b);
+    const zs = [...new Set(SG.roads.filter((r) => r.axis === 'x').map((r) => r.at))].sort((a, b) => a - b);
+    const idx = (L, c) => { let i = 0; for (let k = 0; k < L.length - 1; k++) if (L[k] <= c) i = k; return i; };
+    const node = (x, z) => SG.nodes.findIndex((p) => Math.abs(p.x - x) < 1.5 && Math.abs(p.z - z) < 1.5);
+    const loops = [], nCar = Math.max(row.carBeats.day, row.carBeats.night), ix = idx(xs, D.cx), iz = idx(zs, D.cz);
+    for (let k = 0; k < nCar; k++) {
+      const w = PATROLS.car.ring - 1 + k;
+      const xa = xs[Math.max(0, ix - w)], xb = xs[Math.min(xs.length - 1, ix + 1 + w)], za = zs[Math.max(0, iz - w)], zb = zs[Math.min(zs.length - 1, iz + 1 + w)];
+      const L = [];
+      const edge = (pts) => { for (const [x, z] of pts) { const n = node(x, z); if (n >= 0 && !L.some((q) => q.n === n)) L.push({ x: SG.nodes[n].x, z: SG.nodes[n].z, n }); } };
+      if (xa !== undefined && xb !== undefined && za !== undefined && zb !== undefined && xa !== xb && za !== zb) {
+        edge(xs.filter((x) => x >= xa && x <= xb).map((x) => [x, za]));                 // the north edge, west to east
+        edge(zs.filter((z) => z >= za && z <= zb).map((z) => [xb, z]));                 // the east edge, north to south
+        edge(xs.filter((x) => x >= xa && x <= xb).reverse().map((x) => [x, zb]));       // the south edge, east to west
+        edge(zs.filter((z) => z >= za && z <= zb).reverse().map((z) => [xa, z]));       // the west edge, south to north
+      }
+      if (L.length < 3) { // no grid block here (an organic town): the crossings nearest the centre, by angle
+        const near = SG.nodes.map((p) => ({ x: p.x, z: p.z, a: Math.atan2(p.x - D.cx, p.z - D.cz), d: Math.hypot(p.x - D.cx, p.z - D.cz) })).sort((a, b) => a.d - b.d);
+        L.length = 0; for (const p of near.slice(0, Math.max(4, Math.min(8, near.length))).sort((a, b) => a.a - b.a)) L.push({ x: p.x, z: p.z });
+      }
+      loops.push(L);
+    }
     // Foot beats: up and down the main street, centred on the foot of the station's front.
     const M = SG.main, F = SG.foot(D.front.x, D.front.z);
     const nFoot = Math.max(row.footBeats.day, row.footBeats.night), feet = [];
@@ -232,11 +264,12 @@ export class Police {
   startBeat(D, kind, k) {
     const g = this.g;
     if (kind === 'car') {
-      if (D.carsLeft <= this.carsOut(D)) return null;
-      const spot = D.pool[k % D.pool.length], v = this.car(D, spot, 'patrol');
+      const v = this.take(D, 'patrol');
       if (!v) return null;
       const men = this.crew(D, v, 2, RESPONSES.patrol, { beat: true });
-      const b = { id: `${D.id}:car${k}`, kind, k, v, men, loop: D.beatPlan.loops[k], i: 0, state: 'out', visits: [], laps: 0, dwell: 0, route: null, ri: 0, shift: D.shift, at: g.time };
+      if (!men.length) { this.park(v); return null; }
+      const loop = D.beatPlan.loops[k]; let i0 = 0, bd = Infinity; loop.forEach((p, j) => { const d = Math.hypot(p.x - v.x, p.z - v.z); if (d < bd) { bd = d; i0 = j; } });
+      const b = { id: `${D.id}:car${k}`, kind, k, v, men, loop, i: i0, i0, state: 'out', visits: [], laps: 0, dwell: 0, route: null, ri: 0, shift: D.shift, at: g.time };
       D.beats.push(b); this.counts.beatsOut++;
       g.emit('beatOut', { town: D.id, beat: b.id, kind, car: v.id, men: men.map((c) => c.id), shift: D.shift, first: { x: r1(b.loop[0].x), z: r1(b.loop[0].z) } });
       return b;
@@ -258,7 +291,7 @@ export class Police {
     const g = this.g, v = b.v;
     if (!v || v.dead || !v.driver) return;
     if (b.state === 'goHome') {
-      if (this.driveTo(v, b, D.pool[b.k % D.pool.length], dt, 6, PATROLS.car.cruise)) this.endBeat(D, b);
+      if (this.driveTo(v, b, D.pool[v.pol.spot], dt, 6, PATROLS.car.cruise)) this.endBeat(D, b);
       return;
     }
     if (b.dwell > 0) { b.dwell -= dt; v.throttle = 0; v.handbrake = true; return; }
@@ -284,7 +317,9 @@ export class Police {
     b.men.forEach((c, j) => { if (c.alive && this.walk(c, w.x + j * 1.1, w.z + j * 0.4, PATROLS.foot.walk, dt) > 1.6) there = false; });
     if (there && lead) { b.visits.push({ i: b.i % 2, t: r1(g.time) }); if (b.visits.length > 40) b.visits.shift(); b.i++; if (b.i % 2 === 0) b.laps++; b.dwell = PATROLS.foot.look; }
   }
-  carsOut(D) { let n = 0; for (const b of D.beats) if (b.v && !b.v.dead) n++; for (const u of this.units) if (u.town === D.id && !u.beat) for (const v of u.cars) if (!v.dead && v.type !== 'breach_truck') n++; return n; }
+  // The motor pool's count: cars (not the truck) still running, parked in their stalls, out on the street.
+  fleetCount(D, what) { let n = 0; for (const v of D.fleet) if (!v.dead && (what === 'truck' ? v.pol.truck : !v.pol.truck) && (what !== 'parked' || v.pol.parked) && (what !== 'out' || !v.pol.parked)) n++; return n; }
+  carsOut(D) { return this.fleetCount(D, 'out'); }
 
   // ---- people and cars out of the station ---------------------------------------------------------------------------
   officer(D, x, z, R, o = {}) {
@@ -293,7 +328,11 @@ export class Police {
     const rng = rngOf(hash(`${D.id}:${++this.seq}`));
     let r = rng(), weapon = Object.keys(R.weapons)[0];
     for (const [w, p] of Object.entries(R.weapons)) if ((r -= p) <= 0) { weapon = w; break; }
-    const F = D.forceRow, c = g.addChar({ x, z, faction: 'warden', weapon, hp: R.hp, colors: outfit(F.look, rng), name: F.title.replace(/s$/, '').replace(/^The /, ''), flag: g.randomFlag(rng) });
+    const F = D.forceRow, colors = outfit(F.look, rng);
+    // What they wear shows: the heavy team in helmets and vests (data/police.js RESPONSES.*.worn), a posse in caps.
+    if (R.worn?.head === 'riot_helmet') Object.assign(colors, { hatStyle: 'helmet', hat: '#2f3230', gearStyle: 'vest', gear: '#3d4232', accStyle: 'none' });
+    else if (R.worn?.head === 'leather_cap') Object.assign(colors, { hatStyle: 'cap', hat: '#4a3a28' });
+    const c = g.addChar({ x, z, faction: 'warden', weapon, hp: R.hp, colors, name: F.title.replace(/s$/, '').replace(/^The /, ''), flag: g.randomFlag(rng) });
     if (!c) return null;
     c.hp = c.maxHp = R.hp;
     c.worn = {}; for (const [slot, id] of Object.entries(R.worn ?? {})) if (id) c.worn[slot] = id;
@@ -302,13 +341,19 @@ export class Police {
     D.officersLeft--;
     return c;
   }
-  car(D, spot, rung) {
-    const g = this.g, heavy = rung === 'heavy';
-    const type = heavy ? 'breach_truck' : D.forceRow.car.type;
-    const v = g.vehiclesSys.spawn(type, spot.x, spot.z, spot.h, heavy ? BREACH_TRUCK.paint : D.forceRow.car.paint, { ai: 'police' });
-    if (!v) return null;
-    v.pol = { town: D.id, rung }; v.lights = true;
-    return v;
+  // Out of its stall: the first parked car of the kind (the truck for the heavy team), its engine started.
+  take(D, rung) {
+    const truck = rung === 'heavy';
+    for (const v of D.fleet) if (!v.dead && v.pol.parked && v.pol.truck === truck && this.g.vehicles.includes(v) && !v.driver) { v.pol.parked = false; v.pol.rung = rung; v.ai = 'police'; v.lights = true; v.handbrake = false; return v; }
+    return null;
+  }
+  // Back in its stall (the last few metres of a car that drove home); a car left out in the town stays where it stands.
+  park(v, force = false) {
+    const D = this.towns.get(v.pol?.town), s = D?.pool[v.pol.spot];
+    v.ai = null; v.lights = false; v.throttle = 0; v.steer = 0; v.handbrake = true;
+    if (!s || (!force && Math.hypot(v.x - s.x, v.z - s.z) > 25)) return false; // the last few metres into the stall are not driven
+    v.x = s.x; v.z = s.z; v.h = s.h; v.vx = 0; v.vz = 0; v.av = 0; v.pol.parked = true;
+    return true;
   }
   crew(D, v, n, R, o = {}) {
     const g = this.g, men = [];
@@ -324,7 +369,7 @@ export class Police {
   // In the station: the car parked in its bay and the men inside (nothing is lost; they can be sent again).
   stow(cars, men) {
     const g = this.g, P = g.player;
-    for (const v of cars) if (v && !v.dead && v !== P.inVehicle) { for (const o of [...(v.occ ?? [])]) if (o && o !== P) { g.seats.leave(o, true); } g.vehiclesSys.remove(v); }
+    for (const v of cars) if (v && !v.dead && v !== P.inVehicle) { for (const o of [...(v.occ ?? [])]) if (o && o !== P) { g.seats.leave(o, true); } this.park(v); }
     for (const c of men) if (c && c.alive && g.chars.includes(c)) { if (c.inVehicle) g.seats.leave(c, true); g.removeChar(c); const D = this.towns.get(c.pol?.town); if (D) D.officersLeft++; }
   }
 
@@ -337,7 +382,7 @@ export class Police {
     D ??= this.towns.get(v.pol?.town);
     if (!o.route || o.goalX !== goal.x || o.goalZ !== goal.z) {
       o.route = D ? D.SG.route(v.x, v.z, goal.x, goal.z) : [{ x: goal.x, z: goal.z }]; o.ri = 0; o.goalX = goal.x; o.goalZ = goal.z;
-      o.routeLen = routeLen([{ x: v.x, z: v.z }, ...o.route]); o.lastD = undefined; o.lastX = undefined; o.progT = 0; o.sideT = 0; o.rev = 0;
+      o.routeLen = routeLen([{ x: v.x, z: v.z }, ...o.route]); o.lastD = undefined; o.lastX = undefined; o.progT = 0; o.sideT = 0; o.rev = 0; o.turnT = 0;
     }
     const R = o.route;
     while (o.ri < R.length - 1 && Math.hypot(R[o.ri].x - v.x, R[o.ri].z - v.z) < 6) o.ri++;
@@ -347,6 +392,8 @@ export class Police {
     // Stuck (a post, a wreck, a wall: the speed can read high while it is pinned, so it is judged by PROGRESS toward the
     // next corner): back off a moment, then go round it a lane to the side, the other side each time.
     let ax = tgt.x, az = tgt.z;
+    // Keep right: the aim rides a lane to the right of the street's crown (not on the last stretch to the goal).
+    if (o.ri > 0 && dEnd > 20) { const prev = R[o.ri - 1], sx = tgt.x - prev.x, sz = tgt.z - prev.z, L = Math.hypot(sx, sz); if (L > 1) { ax -= (sz / L) * 1.9; az += (sx / L) * 1.9; } }
     if (o.sideT > 0) {
       o.sideT -= dt;
       const prev = R[Math.max(0, o.ri - 1)], sx = tgt.x - prev.x, sz = tgt.z - prev.z, L = Math.hypot(sx, sz) || 1, ux = sx / L, uz = sz / L;
@@ -363,6 +410,14 @@ export class Police {
       }
     }
     let want = Math.atan2(ax - v.x, az - v.z), diff = ang(want - v.h);
+    // Facing away from where it must go (a call behind it, the next corner back the way it came): a three-point turn -
+    // back up on the opposite lock until the nose comes round, then on.
+    if (!(o.turnT > 0) && Math.abs(diff) > 2.1 && sp < 5) o.turnT = 3;
+    if (o.turnT > 0) {
+      o.turnT -= dt;
+      if (Math.abs(diff) < 1.1) o.turnT = 0;
+      else { v.steer = -Math.sign(diff); v.throttle = sp > 3 && v.throttle > 0 ? -1 : -0.55; v.handbrake = false; o.lastX = undefined; return false; }
+    }
     if (o.rev > 0) { o.rev -= dt; v.steer = -Math.sign(diff || 1); v.throttle = -0.85; v.handbrake = false; return false; }
     const dT0 = Math.hypot(tgt.x - v.x, tgt.z - v.z);
     if ((o.progT = (o.progT ?? 0) + dt) > 1.5) {
@@ -370,6 +425,8 @@ export class Police {
       o.lastX = v.x; o.lastZ = v.z;
       if (o.lastD !== undefined && moved < 0.7 && (o.wantSp ?? 0) > 2 && v.throttle > 0) {
         o.rev = 1.1; o.side = -(o.side || -1); o.sideT = 4; o.slowT = 5; o.stucks = (o.stucks ?? 0) + 1;
+        // Wedged this close to where it is going (cars parked round the stall, a crowd at the scene): it is there.
+        if (o.stucks >= 2 && dEnd < 25) { o.rev = 0; o.sideT = 0; o.stucks = 0; v.throttle = 0; v.handbrake = true; return true; }
         // Twice and no way by: that crossing is closed (for every car of this desk); go round the block.
         if (o.stucks >= 2 && D && tgt.n !== undefined) { D.SG.blockNode(tgt.n); o.route = null; o.stucks = 0; this.g.emit('streetBlocked', { town: D.id, at: { x: r1(tgt.x), z: r1(tgt.z) }, car: v.id }); return false; }
         if (o.stucks > 4 && o.ri < R.length - 1) { o.ri++; o.stucks = 0; }
@@ -386,6 +443,15 @@ export class Police {
       if (!c.alive || c.inVehicle || Math.abs(c.x - v.x) > 14 || Math.abs(c.z - v.z) > 14) continue;
       const ox = c.x - v.x, oz = c.z - v.z, along = ox * fx + oz * fz;
       if (along > 0 && along < 10 && Math.abs(ox * fz - oz * fx) < v.wid * 0.5 + 1.2) target = 0;
+    }
+    // Another car ahead in the lane: follow one that moves; go a lane round one that stands (a parked car, a wreck that
+    // still runs) - never into it.
+    for (const q of g.vehicles) {
+      if (q === v || Math.abs(q.x - v.x) > 16 || Math.abs(q.z - v.z) > 16) continue;
+      const ox = q.x - v.x, oz = q.z - v.z, along = ox * fx + oz * fz, lat = ox * fz - oz * fx;
+      if (along <= 0 || along > 12 || Math.abs(lat) > (v.wid + (q.wid ?? 2)) * 0.5 + 0.4) continue;
+      if (Math.hypot(q.vx ?? 0, q.vz ?? 0) > 1) target = Math.min(target, Math.max(0, along - 6.5));
+      else if (!(o.sideT > 0)) { o.side = lat > 0 ? -1 : 1; o.sideT = 2.5; target = Math.min(target, 5); }
     }
     if (o.slowT > 0) { o.slowT -= dt; target = Math.min(target, 5); } // feeling past what stopped it, not ramming it
     o.wantSp = target;
@@ -454,7 +520,7 @@ export class Police {
     g.emit('caseOpen', { id: C.id, town: D.id, sev: C.sev, at: { x: r1(C.x), z: r1(C.z) }, channel: r.channel, reports: C.reports.length });
     this.respond(D, C);
   }
-  rungFor(D, sev) { const L = SEVERITY.ladder; return sev >= L.heavy && D.heavy && D.truckLeft > 0 ? 'heavy' : sev >= L.posse ? 'posse' : 'patrol'; }
+  rungFor(D, sev) { const L = SEVERITY.ladder; return sev >= L.heavy && D.heavy && this.fleetCount(D, 'truck') > 0 ? 'heavy' : sev >= L.posse ? 'posse' : 'patrol'; }
   respond(D, C) {
     const want = this.rungFor(D, C.sev), order = ['patrol', 'posse', 'heavy'];
     const have = C.units.map((id) => this.units.find((u) => u.id === id)).filter((u) => u && u.live);
@@ -474,12 +540,9 @@ export class Police {
       const cars = [], men = [];
       const nCars = rung === 'heavy' ? 1 : R.cars;
       for (let k = 0; k < nCars; k++) {
-        if (rung !== 'heavy' && D.carsLeft <= this.carsOut(D)) break;
-        if (rung === 'heavy' && D.truckLeft <= 0) break;
-        const spot = D.pool[(k + (rung === 'heavy' ? 2 : 0)) % D.pool.length];
-        const v = this.car(D, spot, rung); if (!v) break;
+        const v = this.take(D, rung); if (!v) break;
         const m = this.crew(D, v, R.men, R, { resp: true });
-        if (!m.length) { g.vehiclesSys.remove(v); break; }
+        if (!m.length) { this.park(v); break; }
         cars.push(v); men.push(...m);
       }
       if (!cars.length) { g.emit('dispatchRefused', { case: C.id, town: D.id, rung, why: D.officersLeft <= 0 ? 'no officers left' : 'no car in the motor pool' }); if (rung !== 'patrol') return this.dispatch(D, C, rung === 'heavy' ? 'posse' : 'patrol'); return null; }
@@ -626,7 +689,12 @@ export class Police {
     if (u.mode === 'roll') {
       // Out of the station and along the streets to the REPORTED spot (u.goal, from the case: never P).
       let parked = !lead;
-      for (const v of u.cars) if (!v.dead && v.driver) { const o = v === lead ? u : (v.polRoute ??= {}); if (this.driveTo(v, o, u.goal, dt, 9, u.R.cruise, D)) parked = true; }
+      for (let k = 0; k < u.cars.length; k++) {
+        const v = u.cars[k];
+        if (v.dead || !v.driver) continue;
+        if (g.time - u.t0 < k * 3) { v.throttle = 0; v.handbrake = true; continue; } // the next car pulls out when the first is clear
+        const o = v === lead ? u : (v.polRoute ??= {}); if (this.driveTo(v, o, u.goal, dt, 9 + k * 6, u.R.cruise, D)) parked = true;
+      }
       if (parked || (lead && Math.hypot(lead.x - u.goal.x, lead.z - u.goal.z) < 9)) {
         for (const v of u.cars) for (const o of [...(v.occ ?? [])]) if (o && o !== P && o.pol) g.seats.leave(o);
         u.mode = u.R.breach && C?.building ? 'stack' : 'search'; u.arrivedAt = g.time; u.siren = false; this.counts.arrived++;
@@ -647,7 +715,7 @@ export class Police {
       for (const c of men) if (c.inVehicle && !c.inVehicle.driver) g.seats.board(c, c.inVehicle, 0);
       if (!all && u.cars.some((v) => !v.dead)) return;
       let home = true;
-      for (const v of u.cars) if (!v.dead && v.driver && !this.driveTo(v, v === u.cars[0] ? u : (v.polRoute ??= {}), D.pool[(u.cars.indexOf(v) + (u.rung === 'heavy' ? 2 : 0)) % D.pool.length], dt, 7, 10, D)) home = false;
+      for (const v of u.cars) if (!v.dead && v.driver && !this.driveTo(v, v === u.cars[0] ? u : (v.polRoute ??= {}), D.pool[v.pol.spot], dt, 7, 10, D)) home = false;
       if (home) this.retire(u);
       return;
     }
@@ -695,11 +763,15 @@ export class Police {
     let up = 0;
     men.forEach((c, j) => {
       // In a file along the wall beside the door: the shield at the frame, the ram behind, the rest stacked on.
-      const k = c.pol.shield ? 0 : c.pol.ram ? 1 : 2 + j, px = S.x + sx * (0.9 + k * 0.85) + nx * 0.5, pz = S.z + sz * (0.9 + k * 0.85) + nz * 0.5;
-      if (this.walk(c, px, pz, 2.6, dt) < 1.2) { up++; c.face = Math.atan2(S.x - c.x, S.z - c.z); }
+      // (S is 1.6 m out from the door; the file hugs the wall 0.8 m out, nose to tail, the shield at the frame)
+      const k = c.pol.shield ? 0 : c.pol.ram ? 1 : 2 + Math.max(0, j - 2), px = S.x + sx * (1.15 + k * 1.0) - nx * 0.8, pz = S.z + sz * (1.15 + k * 1.0) - nz * 0.8;
+      c.pol.slot = c.pol.slot ?? {}; c.pol.slot.x = px; c.pol.slot.z = pz;
+      if (this.walk(c, px, pz, 2.6, dt) < 0.7) { up++; c.hold = 0.3; c.speed = 0; c.face = Math.atan2(-sx, -sz); c.crouch = true; }
     });
     S.t += dt;
-    if (up < Math.min(men.length, 3) && S.t < 25) return;
+    // Every man in the file up before the ram swings (or 25 s and they go with who is there), then a breath to settle.
+    if (up < men.length && S.t < 25) { S.ready = 0; return; }
+    if ((S.ready = (S.ready ?? 0) + dt) < 1.5) return;
     if (!S.announced) { S.announced = true; this.air(D, this.say('stack', D, {}), S.x, S.z, u); g.emit('policeStack', { id: u.id, building: B.id, kind: B.kind, at: { x: r1(S.x), z: r1(S.z) }, men: men.length, shield: men.some((c) => c.pol.shield), ram: men.some((c) => c.pol.ram) }); }
     if (!S.open) {
       const ram = men.find((c) => c.pol.ram) ?? men[0], door = S.door;
@@ -712,7 +784,7 @@ export class Police {
       else if (door && g.interiors?.kick) { ram.kickAt = -9; const r = g.interiors.kick(door, ram); if (r?.kicked && door.locked) { ram.kickAt = -9; g.interiors.kick(door, ram); } done = !door.locked; }
       else done = S.blows >= 3;
       g.noise?.(S.x, S.z, 30, ram);
-      if (done || S.blows > 8) { S.open = true; this.counts.breaches++; g.emit('policeBreach', { id: u.id, building: B.id, blows: S.blows, door: door?.id ?? null }); u.mode = 'inside'; u.searchT = 0; if (C) { C.x = (B.x0 + B.x1) / 2; C.z = (B.z0 + B.z1) / 2; } }
+      if (done || S.blows > 8) { for (const c of men) c.crouch = false; S.open = true; this.counts.breaches++; g.emit('policeBreach', { id: u.id, building: B.id, blows: S.blows, door: door?.id ?? null }); u.mode = 'inside'; u.searchT = 0; if (C) { C.x = (B.x0 + B.x1) / 2; C.z = (B.z0 + B.z1) / 2; } }
     }
   }
   contact(u, C, D, by) {
@@ -724,7 +796,7 @@ export class Police {
     if (u.contact.offer) g.hud?.toast?.('HANDS UP · HOLSTER AND STAND STILL', 'warn');
     else this.fight(u);
   }
-  fight(u) { for (const c of u.men) if (c.alive) { c.hold = 0; c.target = this.g.player; c.grudge = this.g.player; c.state = 'fight'; } if (u.contact) u.contact.offer = false; }
+  fight(u) { for (const c of u.men) if (c.alive) { c.crouch = false; c.hold = 0; c.target = this.g.player; c.grudge = this.g.player; c.state = 'fight'; } if (u.contact) u.contact.offer = false; }
   stepContact(u, men, C, D, dt, seen) {
     const g = this.g, P = g.player, K = u.contact;
     K.t += dt;
@@ -765,7 +837,6 @@ export class Police {
       const b = D.beats.find((x) => x.id === u.beat.id);
       if (b) { b.unit = null; b.route = null; b.men = b.men.filter((c) => c.alive); for (const c of b.men) if (!c.inVehicle && b.v && !b.v.dead) this.g.seats.board(c, b.v, -1); return; }
     }
-    for (const v of u.cars) if (v.dead && D) { if (v.type === 'breach_truck' || u.rung === 'heavy') D.truckLeft = Math.max(0, D.truckLeft - 1); else D.carsLeft = Math.max(0, D.carsLeft - 1); }
     this.stow(u.cars, u.men);
     for (const c of u.men) if (!c.alive && D) { /* the dead stay where they fell: the roster is short one */ }
     if (!silent) this.g.emit('unitIn', { id: u.id, town: u.town });
@@ -819,7 +890,11 @@ export class Police {
       const y = (v.y ?? 0) + (v.tall ?? 1.8) + 0.02;
       gx.put(v.x, y, v.z, v.h, -0.32, 0, 0.1, 0.5, 0.14, 0.26, flashing ? (on ? L.a : '#3a0e0a') : '#5a1e18');
       gx.put(v.x, y, v.z, v.h, 0.32, 0, 0.1, 0.5, 0.14, 0.26, flashing ? (on ? '#0e1a3a' : L.b) : '#1a2a5a');
-      if (flashing) gx.shine?.(v.x + Math.sin(v.h) * 0.4, v.z + Math.cos(v.h) * 0.4, L.glow, on ? L.a : L.b, 0.1 + (v.y ?? 0));
+      if (flashing) { // the bar throws red one side and blue the other, swapping at the flash rate
+        const cx = Math.cos(v.h), cz = -Math.sin(v.h), k = on ? 1 : -1;
+        gx.shine?.(v.x + cx * 1.6 * k, v.z + cz * 1.6 * k, L.glow, L.a, 0.1 + (v.y ?? 0));
+        gx.shine?.(v.x - cx * 1.6 * k, v.z - cz * 1.6 * k, L.glow * 0.8, L.b, 0.1 + (v.y ?? 0));
+      }
     };
     for (const D of this.towns.values()) {
       // The station's blue lamp over the front door.
@@ -830,9 +905,10 @@ export class Police {
       for (const v of u.cars) bar(v, u.mode === 'roll' || u.mode === 'contact' || u.mode === 'stack');
       for (const c of u.men) {
         if (!c.alive || c.inVehicle || Math.abs(c.x - P.x) > 120 || Math.abs(c.z - P.z) > 120) continue;
-        if (c.pol?.shield) gx.put(c.x, c.gy ?? 0, c.z, c.face, 0.05, 1.0, 0.42, 0.62, 1.15, 0.07, '#26292a');
-        if (c.pol?.shield) gx.put(c.x, c.gy ?? 0, c.z, c.face, 0.05, 1.3, 0.465, 0.36, 0.1, 0.01, '#b9b5a6');
-        if (c.pol?.ram) gx.put(c.x, c.gy ?? 0, c.z, c.face, 0.22, 1.0, 0.35, 0.16, 0.16, 0.95, '#4a4038');
+        // The shield: a slab carried before him (a pale rim and a viewport band read from the camera above); the ram: a
+        // black steel bar with two grips, carried at the hip.
+        if (c.pol?.shield) { const y = (c.gy ?? 0) + (c.crouch ? -0.3 : 0); gx.put(c.x, y, c.z, c.face, 0, 1.0, 0.62, 0.9, 1.3, 0.12, '#202325'); gx.put(c.x, y, c.z, c.face, 0, 1.68, 0.56, 0.96, 0.08, 0.32, '#e6e0ca'); gx.put(c.x, y, c.z, c.face, 0, 1.3, 0.69, 0.5, 0.14, 0.03, '#7d8f96'); }
+        if (c.pol?.ram) { const y = (c.gy ?? 0) + (c.crouch ? -0.3 : 0); gx.put(c.x, y, c.z, c.face, 0.3, 1.82, 0.3, 0.24, 0.24, 1.2, '#1c1e20'); gx.put(c.x, y, c.z, c.face, 0.3, 1.82, 0.95, 0.32, 0.32, 0.16, '#d2a21c'); gx.put(c.x, y, c.z, c.face, 0.3, 1.97, 0.0, 0.3, 0.08, 0.08, '#8a8478'); gx.put(c.x, y, c.z, c.face, 0.3, 1.97, 0.5, 0.3, 0.08, 0.08, '#8a8478'); } // the ram up at the shoulder, ready to swing
       }
     }
   }
@@ -842,7 +918,7 @@ export class Police {
     const row = STATION_TIERS[D.tier];
     return { town: D.id, name: D.name, tier: D.tier, tierName: row.name, buildings: D.nBld, force: D.force, title: D.forceRow.title, owner: D.owner, heavy: D.heavy,
       station: { x: r1(D.front.x), z: r1(D.front.z), building: D.B.id, bays: D.B.doors.filter((d) => d.kind === 'bay').length },
-      motorPool: { cars: row.cars, carsLeft: D.carsLeft, out: this.carsOut(D), truck: D.heavy ? 1 : 0, truckLeft: D.truckLeft, spots: D.pool.map((p) => ({ x: r1(p.x), z: r1(p.z) })) },
+      motorPool: { cars: row.cars, carsLeft: this.fleetCount(D, 'car'), parked: this.fleetCount(D, 'parked'), out: this.carsOut(D), truck: D.heavy ? 1 : 0, truckLeft: this.fleetCount(D, 'truck'), fleet: D.fleet.map((v) => ({ id: v.id, type: v.type, parked: v.pol.parked, dead: !!v.dead })), spots: D.pool.map((p) => ({ x: r1(p.x), z: r1(p.z) })) },
       armory: { officers: row.officers, left: D.officersLeft, draws: Object.fromEntries(Object.entries(RESPONSES).map(([k, r]) => [k, r.weapons])) },
       cells: { n: D.cells, held: D.held }, desk: { dispatcher: D.forceRow.dispatcher, log: (D.log ?? []).slice(-6) },
       streets: { roads: D.SG.roads.length, crossings: D.SG.nodes.length } };
@@ -865,9 +941,11 @@ export class Police {
       cases: this.cases.slice(-10).map((C) => this.caseView(C)), pending: this.pending.map((r) => ({ id: r.id, town: r.town, channel: r.channel, sev: r.sev, dueIn: r1(r.due - this.g.time), witness: r.witness?.id ?? null, running: !!r.witness && !r.arrived })),
       units: this.units.map((u) => this.unitView(u)), heard: this.heard.slice(-6), loudest: this.loudest ?? null, lastReport: this.lastReport, counts: JSON.parse(JSON.stringify(this.counts)) };
   }
+  // The agents' reset (the police command's clear, the selftest between checks): everyone back in the station at once,
+  // every running car back in its stall.
   clear() {
     for (const u of [...this.units]) this.retire(u, true);
-    for (const D of this.towns.values()) { for (const b of [...D.beats]) this.endBeat(D, b, true); D.shift = null; }
+    for (const D of this.towns.values()) { for (const b of [...D.beats]) this.endBeat(D, b, true); D.shift = null; for (const v of D.fleet) if (!v.dead && this.g.vehicles.includes(v) && v !== this.g.player.inVehicle) { for (const o of [...(v.occ ?? [])]) if (o && o !== this.g.player) this.g.seats.leave(o, true); this.park(v, true); } }
     this.cases.length = 0; this.pending.length = 0; this.runners.length = 0; this.heard.length = 0;
   }
 }

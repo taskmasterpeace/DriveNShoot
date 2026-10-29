@@ -262,7 +262,7 @@ export async function policeChecks(api, check, C) {
       const s1 = seq();
       const back = await stepUntil(() => evs('beatIn', s1).length >= day.length, 200, 0.5);
       const night = Dp.beats.filter((b) => b.shift === 'night');
-      return day.filter((b) => b.kind === 'car').length === row.carBeats.day && startD < 30 && car.visits.length >= 3 && inOrder && order[0] === 0 && back && night.filter((b) => b.kind === 'car').length === row.carBeats.night ? true
+      return day.filter((b) => b.kind === 'car').length === row.carBeats.day && startD < 30 && car.visits.length >= 3 && inOrder && order[0] === car.i0 && back && night.filter((b) => b.kind === 'car').length === row.carBeats.night ? true
         : JSON.stringify({ day: day.map((b) => b.id), startD: r1(startD), visits: car.visits, inOrder, back: !!back, beatIn: evs('beatIn', s1).length, night: night.map((b) => b.id), out: evs('beatOut', s0).length });
     });
   } finally {

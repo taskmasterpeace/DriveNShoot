@@ -100,7 +100,7 @@ export const PATROLS = {
 //   range     m it carries (audio.js spatial(): the same falloff every sound uses); wail: the up-and-down period (s)
 //   audible   the gain at which you hear it (and the HUD names its direction)
 //   lights    the bar's two colours (red and blue ONLY), the flash rate (Hz), the glow's size on the ground
-export const SIREN = { range: 650, wail: 1.8, audible: 0.012, lights: { a: '#ff2a1e', b: '#1e5aff', hz: 3, glow: 5.5 } };
+export const SIREN = { range: 650, wail: 1.8, audible: 0.012, lights: { a: '#ff2a1e', b: '#1e5aff', hz: 3, glow: 9 } };
 
 // ---- the air: what the desk says, said from the station (systems/kit.js keyUp: only a scanner in range copies it) ----
 export const DISPATCH_LINES = {
