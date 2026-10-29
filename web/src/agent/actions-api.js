@@ -115,7 +115,7 @@ export async function actionsChecks(api, check, C) {
   };
   const strip = () => { inv.carried.slots = []; inv.changed?.(); };
   const give = (id, n = 1) => inv.stow(id, n);
-  const box = (id, kind, x, z, items) => { const b = inv.place(id, kind, x, z, 40, kind.toUpperCase()); b.rolled = true; for (const [it, n] of items) inv.add(b, it, n); made.push(id); return b; };
+  const box = (id, kind, x, z, items) => { const b = inv.place(id, kind, x, z, 40, kind.toUpperCase()); b.rolled = true; b.stocked = true; for (const [it, n] of items) inv.add(b, it, n); made.push(id); return b; }; // stocked: the world filled it (a crate's own loot)
   const lastEnd = (id) => { for (let i = g.events.length - 1; i >= 0; i--) { const e = g.events[i]; if (e.type === 'actionEnd' && e.id === id) return e; } return null; };
   // An open, quiet patch of the glass flats (no person, car, box or door near).
   const spot = () => {

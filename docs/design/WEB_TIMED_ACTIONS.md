@@ -44,7 +44,7 @@ On the way out you climb the wall ladder to the roof to look over the town. A sh
   Other small things (< 0.35 L) are hidden with the kind's `hide` chance, and mid-size things at a third of it. Hidden slots move to `box.hidden`; nothing is rolled twice.
 - Hold E: `search_box` (4.0 s × the kind's `dur`) or `search_body` (6.5 s, the pat-down). When it lands, `reveal` moves everything hidden back into the slots, sets `box.searched`, and opens the PACK screen.
 - Bodies (`body:*`) hide everything except the gun in the hand and a worn pack (`CONCEAL.body.hide = 1`).
-- A box that is searched, a ground pile, or a husk just opens on a tap, as before.
+- Only the world's own stock hides (`concealable`): a box rolled from its loot table on that first look, a body, or a crate the world stocked (`box.stocked`). What a person put in a box (your husk, a deck locker, a trunk, a ground pile) always shows, and those just open on a tap, as before.
 
 ### 3.3 Look around
 - Hold E with nothing else in reach: head down, scanning (`lookdown`). Finds come nearest first within `LOOK.radius` (5 m, plus 0.35 m per Eye point over 5).
@@ -146,7 +146,7 @@ The characters.js hook is four lines: legs, upper body, head pitch, and an `act`
 | 5 | kick vs pick | the pick (≤ 1.5 m) never reaches a zombie standing out of sight; the kick (30 m) does, and is louder |
 | 6 | cutters vs padlock | four kicks leave a padlocked door locked with its kicks untouched; cutters take it in the row's time, wear, and leave a cut-chain mark |
 | 7 | look-around | an unseen key in the radius is found (and was not in reach before); one outside it stays unseen; head-down pose |
-| 8 | climb | a citygen building's ladder climbed rung by rung on the held key with the trigger held: on the roof, every rung, no round fired |
+| 8 | climb | a citygen building's drawn-up fire-escape ladder pulled down from below (held E), then climbed rung by rung on the held key with the trigger held: on the roof, every rung, no round fired |
 | 9 | duck under | a jammed bay crossed bent double; it stays a wall to cars |
 | 10 | knocked off | a hit on a climber drops them at the foot, knocked down, hurt past the safe height |
 | 11 | portable ladder | set from the pack in ≥ 1.5 s without a key, climbed to a one-storey roof, draw calls < 150 |

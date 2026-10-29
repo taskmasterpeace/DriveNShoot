@@ -198,7 +198,10 @@ export class Actions {
     return box;
   }
   // Open a box the way the PACK screen does (ui/inventory.js pickOther): its roll (first time), then the top only.
-  openTop(box) { const inv = this.g.inventory; inv.open(box); this.conceal(box); inv.opened = box; return box; }
+  // Only the world's own stock is out of sight on a first look: a box rolled from its loot table right now, a body, or a
+  // crate the world stocked (box.stocked). Whatever a person put in a box (your husk, a locker, a trunk, a pile) shows.
+  concealable(box) { return !box.husk && box.kind !== 'ground' && box.kind !== 'person' && box.kind !== 'trunk' && (box.id.startsWith('body:') || box.stocked || !box.rolled); }
+  openTop(box) { const inv = this.g.inventory; const c = this.concealable(box); inv.open(box); if (c && !box.sorted) this.conceal(box); else box.sorted = true; inv.opened = box; return box; }
   // A full search: everything out of sight comes out.
   reveal(box) {
     const inv = this.g.inventory;
@@ -209,7 +212,7 @@ export class Actions {
     this.g.emit('searched', { id: box.id, body: box.id.startsWith('body:'), found: n });
     return n;
   }
-  needsSearch(box) { return !box.searched && box.kind !== 'ground' && !box.husk && !(box.sorted && !box.hidden?.length && box.rolled); }
+  needsSearch(box) { return !box.searched && (box.sorted ? box.hidden?.length > 0 : this.concealable(box)); }
   // E at a container (main.js box branch): tap opens it (the top), hold searches it properly. Returns true when handled.
   boxKey(box, I, dt) {
     const g = this.g, p = g.player;
