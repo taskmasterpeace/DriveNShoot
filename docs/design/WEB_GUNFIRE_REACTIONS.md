@@ -104,7 +104,7 @@ These keep their own minds:
 | cover | short dash away, then **crouch** | gets down | 5–9 s |
 | flee | upright, 5.8 m/s | away from the **heard** bearing | |
 | drop_run | 6.6 m/s | away; a worker drops the work | the coward's |
-| hide | runs | to the nearest unlocked door within 24 m, through it, **slams and bars it** (a real lock: it can be kicked in) | no door: down where they are |
+| hide | runs | to the nearest unlocked door within 24 m, through it, **slams and bars it** (shut and held with a plank across, never a saved lock; a kick breaks it) | no door: down where they are |
 | hide_low | **prone-ish** (crouch + stoop) | under the nearest bed within 20 m | the child's |
 | run_kin | sprint | to their family; there, the child follows and the parent hides them both, holding the door until the child is in | parents |
 | look | **gun up** (aiming), 3.4 m/s | to the **heard spot**, then looks round | the law's, the armed |
