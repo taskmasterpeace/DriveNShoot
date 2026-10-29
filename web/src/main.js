@@ -20,6 +20,7 @@ import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
+import { LookFeel } from './systems/lookfeel.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
 import { Ballistics } from './systems/ballistics.js';
@@ -176,6 +177,7 @@ class Game {
     OUTSIDE.region = (x, z) => this.streamer.W.regionAt(x, z);
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
+    this.look = new LookFeel(this);
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
     this.charR.groundAt = (x, z, y) => this.stunts.heightAt(x, z, y); // people stand on ramps and dunes, not inside them
     this.chars = [];
@@ -1146,6 +1148,7 @@ class Game {
         this.hud.toast(`${w.short} JAMMED · R TO CLEAR`, 'warn');
       } else if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
       this.hud.shake(w.shake * 0.4 * this.arms.kickMul()); // one hand kicks harder
+      this.look.onShot(p, k, ang); // the camera kick by calibre
     }
   }
 
@@ -1286,6 +1289,7 @@ class Game {
       this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
     }
 
+    dt = this.look.warp(dt); // a hit-stop: the sim runs near frozen for its real 40-80 ms (systems/lookfeel.js)
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
     if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
@@ -1342,6 +1346,7 @@ class Game {
     }
     this.dialogue.update(dt, I);
     this.fx.update(dt);
+    this.look.update(dt);
     this.updatePickups(dt);
     this.updateFootprints();
     this.updateInterior();
@@ -1386,7 +1391,7 @@ class Game {
   }
 
   render(dt) {
-    this.renderer.render(this.scene, this.camera);
+    this.look.render(this.camera); // the scene, then the grade pass (systems/lookfeel.js)
     if (this.showStats) {
       const r = this.renderer.info.render;
       this.hud.stats(`FPS       ${this.fps.toFixed(0)}\nDRAWS     ${r.calls}\nTRIS      ${(r.triangles / 1000).toFixed(1)}k\nCHARS     ${this.chars.length} (${this.chars.filter((c) => c.alive).length} alive)\nVEHICLES  ${this.vehicles.length}\nSTATICS   ${this.statics.boxes.length}\nPOS       ${this.player.x.toFixed(0)}, ${this.player.z.toFixed(0)}`);
