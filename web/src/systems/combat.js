@@ -220,6 +220,7 @@ export class Combat {
     if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
     c._hit = part ?? c.hitPart ?? null; c._hitDmg = dmg; c._hitCause = cause; // what the death library reads (systems/deaths.js)
+    g.look?.onHit(c, dmg, attacker, cause); // a big hit's hit-stop (systems/lookfeel.js)
     if (attacker === g.player && c !== g.player) g.feedback?.damage(c, dmg, part); // damage numbers (ui/feedback.js, a setting)
     c.lastAttacker = attacker;
     c.bleed = Math.min(1, c.bleed + dmg / 120);
