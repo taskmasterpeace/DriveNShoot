@@ -16,7 +16,8 @@ import { FACES6, ARMOR, CHASSIS, PERF, POWER, MOUNT_WEAPONS, UTILITY, PAINTS } f
 const MAX_INST = 420, VIEW_R = 90, MAX_HAZARDS = 32;
 const FACES = ['front', 'rear', 'left', 'right'];
 const STEEL = new THREE.Color('#4b4945'), GUN = new THREE.Color('#1c1c1c'), RUST = new THREE.Color('#6a3a22'), BRASS = new THREE.Color('#9a7a3a'),
-  TILE = new THREE.Color('#77705f'), BLADE = new THREE.Color('#5d5a54'), TIP = new THREE.Color('#9b2a1c'), TANK = new THREE.Color('#5a4a22'), COIL = new THREE.Color('#3f6f78');
+  TILE = new THREE.Color('#77705f'), BLADE = new THREE.Color('#5d5a54'), TIP = new THREE.Color('#9b2a1c'), TANK = new THREE.Color('#5a4a22'), COIL = new THREE.Color('#3f6f78'),
+  RUBBER = new THREE.Color('#151413'), EDGE = new THREE.Color('#c9c2b2');
 const KIND_TONE = { plate: STEEL, sheet: new THREE.Color('#6a665e'), ablative: TILE, spaced: new THREE.Color('#3e3c38'), ram: BLADE, plow: RUST, spikes: STEEL };
 const _m = new THREE.Matrix4(), _l = new THREE.Matrix4(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), ONE = new THREE.Vector3(1, 1, 1);
 const EMPTY = Object.freeze({});
@@ -58,25 +59,34 @@ export class Garage {
     return n;
   }
   has(v, u) { return !!v.utility?.[u]; }
+  // The fitted tread row's numbers (data/workshop.js UTILITY set 'tread'), or null on stock tyres.
+  tread(v) { for (const u in v.utility ?? EMPTY) { const T = UTILITY[u]?.tread; if (T) return T; } return null; }
 
   // What the load does to the car (data/workshop.js PERF, the formula in docs/design/WEB_WORKSHOP.md §4). `extraKg` and
   // `extra` let the workshop screen preview a row before you pay for it, without touching the car.
   perf(v, extraKg = 0, util = v.utility ?? EMPTY) {
     const s = this.base(v), mass = s.mass + (this.kgOn(v) + extraKg) / 1000, ratio = s.mass / mass;
-    const turbo = util.turbo ? UTILITY.turbo : null, nitro = (v.nitroUntil ?? 0) > this.g.time ? UTILITY.nitrous.burst : null;
+    let tread = null;
+    for (const u in util) if (UTILITY[u]?.tread) tread = UTILITY[u].tread;
+    const turbo = util.turbo ? UTILITY.turbo : null, mon = util.monster ? UTILITY.monster.monster : null, nitro = (v.nitroUntil ?? 0) > this.g.time ? UTILITY.nitrous.burst : null;
     return {
       mass, ratio,
       accel: s.accel * ratio * (turbo?.accel ?? 1) * (nitro?.accel ?? 1),
-      maxSpeed: s.maxSpeed * (1 - PERF.topLoss * (1 - ratio)) * (turbo?.top ?? 1) * (nitro?.top ?? 1),
-      turn: s.turn * ratio ** PERF.turnExp,
+      maxSpeed: s.maxSpeed * (1 - PERF.topLoss * (1 - ratio)) * (turbo?.top ?? 1) * (nitro?.top ?? 1) * (mon?.top ?? 1),
+      turn: s.turn * ratio ** PERF.turnExp * (mon?.turn ?? 1),
       brake: ratio ** PERF.brakeExp,
       grip: s.grip * (util.solidtyres ? UTILITY.solidtyres.grip : 1),
+      paved: tread?.paved ?? 1, dirt: tread?.dirt ?? 1, // the tyres' grip on and off pavement (stock tyres: 1)
     };
   }
   retune(v) {
     const p = this.perf(v), s = this.base(v);
     v.mass = p.mass; v.accel = p.accel; v.maxSpeed = p.maxSpeed; v.turn = p.turn; v.brakeMul = p.brake; v.grip = p.grip;
     v.fuelCap = (s.fuelCap ?? 60) + (v.utility?.fueltank ? UTILITY.fueltank.fuel : 0);
+    // Tyres: the tread's grip is sampled live (workshop.update: pavement or not); with no tread fitted it is 1.
+    const T = this.tread(v);
+    v.wadeLift = T?.wade ?? 0;
+    if (!T) { v.treadGrip = undefined; v.treadTop = undefined; }
     if (v.fuel > v.fuelCap) v.fuel = v.fuelCap;
     // Power: the alternator, plus a battery bank and a power plant.
     let cap = POWER.alternator.cap, regen = POWER.alternator.regen;
@@ -157,19 +167,26 @@ export class Garage {
     if (!U) return { ok: false, why: `unknown utility; known: ${Object.keys(UTILITY).join(',')}` };
     if (!C) return { ok: false, why: `a ${v.name} can't be worked on` };
     if (v.utility?.[id]) return { ok: false, why: `already fitted: ${U.name}` };
+    if (U.chassis && !U.chassis.includes(this.chassisKey(v))) return { ok: false, why: `${U.name} won't go on a ${v.name}` };
+    if (U.glass && !this.g.carCombat?.layout(v)) return { ok: false, why: `a ${v.name} has no windshield to pull` };
+    const swap = U.set ? Object.keys(v.utility ?? EMPTY).find((u) => UTILITY[u]?.set === U.set) : null; // one tread a car: the old set comes off
+    const swapKg = swap ? UTILITY[swap].kg : 0;
     if (this.spacesUsed(v) + U.space > C.spaces) return { ok: false, why: `no room: ${C.spaces} spaces, ${this.spacesUsed(v)} used` };
-    if (this.kgOn(v) + U.kg > C.maxKg) return { ok: false, why: `over the ${v.name}'s load (${C.maxKg} kg)` };
+    if (this.kgOn(v) - swapKg + U.kg > C.maxKg) return { ok: false, why: `over the ${v.name}'s load (${C.maxKg} kg)` };
+    if (swap) delete v.utility[swap];
     v.utility ??= {};
     v.utility[id] = U.charges ? { charges: U.charges } : {};
     if (U.trunk) { const t = this.g.inventory?.trunk(v); if (t) t.cap += U.trunk; }
+    if (U.openFront) this.g.carCombat?.pullWindshield(v, true);
     this.retune(v);
-    return { ok: true, why: '' };
+    return { ok: true, why: '', swapped: swap ?? undefined };
   }
   removeUtility(v, id) {
     if (!v.utility?.[id]) return false;
     delete v.utility[id];
     const U = UTILITY[id];
     if (U?.trunk) { const t = this.g.inventory?.trunk(v); if (t) t.cap = Math.max(0, t.cap - U.trunk); }
+    if (U?.openFront) this.g.carCombat?.pullWindshield(v, false);
     if (!Object.keys(v.utility).length) v.utility = undefined;
     this.retune(v);
     return true;
@@ -230,9 +247,9 @@ export class Garage {
     return k;
   }
   ramMul(v, x, z) {
-    if (!v.plates) return 1;
+    if (!v.plates) return v.utility?.monster && this.faceAt(v, x, z) === 'front' ? UTILITY.monster.monster.crush : 1; // monster tyres climb what they hit
     const f = this.faceAt(v, x, z);
-    return v.plates[f] > 0 ? ARMOR[this.kindOf(v, f)]?.ram ?? 1 : 1;
+    return (v.plates[f] > 0 ? ARMOR[this.kindOf(v, f)]?.ram ?? 1 : 1) * (v.utility?.monster && f === 'front' ? UTILITY.monster.monster.crush : 1);
   }
 
   // The driver squeezes the trigger (main.js handleShooting): if any aimed mount (hood, pods) has the aim in its arc it
@@ -304,7 +321,7 @@ export class Garage {
       M.setColorAt(n++, col);
     };
     for (const v of g.vehicles) {
-      if (!v.plates && !v.mounts) continue;
+      if (!v.plates && !v.mounts && !v.utility) continue;
       if (Math.abs(v.x - P.x) > VIEW_R || Math.abs(v.z - P.z) > VIEW_R || v.sunk) continue;
       _m.compose(v.group.position, v.group.quaternion, ONE);
       const L = v.len, W = v.wid, pl = v.plates, roof = (v.tall ?? 1.8) * 0.94;
@@ -323,6 +340,17 @@ export class Garage {
         for (const f of ['left', 'right']) if (pl[f] > 0 && this.kindOf(v, f) === 'spikes') for (let i = -1; i <= 1; i++) put((f === 'left' ? 1 : -1) * (W / 2 + 0.3), 0.8, i * L * 0.22, 0.5, 0.06, 0.06, STEEL);
         if (pl.top > 0) put(0, roof + 0.03, -0.25, W * 0.72, 0.05, L * 0.34, tone('top'));
         if (pl.under > 0) put(0, 0.28, 0, W * 0.94, 0.06, L * 0.86, tone('under'));
+      }
+      // Monster tyres stand out past the body; hub spikes stick out past the tyres.
+      const U = v.utility;
+      if (U?.monster || U?.hubspikes) {
+        const mo = U.monster ? UTILITY.monster.monster.scale : 1, r = 0.36 * mo, tw = U.monster ? 0.62 : 0.24, ax = L / 2 - Math.max(0.8, r * 1.1);
+        const reach = U.hubspikes ? UTILITY.hubspikes.hub.reach : 0;
+        for (const sx of [1, -1]) for (const az of [ax, -ax]) {
+          const wx = sx * (W / 2 + (U.monster ? tw * 0.45 : 0.02));
+          if (U.monster) put(wx, r, az, tw, r * 2, r * 2, RUBBER);
+          if (U.hubspikes) { const hx = wx + sx * (tw / 2 + reach / 2); put(hx, r, az, reach, 0.12, 0.14, EDGE); put(hx + sx * reach * 0.3, r, az, 0.12, 0.42, 0.42, EDGE, 0, Math.PI / 4); }
+        }
       }
       const hy = (v.anchors?.head?.[0]?.[1] ?? 0.92) + 0.32;
       for (const f in v.mounts ?? EMPTY) {
@@ -355,6 +383,7 @@ export class Garage {
   loadBuild(v, b) {
     v.plateKind = b?.plateKind ? { ...b.plateKind } : undefined; v.utility = b?.utility ? JSON.parse(JSON.stringify(b.utility)) : undefined;
     if (b?.paintKey && PAINTS[b.paintKey]) this.g.workshop?.paint(v, b.paintKey, true);
+    this.g.carCombat?.pullWindshield(v, !!v.utility?.nowindshield);
   }
 
   view(v) {

@@ -15,15 +15,17 @@ import { groupOf } from '../systems/garage.js';
 const TABS = [
   { id: 'armor', label: 'ARMOR', key: '1' },
   { id: 'weapons', label: 'WEAPONS', key: '2' },
-  { id: 'utility', label: 'UTILITY', key: '3' },
-  { id: 'ammo', label: 'AMMO', key: '4' },
-  { id: 'repair', label: 'REPAIR', key: '5' },
-  { id: 'paint', label: 'PAINT', key: '6' },
+  { id: 'wheels', label: 'WHEELS', key: '3' },
+  { id: 'utility', label: 'UTILITY', key: '4' },
+  { id: 'ammo', label: 'AMMO', key: '5' },
+  { id: 'repair', label: 'REPAIR', key: '6' },
+  { id: 'paint', label: 'PAINT', key: '7' },
 ];
 const MOUNT_NAME = { front: 'HOOD', rear: 'TAIL', left: 'LEFT POD', right: 'RIGHT POD', top: 'ROOF' };
 const PARTS = ['engine', 'radiator', 'tank', 'lights', 'tyres', 'body'];
 const BP = { w: 340, h: 480 };
 const MS_TO_MPH = 2.237;
+const pct = (k) => `${k >= 1 ? '+' : ''}${Math.round((k - 1) * 100)}%`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export class WorkshopUI {
@@ -114,6 +116,8 @@ export class WorkshopUI {
     if (I.hit('KeyR')) this.act('fix');
   }
 
+  tabIds() { return TABS.map((t) => t.id); }
+
   // The faces and mount points the current tab picks between (Space walks them).
   targets() {
     const v = this.car, C = v && this.g.garage.chassis(v);
@@ -139,12 +143,16 @@ export class WorkshopUI {
         out.push({ id, part: id, name: R.name, sub: `${R.kg} kg · size ${R.size} · ${R.kind === 'drop' ? 'TAIL' : R.faces.map((f) => FACE_LABEL[f]).join(' ')}${R.ammo ? '' : R.power ? ` · ${R.power} power` : ''}`,
           price: `${Math.round(R.price * m)}`, ok: !why && stocked, why: why ? short(why) : !stocked ? 'NOT SOLD HERE' : '', rare: R.rare, desc: R.desc, kgAdd: R.kg - (MOUNT_WEAPONS[v.mounts?.[this.face]?.kind]?.kg ?? 0), op: 'install', fitted: v.mounts?.[this.face]?.kind === id });
       }
-    } else if (t === 'utility') {
+    } else if (t === 'utility' || t === 'wheels') {
       for (const [id, U] of Object.entries(UTILITY)) {
+        if ((U.tab ?? 'utility') !== t) continue;
         const have = !!v.utility?.[id], stocked = W.sells(id);
-        const room = G.spacesUsed(v) + U.space <= C.spaces, load = G.kgOn(v) + U.kg <= C.maxKg;
-        out.push({ id, part: id, name: U.name, sub: `${U.kg} kg · ${U.space} space${U.space === 1 ? '' : 's'}`, price: `${Math.round(U.price * m)}`, ok: !have && stocked && room && load,
-          why: have ? 'FITTED' : !stocked ? 'NOT SOLD HERE' : !room ? 'NO ROOM' : !load ? 'TOO HEAVY' : '', rare: U.rare, desc: U.desc, kgAdd: U.kg, util: id, op: 'install', fitted: have });
+        const swap = U.set ? Object.keys(v.utility ?? {}).find((u) => UTILITY[u]?.set === U.set) : null, swapKg = swap ? UTILITY[swap].kg : 0;
+        const room = G.spacesUsed(v) + U.space <= C.spaces, load = G.kgOn(v) - swapKg + U.kg <= C.maxKg;
+        const body = !U.chassis || U.chassis.includes(G.chassisKey(v)), glass = !U.glass || !!g.carCombat.layout(v);
+        out.push({ id, part: id, name: U.name, sub: U.tread ? `${U.kg} kg · grip ${pct(U.tread.paved)} road / ${pct(U.tread.dirt)} dirt${swap && !have ? ` · swaps ${UTILITY[swap].name.toLowerCase()}` : ''}` : `${U.kg} kg · ${U.space} space${U.space === 1 ? '' : 's'}`,
+          price: `${Math.round(U.price * m)}`, ok: !have && stocked && room && load && body && glass,
+          why: have ? 'FITTED' : !body ? 'WRONG BODY' : !glass ? 'NO GLASS' : !stocked ? 'NOT SOLD HERE' : !room ? 'NO ROOM' : !load ? 'TOO HEAVY' : '', rare: U.rare, desc: U.desc, kgAdd: U.kg - swapKg, util: id, swap, op: 'install', fitted: have });
       }
     } else if (t === 'ammo') {
       const carried = (id) => (g.inventory?.carried.slots ?? []).reduce((s, x) => s + (x.id === id ? x.n : 0), 0) + (g.inventory?.trunk(v).slots ?? []).reduce((s, x) => s + (x.id === id ? x.n : 0), 0);
@@ -190,12 +198,12 @@ export class WorkshopUI {
     let r;
     if (a === 'off') {
       const t = TABS[this.tab].id;
-      r = t === 'utility' ? W.remove(v, { part: row.part }) : t === 'armor' ? W.remove(v, { face: this.face, part: 'plate' }) : W.remove(v, { face: this.face });
+      r = t === 'utility' || t === 'wheels' ? W.remove(v, { part: row.part }) : t === 'armor' ? W.remove(v, { face: this.face, part: 'plate' }) : W.remove(v, { face: this.face });
       this.tell(r.ok ? `TOOK OFF ${String(r.removed).toUpperCase().replace('PLATE:', 'PLATE · ')}${r.refund ? ` · ${r.refund > 0 ? '+' : ''}$${r.refund}` : ''}` : r.why.toUpperCase(), !r.ok);
       this.render(); return;
     }
     if (!row.ok && row.op) { this.tell(row.why || 'CAN\'T', true); return; }
-    if (row.op === 'install') r = W.install(v, { part: row.part, face: TABS[this.tab].id === 'utility' ? undefined : this.face, n: 4 });
+    if (row.op === 'install') r = W.install(v, { part: row.part, face: TABS[this.tab].id === 'utility' || TABS[this.tab].id === 'wheels' ? undefined : this.face, n: 4 });
     else if (row.op === 'reload') r = W.reload(v, { face: row.face, part: row.util });
     else if (row.op === 'repair') r = W.repair(v, { face: row.face, part: row.face ? undefined : row.part });
     else if (row.op === 'paint') r = W.paint(v, row.paint);
@@ -253,7 +261,9 @@ export class WorkshopUI {
     let then = null, kgAdd = 0;
     if (row?.op === 'install') {
       kgAdd = row.kgAdd ?? 0;
-      then = G.perf(v, kgAdd, row.util ? { ...(v.utility ?? {}), [row.util]: {} } : v.utility ?? {});
+      const u = row.util ? { ...(v.utility ?? {}), [row.util]: {} } : v.utility ?? {};
+      if (row.swap) delete u[row.swap];
+      then = G.perf(v, kgAdd, u);
     }
     const kg = G.kgOn(v), sp = G.spacesUsed(v), pw = v.power?.cap ?? 20;
     const bar = (label, val, max, nxt, fmt, invert = false) => {
@@ -268,6 +278,7 @@ export class WorkshopUI {
       bar('BRAKING', now.brake, 1.1, then?.brake ?? null, (x) => `${(x * 100).toFixed(0)}%`),
       bar('LOAD', kg, C.maxKg, then ? kg + kgAdd : null, (x) => `${Math.round(x)} / ${C.maxKg} kg`, true),
       bar('SPACES', sp, C.spaces, row?.op === 'install' && !(row.part in ARMOR) ? sp + ((MOUNT_WEAPONS[row.part]?.size ?? UTILITY[row.part]?.space ?? 0) - (row.util ? 0 : MOUNT_WEAPONS[v.mounts?.[this.face]?.kind]?.size ?? 0)) : null, (x) => `${x} / ${C.spaces}`, true),
+      bar('OFF-ROAD', now.dirt, 1.3, then?.dirt ?? null, (x) => `${Math.round(x * 100)}%`),
       bar('POWER', pw, 240, row?.util && UTILITY[row.util]?.power ? pw + UTILITY[row.util].power.cap : null, (x) => `${Math.round(x)}`),
     ].join('');
   }

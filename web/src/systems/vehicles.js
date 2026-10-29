@@ -274,9 +274,11 @@ export class Vehicles {
       v.depth = 0;
       return { fwd, side };
     }
-    let topSpeed = v.maxSpeed * fxm.top;
+    let topSpeed = v.maxSpeed * fxm.top * (v.treadTop ?? 1); // treadTop: road tyres on pavement (workshop.js)
     // Water: boats need it, everything else drowns in it.
-    const depth = this.g.water ? this.g.water.depthAt(v.x, v.z, false, v.boat ? -Infinity : v.y) : 0; // y: a car up on a river's deck is dry; a boat under it is not
+    const depth0 = this.g.water ? this.g.water.depthAt(v.x, v.z, false, v.boat ? -Infinity : v.y) : 0; // y: a car up on a river's deck is dry; a boat under it is not
+    const wade = v.boat ? 0 : v.wadeLift ?? 0; // wadeLift: big tyres hold the hull out of a ford (garage.retune)
+    const depth = wade ? Math.max(0, depth0 - wade) : depth0;
     v.depth = depth;
     if (v.boat) {
       const afloat = depth > (v.shallow ? 0.12 : 0.55);
@@ -326,7 +328,7 @@ export class Vehicles {
     if (pivot) { v.x += pivot * (Math.sin(v.h + dh) - Math.sin(v.h)); v.z += pivot * (Math.cos(v.h + dh) - Math.cos(v.h)); }
     v.h += dh;
     // Rolling drag and lateral grip (handbrake = drift).
-    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1); // gripMul: an oil slick (garage.js)
+    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); treadGrip: the tyres on this ground (workshop.js)
     if (v.bike) {
       // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
       const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);

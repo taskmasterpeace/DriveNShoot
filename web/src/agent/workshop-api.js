@@ -25,7 +25,7 @@ export function workshopCommands(api) {
         if (action === 'rows') return W.rows();
         if (action === 'open') {
           const r = g.workshopUI.toggle(true, force); need(r.ok, r.why);
-          if (tab) { const i = ['armor', 'weapons', 'utility', 'ammo', 'repair', 'paint'].indexOf(tab); need(i >= 0, 'tab=armor|weapons|utility|ammo|repair|paint'); g.workshopUI.tab = i; g.workshopUI.render(); }
+          if (tab) { const ids = g.workshopUI.tabIds(), i = ids.indexOf(tab); need(i >= 0, `tab=${ids.join('|')}`); g.workshopUI.tab = i; g.workshopUI.render(); }
           return { ...g.workshopUI.view(), site: W.site, car: W.car.id };
         }
         if (action === 'close') { g.workshopUI.toggle(false); return { open: false }; }
@@ -203,13 +203,88 @@ export async function workshopChecks({ g, api, C, check, stage, person }) {
     return open.ok && paid === cost && cost > 0 && Math.abs(dt - MOUNT_WEAPONS.mg1.labour) < 1e-6 && /scrip/.test(broke) && /does not go/.test(plates) && out.gun === 'mg1' ? true : JSON.stringify(out);
   });
 
+  await check('workshop: tyres - road tyres hold the pavement and slide on dirt, off-road tyres the other way round; one tread a car', async () => {
+    await stage();
+    const W = g.workshop, px = g.player.x, pz = g.player.z;
+    // A dirt spot and a paved spot near the stage (staging positions: the documented exception).
+    let dirt = null, road = null;
+    for (let r = 10; r < 160 && !(dirt && road); r += 6) for (let k = 0; k < 16 && !(dirt && road); k++) {
+      const x = px + Math.cos(k * Math.PI / 8) * r, z = pz + Math.sin(k * Math.PI / 8) * r;
+      if ((g.water?.depthAt(x, z) ?? 0) > 0.05 || g.statics?.blocked?.(x, z, 4)) continue;
+      if (W.paved(x, z)) road ??= { x, z }; else dirt ??= { x, z };
+    }
+    if (!dirt || !road) return JSON.stringify({ dirt, road });
+    const a = await spawn('sedan', 0, 0, 0), b = await spawn('sedan', 0, 0, 0);
+    fit(a, 'tread_road'); fit(b, 'tread_offroad');
+    // Both slide sideways at 10 m/s on the same ground; the tyres that grip more kill the slide sooner.
+    const slide = async (at) => {
+      const left = [];
+      for (const v of [a, b]) {
+        const other = v === a ? b : a; other.x = at.x + 40; other.z = at.z + 40; other.vx = other.vz = 0;
+        v.x = at.x; v.z = at.z; v.h = 0; v.vx = 10; v.vz = 0; v.av = 0; v.treadT = 0;
+        await api._step(20); left.push(Math.abs(v.vx));
+      }
+      return left;
+    };
+    const [rd, od] = await slide(dirt), [rr, or] = await slide(road);
+    const grips = { a: [a.treadGrip, b.treadGrip] };
+    const swap = fit(a, 'tread_allterrain'), one = Object.keys(a.utility).filter((u) => UTILITY[u].set === 'tread');
+    const out = { dirt: [r2(rd), r2(od)], road: [r2(rr), r2(or)], grips, swapped: swap.swapped, one };
+    cleanup(a, b);
+    return od < rd && rr < or && one.length === 1 && one[0] === 'tread_allterrain' ? true : JSON.stringify(out);
+  });
+
+  await check('workshop: monster tyres - a buggy takes them, a bike does not; they climb what they hit and hold the hull out of a ford', async () => {
+    await stage();
+    const bug = await spawn('buggy', 6, 0, 0), bike = await spawn('bike', -6, 0, 0);
+    const turn0 = bug.turn, ok = fit(bug, 'monster'), no = fit(bike, 'monster');
+    const out = { ok: ok.ok, no: no.ok, turn: [r2(turn0), r2(bug.turn)], wade: bug.wadeLift, crush: r2(g.garage.ramMul(bug, bug.x + Math.sin(bug.h) * 3, bug.z + Math.cos(bug.h) * 3)) };
+    cleanup(bug, bike);
+    return ok.ok && !no.ok && out.turn[1] < out.turn[0] && out.wade === UTILITY.monster.tread.wade && out.crush === UTILITY.monster.monster.crush ? true : JSON.stringify(out);
+  });
+
+  await check('workshop: hub spikes - drive alongside and they eat the other car\'s tyre and flank on that side', async () => {
+    await stage();
+    const v = await spawn('sedan', 0, -14, 0), o = await spawn('sedan', 2.5, 0, 0); // o parked 2.5 m to v's left (+x), 14 m up the road
+    fit(v, 'hubspikes');
+    const hp0 = o.hp, seq0 = g.eventSeq;
+    await C('enterVehicle', { id: v.id, force: true });
+    g.driveOverride = { throttle: 0.6, steer: 0 };
+    let hit = false;
+    for (let i = 0; i < 240 && !hit; i++) { await api._step(1); hit = (await C('events', { since: seq0, type: 'hubSpikes' })).events?.some((e) => e.vehicle === o.id); }
+    for (let i = 0; i < 20; i++) await api._step(1);
+    g.driveOverride = null;
+    const right = Object.entries(o.dmg.tyres).filter(([t, x]) => x <= 0).map(([t]) => t), out = { hit, hp: [Math.round(hp0), Math.round(o.hp)], popped: right };
+    g.exitVehicle(true); cleanup(v, o);
+    return hit && out.hp[1] < out.hp[0] && right.every((t) => t.endsWith('R')) ? true : JSON.stringify(out);
+  });
+
+  await check('workshop: THE OPEN FRONT - behind glass the first forward pull kicks the windshield out and fires nothing; a buggy or a pulled windshield shoots ahead at once', async () => {
+    await stage();
+    const p = g.player, k = g.inv.current;
+    const car = await spawn('sedan', 0, 0, Math.PI / 2), bug = await spawn('buggy', 0, 10, Math.PI / 2), pulled = await spawn('sedan', 0, -10, Math.PI / 2);
+    fit(pulled, 'nowindshield');
+    const east = Math.PI / 2, side = 0; // ahead of the cars, and off their left side
+    const first = g.carCombat.fireFromVehicle(p, car, k, east), glass = car.windows.front.hp, again = g.carCombat.fireFromVehicle(p, car, k, east);
+    await api._step(60);
+    const after = g.carCombat.fireFromVehicle(p, car, k, east);
+    p.kickUntil = 0;
+    const buggy = g.carCombat.fireFromVehicle(p, bug, k, east);
+    p.kickUntil = 0;
+    const open = g.carCombat.fireFromVehicle(p, pulled, k, east), gone = !!pulled.windows?.front?.gone;
+    const sideShot = g.carCombat.fireFromVehicle(p, pulled, k, side), sideGlass = pulled.windows[g.carCombat.sideOfAngle(pulled, side)].hp;
+    const out = { first, glass, again, after, buggy, open, gone, sideShot, sideGlass };
+    p.kickUntil = 0; cleanup(car, bug, pulled);
+    return !first && glass === 0 && !again && after && buggy && open && gone && sideShot && sideGlass === 0 ? true : JSON.stringify(out);
+  });
+
   await check('workshop: the screen opens with its tabs, every tab lists rows, and the keys walk the tabs and fit a part', async () => {
     await stage();
     const v = await spawn('sedan', 6, 0, 0);
     g.lastVehicle = v; g.cash = 2000;
     const o = await C('workshop', { action: 'open', force: true });
     const U = g.workshopUI, tabs = o.tabs.map((t) => [t.id, t.rows.length]);
-    const allRows = o.tabs.every((t) => t.rows.length > 0) && o.tabs.length === 6 && o.dom.tabs === 6 && o.dom.rack > 0;
+    const allRows = o.tabs.every((t) => t.rows.length > 0) && o.tabs.length === 7 && o.dom.tabs === 7 && o.dom.rack > 0;
     // Real keys: F walks to the next tab, E fits the picked row (the first armour onto the picked face).
     U.tab = 0; U.sel = 0; U.face = 'front'; U.render();
     g.input.pressed.add('KeyE'); await api._step(2);

@@ -3,6 +3,7 @@ import { RAY_BULLET, rayCircle } from '../engine/collision.js';
 import { ITEMS } from '../data/items.js';
 import { FACES6, FACE_BEARING, ARMOR, CHASSIS, MOUNT_WEAPONS, UTILITY, AMMO_ITEMS, PAINTS, REPAIR, WORKSHOPS, ARENAS, LOANER, validateWorkshop } from '../data/workshop.js';
 import { groupOf } from './garage.js';
+import { roadLines } from '../world/city.js';
 
 // THE WORKSHOP (docs/design/WEB_WORKSHOP.md): the counter and the guns.
 //   The counter: install / remove / repair / reload / paint at a shop (data/workshop.js WORKSHOPS: Kenji's, a town
@@ -527,6 +528,51 @@ export class Workshop {
   }
 
   // ---- every frame ---------------------------------------------------------------------------------------------------
+  // Is (x, z) pavement: the island's streets, the ring city's, an interstate's lanes. Off it is dirt, sand, mud.
+  paved(x, z) {
+    const g = this.g;
+    if (!g.stunts?.outside(x, z)) return roadLines.some((c) => Math.abs(z - c) < 7 || Math.abs(x - c) < 7) || Math.abs(z) < 7;
+    const W = g.streamer?.W;
+    if (!W) return false;
+    if (W.ring?.solid?.(x, z, 0)) return true;
+    return W.projectAny(x, z, 40).d < 11;
+  }
+
+  // HUB SPIKES (data/workshop.js UTILITY hubspikes): blades out past the tyres. Anything alongside at speed gets them:
+  // the other car's tyre on that side and its flank, somebody on foot by your wheels, a hand on your door.
+  hubSpikes(v, dt) {
+    const g = this.g, H = UTILITY.hubspikes.hub, sp = g.vehiclesSys.speed(v);
+    if (sp < 3) return;
+    const c = Math.cos(v.h), s = Math.sin(v.h), mo = v.utility.monster ? 0.55 : 0, reach = v.wid / 2 + mo + H.reach;
+    for (const o of g.vehicles) {
+      if (o === v || o.dead || o.sunk) continue;
+      const dx = o.x - v.x, dz = o.z - v.z;
+      if (dx * dx + dz * dz > 64) continue;
+      const lx = dx * c - dz * s, lz = dx * s + dz * c; // o in v's frame (+x = v's left)
+      if (Math.abs(lz) > (v.len + o.len) * 0.4 || Math.abs(lx) > reach + o.wid / 2 || Math.abs(lx) < v.wid / 2) continue;
+      const rel = Math.hypot(o.vx - v.vx, o.vz - v.vz) + sp * 0.3; // grinding along at speed, or slammed into
+      const side = g.carCombat.sideToward(o, v.x, v.z); // o's side that faces v
+      this.hitVehicle(o, v.x, v.z, H.car * dt * Math.min(2, rel / 8 + 0.5), 'pierce', v.driver ?? null, side);
+      g.emit('hubSpikes', { vehicle: o.id, by: v.id, side });
+      if (o.dmg && (side === 'left' || side === 'right')) { // the blades chew the nearer tyre on that side: H.tyre a tick, gone in three
+        const t = (lz > 0 ? 'R' : 'F') + (side === 'left' ? 'L' : 'R'); // o ahead of v: v's front wheels meet o's rear
+        if (o.dmg.tyres[t] > 0 && !o.utility?.solidtyres) { o.dmg.tyres[t] = Math.max(0, o.dmg.tyres[t] - H.tyre); o.dmg.dirty = true; if (o.dmg.tyres[t] <= 0) { o.dmg.tyres[t] = 0.001; g.vehDamage.popTyre(o, t); } }
+      }
+      g.fx.spawn(2, v.x + dx * 0.5, 0.5, v.z + dz * 0.5, (Math.random() - 0.5) * 4, 2, (Math.random() - 0.5) * 4, 0.3, 0.12, '#f5c26a', 6);
+    }
+    for (const ch of g.chars) {
+      if (!ch.alive || ch.inVehicle || ch === v.driver) continue;
+      const dx = ch.x - v.x, dz = ch.z - v.z;
+      if (dx * dx + dz * dz > 25) continue;
+      const lx = dx * c - dz * s, lz = dx * s + dz * c;
+      if (Math.abs(lz) < v.len / 2 && Math.abs(lx) > v.wid / 2 - 0.2 && Math.abs(lx) < reach + 0.3) {
+        g.combat.damage(ch, H.person * dt * Math.min(2, sp / 8), v.driver ?? null, Math.sign(lx) * c, -Math.sign(lx) * s);
+        g.emit('hubSpikes', { char: ch.id, by: v.id });
+      }
+    }
+    for (const gr of v.grabbers ?? []) if (gr.side === 'left' || gr.side === 'right') gr.grip -= dt * H.grip;
+  }
+
   update(dt) {
     const g = this.g, P = g.player;
     for (const v of g.vehicles) {
@@ -549,6 +595,13 @@ export class Workshop {
           v.nitroOn = on;
         }
         v.boostWas = v.boost;
+        // Tyres: what's under them, four times a second (data/workshop.js UTILITY tread rows).
+        const T = g.garage.tread(v);
+        if (T && (v.treadT = (v.treadT ?? 0) - dt) <= 0) {
+          v.treadT = 0.25; v.paved = this.paved(v.x, v.z);
+          v.treadGrip = v.paved ? T.paved : T.dirt; v.treadTop = v.paved ? T.topPaved ?? 1 : 1;
+        }
+        if (U.hubspikes && (v.hubT = (v.hubT ?? 0) - dt) <= 0) { v.hubT = 0.25; this.hubSpikes(v, 0.25); }
       }
       if (v.mounts) this.lockTick(v, dt);
       // Spikes and a cowcatcher: hands come off that face fast and bloody.

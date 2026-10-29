@@ -60,7 +60,7 @@ export const CHASSIS = {
   rig:         { maxKg: 4000, spaces: 24, faces: { front: 60, rear: 40, left: 48, right: 48, top: 30, under: 30 }, mounts: mp(3, 3, 2, 2, 3) },
   patrol:      { maxKg: 1600, spaces: 12, faces: { front: 40, rear: 34, left: 32, right: 32, top: 18, under: 20 }, mounts: mp(3, 2, 1, 1, 3) },
   apc:         { maxKg: 3200, spaces: 18, faces: { front: 60, rear: 44, left: 50, right: 50, top: 34, under: 34 }, mounts: mp(3, 2, 2, 2, 3) },
-  buggy:       { maxKg: 420,  spaces: 4,  faces: { front: 12, rear: 8, left: 4, right: 4, top: 0, under: 8 },     mounts: mp(2, 1, 0, 0, 2) },
+  buggy:       { maxKg: 420,  spaces: 4,  faces: { front: 12, rear: 8, left: 4, right: 4, top: 0, under: 8 },     mounts: mp(2, 1, 1, 1, 2) }, // light pods: an open frame shoots every way
   atv:         { maxKg: 160,  spaces: 2,  faces: { front: 6, rear: 4, left: 0, right: 0, top: 0, under: 4 },      mounts: mp(1, 1, 0, 0, 0) },
   bike:        { maxKg: 110,  spaces: 2,  faces: { front: 4, rear: 0, left: 0, right: 0, top: 0, under: 0 },      mounts: mp(1, 1, 0, 0, 0) },
 };
@@ -152,10 +152,27 @@ export const UTILITY = {
                   desc: 'Pre-war. A sealed cell that runs warm and never stops. What the rail gun was built to drink from.' },
   extinguisher: { name: 'FIRE SUPPRESSION', kg: 20, space: 1, price: 250, labour: 0.5, charges: 2, ammo: 'suppressant', perItem: 1,
                   desc: 'Two bottles and a ring of nozzles under the hood. Puts out a burning car twice.' },
-  runflat:      { name: 'RUN-FLAT TYRES', kg: 30, space: 0, price: 200, labour: 0.5, flatMul: 0.4,
+  nowindshield: { name: 'PULL THE WINDSHIELD', kg: 0, space: 0, price: 30, labour: 0.25, openFront: true, glass: true,
+                  desc: 'Out comes the glass, in goes a wire screen. Now you can shoot over the hood, and so can they.' },
+  runflat:      { name: 'RUN-FLAT TYRES', kg: 30, space: 0, price: 200, labour: 0.5, tab: 'wheels', flatMul: 0.4,
                   desc: 'Inserts in the rims. A blown tyre still rolls, badly, instead of dragging you into the ditch.' },
-  solidtyres:   { name: 'PUNCTURE-PROOF TYRES', kg: 60, space: 0, price: 350, labour: 0.75, grip: 0.95,
+  solidtyres:   { name: 'PUNCTURE-PROOF TYRES', kg: 60, space: 0, price: 350, labour: 0.75, tab: 'wheels', grip: 0.95,
                   desc: 'Solid rubber, no air to lose. Caltrops and rounds do nothing. The ride shakes your fillings out.' },
+  // WHEELS (tab 'wheels'). A tread is one per car (set: fitting one swaps the last out); stock tyres are 1 on everything.
+  //   tread  grip on pavement / off it (multiplies the car's grip, sampled 4 times a second), topPaved: top speed on
+  //          pavement, wade: metres the tyres lift the hull out of a ford (vehicles.js depth)
+  tread_road:   { name: 'ROAD TYRES', tab: 'wheels', set: 'tread', kg: 0, space: 0, price: 160, labour: 0.5, tread: { paved: 1.18, dirt: 0.8, topPaved: 1.04 },
+                  desc: 'Smooth highway rubber. Glued to the blacktop, a skating rink the moment you leave it.' },
+  tread_offroad:{ name: 'OFF-ROAD TYRES', tab: 'wheels', set: 'tread', kg: 30, space: 0, price: 220, labour: 0.5, tread: { paved: 0.88, dirt: 1.22, wade: 0.15 },
+                  desc: 'Knobbly lugs that dig into sand and mud. On the highway they hum and wander.' },
+  tread_allterrain: { name: 'ON/OFF-ROAD TYRES', tab: 'wheels', set: 'tread', kg: 15, space: 0, price: 260, labour: 0.5, tread: { paved: 1.06, dirt: 1.06 },
+                  desc: 'Half and half. Better than what came on the car everywhere, best nowhere.' },
+  monster:      { name: 'MONSTER TYRES', tab: 'wheels', set: 'tread', kg: 240, space: 0, price: 1600, labour: 3, rare: 'uncommon',
+                  tread: { paved: 0.92, dirt: 1.2, wade: 0.5 }, monster: { scale: 1.8, turn: 0.8, top: 0.93, crush: 1.6 },
+                  chassis: ['buggy', 'sedan', 'interceptor', 'pickup', 'patrol', 'van'],
+                  desc: 'Tractor tyres on a lift kit. Wades rivers, climbs over cars, corners like a wardrobe.' },
+  hubspikes:    { name: 'HUB SPIKES', tab: 'wheels', kg: 24, space: 0, price: 320, labour: 0.75, hub: { reach: 0.6, car: 24, tyre: 0.45, person: 35, grip: 3 },
+                  desc: 'Steel blades welded to the hubs, sticking out the side. Pull alongside and they eat tyres, doors and shins.' },
   nitrous:      { name: 'NITROUS', kg: 25, space: 1, price: 350, labour: 0.75, charges: 3, ammo: 'nitrous_bottle', perItem: 1, burst: { time: 2.5, accel: 1.8, top: 1.15 },
                   desc: 'A bottle and a button. Boost (Shift) at speed and the car jumps like it was kicked.' },
   turbo:        { name: 'TURBOCHARGER', kg: 30, space: 1, price: 500, labour: 1.5, accel: 1.12, top: 1.05,
@@ -252,6 +269,8 @@ export function validateWorkshop(rows = { ARMOR, CHASSIS, MOUNT_WEAPONS, UTILITY
   for (const [id, u] of Object.entries(rows.UTILITY)) {
     if (!(u.kg >= 0 && u.space >= 0 && u.price > 0)) bad.push(`utility ${id}: kg, space, price`);
     if (u.ammo && !rows.AMMO_ITEMS[u.ammo]) bad.push(`utility ${id}: ammo item ${u.ammo} has no row`);
+    if (u.tread && !(u.tread.paved > 0 && u.tread.dirt > 0 && u.set === 'tread')) bad.push(`utility ${id}: a tread needs paved, dirt and set 'tread'`);
+    if (u.chassis && !u.chassis.every((c) => rows.CHASSIS[c])) bad.push(`utility ${id}: unknown chassis`);
   }
   for (const [id, a] of Object.entries(rows.ARENAS)) if (!['arena', 'track'].includes(a.kind) || !a.props?.length) bad.push(`arena ${id}: kind and props`);
   return { ok: bad.length === 0, bad };
