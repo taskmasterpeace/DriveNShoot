@@ -248,7 +248,7 @@ export async function worldVoiceChecks(api, check, C) {
       return !before && m && m.lines[0].includes({ N: 'NORTH', NE: 'NORTHEAST', E: 'EAST', SE: 'SOUTHEAST', S: 'SOUTH', SW: 'SOUTHWEST', W: 'WEST', NW: 'NORTHWEST' }[b.dir]) && m.cause.fact === fid && m.place === A.id && cOk ? true : JSON.stringify({ before: !!before, m: m && M.view(m), dir: b.dir, cOk });
     });
 
-    await check('world voice: a campfire line references a real recent event - at night with a crew member, stopped, a fire is made; the first line names the raider you shot, with that chronicle row as its ref; the clock moves, rest and morale rise, and walking off leaves a ring of ash', async () => {
+    await check('world voice: a campfire line references a real recent event - at night with a crew member, stopped, a fire is made; the first line names the raider you shot, with that chronicle row as its ref; the clock moves, rest and morale rise, and walking off leaves a ring of ash, drawn once: as the look-feel bonfire ring on the ground, never also in the marks mesh', async () => {
       const F = g.campfire, L = lonely();
       await stand(L.x, L.z);
       g.sky.time = 22.5; g.campfire.on = true;
@@ -279,7 +279,10 @@ export async function worldVoiceChecks(api, check, C) {
       await stand(p.x + CF.leaveR + 6, p.z); await C('step', { seconds: 0.4 });
       const ash = g.marks.find({ kind: 'ash' }).find((m) => m.cause.fire === id);
       g.crew.leave?.(g.crew.members.find((m) => m.c === cm), 'test');
-      return real && ref.seq === row.seq && named && morale && moved && rested && !F.fire && ash ? true : JSON.stringify({ line, row: row.seq, real, named, morale, moved, rested, fire: !!F.fire, ash: !!ash });
+      g.marks.draw();
+      const LF = g.look, ring = ash && LF ? ash.laid >= 0 && LF.dKind[ash.laid] === 3 + 1 && Math.hypot(LF.dX[ash.laid] - ash.x, LF.dZ[ash.laid] - ash.z) < 0.2 : !!ash; // DECALS.bonfire.cell 3
+      const once = ash ? !g.marks.near.includes(ash) : false;
+      return real && ref.seq === row.seq && named && morale && moved && rested && !F.fire && ash && ring && once ? true : JSON.stringify({ line, row: row.seq, real, named, morale, moved, rested, fire: !!F.fire, ash: !!ash, ring, once });
     });
 
     await check('world voice: draws - marks and a burning fire stay under 150 draw calls; nothing drawn when nothing is near', async () => {

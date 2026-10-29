@@ -3,6 +3,7 @@ import { MARK_KINDS, MARK_RULES as MR, TAGS, MARK_TEXT, PAINT, NEWS, purple } fr
 import { FACTIONS } from '../data/society.js';
 import { bearingOf } from './farsound.js';
 import { VERT } from '../data/citygen.js';
+import { DECAL_Y, layerMesh } from '../engine/depthlayers.js';
 
 const WALL_HALF = 0.2; // world/citygen/build.js WALL / 2: the outer face stands this far out from the footprint's edge
 
@@ -14,7 +15,9 @@ const WALL_HALF = 0.2; // world/citygen/build.js WALL / 2: the outer face stands
 //   dontgo   a town that HOLDS news of a place falling (a copy in its holder: law 6) paints DON'T GO <dir> on its road
 //            edge, pointing at it. A town that never heard paints nothing
 //   grave    a grave dug since the world began running gets a board with the name and how they died
-//   ash      a campfire left behind is a cold ring of ash and stones
+//   ash      a campfire left behind is a cold ring of ash and stones. The RECORD is here (saved, the campfire's cause);
+//            the ground draws it as look-feel's own bonfire ring (systems/lookfeel.js history()), one ring, one owner.
+//            Marks never paint ground history (scorch, blood, tracks: look-feel's); they paint WORDS
 // All of it: rows of marks (saved), drawn near you as ONE instanced mesh of quads over a painted atlas (each quad reads
 // its own slot: aRect, the road signs' trick), plus one instanced mesh of posts under the boards. Two draw calls at most,
 // none when nothing is near. The near set is rebuilt only when you move MR.redraw metres or a mark changes.
@@ -52,7 +55,7 @@ export class Marks {
     };
     const geo = new THREE.PlaneGeometry(1, 1);
     this.rect = new THREE.InstancedBufferAttribute(new Float32Array(MR.cap * 4), 4); geo.setAttribute('aRect', this.rect);
-    const m = (this.mesh = new THREE.InstancedMesh(geo, mat, MR.cap)); m.name = 'world-voice-marks'; m.count = 0; m.visible = false; m.frustumCulled = false; m.renderOrder = 2;
+    const m = (this.mesh = layerMesh(new THREE.InstancedMesh(geo, mat, MR.cap), 'wallDecal')); m.name = 'world-voice-marks'; m.count = 0; m.visible = false; m.frustumCulled = false; // paint: the depth law's wall-decal row (engine/depthlayers.js), over look-feel's ground history
     const pm = new THREE.MeshStandardMaterial({ color: '#4a3826', roughness: 0.95 });
     const p = (this.posts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), pm, MR.cap)); p.name = 'world-voice-posts'; p.count = 0; p.visible = false; p.frustumCulled = false;
     this.g.scene.add(m); this.g.scene.add(p);
@@ -186,7 +189,9 @@ export class Marks {
     const lines = [(gr.name ?? 'NO NAME').toUpperCase(), by ? `${how} ${MARK_TEXT.by.replace('{BY}', by)}` : how];
     return this.add({ kind: 'grave', key, lines, color: PAINT.chalk, place: gr.cem ?? null, x: gr.x + 0.9, z: gr.z + 0.35, on: 'board', cause: { type: 'grave', grave: gr.id } });
   }
-  ash(x, z, fire) { return this.add({ kind: 'ash', key: `ash|${fire}`, lines: [''], color: '#2a2520', x, z, on: 'ground', cause: { type: 'campfire', fire } }); }
+  ash(x, z, fire) { const m = this.add({ kind: 'ash', key: `ash|${fire}`, lines: [''], color: '#2a2520', x, z, on: 'ground', cause: { type: 'campfire', fire } }); this.layAsh(m); return m; }
+  // look-feel's bonfire ring at the mark (laid once a session: its event decals are not saved, the mark is)
+  layAsh(m) { if (m.laid !== undefined || !this.g.look?.history) return; m.laid = this.g.look.history('bonfire', m.x, m.z, { size: 0.9, alpha: 0.9 }); }
 
   // ---- reading the world ------------------------------------------------------------------------------------------------
   readChronicle() {
@@ -309,7 +314,10 @@ export class Marks {
     const M = this.gpu(); if (!M) return;
     const p = this.g.player;
     this.near.length = 0;
-    for (const m of this.list) if (Math.abs(m.x - p.x) < MR.near && Math.abs(m.z - p.z) < MR.near) { this.near.push(m); if (this.near.length >= MR.cap) break; }
+    for (const m of this.list) if (Math.abs(m.x - p.x) < MR.near && Math.abs(m.z - p.z) < MR.near) {
+      if (m.kind === 'ash' && this.g.look?.history) { this.layAsh(m); continue; } // the ground draws it (look-feel)
+      this.near.push(m); if (this.near.length >= MR.cap) break;
+    }
     let n = 0, posts = 0;
     for (const m of this.near) {
       const s = this.slotFor(m); if (s < 0) continue;
@@ -318,7 +326,7 @@ export class Marks {
       this.rect.setXYZW(n, u, v, (sq ? SLOT_H / SLOT_W : 1) / COLS, 1 / ROWS);
       const gy = m.y ?? this.ground(m.x, m.z);
       if (m.on === 'wall') { _e.set(0, m.face, 0); _p.set(m.x, gy, m.z); _s.set(m.w, m.h, 1); }
-      else if (m.on === 'ground') { _e.set(-Math.PI / 2, 0, (m.face ?? 0), 'XYZ'); _p.set(m.x, gy + 0.04, m.z); _s.set(m.w, m.h, 1); }
+      else if (m.on === 'ground') { _e.set(-Math.PI / 2, 0, (m.face ?? 0), 'XYZ'); _p.set(m.x, gy + DECAL_Y + 0.01, m.z); _s.set(m.w, m.h, 1); }
       else { _e.set(-0.95, m.face ?? 0, 0, 'YXZ'); _p.set(m.x, gy + (m.kind === 'grave' ? 0.5 : 1.25), m.z); _s.set(m.w, m.h, 1); } // a board leaned back to the sky
       _q.setFromEuler(_e); _m.compose(_p, _q, _s); M.setMatrixAt(n, _m);
       if (m.on === 'board' && posts < MR.cap - 1) for (const sx of [-0.4, 0.4]) { _e.set(0, 0, 0); _q.setFromEuler(_e); _p.set(m.x + sx * m.w, gy + (m.kind === 'grave' ? 0.2 : 0.42), m.z - m.h * 0.42); _s.set(0.09, m.kind === 'grave' ? 0.4 : 0.84, 0.09); _m.compose(_p, _q, _s); this.posts.setMatrixAt(posts++, _m); }
@@ -340,7 +348,7 @@ export class Marks {
   }
   find(o = {}) { return this.list.filter((m) => (!o.kind || m.kind === o.kind) && (!o.place || m.place === o.place)); }
   view(m) { return { id: m.id, kind: m.kind, text: m.lines.join(' / '), n: m.n || undefined, place: m.place, on: m.on, x: m.x, z: m.z, wall: m.wall, by: m.by, cause: m.cause, at: m.at, color: m.color }; }
-  save() { return { list: this.list.map((m) => ({ ...m, pv: undefined })), cursor: this.cursor }; }
+  save() { return { list: this.list.map((m) => ({ ...m, pv: undefined, laid: undefined })), cursor: this.cursor }; }
   load(s) {
     this.list = []; this.byKey.clear(); this.slots.clear(); this.slotOwner.fill(null);
     if (!s) return;

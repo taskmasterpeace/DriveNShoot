@@ -61,6 +61,7 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
 
   Stories are laid inside 420 m of the view, given back past 630 m, and come back the same.
 - **From SITE STORIES' history** (`g.stories`, landed 2026-10-29). A place raided within `DECALS.raidHours` (72 game hours) or fallen gets 3 scorches (5 if it fell), 3 blood trails and 4 raiders' wheel tracks, spread across its middle. A refugee camp (`kind: 'refuge'`, made by `makeCamp`) or a raider camp gets its bonfire ring. The marks are keyed by the place's state, so a new raid lays them again and a place that is gone takes its marks with it. They sit with site stories' own soot boxes and burned barricade. Render: `raided-site-history.jpg` (Rust Haven).
+- **From WORLD VOICE** (`WEB_WORLD_VOICE.md` §6): a campfire the player leaves calls `history('bonfire', x, z)` for its cold ash ring (marks keep the saved record and re-lay it). World voice paints words only (tags, tallies, boards) on walls and over this pool; it never lays ground history, so a raided place shows look-feel's scorch and blood and world voice's tag, each once.
 - **A hook for SITE-STORIES**: `g.look.history(kind, x, z, {rot, size, alpha, len})` lays a story's mark. `look action=decals kind=… x= z=` does the same from the agent API.
 
 ### 3.5 Impact feel

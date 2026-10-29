@@ -189,6 +189,10 @@ Mara builds a fire. "That shooting earlier, off to the north-east. Somebody is h
 | `audio` (`ctx`, `master`, `noiseBuf`, `sample`, `burst`, `tone`) | the layers and far sounds |
 | `voice.radio` | key feed lines in a locked station voice |
 | `fx.light` | one light of the fixed pool for the fire |
+| `look` (`history('bonfire', x, z)`, `systems/lookfeel.js`) | the cold ash ring: look-feel draws it on the ground; marks keep the record (saved, re-laid on load when near) |
+| `engine/depthlayers.js` (`DECAL_Y`, `layerMesh(.., 'wallDecal')`) | where paint lies: ground words at ground + DECAL_Y + 1 cm, over every street step, kerb and look-feel's ground history |
+
+**One owner per mark (with LOOK-FEEL, `WEB_LOOK_FEEL.md`).** Ground HISTORY (scorch, blood, tyre tracks, oil, bonfire and ash rings) is look-feel's: its `DECALS` pool, seeded from site stories' raided and camped places. Painted WORDS (raiders' tags, tallies, warnings, DON'T GO, grave boards) are marks'. A raided place therefore shows both, but never the same thing twice: scorch and blood on the ground from look-feel, the raiders' letters on its walls from marks. Marks never paint ground history; look-feel never paints words. The campfire's ash was the one overlap (both had a ring of ash and stones): it now goes through look-feel's `history()` hook, and the campfire check proves the ring is look-feel's bonfire decal at the ash mark and is NOT also in the marks mesh.
 
 Shared-file hooks (exact):
 | File | Hook |
@@ -239,5 +243,5 @@ What other lanes can use:
 | a raided site gets the raiders' tag | the sim's own `record('took')` tags the camp in the winner's letters with that row's seq. A town raided (the site-stories row) is tagged on a real wall in the raiders' colour, and drawn when you stand there |
 | deaths leave tally marks | three kill rows at a place add exactly 3 strokes to its one tally |
 | DON'T GO <dir> is painted only by a town that holds news of the fall | nothing before the town holds the fact; after it is told, its road edge says DON'T GO <the right direction>, caused by that fact |
-| a campfire line references a real recent event | at night, with a crew member, stopped: the fire is made. The first line's ref is the chronicle row of the raider you really shot (a real round, a real kill), and the line names them or the place. The clock moved, rest rose, morale has `campfire`, and walking off leaves the ash |
+| a campfire line references a real recent event | at night, with a crew member, stopped: the fire is made. The first line's ref is the chronicle row of the raider you really shot (a real round, a real kill), and the line names them or the place. The clock moved, rest rose, morale has `campfire`, and walking off leaves the ash, drawn once: look-feel's bonfire decal at the mark, not in the marks mesh |
 | draws | nothing drawn when no mark is near, and the frame stays under 150 draw calls |
