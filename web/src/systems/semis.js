@@ -179,7 +179,7 @@ export class Semis {
     phi = wrap(K.h - h);
     if (Math.abs(phi) > HITCH.yawLimit) {
       h = K.h - Math.sign(phi) * HITCH.yawLimit;
-      if (!T.jackknifed && sp > 3) {
+      if (!T.jackknifed && sp > 0.5) {
         T.jackknifed = true; this.stats.jackknifes++;
         g.emit('jackknife', { tractor: K.id, trailer: T.id, speed: Math.round(sp), loaded: T.cargo.length });
         if (K.driver === g.player) { g.hud.toast('JACKKNIFED', 'hot'); g.hud.shake(0.8); g.audio?.crash?.(0.6); }

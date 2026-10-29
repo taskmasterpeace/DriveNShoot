@@ -92,7 +92,7 @@ Or you take the LONGHAULER out empty and stand on the brakes at sixty, and the t
   - load = cargo mass / trailer mass.
   - While it folds, the articulation grows at `gain × excess + sustain × speed × |sin φ| + kick`.
   - The cab folds the other way at `cabShare` of that.
-  - At the stop:
+  - At the stop (moving faster than 0.5 m/s):
     - it is jackknifed (`jackknife` event, a dent);
     - the rig scrubs at `scrub` 1/s;
     - the tyres smoke.
