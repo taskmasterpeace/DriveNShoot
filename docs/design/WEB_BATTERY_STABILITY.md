@@ -266,3 +266,15 @@ Alone, 5 fresh pages each, final code:
 | storeys: a raider with a grudge | `storeys: a raider with a grudge` | 5/5 |
 
 `node --check` on every touched file. `node tools/ip-lint.mjs`: 0 deny, 0 review.
+
+**§3.9 tactics band, on main `ca1d5c4d` merged (607 checks), fresh page each, same arguments:**
+
+| battery | result | tactics band | the failures |
+|---|---|---|---|
+| T1 (diagnostic only, before the fix) | 606/607 | pass | `look-feel: a hard stop lays skid decals…` (another lane's check, from main) |
+| T2 (fixed) | 605/607 | pass | `grapevine: it eats a body…` (failed on the base code too, §9 above), `florida: the infected at Florida's density…` (the infected have no tactics: doctrine off) |
+| T3 (fixed) | 606/607 | pass | `grapevine: it eats a body…` |
+
+Alone: `tactics band` 5/5 at full hp, and 5/5 with you at 15 hp on entry. The `tactics` group (6/6) and `crew` (28/28)
+alone. Probe across 22 character slots: every run where you lived settled at 25.2–29.7 m.
+
