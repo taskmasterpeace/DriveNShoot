@@ -121,13 +121,15 @@ export async function understreetChecks({ api, g, check, C }) {
   // One stamped town for the live checks (a county seat: a trunk, laterals, alleys, a pump station, stores to breach).
   let town = null;
   const live = async () => {
+    staged = true;
     if (!town || !g.citygen.live.has(town.id)) town = await C('citygen', { action: 'stamp', archetype: 'county_seat', seed: 7, teleport: true });
     await api._step(4);
     return U.byId.get(`us_${town.id}`);
   };
   const clear = (r = 60) => { for (const c of [...g.chars]) if (c !== p && !c.npc && c.faction !== 'player' && Math.hypot(c.x - p.x, c.z - p.z) < r) g.removeChar(c); };
   const cellOpen = (L, x, z) => { const i = Math.floor(x - L.ox), j = Math.floor(z - L.oz); return i >= 0 && j >= 0 && i < L.W && j < L.H && L.cells[j * L.W + i] === OPEN; };
-  const weatherWas = g.sky?.weatherKey;
+  const weatherWas = g.sky?.weatherKey, godWas = !!g.godMode, hourWas = g.sky?.time;
+  let staged = false; // a check of ours ran (the teardown below puts back only what one of them changed)
 
   await check('understreet: the rows validate - pipes whole metres with a trunk channel between benches, a manhole shaft within 3 m of run, a storm that fills the trunk to the soffit (a flood can trap you), rain knee deep, a cut slower and quieter than a pry, every loot row a real item, no purple', async () => {
     const v = validateUnderstreet(undefined, ITEMS);
@@ -312,11 +314,15 @@ export async function understreetChecks({ api, g, check, C }) {
     return noon > 0.4 && night < 0.15 && calls < 150 ? true : JSON.stringify({ noon, night, calls });
   });
 
-  // put things back: the street, the weather, god off
+  // put back what our checks changed (nothing, when none of them ran: `only=` batteries): the street, the town, the
+  // weather, the hour, god as it was
+  if (!staged) return;
+  g.flashOverride = undefined; letGo();
   if (U.A?.site.kind === 'drains') { p.gy = U.A.plan.Y[0]; p.ug = null; U.deactivate(); }
   if (town) { await C('citygen', { action: 'remove', id: town.id }); town = null; }
   await C('teleport', { x: 0, z: -40 }); await api._step(3);
   if (weatherWas) await C('setWeather', { key: weatherWas, instant: true });
-  await C('god', { on: false });
+  if (hourWas !== undefined) await C('setTime', { hour: hourWas });
+  await C('god', { on: godWas });
   void SEWER; void flightHeight;
 }
