@@ -59,7 +59,6 @@ export const MB_RULES = {
   garrison: { gate: 2, tower: 1, patrol: 3, yard: 2, hp: 140, weapons: { rifle: 0.75, smg: 0.25 }, quartermaster: true },
   horde: { bodies: 34, sprinters: 0.15, relay: 38, relayDelay: [0.5, 1.4], hops: 6, clusters: 4 },
   sealed: { fuel: 1 },
-  spacing: 12000, // never two planned bases nearer than this (m)
 };
 
 // The armory: the best loot in the world, rolled ONCE the first time a crate is opened, never refilled (law 2). The
