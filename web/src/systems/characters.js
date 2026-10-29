@@ -561,7 +561,7 @@ export class CharacterRenderer {
     const c = ch.colors;
     if (!headless) {
       const hat = c.hatStyle ?? 'short';
-      if (hat !== 'bald' && M[`hat_${hat}`]) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
+      if (hat !== 'bald' && M[`hat_${hat}`] && !(near && L.ownsHair(ch))) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
       const acc = c.accStyle ?? 'none';
       if (acc !== 'none' && M[`acc_${acc}`]) this.put(`acc_${acc}`, headFrame, 0, 0, 0, 0, acc === 'mask' ? c.mask ?? '#6a2a1e' : '#2a2622');
       if (c.scar && M[`scar_${c.scar}`]) this.put(`scar_${c.scar}`, headFrame, 0, 0, 0, 0, c.scarColor ?? '#d9a58a');
