@@ -618,6 +618,7 @@ export class Dogs {
     const g = this.g;
     if (!d || d.dead || !(dmg > 0)) return;
     if (d.downed) { d.bleedT = Math.max(0, d.bleedT - 8); return; } // kicking a downed dog shortens its clock
+    dmg *= g.kit?.dogSoak(d) ?? 1; // a vest takes its share (systems/kit.js, data/dogs.js DOG_GEAR)
     d.hp -= dmg; d.a.flinch = 1;
     if (cause !== 'fire') { g.fx?.bloodSpray(d.x, 0.45 + d.y, d.z, dx, dz, 4, 0.5); if (Math.random() < 0.4) g.fx?.decal(d.x, d.z, 0.25, '#5a0606'); }
     const dist = Math.hypot(d.x - g.player.x, d.z - g.player.z);

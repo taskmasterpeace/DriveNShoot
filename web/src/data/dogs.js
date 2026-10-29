@@ -131,3 +131,25 @@ export const CACHES = [
   { id: 'c5', x: 236, z: 196, table: 'armor_cache' },
   { id: 'c6', x: -248, z: 132, table: 'buried_cache' },
 ];
+
+// ---- DOG GEAR (docs/design/WEB_GADGETS2.md; systems/kit.js wears it on your dog) ----------------------------------------
+// Put on the nearest dog of yours from the PACK screen (use act 'doggear'); one of each per dog, taken back by `kit dog=`.
+//   vest     soak: the share of every hurt it stops (dogs.hurt reads g.kit.dogSoak)
+//   lamp     a pool of light on the ground round the dog at night (an additive glow, no light of its own), drains a cell
+//   collar   the bark collar: when your dog's own senses (dogs.sense: its nose and ears, threatR round you) pick out a
+//            threat, the collar barks and that one is MARKED for `mark` s (minimap). Only what the dog itself sensed.
+export const DOG_GEAR = {
+  dog_vest: { name: 'Dog vest', part: 'vest', soak: 0.45, colour: '#5b4a2e', item: { kg: 1.8, bulk: 1.4, value: 60, stack: 1, desc: 'A cut-down flak vest laced round a dog\'s chest with paracord. Turns a knife and most of a bite.' } },
+  dog_lamp: { name: 'Dog lamp', part: 'lamp', glow: 6, power: { cell: 'battery_cell', life: 1800 }, item: { kg: 0.3, bulk: 0.2, value: 25, stack: 1, desc: 'A bike lamp zip-tied to a collar. Where the dog goes, the ground lights up.' } },
+  bark_collar: { name: 'Bark collar', part: 'collar', mark: 20, item: { kg: 0.2, bulk: 0.1, value: 45, stack: 1, desc: 'A training collar rewired to a buzzer you carry. When the dog smells trouble, you know where.' } },
+};
+export function validateDogGear(rows = DOG_GEAR) {
+  const bad = [];
+  for (const [id, r] of Object.entries(rows)) {
+    if (!['vest', 'lamp', 'collar'].includes(r.part)) bad.push(`${id}: part ${r.part}`);
+    if (!(r.item?.kg > 0)) bad.push(`${id}: item kg`);
+    if (r.part === 'vest' && !(r.soak > 0 && r.soak < 0.9)) bad.push(`${id}: soak 0..0.9`);
+    if (r.part === 'collar' && !(r.mark > 0)) bad.push(`${id}: mark s`);
+  }
+  return { ok: bad.length === 0, bad };
+}
