@@ -441,7 +441,8 @@ export class Workshop {
     if (m.charges <= 0) { if (v.driver === g.player && g.time > (m.dry ?? 0)) { m.dry = g.time + 0.5; g.hud?.toast?.(`${W.name} EMPTY`, 'warn'); } return null; }
     if (g.time < (m.cool ?? 0)) return null;
     m.cool = g.time + 0.35; m.charges--;
-    const G = g.garage, back = -(v.len / 2 + 1.6), x = v.x + Math.sin(v.h) * back, z = v.z + Math.cos(v.h) * back;
+    const S = g.semis?.dropTail?.(v) ?? v; // a tractor drops behind its trailer (systems/semis.js)
+    const G = g.garage, back = -(S.len / 2 + 1.6), x = S.x + Math.sin(S.h) * back, z = S.z + Math.cos(S.h) * back;
     if (m.kind === 'oil') { G.hazard('oil', x, z, W.slick.r, W.slick.life); g.fx.decal(x, z, W.slick.r * 1.15, '#0d0b09'); }
     else if (m.kind === 'caltrops') { G.hazard('caltrops', x, z, W.field.r, W.field.life); for (let i = 0; i < 6; i++) g.fx.decal(x + (Math.random() - 0.5) * 4, z + (Math.random() - 0.5) * 4, 0.25, '#2a2724'); }
     else if (m.kind === 'smoke') { g.throwables.smokes.push({ x, z, r: 5.5, t: 0, dur: 14 }); g.audio.hiss?.(g.pan(x)); }

@@ -4,6 +4,7 @@ import { rampGeometry, holdDoorGeometry } from './vehiclebodies.js';
 import { TRAILERS, TRAILER_DECKS, HITCH, CARRY, FREIGHT, CLEARANCE, fitsHold, fitsRoad, fitsUnder } from '../data/trailers.js';
 import { makeRng, clamp, angleLerp } from '../engine/rng.js';
 import { outfit } from './characters.js';
+import { CHASSIS } from '../data/workshop.js';
 
 // SEMIS (docs/design/WEB_SEMIS.md; rows in data/trailers.js): tractor-trailers you drive a car INTO.
 //
@@ -32,6 +33,10 @@ const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'righ
 // trailers, each naming its TRAILERS row and its hold deck. No engine, no seats: a trailer moves when something pulls it.
 VEHICLES.semi ??= { name: 'LONGHAULER', len: 7.4, wid: 2.6, tall: 3.95, maxSpeed: 31, reverse: 7, accel: 11, turn: 1.4, grip: 6.4, mass: 5, hp: 520, armor: 0.12, fuelCap: 300, springs: 'rig', seats: S2, tractor: { fifth: -2.35 } };
 VEHICLES.boxtrailer ??= { name: 'BOX TRAILER', len: 12.4, wid: 3.2, tall: 4.0, maxSpeed: 31, reverse: 7, accel: 0, turn: 0, grip: 5.5, mass: 4, hp: 600, armor: 0.2, fuelCap: 0, noEngine: true, springs: 'rig', seats: [], trailer: 'box', deck: TRAILER_DECKS.boxHold };
+// The workshop (data/workshop.js CHASSIS): the tractor takes plate and guns like the old rig; its rear point sits at the fifth
+// wheel, so it only takes droppers (`drops`), and they fall behind whatever it pulls (dropTail). Trailers are not worked on.
+CHASSIS.semi ??= { maxKg: 3600, spaces: 22, faces: { front: 60, rear: 30, left: 44, right: 44, top: 28, under: 30 },
+  mounts: { front: { size: 3, arc: 0.45 }, rear: { size: 1, arc: 0.6, drops: true }, left: { size: 2, arc: 0.6 }, right: { size: 2, arc: 0.6 }, top: { size: 3, arc: Math.PI } } };
 VEHICLES.widetrailer ??= { name: 'WIDE-LOAD LOWBOY', len: 14.2, wid: 5.6, tall: 1.8, maxSpeed: 31, reverse: 7, accel: 0, turn: 0, grip: 5.5, mass: 5, hp: 700, armor: 0.15, fuelCap: 0, noEngine: true, springs: 'rig', seats: [], trailer: 'wide', deck: TRAILER_DECKS.wideDeck };
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -251,7 +256,7 @@ export class Semis {
     const fvx = T.vx + T.av * rz, fvz = T.vz - T.av * rx; // the floor's velocity under it
     const dvx = C.vx - fvx, dvz = C.vz - fvz;
     C.carry = { lx: L.x, lz: L.z, lh: wrap(C.h - T.h), lvx: dvx * c - dvz * s, lvz: dvx * s + dvz * c, lav: (C.av ?? 0) - (T.av ?? 0), chocked: false, box: [0, 0, 0, 0] };
-    C.carriedBy = T; C.air = false; C.vy = 0;
+    C.carriedBy = T; C.air = false; C.vy = 0; C.sheltered = T.trailer === 'box'; // a box hold keeps the dust off (systems/lookfeel.js wear)
     T.cargo.push(C); this.boxes(T); this.order(T);
     this.stats.boards++;
     this.g.emit('semiBoard', { vehicle: C.id, type: C.type, trailer: T.id, how, speed: +this.g.vehiclesSys.speed(T).toFixed(1) });
@@ -259,7 +264,7 @@ export class Semis {
   }
   release(C, how = 'ramp') {
     const T = C.carriedBy;
-    C.carriedBy = null; C.carry = null; C._smCool = this.g.time + CARRY.board.cool;
+    C.carriedBy = null; C.carry = null; C.sheltered = false; C._smCool = this.g.time + CARRY.board.cool;
     if (T) { const i = T.cargo.indexOf(C); if (i >= 0) T.cargo.splice(i, 1); this.boxes(T); }
     if (!C.driver) C.parked = true;
     this.stats.unloads++;
@@ -431,6 +436,8 @@ export class Semis {
     if (near && !near.why) this.hitch(v, near.T);
     else if (T) { const r = this.setRamp(T, !T.rampWant); if (!r.ok) g.hud.toast(r.why.toUpperCase(), 'warn'); }
   }
+  // Where a tractor's droppers fall: behind the trailer it pulls (systems/workshop.js dropFrom). Anything else drops behind itself.
+  dropTail(v) { return v.towing ?? null; }
   // The trailer nearest tractor K's fifth wheel (within 6 m of its kingpin), and why it can't couple yet (or null).
   nearTrailer(K) {
     const a = this.fifth(K, { x: 0, z: 0 });

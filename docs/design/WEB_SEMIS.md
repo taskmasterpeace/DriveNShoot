@@ -172,6 +172,19 @@ Or you take the LONGHAULER out empty and stand on the brakes at sixty, and the t
   - A freight tractor probes ahead every 0.3 s. Out to 26 m, any collision box whose base is above head height but under
     its height stops it short (`semiBlocked`).
 
+### 3.5b Wear and the workshop (shared with every car)
+
+- **Wear** (`systems/lookfeel.js`): the tractor and both trailers are ordinary vehicles to it. Each body is dressed with the
+  wear layer on first sight, and dust and mud build by what is under its own wheels (a trailer reads its own ground, so a
+  rig whose tail is on the shoulder dusts its tail). Scrapes along walls and the dent tint work the same way. A car in a
+  **box** hold is `sheltered` and gathers nothing while it rides; a car on the open lowboy keeps wearing.
+- **The workshop** (`data/workshop.js CHASSIS.semi`, added from `systems/semis.js` with `??=`): the LONGHAULER takes
+  plate (front 60, sides 44), a ram plate or cowcatcher, guns up to size 3 on the hood and the roof, size 2 pods on the
+  flanks, nitrous and any other utility (3600 kg, 22 spaces). Its rear point sits at the fifth wheel: size 1 and
+  **droppers only** (`drops: true`), because what it pulls is in the way of a gun. Oil, caltrops, smoke and mines fall
+  **behind the trailer it pulls** (`dropTail`), 1.6 m past the trailer's tail; with nothing hitched, behind the cab.
+- Trailers have no chassis row: the workshop refuses them (`can't be worked on`).
+
 ### 3.6 Shard shape (law 5)
 
 | | |
@@ -214,6 +227,9 @@ Or you take the LONGHAULER out empty and stand on the brakes at sixty, and the t
 | Jackknifed, then reversing | The angle comes back down through the stop; it is cleared under 0.6 rad |
 | Two cars in one box | They stop against each other along the length; the second one in sits behind |
 | Saving with a car in a hold, or a rig hitched | **Not persisted yet.** On load the vehicles come back loose and parked |
+| A gun fitted on the tractor's rear point | Refused at the counter: that point only takes droppers |
+| Dropping oil while hitched | The slick lands 1.6 m behind the trailer's tail, never under the trailer |
+| A car rides the open lowboy | It keeps gathering dust (only a box hold shelters) |
 | A restored save reuses vehicle ids | `findVeh` can return the wrong vehicle; the checks enter by reference (follow-up below) |
 
 ## 6. Dependencies, both ways
@@ -235,7 +251,11 @@ Or you take the LONGHAULER out empty and stand on the brakes at sixty, and the t
   - `seats.js leave`: `g.semis.exitInto` (out onto the hold's floor);
   - `main.js`: constructs `Semis` and calls `semis.update` after the convoy; a trailer is never a "Drive" target;
   - `vehiclebodies.js`: three body builders, the ramp and door builders, `GREENHOUSE.semi`, the lamp anchors;
-  - `agent/api.js`: the command and checks registered.
+  - `agent/api.js`: the command and checks registered;
+  - `garage.js canMount`: a mount point marked `drops` only takes droppers;
+  - `workshop.js dropFrom`: `g.semis.dropTail(v)` (drop behind the trailer);
+  - `lookfeel.js updateWear`: skips a `sheltered` vehicle (a car in a box hold).
+- **Also reads:** `data/workshop.js` `CHASSIS` (adds the `semi` row) and `MOUNT_WEAPONS` (the check).
 - **Read by:** the freight's crews (`ai.js` treats them as drifters). The convoy is untouched; it can add rigs as
   `FREIGHT.rigs` rows later.
 
@@ -292,6 +312,10 @@ Or you take the LONGHAULER out empty and stand on the brakes at sixty, and the t
    - Live: a wide-load freight (two pilots, the RV in the hold) on Route 66 stops short of a staged beam 3.6 m up.
 9. **Draw calls with a convoy of semis.** A wide-load freight with its escort, and two box rigs with cars in their holds
    and their ramps down, beside you on Route 66: under 150 draw calls.
+10. **Wear and mounts.** With a car in the box hold, the player drives the rig over the flats (wear rate x40 for 4 s):
+    the tractor and the trailer are dressed and both gather dust (> 0.05); the car in the hold stays at 0. The workshop
+    fits a ram plate (front), an oil sprayer (rear) and nitrous to the LONGHAULER, refuses a machine gun on its rear point,
+    and has no row for the trailer. The oil drops past the trailer's tail (further behind its centre than half its length).
 
 **Staging.** The checks run on the north-east flats (x 130–400, z −464…−368): open ground between the mesa and the river.
 For a check:

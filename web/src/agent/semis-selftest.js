@@ -9,6 +9,7 @@ import { VEHICLES } from '../systems/vehicles.js';
 import { TRAILERS, HITCH, validateTrailers, fitsHold } from '../data/trailers.js';
 import { validateDecks } from '../data/decks.js';
 import { outfit } from '../systems/characters.js';
+import { MOUNT_WEAPONS } from '../data/workshop.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -307,5 +308,29 @@ export async function semisChecks(api, check, C, H) {
       const n = g.vehicles.filter((v) => v.tractor || v.trailer).length;
       return calls < 150 && n >= 6 && F ? true : JSON.stringify({ calls, rigs: n });
     } finally { S().despawnFreight(); for (const r of rigs) gone(r); }
+  }));
+  await check('semis: a rig takes the same road wear and the same mounts as any car - dust builds on the tractor and its trailer over open ground (a car in the box hold stays clean), the workshop fits a ram plate, nitrous and an oil sprayer to the LONGHAULER but no gun on its fifth-wheel point, and the oil falls behind the trailer, not under it', async () => hush(async () => {
+    const back = clearGround(), L = g.look, rate0 = L.wearRate;
+    const r = rig('box', SF.x0 + 40, -430, Math.PI / 2, false), car = vs().spawn('interceptor', SF.x0 + 10, -430, Math.PI / 2, '#2a2a2a');
+    try {
+      await api._step(5);
+      const loaded = S().load(car, r.T);
+      const W = g.workshop, fit = (part, face) => W.install(r.K, { part, face, n: 4, pay: false, time: false });
+      const ram = fit('ram', 'front'), oil = fit('oil', 'rear'), gun = g.garage.canMount(r.K, 'rear', 'mg'), nos = W.install(r.K, { part: 'nitrous', pay: false, time: false });
+      const trailerShop = g.garage.chassis(r.T);
+      L.wearRate = 40;
+      // The player drives (wear is laid within sight of the camera): out over the flats at a steady pace.
+      enter(r.K); g.driveOverride = { throttle: 0.6, steer: 0 };
+      for (let f = 0; f < 60 * 4; f++) await api._step(1);
+      g.driveOverride = null; r.K.throttle = 0;
+      const gK = r.K.grime ?? {}, gT = r.T.grime ?? {}, gC = car.grime ?? {};
+      const dressed = !!r.K.mesh.material.userData.wear && !!r.T.mesh.material.userData.wear;
+      const n0 = g.garage.hazards.length, m = r.K.mounts?.rear;
+      const kind = m ? W.dropFrom(r.K, 'rear', m, MOUNT_WEAPONS[m.kind]) : null, h = g.garage.hazards[g.garage.hazards.length - 1];
+      // How far behind the trailer's centre the slick lies (along the trailer's heading): past its tail, not under it.
+      const behind = h ? -((h.x - r.T.x) * Math.sin(r.T.h) + (h.z - r.T.z) * Math.cos(r.T.h)) : 0;
+      const out = { loaded: loaded.ok, ram: ram.ok, oil: oil.ok, gun, nos: nos.ok, trailerShop: !!trailerShop, dressed, dust: [r2(gK.dust ?? 0), r2(gT.dust ?? 0), r2(gC.dust ?? 0)], surface: gK.surface, kind, dropped: g.garage.hazards.length > n0, behind: r2(behind), tail: r2(r.T.len / 2) };
+      return loaded.ok && ram.ok && oil.ok && !!gun && nos.ok && !trailerShop && dressed && gK.dust > 0.05 && gT.dust > 0.05 && (gC.dust ?? 0) === 0 && kind === 'oil' && behind > r.T.len / 2 ? true : JSON.stringify(out);
+    } finally { g.driveOverride = null; if (P().inVehicle) g.exitVehicle(true); L.wearRate = rate0; if (car.carriedBy) car.carriedBy = null; gone(r); if (g.vehicles.includes(car)) vs().remove(car); back(); }
   }));
 }
