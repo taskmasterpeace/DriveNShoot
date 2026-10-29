@@ -1,0 +1,14 @@
+{
+  "name": "role-diversity",
+  "title": "Every peopled settlement has a varied workforce: Shannon diversity of its jobs >= 1.6, no job over 25% of it, and its nearest same-kind neighbour's jobs at least 30% different (Jaccard distance).",
+  "brief": "The jobs are rows in web/src/data/occupations.js (OCCUPATIONS; MIX knobs; tag maps). web/src/world/occupations.js (read it, do NOT edit it) turns a settlement's tags, faction class and wealth into a mix: score = base + sum(fit[tag]) times fac[class] times a wealth factor times a per-settlement jitter; shares never exceed a row's `max` (else MIX.cap); `one: true` = a single worker. To push a job's share down give it a `max` or lower its fits; to make same-kind neighbours differ give the jobs they share more specific fits/needs, add a row that fits the places that fail (a real job those places would have), or adjust MIX.jitter within [0, 0.6]. The places must still READ right: ports keep dockhands and a harbourmaster, no dock work in the dry desert, mines keep diggers, raider camps keep scouts and never get teachers or judges, military sites keep sentries, swamps keep their trades.",
+  "metric": "node tools/role-diversity.mjs",
+  "detail": "node tools/role-diversity.mjs --fails",
+  "target": 1,
+  "direction": "up",
+  "files": ["src/data/occupations.js"],
+  "checks": ["node --check src/data/occupations.js", "node tools/occ-check.mjs"],
+  "rounds": 16,
+  "timeoutS": 900,
+  "agent": "claude -p --model sonnet --permission-mode acceptEdits --allowedTools Read Edit Grep"
+}
