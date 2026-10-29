@@ -4,6 +4,8 @@ import {
   INFECTION, SICKNESS, TREATMENTS, MED_ITEMS, MED_LOOT, MOODS, APPRAISALS, MOOD_EFFECTS, SHELTER, HOLD, SLEEP_COMFORT, PROWL, CONDITION,
 } from '../data/survival.js';
 import { ITEMS, LOOT } from '../data/items.js';
+import { HIT_ODDS } from '../data/gear.js';
+import { woundPart, DOLL_PART_IDS, WOUND_PARTS } from '../data/bodydoll.js';
 import { Upkeep } from './upkeep.js';
 import { Telltales } from '../ui/telltales.js';
 
@@ -269,7 +271,7 @@ export class Survival {
       if (PR.mood) this.appraise('hurt', Math.min(2, (e.amount ?? 10) / 15));
       if (PR.injuries) {
         const cause = e.cause === 'bullet' && !e.by ? 'impact' : e.cause;
-        for (const [kind, chance, min] of WOUND_FROM[cause] ?? []) if ((e.amount ?? 0) >= min && Math.random() < chance) { this.wound(kind); break; }
+        for (const [kind, chance, min] of WOUND_FROM[cause] ?? []) if ((e.amount ?? 0) >= min && Math.random() < chance) { this.wound(kind, { part: woundPart(e.part, HIT_ODDS[cause]) }); break; } // on the part the hit landed on (data/bodydoll.js)
       }
     } else if (e.type === 'kill') {
       if (!PR.mood) return;
@@ -286,6 +288,8 @@ export class Survival {
     if (!def) return null;
     if (N.wounds.length >= MAX_WOUNDS) N.wounds.shift(); // the oldest has half-mended under the new ones
     const w = { kind, left: def.heal, open: def.bleeds > 0 || def.needs.includes('bandage'), clean: !def.dirt, set: false, dirt: 0, heal: 1, at: +this.hours().toFixed(2), ...opts };
+    w.part = DOLL_PART_IDS.includes(w.part) ? w.part : woundPart(w.part, null); // where it is (the body doll): a gear part picks a side, none is the torso
+    const can = WOUND_PARTS[kind]; if (can && !can.includes(w.part)) w.part = can[Math.floor(Math.random() * can.length)]; // a sprain is a limb's
     N.wounds.push(w);
     if (def.bleeds && w.open) g.player.bleed = Math.max(g.player.bleed ?? 0, 0.5);
     g.hud?.toast?.(`${def.label}${def.bleeds ? ' · BLEEDING' : ''}${def.needs.includes('splint') ? ' · SPLINT IT' : ''}`, 'hot');

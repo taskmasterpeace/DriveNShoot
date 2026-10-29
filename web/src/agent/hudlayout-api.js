@@ -3,6 +3,7 @@
 // (each returns true or a JSON diagnostic, and puts the player's own layout back).
 import { PANELS, PANEL_IDS, PANEL_PRESET_IDS, validatePanels, validatePanelLayout } from '../data/panellayout.js';
 import { textOverlaps, rectsCross } from '../ui/panellayout.js';
+import { bodyDollChecks } from './bodydoll-api.js';
 import { HUD_LAYOUT, HUD_PRESETS, PRESET_IDS, SITUATIONS, SITUATION_IDS, ANCHORS, placeRect, resolveLayout, validateHudLayout, layoutScale, fitScale } from '../data/hudlayout.js';
 
 export function hudCommands(api, need) {
@@ -224,6 +225,7 @@ export async function hudChecks({ api, g, check }) {
   });
   restore();
   await panelChecks({ api, g, check });
+  await bodyDollChecks({ api, g, check });
 }
 
 // THE PANELS (data/panellayout.js, ui/panellayout.js, ui/paneledit.js): each check opens what it needs and shuts it again,
