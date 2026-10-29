@@ -17,7 +17,7 @@ export function understreetCommands(api, need) {
     const S = g.understreet, U = g.under;
     if (id) { const s = U.byId.get(id) ?? U.byId.get(`us_${id}`); need(s?.kind === 'drains', `no drain site "${id}" (understreet lists them)`); return s; }
     if (U.A?.site.kind === 'drains') return U.A.site;
-    const p = g.player, s = S.siteFor(p.x, p.z) ?? [...S.byTown.values()].sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+    const p = g.player, s = S.siteFor(p.x, p.z) ?? S.rows().sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
     need(s, 'no town has drains yet: stand in a town (citygen action=stamp ... teleport=true)');
     return s;
   };
@@ -29,7 +29,7 @@ export function understreetCommands(api, need) {
       args: { action: { type: 'string', default: 'list', enum: ['list', 'map', 'nearest', 'flood', 'enter', 'lid', 'proof'] }, id: { type: 'string' }, way: { type: 'string' }, kind: { type: 'string' }, level: { type: 'number', default: 0 }, x: { type: 'number' }, z: { type: 'number' }, r: { type: 'number', default: 30 }, set: { type: 'number' }, open: { type: 'boolean', default: true } },
       run: async ({ action, id, way, kind, level, x, z, r, set, open }) => {
         const S = g.understreet, U = g.under, p = g.player;
-        if (action === 'list') return { ...S.status(), towns: [...S.byTown.entries()].map(([town, s]) => { const k = {}; for (const w of s.net.ways) k[w.kind] = (k[w.kind] ?? 0) + 1; return { id: s.id, town, pipes: s.net.pipes.length, ways: k, outfall: s.net.outfall, dist: r1(Math.hypot(s.x - p.x, s.z - p.z)) }; }) };
+        if (action === 'list') return { ...S.status(), towns: S.rows().map((s) => { const town = s.town ?? (s.ring ? `ring ${s.ring.join(':')}` : s.id); const k = {}; for (const w of s.net.ways) k[w.kind] = (k[w.kind] ?? 0) + 1; return { id: s.id, town, pipes: s.net.pipes.length, ways: k, outfall: s.net.outfall, dist: r1(Math.hypot(s.x - p.x, s.z - p.z)) }; }) };
         if (action === 'proof') {
           const t0 = performance.now(), bad = [], out = { towns: 0, ways: 0, manholes: 0, pipes: 0 };
           for (const a of Object.keys(ARCHETYPES)) for (const seed of [7, 3301]) {
@@ -38,7 +38,23 @@ export function understreetCommands(api, need) {
             const L = genLevel(s, 1); out.towns++; out.ways += L.ways.length; out.pipes += s.net.pipes.length; out.manholes += L.ways.filter((w) => w.kind === 'manhole').length;
             if (!L.proof.ok) bad.push(`${a}#${seed}: ${L.proof.unreached.slice(0, 4).join(',')} sealed ${L.proof.sealed}`);
           }
-          return { ...out, unproved: bad, rows: validateUnderstreet(undefined, ITEMS), ms: Math.round(performance.now() - t0) };
+          // the Phoenix ring: every district's own level proved, and its water reaching an outfall (its own, or through its
+          // interceptor grille the next district's, toward the wash)
+          const ring = { districts: 0, outfalls: 0, chained: 0, bad: [] };
+          if (S.g.streamer?.W?.ring) {
+            const rows = new Map(), get = (k, j) => { const key = `${k},${j}`; if (!rows.has(key)) rows.set(key, S.ringRow(k, j)); return rows.get(key); };
+            for (let k = -7; k <= 6; k++) for (let j = -7; j <= 6; j++) {
+              const s0 = get(k, j); if (!s0) continue;
+              ring.districts++;
+              const L = genLevel(s0, 1);
+              if (!L.proof.ok) { ring.bad.push(`${s0.id}: ${L.proof.unreached.slice(0, 3).join(',')}`); continue; }
+              if (s0.net.outfall) { ring.outfalls++; continue; }
+              let ck = k, cj = j, ok = false;
+              for (let n = 0; n < 16; n++) { const r = get(ck, cj), I = r?.net.intercept; if (!r) break; if (r.net.outfall) { ok = true; break; } ck += I.axis === 'x' ? I.s : 0; cj += I.axis === 'z' ? I.s : 0; }
+              if (ok) ring.chained++; else ring.bad.push(`${s0.id}: its interceptor chain reaches no outfall`);
+            }
+          }
+          return { ...out, unproved: bad, ring, rows: validateUnderstreet(undefined, ITEMS), ms: Math.round(performance.now() - t0) };
         }
         const s = rowOf(id), P = planSite(s), rec = S.rec(s);
         if (action === 'map') { const L = genLevel(s, 1), cx = x ?? p.x, cz = z ?? p.z; return { site: s.id, ox: L.ox, oz: L.oz, W: L.W, H: L.H, y: L.y, map: drainMap(L, cx, cz, Math.min(60, r)), legend: '# rock . floor ~ channel = shaft/ramp + bars M a way\'s foot c box z infected p person ? note g generator' }; }
@@ -118,9 +134,9 @@ export async function understreetChecks({ api, g, check, C }) {
     return v.ok && v.counts.pipes >= 5 && v.counts.ways >= 5 ? true : JSON.stringify(v);
   });
 
-  await check('understreet: every town has a connected drain network reaching an outfall - every town archetype x 2 seeds laid out and piped: a trunk under its main street, laterals under the rest, drains down its alleys, an outfall (its ramp to the bank or the wash), a culvert under the road; from the outfall\'s foot the flood reaches every pipe, chamber and way, and nothing is cut off', async () => {
+  await check('understreet: every town has a connected drain network reaching an outfall - every town archetype x 2 seeds laid out and piped: a trunk under its main street, laterals under the rest, drains down its alleys, an outfall (its ramp to the bank or the wash), a culvert under the road; from the outfall\'s foot the flood reaches every pipe, chamber and way, and nothing is cut off; and every district of the Phoenix ring is proved the same way, its water reaching an outfall (its own into the river, the old wash or the desert past the edge, or the next district\'s through its interceptor grille)', async () => {
     const r = await C('understreet', { action: 'proof' });
-    return r.ok !== false && !r.unproved.length && r.rows.ok && r.towns >= 50 && r.manholes > 500 ? true : JSON.stringify({ unproved: r.unproved?.slice(0, 6), rows: r.rows?.bad?.slice(0, 6), towns: r.towns, manholes: r.manholes });
+    return r.ok !== false && !r.unproved.length && r.rows.ok && r.towns >= 50 && r.manholes > 500 && r.ring.districts >= 40 && !r.ring.bad.length && r.ring.outfalls >= 10 ? true : JSON.stringify({ unproved: r.unproved?.slice(0, 6), rows: r.rows?.bad?.slice(0, 6), towns: r.towns, manholes: r.manholes, ring: { ...r.ring, bad: r.ring?.bad?.slice(0, 6) } });
   });
 
   await check('understreet: every manhole connects to the network - in 10 archetypes x 2 seeds every manhole\'s lid is on a street or an alley (never in a building or a yard), its shaft lands on the level beside a pipe, and its foot is joined to the outfall', async () => {

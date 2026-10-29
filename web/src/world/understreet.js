@@ -77,8 +77,18 @@ function planNet(T, world, seed, y0) {
     if (a1 - a0 < 10) continue;
     pipes.push({ id: `p${pipes.length}`, cls: 'alley', axis, at, a0: rnd(a0), a1: rnd(a1), w: PIPES.alley.w, alley: A.id, corr: { x0: A.x0, z0: A.z0, x1: A.x1, z1: A.z1 } });
   }
-  const trunks = pipes.filter((p) => p.cls === 'trunk');
+  let trunks = pipes.filter((p) => p.cls === 'trunk');
   const main = trunks.reduce((a, p) => (p.a1 - p.a0 > a.a1 - a.a0 ? p : a), trunks[0]);
+  // only what joins the main trunk is piped: a street piece cut off on its own (past the freeway, by the island) has no drain
+  {
+    // two pipes join if their cells share an edge a metre long (the level floods four ways)
+    const rc = (p) => { const w = (p.outW ?? p.w) / 2, at = Math.round(p.at - w); return p.axis === 'x' ? { x0: Math.round(p.a0), x1: Math.round(p.a1), z0: at, z1: at + 2 * w } : { x0: at, x1: at + 2 * w, z0: Math.round(p.a0), z1: Math.round(p.a1) }; };
+    const meets = (a, b) => { const A = rc(a), B = rc(b), ox = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0), oz = Math.min(A.z1, B.z1) - Math.max(A.z0, B.z0); return (ox >= 0 && oz >= 1) || (oz >= 0 && ox >= 1); };
+    const keep = new Set([main]), todo = [main];
+    while (todo.length) { const a = todo.pop(); for (const b of pipes) if (!keep.has(b) && meets(a, b)) { keep.add(b); todo.push(b); } }
+    for (let i = pipes.length - 1; i >= 0; i--) if (!keep.has(pipes[i])) pipes.splice(i, 1);
+    trunks = pipes.filter((p) => p.cls === 'trunk');
+  }
   // junction chambers where a trunk crosses another pipe
   for (const P of pipes) if (P.axis === 'x') for (const Q of pipes) {
     if (Q.axis !== 'z' || (P.cls !== 'trunk' && Q.cls !== 'trunk')) continue;
@@ -99,30 +109,29 @@ function planNet(T, world, seed, y0) {
   for (const P of order) {
     for (const s of [1, -1]) {
       const end = s > 0 ? P.a1 : P.a0;
-      for (let d = 4; d <= O.search; d += 2) {
+      for (let d = 4; d <= (world.search ?? O.search); d += 2) {
         const a = end + s * d, x = P.axis === 'x' ? a : P.at, z = P.axis === 'x' ? P.at : a;
-        if (wet(x, z) > 0.3) { if (d >= 14) out = { pipe: P, s, bank: a - s * 3, water: true }; break; }
+        const wv = wet(x, z);
+        if (wv > 0.3) { if (d >= 14) out = { pipe: P, s, bank: a - s * 3, water: wv < 2 }; else if (wv >= 2) out = { pipe: P, s, bank: end + s * 14, water: false }; break; } // wet 2: dry ground that takes the water (a wash, the desert): the ramp may stand right in it
       }
       if (out) break;
     }
     if (out) break;
   }
+  // A district of the Phoenix ring that reaches no water within `search` of its pipes' ends: its trunk runs on toward the
+  // wash under the next district, behind an interceptor grille at its edge (world.toward: which way the wash lies).
+  if (!out && world.toward) {
+    const ax = world.toward.x ? 'x' : 'z', P1 = trunks.find((q) => q.axis === ax) ?? main, s0 = Math.sign(ax === 'x' ? world.toward.x : world.toward.z) || 1;
+    out = { pipe: P1, s: s0, interceptor: true, water: false };
+  }
   if (!out) out = { pipe: main, s: 1, bank: main.a1 + 16, water: false };
+  let oWay = null, P0 = out.pipe, root = null, intercept = null;
+  const roadHalf = main.road ? (ROADS[main.road.row]?.w ?? main.road.w ?? 8) / 2 + (ROADS[main.road.row]?.walk ?? 1) : 6;
+  if (world.culvert !== false) {
   // The culvert: under the main road, `out` m past the town's edge at the end away from the outfall.
   const cs = out.pipe === main ? -out.s : 1, cEnd = cs > 0 ? main.a1 : main.a0, cA = cEnd + cs * WAYS.culvert.out;
-  const roadHalf = main.road ? (ROADS[main.road.row]?.w ?? 8) / 2 + (ROADS[main.road.row]?.walk ?? 1) : 6;
   // the trunk carries on to the culvert and the outfall's pipe to its ramp's foot
   if (cs > 0) main.a1 = cA + PIPES.culvert.w / 2; else main.a0 = cA - PIPES.culvert.w / 2;
-  const P0 = out.pipe, yBank = ground(P0.axis === 'x' ? out.bank : P0.at, P0.axis === 'x' ? P0.at : out.bank);
-  const oLen = Math.max(2, Math.ceil((yBank - yFloor) / O.flight.pitch));
-  const foot = out.bank - out.s * oLen;
-  if (out.s > 0) P0.a1 = Math.max(P0.a1, foot + 1); else P0.a0 = Math.min(P0.a0, foot - 1);
-  if (P0.cls !== 'trunk') P0.outW = PIPES.outfall.w;
-  const oWay = { id: 'outfall', kind: 'outfall', axis: P0.axis, u: -out.s, aTop: out.bank, b0: P0.at - Math.floor(O.flight.w / 2), wc: O.flight.w, yTop: r2(yBank), water: out.water, bars: rng.chance(O.bars) };
-  ways.push(oWay);
-  // the outfall pipe: from the town's edge to the foot (wider than a lateral)
-  const tEnd = out.s > 0 ? (P0.axis === 'x' ? T.x1 : T.z1) : (P0.axis === 'x' ? T.x0 : T.z0);
-  if (Math.abs(foot - tEnd) > 3) pipes.push({ id: `p${pipes.length}`, cls: 'outfall', axis: P0.axis, at: P0.at, a0: Math.min(tEnd, foot), a1: Math.max(tEnd, foot), w: PIPES.outfall.w });
   // the culvert box across the road, and a ramp up out of each end
   const C = WAYS.culvert, cw = PIPES.culvert.w, cHalf = Math.ceil(roadHalf + 3), across = main.axis === 'x' ? 'z' : 'x';
   const cLen = Math.max(4, Math.ceil(SEWER.depth / C.flight.pitch));
@@ -132,9 +141,27 @@ function planNet(T, world, seed, y0) {
     const len = Math.max(2, Math.ceil((yT - yFloor) / C.flight.pitch)), aTop = main.at + s * (cHalf + len); // the ramp's foot meets the box
     ways.push({ id: `culvert${s > 0 ? 'B' : 'A'}`, kind: 'culvert', axis: across, u: -s, aTop, b0: rnd(cA) - Math.floor(C.flight.w / 2), wc: C.flight.w, yTop: r2(yT) });
   }
+  }
+  if (out.interceptor) {
+    // the grille a metre in from the trunk's end at the district's edge; the flow runs to it
+    const M = out.pipe, end = out.s > 0 ? M.a1 : M.a0, a = end - out.s * 1.5;
+    intercept = { axis: M.axis, at: M.at, a: rnd(a), s: out.s, w: M.w, toward: world.toward };
+    root = M.axis === 'x' ? { x: rnd(a) + 0.5 - out.s * 1, z: M.at + 0.5 } : { x: M.at + 0.5, z: rnd(a) + 0.5 - out.s * 1 };
+  } else {
+  const yBank = ground(P0.axis === 'x' ? out.bank : P0.at, P0.axis === 'x' ? P0.at : out.bank);
+  const oLen = Math.max(2, Math.ceil((yBank - yFloor) / O.flight.pitch));
+  const foot = out.bank - out.s * oLen;
+  if (out.s > 0) P0.a1 = Math.max(P0.a1, foot + 1); else P0.a0 = Math.min(P0.a0, foot - 1);
+  if (P0.cls !== 'trunk') P0.outW = PIPES.outfall.w;
+  oWay = { id: 'outfall', kind: 'outfall', axis: P0.axis, u: -out.s, aTop: out.bank, b0: P0.at - Math.floor(O.flight.w / 2), wc: O.flight.w, yTop: r2(yBank), water: out.water, bars: rng.chance(O.bars) };
+  ways.push(oWay);
+  // the outfall pipe: from the town's edge to the foot (wider than a lateral)
+  const tEnd = out.s > 0 ? (P0.axis === 'x' ? T.x1 : T.z1) : (P0.axis === 'x' ? T.x0 : T.z0);
+  if (Math.abs(foot - tEnd) > 3) pipes.push({ id: `p${pipes.length}`, cls: 'outfall', axis: P0.axis, at: P0.at, a0: Math.min(tEnd, foot), a1: Math.max(tEnd, foot), w: PIPES.outfall.w });
+  }
   // The pump station (a big town): beside the trunk, a third of the way in from the outfall's end, joined by a passage.
   const size = Math.max(T.x1 - T.x0, T.z1 - T.z0);
-  if (size >= CHAMBERS.pump.minSize) {
+  if (size >= CHAMBERS.pump.minSize && world.pump !== false) {
     const Pm = CHAMBERS.pump, a = rnd(out.pipe === main ? (out.s > 0 ? main.a1 - (main.a1 - main.a0) * 0.35 : main.a0 + (main.a1 - main.a0) * 0.35) : (main.a0 + main.a1) / 2);
     for (const side of [1, -1]) {
       const off = main.at + side * (main.w / 2 + 4 + Pm.d / 2);
@@ -184,8 +211,10 @@ function planNet(T, world, seed, y0) {
   const tops = ways.map((w) => wayTop(w));
   const near = (x, z, r) => tops.some((t) => Math.abs(t.x - x) < r && Math.abs(t.z - z) < r);
   const wrecks = T.wrecks ?? [];
-  const onRoad = (x, z, P) => (P.road ? x > P.road.x0 + 0.3 && x < P.road.x1 - 0.3 && z > P.road.z0 + 0.3 && z < P.road.z1 - 0.3 : P.corr ? x > P.corr.x0 + 0.3 && x < P.corr.x1 - 0.3 && z > P.corr.z0 + 0.3 && z < P.corr.z1 - 0.3 : false);
+  const inR = (x, z, r) => x > r.x0 + 0.3 && x < r.x1 - 0.3 && z > r.z0 + 0.3 && z < r.z1 - 0.3;
+  const onRoad = (x, z, P) => (P.road?.pieces ? P.road.pieces.some((r) => inR(x, z, r)) : P.road ? x > P.road.x0 + 0.3 && x < P.road.x1 - 0.3 && z > P.road.z0 + 0.3 && z < P.road.z1 - 0.3 : P.corr ? x > P.corr.x0 + 0.3 && x < P.corr.x1 - 0.3 && z > P.corr.z0 + 0.3 && z < P.corr.z1 - 0.3 : false);
   let mh = 0, gr = 0;
+  const shafts = []; // the manholes' niches: a grate's stub never cuts through one
   for (const P of pipes) {
     if (P.cls !== 'trunk' && P.cls !== 'lateral' && P.cls !== 'alley') continue;
     const M = WAYS.manhole, run = Math.max(2, Math.ceil(SEWER.depth / M.flight.pitch));
@@ -199,17 +228,19 @@ function planNet(T, world, seed, y0) {
       const t = P.axis === 'x' ? { x: aa - u * 0.9, z: b0 + 0.5 } : { x: b0 + 0.5, z: aa - u * 0.9 };
       if (!onRoad(t.x, t.z, P) || near(t.x, t.z, 6) || wrecks.some((w) => Math.hypot(w.x - t.x, w.z - t.z) < 3.4) || rooms.some((r) => overlap(r, R, 3)) || pipes.some((q) => q !== P && hitsPipe(q, R, 1))) { side = -side; continue; }
       ways.push({ id: `mh${mh++}`, kind: 'manhole', axis: P.axis, u, aTop: aa, b0, wc: 1, yTop: r2(ground(t.x, t.z)), pipe: P.id });
+      shafts.push(R);
       tops.push(t);
       side = -side;
     }
     if (P.cls === 'alley' || !P.road) continue;
-    const G = WAYS.grate, rw = (ROADS[P.road.row]?.w ?? 8) / 2, gside0 = rng.chance(0.5) ? 1 : -1;
+    const G = WAYS.grate, rw = (ROADS[P.road.row]?.w ?? P.road.w ?? 8) / 2, gside0 = rng.chance(0.5) ? 1 : -1;
     let k = 0;
     for (let a = P.a0 + 6 + G.every / 2; a < P.a1 - 6; a += G.every, k++) {
       const s = k % 2 ? -gside0 : gside0, aa = rnd(a), kerb = rnd(P.at + s * (rw - 0.4)), edge = P.at + s * (P.w / 2);
       if (Math.abs(kerb - edge) < 1) continue;
       const t = P.axis === 'x' ? { x: aa + 0.5, z: kerb } : { x: kerb, z: aa + 0.5 };
-      if (near(t.x, t.z, 4) || rooms.some((r) => t.x > r.x0 - 2 && t.x < r.x1 + 2 && t.z > r.z0 - 2 && t.z < r.z1 + 2)) continue;
+      const lo = Math.min(edge, kerb), hi = Math.max(edge, kerb), SR = P.axis === 'x' ? { x0: aa - 0.5, x1: aa + 1.5, z0: lo, z1: hi } : { x0: lo, x1: hi, z0: aa - 0.5, z1: aa + 1.5 };
+      if (near(t.x, t.z, 4) || rooms.some((r) => t.x > r.x0 - 2 && t.x < r.x1 + 2 && t.z > r.z0 - 2 && t.z < r.z1 + 2) || shafts.some((r) => overlap(r, SR, 0.5))) continue;
       const loose = rng.chance(G.enter) && Math.abs(kerb - edge) >= 2;
       const run = Math.max(2, Math.ceil(SEWER.depth / G.flight.pitch));
       if (loose && Math.abs(kerb - edge) >= run) {
@@ -226,7 +257,7 @@ function planNet(T, world, seed, y0) {
   for (const r of rooms) grow(r.x0, r.z0, r.x1, r.z1);
   for (const w of ways) { const t = wayTop(w); grow(t.x - 2, t.z - 2, t.x + 2, t.z + 2); }
   const m = SEWER.margin + 2;
-  return { y0, frame: { x0: Math.floor(x0) - m, z0: Math.floor(z0) - m, x1: Math.ceil(x1) + m, z1: Math.ceil(z1) + m }, pipes: pipes.map(({ road, corr, ...p }) => p), rooms, ways, lights, outfall: { water: out.water, x: wayTop(oWay).x, z: wayTop(oWay).z, pipe: P0.id }, size };
+  return { y0, frame: { x0: Math.floor(x0) - m, z0: Math.floor(z0) - m, x1: Math.ceil(x1) + m, z1: Math.ceil(z1) + m }, pipes: pipes.map(({ road, corr, ...p }) => p), rooms, ways, lights, outfall: oWay ? { water: out.water, x: wayTop(oWay).x, z: wayTop(oWay).z, pipe: P0.id } : null, intercept, root, size };
 }
 const overlap = (a, b, m = 0) => a.x0 - m < b.x1 && a.x1 + m > b.x0 && a.z0 - m < b.z1 && a.z1 + m > b.z0;
 function hitsPipe(p, R, m) { const w = (p.outW ?? p.w) / 2; const q = p.axis === 'x' ? { x0: p.a0, z0: p.at - w, x1: p.a1, z1: p.at + w } : { x0: p.at - w, z0: p.a0, x1: p.at + w, z1: p.a1 }; return overlap(q, R, m); }
@@ -300,14 +331,22 @@ function genDrains(site, k, P) {
   }
   // 3. the outfall's bars (a grille across its pipe a metre in from the ramp's foot) and the culvert's
   const OF = P.flights[0], OW = P.ways[0];
-  if (OW.bars) {
+  if (OW?.kind === 'outfall' && OW.bars) {
     const fx = OF.bottom.x + (OF.axis === 'x' ? OF.u * 0.6 : 0), fz = OF.bottom.z + (OF.axis === 'z' ? OF.u * 0.6 : 0);
     const ax = OF.axis === 'x' ? 'z' : 'x'; // the grille's line runs across the pipe
     L.doors.push({ id: `${site.id}:1:bars`, room: null, x: r2(OF.axis === 'x' ? Math.round(fx) : OF.b0 + OF.wc / 2), z: r2(OF.axis === 'z' ? Math.round(fz) : OF.b0 + OF.wc / 2), axis: ax, nx: OF.axis === 'x' ? -OF.u : 0, nz: OF.axis === 'z' ? -OF.u : 0, width: OF.wc, leaves: 2, hinge: 1, material: 'bars', locked: true, bars: true });
   }
+  // a ring district's interceptor: the trunk runs on under the next district behind iron (it never opens: the next
+  // district's pipes are another level; the water goes through, you do not)
+  if (N.intercept) {
+    const I = N.intercept, a = I.a + 0.5 * (I.s > 0 ? 1 : 0);
+    L.colliders.push(I.axis === 'x' ? { x0: I.a + (I.s > 0 ? 0.7 : 0.2), z0: I.at - I.w / 2, x1: I.a + (I.s > 0 ? 0.8 : 0.3), z1: I.at + I.w / 2, base: y, top: y + UG.wallH, tag: 'ug-gate' } : { x0: I.at - I.w / 2, z0: I.a + (I.s > 0 ? 0.7 : 0.2), x1: I.at + I.w / 2, z1: I.a + (I.s > 0 ? 0.8 : 0.3), base: y, top: y + UG.wallH, tag: 'ug-gate' });
+    L.intercept = { ...I, x: I.axis === 'x' ? a : I.at, z: I.axis === 'x' ? I.at : a };
+    void a;
+  }
   // 4. the flow field: steps from the outfall's foot over the floor (the water runs down it), and the proof
   const dist = new Int32Array(W * H).fill(-1), Q = new Int32Array(W * H);
-  const s = cellOf(OF.bottom.x, OF.bottom.z);
+  const R0 = N.root ?? OF.bottom, s = cellOf(R0.x, R0.z);
   let h = 0, t = 0;
   if (s >= 0) { dist[s] = 0; Q[t++] = s; }
   while (h < t) {
@@ -319,7 +358,8 @@ function genDrains(site, k, P) {
   let open = 0, sealed = 0;
   for (let q = 0; q < W * H; q++) if (L.cells[q] === OPEN) { if (dist[q] >= 0) open++; else { L.cells[q] = ROCK; L.cls[q] = 0; L.space[q] = -1; sealed++; } }
   const unreached = [];
-  for (const p of N.pipes) { const m = (p.a0 + p.a1) / 2, q = p.axis === 'x' ? cellOf(m, p.at) : cellOf(p.at, m); if (q < 0 || dist[q] < 0) unreached.push(p.id); }
+  // a pipe is joined when some floor along its centre line is reached (a ramp may cover the rest of it)
+  for (const p of N.pipes) { let open2 = 0, hit = 0; for (let a = Math.ceil(p.a0); a < p.a1; a++) { const q = p.axis === 'x' ? cellOf(a + 0.5, p.at + 0.5) : cellOf(p.at + 0.5, a + 0.5); if (q >= 0 && L.cells[q] === OPEN) { open2++; if (dist[q] >= 0) hit++; } } if (open2 && !hit) unreached.push(p.id); }
   for (const w of P.ways) { const q = cellOf(w.bottom.x, w.bottom.z); if (q < 0 || dist[q] < 0) unreached.push(w.id); }
   for (const r of L.rooms) { const q = cellOf((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2); if (q < 0 || dist[q] < 0) unreached.push(r.id); }
   // 5. colliders: the rock that touches a floor cell, merged; the flights' flanks and blocks
@@ -332,17 +372,17 @@ function genDrains(site, k, P) {
     if (touch) edge[q] = 1;
   }
   for (const R of mergeRects(edge, W, H)) L.colliders.push({ x0: ox + R[0], z0: oz + R[1], x1: ox + R[2], z1: oz + R[3], base: y, top: y + UG.wallH, tag: 'ug-wall' });
-  L.walls = L.colliders.map((b) => [b.x0, b.z0, b.x1, b.z1]);
+  L.walls = L.colliders.filter((b) => b.tag === 'ug-wall').map((b) => [b.x0, b.z0, b.x1, b.z1]);
   L.edge = edge;
   for (const f of P.flights) flightColliders(L, f);
   // 6. floors, by class
   const masks = new Map();
   for (let q = 0; q < W * H; q++) if (L.cells[q] === OPEN) { const c = L.cls[q]; if (!masks.has(c)) masks.set(c, new Uint8Array(W * H)); masks.get(c)[q] = 1; }
   for (const [c, mask] of masks) for (const R of mergeRects(mask, W, H)) L.floors.push([ox + R[0], oz + R[1], ox + R[2], oz + R[3], FLOOR_OF[c] ?? '#4a463d']);
-  L.arrival = { x: OF.bottom.x, z: OF.bottom.z };
+  L.arrival = { x: OF.bottom.x, z: OF.bottom.z }; // the first way's foot (the outfall's, when there is one)
   // 7. what is in it
   furnish(L, N, P, rng, cellOf, dist);
-  L.proof = { ok: !unreached.length && sealed < open * 0.01, unreached, open, sealed, pipes: N.pipes.length, ways: P.ways.length, rooms: L.rooms.length, outfall: { ...N.outfall }, start: [r2(OF.bottom.x), r2(OF.bottom.z)] };
+  L.proof = { ok: !unreached.length && sealed < open * 0.01, unreached, open, sealed, pipes: N.pipes.length, ways: P.ways.length, rooms: L.rooms.length, outfall: { ...N.outfall }, start: [r2(R0.x), r2(R0.z)], intercept: !!N.intercept };
   // 8. the hash
   const Hh = new Hasher().str(L.site).num(ox).num(oz).int(W).int(H);
   for (let q = 0; q < W * H; q++) Hh.int(L.cells[q] | (L.cls[q] << 4));
@@ -448,6 +488,26 @@ export function drainMap(L, cx = null, cz = null, r = 40) {
   for (const s of L.spawns) put(s.x, s.z, s.kind === 'drifter' ? 'p' : 'z');
   if (L.generator) put(L.generator.x, L.generator.z, 'g');
   return rows.map((r) => r.join('')).join('\n');
+}
+
+// ---- the Phoenix ring's districts -------------------------------------------------------------------------------------
+// The ring (world/ring.js) is a 3 km metro: its drains are cut into districts of 4 x 4 blocks, their edges mid-block (so a
+// district's streets are whole), each one drain site: a trunk under its arterials, laterals under its streets, the
+// outfall where a pipe's line reaches the old river's wash (or water), else an interceptor grille where the trunk runs on
+// toward the wash under the next district. RING_TILE / RING_OFF: the cut.
+export const RING_TILE = 320, RING_OFF = -120;
+export const ringTileOf = (x, z) => [Math.floor((x - RING_OFF) / RING_TILE), Math.floor((z - RING_OFF) / RING_TILE)];
+// A town plan (the shape planNet reads) for district (k, j), or null (no streets there). wash(x, z): the point on the
+// wash nearest (for `toward`).
+export function ringPlan(ring, k, j) {
+  const x0 = RING_OFF + k * RING_TILE, z0 = RING_OFF + j * RING_TILE, x1 = x0 + RING_TILE, z1 = z0 + RING_TILE;
+  const S = ring.streets(x0, z0, x1, z1);
+  if (S.length < 3) return null;
+  // a street line cut by I-10 (a local street stops short of the freeway) is one pipe: it runs on under the freeway
+  const byLine = new Map();
+  for (const q of S) { const k2 = `${q.axis}:${q.line}`, L = byLine.get(k2); if (L) L.push(q); else byLine.set(k2, [q]); }
+  const roads = [...byLine.values()].map((qs) => { const q = qs[0], ax = q.axis === 'z' ? 'z' : 'x'; return { axis: ax, at: ax === 'z' ? (q.x0 + q.x1) / 2 : (q.z0 + q.z1) / 2, x0: Math.min(...qs.map((r) => r.x0)), z0: Math.min(...qs.map((r) => r.z0)), x1: Math.max(...qs.map((r) => r.x1)), z1: Math.max(...qs.map((r) => r.z1)), pieces: qs.length > 1 ? qs.map((r) => ({ x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1 })) : null, row: null, w: q.art ? 14 : 8, main: !!q.art }; });
+  return { id: `ring_${k}_${j}`, name: `THE RING · DISTRICT ${k}:${j}`, x0, z0, x1, z1, roads, alleys: [], buildings: [], wrecks: [] };
 }
 
 GEN.drains = { plan: planDrains, level: genDrains };

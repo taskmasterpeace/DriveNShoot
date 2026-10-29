@@ -133,6 +133,8 @@ export function buildBelow(L, M) {
   }
   // what the water left: silt at the trunk's walls, a weir across each junction's low side, rubbish in the channel
   for (const r of L.rooms) if (r.type === 'junction') { const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2; deco.push([cx, y + 0.18, r.z0 + 0.6, r.x1 - r.x0 - 0.4, 0.36, 0.3, '#6a6458'], [cx, y + 0.18, r.z1 - 0.6, r.x1 - r.x0 - 0.4, 0.36, 0.3, '#6a6458']); }
+  // a ring district's interceptor: iron bars across the trunk where it runs on toward the wash
+  if (L.intercept) { const I = L.intercept, n = I.w * 4; for (let i = 0; i <= n; i++) { const b = I.at - I.w / 2 + (i / n) * I.w; const a = I.a + (I.s > 0 ? 0.75 : 0.25); deco.push(I.axis === 'x' ? [a, y + UG.wallH / 2, b, 0.07, UG.wallH, 0.07, '#4e463c'] : [b, y + UG.wallH / 2, a, 0.07, UG.wallH, 0.07, '#4e463c']); } }
   for (let i = 0; i < 160; i++) {
     const q = Math.floor(hash(i, L.ox, 3) * W * H);
     for (let t = 0; t < 40; t++) { const qq = (q + t * 7919) % (W * H); if (L.cells[qq] === OPEN && (L.cls[qq] === CLS.channel || L.cls[qq] === CLS.lateral)) { const x = L.ox + (qq % W) + hash(i, 1) * 0.8 + 0.1, z = L.oz + Math.floor(qq / W) + hash(i, 2) * 0.8 + 0.1, k = hash(i, 4); deco.push([x, y + 0.03, z, 0.2 + k * 0.5, 0.06, 0.15 + hash(i, 5) * 0.4, k < 0.3 ? '#5a4a36' : k < 0.6 ? '#3e3a32' : '#6a5e48', k * 6]); break; } }

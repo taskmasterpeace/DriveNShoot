@@ -2,8 +2,8 @@ import { StaticWorld } from '../engine/collision.js';
 import { LOOT } from '../data/items.js';
 import { DOOR_MATERIALS } from '../data/interiors.js';
 import { UG, LOGS, NOISE } from '../data/underground.js';
-import { SEWER, WAYS, FLOOD, CURRENT, LIFE, US_LOOT, US_LOGS, BARS } from '../data/understreet.js';
-import { drainSite, CLS, LIFT_OF } from '../world/understreet.js';
+import { SEWER, WAYS, FLOOD, CURRENT, LIFE, US_LOOT, US_LOGS, BARS, RING_DRAINS } from '../data/understreet.js';
+import { drainSite, CLS, LIFT_OF, ringPlan, ringTileOf } from '../world/understreet.js';
 import { planSite, OPEN } from '../world/undergen.js';
 import { makeLookMaterials, buildWays, setLid, buildBelow, setWater, setDay, setRats } from './understreetlook.js';
 
@@ -23,6 +23,7 @@ import { makeLookMaterials, buildWays, setLid, buildBelow, setWater, setDay, set
 // Nothing here regenerates: caches are the inventory's ring boxes (rolled once), the dead stay dead in the record.
 
 const r1 = (v) => Math.round(v * 10) / 10;
+const SHAFT_EAR = 9; // m: a sound the dead remember this near an open shaft's top is the one that came up it (a heard spot scatters 4-5 m)
 const _t = { x: 0, z: 0 };
 export class UnderStreet {
   constructor(g) {
@@ -79,6 +80,58 @@ export class UnderStreet {
     const i = U.sites.indexOf(row); if (i >= 0) U.sites.splice(i, 1);
     U.byId.delete(row.id);
     this.byTown.delete(t.rec.id);
+  }
+  // The Phoenix ring's districts round you (a row each, made when you come near, released when you are far): every 2 s.
+  ringScan() {
+    const g = this.g, W = g.streamer?.W, R = W?.ring, p = g.player, U = this.U;
+    if (!R || !this.enabled) return;
+    if (!R.inCity(p.x, p.z, 420)) { if (!this.ringRows?.size) return; }
+    this.ringRows ??= new Map();
+    const [k0, j0] = ringTileOf(p.x, p.z), N = RING_DRAINS.near;
+    for (let k = k0 - N; k <= k0 + N; k++) for (let j = j0 - N; j <= j0 + N; j++) {
+      const key = `${k},${j}`;
+      if (this.ringRows.has(key)) continue;
+      const row = this.ringRow(k, j);
+      this.ringRows.set(key, row);
+      if (!row) continue;
+      row.attachR = row.half + 24; // a district's ways come in as you near it (not all nine round you)
+      if (!U.byId.has(row.id)) { U.sites.push(row); U.byId.set(row.id, row); }
+      this.counts.ring = (this.counts.ring ?? 0) + 1;
+    }
+    for (const [key, row] of this.ringRows) {
+      const [k, j] = key.split(',').map(Number);
+      if (Math.max(Math.abs(k - k0), Math.abs(j - j0)) <= RING_DRAINS.keep) continue;
+      if (row && (U.A?.site === row)) continue;
+      if (row) { U.detach(row.id); const i = U.sites.indexOf(row); if (i >= 0) U.sites.splice(i, 1); U.byId.delete(row.id); }
+      this.ringRows.delete(key);
+    }
+  }
+  // District (k, j)'s row (pure of the ring's rows and the world's water and ground), or null: no streets there.
+  ringRow(k, j) {
+    const g = this.g, W = g.streamer?.W, R = W?.ring;
+    if (!R) return null;
+    const key = `${k},${j}`;
+    {
+      let T = null;
+      try { T = ringPlan(R, k, j); } catch (e) { console.warn('[understreet] ring', key, e); }
+      if (!T) return null;
+      const cx = (T.x0 + T.x1) / 2, cz = (T.z0 + T.z1) / 2;
+      let y0 = Infinity; for (const r of T.roads) y0 = Math.min(y0, W.groundAt ? W.groundAt((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2) : 0);
+      if (!Number.isFinite(y0)) y0 = 0;
+      const [ax, az, bx, bz] = RING_DRAINS.wash, wx = bx - ax, wz = bz - az, l2 = wx * wx + wz * wz;
+      const washD = (x, z) => { const t = Math.max(0, Math.min(1, ((x - ax) * wx + (z - az) * wz) / l2)); return Math.hypot(x - ax - wx * t, z - az - wz * t); };
+      const t = Math.max(0, Math.min(1, ((cx - ax) * wx + (cz - az) * wz) / l2)), nx = ax + wx * t - cx, nz = az + wz * t - cz;
+      // where the water goes: the island's river, the old wash, or the dry desert past the city's edge (a district on the
+      // edge empties there); a district that reaches none of them sends it on toward the nearer of the wash and the edge
+      const I = R.I ?? 470, desert = (x, z) => !(Math.abs(x) <= I && Math.abs(z) <= I) && R.depth(x, z) < -RING_DRAINS.edgeIn;
+      const out = Math.abs(cx) > Math.abs(cz) ? { x: Math.sign(cx), z: 0 } : { x: 0, z: Math.sign(cz) };
+      const viaWash = Math.hypot(nx, nz) < RING_DRAINS.washReach;
+      const world = { wet: (x, z) => Math.max(g.water?.depthAt?.(x, z) ?? 0, washD(x, z) < RING_DRAINS.washW || desert(x, z) ? 2 : 0), ground: (x, z) => (W.groundAt ? W.groundAt(x, z) : y0), toward: viaWash ? (Math.abs(nx) > Math.abs(nz) ? { x: Math.sign(nx), z: 0 } : { x: 0, z: Math.sign(nz) }) : out, pump: false, culvert: false, search: RING_DRAINS.search };
+      let row = null;
+      try { row = drainSite({ id: T.id, seed: ((k * 73856093) ^ (j * 19349663)) >>> 0, y: y0, name: T.name }, T, world); } catch (e) { console.warn('[understreet] ring', key, e); }
+      if (row) row.ring = [k, j];
+      return row;
+    }
   }
   isDrains(site) { return site?.kind === 'drains'; }
   rec(site) { const r = this.U.rec(site); if (!r.open) { r.open = []; r.water = FLOOD.dry; r.wh = null; } return r; }
@@ -288,6 +341,7 @@ export class UnderStreet {
   update(simDt, dt) {
     if (!this.enabled) return;
     const g = this.g, U = this.U, A = U.A, p = g.player;
+    if ((this.scanT -= dt) <= 0) { this.scanT = 2; this.ringScan(); }
     const hour = (g.society?.day ?? 0) * 24 + (g.sky?.time ?? 12);
     const mins = this.lastHour === null ? 0 : Math.max(0, Math.min(600, (hour - this.lastHour) * 60));
     this.lastHour = hour;
@@ -397,7 +451,7 @@ export class UnderStreet {
       if (!m || m.src !== 'sound' || t - m.t > 6) continue;
       for (const E of this.shaftEv) {
         if (t - E.t > 8 || !this.isOpen(E.f)) continue;
-        if (Math.hypot(m.x - E.f.top.x, m.z - E.f.top.z) < 4.5 && Math.hypot(c.x - E.f.top.x, c.z - E.f.top.z) < E.r * 2.5) { c.usDown = { f: E.f, x: E.x, z: E.z, until: t + 45 }; break; }
+        if (Math.hypot(m.x - E.f.top.x, m.z - E.f.top.z) < SHAFT_EAR && Math.hypot(c.x - E.f.top.x, c.z - E.f.top.z) < E.r * 2.5) { c.usDown = { f: E.f, x: E.x, z: E.z, until: t + 45 }; break; } // a heard spot is off by its scatter (data/infected.js): near enough the open shaft
       }
     }
   }
@@ -435,13 +489,14 @@ export class UnderStreet {
   }
 
   // ---- for the agent ----------------------------------------------------------------------------------------------------
+  rows() { const out = [...this.byTown.values()]; for (const r of this.ringRows?.values() ?? []) if (r) out.push(r); return out; }
   siteFor(x, z) {
-    for (const row of this.byTown.values()) { const F = row.net.frame; if (x > F.x0 && x < F.x1 && z > F.z0 && z < F.z1) return row; }
+    for (const row of this.rows()) { const F = row.net.frame; if (x > F.x0 && x < F.x1 && z > F.z0 && z < F.z1) return row; }
     return null;
   }
   status() {
     const A = this.U.A, live = A?.site.kind === 'drains' ? A.site : null, r = live ? this.rec(live) : null;
-    return { sites: this.byTown.size, live: live ? { id: live.id, water: +r.water.toFixed(2), target: +this.target().toFixed(2), open: r.open.length, power: !!r.power, people: A.levels.get(1)?.occ.length ?? 0, rats: this.nRats } : null, counts: { ...this.counts, swept: +this.counts.swept.toFixed(1) } };
+    return { sites: this.byTown.size, ring: [...(this.ringRows?.values() ?? [])].filter(Boolean).length, live: live ? { id: live.id, water: +r.water.toFixed(2), target: +this.target().toFixed(2), open: r.open.length, power: !!r.power, people: A.levels.get(1)?.occ.length ?? 0, rats: this.nRats } : null, counts: { ...this.counts, swept: +this.counts.swept.toFixed(1) } };
   }
   plan(row) { return planSite(row); }
 }

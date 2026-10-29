@@ -92,6 +92,12 @@ export const US_LOGS = {
   us_flood: { title: 'WATER LINE', paper: true, text: 'Somebody painted a line on the wall at the height of a man and wrote under it: SHE CAME UP TO HERE IN AN HOUR. Under that, in another hand: AND HIGHER.' },
 };
 
+// The Phoenix ring's districts (world/understreet.js ringPlan: 4 x 4 blocks a district). near: districts this many
+// tiles round yours are made (their rows), keep: released past this many; wash: the old river's dry wash (the segment
+// data/ring.js zones as industrial), the ring's outfall where a pipe's line reaches it within WAYS.outfall.search;
+// washW: its half-width.
+export const RING_DRAINS = { near: 1, keep: 2, wash: [418, -470, 560, -1700], washW: 22, washReach: 520, edgeIn: 30, search: 260 }; // search: how far past its pipes' ends a district looks for the river, the wash or the desert; washReach: a district this near the wash sends its water there; edgeIn: the desert starts this far past the city's edge
+
 // A bar door at an outfall: the interiors' door rules (data/interiors.js DOOR_MATERIALS takes it at boot). It will not
 // give to boots or to rounds; a crowbar pries the hinge pins (loud), a hacksaw cuts a bar (slow, quiet).
 export const BARS = { name: 'iron grille', kicks: 30, lockHp: 300, bulletSlap: 0, bulletLock: 0, colors: ['#5a4a3a', '#4e463c', '#62503e'], lock: '#8a6a3a' };
