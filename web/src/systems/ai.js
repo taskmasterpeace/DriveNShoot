@@ -215,7 +215,7 @@ export class AI {
       // A coat that breaks your outline (systems/gear.js seenMul): they have to be closer to pick you out.
       // Prone (systems/stance.js, D2): 0.25x in the open, unseen past 12 m in grass or cover, never past a deck's rail.
       const seenAt = o.prone && this.g.stance ? this.g.stance.seenRange(o, bd, 0.6, c.x, c.z, c) : bd * (o.crouch ? 0.6 : 1);
-      if (d < seenAt * (o === this.g.player ? this.g.gear?.seenMul() ?? 1 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
+      if (d < seenAt * (o === this.g.player ? (this.g.gear?.seenMul() ?? 1) * (this.g.kit?.seenMul() ?? 1) : 1) && this.g.sees(c, o)) { bd = d; best = o; }
     }
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
   }

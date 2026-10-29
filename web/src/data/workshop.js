@@ -170,6 +170,13 @@ export const UTILITY = {
                   desc: 'Slots cut in the doors with sliding covers. Your passengers shoot without losing the glass.' },
   targeting:    { name: 'TARGETING COMPUTER', kg: 15, space: 1, price: 1200, labour: 1, rare: 'uncommon', spread: 0.5, lock: 0.6,
                   desc: 'A pre-war fire-control box wired to the triggers. Tightens every gun and locks the seekers faster.' },
+  // GADGETS-2 (docs/design/WEB_GADGETS2.md; systems/kit.js runs them). Scavenged, taped, powered by the car.
+  hubspikes:    { name: 'HUB SPIKES', kg: 22, space: 0, price: 160, labour: 0.5, slash: { r: 1.1, tyres: 1, every: 0.4, dmg: 18 },
+                  desc: 'Sharpened bolts welded to the wheel nuts. Rub a car alongside and its tyres go to ribbons.' },
+  spotlight:    { name: 'ROOF SPOTLIGHT', kg: 12, space: 1, price: 220, labour: 0.5, beam: { reach: 2.1, power: 1.5, seen: 1.8 },
+                  desc: 'A searchlight off a dead patrol boat, bolted to the roof bars. It turns night into a stage, and you are on it.' },
+  winch:        { name: 'HARPOON WINCH', kg: 35, space: 1, price: 300, labour: 1, needs: 'harpoon', pull: { slack: 1.2, range: 30 },
+                  desc: 'A tow drum geared down off a wrecker. Bite a door and drive away: the door comes with you. Gates too.' },
   radar:        { name: 'RADAR DETECTOR', kg: 5, space: 0, price: 150, labour: 0.25, warn: 120,
                   desc: 'A dash box that screams when something locks onto you, or an armed car closes within a long block.' },
 };
@@ -252,6 +259,9 @@ export function validateWorkshop(rows = { ARMOR, CHASSIS, MOUNT_WEAPONS, UTILITY
   for (const [id, u] of Object.entries(rows.UTILITY)) {
     if (!(u.kg >= 0 && u.space >= 0 && u.price > 0)) bad.push(`utility ${id}: kg, space, price`);
     if (u.ammo && !rows.AMMO_ITEMS[u.ammo]) bad.push(`utility ${id}: ammo item ${u.ammo} has no row`);
+    if (u.needs && !Object.values(rows.MOUNT_WEAPONS).some((w) => w.kind === u.needs)) bad.push(`utility ${id}: needs a ${u.needs} mount that has no row`);
+    if (u.slash && !(u.slash.r > 0 && u.slash.every > 0)) bad.push(`utility ${id}: slash r, every`);
+    if (u.beam && !(u.beam.reach > 0 && u.beam.power >= 0)) bad.push(`utility ${id}: beam reach, power`);
   }
   for (const [id, a] of Object.entries(rows.ARENAS)) if (!['arena', 'track'].includes(a.kind) || !a.props?.length) bad.push(`arena ${id}: kind and props`);
   return { ok: bad.length === 0, bad };

@@ -157,6 +157,7 @@ export class Garage {
     if (!U) return { ok: false, why: `unknown utility; known: ${Object.keys(UTILITY).join(',')}` };
     if (!C) return { ok: false, why: `a ${v.name} can't be worked on` };
     if (v.utility?.[id]) return { ok: false, why: `already fitted: ${U.name}` };
+    if (U.needs && !v.harpoon && !Object.values(v.mounts ?? EMPTY).some((m) => MOUNT_WEAPONS[m.kind]?.kind === U.needs)) return { ok: false, why: `the ${U.name.toLowerCase()} needs a ${U.needs} gun fitted first` }; // the winch rides a harpoon (WEB_GADGETS2.md)
     if (this.spacesUsed(v) + U.space > C.spaces) return { ok: false, why: `no room: ${C.spaces} spaces, ${this.spacesUsed(v)} used` };
     if (this.kgOn(v) + U.kg > C.maxKg) return { ok: false, why: `over the ${v.name}'s load (${C.maxKg} kg)` };
     v.utility ??= {};

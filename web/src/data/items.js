@@ -1,5 +1,6 @@
 import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
-import { GADGETS, DRONES, DOOR_KIT } from './gadgets.js';
+import { GADGETS, DRONES, DOOR_KIT, KIT, CELLS, KIT_LOOT_ADD } from './gadgets.js';
+import { DOG_GEAR } from './dogs.js';
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
@@ -214,7 +215,7 @@ export const GUN_FOUND = {
   warden: { cond: [0.55, 0.9], loaded: [0.4, 1], spare: [6, 24] },
   default: { cond: [0.3, 0.8], loaded: [0, 0.8], spare: [0, 8] },
 };
-export const START_KIT = { pack: 'satchel', items: [['water_bottle', 1], ['jerky', 2], ['rag', 2], ['knife', 1]] };
+export const START_KIT = { pack: 'satchel', items: [['water_bottle', 1], ['jerky', 2], ['rag', 2], ['knife', 1], ['flashlight', 1], ['battery_cell', 1]] }; // the torch is a thing you carry now (WEB_GADGETS2.md)
 
 // Room on your person before any pack: pockets and belt.
 export const BODY_LITRES = 3;
@@ -232,3 +233,9 @@ for (const [table, rows] of Object.entries(GEAR_LOOT_ADD)) if (LOOT[table]) LOOT
 for (const [id, r] of Object.entries(GADGETS)) ITEMS[id] ??= { name: r.name, kind: 'gadget', tags: ['gadget'], ...r.item, use: { act: 'gadget' } }; // car_mine: the workshop's mine dropper loads the same item
 for (const [id, r] of Object.entries(DRONES)) ITEMS[`drone_${id}`] ??= { name: r.name, kind: 'drone', ...r.item, use: { act: 'drone' }, tags: ['drone'] };
 for (const [id, r] of Object.entries(DOOR_KIT)) ITEMS[id] ??= r;
+// ---- GADGETS-2: the kit you wear and look through, what feeds it, your dog's gear (data/gadgets.js KIT, CELLS;
+// data/dogs.js DOG_GEAR; docs/design/WEB_GADGETS2.md). Switched on and off through use act 'kit' (systems/kit.js).
+for (const [id, r] of Object.entries(KIT)) ITEMS[id] ??= { name: r.name, kind: 'kit', tags: ['kit', r.slot], ...r.item, use: { act: 'kit' } };
+for (const [id, r] of Object.entries(CELLS)) ITEMS[id] ??= r;
+for (const [id, r] of Object.entries(DOG_GEAR)) ITEMS[id] ??= { name: r.name, kind: 'gear', tags: ['dog_gear'], ...r.item, use: { act: 'doggear' } };
+for (const [table, rows] of Object.entries(KIT_LOOT_ADD)) if (LOOT[table]) LOOT[table].rows.push(...rows);

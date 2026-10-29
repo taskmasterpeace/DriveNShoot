@@ -595,6 +595,7 @@ export class Vehicles {
   yank() {
     const h = this.harpoon;
     const g = this.g;
+    if (g.kit?.winchYank(h)) { g.hud.shake(0.6); this.releaseHarpoon(); return; } // the winch pulls the near door off instead (systems/kit.js)
     const v = h.from;
     if (h.kind === 'veh') {
       const t = h.target;
@@ -664,6 +665,7 @@ export class Vehicles {
         g.audio.clank();
       } else if (wallT < step) {
         h.x += h.dx * wallT; h.z += h.dz * wallT;
+        if (g.kit?.hookDoor(v, h.x, h.z)) { g.audio.clank(); this.releaseHarpoon(); return; } // a winch bites the door by the wall it struck (systems/kit.js)
         g.fx.sparks(h.x, 1.2, h.z, -h.dx, -h.dz, 8);
         g.audio.clank();
         h.state = 'retract';
