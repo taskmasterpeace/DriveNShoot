@@ -139,6 +139,8 @@ Variables: `d` (m) distance; `r` a row's radius; `night` = `sky.night` 0..1; `t`
 ## 6. Dependencies (both ways)
 **This lane uses:** `throwables.smokes`/`fires`, `gadgets.list` (flares), `gadgets.breach`, `vehDamage.popTyre`/`detach`, `garage.addUtility`, `convoy.active`/`lead()`, `security.counts.dispatched`/`stationOf`, `pulls.k` (`knowledge.record`/`put`/`holder`), `dogs.mine()`/`d.threat`, `under.A` (site kind, `rec.power`), `g.los`, `statics.lineOfSight`, `g.droneCam`, `g.flashMat`, `renderer.toneMappingExposure`, `world/textures.radialGlow`.
 
+**Used by:** the smart Echo (`systems/echomind.js`, WEB_DEATHS.md §3.6b) reads the beam main.js draws (`g.flashMat` opacity, `g.flashlight.scale`): a lit beam tells it where you stand and which way you face, and at night the cone is your eyes to it. WEB_DEATHS.md's heat check holds the death library's bodies (crawlers, the dropped infected) to `heatOf`'s cold.
+
 **Shared-file hooks (each one line unless noted):**
 
 | File | Hook |

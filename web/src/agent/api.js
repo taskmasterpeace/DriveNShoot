@@ -78,6 +78,7 @@ import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the gra
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
+import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
 
 // ============================================================================
@@ -1083,10 +1084,11 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected). size=<n> (with at="x,z" or x,z, toward=<settlement id>, force=true to walk by day) instead raises a MIGRATING HORDE record (systems/overrun.js, docs/design/WEB_CITYGEN.md §3.6): it walks to that settlement (the nearest by default) at dusk, stands up to 40 bodies in the street near you (the rest stay strength), besieges it and may overrun it.',
-      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 }, size: { type: 'number' }, at: { type: 'string' }, toward: { type: 'string' }, force: { type: 'boolean', default: false } },
-      run: async ({ x, z, count, runners, radius, size, at, toward, force }) => {
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected). size=<n> (with at="x,z" or x,z, toward=<settlement id>, force=true to walk by day) instead raises a MIGRATING HORDE record (systems/overrun.js, docs/design/WEB_CITYGEN.md §3.6): it walks to that settlement (the nearest by default) at dusk, stands up to 40 bodies in the street near you (the rest stay strength), besieges it and may overrun it. action=migrate (x,z size= dir=+1|-1 road= ahead=) starts a horde MIGRATING down the nearest highway on the world clock (dust over it; the radio reports it only after a witness with a set saw it: systems/migrations.js, WEB_DEATHS.md); action=where lists the migrations (road position, walked, seen by, reported, whether you know); action=clear ends them.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 }, size: { type: 'number' }, at: { type: 'string' }, toward: { type: 'string' }, force: { type: 'boolean', default: false }, action: { type: 'string', enum: ['migrate', 'where', 'clear'] }, dir: { type: 'number' }, road: { type: 'string' }, ahead: { type: 'number' } },
+      run: async ({ x, z, count, runners, radius, size, at, toward, force, action, dir, road, ahead }) => {
         if (at) [x, z] = at.split(',').map(Number);
+        if (action) return hordeAction(api, need, { action, x, z, size, dir, road, ahead }); // highway migrations (systems/migrations.js, WEB_DEATHS.md)
         if (size !== undefined || toward !== undefined) {
           need(!toward || g.citygen.byId.has(toward), `no settlement "${toward}" (citygen lists them)`);
           const H = g.citygen.overrun.spawnHorde({ x: x ?? P().x + 300, z: z ?? P().z, size: size ?? 60, toward, force });
@@ -1107,7 +1109,7 @@ function buildCommands(api) {
         const live = g.chars.filter((c) => c.alive && c.faction === 'zombie' && c.zkind);
         return {
           sprinters: live.filter((c) => c.zkind === 'sprinter').map((c) => ({ id: c.id, state: c.zs.state, t: r1(c.zs.t), pace: r1(c.zSpeed), dist: near(c) })),
-          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
+          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, mind: g.zombies.minds.view(c), at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
           choir: live.filter((c) => c.zkind === 'choir').map((c) => ({ id: c.id, site: c.site ?? null, target: c.ztarget?.id ?? null, inAura: g.chars.filter((o) => o.alive && o.faction === 'zombie' && o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 30).length, dist: near(c) })),
           sites: Z.sites.map((q) => ({ id: q.id, name: q.name, x: q.x, z: q.z, lastNight: q.night })),
           counts: { ...Z.counts },
@@ -2106,6 +2108,7 @@ function buildCommands(api) {
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
+    ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
   };
 }
 
@@ -5372,7 +5375,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('step', { seconds: 5 });
     const froze = rec.barricade.hp === hp1 && !!echo?.frozen;
     g.aimOverride = null;
-    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null });
+    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null, mind: echo ? g.zombies.minds.view(echo) : null, zm: echo?.zm ? { src: echo.zm.src, who: echo.zm.who } : null, work: !!echo?.work });
   });
   // What the R2 checks set off in the world's memory is taken back (see above), and the hour.
   for (const r of D0.rumors) if (r.live && r.seq > seq0) { r.live = false; D0.pending--; }
@@ -5607,6 +5610,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('teleport', { x: W.x + W.nx * 8, z: W.z + W.nz * 8 });
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && zdist(c, W) < 30) g.removeChar(c);
     const e = g.zombies.spawnKind('echo', post.x, post.z, post);
+    e.face = Math.atan2(W.x - e.x, W.z - e.z); // at its window, its back to you (it has not seen you: law 6, it works on)
     let drift = 0;
     try {
       g.aimOverride = { x: e.x, z: e.z }; // you watch it
@@ -5688,6 +5692,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  await deathsChecks({ g, api, C, check, stage, hush }); // THE DEATH LIBRARY and zombie fun (src/agent/deaths-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
   // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----

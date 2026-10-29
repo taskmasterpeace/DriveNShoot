@@ -19,6 +19,8 @@ const HIP_X = 0.125, HIP_Y = 0.92, THIGH = 0.44, SHIN = 0.4, ANKLE_Y = 0.08;
 const PRONE_HIP = 0.2, PRONE_LEAN = 1.42; // prone (data/stance.js): the hips 0.2 m up, the chest leant almost flat forward
 const WAIST_UP = 0.08, SHOULDER_X = 0.33, SHOULDER_UP = 0.56, UPPER = 0.3, FORE = 0.3, HEAD_UP = 0.86;
 const AIM_Y = 0.55; // hands and gun when aiming: above the waist, so 1.55 m standing
+// The rig's lengths, for the death points' ragdoll (systems/deaths.js) and anyone else who needs the body's measure.
+export const RIG = { HIP_X, HIP_Y, THIGH, SHIN, ANKLE_Y, WAIST_UP, SHOULDER_X, SHOULDER_UP, UPPER, FORE, HEAD_UP };
 
 // Weapon models. Origin at the grip (where the firing hand closes), +z down the barrel, +y up.
 // grip/support: how far in front of the chest the firing and support hands hold it at the aim;
@@ -410,6 +412,7 @@ export class CharacterRenderer {
     const w = ch.weapon && !ch.holstered && !ch.work ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null; // holstered: hands empty (systems/arms.js)
     const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
     const L = this.lsw, near = L.near[i] === 1; // an LSW body: the same solution, a different skin (systems/lswbodies.js)
+    if (!alive && ch.rag && !sp) { this.ragPose(ch, i, near); return; } // THE DEATH LIBRARY: a clip, then the ragdoll (systems/deaths.js)
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false, knocked = false;
@@ -703,7 +706,8 @@ export class CharacterRenderer {
         M[key].setMatrixAt(k2, _m.multiplyMatrices(_g, _t));
       }
     }
-    if (near) {
+    if (ch.lost) this.hideLost(ch.lost, i); // limbs that came off (systems/deaths.js sever)
+    if (near && !ch.lost) {
       // Which hands are closed on something: the gun hand (and the support hand on a two-hand hold), bars, a tool, fists.
       const both = mode === 'low' || mode === 'bars' || mode === 'work' || mode === 'melee' || (mode === 'aim' && !ch.oneHand);
       _grip[0] = both || ((mode === 'aim' || gunHand) && fh === 0) ? 1 : 0; _grip[1] = both || ((mode === 'aim' || gunHand) && fh === 1) ? 1 : 0;
@@ -713,6 +717,71 @@ export class CharacterRenderer {
 
   clear(slot) {
     this.hideSlot(slot);
+  }
+
+  // A limb that came off is not drawn (bits: armL 1, armR 2, legL 4, legR 8; side 0 is the left, +x).
+  hideLost(lost, i) {
+    const M = this.meshes;
+    for (let s = 0; s < 2; s++) {
+      const j = i * 2 + s;
+      if (lost & (s ? 2 : 1)) { M.upper.setMatrixAt(j, ZERO); M.fore.setMatrixAt(j, ZERO); M.hand.setMatrixAt(j, ZERO); }
+      if (lost & (s ? 8 : 4)) { M.thigh.setMatrixAt(j, ZERO); M.shin.setMatrixAt(j, ZERO); M.boot.setMatrixAt(j, ZERO); }
+    }
+  }
+
+  // THE DEATH LIBRARY (systems/deaths.js): a dying or dead body drawn from its 12 world points (0/1 hips, 2/3 knees, 4/5
+  // ankles, 6/7 shoulders, 8/9 elbows, 10/11 hands; even = the left). The leg frame stands on the hips with its up along
+  // the spine, the upper-body frame on the shoulders; the joints go into those frames and the segments are written as
+  // pose() writes them, so an LSW body wears the same solution (and death rites' rot colours, through paint()).
+  ragPose(ch, i, near) {
+    const M = this.meshes, P = ch.rag.P, L = this.lsw;
+    const pcx = (P[0] + P[3]) / 2, pcy = (P[1] + P[4]) / 2, pcz = (P[2] + P[5]) / 2;
+    const scx = (P[18] + P[21]) / 2, scy = (P[19] + P[22]) / 2, scz = (P[20] + P[23]) / 2;
+    _Y.set(scx - pcx, scy - pcy, scz - pcz).normalize();
+    _X.set(P[0] - P[3], P[1] - P[4], P[2] - P[5]); _X.addScaledVector(_Y, -_X.dot(_Y)).normalize(); _Z.crossVectors(_X, _Y);
+    _LF.makeBasis(_X, _Y, _Z).setPosition(pcx - _Y.x * HIP_Y, pcy - _Y.y * HIP_Y, pcz - _Y.z * HIP_Y);
+    _r.copy(_LF).invert();
+    for (let s = 0; s < 2; s++) {
+      hip[s].set(P[s * 3], P[s * 3 + 1], P[s * 3 + 2]).applyMatrix4(_r);
+      knee[s].set(P[(2 + s) * 3], P[(2 + s) * 3 + 1], P[(2 + s) * 3 + 2]).applyMatrix4(_r);
+      ankle[s].set(P[(4 + s) * 3], P[(4 + s) * 3 + 1], P[(4 + s) * 3 + 2]).applyMatrix4(_r);
+      footPitch[s] = 0;
+    }
+    _X.set(P[18] - P[21], P[19] - P[22], P[20] - P[23]); _X.addScaledVector(_Y, -_X.dot(_Y)).normalize(); _Z.crossVectors(_X, _Y);
+    _g.makeBasis(_X, _Y, _Z).setPosition(scx - _Y.x * SHOULDER_UP, scy - _Y.y * SHOULDER_UP, scz - _Y.z * SHOULDER_UP);
+    _r.copy(_g).invert();
+    for (let s = 0; s < 2; s++) {
+      sh[s].set(P[(6 + s) * 3], P[(6 + s) * 3 + 1], P[(6 + s) * 3 + 2]).applyMatrix4(_r);
+      el[s].set(P[(8 + s) * 3], P[(8 + s) * 3 + 1], P[(8 + s) * 3 + 2]).applyMatrix4(_r);
+      hand[s].set(P[(10 + s) * 3], P[(10 + s) * 3 + 1], P[(10 + s) * 3 + 2]).applyMatrix4(_r);
+    }
+    for (let s = 0; s < 2; s++) {
+      const j = i * 2 + s;
+      this.seg(M.thigh, j, _LF, hip[s], knee[s]);
+      this.seg(M.shin, j, _LF, knee[s], ankle[s]);
+      M.boot.setMatrixAt(j, _m.multiplyMatrices(_LF, _t.makeTranslation(ankle[s].x, ankle[s].y, ankle[s].z)));
+      this.seg(M.upper, j, _g, sh[s], el[s]);
+      M.hand.setMatrixAt(j, this.seg(M.fore, j, _g, el[s], hand[s]));
+    }
+    M.hips.setMatrixAt(i, _m.multiplyMatrices(_LF, _t.makeTranslation(0, HIP_Y + 0.02, 0)));
+    M.torso.setMatrixAt(i, _g);
+    _t.makeTranslation(0, near ? L.headUp : HEAD_UP, 0);
+    if (near) _t.multiply(L.hatScale);
+    const headFrame = _H.multiplyMatrices(_g, _t), c = ch.colors;
+    if (ch.headless) { M.head.setMatrixAt(i, ZERO); M.face.setMatrixAt(i, ZERO); }
+    else {
+      M.head.setMatrixAt(i, headFrame); M.face.setMatrixAt(i, headFrame);
+      const hat = c.hatStyle ?? 'short';
+      if (hat !== 'bald' && M[`hat_${hat}`] && !(near && !ch.lost && L.ownsHair(ch))) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
+      const acc = c.accStyle ?? 'none';
+      if (acc !== 'none' && M[`acc_${acc}`]) this.put(`acc_${acc}`, headFrame, 0, 0, 0, 0, acc === 'mask' ? c.mask ?? '#6a2a1e' : '#2a2622');
+      if (c.scar && M[`scar_${c.scar}`]) this.put(`scar_${c.scar}`, headFrame, 0, 0, 0, 0, c.scarColor ?? '#d9a58a');
+    }
+    const gear = c.gearStyle ?? 'none';
+    if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, near ? _GS.multiplyMatrices(_g, L.gearScale) : _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');
+    ch._pose = 'dead';
+    if (ch.lost) this.hideLost(ch.lost, i);
+    else if (near) { _grip[0] = _grip[1] = 0; if (L.drive(ch, _LF, HIP_Y, hip, knee, ankle, footPitch, _g, headFrame, el, hand, true, -1, _grip)) this.hideSlot(i); }
   }
 }
 
