@@ -4,6 +4,7 @@ import { angleLerp } from '../engine/rng.js';
 import { MAX_FACTIONS } from './factions.js';
 import { TOWN_NIGHT } from '../data/survival.js';
 import { LEAD } from '../data/ballistics.js';
+import { MELEE_AI } from '../data/melee.js';
 
 const NO_BEDS = [];
 // Floor spots tried around home, nearest first: a body lies along z (2 m), so rows sit 1.2 m apart across and 2.2 along.
@@ -32,10 +33,15 @@ export class AI {
       if (along <= 0.3 || along >= d) continue;
       if (Math.abs(ox * fz - oz * fx) >= (o.radius ?? 0.45) + 0.4) continue;
       if (o === c || o === t || !o.alive || o.inVehicle || o.hidden || (o.ug ?? null) !== (c.ug ?? null) || this.hostile(c, o)) continue; // a floor of earth between: not in the way
+      if (o.m?.heldBy && this.reckless(c)) continue; // a hostage in the way: only the reckless fire through them (systems/melee.js)
+      if (o.m?.heldBy) this.g.melee.counts.heldFire++;
       return false;
     }
     return true;
   }
+
+  // The share of a faction who will shoot through a hostage (data/melee.js MELEE_AI reckless), stable per person.
+  reckless(c) { if (c.reckless !== undefined) return c.reckless; const r = (MELEE_AI[c.faction] ?? MELEE_AI.default).reckless; let h = 2166136261; const s = String(c.id); for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return ((h >>> 0) % 1000) / 1000 < r; }
 
   hostile(a, b) {
     if (!a.alive || !b.alive || a === b) return false;
@@ -301,6 +307,7 @@ export class AI {
         continue;
       }
       if (c.dragged) continue;
+      if (c.m && g.melee?.busy(c, dt)) continue; // held by the neck, staggered, mid-blow, holding a hostage (systems/melee.js)
       if (c.knockT > 0) { c.knockT -= dt; c.speed = 0; c.aiming = false; continue; } // on the floor after a door to the face
       if (c.vault) { g.interiors.stepVault(c, dt); continue; }                       // climbing through a window
       if (c.leapT > 0) continue;                               // diving out of a car's way (Ambient moves them)
@@ -319,6 +326,7 @@ export class AI {
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
       if (c.grabbing) { c.cool -= dt; continue; } // riding on a car: CarCombat drives them
+      if (c.meleeW && !(c.weapon && c.mag > 0) && g.melee?.think(c, dt)) continue; // a bat, a machete, a pipe: hand to hand by the same rules (systems/melee.js)
       c.cool -= dt;
       if (c.reloading > 0) { c.reloading -= dt; if (c.reloading <= 0) c.mag = WEAPONS[c.weapon].mag; }
       c.aiming = false;
@@ -447,10 +455,10 @@ export class AI {
     // Cheap crowd separation (n^2 over awake characters; n is small).
     for (let i = 0; i < chars.length; i++) {
       const a = chars[i];
-      if (!a.alive || a.inVehicle || a.perch || a.sleeping) continue; // nobody shoulders a sentry off a tower deck, or a sleeper out of bed
+      if (!a.alive || a.inVehicle || a.perch || a.sleeping || a.m?.heldBy) continue; // nobody shoulders a sentry off a tower deck, or a sleeper out of bed, or a hostage out of the arm round their neck
       for (let j = i + 1; j < chars.length; j++) {
         const b = chars[j];
-        if (!b.alive || b.inVehicle || b.perch || b.sleeping) continue;
+        if (!b.alive || b.inVehicle || b.perch || b.sleeping || b.m?.heldBy) continue;
         // Written so a NaN position FAILS the tests (every comparison with NaN is false): a NaN
         // neighbour used to slip through and make everyone it touched NaN, the player included.
         const dx = b.x - a.x, dz = b.z - a.z;

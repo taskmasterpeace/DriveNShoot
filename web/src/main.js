@@ -374,7 +374,7 @@ class Game {
       for (let k = 0; k < (Math.max(Math.abs(d.x), Math.abs(d.z)) < TOWN ? 2 : 1); k++)
         { const c = this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) }); if (c) c.amb = true; } // amb: may fold far away (systems/population.js)
     }
-    for (const r of S.raiders) { const c = this.spawnRaider(r.x, r.z, rng); if (c) c.amb = true; }
+    for (const r of S.raiders) { const c = this.spawnRaider(r.x, r.z, rng); if (c) { c.amb = true; this.melee?.bruiser(c); } } // some fight with a bat (systems/melee.js)
 
     // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
@@ -649,6 +649,7 @@ class Game {
       const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
       if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
+      this.melee?.onBody(body, c); // the bat or the machete they fought with lies with them
     }
     this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
     this.stories?.onKill(c, attacker); // a party's person, a fallen place's master, a hunter (systems/sitestories.js)
@@ -1230,7 +1231,7 @@ class Game {
       if (alive < cap && this.freeSlots.length > AMBIENT_RESERVE && this.time > ARRIVAL_QUIET) { // leave the director room (systems/director.js needs 10 free)
         const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
-        if (camp) for (let k = 0; k < 2; k++) { const c = this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10); if (c) c.amb = true; }
+        if (camp) for (let k = 0; k < 2; k++) { const c = this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10); if (c) { c.amb = true; this.melee?.bruiser(c); } }
       }
     }
     // Wanted level cools off.

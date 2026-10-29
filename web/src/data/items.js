@@ -1,6 +1,7 @@
 import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
 import { GADGETS, DRONES, DOOR_KIT, KIT, CELLS, KIT_LOOT_ADD } from './gadgets.js';
 import { DOG_GEAR } from './dogs.js';
+import { MELEE_ITEMS } from './melee.js'; // bats, knuckles, pipes, sledges (WEB_MELEE.md)
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
@@ -163,6 +164,7 @@ Object.assign(ITEMS, {
   gator_hide: { name: 'Gator hide', kind: 'valuable', kg: 2.2, bulk: 2.5, stack: 2, value: 35,
     desc: 'A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.' },
 });
+Object.assign(ITEMS, MELEE_ITEMS); // the melee rows' carried things (data/melee.js)
 export const LOOT = {
   gator: { rolls: [1, 2], none: 0, rows: [['gator_meat', 5, 1, 2], ['gator_hide', 3, 1, 1]] },
   kitchen: { rolls: [1, 3], none: 4, rows: [['beans_tin', 5, 1, 2], ['peaches_tin', 3, 1, 1], ['water_bottle', 4, 1, 2], ['honey', 1, 1, 1], ['can_opener', 2, 1, 1], ['knife', 1, 1, 1], ['silverware', 2, 1, 3], ['flatbread', 1, 1, 1]] },

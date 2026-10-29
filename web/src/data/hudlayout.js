@@ -72,6 +72,7 @@ export const HUD_LAYOUT = [
   // ---- the gun in your hands ----
   { id: 'weapon', name: 'Weapon plate', group: 'combat', sel: '.weapon-panel', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: FOOT, w: 307, h: 252, talkHide: true },
   { id: 'weaponbar', name: 'Weapon bar', group: 'combat', sel: '.wbar', anchor: 'br', x: 330, y: 10, scale: 1, visible: true, situations: FOOT, w: 300, h: 90, talkHide: true },
+  { id: 'melee', name: 'Hand to hand (in hand, guard, arm, struggle)', group: 'combat', sel: '.melee-plate', anchor: 'bc', x: 0, y: 356, scale: 1, visible: true, situations: FOOT, w: 300, h: 44, talkHide: true }, // fists up and holds (systems/melee.js)
   { id: 'reticle', name: 'Reticle', group: 'combat', sel: '.reticle', anchor: 'mouse', x: 0, y: 0, scale: 1, visible: true, situations: PLAY, w: 28, h: 28 },
   // ---- the car ----
   { id: 'speedo', name: 'Speedometer and dash', group: 'vehicle', sel: '.speedo', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: ['driving', 'passenger'], w: 330, h: 252, talkHide: true },

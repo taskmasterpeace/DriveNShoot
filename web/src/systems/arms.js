@@ -87,7 +87,7 @@ export class Arms {
   trigger(I, k) {
     const g = this.g, pull = I.mouse.left, pulled = I.mouse.leftPressed;
     if (g.melee?.act) return false;                 // mid-swing
-    if (this.stance === 'holstered') { if (pulled) this.draw(); return false; }
+    if (this.stance === 'holstered') { if (pulled && !g.melee?.fistsUp()) this.draw(); return false; } // fists up: the pull is a punch (systems/melee.js)
     if (this.drawT > 0) { if (pulled) this.burstLeft = 0; return false; }
     if (this.stance === 'lowered' && pulled) this.raise('fire');
     if (this.stance !== 'raised') return false;
@@ -158,7 +158,7 @@ export class Arms {
   }
 
   moveMul() {
-    if (this.stance === 'holstered') return STANCE.move.holstered;
+    if (this.stance === 'holstered') return STANCE.move.holstered * (this.g.melee?.moveMul() ?? 1); // a guard up, a hostage walked (systems/melee.js)
     if (this.stance === 'lowered') return STANCE.move.lowered;
     const h = this.gun(this.g.inv.current).heft;
     return 1 - (this.gripPref === 'two' ? GRIP.moveTwo : GRIP.moveOne) * h; // the grip you hold at a walk
@@ -201,7 +201,7 @@ export class Arms {
       }
       this.holdDone = false;
     }
-    if (C.hit('grip')) {
+    if (C.hit('grip') && !g.melee?.fistsUp()) {
       this.setGrip(this.gripPref === 'two' ? 'one' : 'two');
       g.hud?.toast?.(this.gripPref === 'one' ? 'ONE HAND · QUICKER, WILDER' : 'TWO HANDS · STEADY, SLOWER');
     }
@@ -211,7 +211,7 @@ export class Arms {
       if (!this.radialOpen && !this.wheelDone && C.heldFor('wheel') >= PAD.holdTime && !driving) this.openRadial();
     } else if (C.released('wheel')) {
       if (this.radialOpen) this.closeRadial(true);
-      else if (!this.wheelDone) this.nextWeapon(1);
+      else if (!this.wheelDone && !g.melee?.cycleHeld(1)) this.nextWeapon(1); // fists up: what is in your hand
       this.wheelDone = false;
     }
     if (this.radialOpen) this.updateRadial(C);

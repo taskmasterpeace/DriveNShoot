@@ -74,6 +74,7 @@ import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay,
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
+import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
@@ -2102,6 +2103,7 @@ function buildCommands(api) {
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
+    ...meleeCommands(api), // fight action=view|wield|attack|heavy|finish|grab|release|arm|spawn|person|rows|clear (agent/melee-api.js)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
@@ -5690,6 +5692,7 @@ async function runSelfTest(api, only = null, skip = null) {
   }));
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
+  await meleeChecks({ api, g, C, check, stage, person, hush }); // HAND TO HAND: rows, block vs bat, parry, neck and clinch, hostage, struggle, finisher, knuckles, machete, the AI
   // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----
   const freeNear = (x, z, r = 3) => { for (let dx = -r; dx <= r; dx += 1.5) for (let dz = -r; dz <= r; dz += 1.5) if (!g.nav.foot.free(x + dx, z + dz)) return false; return true; };
   await check('traps: a Greyborn snare catches a person walking through it; a trap is only spotted by looking carefully, and a held E takes it apart without it going off', async () => hush(async () => {
@@ -6066,6 +6069,7 @@ export function snapshot(g) {
     deep: g.deep?.save(), // the deep sheet: attributes, skills, perks, traits, stress, morale, reputation, wounds by zone
     fauna: g.fauna?.save(), // the animals' chunk records (who lives where, hurt, dead, butchered) and the gunfire heat
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
+    melee: g.melee?.save(), // what is in your hand, its wear, your forearm (systems/melee.js)
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
     decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
     sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
@@ -6145,7 +6149,7 @@ export function restore(g, s) {
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
-  g.arms?.load(s.arms); g.gunpoint?.clear();
+  g.arms?.load(s.arms); g.gunpoint?.clear(); g.melee?.clear(); g.melee?.load(s.melee);
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
