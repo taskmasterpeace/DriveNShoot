@@ -67,7 +67,8 @@ export async function kitChecks(api, check, C) {
   };
   // A clear 80 m line (nothing solid along it, no water).
   const stretch = () => {
-    for (const [x, z, h] of [[-120, -20, 0], [-180, 60, 0], [140, -150, Math.PI / 2], [0, -200, Math.PI / 2], [-60, -260, 0], [200, 100, 0], [-260, -100, 0]]) {
+    // Out of Rust Haven (|x|, |z| < 88) and well clear of its people: staged raiders and driven rigs never meet the town.
+    for (const [x, z, h] of [[-260, -100, 0], [0, -200, Math.PI / 2], [-60, -260, 0], [200, 100, 0], [140, -150, Math.PI / 2], [-180, 60, 0]]) {
       const fx = Math.sin(h), fz = Math.cos(h), ax = Math.cos(h), az = -Math.sin(h);
       let ok = true;
       for (const o of [-4, 0, 4]) if (!g.statics.lineOfSight(x + ax * o - fx * 40, z + az * o - fz * 40, x + ax * o + fx * 40, z + az * o + fz * 40)) { ok = false; break; }
@@ -75,7 +76,7 @@ export async function kitChecks(api, check, C) {
     }
     return null;
   };
-  const raider = (x, z) => { const r = g.spawnRaider(x, z, Math.random, 'pistol'); mark(r); r.hold = true; return r; };
+  const raider = (x, z) => { const r = g.spawnRaider(x, z, Math.random, 'pistol'); mark(r); r.hold = true; r.weapon = null; return r; }; // unarmed unless a check arms him
   const lightCount = () => { let n = 0; g.scene.traverse((o) => { if (o.isLight) n++; }); return n; };
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy.despawn?.(); g.convoy.next = 1e9;
   was.slots = g.inventory.carried.slots.splice(0); g.inventory.changed?.(); // an empty pack: only what each check gives
@@ -127,7 +128,7 @@ export async function kitChecks(api, check, C) {
       r.target = null; r.state = 'idle';
       g.flashOverride = true;
       let lit = false; for (let k = 0; k < 8 && !lit; k++) { await C('step', { seconds: 0.25 }); lit = r.target === P(); }
-      const mul = K.seenMul();
+      const mul = K.seenMul(); r.weapon = null; // spotted is enough: he shoots nobody
       g.inventory.spend('flashlight', 1); await C('step', { seconds: 0.2 });
       const noTorch = (g.flashMat?.opacity ?? 0) === 0;
       g.flashOverride = was.fo;
@@ -140,7 +141,7 @@ export async function kitChecks(api, check, C) {
       let stage = null;
       for (const b of g.statics.boxes) {
         const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2, w = b.maxX - b.minX, d = b.maxZ - b.minZ;
-        if (w < 6 || d < 6 || w > 30 || d > 30 || (b.maxY ?? 3) < 2 || Math.hypot(cx, cz) > 400) continue;
+        if (w < 6 || d < 6 || w > 30 || d > 30 || (b.maxY ?? 3) < 2 || Math.hypot(cx, cz) > 400 || (Math.abs(cx) < 130 && Math.abs(cz) < 130)) continue; // not in town
         for (const a0 of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
           const fx = Math.sin(a0), fz = Math.cos(a0), e = Math.max(w, d) / 2;
           const px = cx - fx * (e + 30), pz = cz - fz * (e + 30), bx = cx + fx * (e + 3), bz = cz + fz * (e + 3);
@@ -153,7 +154,7 @@ export async function kitChecks(api, check, C) {
       }
       if (!stage) return 'no building to hide behind';
       await home(stage.px, stage.pz); await C('setTime', { hour: 12 });
-      const A = raider(stage.ax, stage.az), B = raider(stage.bx, stage.bz);
+      const A = raider(stage.ax, stage.az), B = raider(stage.bx, stage.bz); A.weapon = null; B.weapon = null;
       A.marked = 0; B.marked = 0;
       if (!g.statics.lineOfSight(P().x, P().z, A.x, A.z) || g.statics.lineOfSight(P().x, P().z, B.x, B.z)) return `staging: los A ${g.statics.lineOfSight(P().x, P().z, A.x, A.z)} B ${g.statics.lineOfSight(P().x, P().z, B.x, B.z)}`;
       g.inventory.stow('binoculars', 1);
@@ -260,7 +261,7 @@ export async function kitChecks(api, check, C) {
       const off = Object.keys(tv.dmg.off).filter((p) => p.startsWith('door'));
       g.exitVehicle(true);
       // A door: the winch car backed up to it, then driven away.
-      const I = g.interiors, d = I.doors.filter((x) => !x.broken && x.kind !== 'inner' && g.statics.lineOfSight(x.x + x.nx * 2, x.z + x.nz * 2, x.x + x.nx * 24, x.z + x.nz * 24) && g.statics.lineOfSight(x.x + x.nx * 2 + x.nz * 2, x.z + x.nz * 2 - x.nx * 2, x.x + x.nx * 24 + x.nz * 2, x.z + x.nz * 24 - x.nx * 2)).sort((a, b) => Math.hypot(a.x - S.x, a.z - S.z) - Math.hypot(b.x - S.x, b.z - S.z))[0];
+      const I = g.interiors, nobody = (x) => !g.chars.some((c) => c.alive && c.npc && Math.hypot(c.x - x.x, c.z - x.z) < 40), d = I.doors.filter((x) => !x.broken && x.kind !== 'inner' && Math.hypot(x.x, x.z) > 140 && nobody(x) && g.statics.lineOfSight(x.x + x.nx * 2, x.z + x.nz * 2, x.x + x.nx * 24, x.z + x.nz * 24) && g.statics.lineOfSight(x.x + x.nx * 2 + x.nz * 2, x.z + x.nz * 2 - x.nx * 2, x.x + x.nx * 24 + x.nz * 2, x.z + x.nz * 24 - x.nx * 2)).sort((a, b) => Math.hypot(a.x - S.x, a.z - S.z) - Math.hypot(b.x - S.x, b.z - S.z))[0];
       if (!d) return `car door off: ${off}; no door to pull`;
       const h = Math.atan2(d.nx, d.nz), sx = d.x + d.nx * 7, sz = d.z + d.nz * 7;
       g.vehiclesSys.remove(tv);
