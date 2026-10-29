@@ -259,7 +259,7 @@ export async function reactionsChecks(api, check, C) {
       } finally { RX.clear(); unstage(g); }
     });
 
-    await check('react: an unarmed parent goes to their child (the mother runs to her boy, he falls in at her heels, she gets them inside and the door slams and bars behind them; it comes unbarred when they come out)', async () => {
+    await check('react: an unarmed parent goes to their child (the mother runs to her boy, he falls in at her heels, she gets them inside and the door slams and bars behind them - shut and held, never a lock: a save taken then loads it unlocked and unstamped; it comes unbarred when they come out)', async () => {
       const st = await stageStreet(api);
       if (!st.door) return st.why;
       try {
@@ -275,14 +275,19 @@ export async function reactionsChecks(api, check, C) {
           follow ||= kid.rx?.kind === 'follow';
           slam = g.events.find((e) => e.seq > since && e.type === 'doorSlam' && e.by === mom.id) ?? null;
         }
-        const D = slam ? g.interiors.byId.get(slam.door) : null, barred = !!D?.locked;
+        const D = slam ? g.interiors.byId.get(slam.door) : null, barred = !!D?.rxBar && !D.locked && D.leaves.every((L) => L.jamT > 0 && Math.abs(L.th) < 0.05); // shut and held, never a saved lock
         const inside = D ? ((mom.x - D.x) * D.nx + (mom.z - D.z) * D.nz) < -0.5 : false;
         const kidIn = D ? ((kid.x - D.x) * D.nx + (kid.z - D.z) * D.nz) < 0.5 : false;
+        // A save taken while it holds: the bar is never a lock (a lock saved reloads stamped into the nav grid, a home
+        // sealed for good - the battery caught that once).
+        let saved = null;
+        if (D) { const sv = g.interiors.save(); g.interiors.load(sv); saved = { locked: D.locked, nav: !!D.nav, inSave: !!sv.d[D.id]?.l }; await C('step', { seconds: 0.1 }); }
+        const neverLock = !!saved && !saved.locked && !saved.nav && !saved.inSave;
         if (mom.rx) mom.rx.t1 = g.time; // their time is up: out they come
         await C('step', { seconds: 0.5 });
-        const unbarred = D ? !D.locked : false;
-        const ok = kind0 === 'run_kin' && reached && follow && !!slam && barred && inside && kidIn && unbarred;
-        return ok ? true : JSON.stringify({ kind0, reached, follow, slam: slam?.door ?? null, barred, inside, kidIn, unbarred, mom: [r1(mom.x), r1(mom.z)], kid: [r1(kid.x), r1(kid.z)], rx: RX.view(mom), ends: g.events.filter((e) => e.seq > since && (e.type === 'reactEnd' || e.type === 'gunReact')).map((e) => `${e.type}:${e.id}:${e.kind}@${e.t}`).slice(0, 10), t: g.time });
+        const unbarred = D ? !D.rxBar && D.leaves.every((L) => L.jamT <= 0) : false;
+        const ok = kind0 === 'run_kin' && reached && follow && !!slam && barred && inside && kidIn && unbarred && neverLock;
+        return ok ? true : JSON.stringify({ kind0, reached, follow, slam: slam?.door ?? null, barred, inside, kidIn, unbarred, saved, mom: [r1(mom.x), r1(mom.z)], kid: [r1(kid.x), r1(kid.z)], rx: RX.view(mom), ends: g.events.filter((e) => e.seq > since && (e.type === 'reactEnd' || e.type === 'gunReact')).map((e) => `${e.type}:${e.id}:${e.kind}@${e.t}`).slice(0, 10), t: g.time });
       } finally { RX.clear(); unstage(g); }
     });
 

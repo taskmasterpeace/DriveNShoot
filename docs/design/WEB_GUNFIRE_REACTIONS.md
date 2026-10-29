@@ -120,7 +120,7 @@ These keep their own minds:
 - **Barks:** one line from the reaction's row, through `voice.speak` (a voiced clip, else a subtitle) and the floater.
   At most one every 0.45 s, and only within 70 m of you.
 - **Body language:** on the pose solver's own flags (`crouch`, `handsUp`, `aiming`, `stoop`).
-- **Doors:** a thud, the leaves shut and the lock, the moment the hider is in. The door comes unbarred when their reaction ends, or after
+- **Doors:** a thud, the leaves slammed shut and held, and a plank across them, the moment the hider is in. The door comes unbarred when their reaction ends, or after
   300 s at most.
 
 ### 3.7 Memory: jumpiness
@@ -166,12 +166,14 @@ The same man **asleep**:
 - **No door near** → down where they are. **No bed** → flat on the ground. **No family** → hide.
 - **Family dead mid-run** → hide.
 - **Door already barred by someone else** → the next door.
-- **A barred door and the route planner.** A bar is a real lock (`locked`, kick/shoot it open), but it does **not** stamp
-  the foot nav grid the way `interiors.setLocked` does. A bar lasts seconds, and stamping it sealed whole homes from every
-  other walker's route (the battery's floor-plan, storeys and walkable checks caught it after Phoenix's opening
-  gunfight). Others path to it and stop at the closed door, as they do at any shut door.
-- **Saved while barred.** `interiors.save` records it as locked, and it loads locked (unknown state holds, law 1). Kick it
-  open. Only a door this system barred is ever unbarred by it (`door.rxBar`).
+- **What a bar is.** The leaves are slammed shut and held (`jamT` kept topped up: a jammed leaf refuses every push), and
+  the padlock slot's plank is drawn across the door. It is **not a lock**. A lock is saved and stamped into the nav grid
+  (`interiors.setLocked`/`load`), and the battery caught both:
+  - a bar as a lock sealed whole homes from every other walker's route while it held;
+  - a save taken while one held reloaded it as a lock for good, sealing the cantina's floor plan.
+
+  Now nothing about a bar is saved; a save mid-bar loads a plain closed door. Others stop at it like any shut door. A
+  kick (`interiors.fling` zeroes `jamT`) or the door forced open breaks it (`barBroken`), and the plank comes off.
 - **Crew candidates** (`c.crewCand`) are crew.js's: they do not take part.
 - **Below the street** (`c.ug`), in a seat, being dragged, captive → not this system's.
 - **Underground shots** never reach the street (the existing `under.noise` short-circuit is untouched).
@@ -211,7 +213,7 @@ The same man **asleep**:
 | `web/src/systems/ai.js` | `onNoise`: `\|\| c.rx` in the skip; `update`: `if (c.rx && g.reactions.think(c, dt)) continue;` after the hold line |
 | `web/src/data/pulls.js` | `CHANNELS.heard` row; `FACT_KINDS.gunfire` row |
 | `web/src/agent/api.js` | import; `...reactionsCommands(api, need)`; `await reactionsChecks(api, check, C)` before the draw-call check |
-| `web/src/systems/interiors.js` | none: barring uses its `orient`, `syncLock`, `flush` and the door's own fields |
+| `web/src/systems/interiors.js` | none: barring uses its `orient`, `syncLock`, `flush` and the leaves' `jamT` |
 | `web/docs/COMMANDS.md` | regenerated |
 
 ## 7. Tuning Knobs (`data/reactions.js REACT`)
@@ -244,7 +246,8 @@ checks every name it uses.
    (deputy, medic, trader, mother and child, drunk, veteran, coward, preacher, radio operator) and one real
    `combat.fire`. The drunk ignores it and the coward drops everything and runs. Typically 7–9 distinct.
 3. **An unarmed parent goes to their child.** The mother runs to her boy (`kinReached`). He follows (`follow`). She gets
-   them through a door that slams and bars (`doorSlam`, locked, both inside). It unbars when they come out.
+   them through a door that slams and bars (`doorSlam`; shut, held, never locked; both inside). A save taken then loads it
+   unlocked and unstamped. It unbars when they come out.
 4. **A deputy moves toward the HEARD bearing, never the true position, with error that grows with distance.** Deputies
    at 55 m and 115 m with a clear line. 12 real shots: every error is inside its bound, the far bound is bigger, and the
    far mean |error| is bigger. Then one more shot and 3 s: each walks within 12° of its heard bearing. At least one, with

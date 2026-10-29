@@ -353,7 +353,7 @@ export class Reactions {
     if (!I) return null;
     let best = null, bd = R;
     for (const d of I.doors) {
-      if (d.ug || d.broken || d.locked || d.kind === 'stair' || (d.y ?? 0) > 0.5) continue;
+      if (d.ug || d.broken || d.locked || d.rxBar || d.kind === 'stair' || (d.y ?? 0) > 0.5) continue;
       const ddx = d.x - c.x, ddz = d.z - c.z;
       if (Math.abs(ddx) > bd || Math.abs(ddz) > bd) continue;
       const dd = Math.hypot(ddx, ddz);
@@ -363,21 +363,29 @@ export class Reactions {
   }
   slam(c, rx, D) {
     const g = this.g;
-    if (D.locked) return; // somebody else got it shut first
+    if (D.locked || D.rxBar) return; // locked already, or somebody else got it barred first
     g.audio?.thud?.(g.pan(D.x));
     this.bar(D, true);
     this.barred.push({ door: D, by: c.id, c, at: g.time });
     this.stats.slams++; this.stats.barred++;
     g.emit('doorSlam', { door: D.id, by: c.id, barred: true });
   }
-  // Barred from inside: shut and locked for real (kicked or shot open like any lock: interiors.unlock), but the street's
-  // nav grid is not stamped (interiors.setLocked does that for a lock that holds for good). A bar lasts seconds, and
-  // stamping it sealed whole homes from the route planner for every other walker while it held.
+  // Barred from inside: the leaves slammed shut and held (jamT: a jammed leaf refuses every push, interiors.circle),
+  // the plank across it drawn with the padlock slot's own instance. NOT a lock: a lock is saved and stamped into the nav
+  // grid (interiors.setLocked), and a bar that lasts seconds must never outlive its moment - a save taken while one held
+  // reloaded it as a lock for good and sealed a home. A kick still breaks it (interiors.fling zeroes jamT).
   bar(D, on) {
     const I = this.g.interiors;
-    if (on) { for (const L of D.leaves) { L.th = 0; L.w = 0; I.orient(L); } D.locked = true; D.lockHp = D.mat.lockHp; D.kicks = D.mat.kicks; D.rxBar = true; }
-    else { if (!D.rxBar) return; D.locked = false; D.rxBar = false; }
-    I.syncLock(D); I.flush();
+    if (on) {
+      for (const L of D.leaves) { L.th = 0; L.w = 0; L.jamT = 1; I.orient(L); }
+      D.rxBar = true; D.locked = true; I.syncLock(D); D.locked = false; // the plank shows; the door is not locked
+    } else {
+      if (!D.rxBar) return;
+      D.rxBar = false;
+      for (const L of D.leaves) L.jamT = 0;
+      I.syncLock(D); // unlocked: the plank comes off
+    }
+    I.flush();
   }
   // A child under the nearest bed (or flat on the floor where they are, with no bed near).
   toBed(c, rx, row, dt) {
@@ -448,9 +456,11 @@ export class Reactions {
     if (!this.barred.length) return;
     const g = this.g;
     for (let i = this.barred.length - 1; i >= 0; i--) {
-      const b = this.barred[i], c = b.c;
-      if (c.alive && g.chars.indexOf(c) >= 0 && c.rx?.door === b.door && g.time - b.at < 300) continue;
-      if (b.door.locked && !b.door.broken) this.bar(b.door, false);
+      const b = this.barred[i], c = b.c, D = b.door;
+      let shut = !D.locked; for (const L of D.leaves) if (L.th > 0.05 || L.th < -0.05) shut = false;
+      if (shut && c.alive && g.chars.indexOf(c) >= 0 && c.rx?.door === D && g.time - b.at < 300) { for (const L of D.leaves) if (L.jamT < 0.5) L.jamT = 0.5; continue; }
+      if (!shut) g.emit('barBroken', { door: D.id, by: c.id });
+      this.bar(D, false);
       this.barred.splice(i, 1);
     }
   }
@@ -478,7 +488,7 @@ export class Reactions {
   clear() {
     for (const c of this.g.chars) if (c.rx) this.end(c);
     this.update(0);
-    for (const b of this.barred) if (b.door.locked) this.bar(b.door, false);
+    for (const b of this.barred) this.bar(b.door, false);
     this.barred.length = 0;
   }
 }
