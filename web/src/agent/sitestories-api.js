@@ -3,7 +3,9 @@
 // action=state|story|log; `bounty` is the guild. runSelfTest() calls siteStoriesChecks in a stage of its own (the system
 // is off for the rest of the battery) and loads the battery's save after.
 import { citygenCommands } from './citygen-api.js';
-import { validateSiteStories, GOODS, MOVERS, GUILD, PROBLEMS, STORY_RULES } from '../data/sitestories.js';
+import { validateSiteStories, GOODS, MOVERS, GUILD, PROBLEMS, STORY_RULES, PLACE_KINDS } from '../data/sitestories.js';
+import { OCCUPATIONS } from '../data/occupations.js';
+import { MILBASES_BY_ID } from '../data/milbases.js';
 import { ITEMS } from '../data/items.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -190,8 +192,8 @@ export async function siteStoriesChecks(api, check0, C) {
       const s0 = refugees.s, c = live[0].c, x0 = c.x, z0 = c.z;
       await C('step', { seconds: 12 });
       const moved = Math.hypot(c.x - x0, c.z - z0), onRoute = Math.hypot(c.x - S.at(refugees, S.project(refugees, c.x, c.z), {}).x, c.z - S.at(refugees, S.project(refugees, c.x, c.z), {}).z);
-      const ok = T.owner.name !== owner0 && T.pop < pop0 && T.stock.food < food0 && T.garrison?.alive && live.length >= 4 && live.every((q) => q.c.alive && !q.c.inVehicle && q.flag?.length === 2) && moved > 8 && refugees.s > s0 && onRoute < 8 && refugees.to && S.place(refugees.to)?.kind === 'town';
-      return ok ? true : JSON.stringify({ owner: [owner0, T.owner.name], pop: [pop0, Math.round(T.pop)], food: [food0, r1(T.stock.food)], live: live.length, moved: r1(moved), s: [r1(s0), r1(refugees.s)], onRoute: r1(onRoute), to: refugees.to });
+      const ok = T.owner.name !== owner0 && T.pop < pop0 && T.lastRaid?.took > 0 && T.lastRaid.lost > 0 && T.garrison?.alive && live.length >= 4 && live.every((q) => q.c.alive && !q.c.inVehicle && q.flag?.length === 2) && moved > 8 && refugees.s > s0 && onRoute < 8 && refugees.to && S.place(refugees.to)?.kind === 'town';
+      return ok ? true : JSON.stringify({ owner: [owner0, T.owner.name], pop: [pop0, Math.round(T.pop)], food: [food0, r1(T.stock.food)], raid: T.lastRaid, live: live.length, moved: r1(moved), s: [r1(s0), r1(refugees.s)], onRoute: r1(onRoute), to: refugees.to });
     });
 
     await check('stories: a story chain writes 3+ linked chronicle rows - the raid, the fall, the walk-out (and the camp or the town that took them in) are rows of one arc, each caused by the one before; the place holds its news (law 6) and you hear it only standing there, from its people, with the source and the age on your board', async () => {
@@ -343,6 +345,57 @@ export async function siteStoriesChecks(api, check0, C) {
       const ok = H.grudge && sawIt && post && row?.seq === post.deed.seq && post.escrow > 0;
       S.demote(H);
       return ok ? true : JSON.stringify({ grudge: H.grudge, sawIt, post: post && S.bview(post), row: row && { seq: row.seq, v: row.v, o: row.o, a: a.id }, posted: S.bounties.slice(posted0).map((x) => S.bview(x)) });
+    });
+
+    await check('stories: a place\'s goods come from its people\'s work (WEB_OCCUPATIONS) - off screen a day makes what its mix\'s workers make in their shifts (and none of a good no job makes); built near you it makes nothing by formula, and takes exactly what its workers banked', async () => {
+      quiet();
+      await stand(0, -40);
+      // off screen: a town kilometres away, a day of its work
+      const T = [...S.places.values()].find((q) => q.kind === 'town' && !q.beyond && q.work?.day.food > 1 && !(q.work.day.fuel > 0) && !g.workforce?.towns?.get?.(q.id) && Math.hypot(q.x - p.x, q.z - p.z) > 5000);
+      if (!T) return 'no town with food work and no fuel work';
+      Object.assign(T, { pop: T.work.pop, problem: null, fallen: false }); T.stock.food = 2000; T.stock.water = 2000; T.stock.fuel = 7;
+      const f0 = T.stock.food, u0 = T.stock.fuel;
+      await waitStory(g, 24, 0.25);
+      const want = T.work.day.food - T.work.pop * GOODS.food.eat, got = T.stock.food - f0;
+      const off = { want: r1(want), got: r1(got), fuel: r1(T.stock.fuel - u0), jobs: T.work.jobs };
+      // built near you: a maker at the bench banks real units, and the place takes exactly those
+      const WF = g.workforce; const L = S.place('cg-237');
+      await stand(L.x + 20, L.z + 20); await C('step', { seconds: 1 });
+      const t = g.citygen.live.get(L.id); if (!t || !WF) return JSON.stringify({ off, why: 'Dead Suburb not built' });
+      const wfWas = WF.enabled; WF.enabled = true;
+      try {
+        const B = WF.book(t); if (!B) return JSON.stringify({ off, why: 'no roster' });
+        const w = B.workers.find((q) => OCCUPATIONS[q.occ].makes && q.alive && OCCUPATIONS[q.occ].shift[0] < OCCUPATIONS[q.occ].shift[1] && OCCUPATIONS[q.occ].shift[1] - OCCUPATIONS[q.occ].shift[0] >= 6);
+        if (!w) return JSON.stringify({ off, why: 'no maker' });
+        const [item, per] = OCCUPATIONS[w.occ].makes, gd = S.goodOf(item);
+        S.harvest(); const s0 = L.stock[gd], banked0 = L.banked ?? 0, formula = S.makeOf(L, gd, PLACE_KINDS[L.kind] ?? PLACE_KINDS.landmark);
+        g.sky.time = w.shift[0] + 0.1;
+        WF.promote(w, { ...w.work, at: 'work' }); if (!w.c) return JSON.stringify({ off, why: 'maker not promoted' });
+        w.c.x = w.work.x; w.c.z = w.work.z; WF.think(w.c, 0.05);
+        const made0 = w.made;
+        for (let i = 0; i < Math.round(per * 2 / 0.25); i++) { g.sky.time += 0.25; B.lastGh = WF.gh() - 0.25; WF.think(w.c, 0.05); WF.produce(); }
+        const made = w.made - made0;
+        S.harvest();
+        const live = { item, gd, made, took: r1(L.stock[gd] - s0), banked: (L.banked ?? 0) - banked0, formula };
+        const ok = Math.abs(got - want) < 0.6 && off.fuel === 0 && made >= 1 && live.took === made && live.banked === made && formula === 0;
+        return ok ? true : JSON.stringify({ off, live });
+      } finally { WF.enabled = wfWas; }
+    });
+
+    await check('stories: military bases are places with owners (WEB_MILITARY_BASES) - a held base is its holder\'s (a faction, or a warlord\'s family) with people and a guard; an overrun one has fallen to the infected; a sealed one is no one\'s and empty; a Dustwolf base sends raids', async () => {
+      const recs = g.citygen.plan.filter((r) => r.kind === 'base'), bad = [];
+      for (const r of recs) {
+        const q = S.place(r.id), M = MILBASES_BY_ID.get(r.milbase);
+        if (!q || !M) { bad.push([r.id, 'no place']); continue; }
+        const want = M.status === 'overrun' ? 'infected' : M.status === 'sealed' || !M.holder || M.holder === 'contested' ? null : M.holder === 'ruler' ? `${M.id}_ruler` : M.holder;
+        if ((q.owner.id ?? null) !== want) bad.push([r.id, M.status, M.holder, q.owner.id]);
+        if (M.status === 'held' && !(q.pop > 0 && S.defense(q) > 0)) bad.push([r.id, 'held but empty']);
+        if (M.status === 'overrun' && !q.fallen) bad.push([r.id, 'overrun not fallen']);
+        if (M.status === 'sealed' && q.pop > 0) bad.push([r.id, 'sealed with people']);
+        if (M.status === 'held' && M.holder === 'dustwolves' && !S.raids(q)) bad.push([r.id, 'Dustwolf base does not raid']);
+      }
+      const held = recs.filter((r) => MILBASES_BY_ID.get(r.milbase)?.status === 'held').length;
+      return recs.length > 0 && held > 0 && !bad.length ? true : JSON.stringify({ n: recs.length, held, bad: bad.slice(0, 6) });
     });
 
     await check('stories: what it draws stays one instanced mesh (a hall\'s sign, a board with a paper for each posting, a raided place\'s scorch and rubble, a camp) and the frame stays under the draw-call budget', async () => {

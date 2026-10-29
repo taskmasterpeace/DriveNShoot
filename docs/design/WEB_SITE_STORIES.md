@@ -37,7 +37,16 @@ Six days after that, you shoot a man in a crowded square. Nobody follows you out
 - **People:** rolled from the row's `society.pop` (towns 50 to 140, metros 180 to 260, Rust Haven 160 to 200).
 - **Stock:** food, water, fuel, rounds, medicine and scrap. Each good has a base price; the price for a place is `base × clamp(sqrt(wants / stock), 0.5, 3.5)`.
 - **Links:** the four nearest places within 32 km. A place trades with, raids and hears about its links.
-- **Every hour (the world clock):** people eat (`GOODS.eat`) and the place makes (`PLACE_KINDS.make × people`, halved for a fallen place, no water with a dry well). A short place loses people. Its problem grows and kills, and medicine heals a sickness.
+- **Goods come from work** (WEB_OCCUPATIONS):
+  - A town or site's daily make is its occupation mix (`profileOf` → `mixOf`, the same roster its workers are built from). Each job makes `workers × shift hours ÷ hours per unit` of its `makes` item, counted as a good: food, water, medicine and rounds by the item's kind, fuel cans as fuel, anything else (plugs, planks, hides, watches) as scrap trade goods. Its people are the profile's people.
+  - A good no job makes is bought or done without. Only water still comes from the ground (a well) where nobody carries it.
+  - **Built near you, a town makes nothing by formula:** each tick it takes exactly the units its real workers banked on their shelves (`harvest`, law 2). A take from a shelf is never counted as work.
+  - Places with no workforce (Rust Haven, the camps, the bases, a dead ruin) make by their kind's row (`PLACE_KINDS`).
+- **Military bases** (WEB_MILITARY_BASES) are places of kind `military`:
+  - a held base is its holder's: a faction (the Remnant, the Dustwolves, who raid) or a warlord's family (`ruler`), with 30 to 70 people;
+  - an overrun one has fallen to the infected;
+  - a sealed or contested one is no one's and empty.
+- **Every hour (the world clock):** people eat (`GOODS.eat`) and the place makes (halved for a fallen place, no water with a dry well). A short place loses people. Its problem grows and kills, and medicine heals a sickness.
 - **Every day at 06:00:** prices are reset; a problem that has run its course clears; a new one may rise. A place inside the world then sends at most one of: a raid (raiders), a trader (anyone with surplus), a feud raid, diggers for a cache.
 
 ### 3.2 Problems (rows: `PROBLEMS`)
@@ -137,6 +146,8 @@ A place with people that you stand in (within 420 m) records a sighting of you e
 | `pulls.k` (systems/knowledge.js) | every fact: places, boards, halls, parties and hunters are holders; `see`, `tell`, `put`, `broadcast`; the grapevine (`pulls.spread`) carries town facts |
 | `pulls` (nodes, `cors`, `halfW`, `inView`, `me`, `board`) | towns, the corridors a route runs on, your board |
 | `citygen` (plan, `byId`, live towns) | places, a town's buildings for the hall and the board |
+| `world/occupations.js` (`profileOf`, `mixOf`), `workforce` (`towns`, each town's `stock`) | what a place's work makes off screen; what its workers really banked when it is built |
+| `data/milbases.js` (`MILBASES_BY_ID`: status, holder) | the bases as places and who holds them |
 | `data/sites` (`society`, `walls`, `economy`) | owner, people, walls |
 | `society` (chronicle, factions, day) | story rows; the Tally faction (registered at runtime); deeds (a kill row with its witnesses) |
 | `vehiclesSys.spawn`, `seats.board/leave`, `ai.move`, `addChar` | live parties |
@@ -176,7 +187,7 @@ What other lanes can use:
 | `GUILD.payOff` / `cut` | 1.5 / 0.15 | ≥ 1 / 0 to 0.5 | the price of your name |
 | `GUILD.townSeesR` / `sightEvery` | 420 m / 6 h | | how a place records you |
 
-## 8. Acceptance Criteria (`selftest only=stories:`)
+## 8. Acceptance Criteria (`selftest only=stories:`, 12 checks)
 | check | proves |
 |---|---|
 | the rows validate | `validateSiteStories`: goods are real items, place kinds make known goods, problems name `{place}` and last, movers fit their cars, the guild colour is not purple; a broken row set trips 11 named errors |
@@ -188,6 +199,8 @@ What other lanes can use:
 | a bounty posted on you reaches a far board only after a traveller carries it | on the poster's board at once; the trader holds it as `board`; the far board does not have it at any step while he drives; it is pinned when he arrives, `from` his holder by his name |
 | the Tally: take, claim, pay off | a town board without the posting refuses the take; the poster's board allows it. The master stands in his fallen place; you kill him and collect at Rust Haven exactly the escrow × 0.85. Your own posting paid off costs exactly 1.5× and the poster's chest grows. A pair on that contract keeps it until the word reaches its hall, then drops it |
 | kill a tallyman | the partner holds a `saw` sighting of you and a grudge; the Tally posts your name with the kill row as the deed, escrow paid |
+| a place's goods come from its people's work | a far town's food over 24 h equals its jobs' make less what its people eat (±0.6), and its fuel does not move (no fuel job). Built near you, a maker staged at the bench banks real units; the place's make by formula is 0, and it takes exactly the units banked |
+| military bases are places with owners | every base record is a place: held is its holder's (faction, or the warlord's family), with people and a defense; overrun has fallen to the infected; sealed or contested is empty and no one's; a Dustwolf base raids |
 | draws | one instanced mesh draws a hall's sign and a board; the frame stays under 150 draw calls |
 
 Plus: `scenario name=stress` shows no regression (the system holds no live bodies during stress), and `ip-lint` reports 0 deny.

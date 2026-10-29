@@ -1,7 +1,11 @@
 import * as THREE from 'three';
-import { STORY_RULES as R, GOODS, PLACE_KINDS, WALL_DEFENSE, RAIDERS, PROBLEMS, MOVERS, ECON, STORY_VERBS, STORY_FACT_KINDS, GUILD, GUILD_WORDS } from '../data/sitestories.js';
+import { STORY_RULES as R, GOODS, MAKES_GOOD, ITEM_KIND_GOOD, BASE_PLACE, PLACE_KINDS, WALL_DEFENSE, RAIDERS, PROBLEMS, MOVERS, ECON, STORY_VERBS, STORY_FACT_KINDS, GUILD, GUILD_WORDS } from '../data/sitestories.js';
 import { FACT_KINDS, CHANNELS } from '../data/pulls.js';
 import { SITES_BY_ID } from '../data/sites/index.js';
+import { OCCUPATIONS } from '../data/occupations.js';
+import { ITEMS } from '../data/items.js';
+import { MILBASES_BY_ID } from '../data/milbases.js';
+import { profileOf, mixOf } from '../world/occupations.js';
 import { outfit } from './characters.js';
 import { hash32, rngOf } from '../world/geo.js';
 
@@ -61,7 +65,7 @@ export class SiteStories {
     for (const n of P.nodes()) {
       const rec = cg.byId?.get(n.id);
       this.addPlace({ id: n.id, name: n.name, kind: 'town', x: n.x, z: n.z, half: rec?.half ?? 400, holder: `town:${n.id}`, walls: rec?.walls ?? (n.id === 'rust_haven' ? 'wall' : 'none'), beyond: false,
-        owner: n.id === 'rust_haven' ? { kind: 'faction', id: 'rusthaven', name: 'Rust Haven' } : null, pop: n.id === 'rust_haven' ? [160, 200] : rec?.major ? [180, 260] : [50, 140] });
+        owner: n.id === 'rust_haven' ? { kind: 'faction', id: 'rusthaven', name: 'Rust Haven' } : null, pop: n.id === 'rust_haven' ? [160, 200] : rec?.major ? [180, 260] : [50, 140], rec });
     }
     for (const rec of cg.plan) {
       if (rec.kind !== 'site') continue;
@@ -71,7 +75,17 @@ export class SiteStories {
         : FACTION_OF[fam] ? { kind: 'faction', id: FACTION_OF[fam], name: g.society.factions.row(FACTION_OF[fam])?.name ?? titled(fam) }
         : fam === 'drifter' || fam === 'drifters' ? null // a family (named below)
         : { kind: 'family', id: fam, name: titled(fam.replace(/_/g, ' ')), raids: RAID_FAMILIES.has(fam) };
-      this.addPlace({ id: rec.id, name: titled(rec.name), kind: PLACE_KINDS[row.kind] ? row.kind : 'landmark', x: rec.x, z: rec.z, half: rec.half, holder: `site:${rec.id}`, walls: row.walls?.type ?? 'none', beyond: !!rec.beyond, owner, pop: popR, site: row.id, makes: row.economy?.makes ?? [] });
+      this.addPlace({ id: rec.id, name: titled(rec.name), kind: PLACE_KINDS[row.kind] ? row.kind : 'landmark', x: rec.x, z: rec.z, half: rec.half, holder: `site:${rec.id}`, walls: row.walls?.type ?? 'none', beyond: !!rec.beyond, owner, pop: popR, site: row.id, makes: row.economy?.makes ?? [], rec });
+    }
+    // the military bases (data/milbases.js): held by their holder, overrun (fallen to the infected) or sealed (no one's)
+    for (const rec of cg.plan) {
+      if (rec.kind !== 'base') continue;
+      const M = MILBASES_BY_ID.get(rec.milbase); if (!M) continue;
+      const hk = BASE_PLACE.holders[M.holder], F = g.society.factions;
+      const owner = M.status === 'overrun' ? { kind: 'faction', id: 'infected', name: 'the infected' } : M.status === 'sealed' || !M.holder || hk === 'none' ? { kind: 'none', id: null, name: 'no one' }
+        : hk === 'family' ? { kind: 'family', id: `${M.id}_ruler`, name: `the ruler of ${titled(M.name)}` } : { kind: 'faction', id: M.holder, name: F.row(M.holder)?.name ?? titled(M.holder) };
+      const p = this.addPlace({ id: rec.id, name: titled(M.name), kind: 'military', x: rec.x, z: rec.z, half: rec.half, holder: `site:${rec.id}`, walls: 'chainlink', beyond: !!rec.beyond, owner, pop: M.status === 'held' ? BASE_PLACE.pop : [0, 0], base: { id: M.id, status: M.status, holder: M.holder } });
+      p.fallen = M.status === 'overrun';
     }
     (g.world?.spawns?.camps ?? []).forEach((c, i) => this.addPlace({ id: `camp_${i}`, name: g.society.places?.[`camp_${i}`]?.name ?? `Camp ${i + 1}`, kind: 'camp', x: c.x, z: c.z, half: 60, holder: `site:camp_${i}`, walls: 'fence', beyond: false, owner: { kind: 'faction', id: 'dustwolves', name: 'The Dustwolves' }, pop: [22, 30] }));
     this.pickHalls();
@@ -80,18 +94,55 @@ export class SiteStories {
   }
   addPlace(o) {
     const g = this.g, rng = rngOf(hash32(o.id.length * 131, Math.round(o.x) | 0, Math.round(o.z) | 0));
-    const pop = o.pop ? Math.max(0, iroll(rng, o.pop)) : 0;
+    const P = o.rec ? profileOf(o.rec) : null;
+    const pop = P?.pop > 0 ? P.pop : o.pop ? Math.max(0, iroll(rng, o.pop)) : 0;
+    const work = P ? this.workOf(P) : null;
     const owner = o.owner ?? { kind: 'family', id: null, name: `the ${pick(rng, GUILD.surnames)} family` };
     const K = PLACE_KINDS[o.kind] ?? PLACE_KINDS.landmark;
-    const stock = {}; for (const gd of Object.keys(GOODS)) stock[gd] = Math.round(pop * ((K.make[gd] ?? 0) * roll(rng, [3, 9]) + (GOODS[gd].eat ?? 0) * roll(rng, [4, 9])));
+    const stock = {}; for (const gd of Object.keys(GOODS)) stock[gd] = Math.round((work ? work.day[gd] ?? 0 : pop * (K.make[gd] ?? 0)) * roll(rng, [3, 9]) + pop * (GOODS[gd].eat ?? 0) * roll(rng, [4, 9]));
     const p = { id: o.id, name: o.name, kind: o.kind, x: o.x, z: o.z, half: o.half ?? 200, holder: o.holder, walls: o.walls ?? 'none', beyond: !!o.beyond, site: o.site ?? null,
       owner, pop, pop0: pop, stock, price: {}, coin: Math.round(pop * roll(rng, [3, 8])), problem: null, fallen: false, arc: null, arcRow: null, guard: 0, garrison: null,
-      links: null, seed: hash32(o.id.length, Math.round(o.x) | 0, 0x53545259), lastSight: -99, camp: o.camp ?? null, raidedAt: null };
+      work, base: o.base ?? null, links: null, seed: hash32(o.id.length, Math.round(o.x) | 0, 0x53545259), lastSight: -99, camp: o.camp ?? null, raidedAt: null };
     this.reprice(p);
     this.places.set(p.id, p);
     this.k.holder(p.holder, { name: p.name, kind: 'site', x: p.x, z: p.z, cap: 40, radio: pop >= 40 });
     this.k.holder(this.boardOf(p), { name: `the ${p.name} board`, kind: 'board', x: p.x, z: p.z, cap: 40 });
     return p;
+  }
+  // What a place's work makes in a game day (docs/design/WEB_OCCUPATIONS.md): its mix's workers x the hours of their
+  // shift / the hours a unit takes, as goods. { n (workers), pop, day: { good: units }, jobs: [[occupation, n, item, units a day]] }
+  workOf(P) {
+    if (!P?.n) return null;
+    const day = {}, jobs = [];
+    for (const { id, n } of mixOf(P)) {
+      const o = OCCUPATIONS[id], mk = o?.makes; if (!mk || !n) continue;
+      const [a, b] = o.shift, len = b > a ? b - a : 24 - a + b, units = n * len / mk[1], gd = this.goodOf(mk[0]);
+      day[gd] = (day[gd] ?? 0) + units; jobs.push([id, n, mk[0], r1(units)]);
+    }
+    return { n: P.n, pop: P.pop, day, jobs };
+  }
+  goodOf(item) { return MAKES_GOOD[item] ?? ITEM_KIND_GOOD[ITEMS[item]?.kind] ?? 'scrap'; }
+  // The hour's make of one good. Off screen: the work the place's people would do (scaled by who is left). A good its work
+  // makes none of comes from the ground by its kind only if it is water (a well); anything else is bought or gone without.
+  // A town built near you makes nothing here: its workers bank the real thing (harvest).
+  makeOf(p, gd, K) {
+    const live = !!this.g.workforce?.towns?.get?.(p.id);
+    if (p.work && (p.work.day[gd] || live)) return live ? 0 : p.work.day[gd] / 24 * Math.min(1, p.pop / Math.max(1, p.work.pop));
+    if (p.work && gd !== 'water') return 0;
+    return (K.make[gd] ?? 0) * p.pop / 24;
+  }
+  // Built near you: what the town's workers really banked since the last look goes into the place's stock (law 2).
+  harvest() {
+    const W = this.g.workforce; if (!W?.towns) return;
+    for (const [id, B] of W.towns) {
+      const p = this.place(id); if (!p) continue;
+      p.seen ??= {};
+      for (const [key, sv] of Object.entries(B.stock ?? {})) {
+        const was = p.seen[key] ?? 0, d = sv.n - was;
+        if (d > 0) { const gd = this.goodOf(sv.item); p.stock[gd] = (p.stock[gd] ?? 0) + d; p.banked = (p.banked ?? 0) + d; }
+        p.seen[key] = sv.n; // (a take lowers the shelf: never counted as work)
+      }
+    }
   }
   boardOf(p) { return `board:${p.id}`; }
   place(id) { return this.places.get(id) ?? null; }
@@ -161,6 +212,7 @@ export class SiteStories {
     if (this.clock + 1 <= now) this.clock = Math.floor(now);
     const dh = Math.max(0, now - this.lastMove); this.lastMove = now;
     for (let i = this.movers.length - 1; i >= 0; i--) this.advance(this.movers[i], dh, now);
+    this.harvest();
     this.sightings(now);
     this.hereNews();
     this.bodies();
@@ -201,7 +253,7 @@ export class SiteStories {
       // eat, make
       let short = 0;
       for (const gd of Object.keys(GOODS)) {
-        const make = (K.make[gd] ?? 0) * p.pop / 24 * (p.fallen ? 0.5 : 1) * (P?.stops === gd ? 0 : 1);
+        const make = this.makeOf(p, gd, K) * (p.fallen ? 0.5 : 1) * (P?.stops === gd ? 0 : 1);
         const eat = (GOODS[gd].eat ?? 0) * p.pop / 24;
         p.stock[gd] = (p.stock[gd] ?? 0) + make - eat;
         if (p.stock[gd] < 0) { short += -p.stock[gd]; p.stock[gd] = 0; }
@@ -428,6 +480,7 @@ export class SiteStories {
     const room = MOVERS.raiders.cargo;
     for (const gd of Object.keys(GOODS)) { const t = Math.min(room - took, Math.floor((to.stock[gd] ?? 0) * share)); if (t > 0) { to.stock[gd] -= t; m.cargo[gd] = (m.cargo[gd] ?? 0) + t; took += t; } }
     const raided = this.story(to, 'raided', { from: from?.name ?? 'raiders', lost, took }, { arc: m.arc, cause: m.cause, other: from });
+    to.lastRaid = { lost, took, h: r1(this.hours()), by: from?.id ?? null };
     this.stats.raidsHit = (this.stats.raidsHit ?? 0) + 1;
     if (att > def * 1.6 || to.pop * (PLACE_KINDS[to.kind]?.guard ?? 0.2) < 4) {
       // it falls: the raiders hold it (the boss stays as its master), the rest walk out
@@ -930,7 +983,7 @@ export class SiteStories {
   pview(p) {
     return { id: p.id, name: p.name, kind: p.kind, x: Math.round(p.x), z: Math.round(p.z), beyond: p.beyond, owner: p.owner, pop: Math.round(p.pop), fallen: p.fallen, problem: p.problem ? { kind: p.problem.kind, sev: r1(p.problem.sev), other: p.problem.other } : null,
       stock: Object.fromEntries(Object.entries(p.stock).map(([k, v]) => [k, r1(v)])), price: p.price, coin: Math.round(p.coin), defense: r1(this.defense(p)), guard: p.guard, arc: p.arc, hall: this.isHall(p.id),
-      garrison: p.garrison ? { name: p.garrison.name, alive: p.garrison.alive, n: p.garrison.n, bounty: p.garrison.bounty } : null, links: this.linksOf(p),
+      work: p.work ? { n: p.work.n, day: Object.fromEntries(Object.entries(p.work.day).map(([k, v]) => [k, r1(v)])), jobs: p.work.jobs } : null, banked: p.banked ?? 0, base: p.base, garrison: p.garrison ? { name: p.garrison.name, alive: p.garrison.alive, n: p.garrison.n, bounty: p.garrison.bounty } : null, links: this.linksOf(p),
       outbound: this.movers.filter((m) => m.from === p.id && m.state === 'road').map((m) => m.id), inbound: this.movers.filter((m) => m.to === p.id && m.state === 'road').map((m) => m.id) };
   }
   mview(m) {

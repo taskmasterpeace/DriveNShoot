@@ -188,6 +188,7 @@ power, the code, whether you read it, the blast door, the last warning, the garr
   - `systems/ai.js`: a garrison soldier's `think`.
   - `agent/api.js`: import, commands, checks after citygen's, save/load.
   - `data/materials.js`: `mb-fence` is chainlink and `mb-blast` is steel.
+- **Read by SITE-STORIES** (WEB_SITE_STORIES §3.1): every base record is a place with an owner from its row (held: its holder; overrun: fallen to the infected; sealed: no one's). A Dustwolf-held base sends raids.
 
 ## 7. Tuning knobs (safe ranges)
 | Knob | Default | Safe range | What it does |

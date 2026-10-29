@@ -41,7 +41,19 @@ export const GOODS = {
   scrap: { name: 'scrap', base: 2,  item: 'scrap' },
 };
 
-// ---- what a place makes, by its kind (site rows' kind; towns by archetype family) -----------------------------------------
+// ---- what a place's work makes (docs/design/WEB_OCCUPATIONS.md): an occupation's `makes` item counts as one unit of a good.
+// An item not named here goes by its ITEMS kind (food, water, med, ammo); anything else (parts, tools, hides, armour) is
+// trade goods, counted as scrap. rotgut is drink, not food.
+export const MAKES_GOOD = { fuel_can: 'fuel', rotgut: 'scrap', canteen: 'water' };
+export const ITEM_KIND_GOOD = { food: 'food', water: 'water', med: 'meds', ammo: 'ammo' };
+
+// ---- military bases as places (data/milbases.js): who holds a base by its row's status and holder
+//   pop      people of a held base (its garrison and their hangers-on); an overrun or sealed base has none
+//   holders  a row's holder that is not a faction id: 'ruler' (a warlord's base, a family), 'contested' (no one yet)
+export const BASE_PLACE = { pop: [30, 70], holders: { ruler: 'family', contested: 'none' } };
+
+// ---- what a place makes, by its kind (the FALLBACK: a place with no workforce of its own - Rust Haven, a camp, a base,
+// a dead ruin - or water from a well where nobody's work carries it) (site rows' kind; towns by archetype family) -----------------------------------------
 //   make  units per person per game day of each good; want: goods it keeps a week of before it sends a trader out
 //   guard share of its people who stand on the wall; wall: the row's wall adds this to defense
 export const PLACE_KINDS = {
