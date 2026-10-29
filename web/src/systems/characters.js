@@ -433,7 +433,7 @@ export class CharacterRenderer {
       if (ch.mv) moveRoot(ch, _root, _t, _r); // a roll, a slide, a vault, a climb, a jump (systems/moves.js)
       if (ch.dive > 0) {
         const k = Math.min(1, ch.dive * 3);
-        _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
+        _root.multiply(_t.makeTranslation(0, 0.95 - 0.5 * k, 0)).multiply(_r.makeRotationX(1.35 * k)).multiply(_t.makeTranslation(0, -0.95, 0)); // flat out at hip height, about the hips (it pivoted about the feet and went under the ground)
       }
       if (ch.underwater) _root.multiply(_t.makeTranslation(0, -1.6, 0));
       else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.5 + (ch.waveY ?? 0), 0)).multiply(_r.makeRotationX(1.2)); // waveY: on the swell (systems/sealife.js scanPeople)

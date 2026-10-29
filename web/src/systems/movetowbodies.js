@@ -137,7 +137,7 @@ function fender(parts, K, x, y, z) {
 function airboat(parts, s, paint, K) {
   const L = s.len, B = s.wid / 2;
   const { geo, S } = loft(K, {
-    L, n: 16, t: 0.05, fy: 0.67, open: [0.1, 0.82], gun: '#8d8c86', deck: '#5b5a52',
+    L, n: 16, t: 0.05, fy: 0.67, open: [0.1, 0.82], gun: '#9b9a92', deck: '#34332d',
     W: { base: new THREE.Color(paint), bottom: new THREE.Color('#33302a'), line: 0.2, sheer: 0.84, boot: null, rust: 0.45, seed: 3 },
     prof(u, o) {
       const bow = sat((u - 0.72) / 0.28);
@@ -193,6 +193,8 @@ function airboat(parts, s, paint, K) {
   // a push pole and a gas can
   parts.push(K.beam([B - 0.12, 0.92, zs + 0.6], [B - 0.16, 0.92, L / 2 - 0.6], 0.04, '#8b7350', K.PART.frame));
   parts.push(K.coloredBox(0.22, 0.28, 0.32, -0.75, 0.81, -1.3, '#9a2a16'));
+  for (const z of [0.4, 0.9, 1.35]) parts.push(K.slab(-0.85, 0.85, 0.67, 0.685, z - 0.18, z + 0.18, '#4b4a43')); // tread plates
+  parts.push(K.slab(0.62, 1.1, 0.67, 1.07, -1.05, -0.62, '#d9d2c2')); parts.push(K.slab(0.6, 1.12, 1.07, 1.11, -1.07, -0.6, '#3e6f8a')); // the cooler, its lid
 }
 
 // ---- the waterbike ---------------------------------------------------------------------------------------------------
@@ -201,7 +203,7 @@ function airboat(parts, s, paint, K) {
 function waterbike(parts, s, paint, K) {
   const L = s.len, B = s.wid / 2;
   const { geo, S } = loft(K, {
-    L, n: 14, t: 0.04, fy: 0.42, open: [0.2, 0.58], gun: '#2a2a2a', deck: '#2d2d2b',
+    L, n: 14, t: 0.04, fy: 0.42, open: [0.2, 0.58], gun: '#1d1d1c', deck: paint,
     W: { base: new THREE.Color(paint), bottom: new THREE.Color('#e2ded2'), line: 0.12, sheer: 0.55, boot: new THREE.Color('#d8d2c2'), rust: 0.15, seed: 11 },
     prof(u, o) {
       const bow = sat((u - 0.55) / 0.45), st = sat((0.12 - u) / 0.12);
@@ -237,8 +239,8 @@ function waterbike(parts, s, paint, K) {
 function gunboat(parts, s, paint, K) {
   const L = s.len, B = s.wid / 2, G = K.GREENHOUSE.gunboat;
   const { geo, S } = loft(K, {
-    L, n: 18, t: 0.07, fy: 0.7, open: [0.02, 0.46], gun: '#3a3632', deck: '#4a4236',
-    W: { base: new THREE.Color('#3f4a3c'), bottom: new THREE.Color('#5a2a1c'), line: 0.32, sheer: 1.16, boot: new THREE.Color('#bdb59e'), rust: 0.9, seed: 21 },
+    L, n: 18, t: 0.07, fy: 0.7, open: [0.02, 0.46], gun: '#2b2925', deck: '#3a342b',
+    W: { base: new THREE.Color('#34412e'), bottom: new THREE.Color('#5a2a1c'), line: 0.32, sheer: 1.16, boot: new THREE.Color('#bdb59e'), rust: 0.55, seed: 21 },
     prof(u, o) {
       const bow = sat((u - 0.6) / 0.4);
       o.hw = B * (0.92 + 0.08 * Math.sin(u * Math.PI * 0.9)) * (1 - 0.97 * bow * bow); o.cw = o.hw * 0.74;
