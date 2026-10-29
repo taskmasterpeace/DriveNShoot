@@ -87,6 +87,9 @@ export function scoreOf(id, o, P, mix = MIX) {
   return w * Math.exp(mix.jitter * (hashU(P.seed, id) * 2 - 1));
 }
 
+// How strongly a job fits a place: the sum of its fit over the place's tags
+export function fitOf(o, P) { let f = 0; for (const t of P.tags) f += o.fit?.[t] ?? 0; return f; }
+
 // The mix: [{ id, n, share }] by count (desc, then id), summing to P.n. Shares go by score, a job never past its cap
 // (row `max`, else MIX.cap; `one` = a single worker) unless every job is capped and people are left over.
 export function mixOf(P, rows = OCCUPATIONS, mix = MIX) {
@@ -97,9 +100,10 @@ export function mixOf(P, rows = OCCUPATIONS, mix = MIX) {
   }
   if (!ids.length) return [];
   // THE TAIL: a trade that would keep fewer than MIX.tailN people here is here only by the seed's say (MIX.tailKeep): not
-  // every farm town has a beekeeper. One-of-a-kind posts (`one`) are a town's or not by their own rows.
+  // every farm town has a beekeeper. One-of-a-kind posts (`one`) are a town's or not by their own rows, and a CORE trade (its fit to
+  // the place at least MIX.tailCore: the mine's diggers, the base's sentries) is never left to the seed.
   if (mix.tailN > 0 && mix.tailKeep < 1) {
-    const sh0 = waterFill(w, cap), keep = ids.map((id, i) => rows[id].one || sh0[i] * P.n >= mix.tailN || hashU(P.seed, `${id}|tail`) < mix.tailKeep);
+    const sh0 = waterFill(w, cap), keep = ids.map((id, i) => rows[id].one || sh0[i] * P.n >= mix.tailN || fitOf(rows[id], P) >= mix.tailCore || hashU(P.seed, `${id}|tail`) < mix.tailKeep);
     if (keep.some(Boolean)) { ids = ids.filter((_, i) => keep[i]); w = w.filter((_, i) => keep[i]); cap = cap.filter((_, i) => keep[i]); }
   }
   const sh = waterFill(w, cap);
