@@ -190,3 +190,143 @@ export const RUNDOWN = {
   primer: '#7d7a70', panels: ['#8c6a3a', '#5b6a5e', '#9a8f78', '#6e3a24'], rust: '#6a3a1e',
   dents: [['front', 0.35], ['left', 0.25], ['rear', 0.2]],
 };
+
+// ======================================================================================================================
+// GADGETS-2: THE KIT YOU WEAR AND LOOK THROUGH (docs/design/WEB_GADGETS2.md; systems/kit.js carries every row out).
+// Robert (2026-10-29): "Nothing clean or military-new: everything rebuilt, taped together and running on batteries you
+// have to find." So every powered piece drinks CELLS (found, never regenerated: law 2), the mask drinks FILTERS, and
+// nothing here knows anything its owner did not see, hear on a real broadcast, or smell through a real dog (law 6).
+//
+// A KIT row (an item of kind 'kit', use act 'kit': the PACK screen switches it on and off):
+//   name, item       as GADGETS (folded into data/items.js ITEMS)
+//   slot             'eyes' (one optic at a time: nvg | thermal) | 'glass' (held to the eye: binoculars | scope) |
+//                    'beam' (one light: flashlight | headlamp) | 'ears' (the scanner) | 'face' (the mask)
+//   power            { cell: item that feeds it, life: seconds of use one cell gives } (null: needs nothing)
+//   the rest         the slot's own numbers (below, per row)
+// Only things you CARRY work: a piece left in a trunk or a box is not on you.
+export const KIT = {
+  // NIGHT VISION: a green, grainy, amplified picture (the overlay pass + the renderer's exposure: no new light). It
+  // drinks a cell; a bright thing in view (a flare, a fire, headlights pointed at you) BLINDS it: the picture whites out
+  // and takes `recover` s to come back once the light is gone.
+  nvg: { name: 'Night goggles', slot: 'eyes', power: { cell: 'battery_cell', life: 240 },
+    gain: 4.2, grain: 0.22, tint: [0.34, 1.0, 0.38], blind: { flare: 30, fire: 18, headlights: 22, cone: 0.5, rate: 2.4, recover: 1.6, max: 1 },
+    item: { kg: 0.9, bulk: 0.8, value: 380, stack: 1, desc: 'Two night tubes off a dead tank, epoxied into a welding mask. Green, grainy, priceless. A flare in your face and you see nothing for a while.' },
+    source: { craft: [['scrap', 2], ['spark_plugs', 1], ['duct_tape', 2], ['wristwatch', 1]], buy: 380, loot: 'military caches, the Remnant' } },
+  // THERMAL: the rare one. A white-hot ramp over a dark amber world, drawn above brush and smoke (a warm body shows
+  // through the leaves). The infected read COLD: a cold shape that walks is one of the dead. Fresh corpses cool on the
+  // HEAT rows' clock. Short-ranged, cell-hungry.
+  thermal_scope: { name: 'Heat scope', slot: 'eyes', power: { cell: 'battery_cell', life: 150 }, range: 70,
+    item: { kg: 1.3, bulk: 1, value: 900, stack: 1, desc: 'A pre-war heat camera in a box of foam and electrical tape. People glow white. The dead do not glow at all.' },
+    source: { craft: null, buy: 900, loot: 'the Remnant, sealed bunkers (rare)' } },
+  // GLASS: hold it to your eye. The camera rises and leans out along your aim (a top-down zoom out to see further),
+  // and every person and car in the glass's cone, inside its range, that your eyes have a LINE OF SIGHT to is marked
+  // for `mark` s (the minimap, the `kit` command). Nothing behind a wall is marked: NPCs don't cheat, neither do you.
+  binoculars: { name: 'Binoculars', slot: 'glass', power: null, range: 150, cone: 0.55, lean: 70, h: 90, mark: 30, every: 0.4,
+    item: { kg: 0.7, bulk: 0.6, value: 70, stack: 1, desc: 'Field glasses with one cracked lens and a bootlace strap. Scouting is how you live: nobody out there cheats.' },
+    source: { craft: null, buy: 70, loot: 'houses, cars, the Remnant' } },
+  rifle_scope: { name: 'Rifle scope', slot: 'glass', power: null, range: 220, cone: 0.3, lean: 110, h: 120, mark: 30, every: 0.4,
+    item: { kg: 0.5, bulk: 0.4, value: 160, stack: 1, desc: 'A hunting scope off a deer rifle, the crosshair hairline crooked. Narrow, long, honest.' },
+    source: { craft: null, buy: 160, loot: 'gun shops, hunters\' cabins, raiders' } },
+  // LIGHT: the cone you already know (main.js flashlight), now a thing you carry. A lit body is SEEN FURTHER at night by
+  // raiders (ai.js scan x seen) and drawn to by the dead (zombies.js lit / seekLight already read the beam).
+  flashlight: { name: 'Flashlight', slot: 'beam', power: { cell: 'battery_cell', life: 1500 }, reach: 1, seen: 1.7,
+    item: { kg: 0.5, bulk: 0.35, value: 18, stack: 1, desc: 'A steel torch with a cracked lens held in with tape. It shows you the street, and shows the street you.' },
+    source: { craft: null, buy: 18, loot: 'garages, cars, houses' } },
+  headlamp: { name: 'Headlamp', slot: 'beam', power: { cell: 'battery_cell', life: 2100 }, reach: 0.78, seen: 1.5, hands: true,
+    item: { kg: 0.25, bulk: 0.2, value: 30, stack: 1, desc: 'A miner\'s lamp on a sweatband. Both hands free; it points where you look, and so does everyone who sees it.' },
+    source: { craft: [['flashlight', 1], ['rag', 1], ['duct_tape', 1]], buy: 30, loot: 'mines, garages' } },
+  // THE SCANNER: a CHANNEL of the knowledge model (data/pulls.js CHANNELS.scanner). It hears only what was really keyed
+  // up: a convoy's drivers talking lead to tail, the bulls' dispatcher sending a car. Inside `range` of the transmitter,
+  // with a live cell. What you heard is a copy with its source, its spot and its hour (law 6): it goes stale.
+  radio_scanner: { name: 'Radio scanner', slot: 'ears', power: { cell: 'battery_cell', life: 1200 }, range: 1800,
+    item: { kg: 0.8, bulk: 0.6, value: 140, stack: 1, desc: 'A police scanner with a coat-hanger aerial. It hears the convoys talk and the bulls dispatch. It only hears what somebody actually says.' },
+    source: { craft: [['radio_portable', 1], ['scrap', 1], ['duct_tape', 1]], buy: 140, loot: 'patrol cars, the security station' } },
+  // THE MASK: pulled on by itself in bad air (AIR_ZONES) while a filter lasts; each filter is `life` s of breathing.
+  gas_mask: { name: 'Gas mask', slot: 'face', power: { cell: 'mask_filter', life: 300 },
+    item: { kg: 0.7, bulk: 0.8, value: 85, stack: 1, desc: 'A cracked rubber mask with one good eyepiece and a filter thread wrapped in tape. Smoke, chemicals, the dead air down the drains.' },
+    source: { craft: null, buy: 85, loot: 'military caches, fire stations, the security station' } },
+};
+
+// What feeds them. Found in boxes (LOOT adds in data/items.js), never made from nothing. A cell drains in the device;
+// a fresh one is thumbed in from the pack when it goes flat (the old one is gone).
+export const CELLS = {
+  battery_cell: { name: 'Battery cell', kind: 'part', kg: 0.12, bulk: 0.05, stack: 8, value: 6, tags: ['cell'],
+    desc: 'A fat dry cell, its label sun-bleached white. Maybe half a charge. Everything worth carrying runs on these.' },
+  mask_filter: { name: 'Mask filter', kind: 'part', kg: 0.2, bulk: 0.2, stack: 6, value: 12, tags: ['filter'],
+    desc: 'A screw-on charcoal canister, the seal still in its foil. Five minutes of air you can trust.' },
+};
+// Where they turn up: table -> [item, weight, min, max] rows added to data/items.js LOOT. The rare ones stay military.
+export const KIT_LOOT_ADD = {
+  garage: [['battery_cell', 3, 1, 3], ['flashlight', 2, 1, 1], ['headlamp', 1, 1, 1]],
+  office: [['battery_cell', 2, 1, 2], ['binoculars', 1, 1, 1]],
+  pumps: [['battery_cell', 3, 1, 3], ['flashlight', 1, 1, 1]],
+  wreck: [['battery_cell', 2, 1, 2], ['flashlight', 1, 1, 1]],
+  bedroom: [['binoculars', 1, 1, 1], ['battery_cell', 1, 1, 2]],
+  military: [['battery_cell', 3, 2, 4], ['mask_filter', 3, 1, 3], ['gas_mask', 2, 1, 1], ['nvg', 1, 1, 1], ['binoculars', 1, 1, 1], ['rifle_scope', 1, 1, 1], ['thermal_scope', 0.25, 1, 1]],
+  soldier: [['battery_cell', 2, 1, 2], ['mask_filter', 1, 1, 1]],
+  raider: [['battery_cell', 1, 1, 2], ['rifle_scope', 0.3, 1, 1]],
+};
+
+// BODY HEAT (the thermal scope reads it; deg C). The living run at `living`; the infected at the air plus `infected`
+// (they run cold: no fever, no blood moving); a corpse cools from `living` toward the air with time constant `tau`
+// sim seconds (T = air + (living - air) * e^(-t / tau)); a running engine is warm. air: by day / by night.
+export const HEAT = {
+  living: 37, infected: 1.5, tau: 420, engine: 70, fire: 300, air: { day: 31, night: 14 },
+  // The white-hot ramp (no violet anywhere): stops in deg C, colours from cold (black-brown) to white.
+  ramp: [[0, '#0c0806'], [18, '#1c120a'], [26, '#5a1e0c'], [31, '#b0400e'], [34, '#e8861c'], [36, '#ffd36a'], [60, '#fff8e8']],
+  world: [0.44, 0.31, 0.17], gain: 4, floor: [0.09, 0.055, 0.025], // the amber the world is multiplied to under the scope, and its night gain (the cold reads black against it)
+};
+
+// BAD AIR. Without a mask (or with a dry one) you take `dps`, cough (`cough` s between) and your aim shakes; with a
+// filter you breathe and the filter drains. Kinds:
+//   smoke     inside any smoke cloud (throwables.smokes: canisters, the smoke layer, choke gas)
+//   chem      the CHEM_ZONES rows: burned-out chemical ground
+//   under     below the street where the air is dead: an underground site of a kind in `kinds`, or one with no power
+//             (the fans are off): the storm drains under every town (systems/understreet.js, kind drains), sewers
+export const AIR_ZONES = {
+  smoke: { name: 'SMOKE', dps: 1.6, cough: 2.2, shake: 0.4 },
+  chem: { name: 'CHEMICALS', dps: 6, cough: 1.2, shake: 0.8 },
+  under: { name: 'BAD AIR', dps: 2.5, cough: 1.8, shake: 0.5, kinds: ['drains', 'sewer', 'facility'], unpowered: true },
+};
+// Burned-out chemical ground (one decal each, the look all yellow-olive and rust: never purple).
+export const CHEM_ZONES = [
+  { id: 'tank_farm', name: 'THE TANK FARM', x: -215, z: -330, r: 22, look: { stain: '#8a8a2c', edge: '#5a4a1e' } },
+];
+
+// THE SCANNER'S CHATTER: who keys up, and what they say (the fact the scanner copies). Each row is a real source the
+// kit polls: `convoy` while a convoy rolls (its lead's set, from where the lead really is, every `every` s); `bulls`
+// when security sends a car (the dispatcher at the station); `party` a SITE STORIES party on the road in a car
+// (traders and raiders: the set in their car, from the record's spot, every `every` s; systems/sitestories.js movers).
+// Only these speak: nothing is made up to fill the air.
+export const CHATTER = {
+  convoy: { every: 40, life: 2, say: 'convoy chatter: {road}, {dir}bound, {n} rigs rolling' },
+  bulls: { every: 0, life: 1, say: 'the bulls\' dispatcher: a car to {place}, {why}' },
+  party: { every: 90, life: 3, kinds: ['trader', 'raiders'], say: '{who} on the road to {to}: {n} of them, one car' },
+};
+
+// The validator (the World Forge and the selftest): every powered row names a real consumable, slots are known, the
+// ramp climbs, no colour is purple (hue 270-320).
+export function validateKit(rows = { KIT, CELLS, HEAT, AIR_ZONES, CHEM_ZONES }, items = null) {
+  const bad = [], SLOTS = ['eyes', 'glass', 'beam', 'ears', 'face'];
+  const hue = (hex) => {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx - mn < 0.08) return -1;
+    let h = mx === r ? ((g - b) / (mx - mn)) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+    h *= 60; return h < 0 ? h + 360 : h;
+  };
+  for (const [id, k] of Object.entries(rows.KIT)) {
+    if (!SLOTS.includes(k.slot)) bad.push(`${id}: slot ${k.slot}`);
+    if (!(k.item?.kg > 0) || !k.name) bad.push(`${id}: item`);
+    if (k.power && (!rows.CELLS[k.power.cell] || !(k.power.life > 0))) bad.push(`${id}: power ${k.power?.cell}`);
+    if (k.slot === 'glass' && !(k.range > 0 && k.cone > 0 && k.mark > 0)) bad.push(`${id}: glass numbers`);
+    for (const [c] of k.source?.craft ?? []) if (items && !items[c]) bad.push(`${id}: recipe ${c}`);
+  }
+  let last = -1e9;
+  for (const [t, c] of rows.HEAT.ramp) { if (t <= last) bad.push(`heat ramp not climbing at ${t}`); last = t; const h = hue(c); if (h >= 270 && h <= 320) bad.push(`heat ramp ${c} is purple`); }
+  for (const z of rows.CHEM_ZONES) {
+    if (!(z.r > 0) || !Number.isFinite(z.x) || !Number.isFinite(z.z)) bad.push(`chem ${z.id}: x z r`);
+    for (const c of Object.values(z.look)) { const h = hue(c); if (h >= 270 && h <= 320) bad.push(`chem ${z.id}: ${c} is purple`); }
+  }
+  for (const [id, a] of Object.entries(rows.AIR_ZONES)) if (!(a.dps > 0)) bad.push(`air ${id}: dps`);
+  return { ok: bad.length === 0, bad };
+}

@@ -737,6 +737,7 @@ export class Gadgets {
       c.strokeStyle = p.state === 'armed' ? '#f5b21a' : '#9a8a6a'; c.strokeRect(x - 2.5, y - 2.5, 5, 5);
     }
     this.drones.drawMinimap(c, px, pz, scale, R);
+    g.kit?.drawMinimap(c, px, pz, scale, R); // cars the glass marked (systems/kit.js)
   }
 
   view(p) {

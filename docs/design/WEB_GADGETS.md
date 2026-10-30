@@ -161,3 +161,5 @@ Not done: the cities lane's `security_station` building is still not in the tree
 | `drones: a drone bay goes on a pickup (not a sedan) ...` | a sedan refuses the bay, a pickup takes it; Backslash (the real key) sends the outrider up, it holds over 15 m ahead of the moving pickup and marks a raider 40 m up the road; Backslash calls it home and it docks; shot down the bay is empty, Backslash with no drone in the pack is refused, with one it loads |
 
 Scenarios: `gadget-range` (every gadget on one stretch, each with a target), `checkpoint-run` (three stars at the wheel, the posse's roadblock ahead). Renders: `docs/renders/web/gadgets/`.
+
+**Used by GADGETS-2** (`WEB_GADGETS2.md`): the kit reads `gadgets.list` flares (the night goggles blind on them), calls `gadgets.breach` when the harpoon winch pulls a door down, and draws its marked cars from `drawMinimap`.

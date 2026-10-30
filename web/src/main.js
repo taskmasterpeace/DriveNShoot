@@ -20,6 +20,7 @@ import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
+import { LookFeel } from './systems/lookfeel.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
 import { Ballistics } from './systems/ballistics.js';
@@ -74,6 +75,7 @@ import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressin
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
+import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
 import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
 import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
@@ -175,6 +177,7 @@ class Game {
     OUTSIDE.region = (x, z) => this.streamer.W.regionAt(x, z);
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
+    this.look = new LookFeel(this);
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
     this.charR.groundAt = (x, z, y) => this.stunts.heightAt(x, z, y); // people stand on ramps and dunes, not inside them
     this.chars = [];
@@ -254,6 +257,7 @@ class Game {
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
+    this.kit = new Kit(this); // what you wear and look through, and what feeds it (systems/kit.js, WEB_GADGETS2.md)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
     this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
@@ -1145,6 +1149,7 @@ class Game {
         this.hud.toast(`${w.short} JAMMED · R TO CLEAR`, 'warn');
       } else if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
       this.hud.shake(w.shake * 0.4 * this.arms.kickMul()); // one hand kicks harder
+      this.look.onShot(p, k, ang); // the camera kick by calibre
     }
   }
 
@@ -1285,6 +1290,7 @@ class Game {
       this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
     }
 
+    dt = this.look.warp(dt); // a hit-stop: the sim runs near frozen for its real 40-80 ms (systems/lookfeel.js)
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
     if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
@@ -1317,6 +1323,7 @@ class Game {
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.kit.update(simDt); // cells drain, the glass marks, the scanner listens, bad air, dog gear, car kit (systems/kit.js)
       this.rites.update(simDt); // the dead age on the clock, the cemeteries near you, funerals (systems/rites.js)
       this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
@@ -1340,6 +1347,7 @@ class Game {
     }
     this.dialogue.update(dt, I);
     this.fx.update(dt);
+    this.look.update(dt);
     this.updatePickups(dt);
     this.updateFootprints();
     this.updateInterior();
@@ -1355,14 +1363,16 @@ class Game {
     this.streamer.postSky(); // the dust wall thickens the fog; streamed surfaces follow the sky's wet/dry tint
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
-    const flashOn = this.flashOverride ?? (this.sky.night > 0.55 || !!p.ug); // below the street it comes on by itself (L still switches it)
+    const flashOn = (this.flashOverride ?? (this.sky.night > 0.55 || !!p.ug)) && this.kit.beamOk(); // below the street it comes on by itself (L still switches it); it needs a carried light with charge (systems/kit.js)
     // The darker the night (the Night setting, systems/sky.js nightLight), the more your light carries: brighter and longer
     // (an additive cone, no light of its own: the fixed light count holds). Below the street: the underground's cone.
     const dark = p.ug ? 0 : this.sky.night * (1 - this.sky.nightLight);
     this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? (p.ug ? this.under.coneOpacity : 0.55 + 0.35 * dark) : 0;
-    this.flashlight.scale.set(1, 1, 1 + 0.45 * dark);
+    this.flashlight.scale.set(1, 1, (1 + 0.45 * dark) * this.kit.beamReach()); // a headlamp throws shorter than a torch
     this.flashlight.position.set(p.x, p.ug ? p.gy ?? 0 : 0, p.z);
     this.flashlight.rotation.y = p.face;
+    this.kit.frame(dt); // the goggles' and the scope's overlay, body heat, dog and car kit drawn (systems/kit.js)
+    this.charR.lsw.heat.value = this.kit.eyes === 'thermal_scope' ? 1 : 0; // veins are not warm: their glow goes dark under the scope
     this.charR.sync(this.chars, dt);
     this.dogs.draw(dt);
     this.fauna.draw(dt);
@@ -1383,7 +1393,7 @@ class Game {
   }
 
   render(dt) {
-    this.renderer.render(this.scene, this.camera);
+    this.look.render(this.camera); // the scene, then the grade pass (systems/lookfeel.js)
     if (this.showStats) {
       const r = this.renderer.info.render;
       this.hud.stats(`FPS       ${this.fps.toFixed(0)}\nDRAWS     ${r.calls}\nTRIS      ${(r.triangles / 1000).toFixed(1)}k\nCHARS     ${this.chars.length} (${this.chars.filter((c) => c.alive).length} alive)\nVEHICLES  ${this.vehicles.length}\nSTATICS   ${this.statics.boxes.length}\nPOS       ${this.player.x.toFixed(0)}, ${this.player.z.toFixed(0)}`);

@@ -385,6 +385,7 @@ export class Vehicles {
         const d = Math.hypot(dx, dz) || 1;
         const nx = dx / d, nz = dz / d;
         const vn = v.vx * nx + v.vz * nz;
+        g.look?.scrape(v, t.x - nx * r, t.z - nz * r, nx, nz); // scraped metal and sparks along the wall (systems/lookfeel.js)
         if (vn < 0) { v.vx -= vn * nx * 1.35; v.vz -= vn * nz * 1.35; if (-vn > hitN) { v._hitX = t.x - nx * r; v._hitZ = t.z - nz * r; } hitN = Math.max(hitN, -vn); }
         // Glancing hits spin the car.
         v.av += (off > 0 ? 1 : -1) * (nx * fz - nz * fx) * Math.min(3, -vn * 0.08);
@@ -397,6 +398,7 @@ export class Vehicles {
       this.damage(v, (hitN - 8) * 2.2 / v.mass * 2, null);
       g.fx.sparks(v.x + fx * v.len * 0.5, 0.8, v.z + fz * v.len * 0.5, -fx, -fz, 8);
       if (v.driver === g.player) { g.hud.shake(Math.min(1, hitN / 25)); g.audio.crash(hitN / 30); }
+      g.look?.onCrash(v, hitN); // skids, the hit-stop, the screen dirt, cracked glass (systems/lookfeel.js)
     }
     // Vehicle vs vehicle: each body is a chain of discs along its length (a long rig is
     // 3-4 discs, a buggy 2), so cars can't slide into the side of a truck.
@@ -435,6 +437,7 @@ export class Vehicles {
           this.damage(v, -rv * 1.6 * (o.mass / v.mass) * (o.plates ? G.ramMul(o, best.px, best.pz) : 1), o.driver);
           g.fx.sparks(best.px, 1, best.pz, nx, nz, 10);
           if (v.driver === g.player || o.driver === g.player) { g.hud.shake(Math.min(1, -rv / 20)); g.audio.crash(-rv / 25); }
+          g.look?.onCrash(v, -rv, o);
         }
       }
     }
@@ -592,6 +595,7 @@ export class Vehicles {
   yank() {
     const h = this.harpoon;
     const g = this.g;
+    if (g.kit?.winchYank(h)) { g.hud.shake(0.6); this.releaseHarpoon(); return; } // the winch pulls the near door off instead (systems/kit.js)
     const v = h.from;
     if (h.kind === 'veh') {
       const t = h.target;
@@ -661,6 +665,7 @@ export class Vehicles {
         g.audio.clank();
       } else if (wallT < step) {
         h.x += h.dx * wallT; h.z += h.dz * wallT;
+        if (g.kit?.hookDoor(v, h.x, h.z)) { g.audio.clank(); this.releaseHarpoon(); return; } // a winch bites the door by the wall it struck (systems/kit.js)
         g.fx.sparks(h.x, 1.2, h.z, -h.dx, -h.dz, 8);
         g.audio.clank();
         h.state = 'retract';
