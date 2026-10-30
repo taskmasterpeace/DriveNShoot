@@ -50,6 +50,7 @@ export class Seats {
     if (v.driver === c) { v.driver = null; v.parked = true; } // getting out of the driver's seat leaves it braked (vehicles.js)
     c.inVehicle = null; c.seat = null; c.seatPose = null;
     if (v.turretBy === c.id) this.releaseTurret(v, 'left');
+    if (v.carriedBy && this.g.semis?.exitInto(c, v, seat)) { if (!silent) this.g.emit('leftVehicle', { id: c.id, vehicle: v.id, to: 'hold' }); return; } // out onto a trailer's floor (systems/semis.js)
     if (inside && this.g.decks?.fromSeat(c, v, seat)) { if (!silent) this.g.emit('leftVehicle', { id: c.id, vehicle: v.id, to: 'deck' }); return; }
     const p = this.doorPos(v, seat, 1.0);
     const t = { x: p.x, z: p.z };

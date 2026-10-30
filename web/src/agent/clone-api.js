@@ -178,6 +178,12 @@ export async function cloneChecks(api, check, C) {
     await check('clone: dying wakes you in the vat with the pressing\'s skills, nothing on you but the loaner, brine-sick, the brine book untouched', async () => {
       // Kit up: armor, a canteen, the SMG and rounds, cash; a pickup parked beside you with something in the trunk.
       await C('teleport', STAGE); await C('step', { seconds: 0.2 }); quiet();
+      // Staged: room in the pack and no pile underfoot. The battery before fills the pack, and the kit below then spills
+      // (a second SMG is a spare that will not fit, the canteen too) to a ground pile at your feet, the spot the husk is laid:
+      // that pile took the husk's E prompt and kept the canteen out of it (docs/design/WEB_BATTERY_STABILITY.md §3.1).
+      g.inventory.carried.slots.length = 0;
+      for (const [id, b] of g.inventory.boxes) if (b.kind === 'ground' && Math.hypot(b.x - STAGE.x, b.z - STAGE.z) < 12) g.inventory.boxes.delete(id);
+      g.inventory.changed();
       g.gear.put('soft_vest');
       g.inventory.add(g.inventory.carried, 'canteen', 1);
       g.inventory.gainGun('smg'); g.inv.ammo.smg = 40;

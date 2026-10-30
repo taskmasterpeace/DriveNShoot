@@ -327,15 +327,19 @@ export async function gadgetsChecks(api, check, C) {
         g.player.hidden = false;
         for (const c of zs) c.ztarget = g.player;
         let t = 0;
+        const thumps0 = g.zombies.counts.thumps;
         while (d.locked && t < 25) { await C('step', { seconds: 0.5 }); t += 0.5; }
         g.zombies.enabled = false;
+        // (the why, on a failure: who of them was at the door, working it, and after whom)
+        const why = { door: d.id, n: zs.length, thumps: g.zombies.counts.thumps - thumps0, you: [Math.round(g.player.x - d.x), Math.round(g.player.z - d.z), g.player.ug ?? null, +(g.player.gy ?? 0).toFixed(1)],
+          zs: zs.map((c) => `${c.alive ? '' : 'dead '}${(+Math.hypot(c.x - d.x, c.z - d.z)).toFixed(1)}m ${c.zblock === d ? 'working' : c.zblock ? 'other' : '-'} ${c.zsee === g.player ? 'you' : c.zsee ? c.zsee.id : '-'}/${c.zhow ?? '-'} mem:${c.zm?.src ?? '-'}${c.zfire ? ' fire' : ''}${c.ug ? ` ug:${c.ug}` : ''}`) };
         for (const c of zs) g.removeChar(c);
         const held = d.locked;
         for (const b of GX.barred.filter((x) => x.door === d)) GX.unbarricade(d); I.setLocked(d, false);
-        return { held, t, hp: Math.round(d.lockHp) };
+        return { held, t, hp: Math.round(d.lockHp), why };
       };
       const plain = await test(d2, false), barred = await test(d1, true);
-      return barred.held && !plain.held ? true : `barred held=${barred.held} (${barred.t}s); plain held=${plain.held} (${plain.t}s)`;
+      return barred.held && !plain.held ? true : `barred held=${barred.held} (${barred.t}s); plain held=${plain.held} (${plain.t}s) ${JSON.stringify({ plain: plain.why, barred: barred.why })}`;
     });
   } finally {
     clean();
