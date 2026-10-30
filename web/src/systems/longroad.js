@@ -68,9 +68,13 @@ export class LongRoadSys {
     const used = {}; // role -> the next name index
     const fill = (a, b) => {
       const step = LR.everyS * LR.cruise;
-      for (let s = a + step * (1 + (rng() - 0.5) * LR.jitter); s < b - step * 0.4; s += step * (1 + (rng() - 0.5) * LR.jitter)) {
+      // A spot inside a town's reach or by a ramp slides 300 m on down the road and tries again (it does not lose its step).
+      for (let s = a + step * (1 + (rng() - 0.5) * LR.jitter), next = s; s < b - step * 0.4; s = next) {
+        next = s + 300;
         if (towns.some((o) => Math.abs(o.p.s - s) < LR.townClear)) continue;
-        const at = W.at(s), side = rng() < 0.5 ? 1 : -1, off = LR.offset[0] + rng() * (LR.offset[1] - LR.offset[0]);
+        if ((W.exits ?? []).some((e) => Number.isFinite(e.s) && Math.abs(e.s - s) < LR.rampClear)) continue;
+        next = s + step * (1 + (rng() - 0.5) * LR.jitter);
+        const at = W.at(s), side = rng() < 0.5 ? 1 : -1, off = (W.section?.(s)?.out ?? 14) + LR.offset[0] + rng() * (LR.offset[1] - LR.offset[0]);
         const x = at.x + at.nx * off * side, z = at.z + at.nz * off * side, biome = W.biomeAt(x, z);
         const mix = BIOME_MIX[biome] ?? BIOME_MIX.d, tot = Object.values(mix).reduce((q, v) => q + v, 0);
         // THE RHYTHM: never the same kind twice running, never an ambush within two beats of the last (a road of nothing
@@ -86,7 +90,9 @@ export class LongRoadSys {
         const ahead = towns.filter((o) => (o.p.s - s) * dir > 0).sort((p, q) => Math.abs(p.p.s - s) - Math.abs(q.p.s - s))[0];
         const id = `lr-${n++}`, row = WAYSIDE[kind];
         // One person, one place: a name is used once along the road (the list cycles only when it runs out).
-        const people = (row.people ?? []).map((role, i) => { const T = TRAVELLERS[role], k = (used[role] = (used[role] ?? Math.floor(rng() * T.names.length)) + 1) - 1, [name, flag] = T.names[k % T.names.length]; return { id: `${id}-${i}`, role, name, flag }; });
+        const hh = row.household ? (used.household = (used.household ?? Math.floor(rng() * 4)) + 1) - 1 : -1, seen = {};
+        const people = (row.people ?? []).map((role, i) => {
+          if (hh >= 0) { const T = TRAVELLERS[role], per = T.household ?? 1, j = (seen[role] = (seen[role] ?? -1) + 1), [name, flag] = T.names[(hh * per + j) % T.names.length]; return { id: `${id}-${i}`, role, name, flag }; } const T = TRAVELLERS[role], k = (used[role] = (used[role] ?? Math.floor(rng() * T.names.length)) + 1) - 1, [name, flag] = T.names[k % T.names.length]; return { id: `${id}-${i}`, role, name, flag }; });
         beats.push({ id, kind, name: row.name, s, x, z, side, rot: Math.atan2(at.tx, at.tz), biome, dir, mile: r1(s / STREAM.mile),
           from: behind?.t.name ?? (dir > 0 ? 'THE WEST' : 'THE EAST'), to: ahead?.t.name ?? (dir > 0 ? 'THE EAST' : 'THE WEST'),
           people, source: `gap audit: I-10 mile ${r1(a / STREAM.mile)}-${r1(b / STREAM.mile)} had nothing for ${Math.round((b - a) / LR.cruise)} s` });
@@ -179,12 +185,13 @@ export class LongRoadSys {
     const step = this.t; this.t = 0;
     const W = this.W; if (!W?.cl) return;
     const P = this.g.player, x = P.inVehicle?.x ?? P.x, z = P.inVehicle?.z ?? P.z;
+    const inView = Math.max(LR.view, (this.g.viewR ?? 0) * 1.5); // the camera's own ground radius (zoom `viewR`), with room
     for (const b of this.build()) {
       const dx = b.x - x, dz = b.z - z;
       if (Math.abs(dx) > LR.far + 50 && Math.abs(dz) > LR.far + 50 && !this.live[b.id]) continue;
       const d = Math.hypot(dx, dz);
       if (this.live[b.id]) { if (d > LR.far) this.demote(b); }
-      else if (d < LR.wake) { if (d > LR.view) this.promote(b); }
+      else if (d < LR.wake) { if (d > inView) this.promote(b); }
     }
     if (this.g.input?.pressed?.has('KeyE') && !P.inVehicle) for (const id of Object.keys(this.live)) { const b = this.beatById(id); if (b && Math.hypot(P.x - b.x, P.z - b.z) < 3.2 && WAYSIDE[b.kind].cache && !this.taken[id]) { this.search(b); break; } }
     this.tripTick(step);

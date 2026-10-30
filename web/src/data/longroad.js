@@ -16,7 +16,8 @@ export const LONG_ROAD = {
   step: 200,         // m: the audit's sample step along the road
   edge: 1500,        // m: no beat this close to either end of the road (the dust wall, the coast)
   townClear: 1800,   // m: no beat inside a town's reach (the town is the thing to see there)
-  offset: [24, 34],  // m off the centreline, to the outer shoulder (beyond the carriageway; the median is not a stop)
+  offset: [5, 12],   // m beyond the paved outer edge (WorldIndex.section(s).out): on the shoulder, never on a lane or the median
+  rampClear: 900,    // m: no beat this close to an exit (the ramps and the bridge are their own place)
   wake: 460,         // m: a beat ahead is made real inside this ...
   view: 120,         // m: ... but never inside this (nothing spawns in view: the top-down camera shows ~90 m)
   far: 760,          // m: past this a beat goes back to its record (dead stays dead, taken stays taken)
@@ -43,7 +44,7 @@ export const BIOME_MIX = { // wrecks weigh light: chunkgen already strews dead c
 export const WAYSIDE = {
   wreck: { name: 'A WRECK ON THE SHOULDER', note: 'two cars that met at speed; one still has a trunk', wrecks: [['sedan', 'rusted', 0, 0, 0.4], ['pickup', 'rusted', 5, 2, -1.2]], cache: { scrap: 2, ammo_smg: 18 } },
   stall: { name: 'A ROADSIDE STALL', note: 'a trader working the shoulder off a pickup bed', wrecks: [['pickup', 'stripped', 0, 0, 1.57]], people: ['trader'], cache: null },
-  family: { name: 'A FAMILY BROKEN DOWN', note: 'a van with its hood up and three people beside it, going somewhere', wrecks: [['van', 'rusted', 0, 0, 0.1]], people: ['parent', 'parent', 'kid'], cache: null },
+  family: { household: true, name: 'A FAMILY BROKEN DOWN', note: 'a van with its hood up and three people beside it, going somewhere', wrecks: [['van', 'rusted', 0, 0, 0.1]], people: ['parent', 'parent', 'kid'], cache: null },
   checkpoint: { name: 'A BURNED-OUT CHECKPOINT', note: 'somebody held this stretch once; the cars across the shoulder burned', wrecks: [['sedan', 'burned', -4, 0, 1.57], ['pickup', 'burned', 4, 1, 1.4]], people: [], cache: { scrap: 3, rag: 2 } },
   body: { name: 'A BODY BY THE ROAD', note: 'whoever they were walked a long way to die here; their pack is still on', wrecks: [], people: [], cache: { beans_tin: 1, water_bottle: 1, bandage: 1 } },
   ambush: { name: 'AN AMBUSH SET UP', note: 'a wreck pulled half across the shoulder, and men lying in the brush behind it', wrecks: [['sedan', 'rusted', 0, 0, 1.2]], people: ['raider', 'raider'], cache: null },
@@ -52,11 +53,12 @@ export const WAYSIDE = {
 
 // The people who stand at the beats, by role. Every one is a traveller: systems/longroad.js gives each an ORIGIN (the
 // nearest real town behind them on the road) and a DESTINATION (the nearest ahead) the moment their beat is placed.
+// household: a family beat takes ONE household (its parents in pairs, its kid at the same index), never strangers.
 // portrait: the same fields the roadside keepers wear (skin, hair, shirt, hat, gear); flag: a real country, always.
 export const TRAVELLERS = {
   trader: { faction: 'drifter', hp: 110, weapon: 'pistol', names: [['MARISOL VEGA', 'mx'], ['ABE KOWALCZYK', 'pl'], ['NNAMDI OKAFOR', 'ng'], ['LUCIA FERRANTE', 'it']], title: 'Shoulder trader', line: 'Water, wire, a little fuel. Coming from {from}, going to {to}. What are you buying?', portrait: { skin: '#a47250', hair: '#2a1d14', shirt: '#6a5a3c', hat: 'cowboy', gear: 'bandolier' } },
-  parent: { faction: 'drifter', hp: 90, weapon: null, names: [['DANIEL ORTIZ', 'us'], ['HANNA LINDQVIST', 'se'], ['PRIYA RAMAN', 'in'], ['TOMAS NOVAK', 'cz'], ['GRACE MENSAH', 'gh']], title: 'On the move', line: 'Belt went outside {from}. We were making for {to}. You got a belt, or a ride?', portrait: { skin: '#c99a76', hair: '#3a2a1a', shirt: '#4a5a6a', hat: 'short', gear: 'none' } },
-  kid: { faction: 'drifter', hp: 60, weapon: null, names: [['MATEO ORTIZ', 'us'], ['ELSA LINDQVIST', 'se'], ['KOFI MENSAH', 'gh']], title: 'Kid', line: 'Are we there yet? Dad says {to} has a well.', portrait: { skin: '#c99a76', hair: '#5a3a1a', shirt: '#8a5a3a', hat: 'short', gear: 'none' } },
+  parent: { faction: 'drifter', hp: 90, weapon: null, names: [['DANIEL ORTIZ', 'us'], ['ROSA ORTIZ', 'mx'], ['ERIK LINDQVIST', 'se'], ['HANNA LINDQVIST', 'se'], ['KWAME MENSAH', 'gh'], ['GRACE MENSAH', 'gh'], ['TOMAS NOVAK', 'cz'], ['PRIYA NOVAK', 'in']], household: 2, title: 'On the move', line: 'Belt went outside {from}. We were making for {to}. You got a belt, or a ride?', portrait: { skin: '#c99a76', hair: '#3a2a1a', shirt: '#4a5a6a', hat: 'short', gear: 'none' } },
+  kid: { faction: 'drifter', hp: 60, weapon: null, names: [['MATEO ORTIZ', 'us'], ['ELSA LINDQVIST', 'se'], ['KOFI MENSAH', 'gh'], ['JAN NOVAK', 'cz']], household: 1, title: 'Kid', line: 'Are we there yet? Dad says {to} has a well.', portrait: { skin: '#c99a76', hair: '#5a3a1a', shirt: '#8a5a3a', hat: 'short', gear: 'none' } },
   raider: { faction: 'raider', hp: 100, weapon: 'smg', hostile: true, names: [['CUTTER', 'us'], ['DRY HOLLIS', 'us'], ['KNUCKLES REYES', 'mx'], ['VOLKOV', 'ru'], ['SAINT BRANDT', 'de'], ['TALLY OYELARAN', 'ng'], ['MUSKRAT DUBOIS', 'ca'], ['RED DONOVAN', 'ie'], ['PILAR ACOSTA', 'ar'], ['BONE KEANE', 'au']], title: 'Road pirate', line: 'Out of {from}, working the road to {to}.', portrait: { skin: '#9a6a4a', hair: '#1a1410', shirt: '#3a2a20', hat: 'wrap', gear: 'goggles' } },
   hitch: { faction: 'drifter', hp: 90, weapon: null, names: [['JUNE PARRISH', 'us'], ['YUSUF DEMIR', 'tr'], ['AIKO TANAKA', 'jp'], ['RHYS MORGAN', 'gb']], title: 'Hitchhiker', line: 'Walked from {from}. Trying for {to}. Sign says it.', portrait: { skin: '#b88a66', hair: '#6a4a2a', shirt: '#5a6a4a', hat: 'cap', gear: 'bandana' } },
 };
@@ -77,6 +79,7 @@ export function validateLongRoad(items = null) {
   for (const [k, t] of Object.entries(TRAVELLERS)) {
     if (!t.names?.length) errors.push(`TRAVELLERS.${k}: no names`);
     for (const [n, f] of t.names ?? []) if (!/^[a-z]{2}$/.test(f)) errors.push(`TRAVELLERS.${k}: ${n} has no real flag`);
+    if (t.household && t.names.length % t.household) errors.push(`TRAVELLERS.${k}: names must come in households of ${t.household}`);
     if (!/\{from\}|\{to\}/.test(t.line ?? '')) errors.push(`TRAVELLERS.${k}: the line never says where they are from or going`);
   }
   return { ok: !errors.length, errors };
