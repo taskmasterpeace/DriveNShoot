@@ -159,7 +159,7 @@ export async function bodyDollChecks({ api, g, check }) {
   });
 
   // ---- the keys stay the game's (Robert's playtest, 2026-10-29: "I clicked off of it, and now I hit I and it won't close") ----
-  const tap = async (code) => { g.input.keyDown(code); await frames(2); g.input.keyUp(code); await frames(2); };
+  const tap = async (code) => { g.input.keyDown(code); await api._step(1); g.input.keyUp(code); await api._step(1); }; // the game's own frames (an agent tab steps the loop: rAF alone never runs update)
 
   await check('keys: a click on a button gives the keyboard back to the game (focus leaves the button for the canvas); a text field keeps it', async () => {
     const F = g.focus, host = document.getElementById('ui'), btn = document.createElement('button'), txt = document.createElement('input');
