@@ -4,6 +4,7 @@
 // lays out again only the chunks the change reaches. The streamer then streams them like any chunk: a pure function of
 // the data, so the same rows give the same hash as a fresh boot would.
 import USMAP from '../data/usmap.json';
+import { applySeasonRows, CALENDAR } from '../data/seasons.js';
 import { reloadBrush, brushField } from '../world/brush.js';
 import { SignAtlas } from '../world/signs.js';
 import { C, chunkKey, chunkOf, toWorld } from '../world/geo.js';
@@ -13,6 +14,13 @@ export async function fetchRows(file) {
   if (!r.ok) throw new Error(`/forge/data ${file}: HTTP ${r.status}`);
   const raw = await r.text();
   return { raw, doc: JSON.parse(raw), hash: r.headers.get('x-forge-hash') };
+}
+// The SEASONS rows into the running game: the zone numbers and the calendar's knobs, read by the next place read.
+export async function pushSeasons(g) {
+  const { doc, hash } = await fetchRows('seasons');
+  const n = applySeasonRows(doc);
+  if (g.seasons) { g.seasons.seasonDays = CALENDAR.seasonDays; g.seasons.placeT = 0; g.seasons.update(0); }
+  return { ok: true, live: true, file: 'seasons', hash, applied: n };
 }
 export async function patchRows(file, ops, opts = {}) {
   const r = await fetch('/forge/patch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, ops, ...opts }) });

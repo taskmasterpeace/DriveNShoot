@@ -34,7 +34,7 @@ const plainMat = (m) => m.onBeforeCompile === THREE.Material.prototype.onBeforeC
 function twinSafe(m, up) {
   if (plainMat(m)) return true;
   // (the wind's patches, systems/lookfeel.js '|wind-*', only move vertices: shading still depends on the colour alone)
-  const key = String(m.customProgramCacheKey?.() ?? '').replace(/\|(cut1|wind-[a-z-]+)/g, '');
+  const key = String(m.customProgramCacheKey?.() ?? '').replace(/\|(cut1|snow1i?|wind-[a-z-]+)/g, '');
   return key === '' || key === String(m.onBeforeCompile) || key === PROTO_BC || (up && key === 'wallSurface1'); // (an unkeyed patch keys on its own source: the cutaway's wrapper)
 }
 const sameColour = (A, B) => { const c = A.o.instanceColor; if (!c) return true; const a = c.array, i = A.inst * 3, j = B.inst * 3; return a[i] === a[j] && a[i + 1] === a[j + 1] && a[i + 2] === a[j + 2]; };

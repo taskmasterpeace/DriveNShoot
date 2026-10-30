@@ -96,6 +96,7 @@ export class Seasons {
     this.here = this.read(0, 0);    // climateShift at the player, refreshed twice a second
     this.placeT = 0; this.placeX = 1e9; this.placeZ = 1e9;
     this.light = { rise: 6, len: 12 };
+    this.grip = 1;                  // the road grip under the player (ROAD_GRIP): vehicles.js multiplies it in
     this.forecastNote = null;
   }
 
@@ -159,16 +160,19 @@ export class Seasons {
     }
     // The place under the player, read again when they have moved a cell or every few seconds.
     const p = this.pin ?? g.player;
+    let needGrip = false;
     this.placeT -= dt;
     if (this.pin && this.placeX !== this.pin.x) this.placeT = 0;
     if (p && (this.placeT <= 0 || Math.hypot(p.x - this.placeX, p.z - this.placeZ) > TUNE.cellM)) {
       this.placeT = TUNE.placeEvery; this.placeX = p.x; this.placeZ = p.z;
       const zPrev = this.zoneId;
       this.here = this.read(p.x, p.z);
+      needGrip = true;
       if (this.here.zone !== zPrev) { this.zoneId = this.here.zone; this.fresh *= TUNE.freshCarry; }
       if (!this.packAt || Math.hypot(p.x - this.packAt.x, p.z - this.packAt.z) > SNOW.snapM) { if (this.packAt) this.pack = this.here.pack; this.packAt = { x: p.x, z: p.z }; }
     } else if (!p) this.here = this.read(0, 0);
     this.tickSnow(hours);
+    if (needGrip) this.grip = this.roadAt(p.x, p.z).grip; // after the cover has moved
     this.tickLight(dt);
   }
 
@@ -190,6 +194,10 @@ export class Seasons {
     }
     this.cover = clamp(this.pack + this.fresh * (1 - this.pack), 0, 1);
   }
+  // Added to the colour grade's temp (cool is negative): a snowed-under country reads blue-white, not cream.
+  gradeTemp() { return this.live ? -0.62 * this.cover - (this.here.frost ? 0.12 : 0) : 0; }
+  walkMul() { return 1 - (1 - SNOW.walk) * clamp((this.cover - 0.3) / (SNOW.deep - 0.3), 0, 1); } // a boot in deep snow
+  trackHold() { return 1 + (SNOW.trackHold - 1) * this.cover; }
   airNow() { return this.g.needs?.air ?? (REF_MEAN + this.here.temp); }
   // The ground cover for a place now (the pack is the place's own; fresh only lies near the player).
   coverAt(x, z) {
@@ -334,6 +342,19 @@ export class Seasons {
     const trend = r.temp < -10 ? 'a hard cold' : r.temp > 14 ? 'killing heat' : null;
     return { source, hours: F.hours, conf: F.conf, kind, text: `${word} within ${F.hours} hours${trend ? `, and ${trend}` : ''}`, at: cal.day, zone: r.zoneName };
   }
+
+  // The season in words for the HUD line, refreshed with the place (cheap: a string compare in the HUD).
+  words() { const H = this.here, cal = this.calendar(); return H.local === cal.season || !H.localLabel ? cal.words : H.localLabel; }
+
+  // A forecast heard on the air or at a bar: kept with its age and confidence (what the player was TOLD, law 6), and
+  // returned as the line to say. `heard` is what a barkeep or the HUD may quote back.
+  hear(source = 'radio') {
+    const f = this.forecast(source), g = this.g;
+    this.heard = { ...f, heardAt: this.dayFloat(), hour: g.sky?.time };
+    const day = f.kind === 'SNOW' || f.kind === 'BLIZZARD' ? 'It will be cold enough for snow.' : '';
+    return `Weather word: ${f.text}.${day ? ` ${day}` : ''} Season: ${this.words().toLowerCase()}.`;
+  }
+  heardAge() { return this.heard ? +((this.dayFloat() - this.heard.heardAt) * 24).toFixed(1) : null; }
 
   // ---- the diegetic date: no watch, no date (law 6) ----
   chip() {

@@ -1,3 +1,4 @@
+import OVERRIDES from './seasons.json';
 // SEASONS as rows (docs/design/WEB_SEASONS.md). The map has a WHEN as well as a WHERE: a compressed year of four seasons
 // (seven game days each by default: a game day is 12 real minutes, so a season is ~84 minutes and a year ~5.6 hours), a
 // climate zone per state (Florida has a wet and a dry season, the Rockies have four), and rows for everything the
@@ -119,7 +120,7 @@ export const LEAF = {
 };
 // The colours the land wears (multiplied into foliage by the look layer; hex). amber = turned leaf, dry = summer-dry grass,
 // frost = winter grey-green, spring = new green. Checked for purple by validateSeasons.
-export const PALETTE = { spring: '#9bbf5a', summer: '#7a9a46', dry: '#b9a85a', amber: '#c98a2e', rust: '#a4502a', frost: '#8a9486', snow: '#eef3f8', ice: '#bcd6e4' };
+export const PALETTE = { spring: '#9bbf5a', summer: '#7a9a46', dry: '#b9a85a', amber: '#c98a2e', rust: '#a4502a', frost: '#8a9486', snow: '#9fa9b4', ice: '#bcd6e4' };
 
 // ---- 6. snow ----------------------------------------------------------------------------------------------------------
 // The ground keeps a cover (0 bare .. 1 deep). A zone's own `snowy` and the day's mean air set the SEASONAL PACK (the
@@ -284,6 +285,19 @@ export const TUNE = {
   freshCarry: 0.5,          // the share of fresh snow kept when the zone changes (it does not teleport)
   pullFall: 0.6,            // s the snowflakes take to settle after the weather stops (look layer)
 };
+
+// ---- forge overrides -----------------------------------------------------------------------------------------------------
+// data/seasons.json is what the World Forge SEASONS tab writes: a zone's mean / amp / lat0 / snowy / warmest and the calendar's
+// seasonDays / warmest. They win over the rows above (applySeasonRows also runs when the forge pushes live).
+export const FORGE_FIELDS = ['mean', 'amp', 'lat0', 'snowy', 'warmest'];
+export function applySeasonRows(doc) {
+  if (!doc) return 0;
+  let n = 0;
+  for (const k of ['seasonDays', 'warmest']) if (doc.calendar?.[k] !== undefined && Number.isFinite(doc.calendar[k])) { CALENDAR[k] = doc.calendar[k]; n++; }
+  for (const r of doc.zones ?? []) { const z = ZONES[r.id]; if (!z) continue; for (const f of FORGE_FIELDS) if (r[f] !== undefined && Number.isFinite(r[f])) { z[f] = r[f]; n++; } }
+  return n;
+}
+applySeasonRows(OVERRIDES);
 
 // ---- validation -------------------------------------------------------------------------------------------------------
 const hueOfHex = (hex) => {

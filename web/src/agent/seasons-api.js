@@ -2,10 +2,11 @@
 import { CALENDAR, ZONES, ODDS, SNOW, CROPS, PASSES, PRICES, validateSeasons } from '../data/seasons.js';
 import { calendarOf, meanAir, dayLength, latOf, fromLatLon, REF_MEAN } from '../systems/seasons.js';
 import { toWorld } from '../world/geo.js';
+import { fetchRows, patchRows, restoreRows, pushSeasons } from '../forge/live.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
-const ACTIONS = ['show', 'set', 'advance', 'at', 'plant', 'forecast', 'passes', 'pin', 'unpin', 'live', 'rows', 'validate', 'price'];
+const ACTIONS = ['show', 'set', 'advance', 'at', 'plant', 'forecast', 'passes', 'pin', 'unpin', 'live', 'rows', 'validate', 'price', 'snowmats'];
 // Where the checks stand: world metres of real usmap places (a town's usmap position through the map's own transform).
 const spot = (ux, uy) => toWorld([ux, uy]);
 
@@ -35,9 +36,10 @@ export function seasonCommands(api, need) {
         if (action === 'forecast') { const [x, z] = pt(); return A.forecast(a.source ?? 'radio', x, z); }
         if (action === 'passes') return { passes: A.passes() };
         if (action === 'price') { need(a.item, 'item='); const [x, z] = pt(); return { item: a.item, buy: r2(A.priceMul(a.item, x, z)), sell: r2(A.sellMul(a.item, x, z)), rows: PRICES.map((r) => r.id) }; }
+        if (action === 'snowmats') return { patched: g.seasonLook?.patched, mats: g.seasonLook?.list() };
         if (action === 'rows') return { calendar: CALENDAR, zones: Object.fromEntries(Object.entries(ZONES).map(([k, z]) => [k, { name: z.name, states: z.states.length, mean: z.mean, amp: z.amp, local: z.local.map((s) => s.id).join('/'), leaf: z.leaf, snowy: z.snowy }])), odds: Object.keys(ODDS), snow: SNOW, passes: PASSES.length, crops: Object.keys(CROPS) };
         if (action === 'validate') { const v = validateSeasons(); return { ok: v.length === 0, problems: v }; }
-        return A.view();
+        return { ...A.view(), look: g.seasonLook?.view() };
       },
     },
   };
@@ -213,6 +215,51 @@ export async function seasonChecks(api, check, C) {
       day('winter', 0.5); const [dx, dz] = P.denver, [fx, fz] = P.miami;
       const dFuel = a.priceMul('fuel_can', dx, dz), fFuel = a.priceMul('fuel_can', fx, fz); day('summer', 0.5); const dSu = a.priceMul('fuel_can', dx, dz);
       return bare === 0 && coat > 8 && coatHot < 0 && bareHot === 0 && near > coat * 0.8 && far === 0 && dFuel > fFuel && dFuel > dSu * 1.2 ? true : `coat ${r1(coat)} hot ${r1(coatHot)} fire ${r1(near)}/${r1(far)} fuel denver-winter ${r2(dFuel)} florida ${r2(fFuel)} summer ${r2(dSu)}`;
+    });
+
+    await check('seasons: the look (snow wraps the lit surfaces and follows the cover, snowfall is one object, the breath shows in the cold, trees dress by the date, the frame stays under 150 draw calls and the colour grade cools under snow)', async () => {
+      const prof = g.survival.profileName, L = g.seasonLook;
+      if (!L) return 'no season look';
+      try {
+        g.survival.setProfile('full');
+        day('winter', 0.5); const [x, z] = P.minneapolis; A.pin = { x, z }; A.placeT = 0; A.pack = 1; A.fresh = 0;
+        await C('setWeather', { key: 'SNOW', instant: true }); await C('setTime', { hour: 11 });
+        await C('step', { seconds: 12 }); L.walk(); g.render?.(0);
+        const calls = g.renderer.info.render.calls, v = L.view(), grade0 = g.look.gradeAt(g.player.x, g.player.z, 11).temp;
+        const snowMats = L.list().length;
+        g.needs.air = -10; let puffs = 0; for (let i = 0; i < 4; i++) { await C('step', { seconds: 1 }); puffs = Math.max(puffs, L.puff.count); }
+        const gradeSnow = g.seasons.gradeTemp();
+        A.pack = 0; A.fresh = 0; day('autumn', 0.8); A.pin = { x: P.phoenix[0], z: P.phoenix[1] }; A.placeT = 0; A.update(0);
+        const fall = L.flakes.visible;
+        return snowMats > 40 && v.cover > 0.8 && v.flakes > 400 && fall !== undefined && puffs >= 1 && calls < 150 && gradeSnow < -0.4 && v.leaf < 0.2 ? true : `wrapped ${snowMats}, cover ${v.cover}, flakes ${v.flakes}, puffs ${puffs}, calls ${calls}, grade ${r2(gradeSnow)}, leaf ${v.leaf}`;
+      } finally { g.survival.setProfile(prof); A.pin = null; A.placeT = 0; A.pack = 0; A.fresh = 0; await C('setWeather', { key: 'CLEAR', instant: true }); }
+    });
+
+    await check('seasons: the cold costs you (snow holds a track 2x as long, deep snow slows the walker, the road under packed snow gives half grip, the HUD line and the radio carry the season in words)', async () => {
+      const prof = g.survival.profileName;
+      try {
+        g.survival.setProfile('full');
+        day('winter', 0.5); A.pin = { x: P.minneapolis[0], z: P.minneapolis[1] }; A.placeT = 0; A.pack = 1; A.fresh = 0; A.update(0.6);
+        const hold = A.trackHold(), walk = A.walkMul(), grip = A.grip, road = A.roadAt(...P.minneapolis).kind;
+        A.pack = 0; A.fresh = 0; A.update(0.6); const hold0 = A.trackHold(), grip0 = A.grip;
+        const words = A.words(), line = A.hear('radio');
+        return hold > 2 * hold0 - 0.1 && walk < 0.95 && grip < 0.6 && grip0 > 0.8 && /winter/i.test(words) && /Weather word/.test(line) && A.heard?.conf > 0.5 && A.heardAge() < 1 ? true : `hold ${r2(hold)}/${r2(hold0)} walk ${r2(walk)} grip ${r2(grip)}/${r2(grip0)} road ${road} words "${words}" line "${line}"`;
+      } finally { g.survival.setProfile(prof); A.pin = null; A.placeT = 0; A.pack = 0; A.fresh = 0; }
+    });
+
+    await check('seasons: the forge rows round trip (a SEASONS zone edit is written to src/data/seasons.json, field-preserving and checked, pushed into the running game where the climate follows it, and put back exactly)', async () => {
+      const before = await fetchRows('seasons'); let ok = false, why = '';
+      try {
+        day('summer', 0.5); const [x, z] = P.miami; const m0 = A.read(x, z).mean;
+        const r = await patchRows('seasons', [{ op: 'set', coll: 'zones', id: 'florida', set: { mean: 15.5 } }, { op: 'top', key: 'calendar', set: { warmest: 0.4 } }]);
+        if (!r.ok) return `patch refused: ${r.error}`;
+        const bad = await patchRows('seasons', [{ op: 'set', coll: 'zones', id: 'florida', set: { snowy: 4 } }]);
+        const push = await pushSeasons(g), m1 = A.read(x, z).mean;
+        ok = Math.abs((m0 - m1) - 8) < 0.5 && !bad.ok && push.ok && push.applied > 5;
+        why = `mean ${r1(m0)} → ${r1(m1)}, bad edit ok=${bad.ok}, push ${JSON.stringify(push)}`;
+      } finally { await restoreRows('seasons', before.raw, 'seasons-check'); await pushSeasons(g); }
+      const after = await fetchRows('seasons');
+      return ok && after.raw === before.raw ? true : `${why}; file restored ${after.raw === before.raw}`;
     });
   } finally { await putBack(); }
 }

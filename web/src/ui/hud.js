@@ -20,10 +20,11 @@ const ICONS = {
   storm: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 27h20a8 8 0 0 0 0-16h-.6A11 11 0 0 0 12.2 14 6.5 6.5 0 0 0 14 27z"/><path d="M25 30l-5 8h7l-4 7"/></svg>',
   dust: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 17h24a5 5 0 1 0-5-5M6 25h32a5 5 0 1 1-5 5M6 33h16"/><circle cx="36" cy="16" r="1" fill="currentColor"/><circle cx="28" cy="38" r="1" fill="currentColor"/></svg>',
   cloud: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"><path d="M13 34h22a9 9 0 0 0 0-18h-.7A12 12 0 0 0 11 20a7 7 0 0 0 2 14z"/></svg>',
+  snow: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M24 6v36M8.4 15l31.2 18M8.4 33l31.2-18M18 9l6 5 6-5M18 39l6-5 6 5"/></svg>',
   fog: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M8 16h26M14 23h28M6 30h30M12 37h22"/></svg>',
   ash: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"><path d="M13 27h22a8 8 0 0 0 0-16h-.6A11 11 0 0 0 11.2 14 6.5 6.5 0 0 0 13 27z"/><g fill="currentColor" stroke="none"><circle cx="16" cy="34" r="1.6"/><circle cx="25" cy="38" r="1.6"/><circle cx="33" cy="33" r="1.6"/><circle cx="20" cy="43" r="1.6"/></g></svg>',
 };
-const WX_ICON = { RAIN: 'rain', STORM: 'storm', DUST: 'dust', ASHFALL: 'ash', FOG: 'fog', OVERCAST: 'cloud' };
+const WX_ICON = { RAIN: 'rain', STORM: 'storm', DUST: 'dust', ASHFALL: 'ash', FOG: 'fog', OVERCAST: 'cloud', SNOW: 'snow', BLIZZARD: 'snow' };
 
 const SEG = 15;           // health / stamina segments
 const SEG_SMALL = 10;     // breath, fuel, hull
@@ -251,7 +252,8 @@ export class HUD {
     const night = sky.phase === 'NIGHT';
     const icon = WX_ICON[sky.weatherKey] ?? (night ? 'moon' : 'sun');
     if (icon !== s.icon) { s.icon = icon; this.el.wx.innerHTML = ICONS[icon]; }
-    if (sky.label !== s.wxLabel || sky.phase !== s.phase) { s.wxLabel = sky.label; s.phase = sky.phase; this.el.sub.textContent = `${sky.label} - ${sky.phase}`; }
+    const season = g.seasons?.words() ?? ''; // no watch, no date: the part of the year in words (systems/seasons.js chip)
+    if (sky.label !== s.wxLabel || sky.phase !== s.phase || season !== s.season) { s.wxLabel = sky.label; s.phase = sky.phase; s.season = season; this.el.sub.textContent = `${sky.label} - ${sky.phase}${season ? ` - ${season}` : ''}`; }
     if (g.wanted !== s.wanted) {
       const before = s.wanted ?? 0;
       s.wanted = g.wanted;

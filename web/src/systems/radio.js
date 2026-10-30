@@ -168,7 +168,9 @@ export class Radio {
     if (S.kind === 'news' && (this.newsT -= dt) <= 0) {
       this.newsT = 30;
       if ((this.hissT = (this.hissT ?? 0) - 30) <= 0) { this.hissT = 0; g.audio?.sample?.('common', 'radio.static', { dist: 1, vol: 0.25 }); }
-      const h = this.headline(); if (h) { this.stats.news++; this.say(S, h); }
+      // Every third bulletin is the weather: a forecast is a knowledge channel with an age and a confidence (seasons.hear)
+      const fc = (this.fcN = (this.fcN ?? 0) + 1) % 3 === 0 ? g.seasons?.hear('radio') : null;
+      const h = fc ?? this.headline(); if (h) { this.stats.news++; this.say(S, h); }
     }
     if (S.kind === 'emergency' && (this.toneT -= dt) <= 0) { this.toneT = 8; this.stats.alerts++; g.audio?.tone?.(720, 0.9, 0.06 * this.volume, 'sine'); g.audio?.tone?.(960, 0.9, 0.06 * this.volume, 'sine'); }
   }

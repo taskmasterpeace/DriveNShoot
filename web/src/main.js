@@ -21,6 +21,7 @@ import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
 import { Seasons } from './systems/seasons.js'; // the calendar, the climate by place and season, snow, light (WEB_SEASONS.md)
+import { SeasonLook } from './systems/seasonlook.js'; // snow on every lit surface, leaf turn and fall, snowfall, breath
 import { LookFeel } from './systems/lookfeel.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
@@ -199,6 +200,7 @@ class Game {
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.seasons = new Seasons(this); // the date, the climate of the place you stand in, snow and the day's length
     this.sky.weatherPicker = () => this.seasons.pickWeather();
+    this.seasonLook = new SeasonLook(this);
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
@@ -918,7 +920,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, (p.gy ?? 0) + 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1) * (p.swampSlow ?? 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.prone ? (p.proneT > 0 ? 0 : this.stance.speed(p)) : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul * (this.seasons?.walkMul() ?? 1) * this.arms.moveMul() * (sprint ? 1 : tilt) * (p.ug ? this.under.speedMul(p) : 1) * (p.swampSlow ?? 1); // a heavy pack slows you; so do a bad leg, the cold, fear's rush (needs.speedMul); two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -1363,6 +1365,7 @@ class Game {
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
     this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat, this.viewR);
+    this.seasonLook.update(dt); // snow cover, leaf turn, snowfall and breath follow the date and the sky
     this.streamer.postSky(); // the dust wall thickens the fog; streamed surfaces follow the sky's wet/dry tint
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);

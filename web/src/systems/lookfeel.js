@@ -286,6 +286,7 @@ void main() {
         for (let i = 0; i < 3; i++) { acc.lift[i] += c.lift[i] * w; acc.gain[i] += c.gain[i] * w; }
       }
     }
+    acc.temp += this.g.seasons?.gradeTemp() ?? 0; // snow and frost cool the picture (systems/seasons.js)
     return acc;
   }
   sigOf(G, s) { s[0] = G.temp; s[1] = G.tint; s[2] = G.sat; s[3] = G.con; s[4] = G.gamma; s[5] = G.bleach; for (let i = 0; i < 3; i++) { s[6 + i] = G.lift[i]; s[9 + i] = G.gain[i]; } return s; }

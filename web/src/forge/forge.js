@@ -8,12 +8,13 @@ import { terrainTab } from './tab-terrain.js';
 import { brushTab } from './tab-brush.js';
 import { observeTab, buildingTab } from './tab-mount.js';
 import { stubTab } from './tab-stub.js';
+import { seasonsTab } from './tab-seasons.js';
 import { HELP } from './help.js';
 
 const FORGE = (window.FORGE = { ready: false, error: null });
 async function boot() {
 try {
-  const tabs = [mapTab(), terrainTab(), brushTab(), stubTab('town'), buildingTab(), stubTab('site'), stubTab('life'), stubTab('voice'), observeTab()];
+  const tabs = [mapTab(), terrainTab(), brushTab(), stubTab('town'), buildingTab(), stubTab('site'), stubTab('life'), stubTab('voice'), seasonsTab(), observeTab()];
   const nav = $('#tabs'), deck = $('#deck');
   for (const t of tabs) {
     F.tabs.set(t.id, t); F.order.push(t.id);

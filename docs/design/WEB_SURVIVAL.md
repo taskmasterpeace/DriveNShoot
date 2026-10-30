@@ -349,3 +349,5 @@ unless a check drives them. `needs profile=` switches.
 11. **Telltales:** parched, freezing, panicked and a bleeding cut light their lamps (the cut's word BLEEDING), the
     CONDITION falls under 65, and the body comes back from a save as it was.
 12. All on fresh pages, twice in a row, with every other selftest check green; `node tools/ip-lint.mjs` 0 deny.
+
+> **SEASONS (WEB_SEASONS.md):** the air in section 3.6 is no longer a fixed desert day: `survival.airAt` adds the season's `temp` and narrows the daily swing in the cold; worn warmth (`WARM` rows) and a fire beside you add to what you feel.
