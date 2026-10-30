@@ -49,11 +49,11 @@ export function actionsCommands(api, need) {
         need(a.id, 'action=do needs id=');
         const id = a.id, t0 = g.time;
         const res = (o) => ({ id, secs: r2(g.time - t0), log: S.log.slice(-1)[0] ?? null, ...o });
-        if (id === 'open') { const b = nearBox(); need(b, 'no box or body in reach'); await tap('KeyE'); const o = g.invUI.other; const out = res({ box: o?.id ?? null, top: o?.slots.map((s) => s.id) ?? [], hidden: o?.hidden?.length ?? 0, searched: !!o?.searched }); if (g.invUI.open) g.invUI.toggle(false); return out; }
+        if (id === 'open') { const b = nearBox(); need(b, 'no box or body in reach'); await tap('KeyE'); const o = g.invUI.other; const out = res({ box: o?.id ?? null, top: o?.slots.filter((s) => !s.hid).map((s) => s.id) ?? [], hidden: o?.slots.filter((s) => s.hid).length ?? 0, searched: !!o?.searched }); if (g.invUI.open) g.invUI.toggle(false); return out; }
         if (id === 'search_box' || id === 'search_body') {
           const b = nearBox(); need(b, 'no box or body in reach');
           await hold('KeyE', a.hold ?? 30, () => b.searched || (!S.cur && g.invUI.open));
-          const out = res({ box: b.id, searched: !!b.searched, slots: b.slots.map((s) => s.id), hidden: b.hidden?.length ?? 0, kept: r2(S.prog.get(`box:${b.id}`) ?? 0) });
+          const out = res({ box: b.id, searched: !!b.searched, slots: b.slots.filter((s) => !s.hid).map((s) => s.id), hidden: b.slots.filter((s) => s.hid).length, kept: r2(S.prog.get(`box:${b.id}`) ?? 0) });
           if (g.invUI.open) g.invUI.toggle(false);
           return out;
         }
@@ -142,12 +142,12 @@ export async function actionsChecks(api, check, C) {
     await stand(s.x, s.z);
     const b = box('ta:crate:1', 'crate', s.x + 1.2, s.z, [['crowbar', 1], ['door_key', 1], ['water_bottle', 1]]);
     await tap('KeyE');
-    const opened = g.invUI.open, top = g.invUI.other?.slots.map((q) => q.id) ?? [];
+    const opened = g.invUI.open, top = g.invUI.other?.slots.filter((q) => !q.hid).map((q) => q.id) ?? [];
     if (g.invUI.open) g.invUI.toggle(false);
     await api._step(2);
     let pose = null, ring = 0;
     const secs = await hold('KeyE', 12, () => { if (P().act?.pose) pose = P().act.pose; if (S.ringState?.label) ring++; return b.searched; });
-    const after = g.invUI.other?.slots.map((q) => q.id) ?? [];
+    const after = g.invUI.other?.slots.filter((q) => !q.hid).map((q) => q.id) ?? [];
     if (g.invUI.open) g.invUI.toggle(false);
     const ok = opened && top.includes('crowbar') && !top.includes('door_key') && b.searched && after.includes('door_key') && secs >= ACTIONS.search_box.dur * 0.8 && pose === 'kneel' && ring > 30;
     return ok ? true : JSON.stringify({ opened, top, after, searched: b.searched, secs, pose, ring });
@@ -184,7 +184,7 @@ export async function actionsChecks(api, check, C) {
     } finally { g.input.down.delete('KeyE'); await C('god', { on: true }); }
     await api._step(2);
     const e = lastEnd('search_box'), kept = S.prog.get(`box:${b.id}`) ?? 0;
-    await tap('KeyE'); const top = g.invUI.other?.slots.map((q) => q.id) ?? []; if (g.invUI.open) g.invUI.toggle(false); // and opened now: the key is still out of sight
+    await tap('KeyE'); const top = g.invUI.other?.slots.filter((q) => !q.hid).map((q) => q.id) ?? []; if (g.invUI.open) g.invUI.toggle(false); // and opened now: the key is still out of sight
     const ok = e?.why === 'damage' && !b.searched && !top.includes('door_key') && top.includes('crowbar') && kept > 1;
     return ok ? true : JSON.stringify({ end: e, searched: b.searched, top, kept: r2(kept) });
   });

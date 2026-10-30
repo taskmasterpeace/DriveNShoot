@@ -41,8 +41,8 @@ On the way out you climb the wall ladder to the roof to look over the town. A sh
 ### 3.2 Open vs search
 - Tap E at a container opens the PACK screen on it: **what is on top**.
   On the first look, `conceal(box)` decides each slot once, from the box's own seed. Guns and anything of bulk ≥ 1 L stay on top. HIDDEN items (keys, notes, rings, picks, photographs) are out of sight.
-  Other small things (< 0.35 L) are hidden with the kind's `hide` chance, and mid-size things at a third of it. Hidden slots move to `box.hidden`; nothing is rolled twice.
-- Hold E: `search_box` (4.0 s × the kind's `dur`) or `search_body` (6.5 s, the pat-down). When it lands, `reveal` moves everything hidden back into the slots, sets `box.searched`, and opens the PACK screen.
+  Other small things (< 0.35 L) are hidden with the kind's `hide` chance, and mid-size things at a third of it. A hidden slot stays in `box.slots` marked `s.hid` (so saves, a ring chunk going away and coming back, and NPCs all carry it), and the PACK screen lists only the slots without it (`ui/inventory.js vis`). Nothing is rolled twice, and a slot already carrying the flag is never decided again.
+- Hold E: `search_box` (4.0 s × the kind's `dur`) or `search_body` (6.5 s, the pat-down). When it lands, `reveal` clears every `s.hid`, sets `box.searched`, and opens the PACK screen.
 - Bodies (`body:*`) hide everything except the gun in the hand and a worn pack (`CONCEAL.body.hide = 1`).
 - Only the world's own stock hides (`concealable`): a box rolled from its loot table on that first look, a body, or a crate the world stocked (`box.stocked`). What a person put in a box (your husk, a deck locker, a trunk, a ground pile) always shows, and those just open on a tap, as before.
 
@@ -108,7 +108,7 @@ The characters.js hook is four lines: legs, upper body, head pitch, and an `act`
   - `systems/interiors.js`: the padlock guard in `kick()`, and `playerInteract` hands a door to `g.actions.doorKey`.
   - `systems/inventory.js`: `nearest`, `groundAt` and `drawPiles` skip `unseen` piles; `act('place_ladder')`.
   - `systems/citygen.js`: the ROLLUP import, `place()` draws a jammed panel with its gap, and `bayInteract` asks `g.actions.bayKey` first.
-  - `ui/inventory.js`: `pickOther` opens with `g.actions.openTop`.
+  - `ui/inventory.js`: `pickOther` opens with `g.actions.openTop`; `vis(side)` lists only the slots you can see (count, entry and the rows go through it).
   - `main.js`: import and construct, `busyBody` after the vault line, `ladderKey` before the doors in the E chain, the box prompt goes to `boxKey`, the empty E goes to `lookKey`, the old box tap line is removed, and `actions.update` after `updatePlayer`.
   - `agent/api.js`: import, the `act` command, `actionsChecks` after the kit checks, and `actions` in save and load.
   - `data/hudlayout.js`: the `actring` row. `data/items.js`: six item rows.

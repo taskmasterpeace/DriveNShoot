@@ -200,8 +200,8 @@ export class InventoryUI {
   // Keyboard, while open (main.js stops the player moving).
   input(I) {
     if (I.hit('KeyI') || I.hit('Tab') || I.hit('Escape')) { this.toggle(false); return; }
-    if (I.hit('KeyW') || I.hit('ArrowUp')) { this.sel[this.side] = Math.max(0, this.sel[this.side] - 1); this.render(); }
-    if (I.hit('KeyS') || I.hit('ArrowDown')) { this.sel[this.side] = Math.min(Math.max(0, this.count(this.side) - 1), this.sel[this.side] + 1); this.render(); }
+    if (I.hit('KeyW') || I.hit('ArrowUp')) { this.step(-1); this.render(); }
+    if (I.hit('KeyS') || I.hit('ArrowDown')) { this.step(1); this.render(); }
     if (I.hit('KeyA') || I.hit('ArrowLeft')) { this.side = 0; this.render(); }
     if (I.hit('KeyD') || I.hit('ArrowRight')) {
       if (this.side === 1 && this.near.length > 1) { this.other = this.near[(this.near.indexOf(this.other) + 1) % this.near.length]; this.g.inventory.opened = this.other; this.sel[1] = 0; }
@@ -221,7 +221,14 @@ export class InventoryUI {
     const G = this.guns(side);
     if (i < G.length) return { gun: G[i] };
     const j = i - G.length, s = this.box(side)?.slots[j];
-    return s ? { s, i: j } : null;
+    return s && !s.hid ? { s, i: j } : null; // a slot still out of sight (s.hid: opened, not searched; systems/actions.js) is not a row
+  }
+  // W/S: the next row you can see that way (hidden slots are skipped).
+  step(dir) {
+    const side = this.side, n = this.count(side);
+    let i = this.sel[side];
+    for (let k = 0; k < n; k++) { const t = i + dir; if (t < 0 || t > n - 1) break; i = t; if (this.entry(side, i)) break; }
+    this.sel[side] = Math.max(0, Math.min(Math.max(0, n - 1), i));
   }
 
   // The deal on the other side: its trader at the counter and willing, else null (taking from an owned box is theft).
@@ -332,7 +339,7 @@ export class InventoryUI {
         this.tell(r.ok ? `WEARING THE ${ITEMS[r.worn].name.toUpperCase()}` : r.why.toUpperCase(), !r.ok);
       }
     }
-    for (const side of [0, 1]) this.sel[side] = Math.min(this.sel[side], Math.max(0, this.count(side) - 1));
+    for (const side of [0, 1]) { this.sel[side] = Math.min(this.sel[side], Math.max(0, this.count(side) - 1)); if (!this.entry(side, this.sel[side]) && this.count(side)) { const was = this.side; this.side = side; this.step(1); if (!this.entry(side, this.sel[side])) this.step(-1); this.side = was; } } // never rest on a hidden slot
     this.render();
   }
 
@@ -421,7 +428,7 @@ export class InventoryUI {
     for (const b of this.near) {
       const at = g.trade?.at(b), d = at && !at.refuse ? at : null, cur = b === this.other;
       const whose = !b.owner ? '' : d ? ` · ${d.name.toUpperCase()}'S COUNTER · ${d.tier.toUpperCase()} PRICES` : ` · ${b.ownerName.toUpperCase()}'S${at?.refuse ? ` · ${at.name.toUpperCase()} WON'T DEAL WITH YOU` : ''}: TAKING IS STEALING`;
-      const rows = b.slots.map((s, j) => this.row(s, j, act && cur && j === this.sel[1], cur ? D : d, 1));
+      const rows = []; b.slots.forEach((s, j) => { if (!s.hid) rows.push(this.row(s, j, act && cur && j === this.sel[1], cur ? D : d, 1)); }); // out of sight until searched (systems/actions.js)
       const empty = b.kind === 'ground' ? 'Nothing on the ground here.' : 'Empty.';
       out.push(`<section class="inv-group${cur ? ' cur' : ''}" data-box="${esc(b.id)}" data-drop="box:${esc(b.id)}"><h4 class="${b.owner && !d ? 'owned' : d ? 'trade' : ''}">${icon(boxIcon(b))}<span class="lb">${esc(b.label)}${b.kind === 'ground' ? '' : ` · ${b.litres().toFixed(0)} / ${b.cap} L`}${whose}</span></h4><ol class="inv-list">${rows.join('') || `<li class="empty">${empty}</li>`}</ol></section>`);
     }

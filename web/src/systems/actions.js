@@ -182,37 +182,42 @@ export class Actions {
   concealOf(box) { return box.id.startsWith('body:') ? CONCEAL.body : CONCEAL[box.kind] ?? CONCEAL.default; }
   // First look into a box: what is on top shows, small things may be out of sight (box.hidden) until it is searched.
   // Decided per slot from the box's own seed, once (no reroll): the split is part of what the box is.
+  // Each slot is decided once, from the box's own seed, and marked in place (s.hid true/false): the flags ride in the box's
+  // own slots, so a save, a ring chunk going away and coming back, an NPC going through it all carry them. The PACK screen
+  // lists only the slots without s.hid (ui/inventory.js vis). Every slot carrying the flag = this box has been looked into.
+  sorted(box) { return box.searched || box.slots.some((q) => q.hid !== undefined); }
+  hiddenN(box) { let n = 0; for (const q of box.slots) if (q.hid) n++; return n; }
   conceal(box) {
-    if (box.sorted || box.searched || box.kind === 'ground' || box.kind === 'person' || box.kind === 'trunk') { box.sorted = true; return box; }
-    box.sorted = true;
-    const C = this.concealOf(box), keep = [], hid = [];
+    if (this.sorted(box) || !this.concealable(box)) return box;
+    const C = this.concealOf(box);
     box.slots.forEach((s, i) => {
       const it = ITEMS[s.id];
       const big = !it || it.kind === 'gun' || (it.bulk ?? 0) >= CONCEAL_SIZE.BIG || it.pack;
       const always = HIDDEN.includes(s.id);
       const small = (it?.bulk ?? 0) < CONCEAL_SIZE.SMALL;
       const roll = h01(`${box.id}:${box.seed}:${i}:${s.id}`);
-      if (!big && (always || (C.hide >= 1) || (small && roll < C.hide) || (!small && roll < C.hide * 0.35))) hid.push(s); else keep.push(s);
+      s.hid = !big && (always || C.hide >= 1 || (small && roll < C.hide) || (!small && roll < C.hide * 0.35));
     });
-    box.slots = keep; box.hidden = hid;
     return box;
   }
-  // Open a box the way the PACK screen does (ui/inventory.js pickOther): its roll (first time), then the top only.
   // Only the world's own stock is out of sight on a first look: a box rolled from its loot table right now, a body, or a
   // crate the world stocked (box.stocked). Whatever a person put in a box (your husk, a locker, a trunk, a pile) shows.
   concealable(box) { return !box.husk && box.kind !== 'ground' && box.kind !== 'person' && box.kind !== 'trunk' && (box.id.startsWith('body:') || box.stocked || !box.rolled); }
-  openTop(box) { const inv = this.g.inventory; const c = this.concealable(box); inv.open(box); if (c && !box.sorted) this.conceal(box); else box.sorted = true; inv.opened = box; return box; }
+  // Open a box the way the PACK screen does (ui/inventory.js pickOther): its roll (first time), then the top only.
+  openTop(box) { const inv = this.g.inventory; const c = this.concealable(box); inv.open(box); if (c) this.conceal(box); inv.opened = box; return box; }
   // A full search: everything out of sight comes out.
   reveal(box) {
     const inv = this.g.inventory;
+    const c = this.concealable(box);
     if (!box.rolled) { inv.open(box); inv.opened = null; }
-    const n = box.hidden?.length ?? 0;
-    if (n) { for (const s of box.hidden) box.slots.push(s); box.hidden = []; }
-    box.searched = true; box.sorted = true;
+    if (c) this.conceal(box);
+    const n = this.hiddenN(box);
+    for (const q of box.slots) q.hid = false;
+    box.searched = true;
     this.g.emit('searched', { id: box.id, body: box.id.startsWith('body:'), found: n });
     return n;
   }
-  needsSearch(box) { return !box.searched && (box.sorted ? box.hidden?.length > 0 : this.concealable(box)); }
+  needsSearch(box) { return !box.searched && (this.sorted(box) ? this.hiddenN(box) > 0 : this.concealable(box)); }
   // E at a container (main.js box branch): tap opens it (the top), hold searches it properly. Returns true when handled.
   boxKey(box, I, dt) {
     const g = this.g, p = g.player;
@@ -720,14 +725,12 @@ export class Actions {
   }
   save() {
     return { marks: [...this.marks], prog: [...this.prog], lostDone: [...this.lostDone],
-      boxes: [...this.g.inventory.boxes.values()].filter((b) => b.sorted || b.searched).map((b) => ({ id: b.id, s: b.searched ? 1 : 0, h: b.hidden?.length ? b.hidden : undefined })),
       ladders: this.ladders.filter((L) => L.kind === 'portable').map((L) => ({ ...L })),
       down: this.ladders.filter((L) => L.town && LADDER_KINDS[L.kind].retracted && !L.retracted).map((L) => L.id) };
   }
   load(s) {
     if (!s) return;
     this.marks = new Map(s.marks ?? []); this.prog = new Map(s.prog ?? []); this.lostDone = new Set(s.lostDone ?? []);
-    for (const b of s.boxes ?? []) { const box = this.g.inventory.boxes.get(b.id); if (!box) continue; box.sorted = true; box.searched = !!b.s; box.hidden = (b.h ?? []).map((x) => ({ ...x })); }
     for (const L of [...this.ladders]) if (L.kind === 'portable') this.removeLadder(L);
     for (const L of s.ladders ?? []) this.addLadder(L);
     this.downIds = new Set(s.down ?? []);
