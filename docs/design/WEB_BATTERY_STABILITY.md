@@ -207,6 +207,8 @@ speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
 
 **Why this is not weakening.** A layout that really costs over 120 ms fails all 3 builds. Load only adds time and never removes it, so the minimum of 3 is the honest estimate of the layout's own cost.
 
+**Second cause, found testing ba0bc4b3: a rebuild never matched.** Boot measured 128.9 ms. The rebuilds took 42-61 ms, but every one laid out 311 pylons against boot's 312, so the exact-count guard threw them all out (3/3 failures, `best` = boot). The reason is in the game, not the check. `main.js` switches real terrain on after boot (`Streamer.setTerrain`), which re-grounds the rivers (`water.setGround` + `applyWater`) but never lays the roadside out again. On a fresh page, `W.water.keepOut` is true at 6 of the 7 boot pylons a rebuild moves. Those towers stand in a river or on its bank, and the furnace_fields skips were judged on flat ground too. **Game bug, owned by the roadside/water lanes:** `setTerrain` should re-lay `world/roadside.js`, or the layout should read the terrain at boot. This check does not fix it. **Guard now:** a rebuild counts if it has the same sites and its pylons are within 1% of boot's (at least 1). That is the same work on the world as it now stands. A rebuild that skipped sites or lost towers in bulk still does not count.
+
 ### 3.13 tactics cost: under 2% of nav paths take over 8 ms (integrate `0fdca1a9`)
 
 **Cause.** `systems/tactics.js` times each tactical `nav.foot.find` once. On a machine running about a dozen harnesses, OS and GC stalls land inside some searches: the lead saw a 390 ms slowest path and the over-8-ms share near the bar. The plan claims (average 0.24 ms against 0.3; 0.48-0.52% of plans over 2 ms, against 1%) passed and are unchanged.
@@ -214,6 +216,8 @@ speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
 **Fix.** When a path's search takes over 8 ms, the same search runs again at once: same start, same goal, same budget, and the grid already covers both ends, so nothing is rebuilt. The path's time is the smaller of the two. It counts in `slowPaths` and `maxPathMs` only by that time. `stats.retimed` counts the re-runs, and the failure detail prints it.
 
 **Why this is not weakening.** A search that really costs over 8 ms is over 8 ms both times, so it still counts. Only a stall that hit one run is filtered out. The bar (2% over 8 ms) is unchanged. The cost is paid only on a slow path: one more search, at most as long as the first.
+
+**Second cause: the plan share (found testing ba0bc4b3).** With the path fix in, the tactics group run alone 3 times went 2/3: run 1 read 1.08% of plans over 2 ms (5 of 465, against 1%), with the path clause at 0/56. Stalls land in plans the same way they land in paths. **Fix (`plan`).** A plan over 2 ms runs its `search` again at once. `search` is most of a plan and is repeatable: it reads the world and writes only its scratch (`CAND`, `MATES`, `NEAR`), and `U` has already taken the first result, so the decision is unchanged. The plan's time is `ms − s₁ + min(s₁, s₂)`, where s₁ and s₂ are the two searches' times. The `raycasts` and `boxCover` counts are put back, so the books count one search. `retimed` counts plan and path re-runs together. **Not weakening:** a plan whose search is really slow is slow both times. A stall outside the search (the squad loop, the peek raycasts) still counts in full. The bar (1% over 2 ms) and the average (under 0.3 ms) are unchanged.
 
 ## 4. Formulas
 
@@ -238,9 +242,12 @@ speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
   `(tx, tz) + (c − t) · clamp(d, b0, b1) / d`. Example: rifle at 12 m → anchor at 25 m on the same bearing. The score
   there is `W.band · bandFit − W.travel · 13 = 1.5 · 0 − 0.65 = −0.65`, against `stay` at 12 m:
   `1.5 · (1 − |12 − 35| / 10) + 0.6 = −1.35`.
+- **Plan cost (§3.13):** `ms' = ms − s₁ + min(s₁, s₂)`, computed only when `ms > 2`. Here s₁ is the plan's search, timed inside the plan, and s₂ is the immediate re-run. It counts as slow iff `ms' > 2`. Example: a plan at 4.1 ms whose search took 3.6 ms, re-run 0.9 ms → 1.4 ms, not slow. A search that really costs 3.6 ms → 3.6 again → 4.1, slow.
+- **Path cost (§3.13):** `pm' = min(pm₁, pm₂)` when `pm₁ > 8`, slow iff `pm' > 8`.
 - **Layout cost (§3.12):** `ms = min(t₀, t₁, t₂)`. Here t₀ is boot's sample, and t₁ and t₂ are rebuilds, taken only while the running minimum is ≥ 120. Pass iff `ms < 120`. Example: boot 187 under load, rebuild 96 → 96, pass. A layout that really costs 150 → 150, 150, 150 → fail.
 
 ## 5. Edge Cases
+- **A really slow tactical plan** (over 2 ms) pays its cover search twice. The average claim counts the first plan time minus the faster search's saving, not the re-run.
 - **A really slow tactical path** (over 8 ms on a quiet machine) pays its search twice. That happens on under 2% of paths by the claim, and the rest pay nothing extra.
 - **A roadside rebuild that lays out differently** (another pylon or site count) does not count toward the best time. If boot's sample was over the bar, the check fails as before.
 
