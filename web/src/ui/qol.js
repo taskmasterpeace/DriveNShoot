@@ -22,7 +22,7 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
 // The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
 // killFeed, dmgNumbers.
-const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
+const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
   autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw',
   grade: 1, hitStop: 1, camKick: 1, crashDirt: 1 }; // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
@@ -83,6 +83,8 @@ export class QOL {
         <div class="pm-settings">
         <label>Difficulty <select data-s="difficulty"><option value="story">Story (35% damage taken)</option><option value="normal">Normal (70%)</option><option value="hard">Hard (100%)</option></select></label>
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
+        <label>Music <input type="range" min="0" max="1" step="0.05" data-s="musicVol"></label>
+        <label>Effects <input type="range" min="0" max="1" step="0.05" data-s="sfxVol"></label>
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
         <label>People <select data-s="bodies"><option value="lsw">LSW bodies (the nearest 24)</option><option value="classic">Classic rig</option></select></label>
@@ -242,6 +244,7 @@ export class QOL {
     g.charR.lsw?.setMode(s.bodies); // LSW-BODIES (systems/lswbodies.js)
     g.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * s.renderScale);
     g.renderer.setSize(innerWidth, innerHeight);
+    g.audio.setVolumes?.({ master: s.volume, music: s.musicVol ?? 0.8, sfx: s.sfxVol ?? 1 }); // the volume row (systems/audio.js buses)
     if (g.audio.master) g.audio.master.gain.value = s.volume;
     g.audio.volume = s.volume;
     g.showStats = !!s.showFps;

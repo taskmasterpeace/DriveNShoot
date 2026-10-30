@@ -70,6 +70,7 @@ import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
 import { voiceStatsCommands } from './voicestats.js';
 import { voiceStatsChecks } from './voicestats-selftest.js';
+import { soundCommands, soundChecks } from './sound-api.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
@@ -2114,6 +2115,7 @@ function buildCommands(api) {
     ...faunaCommands(api, need),
     // Sound sets, barks, the local model's talk, the deep sheet, the journal (src/agent/voicestats.js, docs/design/WEB_VOICE_STATS.md).
     ...voiceStatsCommands(api, need),
+    ...soundCommands(api, need), // THE SOUND PASS: sound (licence audit, ids, steps, mix, rate caps, volume row), stepTest (docs/design/WEB_SOUND.md)
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
@@ -6084,7 +6086,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await journeyChecks(api, check, C); // life insurance and risky journeys (src/agent/journeys-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
-  await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
+  await voiceStatsChecks(api, check, C);
+  await soundChecks(api, check); // THE SOUND PASS: every id a real file, footsteps by surface, the rate cap, calibres, the volume row (src/agent/sound-api.js) // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
   g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
   await outdoorsChecks(api, check, C); // THE WILDS: birds out of the sky, tracks, fishing, foraging, traps, the camp (src/agent/outdoors-selftest.js)
   g.fauna.enabled = faunaWas;

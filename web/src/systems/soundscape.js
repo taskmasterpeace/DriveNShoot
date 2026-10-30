@@ -29,6 +29,20 @@ export class Soundscape {
     this.on = true;
   }
 
+  // What a footfall lands on (data/audiosets.js STEPS): a deck is metal, a floor indoors wood, the tunnels concrete,
+  // shallow water splashes; outdoors the ground the cars read (systems/lookfeel.js surfaceUnder: pavement, mud, sand,
+  // grass, dirt), snow over it when it is lying. Asked once a footfall, never per frame.
+  footSurface(p, wet = 'dry') {
+    const g = this.g;
+    if (p.onDeck) return 'metal';
+    if (wet === 'wade' || wet === 'swim') return 'water';
+    if (p.ug) return 'road';
+    if (g.insideBuilding || p.storey) return 'floor';
+    const s = g.look?.surfaceUnder ? g.look.surfaceUnder(p) : 'dirt';
+    const base = s === 'road' || s === 'wet' ? 'road' : s === 'mud' ? 'mud' : s === 'sand' ? 'sand' : s === 'grass' ? 'grass' : 'dirt';
+    return base !== 'road' && (g.sky?.cur?.snow ?? 0) > 0.3 ? 'snow' : base;
+  }
+
   // Where a place's ambience comes from (data/audiosets.js BEDS).
   placeAt(x, z) {
     const g = this.g;
