@@ -1,6 +1,7 @@
 import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
 import { GADGETS, DRONES, DOOR_KIT, KIT, CELLS, KIT_LOOT_ADD } from './gadgets.js';
 import { DOG_GEAR } from './dogs.js';
+import { MELEE_ITEMS } from './melee.js'; // bats, knuckles, pipes, sledges (WEB_MELEE.md)
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
@@ -70,6 +71,20 @@ export const ITEMS = {
     desc: 'A bow saw for metal and a spare blade. Slow work, and nobody hears it.' },
   crowbar: { name: 'Crowbar', kind: 'tool', kg: 2.4, bulk: 1.2, stack: 1, value: 18, use: { act: 'pry' }, tags: ['pry', 'steel'],
     desc: 'Forged steel, the paint worn off the end that does the work. Opens what keys don\'t. Loudly.' },
+  // TIMED ACTIONS (data/actions.js TOOLS; docs/design/WEB_TIMED_ACTIONS.md): break-in tools that wear (slot.wear), a
+  // ladder you carry, and the small things look-around and a thorough search turn up. Not in any loot table yet.
+  bolt_cutters: { name: 'Bolt cutters', kind: 'tool', kg: 3.2, bulk: 1.4, stack: 1, value: 26, tags: ['cutters', 'steel'],
+    desc: 'Two-foot jaws on long handles. A padlock\'s shackle or a run of chain-link, quietly.' },
+  sledgehammer: { name: 'Sledgehammer', kind: 'tool', kg: 4.5, bulk: 1.6, stack: 1, value: 20, tags: ['sledge', 'steel'],
+    desc: 'Ten pounds on a hickory handle. Any door, any lock, and everyone for a block hears it.' },
+  hammer_nails: { name: 'Hammer and nails', kind: 'tool', kg: 1.1, bulk: 0.5, stack: 1, value: 12, tags: ['hammer'],
+    desc: 'A claw hammer and a coffee tin of bent nails. Boards go up, boards come down.' },
+  ladder_portable: { name: 'Aluminium ladder', kind: 'tool', kg: 7.5, bulk: 2.8, stack: 1, value: 30, use: { act: 'place_ladder' }, tags: ['ladder'],
+    desc: 'A folding ladder, sixteen feet open. Set it against a wall and the roof is yours.' },
+  door_key: { name: 'Door key', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 4, value: 2,
+    desc: 'A brass key on a split ring. Somebody\'s door, somewhere near.' },
+  scrap_note: { name: 'Folded note', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 1, value: 0,
+    desc: 'A page torn from a pad, folded small. Whoever dropped it was in a hurry.' },
   // The portable radio (systems/radio.js): the stations anywhere, not only in a car. Not in any loot table yet (a content call).
   radio_portable: { name: 'Portable radio', kind: 'tool', kg: 0.7, bulk: 0.6, stack: 1, value: 40, tags: ['radio'],
     desc: 'A battered transistor set with a bent aerial. Comma and period walk the dial.' },
@@ -194,6 +209,7 @@ Object.assign(ITEMS, {
   gator_hide: { name: 'Gator hide', kind: 'valuable', kg: 2.2, bulk: 2.5, stack: 2, value: 35,
     desc: 'A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.' },
 });
+Object.assign(ITEMS, MELEE_ITEMS); // the melee rows' carried things (data/melee.js)
 export const LOOT = {
   gator: { rolls: [1, 2], none: 0, rows: [['gator_meat', 5, 1, 2], ['gator_hide', 3, 1, 1]] },
   kitchen: { rolls: [1, 3], none: 4, rows: [['beans_tin', 5, 1, 2], ['peaches_tin', 3, 1, 1], ['water_bottle', 4, 1, 2], ['honey', 1, 1, 1], ['can_opener', 2, 1, 1], ['knife', 1, 1, 1], ['silverware', 2, 1, 3], ['flatbread', 1, 1, 1]] },

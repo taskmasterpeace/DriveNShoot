@@ -240,23 +240,43 @@ export async function ritesChecks(api, check, C) {
     });
 
     await check('rites: burying makes a grave row - drag the body (hold), dig with a shovel (loud, 18 s), bury it: a grave row with who/when/how/by whom, its things in the grave box, a chronicle row, the body gone from the street', async () => {
-      await home(30, -150);
-      const R = dead(P().x + 1.2, P().z, 'Buried Dead'); if (!R) return 'no slot';
-      R.test = true;
-      const box = g.inventory.boxes.get(R.box); g.inventory.open(box); g.inventory.opened = null;
-      const items0 = box.slots.map((s) => `${s.id}x${s.n}`).join();
-      g.inventory.add(g.inventory.carried, 'shovel', 1); g.inventory.add(g.inventory.carried, 'grave_cross', 1);
-      const d = await C('rites', { action: 'drag', id: R.id });
-      await C('moveTo', { x: P().x + 6, z: P().z, maxSeconds: 20 });
-      const moved = Math.hypot(R.c ? R.c.x - (P().x) : R.x - P().x, R.c ? R.c.z - P().z : R.z - P().z) < 2.5;
-      const noise0 = g.events.filter((e) => e.type === 'digStart').length;
-      const b = await C('rites', { action: 'bury', id: R.id, seconds: 20 });
-      const gr = S.graves.find((q) => q.body === R.id);
-      const gb = gr && g.inventory.boxes.get(gr.box), items1 = gb ? gb.slots.map((s) => `${s.id}x${s.n}`).join() : null;
-      const chron = g.society.chronicle.query({ verb: 'buried', limit: 5 }).some((r) => r.o === R.id);
-      const ok = d.ok && moved && gr && gr.name === 'Buried Dead' && gr.cause && gr.by && gr.buriedBy === 'player' && gr.marker === 'cross' && items0 === items1 && !g.inventory.boxes.has(R.box) && chron && !R.c && g.events.filter((e) => e.type === 'digStart').length > noise0;
-      S.takeOne('shovel');
-      return ok ? true : JSON.stringify({ d, moved, b: b?.text, gr, items0, items1, chron, c: !!R.c });
+      // the check stages all it needs (earlier checks leave a full pack, open holes, bodies and graves behind): a flat
+      // spot on the island's sand, off its streets, out of any cemetery, with no hole, body or grave within 10 m
+      const flat = (x, z) => Math.max(...[[2, 0], [-2, 0], [0, 2], [0, -2], [8, 0]].map(([dx, dz]) => Math.abs(S.ground(x + dx, z + dz) - S.ground(x, z)))) < 0.15;
+      const clear = (x, z) => [x, x + 8].every((qx) => (g.look?.surfaceUnder?.({ x: qx, z }) ?? 'sand') !== 'road' && (g.water?.depthAt?.(qx, z) ?? 0) < 0.01)
+        && ((cm) => !(cm?.resolved && Math.abs(x - cm.x) < cm.w / 2 + 12 && Math.abs(z - cm.z) < cm.d / 2 + 12))(S.cemAt(x, z)) && ![...S.holes, ...S.graves, ...S.bodies.values()].some((q) => Math.hypot((q.c?.x ?? q.x) - x, (q.c?.z ?? q.z) - z) < 10);
+      let spot = null;
+      for (const [x, z] of [[30, -150], [60, -170], [-40, -190], [110, -130], [-90, -120], [150, 60], [-150, 90], [70, 200]]) if (flat(x, z) && clear(x, z)) { spot = { x, z }; break; }
+      if (!spot) return 'no flat, clear spot off the street';
+      await home(spot.x, spot.z); await api._step(10);
+      const pack = g.inventory.carried, packWas = pack.slots; pack.slots = []; // an empty pack: the shovel and the cross always fit
+      try {
+        const R = dead(P().x + 1.2, P().z, 'Buried Dead'); if (!R) return 'no slot';
+        R.test = true;
+        const box = g.inventory.boxes.get(R.box); g.inventory.open(box); g.inventory.opened = null;
+        const items0 = box.slots.map((s) => `${s.id}x${s.n}`).join();
+        const tools = g.inventory.add(pack, 'shovel', 1) + g.inventory.add(pack, 'grave_cross', 1);
+        const d = await C('rites', { action: 'drag', id: R.id });
+        await C('moveTo', { x: P().x + 6, z: P().z, maxSeconds: 20 });
+        const moved = Math.hypot(R.c ? R.c.x - (P().x) : R.x - P().x, R.c ? R.c.z - P().z : R.z - P().z) < 2.5;
+        const seq0 = g.eventSeq; // (g.events keeps the last 500: count by sequence, not by what is still in the window)
+        const b = await C('rites', { action: 'bury', id: R.id, seconds: 20 });
+        for (let k = 0; k < 10 && S.dig; k++) await api._step(60);
+        const gr = S.graves.find((q) => q.body === R.id);
+        const gb = gr && g.inventory.boxes.get(gr.box), items1 = gb ? gb.slots.map((s) => `${s.id}x${s.n}`).join() : null;
+        const chron = g.society.chronicle.query({ verb: 'buried', limit: 5 }).some((r) => r.o === R.id);
+        const loud = g.events.some((e) => e.type === 'digStart' && e.seq > seq0 && e.shovel);
+        const ok = tools === 2 && d.ok && moved && gr && gr.name === 'Buried Dead' && gr.cause && gr.by && gr.buriedBy === 'player' && gr.marker === 'cross' && items0 === items1 && !g.inventory.boxes.has(R.box) && chron && !R.c && loud;
+        return ok ? true : JSON.stringify({ spot, tools, d, moved, b: b?.text, gr: gr && { id: gr.id, name: gr.name, cause: gr.cause, by: gr.by, buriedBy: gr.buriedBy, marker: gr.marker }, items0, items1, boxGone: !g.inventory.boxes.has(R.box), chron, c: !!R.c, loud });
+      } finally { pack.slots = packWas; g.inventory.changed?.(); }
+    });
+
+    await check('rites: not everybody gets a funeral - when a family learns of a death they hold one by the FUNERAL.held roll (likelier the more of them are left), the rest are mourned at home: no funeral, the body stays where it fell', async () => {
+      const H = FUNERAL.held, rec = (k) => ({ members: Array.from({ length: k + 1 }, (_, q) => ({ key: `m${q}`, dead: false })) });
+      const share = (k) => { let n = 0; for (let q = 0; q < 400; q++) if (S.holdsFuneral({ id: `held-test:${q}`, member: 'm0' }, rec(k))) n++; return n / 400; };
+      const s1 = share(1), s5 = share(5), forced = S.holdsFuneral({ id: 'x', funeral: true }, rec(0)) && !S.holdsFuneral({ id: 'x', funeral: false }, rec(9));
+      const near = (v, want) => Math.abs(v - want) < 0.08;
+      return near(s1, Math.min(H.max, H.base + H.mourner)) && near(s5, Math.min(H.max, H.base + H.mourner * 5)) && s1 < 1 && s5 > s1 && forced ? true : JSON.stringify({ s1, s5, forced });
     });
 
     await check('rites: a ring resident\'s death schedules a funeral within 1-2 game days at their quarter\'s yard; the family WALK there (no teleport, step by step) and stand at the grave', async () => {
@@ -278,6 +298,7 @@ export async function ritesChecks(api, check, C) {
       await C('teleport', { x: home0.x + 150, z: home0.z }); await api._step(5);
       vc.x = P().x + 2; vc.z = P().z; vc.res.route = null;
       g.combat.kill(vc, null, 0, 1, 'bullet');
+      if (S.bodies.get(vc.id)) S.bodies.get(vc.id).funeral = true; // (staged: this family holds one - not everybody gets a funeral, FUNERAL.held)
       await waitHours(api, 3); await api._step(70);
       const unreported = !S.funerals.some((q) => q.body === vc.id) && S.summary().unreported.some((u) => u.id === vc.id);
       // then you walk back and tell one of them: the funeral is planned from that fact, its source on it

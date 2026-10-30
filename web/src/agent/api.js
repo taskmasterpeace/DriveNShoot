@@ -36,6 +36,7 @@ import { waterCommands } from './water-api.js';
 import { waterChecks } from './water-selftest.js';
 import { sealifeCommands, sealifeChecks } from './sealife-api.js';
 import { decksStanceChecks } from './decks-stance-selftest.js';
+import { moveTowCommands, moveTowChecks } from './movetow-api.js'; // the moves, towing, the boats (WEB_MOVE_TOW.md)
 import { journeyCommands, journeyChecks } from './journeys-api.js'; // life insurance, the city picker, risky journeys (WEB_INSURANCE_JOURNEYS.md)
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
@@ -73,14 +74,18 @@ import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
+import { policeCommands, policeChecks } from './police-api.js'; // POLICE RESPONSE: stations, beats, the desk, units, sirens (WEB_POLICE_RESPONSE.md)
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
 import { casinoCommands, casinoChecks } from './casinos-api.js'; // CASINOS: tables, the house's money, robbery, security drones (WEB_CASINOS.md)
 import { homesCommands, homesChecks } from './homes-api.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
+import { actionsCommands, actionsChecks } from './actions-api.js'; // TIMED ACTIONS: search, look around, break in, climb (WEB_TIMED_ACTIONS.md)
+import { reactionsCommands, reactionsChecks } from './reactions-api.js'; // gunfire reactions: who heard a shot and what they do (WEB_GUNFIRE_REACTIONS.md)
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
 import { calibersCommands, calibersChecks } from './calibers-api.js'; // calibres and forensics (WEB_CALIBERS.md)
+import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
@@ -723,16 +728,18 @@ function buildCommands(api) {
       },
     },
     dive: {
-      group: 'player', desc: 'Dive-roll toward x,z (or facing): ~5m burst, most bullets miss mid-air, costs stamina.',
-      args: { x: { type: 'number' }, z: { type: 'number' } },
-      run: async ({ x, z }) => {
+      group: 'player', desc: 'Dive toward x,z (or facing): ~4 m flat out forward (systems/moves.js MOVES.dive), low through it (harder to hit because you are low, data/moves.js LOW_BODY - never untouchable), costs stamina. The key (SPACE) lands you PRONE; this command gets you back up after unless up=false. The other moves: the `move` command.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, up: { type: 'boolean', default: true } },
+      run: async ({ x, z, up }) => {
         const p = P();
         need(!p.inVehicle && p.alive, 'must be on foot');
-        need((p.stamina ?? 1) > 0.2, 'too winded to dive (stamina)');
+        need((p.stamina ?? 1) > 0.22, 'too winded to dive (stamina)');
         const x0 = p.x, z0 = p.z;
-        g.startDive(p, x !== undefined ? x - p.x : 0, z !== undefined ? z - p.z : 0);
-        await api._step(42);
-        return { moved: r1(Math.hypot(p.x - x0, p.z - z0)), x: r1(p.x), z: r1(p.z), stamina: r1(p.stamina) };
+        need(g.startDive(p, x !== undefined ? x - p.x : 0, z !== undefined ? z - p.z : 0), 'cannot dive now');
+        for (let i = 0; i < 90 && (p.mv || p.vault); i++) await api._step(1);
+        const prone = !!p.prone;
+        if (up && p.prone) { g.stance.setProne(p, false); p.proneT = 0; }
+        return { moved: r1(Math.hypot(p.x - x0, p.z - z0)), x: r1(p.x), z: r1(p.z), stamina: r1(p.stamina), landed: prone ? 'prone' : 'feet', prone: !!p.prone };
       },
     },
     crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
@@ -2068,6 +2075,7 @@ function buildCommands(api) {
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
     ...semisCommands(api, need), // semi (WEB_SEMIS.md)
+    ...moveTowCommands(api, need), // move, tow (WEB_MOVE_TOW.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
@@ -2109,13 +2117,17 @@ function buildCommands(api) {
     ...crewCommands(api, need),
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
+    ...policeCommands(api, need), // police: stations, patrols, dispatch, units (src/agent/police-api.js)
     ...kitCommands(api, need),
     ...casinoCommands(api, need), // casinos (WEB_CASINOS.md)
+    ...actionsCommands(api, need), // act (agent/actions-api.js; docs/design/WEB_TIMED_ACTIONS.md)
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...homesCommands(api, need), // camp, base, home (src/agent/homes-api.js)
+    ...reactionsCommands(api, need), // react: gunfire reactions (src/agent/reactions-api.js)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
+    ...meleeCommands(api), // fight action=view|wield|attack|heavy|finish|grab|release|arm|spawn|person|rows|clear (agent/melee-api.js)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
@@ -2289,6 +2301,8 @@ async function runSelfTest(api, only = null, skip = null) {
   // would drive through them: off for the battery; its own checks turn it on.
   const secWas = { auto: g.security.auto, ambient: g.security.ambient };
   g.security.auto = false; g.security.ambient = false;
+  // The town desks (systems/police.js) likewise: no beats driving through unrelated checks, no reports filed off them.
+  const polWas = { on: g.police.enabled, beats: g.police.beatsOn }; g.police.enabled = false; g.police.beatsOn = false; g.police.clear();
   // The pulls (systems/pulls.js) would grow road people on the I-10 round unrelated drive checks: off for the battery;
   // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
   const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
@@ -3366,6 +3380,7 @@ async function runSelfTest(api, only = null, skip = null) {
   }));
   await decksStanceChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // boats, the aisle, roofs, prone, footing, the turret seat (src/agent/decks-stance-selftest.js)
   await semisChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // tractor-trailers: hitch, reverse, jackknife, a car into a moving semi, the RV, the road rules (src/agent/semis-selftest.js)
+  await moveTowChecks(api, check, C, { hush, wvClean, wvReady, hk, tk, WV }); // dive to prone, vault, roll, slide, drop-hang, tow, snap, winch, launch, the boats' budget (src/agent/movetow-api.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
@@ -5756,6 +5771,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await deathsChecks({ g, api, C, check, stage, hush }); // THE DEATH LIBRARY and zombie fun (src/agent/deaths-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
+  await meleeChecks({ api, g, C, check, stage, person, hush }); // HAND TO HAND: rows, block vs bat, parry, neck and clinch, hostage, struggle, finisher, knuckles, machete, the AI
   // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----
   const freeNear = (x, z, r = 3) => { for (let dx = -r; dx <= r; dx += 1.5) for (let dz = -r; dz <= r; dz += 1.5) if (!g.nav.foot.free(x + dx, z + dz)) return false; return true; };
   await check('traps: a Greyborn snare catches a person walking through it; a trap is only spotted by looking carefully, and a held E takes it apart without it going off', async () => hush(async () => {
@@ -6084,7 +6100,10 @@ async function runSelfTest(api, only = null, skip = null) {
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
+  await policeChecks(api, check, C); // POLICE RESPONSE: the table by size, nobody saw = nobody comes, from the station by the streets, sirens, the reported spot, the heavy team, beats (src/agent/police-api.js)
+  g.police.enabled = polWas.on; g.police.beatsOn = polWas.beats;
   await kitChecks(api, check, C); // GADGETS-2: goggles, torch, glass, scanner, heat scope, mask, nitrous, winch, hub spikes, dog gear (src/agent/kit-api.js)
+  await actionsChecks(api, check, C); // TIMED ACTIONS: open vs search, a body's pat-down, damage cancels, kick vs pick noise, cutters vs a padlock, ladders, look-around, ducking under (src/agent/actions-api.js)
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
@@ -6093,6 +6112,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
   await casinoChecks(api, check, C); // CASINOS: blackjack, chess, the house's money, robbery, witnesses, the board, security drones (src/agent/casinos-api.js); loads the battery's save after
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
+  await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
@@ -6117,8 +6137,9 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
-    vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
+    // (c.pol, v.pol: a town desk's officers and motor pool are not saved: systems/police.js stands them up again with the town)
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
@@ -6128,6 +6149,7 @@ export function snapshot(g) {
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
+    actions: g.actions?.save(), // TIMED ACTIONS: break-in marks, half-done searches, what a search turned up, ladders you set (systems/actions.js)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
@@ -6137,6 +6159,7 @@ export function snapshot(g) {
     deep: g.deep?.save(), // the deep sheet: attributes, skills, perks, traits, stress, morale, reputation, wounds by zone
     fauna: g.fauna?.save(), // the animals' chunk records (who lives where, hurt, dead, butchered) and the gunfire heat
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
+    melee: g.melee?.save(), // what is in your hand, its wear, your forearm (systems/melee.js)
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
     decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
     sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
@@ -6218,8 +6241,9 @@ export function restore(g, s) {
   if (s.inventory) g.inventory.load(s.inventory);
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
+  if (s.actions) g.actions?.load(s.actions); // TIMED ACTIONS (after the inventory: it marks the boxes it searched)
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
-  g.arms?.load(s.arms); g.gunpoint?.clear();
+  g.arms?.load(s.arms); g.gunpoint?.clear(); g.melee?.clear(); g.melee?.load(s.melee);
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are

@@ -134,6 +134,10 @@ export const FUNERAL = {
   standing: { killer: -8, attended: 3, dug: 4, stone: 6 },
   mood: { gloom: 0.15 },
   ties: ['family'], // RESIDENTS kinds whose members have ties (data/ring.js: a family mourns its own)
+  // not everybody gets a funeral: when the family learns of a death, a roll on the body (deterministic) says whether they
+  // hold one - base, plus `mourner` for every living member left to stand at the grave, never over `max`. The rest are
+  // mourned at home and left where they fell (the body stays the world's: anyone may bury it).
+  held: { base: 0.3, mourner: 0.1, max: 0.8 },
 };
 
 // ---- the loot law audit (WEB_DEPTH_PLAN §0 law 2): every path that puts goods back -----------------------------------
@@ -185,6 +189,7 @@ export function validateRites(rows = RITES_ROWS) {
   for (const f of rows.FIXED_CEMETERIES ?? []) if (!rows.CEMETERY_KINDS?.[f.kind]) bad.push(`fixed ${f.id}: kind ${f.kind}`);
   for (const c of rows.CAUSES ?? []) if (!(typeof c[0] === 'string' && c[1] > 0)) bad.push(`cause ${c[0]}`);
   const U = rows.FUNERAL ?? {};
+  if (!(U.held?.base >= 0 && U.held.max <= 1 && U.held.base < U.held.max && U.held.mourner >= 0)) bad.push('FUNERAL.held: 0 <= base < max <= 1');
   if (!(U.delay?.[0] >= 24 && U.delay?.[1] <= 48 && U.delay[0] <= U.delay[1])) bad.push('FUNERAL.delay within 1-2 game days');
   for (const r of rows.LOOT_LAW ?? []) if (!['gated', 'allowed', 'todo', 'none'].includes(r.state)) bad.push(`LOOT_LAW ${r.path}: state ${r.state}`);
   return { ok: !bad.length, bad };

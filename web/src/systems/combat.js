@@ -2,6 +2,7 @@ import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision
 import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
 import { BALLISTICS as BL, ROUNDS, calOf } from '../data/ballistics.js';
+import { woundPart } from '../data/bodydoll.js';
 
 const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, nobody's floor
 
@@ -104,6 +105,7 @@ export class Combat {
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     const cal = calOf(w.cal ?? w.round ?? w.ammo); // the round it fires (data/ballistics.js ROUNDS; docs/design/WEB_CALIBERS.md)
     g.audio.gun(w.sound ?? ROUNDS[cal]?.sound ?? 'pistol', Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
+    g.reactions?.onShot(ch.x, ch.z, 45, wkey, ch); // heard, not known: each ear's own bearing and error (systems/reactions.js); before noise, so ai.onNoise leaves them to it
     g.noise(ch.x, ch.z, 45, ch);
     g.farsound?.shot(ch, w); // heard far off, late, from its bearing (systems/farsound.js)
     g.ambient?.eject(ch, ang, cal); // its casing, of its calibre (systems/forensics.js reads the ground back)
@@ -158,13 +160,12 @@ export class Combat {
     let target = null, kind = null;
     for (const c of g.chars) {
       if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
-      if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
       if (c.underwater) continue;                          // bullets don't reach under water
       // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
       // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
       if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) - (F.storey?.y0 ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey)) continue;
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-      if (t >= 0 && t < best && t < over) { best = t; target = c; kind = 'char'; }
+      if (t >= 0 && t < best && t < over && (!(c.prone || c.mv || c.dive > 0) || !g.moves || Math.random() < g.moves.hitShare(c, t))) { best = t; target = c; kind = 'char'; } // a low body (a dive, prone, a roll): the round can pass over it (data/moves.js LOW_BODY)
     }
     for (const v of g.vehicles) {
       if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
@@ -263,8 +264,9 @@ export class Combat {
       return;
     }
     // Worn armor eats its share first (systems/gear.js): the one place a hit is cut, for anyone wearing anything.
-    if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
-    if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
+    let hitPart = part; // where it landed: the caller's, else armor's roll by what made it
+    if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); hitPart = s.part ?? part; if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
+    if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, part: hitPart && hitPart !== 'all' ? woundPart(hitPart) : hitPart, hp: Math.round(c.hp - dmg) }); } // part: where it landed, a side picked for a limb (data/bodydoll.js: the doll, wounds)
     c.hp -= dmg;
     c._hit = part ?? c.hitPart ?? null; c._hitDmg = dmg; c._hitCause = cause; // what the death library reads (systems/deaths.js)
     g.look?.onHit(c, dmg, attacker, cause); // a big hit's hit-stop (systems/lookfeel.js)
