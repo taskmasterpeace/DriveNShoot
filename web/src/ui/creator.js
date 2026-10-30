@@ -506,7 +506,6 @@ export class CreatorUI {
     if (id === 'attributes') {
       const a = row?.attr ?? ATTRS[0], r = P.attrs[a.k], up = r < CREATOR.rankMax ? ATTR_COST[r + 1] - ATTR_COST[r] : null;
       return `<div class="cr-paper"><b>${esc(a.label)} · ${RANKS[r]}</b> <span class="dim">${esc(a.does)}.</span><ul class="cr-facts">
-        <li><i>IN PLAY</i>${esc(inPlay(a.k, V))}</li>
         <li><i>NEXT RANK</i>${up === null ? 'as high as it goes' : `${up} point${up > 1 ? 's' : ''}`}${a.skill ? '<span class="dim"> · it keeps growing as you use it, to 10</span>' : ''}</li></ul></div>`;
     }
     if (id === 'traits') {
