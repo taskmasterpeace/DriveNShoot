@@ -26,6 +26,7 @@ export class LongRoadSys {
     this.stats = { promoted: 0, demoted: 0, inView: 0, trips: 0, searched: 0 };
   }
   get W() { return this.g.streamer?.W ?? null; }
+  len() { const c = this.W?.cl; return c ? (c.L ?? c.s[c.n - 1]) : 0; } // the built I-10 centreline, in metres
 
   // ---- the gap audit ------------------------------------------------------------------------------------------------------
   // Everything seen from the road, as s positions along I-10 with a kind and a name.
@@ -38,13 +39,13 @@ export class LongRoadSys {
     if (R) { for (const s of R.sites) see(s.x, s.z, s.kind, s.name); for (const b of R.billboards) see(b.x, b.z, 'billboard', b.id); for (const h of R.hazards) see(h.x, h.z, 'hazard', h.id); }
     for (const h of W.holdouts ?? []) if (h.x !== undefined) see(h.x, h.z, 'holdout', h.name ?? h.id);
     if (withBeats) for (const b of this.build()) out.push({ s: b.s, kind: 'beat:' + b.kind, name: b.name });
-    return out.sort((a, b) => a.s - b.s);
+    return out.filter((q) => Number.isFinite(q.s)).sort((a, b) => a.s - b.s);
   }
   // Per mile what was seen, and the dead stretches (seconds at cruise).
   audit(withBeats = true) {
-    const W = this.W, L = W.L, f = this.features(withBeats), MI = STREAM.mile, miles = [];
+    const W = this.W, L = this.len(), f = this.features(withBeats), MI = STREAM.mile, miles = [];
     for (let m = 0; m * MI < L; m++) miles.push({ mile: m, seen: [] });
-    for (const q of f) miles[Math.min(miles.length - 1, Math.floor(q.s / MI))].seen.push(q.kind);
+    for (const q of f) if (Number.isFinite(q.s)) miles[Math.max(0, Math.min(miles.length - 1, Math.floor(q.s / MI)))].seen.push(q.kind);
     const gaps = []; let last = LR.edge;
     for (const q of [...f.filter((q) => q.s > LR.edge && q.s < L - LR.edge), { s: L - LR.edge, kind: 'end' }]) {
       const sec = (q.s - last) / LR.cruise;
@@ -61,7 +62,7 @@ export class LongRoadSys {
     if (this.beats) return this.beats;
     const W = this.W, beats = (this.beats = []);
     if (!W?.cl) return beats;
-    const f = this.features(false), L = W.L, towns = (W.towns ?? []).map((t) => ({ t, p: W.project(t.x, t.z, 4000) })).filter((o) => o.p && o.p.d < 2500).sort((a, b) => a.p.s - b.p.s);
+    const f = this.features(false), L = this.len(), towns = (W.towns ?? []).map((t) => ({ t, p: W.project(t.x, t.z, 4000) })).filter((o) => o.p && o.p.d < 2500).sort((a, b) => a.p.s - b.p.s);
     const rng = rngOf(hash32(W.seed ?? 1, 4410));
     let last = LR.edge, n = 0;
     const fill = (a, b) => {
