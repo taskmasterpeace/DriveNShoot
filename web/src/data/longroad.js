@@ -10,7 +10,7 @@
 export const LONG_ROAD = {
   cruise: 30,        // m/s: the speed the audit turns metres into seconds of driving (about 67 mph on the dial)
   maxGapS: 150,      // a stretch with nothing to see or meet for longer than this is DEAD (the brief: 1-3 minutes)
-  everyS: 95,        // a dead stretch gets a beat every ~this many seconds of driving (jittered by the seed)
+  everyS: 70,        // a dead stretch gets a beat every ~this many seconds of driving (jittered by the seed)
   jitter: 0.3,       // +- fraction of everyS
   sight: 140,        // m from the centreline: what counts as seen from the road (a sign, a site, a town edge)
   step: 200,         // m: the audit's sample step along the road
@@ -27,15 +27,15 @@ export const LONG_ROAD = {
 
 // Biome weights per beat kind (usmap legend: d desert, f scrub, p plains, a farmland, m mountains, F forest, s swamp, u urban).
 // A kind missing from a biome's row never stands there.
-export const BIOME_MIX = {
-  d: { wreck: 3, stall: 2, checkpoint: 2, family: 1, ambush: 2, body: 2, hitch: 1 },
-  f: { wreck: 3, stall: 2, checkpoint: 1, family: 2, ambush: 2, body: 1, hitch: 2 },
-  p: { wreck: 2, stall: 3, checkpoint: 1, family: 3, ambush: 1, body: 1, hitch: 2 },
-  a: { wreck: 2, stall: 4, family: 3, ambush: 1, body: 1, hitch: 2 },
-  m: { wreck: 4, checkpoint: 2, ambush: 3, body: 2, hitch: 1 },
-  F: { wreck: 3, stall: 1, family: 2, ambush: 3, body: 2, hitch: 1 },
-  s: { wreck: 3, stall: 2, family: 1, ambush: 2, body: 2 },
-  u: { wreck: 4, checkpoint: 2, ambush: 2, body: 2 },
+export const BIOME_MIX = { // wrecks weigh light: chunkgen already strews dead cars on every shoulder; the wayside is for PEOPLE
+  d: { wreck: 1, stall: 3, checkpoint: 2, family: 2, ambush: 2, body: 1, hitch: 2 },
+  f: { wreck: 1, stall: 3, checkpoint: 1, family: 3, ambush: 2, body: 1, hitch: 2 },
+  p: { wreck: 1, stall: 3, checkpoint: 1, family: 3, ambush: 1, body: 1, hitch: 2 },
+  a: { wreck: 1, stall: 4, family: 3, ambush: 1, body: 1, hitch: 2 },
+  m: { wreck: 2, checkpoint: 2, ambush: 3, body: 1, hitch: 1, stall: 1 },
+  F: { wreck: 1, stall: 1, family: 2, ambush: 3, body: 1, hitch: 1 },
+  s: { wreck: 1, stall: 2, family: 1, ambush: 2, body: 1 },
+  u: { wreck: 2, checkpoint: 2, ambush: 2, body: 1, stall: 1 },
 };
 
 // What each beat IS when it is made real: wrecks (records for systems/wrecks.js: type, state, dx dz rot off the beat's
@@ -57,7 +57,7 @@ export const TRAVELLERS = {
   trader: { faction: 'drifter', hp: 110, weapon: 'pistol', names: [['MARISOL VEGA', 'mx'], ['ABE KOWALCZYK', 'pl'], ['NNAMDI OKAFOR', 'ng'], ['LUCIA FERRANTE', 'it']], title: 'Shoulder trader', line: 'Water, wire, a little fuel. Coming from {from}, going to {to}. What are you buying?', portrait: { skin: '#a47250', hair: '#2a1d14', shirt: '#6a5a3c', hat: 'cowboy', gear: 'bandolier' } },
   parent: { faction: 'drifter', hp: 90, weapon: null, names: [['DANIEL ORTIZ', 'us'], ['HANNA LINDQVIST', 'se'], ['PRIYA RAMAN', 'in'], ['TOMAS NOVAK', 'cz'], ['GRACE MENSAH', 'gh']], title: 'On the move', line: 'Belt went outside {from}. We were making for {to}. You got a belt, or a ride?', portrait: { skin: '#c99a76', hair: '#3a2a1a', shirt: '#4a5a6a', hat: 'short', gear: 'none' } },
   kid: { faction: 'drifter', hp: 60, weapon: null, names: [['MATEO ORTIZ', 'us'], ['ELSA LINDQVIST', 'se'], ['KOFI MENSAH', 'gh']], title: 'Kid', line: 'Are we there yet? Dad says {to} has a well.', portrait: { skin: '#c99a76', hair: '#5a3a1a', shirt: '#8a5a3a', hat: 'short', gear: 'none' } },
-  raider: { faction: 'raider', hp: 100, weapon: 'smg', hostile: true, names: [['CUTTER', 'us'], ['DRY HOLLIS', 'us'], ['KNUCKLES REYES', 'mx'], ['VOLKOV', 'ru']], title: 'Road pirate', line: 'Out of {from}, working the road to {to}.', portrait: { skin: '#9a6a4a', hair: '#1a1410', shirt: '#3a2a20', hat: 'wrap', gear: 'goggles' } },
+  raider: { faction: 'raider', hp: 100, weapon: 'smg', hostile: true, names: [['CUTTER', 'us'], ['DRY HOLLIS', 'us'], ['KNUCKLES REYES', 'mx'], ['VOLKOV', 'ru'], ['SAINT BRANDT', 'de'], ['TALLY OYELARAN', 'ng'], ['MUSKRAT DUBOIS', 'ca'], ['RED DONOVAN', 'ie'], ['PILAR ACOSTA', 'ar'], ['BONE KEANE', 'au']], title: 'Road pirate', line: 'Out of {from}, working the road to {to}.', portrait: { skin: '#9a6a4a', hair: '#1a1410', shirt: '#3a2a20', hat: 'wrap', gear: 'goggles' } },
   hitch: { faction: 'drifter', hp: 90, weapon: null, names: [['JUNE PARRISH', 'us'], ['YUSUF DEMIR', 'tr'], ['AIKO TANAKA', 'jp'], ['RHYS MORGAN', 'gb']], title: 'Hitchhiker', line: 'Walked from {from}. Trying for {to}. Sign says it.', portrait: { skin: '#b88a66', hair: '#6a4a2a', shirt: '#5a6a4a', hat: 'cap', gear: 'bandana' } },
 };
 

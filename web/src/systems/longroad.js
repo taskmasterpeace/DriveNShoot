@@ -65,6 +65,7 @@ export class LongRoadSys {
     const f = this.features(false), L = this.len(), towns = (W.towns ?? []).map((t) => ({ t, p: W.project(t.x, t.z, 4000) })).filter((o) => o.p && o.p.d < 2500).sort((a, b) => a.p.s - b.p.s);
     const rng = rngOf(hash32(W.seed ?? 1, 4410));
     let last = LR.edge, n = 0;
+    const used = {}; // role -> the next name index
     const fill = (a, b) => {
       const step = LR.everyS * LR.cruise;
       for (let s = a + step * (1 + (rng() - 0.5) * LR.jitter); s < b - step * 0.4; s += step * (1 + (rng() - 0.5) * LR.jitter)) {
@@ -72,13 +73,20 @@ export class LongRoadSys {
         const at = W.at(s), side = rng() < 0.5 ? 1 : -1, off = LR.offset[0] + rng() * (LR.offset[1] - LR.offset[0]);
         const x = at.x + at.nx * off * side, z = at.z + at.nz * off * side, biome = W.biomeAt(x, z);
         const mix = BIOME_MIX[biome] ?? BIOME_MIX.d, tot = Object.values(mix).reduce((q, v) => q + v, 0);
-        let pick = rng() * tot, kind = 'wreck';
-        for (const [k, v] of Object.entries(mix)) { pick -= v; if (pick <= 0) { kind = k; break; } }
+        // THE RHYTHM: never the same kind twice running, never an ambush within two beats of the last (a road of nothing
+        // but pirates is as dead as an empty one); up to four draws, then whatever the last draw was.
+        let kind = 'wreck';
+        for (let tries = 0; tries < 4; tries++) {
+          let pick = rng() * tot; for (const [k, v] of Object.entries(mix)) { pick -= v; if (pick <= 0) { kind = k; break; } }
+          const prev = beats[beats.length - 1]?.kind, prev2 = beats[beats.length - 2]?.kind;
+          if (kind !== prev && !(kind === 'ambush' && (prev === 'ambush' || prev2 === 'ambush'))) break;
+        }
         const dir = rng() < 0.5 ? 1 : -1; // which way its travellers are heading along the road
         const behind = towns.filter((o) => (o.p.s - s) * dir < 0).sort((p, q) => Math.abs(p.p.s - s) - Math.abs(q.p.s - s))[0];
         const ahead = towns.filter((o) => (o.p.s - s) * dir > 0).sort((p, q) => Math.abs(p.p.s - s) - Math.abs(q.p.s - s))[0];
         const id = `lr-${n++}`, row = WAYSIDE[kind];
-        const people = (row.people ?? []).map((role, i) => { const T = TRAVELLERS[role], [name, flag] = T.names[Math.floor(rng() * T.names.length)]; return { id: `${id}-${i}`, role, name, flag }; });
+        // One person, one place: a name is used once along the road (the list cycles only when it runs out).
+        const people = (row.people ?? []).map((role, i) => { const T = TRAVELLERS[role], k = (used[role] = (used[role] ?? Math.floor(rng() * T.names.length)) + 1) - 1, [name, flag] = T.names[k % T.names.length]; return { id: `${id}-${i}`, role, name, flag }; });
         beats.push({ id, kind, name: row.name, s, x, z, side, rot: Math.atan2(at.tx, at.tz), biome, dir, mile: r1(s / STREAM.mile),
           from: behind?.t.name ?? (dir > 0 ? 'THE WEST' : 'THE EAST'), to: ahead?.t.name ?? (dir > 0 ? 'THE EAST' : 'THE WEST'),
           people, source: `gap audit: I-10 mile ${r1(a / STREAM.mile)}-${r1(b / STREAM.mile)} had nothing for ${Math.round((b - a) / LR.cruise)} s` });
