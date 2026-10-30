@@ -94,6 +94,7 @@ export async function farmingChecks(api, check, C) {
   g.zombies.enabled = false; g.raiderTimer = 1e9; g.convoy.despawn?.(); g.convoy.next = 1e9;
   await C('god', { on: true });
   F.load(null); K.load(null);
+  g.seasons = undefined; // the rules below run on the fixed April (the seasons integration has its own check); the real system comes back in the cleanup
   const tmp = [], stamped = [], r2 = (v) => Math.round(v * 100) / 100;
   const spawn = (o) => { const c = g.addChar(o); if (c) { c.farmTest = true; tmp.push(c); } return c; };
   const sweep = () => { for (const c of tmp.splice(0)) if (g.chars.includes(c)) g.removeChar(c); };
@@ -132,7 +133,7 @@ export async function farmingChecks(api, check, C) {
       g.seasons = undefined; const a = calendar(g);
       g.seasons = { month: 12 }; const b = calendar(g);
       g.seasons = { calendar: () => ({ month: 7 }) }; const c = calendar(g);
-      g.seasons = was.seasons;
+      g.seasons = undefined;
       return a.fixed && a.month === 4 && !b.fixed && b.month === 12 && c.month === 7 ? true : JSON.stringify({ a, b, c });
     });
 
@@ -144,6 +145,15 @@ export async function farmingChecks(api, check, C) {
       const e = L?.blds.find((q) => q.B.claimable && !S.ownerOf(q));
       if (e) house = e;
     }
+    await check('farming: with the seasons lane system present the garden reads its month (0-11 +1), its local frost and its growth factor - a freezing day kills tender crops and a cold place grows slowly', async () => {
+      const mk = (month, mean, gf) => ({ calendar: () => ({ month }), read: () => ({ frost: mean < 3, mean }), growthFactor: () => gf });
+      g.seasons = mk(0, -5, 0.2); const cal = calendar(g);
+      const p = { id: 'Gs', x: 0, z: 0, crop: 'tomato', state: 'growing', water: 0.9, fert: 0.6, health: 1, progress: 0 };
+      const cold = F.rate(p), frost = F.frostOdds(p), hardy = F.frostOdds({ ...p, crop: 'greens' });
+      g.seasons = mk(6, 28, 1.2); const warm = F.rate(p), none = F.frostOdds(p);
+      g.seasons = undefined;
+      return cal.month === 1 && !cal.fixed && warm > cold * 3 && frost > 0.3 && hardy < frost * 0.2 && none === 0 ? true : JSON.stringify({ cal, cold, warm, frost, hardy, none });
+    });
     await check('farming: a garden starts at a house you hold - claim a ranch house, and its yard counts (baseAt); a house you do not hold has no yard to dig', async () => {
       await out();
       let r = null;
@@ -257,7 +267,7 @@ export async function farmingChecks(api, check, C) {
       const oT = F.frostOdds(a, 12); a.crop = 'greens'; const oG = F.frostOdds(a, 12); a.crop = 'tomato';
       const f0 = F.stats.frosted; F.age(14);
       const dead = a.state === 'wilted' && a.why === 'frost';
-      delete F.clim; g.seasons = was.seasons; Object.assign(a, { crop: null, state: 'bare', why: null });
+      delete F.clim; g.seasons = undefined; Object.assign(a, { crop: null, state: 'bare', why: null });
       return dead && F.stats.frosted === f0 + 1 && oG < oT * 0.2 && oT > 0.3 ? true : JSON.stringify({ dead, oT, oG, frosted: F.stats.frosted - f0 });
     });
     await check('farming: blight rots a bed, spreads to its neighbour, and is cured by pulling and burning (the bed rests two game days); planting the same crop again doubles the odds', async () => {
@@ -487,7 +497,7 @@ export async function farmingChecks(api, check, C) {
   } finally {
     putOutSafe(g);
     sweep();
-    if (g.seasons !== was.seasons) g.seasons = was.seasons;
+    g.seasons = was.seasons;
     delete F.clim;
     for (const id of stamped) { try { await C('citygen', { action: 'release', id }); } catch { /* released with the town */ } }
     if (synthetic && base) { S.bases.delete(base.id); inv.boxes.delete(base.stash); } else if (base) { S.unbase?.(base.id); }

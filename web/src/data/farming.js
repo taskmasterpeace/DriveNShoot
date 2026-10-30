@@ -10,10 +10,13 @@ import { ITEMS } from './items.js';
 export const CALENDAR_FALLBACK = { month: 4, name: 'APRIL', season: 'spring', fixed: true };
 export const MONTH_NAMES = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 export const SEASON_OF = (m) => (m === 12 || m <= 2 ? 'winter' : m <= 5 ? 'spring' : m <= 8 ? 'summer' : 'autumn');
+// The seasons lane's system (systems/seasons.js, g.seasons: calendar().month is 0-11, read(x,z), growthFactor(x,z)) is
+// the real source; a bare { month: 1-12 } (a test's stub) is still read, and nothing at all holds a fixed April.
+export const hasSeasons = (g) => typeof g?.seasons?.read === 'function' && typeof g.seasons.calendar === 'function';
 export function calendar(g) {
   const S = g?.seasons;
   let m = null;
-  if (S) m = typeof S.calendar === 'function' ? S.calendar()?.month : S.month ?? S.cal?.month ?? null;
+  if (S) m = hasSeasons(g) ? (S.calendar()?.month ?? -1) + 1 : S.month ?? S.cal?.month ?? null;
   if (Number.isFinite(m) && m >= 1 && m <= 12) return { month: Math.round(m), name: MONTH_NAMES[Math.round(m) - 1], season: SEASON_OF(Math.round(m)), fixed: false };
   return { ...CALENDAR_FALLBACK };
 }

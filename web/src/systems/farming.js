@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ITEMS } from '../data/items.js';
 import { SKILLS as DEEP } from '../data/stats.js';
-import { CROPS, GARDEN, COOP, FROST, CLIMATE, CLIMATE_DEFAULT, HEAT, STAGE_AT, calendar, validateFarming } from '../data/farming.js';
+import { CROPS, GARDEN, COOP, FROST, CLIMATE, CLIMATE_DEFAULT, HEAT, STAGE_AT, calendar, hasSeasons, validateFarming } from '../data/farming.js';
 
 // THE HOUSE GARDEN (docs/design/WEB_FARMING.md; rows in data/farming.js). g.farming.
 //   plots    beds dug in the yard of a place you hold (homes.js baseAt): sown from a real seed packet, watered from a real
@@ -214,6 +214,13 @@ export class Farming {
     if (p.progress >= STAGE_AT.ripe) return 'ripe';
     return p.progress >= STAGE_AT.mid ? 'mid' : p.progress >= STAGE_AT.sprout ? 'sprout' : 'seed';
   }
+  // The calendar's share of the pace: the seasons lane's local climate when it is there (cold and heat at THIS place, a
+  // row's window only trims it), else the row's months alone.
+  paceOf(c, m, p) {
+    if (!hasSeasons(this.g)) return this.monthRate(c, m);
+    const gf = clamp(this.g.seasons.growthFactor(p.x, p.z), 0.1, 1.4);
+    return gf * (c.best.includes(m) ? 1.1 : c.plant.includes(m) ? 1 : GARDEN.shoulderRate);
+  }
   monthRate(c, m) {
     if (c.best.includes(m)) return GARDEN.bestRate;
     if (c.plant.includes(m)) return GARDEN.plantRate;
@@ -223,7 +230,7 @@ export class Farming {
   rate(p, m = this.cal().month) {
     const c = CROPS[p.crop]; if (!c || p.state !== 'growing') return 0;
     const wet = clamp((p.water - GARDEN.growNeedWet) / (GARDEN.growWetFull - GARDEN.growNeedWet), 0, 1);
-    return this.monthRate(c, m) * wet * (0.6 + 0.4 * p.fert) * (0.5 + 0.5 * p.health);
+    return this.paceOf(c, m, p) * wet * (0.6 + 0.4 * p.fert) * (0.5 + 0.5 * p.health);
   }
   wilt(p, why) {
     if (p.state === 'wilted' || p.state === 'bare') return;
@@ -273,7 +280,11 @@ export class Farming {
     }
   }
   covered(p) { return false; }
-  frostOdds(p, m = this.cal().month) { const c = CROPS[p.crop]; return c ? (FROST[m] ?? 0) * this.clim(p.x, p.z).frost * (1 - c.hardy) : 0; }
+  frostOdds(p, m = this.cal().month) {
+    const c = CROPS[p.crop]; if (!c) return 0;
+    if (hasSeasons(this.g)) { const H = this.g.seasons.read(p.x, p.z), base = H.frost ? 0.4 : H.mean < 6 ? 0.08 : 0; return base * (this.clim(p.x, p.z).frost > 0 ? 1 : 0) * (1 - c.hardy); } // a day under 3 C has a hard frost at night (data/seasons.js FROST_C)
+    return (FROST[m] ?? 0) * this.clim(p.x, p.z).frost * (1 - c.hardy);
+  }
   // Test/agent hook: let N garden days pass at once (the garden's own clock only; the world's day does not move).
   age(days) { this.last ??= this.hours(); this.skew += Math.min(GARDEN.catchUpMaxDays, Math.max(0, days)) * 24; this.clock(); }
   pestOdds(p) {

@@ -76,7 +76,9 @@ export class Survival {
     const C = CLIMATE, rise = (C.highAt - C.lowAt + 24) % 24;
     const t = ((hour - C.lowAt) % 24 + 24) % 24;
     const k = t <= rise ? 0.5 - 0.5 * Math.cos(Math.PI * t / rise) : 0.5 + 0.5 * Math.cos(Math.PI * (t - rise) / (24 - rise));
-    return C.low + (C.high - C.low) * k + (C.weather[wx] ?? 0);
+    const SE = this.g.seasons?.here, mid = (C.low + C.high) / 2, v = C.low + (C.high - C.low) * k;
+    // THE SEASON (systems/seasons.js): the day's mean moves with the date and the place; the daily swing narrows in the cold.
+    return (SE ? mid + (v - mid) * SE.range + SE.temp : v) + (C.weather[wx] ?? 0);
   }
   // Where the player is, as shelter: 'hold' (the house you hold), 'house' (under any roof), 'car' (a closed car), 'rough'.
   shelterKind() {
@@ -117,7 +119,8 @@ export class Survival {
       if (wetState === 'swim') N.wet = 1; else if (wetState === 'wade') N.wet = Math.max(N.wet, 0.7);
       if (!(rain > 0.05 && !inside) && wetState !== 'swim' && wetState !== 'wade') N.wet = Math.max(0, N.wet - WET.dry * hours * (N.air > 30 ? WET.heatDry : 1) * (inside ? WET.indoorDry : 1));
       const v = p.inVehicle, pull = kind === 'car' && SH.running && !S && !v.dead && v.fuel > 0 && g.vehiclesSys.speed(v) > 1 ? SH.running : SH.pull; // on the move: the heater runs
-      const felt = N.air + (SH.to - N.air) * pull + (sprinting ? CLIMATE.sprintHeat : 0) - N.wet * CLIMATE.wetChill + (S ? CLIMATE.asleepWarm[S.kind] ?? 0 : 0);
+      const SEA = g.seasons; // coats, a fire beside you, a lit hearth under a roof (data/seasons.js WARM, FIRE, HEARTH)
+      const felt = N.air + (SH.to - N.air) * pull + (sprinting ? CLIMATE.sprintHeat : 0) - N.wet * CLIMATE.wetChill + (S ? CLIMATE.asleepWarm[S.kind] ?? 0 : 0) + (SEA ? SEA.wornWarmth(N.air) + SEA.fireWarmth(p.x, p.z) : 0);
       N.felt = felt;
       const target = clamp01(0.5 + (felt - CLIMATE.comfort) / CLIMATE.span);
       if (hours > 0) N.warmth += (target - N.warmth) * (1 - Math.exp(-CLIMATE.rate * hours));

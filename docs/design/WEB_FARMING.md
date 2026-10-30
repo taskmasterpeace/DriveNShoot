@@ -61,7 +61,7 @@ Once a game day, per bed, seeded by (bed, day, tag) so a saved game replays the 
 - **Blight**: 3.5% a day, x2 on a wet day, x2.2 if the bed grew the same crop last, +25% if a bed within 7 m has it. A blighted crop loses health every hour; pull it (the bed rests).
 - **Pests** (rabbits, deer, crows): 12% a day by biome, x0.12 if the bed is fenced, x0.5 under a scarecrow. A hit costs 22% health, or 30% of a ripe crop's yield.
 
-The **calendar** comes from the seasons lane. Until `systems/seasons.js` lands, `calendar(g)` reads `g.seasons.calendar().month` (or `g.seasons.month`) if present and otherwise holds a **fixed April** (the panel says so).
+The **calendar** is the seasons lane's (`systems/seasons.js`, `g.seasons`, merged from `feat/web-seasons` 746a4e19). With it present: the month is `calendar().month + 1`; the calendar's share of the pace is the place's `growthFactor(x, z)` (clamped 0.1 to 1.4) times 1.1 in a crop's best month, 1.0 in a sowing month and 0.6 otherwise; the night's frost chance is 0.40 when the place's mean air is under 3 C (`read(x, z).frost`), 0.08 under 6 C, else 0, times (1 - hardiness). Without it (a bare `{month}` stub, or nothing) the row's own month tables and a fixed April hold, so the garden is never blocked. Long absences are simulated on the climate of the day you return (not each past day's).
 
 ### 3.4 What the world does to it
 - **The dead** within 2.2 m of a growing or ripe bed trample it (the crop is lost; a fence does not stop them).
@@ -126,7 +126,7 @@ One `InstancedMesh` (1,500 boxes), redrawn every 0.5 s (0.12 s while a hen is in
 `q = 0.42 + 0.045 x cooking level + 0.10 (herbs) + 0.14 x (freshness - 0.5) + 0.05 (stove) + 0.03 (pot)`; a rotten ingredient forces `off`. A level-0 cook at a fire with fresh potatoes and peppers: `0.49` (poor). At level 4 with herbs: `0.42 + 0.18 + 0.10 + 0.07 = 0.77` (good, just under fine).
 
 ## 5. Edge Cases
-- **No seasons lane yet**: fixed April; every crop with April in its window grows at plain pace; frost is 2% a night; the panel says "calendar fixed".
+- **No seasons system** (a stub or nothing): fixed April; every crop with April in its window grows at plain pace; frost is 2% a night; the panel says "calendar fixed".
 - **Save and load**: beds, coops (hens, eggs, troughs), consignments, the log and stats ride the save (`farming`, `cooking` blocks); the world clock and the garden's own `skew` (the `age` test hook) are saved with it. Growth catches up on load by the game clock.
 - **Long absences**: up to 60 days are simulated hour by hour on return. A bed left dry for 5 days is dead; a ripe bed unpicked for `hold` days rots.
 - **A full pack**: harvest refuses with "make room" rather than leaving fruit on the plant; eggs stop at the pack's limit.
@@ -150,7 +150,7 @@ One `InstancedMesh` (1,500 boxes), redrawn every 0.5 s (0.12 s while a hen is in
 - `WEB_VOICE_STATS`: the deep sheet's `farming` skill row (now taught by `cropSown`, `cropHarvested`, `coopEgg`) and `cooking` (`mealCooked`); morale mods `meal_good`, `meal_fine`.
 - `WEB_SURVIVAL`: `sicken('poisoning')` (off meals).
 - `WEB_FORGE`: the tab list.
-- The seasons lane: `calendar(g)` shim (§3.3).
+- The seasons lane: `calendar().month`, `read(x, z)`, `growthFactor(x, z)` (§3.3); the panel could show its `plantingWindow` as a follow-up.
 
 **Used by / hooks other lanes should know**
 - The crafting lane: `data/cooking.js` recipes are already `{id, inputs, tools, hours, skill, bench, output}`.

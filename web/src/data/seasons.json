@@ -1,0 +1,23 @@
+{
+  "kind": "dsoa-seasons",
+  "version": 1,
+  "note": "SEASONS rows the World Forge SEASONS tab writes (docs/design/WEB_SEASONS.md). data/seasons.js merges them over its own zone and calendar rows at load: a field here wins. Rows not listed keep the code defaults.",
+  "calendar": {
+    "seasonDays": 7,
+    "warmest": 0.4
+  },
+  "zones": [
+    {"id":"southwest","name":"THE SOUTHWEST","mean":23.5,"amp":11.5,"lat0":33.4,"snowy":0.12},
+    {"id":"basin","name":"THE BASIN AND RANGE","mean":11,"amp":14,"lat0":39.5,"snowy":0.75},
+    {"id":"california","name":"THE COAST AND VALLEYS","mean":16.5,"amp":6.5,"lat0":37,"snowy":0.3},
+    {"id":"pacific_nw","name":"THE WET COAST","mean":10.5,"amp":7.5,"lat0":46,"snowy":0.7},
+    {"id":"rockies","name":"THE ROCKIES","mean":6.5,"amp":13.5,"lat0":43,"snowy":1},
+    {"id":"plains_south","name":"THE SOUTHERN PLAINS","mean":17.5,"amp":12.5,"lat0":33.5,"snowy":0.45},
+    {"id":"plains_north","name":"THE NORTHERN PLAINS","mean":6.5,"amp":17.5,"lat0":45,"snowy":1},
+    {"id":"midwest","name":"THE MIDWEST","mean":10.5,"amp":15.5,"lat0":41,"snowy":0.95},
+    {"id":"mid_atlantic","name":"THE MID-ATLANTIC","mean":13.5,"amp":12,"lat0":37,"snowy":0.7},
+    {"id":"northeast","name":"THE NORTHEAST","mean":8.5,"amp":14,"lat0":43.5,"snowy":1},
+    {"id":"gulf","name":"THE DEEP SOUTH","mean":19,"amp":9.5,"lat0":32.5,"snowy":0.12},
+    {"id":"florida","name":"FLORIDA","mean":23.5,"amp":5.5,"lat0":28,"snowy":0,"warmest":0.5}
+  ]
+}

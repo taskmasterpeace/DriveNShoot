@@ -101,7 +101,7 @@ export class Trade {
     if (it.uses) v *= 0.3 + 0.7 * ((s.left ?? it.uses) / it.uses);
     const f = this.g.inventory.freshness(s);
     if (f === 'stale') v *= 0.5; else if (f === 'rotten') v *= 0.1;
-    return v;
+    return v * (this.g.seasons?.priceMul(s.id) ?? 1); // the season's scarcity (data/seasons.js PRICES): fuel dear in the cold, water in the heat
   }
   buyPrice(s, n, D) { return Math.max(1, Math.ceil(this.worth(s) * n * D.buy - 1e-9)); }
   sellPrice(s, n, D) { return Math.floor(this.worth(s) * n * D.sell + 1e-9); }

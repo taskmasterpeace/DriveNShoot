@@ -276,3 +276,4 @@ evening's take, supper; the summary lists what came in, food before and after, a
 
 ## Dependents added by WEB_FARMING (2026-10-29)
 - WEB_FARMING.md: the fire pit, the rain catcher, the biome/region lookups and the cooking skill are read by the garden and by meal cooking.
+> **SEASONS (WEB_SEASONS.md):** foraging, fishing and snares multiply by season rows (`seasons.yield`), deep snow thins forage, snow holds a track 2.4x as long, and prey migrates or sleeps (`FAUNA_SEASON`).

@@ -192,3 +192,5 @@ Renders, game camera, before (grade off) and after: `florida-day`, `arizona-dusk
 - **Not saved**: grime is not in the save or the shard record; event decals are local and not shard-synced (seeded history is deterministic, so every player sees the same stories).
 - No dust on the glass; no per-wheel mud spray particles.
 - Ground grass has no blades to sway; the bushes stand in for it.
+
+> **SEASONS (WEB_SEASONS.md):** `gradeAt` adds `seasons.gradeTemp()` (snow and frost cool the picture); `systems/seasonlook.js` chains a snow and leaf patch onto every lit material.
