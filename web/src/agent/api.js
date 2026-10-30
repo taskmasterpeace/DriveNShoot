@@ -5671,30 +5671,36 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   // ---- the infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md) ----
   const zdist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  await check('infected: a sprinter looks like a shambler until it perceives you (you run near it) - then it runs at 9 m/s, runs on 6 s once it has lost you, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
+  await check('infected: a sprinter looks like a shambler until it perceives you (never before: you stand behind it and it walks on) - then it commits on the sight alone, no run needed: 9 m/s, still on you past its old 6 s burst, and only once it has lost you does it run on 6 s, go 3 s bent double (the window) and walk as a shambler again', async () => hush(async () => {
     await stage();
     g.godMode = true;
-    const p = g.player, c = g.zombies.spawn(p.x + 14, p.z, true);
+    const p = g.player, SPR = INFECTED.sprinter;
+    for (const o of [...g.chars]) if (o !== p && !o.npc && o.alive && Math.hypot(o.x - p.x, o.z - p.z) < 50) g.removeChar(o); // nobody else for it to perceive
+    const c = g.zombies.spawn(p.x + 14, p.z, true), seq0 = g.eventSeq;
+    const whys = () => g.events.filter((e) => e.seq > seq0 && e.type === 'sprinterBurst' && e.id === c.id).map((e) => e.why);
     try {
       c.face = Math.PI / 2; c.timer = 99; c.wx = c.x; c.wz = c.z; // looking away, standing: it does not know you are there
-      await C('step', { seconds: 2 }); // you stand still behind it
-      const walk = +c.speed.toFixed(2), dormant = c.zs.state === 'dormant' && c.name === 'Shambler';
-      g.input.down.add('ShiftLeft');
-      await holdKey('KeyA', 1.5, () => c.zs.state === 'burst'); // you run (away)
-      g.input.down.delete('ShiftLeft');
-      const broke = c.zs.state === 'burst';
-      let top = 0;
-      for (let t = 0; t < 1.5; t += 0.25) { await C('step', { seconds: 0.25 }); top = Math.max(top, c.speed); }
-      c.x += 120; c.wx = c.x; // contact lost (far beyond its senses): it runs on for INFECTED.sprinter.burst s, then it is spent
+      await C('step', { seconds: 2 }); // you stand still behind it: no sight, no steps, too far to smell - nothing
+      const walk = +c.speed.toFixed(2), dormant = c.zs.state === 'dormant' && c.name === 'Shambler' && !c.zsee;
+      const near = g.chars.filter((o) => o !== p && o !== c && o.alive && Math.hypot(o.x - c.x, o.z - c.z) < 40).map((o) => o.id);
+      c.face = Math.atan2(p.x - c.x, p.z - c.z); // it turns round and SEES you (you never ran)
+      let broke = false;
+      for (let t = 0; t < 1.5 && !broke; t += 0.1) { await C('step', { seconds: 0.1 }); broke = c.zs.state === 'windup' || c.zs.state === 'burst'; }
+      const why = whys()[0] ?? null;
+      let top = 0, held = true;
+      for (let t = 0; t < SPR.burst + 1; t += 0.25) { await C('step', { seconds: 0.25 }); top = Math.max(top, c.speed); if (t > 1 && c.zs.state !== 'burst') held = false; } // in contact it never gives up on the old clock
+      const onYou = Math.hypot(c.x - p.x, c.z - p.z) < 2;
+      c.x += 120; c.wx = c.x; // contact lost (far beyond its senses): it runs on for SPR.burst s, then it is spent
       let over = false;
-      for (let t = 0; t < INFECTED.sprinter.burst + 2.5 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
+      for (let t = 0; t < SPR.burst + 2.5 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
       await C('step', { seconds: 0.5 });
       const still = over && c.speed < 0.1 && c.crouch;
       let back = false;
       for (let t = 0; t < 5 && !back; t += 0.25) { await C('step', { seconds: 0.25 }); back = c.zs.state === 'dormant'; }
       const notWitness = !c.telling && !g.witnesses.canBribe(c); // its runner flag is not a witness's report (it once was)
-      return dormant && walk < 3 && broke && top > 8 && still && back && c.zSpeed < 3 && notWitness ? true : JSON.stringify({ dormant, walk, broke, top: +top.toFixed(2), over, still, back, pace: c.zSpeed, notWitness });
-    } finally { g.input.down.delete('ShiftLeft'); g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
+      return dormant && walk < 3 && broke && why === 'saw you' && top > 8 && held && onYou && still && back && c.zSpeed < 3 && notWitness ? true
+        : JSON.stringify({ dormant, walk, near, broke, why, whys: whys(), top: +top.toFixed(2), held, onYou, over, still, back, pace: c.zSpeed, notWitness });
+    } finally { g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
   }));
   await check('infected: an Echo works at a boarded window only while you look away, freezes mid-motion while you watch, and never comes for you', async () => hush(async () => {
     const I = g.interiors, n = g.nav.foot;
