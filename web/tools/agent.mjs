@@ -61,7 +61,8 @@ if (await connected() && !NEW_TAB) {
     ];
     console.log(`[agent] launching ${exe.split(/[\\/]/).pop()} ${process.env.DL_HEADED ? '(headed)' : '(headless)'}`);
     kids.push(spawn(exe, args, { stdio: 'ignore' }));
-    for (let i = 0; i < 60 && (await tabs()) <= before; i++) await sleep(500);
+    const bootN = Math.max(60, Number(process.env.DL_BOOT_S ?? 30) * 2); // DL_BOOT_S: how long a cold page may take to reach the bridge (a loaded machine needs more than 30 s)
+    for (let i = 0; i < bootN && (await tabs()) <= before; i++) await sleep(500);
     if ((await tabs()) <= before) { console.error('[agent] browser did not connect to the bridge'); stop(); }
   }
   console.log('[agent] READY — try: node tools/dl.mjs selftest');
