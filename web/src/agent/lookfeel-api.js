@@ -1,6 +1,8 @@
 // LOOK-FEEL's commands and checks (systems/lookfeel.js, data/looks.js, docs/design/WEB_LOOK_FEEL.md).
-import { LOOK_REGIONS, TIME_GRADES, HORIZONS, WIND, DECALS, IMPACT, validateLooks, applyGrade, composeGrade, hueOf } from '../data/looks.js';
+import * as THREE from 'three';
+import { LOOK_REGIONS, TIME_GRADES, HORIZONS, WIND, DECALS, IMPACT, LAMPS, validateLooks, applyGrade, composeGrade, hueOf } from '../data/looks.js';
 import { regionOfState, timeWeights, windOffset, WIND_UNIFORMS } from '../systems/lookfeel.js';
+import { lampAt } from '../systems/lamplight.js';
 import { CAMERA } from '../data/camera.js';
 import { RAY_BULLET } from '../engine/collision.js';
 import { outfit } from '../systems/characters.js';
@@ -60,12 +62,13 @@ export function lookfeelCommands(api) {
   const obs = devtoolsCommands(api, need).look; // the observer's look (agent/devtools.js): a screenshot and what is in it
   return {
     look: {
-      group: 'observe', desc: `${obs.desc} WITH action= it is LOOK-FEEL instead (docs/design/WEB_LOOK_FEEL.md, rows in src/data/looks.js): the region colour grade, the horizon rows, the wind, the history decals and the impact feel. action=grade (default): the grade in force (regions blended round the view, the time-of-day weights, the composed numbers, the 16^3 LUT and its rebuilds); x,z,hour preview the blend somewhere else without moving anything; on=false turns the pass off (true back); strength= sets the pause menu\'s Colour grade (0..1). action=region: every look row (states, grade, horizon, wind, decal mix) and which row x,z (or you) is in. action=horizon: each region\'s band row and the camera law\'s verdict (whether a horizon can ever be on screen). action=wind: the wind in force (region x weather) and how far a vertex h m up a plant (default 10) moves now. action=decals: history decal counts, the seeded stories near you, the last one laid; kind=skid|scorch|oil|bonfire|blood with x,z lays one (a history hook). action=impact: hit-stop and kick state; stop=<ms> triggers a hit-stop (testing). on=/strength= alone set the pass and return the grade.`,
-      args: { ...obs.args, action: { type: 'string', enum: ['grade', 'region', 'horizon', 'wind', 'decals', 'impact'] }, hour: { type: 'number' }, on: { type: 'boolean' }, strength: { type: 'number' }, h: { type: 'number', default: 10 }, kind: { type: 'string' }, stop: { type: 'number' } },
+      group: 'observe', desc: `${obs.desc} WITH action= it is LOOK-FEEL instead (docs/design/WEB_LOOK_FEEL.md, rows in src/data/looks.js): the region colour grade, the horizon rows, the wind, the history decals and the impact feel. action=grade (default): the grade in force (regions blended round the view, the time-of-day weights, the composed numbers, the 16^3 LUT and its rebuilds); x,z,hour preview the blend somewhere else without moving anything; on=false turns the pass off (true back); strength= sets the pause menu\'s Colour grade (0..1). action=region: every look row (states, grade, horizon, wind, decal mix) and which row x,z (or you) is in. action=horizon: each region\'s band row and the camera law\'s verdict (whether a horizon can ever be on screen). action=wind: the wind in force (region x weather) and how far a vertex h m up a plant (default 10) moves now. action=decals: history decal counts, the seeded stories near you, the last one laid; kind=skid|scorch|oil|bonfire|blood with x,z lays one (a history hook). action=impact: hit-stop and kick state; stop=<ms> triggers a hit-stop (testing). action=lamps: the headlamps and the torch lighting the bodies in their cones this frame (systems/lamplight.js), how much reaches x,z (chest high) and how many materials wear the layer; on=false turns the body light off (the before shot), true back. on=/strength= alone set the pass and return the grade.`,
+      args: { ...obs.args, action: { type: 'string', enum: ['grade', 'region', 'horizon', 'wind', 'decals', 'impact', 'lamps'] }, hour: { type: 'number' }, on: { type: 'boolean' }, strength: { type: 'number' }, h: { type: 'number', default: 10 }, kind: { type: 'string' }, stop: { type: 'number' } },
       run: async (a) => {
         const { action, x, z, hour, on, strength, h, kind, stop } = a;
         if (!action && on === undefined && strength === undefined) return obs.run(a); // the observer's look
         const F = L(), W = g.streamer?.W;
+        if (action === 'lamps') { if (on !== undefined) { F.lamps.on = on ? 1 : 0; F.lamps.update(); } const v = F.lamps.view(); if (x !== undefined && z !== undefined) v.at = { x, z, light: r3(lampAt(x, (g.player?.gy ?? 0) + 1.2, z)) }; return { ...v, rows: LAMPS }; }
         if (on !== undefined) F.on = !!on;
         if (strength !== undefined) { need(strength >= 0 && strength <= 1, 'strength 0..1'); F.settings.grade = strength; }
         if (!action || action === 'grade') {
@@ -268,6 +271,38 @@ export async function lookfeelChecks({ g, api, C, check }) {
     const cx0 = g.camera.position.z; g.updateCamera(0); const moved = Math.abs(g.camera.position.z - cx0) > 0.05 || kSg > 0;
     F.kick.x = F.kick.z = 0;
     return small && big && frozenMs >= 30 && frozenMs <= 100 && slow && kSg > kSmg * 2 && moved ? true : JSON.stringify({ small, big, ms, frames, slow, kSmg: r3(kSmg), kSg: r3(kSg) });
+  });
+
+  await check('look-feel: at night a person in front of a car is lit by its headlights (the real colours on screen, falling off with distance), one behind is not, and the torch lights who it points at', async () => {
+    const p = g.player; if (p.inVehicle) g.exitVehicle(true);
+    await C('setWeather', { key: 'CLEAR', instant: true }); await C('setTime', { hour: 0 });
+    const L0 = clearStrip(g, 60); if (!L0) return 'no clear strip';
+    await C('teleport', { x: L0.x - 6, z: L0.z + 4 });
+    const car = await spawnMine(C, g, { type: 'interceptor', x: L0.x, z: L0.z, heading: Math.PI / 2 });
+    await C('enterVehicle', { id: car.id, force: true });
+    const v = g.player.inVehicle;
+    const mk = (dx, name) => { const d = g.addChar({ x: v.x + dx, z: v.z, faction: 'drifter', weapon: null, colors: outfit('drifter'), name, flag: 'US', hp: 5000 }); d.hold = true; d.face = Math.atan2(v.x - d.x, 0); return d; };
+    const near = mk(7, 'Lit (look-feel)'), far = mk(20, 'Far (look-feel)'), back = mk(-8, 'Behind (look-feel)');
+    F.lamps.patch(); await api._step(12);
+    const chest = (d) => lampAt(d.x, (d.gy ?? 0) + 1.2, d.z);
+    const lNear = chest(near), lFar = chest(far), lBack = chest(back), head = F.lamps.view().lamps.some((l) => l.kind === 'head' && l.id === v.id);
+    // On screen: the pixels over the lit man's chest with the body light on vs off (the before/after in one frame).
+    const at = (d, on, w = 8) => {
+      F.lamps.on = on; F.lamps.update(); F.render();
+      const q = new THREE.Vector3(d.x, (d.gy ?? 0) + 1.15, d.z).project(g.camera), gl = g.renderer.getContext(), W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(w * w * 4);
+      gl.readPixels(Math.round((q.x * 0.5 + 0.5) * W - w / 2), Math.round((q.y * 0.5 + 0.5) * H - w / 2), w, w, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      let s = 0; for (let i = 0; i < px.length; i += 4) s += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+      return s / (w * w);
+    };
+    const off = at(near, 0), on = at(near, 1);
+    const compiled = !!g.charR.meshes.torso.material.userData.lampCompiled && F.lamps.patched >= 6;
+    // The torch: on foot, facing the man, the cone reaches him.
+    g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); p.face = Math.PI / 2; await api._step(6);
+    const torch = F.lamps.view().lamps.some((l) => l.kind === 'torch'), lTorch = chest(near);
+    for (const d of [near, far, back]) g.removeChar(d);
+    dropMine(g); await C('setTime', { hour: 12 });
+    const ok = head && lNear > 0.6 && lFar > 0 && lFar < lNear * 0.6 && lBack === 0 && on > off + 6 && on > off * 1.4 && compiled && torch && lTorch > 0.3;
+    return ok ? true : JSON.stringify({ head, lNear: r3(lNear), lFar: r3(lFar), lBack: r3(lBack), off: r3(off), on: r3(on), compiled, patched: F.lamps.patched, torch, lTorch: r3(lTorch), lamps: F.lamps.view().lamps });
   });
 
   await check('look-feel: a site the site-story system marks as raided shows it on the ground (scorch, blood, tyre tracks), and a camp has its bonfire ring', async () => {

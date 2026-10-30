@@ -174,6 +174,23 @@ export const WEAR = {
   garageClean: true, // a garage repair washes it (systems/garage.js)
 };
 
+// ---- lamp light on bodies ----------------------------------------------------------------------------------------------
+// Headlights and the hand torch are additive cones painted on the ground (systems/vehiclelights.js, main.js buildFlashlight):
+// no light of their own, so the fixed light count holds. A person, a zombie or an animal standing in one was still lit only
+// by the night sky - a black shape in a bright pool (Robert, the 845 playtest). These rows light the BODIES inside the
+// cones in their own shader (systems/lamplight.js): the nearest `max` lamps to the camera, a cone, a distance falloff and the
+// lamp's warm white, no scene lights added. I is peak irradiance at the lens (the sun is 2.5); falloff (1 - d / range)^2.
+export const LAMPS = {
+  max: 8,            // lamps in the uniform array (the nearest to the camera win)
+  reach: 90,         // m from the camera a lamp is considered at all
+  wrap: 0.3,         // light wraps round a body this far past its silhouette (a face half turned still reads)
+  color: '#fff1cc',  // the headlamp's warm white (vehiclelights.js HEAD)
+  night: 0.08,       // below this much night the lamps are not worth a body (the beams aren't drawn either)
+  head: { I: 5.0, range: 30, cos: 0.82, y: 0.75 },   // a car's pair, one lamp at the middle of the nose; one eye left = 0.55
+  bike: { I: 3.4, range: 24, cos: 0.88, y: 1.0 },
+  torch: { I: 4.2, range: 19, cos: 0.86, y: 1.25 },  // range follows the torch cone's own reach (kit.beamReach, the dark)
+};
+
 // ---- validation ------------------------------------------------------------------------------------------------------
 const hueOf = (r, g, b) => {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
@@ -255,6 +272,8 @@ export function validateLooks(regions = LOOK_REGIONS, times = TIME_GRADES, horiz
   }
   for (const [tk, T] of Object.entries(times)) { if (!(T.half > 0 && T.centre >= 0 && T.centre < 24)) errors.push(`time ${tk}: centre/half`); gradeOk(`time ${tk}`, T.grade); }
   for (const [k, c] of Object.entries(IMPACT.calibre)) if (!(c.kick >= 0 && c.kick <= 2 && c.stop >= 0 && c.stop <= 120)) errors.push(`calibre ${k}: kick 0..2, stop 0..120 ms`);
+  for (const k of ['head', 'bike', 'torch']) { const L = LAMPS[k]; if (!(L?.I > 0 && L.I <= 12 && L.range > 4 && L.range <= 60 && L.cos > 0.5 && L.cos < 0.99)) errors.push(`lamp ${k}: I 0..12, range 4..60, cos 0.5..0.99`); }
+  { const c = parseInt(LAMPS.color.slice(1), 16), h = hueOf((c >> 16) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255); if (h.s > 0.06 && h.h >= 270 && h.h <= 320) errors.push('lamp colour is purple'); }
   for (const k of ['skid', 'scorch', 'oil', 'bonfire', 'blood']) if (!(DECALS[k]?.cell >= 0 && DECALS[k].cell < 8)) errors.push(`decal ${k}: cell`);
   return { ok: errors.length === 0, errors, regions: Object.keys(regions).length, states: seen.size };
 }
