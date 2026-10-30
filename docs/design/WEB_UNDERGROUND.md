@@ -202,3 +202,5 @@ street `y0`, so a site on a raised pad works).
 
 Perf: `scenario name=stress` before/after on the same machine (in the hand-back). No per-frame allocations below
 (levels allocate when promoted); one clipping plane, fixed light count.
+
+**Read by WEB_FAN_NODS (2026-10-29):** the `glassroom` room and the `glasshex`/`deadconsole` props (a sealed base's bottom level, by `site.base`), the `ug-glass` colliders, and calendars on office, command, comms and guard room walls (`L.calendars`, by a hash: no rng drawn).

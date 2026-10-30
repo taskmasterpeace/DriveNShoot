@@ -1,6 +1,7 @@
 import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
 import { GADGETS, DRONES, DOOR_KIT, KIT, CELLS, KIT_LOOT_ADD } from './gadgets.js';
 import { DOG_GEAR } from './dogs.js';
+import { FN_ITEMS, FN_LOOT, FN_AMMO_ITEM, FN_GUN_ITEM } from './fannods.js';
 import { MELEE_ITEMS } from './melee.js'; // bats, knuckles, pipes, sledges (WEB_MELEE.md)
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
@@ -289,3 +290,8 @@ for (const [id, r] of Object.entries(KIT)) ITEMS[id] ??= { name: r.name, kind: '
 for (const [id, r] of Object.entries(CELLS)) ITEMS[id] ??= r;
 for (const [id, r] of Object.entries(DOG_GEAR)) ITEMS[id] ??= { name: r.name, kind: 'gear', tags: ['dog_gear'], ...r.item, use: { act: 'doggear' } };
 for (const [table, rows] of Object.entries(KIT_LOOT_ADD)) if (LOOT[table]) LOOT[table].rows.push(...rows);
+// ---- THE FOUND THINGS (data/fannods.js, docs/design/WEB_FAN_NODS.md): the old revolver and its box, the cane, the jungle
+// blade, the lapel counter, the self-heating meal; the case's and the ditch's own tables.
+for (const [id, r] of Object.entries(FN_ITEMS)) ITEMS[id] ??= r;
+for (const [k, T] of Object.entries(FN_LOOT)) LOOT[k] ??= T;
+Object.assign(AMMO_ITEM, FN_AMMO_ITEM); Object.assign(GUN_ITEM, FN_GUN_ITEM);

@@ -2,6 +2,7 @@ import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision
 import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
 import { BALLISTICS as BL, ROUNDS, calOf } from '../data/ballistics.js';
+import { FN_WEAPONS } from '../data/fannods.js';
 import { woundPart } from '../data/bodydoll.js';
 import { SHOT_READ } from '../data/shotread.js';
 
@@ -69,6 +70,8 @@ export const WEAPONS = {
   amr:     { name: 'ANTI-MATERIEL RIFLE', short: '.50 RIFLE', cal: '50bmg', dmg: 120, rate: 1.4, mag: 5, reload: 3.6, spread: 0.008, range: 140, auto: false, pellets: 1, ammo: '50bmg', shake: 1.0, model: 'rifle',
     modes: [{ id: 'single', name: 'SINGLE', burst: 1, rate: 1.4, spread: 1, kick: 1.2 }] },
 };
+Object.assign(WEAPONS, FN_WEAPONS); // the found things' old revolver (data/fannods.js; docs/design/WEB_FAN_NODS.md)
+
 
 export class Combat {
   constructor(game) {

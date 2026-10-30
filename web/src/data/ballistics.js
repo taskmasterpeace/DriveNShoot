@@ -1,3 +1,4 @@
+import { FN_ROUNDS, FN_ROUND_OF } from './fannods.js';
 // CALIBERS (docs/design/WEB_CALIBERS.md; the flight: systems/ballistics.js, docs/design/WEB_BALLISTICS.md). One row per
 // round a gun can fire. Every gun (combat.js WEAPONS `cal`), every shotgun shell (its mode's `cal`) and every vehicle mount
 // that fires bullets (data/workshop.js MOUNT_WEAPONS `cal`) names one, and the round it fires IS that row: how fast it
@@ -59,6 +60,7 @@ export const ROUNDS = {
 };
 // The pack's old ammo keys name a calibre (a round asked for by its box: an ammo key, a save, an older check).
 export const ROUND_OF = { pistol: '45acp', smg: '9mm', rifle: '556', shells: '12ga', birdshot: '12ga_bird', slug: '12ga_slug' };
+Object.assign(ROUNDS, FN_ROUNDS); Object.assign(ROUND_OF, FN_ROUND_OF); // the found things' ball and shot (data/fannods.js)
 // The calibre key for a calibre, an ammo key or an old round name; its row. null when there is none.
 export const calOf = (k) => (k == null ? null : ROUNDS[k] ? k : ROUND_OF[k] ?? null);
 export const roundRow = (k) => ROUNDS[calOf(k)] ?? null;

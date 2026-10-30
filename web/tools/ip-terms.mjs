@@ -20,12 +20,18 @@ export const DENY = {
   'Fallout (more)': ['stimpak', 'stimpaks', 'stimpack', 'stimpacks', 'mentats', 'feral ghoul', 'feral ghouls', 'nuka-cola'],
   // Trademarks that read like plain words. A licensed game can't ship them unlicensed.
   'Real-world trademarks': ['jet ski', 'jet skis', 'waverunner', 'wave runner', 'sea-doo', 'seadoo', 'police interceptor', 'humvee', 'humvees', 'hummer', 'jeep', 'jeeps', 'kevlar', 'taser', 'tasers', 'zippo', 'band-aid', 'uzi', 'uzis', 'glock', 'glocks', 'kalashnikov', 'winnebago', 'peterbilt', 'kenworth', 'mack truck', 'harley-davidson', 'harley', 'airstream', 'thermos', 'jacuzzi', 'styrofoam', 'kdth'],
+  // The found things lane (docs/design/WEB_FAN_NODS.md, 2026-10-29): the source's coined words for the things it nods at
+  // in objects only (the tinted glass, the old twin-barrelled revolver and its maker, the blade, the counter, the storm,
+  // the armoured wagons) and the rest of its people. None of them may reach a string.
+  'Deathlands (Axler), more': ['armaglass', 'lemat', 'le mat', 'panga', 'rad counter', 'rad-counter', 'chem storm', 'chem-storm', 'chem storms', 'chem rain',
+    'mat trans', 'gateway chamber', 'jump chamber', 'war wagon', 'war wagons', 'ryan cawdor', 'dean cawdor', 'j.b. dix', 'jb dix', 'jak', 'theophilus',
+    'totality concept', 'overproject whisper', 'operation chronos', 'sec man', 'stupe', 'triple stupe', 'self-heat', 'scabbie', 'scabbies', 'jolt-walker', 'dark dust'],
 };
 
 export const REVIEW = {
   'Mad Max (the V8 car) / Ford trademark': ['interceptor', 'citadel', 'valhalla'],
   'GTA death/arrest screens': ['wasted', 'busted'],
-  'Deathlands slang that is also plain English': ['ville', 'jolt', 'dark night', 'redoubt', 'blaster', 'blasters'],
+  'Deathlands slang that is also plain English': ['ville', 'jolt', 'dark night', 'redoubt', 'blaster', 'blasters', 'baron', 'chilled', 'the armorer', 'front royal', 'cerberus', 'anthill'],
   "Left 4 Dead special infected": ['boomer', 'smoker', 'spitter', 'jockey', 'witch', 'charger'],
   'Walking Dead zombie word': ['walker', 'walkers'],
   'Walking Dead / We\'re Alive creature and gang names': ['biter', 'biters', 'roamer', 'roamers', 'lurker', 'lurkers', 'burner', 'burners', 'big ones', 'screamer', 'screamers'],

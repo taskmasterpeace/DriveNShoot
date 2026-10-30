@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clamp, lerp, smoothstep } from '../engine/rng.js';
+import { SICK_SKY } from '../data/fannods.js';
 
 // Time of day + weather. One directional light plays sun by day and moon by night.
 export const WEATHER = {
@@ -10,6 +11,9 @@ export const WEATHER = {
   DUST:     { label: 'DUST STORM', fog: 0.022, clouds: 0.35, rain: 0, dust: 1, ash: 0, storm: 0, tint: '#b47a46' },
   FOG:      { label: 'FOG',        fog: 0.026, clouds: 0.5, rain: 0, dust: 0, ash: 0, storm: 0, tint: '#a8a59c' },
   ASHFALL:  { label: 'ASHFALL',    fog: 0.012, clouds: 0.7, rain: 0, dust: 0, ash: 1, storm: 0, tint: '#7c7872' },
+  // THE FOUND THINGS (data/fannods.js SICK_SKY): rare, never in ORDER's roll. The sky goes a sick orange-green, the rain
+  // comes down yellow and burns bare skin (systems/fannods.js); anyone with sense gets under a roof.
+  SICKSKY:  { label: 'BURNING RAIN', fog: 0.0105, clouds: 1.0, rain: 1.35, dust: 0, ash: 0, storm: 0.55, tint: '#9c8f2c', burn: 1 },
 };
 const ORDER = ['CLEAR', 'OVERCAST', 'RAIN', 'STORM', 'DUST', 'FOG', 'ASHFALL'];
 
@@ -17,6 +21,7 @@ const RAIN_N = 2600, MOTE_N = 2400, BOX = 110, BOX_H = 50;
 // update() runs every frame, so its colour blends use these constants and scratch objects instead
 // of allocating ~10 THREE.Colors (and regex-parsing hex strings) per frame.
 const BLENDED = ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm'];
+const RAIN_COL = new THREE.Color('#b9c4c8'), RAIN_BURN = new THREE.Color(SICK_SKY.rain), LIGHT_BURN = new THREE.Color(SICK_SKY.light); // the burning rain comes down yellow, under an orange-green light
 const SUN_DAY = new THREE.Color('#fff4e0'), SUN_LOW = new THREE.Color('#ff9a52'), MOON = new THREE.Color('#a3b6cc');
 const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82a0'), HEMI_LOW = new THREE.Color('#f0b884');
 // Light levels. three.js r155+ no longer multiplies a light by pi, and these were never raised to match: noon in Rust
@@ -137,12 +142,14 @@ export class Sky {
     this.nextWeatherIn -= dt * (this.fast ? 40 : 1);
     if (this.nextWeatherIn <= 0) {
       const roll = Math.random();
-      this.setWeather(roll < 0.35 ? 'CLEAR' : ORDER[1 + Math.floor(Math.random() * (ORDER.length - 1))]);
+      this.setWeather(Math.random() < SICK_SKY.chance ? 'SICKSKY' : roll < 0.35 ? 'CLEAR' : ORDER[1 + Math.floor(Math.random() * (ORDER.length - 1))]); // the burning rain: rare (data/fannods.js)
     }
 
     // Ease weather parameters (~6s blend).
     const k = 1 - Math.exp(-dt / 2.5);
     for (let i = 0; i < BLENDED.length; i++) { const p = BLENDED[i]; this.cur[p] = lerp(this.cur[p], this.target[p], k); }
+    this.cur.burn = lerp(this.cur.burn ?? 0, this.target.burn ?? 0, k); // the burning rain's (only its row has it)
+    this.rain.material.color.copy(RAIN_COL).lerp(RAIN_BURN, this.cur.burn);
     if (this.target.tint !== this.tintKey) { this.tintKey = this.target.tint; this.targetTint.set(this.tintKey); } // parse once per weather change
     this.curTint.lerp(this.targetTint, k);
 
@@ -183,6 +190,7 @@ export class Sky {
     this.hemi.intensity = lerp(lerp(NIGHT_I.hemi[0], NIGHT_I.hemi[1], nl), HEMI_I[1], day) * (1 + GOLDEN_FILL * golden) * (1 - 0.25 * c.clouds) + flicker * 2.5;
     this.hemi.color.copy(HEMI_DAY).lerp(HEMI_LOW, golden * 0.45).lerp(HEMI_NIGHT, this.night);
     this.hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, this.night);
+    if (this.cur.burn > 0.01) { this.hemi.color.lerp(LIGHT_BURN, 0.85 * this.cur.burn); this.sun.color.lerp(LIGHT_BURN, 0.75 * this.cur.burn); } // the burning rain: the light goes orange-green
 
     // Fog / sky colour.
     _fog.copy(FOG_DAY).lerp(this.curTint, Math.min(1, c.clouds + c.dust + c.ash)).lerp(FOG_DUSK, low * day * 0.35);

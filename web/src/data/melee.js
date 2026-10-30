@@ -44,6 +44,19 @@ export const MELEE_WEAPONS = {
   sledge: { name: 'SLEDGEHAMMER', item: 'sledgehammer', kind: 'blunt', hands: 2, dmg: 48, windup: 0.62, recover: 0.7, reach: 1.8, arc: 0.9, stamina: 0.24, noise: 11,
     knock: [0.75, 2.4], push: 1.5, bleed: 0.1, bone: 0.6, sever: 0, aim: { head: 0.35, torso: 0.45, arms: 0.2, legs: 0 }, parts: { head: 2, torso: 1, arms: 1, legs: 1 },
     heavy: { mul: 1.5, wind: 1.4, knockAdd: 0.2, sta: 1.6 }, block: { soak: 0.72, arm: 0.5 }, dur: 260, finish: 140, model: { len: 0.7, head: [0.12, 0.12, 0.24], grip: '#6a4a2a', metal: '#4a4844' } },
+  // THE FOUND THINGS (docs/design/WEB_FAN_NODS.md: rare, in a glass case and in a ditch). A silver-topped walking cane: a
+  // tap raps with the knob; HELD, the knob twists and the slim blade inside comes out in the same motion (heavy.as: the
+  // held swing is that row's). The drawn blade is its own row, carried by the same cane.
+  cane: { name: 'SWORD CANE', item: 'sword_cane', kind: 'blunt', hands: 1, dmg: 13, windup: 0.11, recover: 0.3, reach: 1.4, arc: 0.8, stamina: 0.07, noise: 4,
+    knock: [0.15, 0.9], push: 0.35, bleed: 0, bone: 0.1, sever: 0, aim: { head: 0.35, torso: 0.4, arms: 0.2, legs: 0.05 }, parts: { head: 1.5, torso: 1, arms: 0.8, legs: 0.8 },
+    heavy: { mul: 1, wind: 1.4, knockAdd: 0, sta: 1.4, as: 'caneblade' }, block: { soak: 0.5, arm: 0.6 }, dur: 500, finish: 50, model: { len: 0.1, head: [0.025, 0.025, 0.8], grip: '#cfd2c8', metal: '#1c1a18' } },
+  caneblade: { name: 'CANE BLADE', item: 'sword_cane', kind: 'blade', hands: 1, dmg: 30, windup: 0.14, recover: 0.42, reach: 1.6, arc: 0.45, stamina: 0.11, noise: 3,
+    knock: [0, 0], push: 0.1, bleed: 0.5, bone: 0, sever: 0.15, aim: { head: 0.2, torso: 0.55, arms: 0.2, legs: 0.05 }, parts: { head: 1.6, torso: 1.1, arms: 0.7, legs: 0.7 },
+    heavy: { mul: 1.2, wind: 1.2, knockAdd: 0, sta: 1.2 }, block: { soak: 0.35, arm: 0.7 }, dur: 300, finish: 80, model: { len: 0.12, head: [0.02, 0.01, 0.75], grip: '#cfd2c8', metal: '#c8c6bc' } },
+  // A heavy, broad, single-edged jungle blade, weighted at the tip: slow, wide, it opens a man up and takes a limb.
+  jungleblade: { name: 'JUNGLE BLADE', item: 'jungle_blade', kind: 'blade', hands: 1, dmg: 36, windup: 0.24, recover: 0.44, reach: 1.5, arc: 0.95, stamina: 0.13, noise: 5,
+    knock: [0.1, 1.1], push: 0.45, bleed: 0.55, bone: 0.1, sever: 0.45, aim: { head: 0.25, torso: 0.4, arms: 0.25, legs: 0.1 }, parts: { head: 1.8, torso: 1.05, arms: 0.9, legs: 0.85 },
+    heavy: { mul: 1.75, wind: 1.9, knockAdd: 0.2, sta: 2 }, block: { soak: 0.68, arm: 0.45 }, dur: 220, finish: 100, model: { len: 0.14, head: [0.085, 0.014, 0.5], grip: '#5a4a32', metal: '#7c7e78' } },
 };
 export const WEAPON_IDS = Object.keys(MELEE_WEAPONS);
 
@@ -52,6 +65,8 @@ export const MELEE_ITEMS = {
   baseball_bat: { name: 'Baseball bat', kind: 'tool', kg: 0.95, bulk: 1.1, stack: 1, value: 16, tags: ['melee'], desc: 'Ash, taped at the handle, the barrel dented from something that wasn\'t a ball.' },
   brass_knuckles: { name: 'Brass knuckles', kind: 'tool', kg: 0.25, bulk: 0.05, stack: 1, value: 20, tags: ['melee'], desc: 'Four rings of cast brass. Every punch lands like a hammer.' },
   lead_pipe: { name: 'Lead pipe', kind: 'tool', kg: 1.4, bulk: 0.7, stack: 1, value: 6, tags: ['melee', 'steel'], desc: 'A length of old plumbing, heavy at one end where the joint is still on.' },
+  sword_cane: { name: 'Silver-topped cane', kind: 'tool', kg: 0.7, bulk: 0.6, stack: 1, value: 180, tags: ['melee', 'blade', 'steel'], desc: 'A black walking cane under a worn silver knob. Hold your swing and the knob twists free: a slim blade comes out of the shaft with it.' },
+  jungle_blade: { name: 'Broad jungle blade', kind: 'tool', kg: 1.1, bulk: 0.8, stack: 1, value: 70, tags: ['melee', 'blade', 'steel'], desc: 'A heavy single-edged blade, broad and weighted toward the tip, the grip wrapped in old cord. Made to take a sapling in one cut.' },
   sledgehammer: { name: 'Sledgehammer', kind: 'tool', kg: 4.5, bulk: 2.2, stack: 1, value: 24, tags: ['melee', 'steel', 'pry'], desc: 'Ten pounds of steel on a hickory handle. Slow. Final.' },
 };
 // Where they turn up (rows appended to data/items.js LOOT tables): [item, weight, min, max].
@@ -160,6 +175,7 @@ export function validateMelee(weapons = MELEE_WEAPONS, rules = MELEE_RULES, ai =
     if (w.dur !== null) num(w.dur, 5, 5000, `${at}.dur`);
     if (w.item !== null && !(w.item in items) && !['knife', 'machete', 'crowbar'].includes(w.item)) errors.push(`${at}: item ${w.item} is not an item row`);
     if (w.kind === 'blade' && w.sever > 0 && w.bleed <= 0) errors.push(`${at}: a blade that takes limbs must bleed`);
+    if (w.heavy?.as && !weapons[w.heavy.as]) errors.push(`${at}.heavy.as: no row ${w.heavy.as}`);
     if (w.model) for (const c of [w.model.grip, w.model.metal]) { const h = hueOf(c ?? '#000000'); if (h !== null && h >= 270 && h <= 320) errors.push(`${at}: model colour ${c} is purple`); }
   }
   num(rules.parry.window, 0.05, 0.5, 'parry.window'); num(rules.parry.stagger, 0.2, 3, 'parry.stagger');

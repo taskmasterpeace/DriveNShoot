@@ -1,3 +1,4 @@
+import { FN_CASE_RARE } from './fannods.js';
 // FLOOR PLANS as rows (docs/design/WEB_FLOORPLANS.md): what rooms a ring building has, at what sizes, and what stands in
 // them. world/floorplan.js turns a footprint + a kind into typed rooms and partition walls from these rows; world/ring.js
 // builds the walls, doors, windows and furniture. Change a row here, not the code. No purple (hue 270-320 is banned).
@@ -33,7 +34,7 @@ export const ROOMS = {
   // Shops and diners.
   floor: { name: 'SHOP FLOOR', min: 5.0, grow: 3, entry: true, back: 3, floor: null, stay: true,
     furniture: [['rack', 2, 3], ['crate', 1, 3], ['bench', 0, 1]] },
-  sales: { name: 'SALES FLOOR', min: 4.0, grow: 3, entry: true, back: 4, floor: null, stay: true,
+  sales: { name: 'SALES FLOOR', min: 4.0, grow: 3, entry: true, back: 4, floor: null, stay: true, rare: [['glasscase', FN_CASE_RARE.sales]], // rare: [piece, chance] by a hash of the room (world/ring.js; the ring's buildings only)
     furniture: [['counter', 1, 1], ['shelf', 3, 5], ['crate', 0, 1]] },
   diningroom: { name: 'DINING ROOM', min: 5.0, grow: 3, entry: true, back: 4, floor: '#a89c84', stay: true,
     furniture: [['counter', 1, 1], ['booth', 2, 4], ['shelf', 0, 1]] },

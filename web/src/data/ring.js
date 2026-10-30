@@ -1,3 +1,4 @@
+import { FN_CASE } from './fannods.js';
 // THE PHOENIX RING as rows (docs/design/WEB_STREAMING.md §1.3, R1 "the city itself"). Robert, 2026-10-22: metros are ~3 km
 // across; Phoenix keeps its authored 920 m island (Rust Haven and the flats around it) as the core and gains a generated
 // ring out to ~1.5 km, streamed in chunks like everything past the island. The island reads as a walled holdout in the
@@ -172,6 +173,7 @@ export const UNITS = [
 // spots: sleeping places (a double bed sleeps two). near/far: placed close to / away from a piece already in the room
 // ('*' = any: a kitchen's units run on from each other); farDoor: away from the room's doorway (a bed's head wall).
 export const FURNITURE = {
+  glasscase: FN_CASE, // the found things' display case (data/fannods.js: rare, by a hash of the room)
   shelf: { size: [2.0, 0.5, 1.8], colors: ['#4d3a29', '#5a4632'], box: { label: 'SHELF', cap: 40 }, solid: true,
     parts: [[0, 1, 0, 1, 0, 1.8, 1], [0.03, 0.97, 0.08, 0.98, 1.8, 1.82, 0.62], [0.06, 0.32, 0.2, 0.85, 1.82, 1.95, '#8a7a5a']] },
   crate: { size: [1.0, 1.0, 1.0], colors: ['#7a5a34', '#6b4e2e'], box: { label: 'CRATE', cap: 60 }, solid: true,

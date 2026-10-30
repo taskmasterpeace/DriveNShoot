@@ -15,6 +15,7 @@
 import { makeRng } from '../engine/rng.js';
 import { Hasher } from './geo.js';
 import { NavProbe } from './floorplan.js';
+import { GLASS_BY_BASE, calendarOn } from '../data/fannods.js';
 import { UG, FLIGHTS, ENTRANCES, LIFT, KINDS, ROOMS, PROPS, PROJECTS, LOGS, HOLDOUT, HOLDOUT_LOGS, CODE_LOGS, BLAST } from '../data/underground.js';
 
 export const ROCK = 0, OPEN = 1, POOL = 2, DEEP = 3, HOLE = 4, STAIR = 5, SHAFT = 6;
@@ -131,7 +132,7 @@ function makeLevel(site, k, P) {
     site: site.id, k, y: P.Y[k], ox: P.ox, oz: P.oz, W, H, kind: site.kind,
     cells: new Uint8Array(W * H), space: new Int16Array(W * H).fill(-1),
     rooms: [], doors: [], colliders: [], walls: [], floors: [], props: [], boxes: [], lights: [], glows: [], spawns: [], logs: [],
-    squeeze: [], collapses: [], generator: null, arrival: null, departure: null, lobby: null, flights: [], name: null,
+    squeeze: [], collapses: [], calendars: [], generator: null, arrival: null, departure: null, lobby: null, flights: [], name: null,
   };
   // The flights that touch this level: the one that arrives (its stair stands here), the one that leaves (its hole).
   const arrive = P.flights.find((f) => f.to === k), leave = P.flights.find((f) => f.from === k);
@@ -221,6 +222,7 @@ function built(c) {
   const prog = [];
   const sealedHere = project && k === site.levels;
   if (sealedHere) prog.push({ type: project.sealed.room, sealed: true });
+  if (k === site.levels && site.base && GLASS_BY_BASE.has(site.base)) prog.push({ type: 'glassroom' }); // a few sealed bases' bottom level (data/fannods.js): first, so it fits
   for (const r of project?.rooms?.[k - 1] ?? []) prog.push({ type: r });
   for (const r of K.programme[Math.min(k - 1, K.programme.length - 1)]) prog.push({ type: r });
   // The generator: the first level whose programme has a generator room (the plan's choice, the same for every level).
@@ -585,6 +587,7 @@ function furnishBuilt(c) {
       }
     }
     room.pieces = made;
+    const cal = calendarOn(room, L.doors, L.props); if (cal) L.calendars.push(cal); // a frozen calendar (data/fannods.js), by a hash: no rng drawn
   }
   void k;
 }

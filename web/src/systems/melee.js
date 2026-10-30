@@ -243,6 +243,7 @@ export class Melee {
     const downed = this.downedInReach(c, R.finish.reach);
     if (o.kind === 'finish' || (downed && !this.standingInReach(c, W.reach))) return this.begin(c, 'finish', W, false, wid, downed);
     if (wid === 'fists' && o.heavy) return this.begin(c, 'kick', LEG.kick, false, 'kick');
+    if (o.heavy && W.heavy?.as && MW[W.heavy.as]) return this.begin(c, 'heavy', MW[W.heavy.as], true, W.heavy.as); // the held swing is another row's (data/melee.js: the cane's blade drawn)
     return this.begin(c, o.heavy ? 'heavy' : 'light', W, !!o.heavy, wid);
   }
 

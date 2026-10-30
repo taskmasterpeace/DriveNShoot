@@ -13,6 +13,9 @@
 // the answer is the same when it is computed again.
 import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES, RESIDENTS, RES_RULES, YARD } from '../data/ring.js';
 import { C, hash32, rngOf } from './geo.js';
+// A rare piece's roll for a room (data/floorplans.js ROOMS `rare`): a hash of the building's seed, the room's corner and the
+// piece, never the furnishing rng (so no other piece in the world moves). Exported: the fan-nods check reads the same roll.
+export const rareRoll = (seed, room, t0) => rngOf(hash32(seed, Math.round(room.x0 * 10), Math.round(room.z0 * 10), t0.length * 131 + 7))();
 import { wreckOf } from '../data/wrecks.js';
 import { H_NAMES, V_NAMES } from './city.js';
 import { floorplan, NavProbe } from './floorplan.js';
@@ -751,6 +754,7 @@ export class Ring {
     const lists = rooms.map((room) => {
       const list = [];
       for (const [t0, lo, hi] of ROOMS[room.type]?.furniture ?? []) for (let n = rng.int(lo, hi), q = 0; q < n; q++) list.push(t0 === 'bed' && master.get(room.ui) !== room ? 'sbed' : t0);
+      if (!this.noRare) for (const [t0, p] of ROOMS[room.type]?.rare ?? []) if (rareRoll(this.seed, room, t0) < p) list.unshift(t0); // a rare piece (data/fannods.js the glass case): by a hash of the room, first so it finds a wall; the ring's only (the island's furnisher sets noRare: the start town stays as it was)
       return list;
     });
     // Proofs cost a flood each, so: the whole building at once, one proof; if it fails, it all comes out and goes in a room

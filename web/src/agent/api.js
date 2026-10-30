@@ -50,6 +50,7 @@ import { cameraChecks } from './camera-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { milbasesCommands, milbasesChecks } from './milbases-api.js'; // the military bases (WEB_MILITARY_BASES.md)
+import { fannodsCommands, fannodsChecks } from './fannods-api.js'; // the found things (WEB_FAN_NODS.md)
 import { understreetCommands, understreetChecks } from './understreet-api.js'; // the storm drains under every town (WEB_UNDERSTREET.md)
 import { roadscapeCommands, roadscapeChecks } from './roadscape-api.js'; // the roadscape: tree walls, fences, sound walls by road class and biome (WEB_ROADSCAPE.md)
 import { hudCommands, hudChecks } from './hudlayout-api.js'; // the HUD layout: named rows, presets, situations, the editor (WEB_UI_EDITOR.md)
@@ -2073,6 +2074,7 @@ function buildCommands(api) {
     ...creatorCommands(api), // creator, sheet
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...milbasesCommands(api, need), // milbase (WEB_MILITARY_BASES.md)
+    ...fannodsCommands(api, need), // fannods (WEB_FAN_NODS.md)
     ...understreetCommands(api, need), // understreet (WEB_UNDERSTREET.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
@@ -6100,6 +6102,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
   await milbasesChecks({ api, g, check, C }); // the military bases: rows, the wire, the armory, the gate rule, the blast door, the horde (WEB_MILITARY_BASES.md §8)
+  await fannodsChecks({ api, g, check, C }); // the found things: the glass room, the case, the blade, the counter, the convoy, the rain, the calendars, the meal (WEB_FAN_NODS.md §8)
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
   await roadscapeChecks({ api, g, check, C }); // the roadscape (WEB_ROADSCAPE.md §8)
   await backlotsChecks({ api, g, check, C }); // the back lots: alleys, yards, back doors, fences, pathing (WEB_BACK_LOTS.md §8)

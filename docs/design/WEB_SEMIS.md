@@ -339,3 +339,5 @@ All of it is put back afterwards.
   with a removed gunner.
 - Ambient traffic doesn't spawn semis yet: only the freight runs (and `semi action=spawn ai=traffic`).
 - The ramp has no collider for walkers (they are perched on it); NPC crews of the freight don't get out at stops.
+
+**Read by WEB_FAN_NODS (2026-10-29):** the armoured convoy is a freight run (`FREIGHT.rigs.armoured`, folded in at runtime). `lanePoint(s, dir, pull)` and a run's `F.halt` / `F.pull` pull it onto the shoulder and stop it; rows may carry `trailerPaint`.
