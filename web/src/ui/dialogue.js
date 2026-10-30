@@ -1,14 +1,15 @@
-import { drawPortrait, FLAGS, drawFlag } from './portrait.js';
+import { FLAGS, drawFlag } from './portrait.js';
+import { LivePortrait, PORTRAIT } from './liveportrait.js';
 import { BARKS } from '../data/npcs.js';
 import { ITEMS } from '../data/items.js';
 
-// Conversation panel: portrait (flag backdrop) + typewriter line + numbered choices.
+// Conversation panel: portrait (flag backdrop) + typewriter line + numbered choices. The portrait is the person's REAL
+// in-game model, rendered live (ui/liveportrait.js), never a drawn stand-in.
 export class Dialogue {
   constructor(game, root) {
     this.g = game;
     this.active = false;
     this.npc = null;
-    this.cache = new Map();
     this.el = document.createElement('div');
     this.el.className = 'dlg hidden';
     this.el.innerHTML = `
@@ -28,13 +29,18 @@ export class Dialogue {
     this.full = ''; this.shown = 0;
   }
 
+  // The live portrait: made on the first talk and kept (a WebGL context made on every talk would leak), then shown THIS
+  // person in the world's body mode. No WebGL: their flag alone, never a drawn face.
   portraitFor(c) {
-    const key = c.npc?.id ?? `anon-${c.slot}`;
-    if (!this.cache.has(key)) {
-      const p = c.npc?.portrait ?? { seed: c.slot * 97 + 13, skin: c.colors.skin, hair: c.colors.hair, shirt: c.colors.shirt };
-      this.cache.set(key, drawPortrait({ ...p, flag: c.flag }));
-    }
-    return this.cache.get(key);
+    if (!this.live && !this.noLive) try { this.live = new LivePortrait(); } catch (e) { this.noLive = String(e?.message ?? e); }
+    this.live?.show(c, this.g.charR?.lsw?.mode ?? 'lsw');
+    this.drawPortrait(0);
+  }
+  drawPortrait(dt) {
+    const ctx = this.canvas.getContext('2d');
+    if (this.live) return this.live.frame(dt, ctx);
+    const f = drawFlag(this.npc.flag ?? 'US', PORTRAIT.w, PORTRAIT.h); ctx.drawImage(f, 0, 0);
+    return false;
   }
 
   open(c) {
@@ -42,9 +48,8 @@ export class Dialogue {
     this.active = true;
     this.npc = c;
     this.extra = null;
-    const src = this.portraitFor(c);
-    this.canvas.width = src.width; this.canvas.height = src.height;
-    this.canvas.getContext('2d').drawImage(src, 0, 0);
+    this.canvas.width = PORTRAIT.w; this.canvas.height = PORTRAIT.h;
+    this.portraitFor(c);
     this.nameEl.textContent = (c.npc?.name ?? c.name).toUpperCase();
     this.titleEl.textContent = c.npc?.title ?? (c.faction === 'warden' ? 'Warden · Rust Haven' : 'Drifter');
     this.flagEl.innerHTML = '';
@@ -194,6 +199,7 @@ export class Dialogue {
     // and the world's clock (main.js runs the sim at dt 0 while a talk is open).
     const n = this.npc;
     if (n && (!n.alive || !this.g.chars.includes(n))) { this.close(); return; }
+    this.drawPortrait(dt);
     if (this.shown < this.full.length) {
       this.shown = Math.min(this.full.length, this.shown + dt * 70);
       this.textEl.textContent = this.full.slice(0, Math.floor(this.shown));

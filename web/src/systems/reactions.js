@@ -130,6 +130,7 @@ export class Reactions {
   onShot(x, z, r = 45, wkey = null, src = null) {
     if (!this.enabled) return null;
     const g = this.g, seq = ++this.seq;
+    this.shotAt = g.time;
     this.stats.shots++;
     const loudMul = REACT.loud[wkey] ?? REACT.loud.default, night = g.ai?.night?.() ?? false;
     const base = r * REACT.earMul * loudMul;
@@ -169,6 +170,9 @@ export class Reactions {
     g.emit('shotHeard', { seq, x: sum.x, z: sum.z, by: sum.by, n: sum.heard.length, kinds: sum.kinds });
     return sum;
   }
+
+  // Is c reacting to the shot being fired this very moment (combat.fire calls onShot, then g.noise for the same shot)?
+  heardNow(c) { return c.rx?.seqHeard === this.seq && this.shotAt === this.g.time; }
 
   // What c heard of this shot: the bearing with its error, the guessed distance, the spot they think it came from.
   hear(c, rx, x, z, d, wall, seq) {
@@ -231,6 +235,9 @@ export class Reactions {
     const row = rx.row;
     if (row.calm) { if (now >= rx.t1) this.end(c); return false; } // they carry on: whatever had them before still has them
     if (now >= rx.t1 && !(row.move === 'kin' && rx.phase < 2)) { this.end(c); return false; }
+    // Bedtime: a townsperson with a bed to go to keeps it up only so long, then goes back to bed (inside already, most of
+    // them). Hiding half the night kept the town awake past the hour it sleeps (the battery's "the town sleeps").
+    if (now - rx.t0 > REACT.nightSecs && row.move !== 'kin' && g.ai.sleeper(c) && g.ai.night()) { this.end(c); return false; }
     c.flee = 0; c.work = false;
     switch (row.move) {
       case 'none': c.speed = 0; c.face = angleLerp(c.face, rx.heard.bearing, Math.min(1, dt * 5)); break;
@@ -304,7 +311,9 @@ export class Reactions {
     if (Math.hypot(gx - c.x, gz - c.z) < arrive) { c.speed = 0; return true; }
     rx.repath = (rx.repath ?? 0) - dt;
     if (!rx.route || (rx.repath <= 0 && (Math.abs(rx.gx - gx) + Math.abs(rx.gz - gz) > drift || (c.stuck ?? 0) > 0.6))) {
-      rx.route = this.inWindow(c.x, c.z, gx, gz) ? g.footPath?.(c.x, c.z, gx, gz) ?? null : null; // never drag the shared nav window (tactics pays the rebuild): outside it, straight
+      // A long leg outside the shared nav window walks straight (dragging the window made tactics pay a rebuild); a short
+      // one (a door, a bed, family a street away) is always planned: straight there runs a mother into the wall between.
+      rx.route = this.inWindow(c.x, c.z, gx, gz) || Math.abs(gx - c.x) + Math.abs(gz - c.z) < REACT.shortLeg ? g.footPath?.(c.x, c.z, gx, gz) ?? null : null;
       if (!rx.route?.length) rx.route = [{ x: gx, z: gz }];
       rx.ri = 0; rx.gx = gx; rx.gz = gz; rx.repath = 1.5;
     }

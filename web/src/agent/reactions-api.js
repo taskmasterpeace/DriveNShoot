@@ -265,6 +265,7 @@ export async function reactionsChecks(api, check, C) {
       try {
         const mom = st.cast.find((k) => k.role === 'mother').c, kid = st.cast.find((k) => k.role === 'child').c;
         for (const { c } of st.cast) if (c !== mom && c !== kid) g.removeChar(c); // this check is the family's: nobody else bars the door first
+        g.nav.foot.focus(st.door.x + 900, st.door.z); // the nav window parked elsewhere (an earlier check's): her short legs are still planned (battery H walked her into a wall)
         const since = g.eventSeq;
         g.combat.fire(st.shooter, 'pistol', Math.atan2(st.door.nx, st.door.nz));
         const kind0 = mom.rx?.kind;

@@ -355,10 +355,10 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .fb-floater.hot { font: 900 34px var(--stencil); color: oklch(0.75 0.19 55); }
 .fb-floater.bark { font: 400 15px var(--type); color: oklch(0.22 0.015 60); background: linear-gradient(oklch(0.9 0.035 86), oklch(0.82 0.045 80)); padding: 3px 9px; text-shadow: none; box-shadow: 2px 3px 0 rgba(0,0,0,0.5); }
 .fb-tags { position: absolute; inset: 0; }
-.fb-tag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 6px; font: 700 12px var(--display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--bone); padding: 2px 8px 2px 2px; background: linear-gradient(oklch(0.27 0.008 70 / 0.94), oklch(0.18 0.008 70 / 0.94)); border: 1px solid oklch(0.09 0.01 60); border-bottom: 2px solid var(--acc, var(--muted)); box-shadow: 2px 2px 0 rgba(0,0,0,0.5); white-space: nowrap; will-change: transform; text-shadow: 1px 1px 0 #000; }
+.fb-tag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 4px; font: 700 10px var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--bone); padding: 1px 6px 1px 1px; background: linear-gradient(oklch(0.27 0.008 70 / 0.94), oklch(0.18 0.008 70 / 0.94)); border: 1px solid oklch(0.09 0.01 60); border-bottom: 2px solid var(--acc, var(--muted)); box-shadow: 2px 2px 0 rgba(0,0,0,0.5); white-space: nowrap; will-change: transform; text-shadow: 1px 1px 0 #000; }
 .fb-tag.runner { color: oklch(0.93 0.03 60); animation: fb-runner 0.7s steps(2) infinite; }
 @keyframes fb-runner { 50% { border-bottom-color: oklch(0.93 0.03 60); } }
-.fb-tag img { width: 24px; height: 16px; box-shadow: 0 0 0 1px rgba(0,0,0,0.7); }
+.fb-tag img { width: 15px; height: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,0.7); }
 .fb-compass { position: absolute; top: 9px; left: 50%; width: 540px; height: 36px; transform: translateX(-50%) scale(var(--s)); transform-origin: 50% 0; filter: drop-shadow(2px 4px 3px rgba(0,0,0,0.6)); }
 .fb-ctex { position: absolute; inset: 0; width: 100%; height: 100%; }
 .fb-cwin { position: absolute; left: 26px; right: 26px; top: 0; bottom: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }

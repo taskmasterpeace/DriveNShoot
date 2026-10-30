@@ -117,7 +117,12 @@ export class Interiors {
     if (!L.isDirty) { L.isDirty = true; this.dirty.push(L); }
   }
 
-  wake(L) { if (!L.active) { L.active = true; this.active.push(L); } }
+  wake(L) {
+    if (L.active) return;
+    L.active = true; this.active.push(L);
+    // A shut leaf starting to swing is heard: its hinges, wood or steel (data/audiosets.js common door.open / door.metal).
+    if (L.th < DOOR.nearClosed && L.th > -DOOR.nearClosed) this.g.audio?.sample?.('common', L.door?.mat?.name === 'steel door' ? 'door.metal' : 'door.open', { x: L.hx, z: L.hz, range: 35 });
+  }
 
   // ---- StaticWorld hooks (hot: no allocation) -------------------------------------------------------
   circle(op, p, r, mover) {

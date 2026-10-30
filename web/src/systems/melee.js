@@ -1,6 +1,7 @@
 import { MELEE as LEGACY } from '../data/arms.js';
 import { MELEE_WEAPONS as MW, MELEE_RULES as R, MELEE_AI as MAI, WEAPON_IDS } from '../data/melee.js';
 import { angleLerp } from '../engine/rng.js';
+import { LIMB_BITS } from '../data/deaths.js';
 
 // HAND TO HAND (docs/design/WEB_MELEE.md; the rows are data/melee.js). Fast, readable, lethal, and the same for everyone:
 // the player and every NPC swing, block, parry, grab and struggle through one resolver (law 1: nobody cheats; an NPC only
@@ -398,7 +399,7 @@ export class Melee {
     g.statics.resolveBody(back, c.radius ?? 0.45, c); c.x = back.x; c.z = back.z;
     if (T !== g.player) tm.sta = Math.max(0, tm.sta - R.parry.stamina); else T.stamina = Math.max(0, p0(T.stamina) - R.parry.stamina);
     this.counts.parried++; if (T !== g.player) this.counts.npcParries++;
-    g.audio?.burst?.({ dur: 0.09, freq: 3200, type: 'bandpass', q: 6, vol: 0.4, decay: 0.08, pitchDrop: 0.5 });
+    if (!g.audio?.sample?.('common', 'impact.metal', { x: T.x, z: T.z, range: 45, rate: 1.2 })) g.audio?.burst?.({ dur: 0.09, freq: 3200, type: 'bandpass', q: 6, vol: 0.3, decay: 0.08, pitchDrop: 0.5 }); // a parry: steel on steel, recorded
     g.fx.sparks?.((c.x + T.x) / 2, 1.4, (c.z + T.z) / 2, 0, 0, 6);
     this.feel(c, T, 'parry');
     const out = { kind: a.kind, weapon: a.wid, by: c.id, hit: T.id, parried: true, since: +since.toFixed(3), dmg: 0, stagger: R.parry.stagger };
@@ -452,8 +453,10 @@ export class Melee {
     else m.legBroken = true;
     if (T === g.player) g.survival?.wound?.('fracture');
     this.counts.bones++;
-    g.audio?.burst?.({ dur: 0.06, freq: 2600, type: 'highpass', q: 2, vol: 0.55, decay: 0.05, pitchDrop: 0.3, pan: g.pan?.(T.x) ?? 0 });
-    g.audio?.burst?.({ dur: 0.05, freq: 1400, type: 'bandpass', q: 4, vol: 0.4, decay: 0.04, at: 0.03, pan: g.pan?.(T.x) ?? 0 });
+    if (!g.audio?.sample?.('common', 'impact.flesh', { x: T.x, z: T.z, range: 45, rate: 0.8, vol: 1.3 })) { // a bone going: the recorded hit, lower and harder
+      g.audio?.burst?.({ dur: 0.06, freq: 2600, type: 'highpass', q: 2, vol: 0.4, decay: 0.05, pitchDrop: 0.3, pan: g.pan?.(T.x) ?? 0 });
+      g.audio?.burst?.({ dur: 0.05, freq: 1400, type: 'bandpass', q: 4, vol: 0.3, decay: 0.04, at: 0.03, pan: g.pan?.(T.x) ?? 0 });
+    }
     g.emit('boneBreak', { id: T.id, part, by: by?.id ?? null });
     return part;
   }
@@ -463,10 +466,10 @@ export class Melee {
     let side = null;
     if (part === 'head') { T.headless = true; T.neckSpray = 2.5; side = 'head'; }
     else {
-      const L = T.lost ?? (T.lost = { larm: false, rarm: false, lleg: false, rleg: false });
-      const key = part === 'arms' ? (Math.random() < 0.5 ? 'larm' : 'rarm') : (Math.random() < 0.5 ? 'lleg' : 'rleg');
-      if (L[key]) return null;
-      L[key] = true; side = key;
+      const key = (part === 'arms' ? 'arm' : 'leg') + (Math.random() < 0.5 ? 'L' : 'R'), bit = LIMB_BITS[key];
+      if ((T.lost ?? 0) & bit) return null;
+      if (!g.deaths?.sever?.(T, key, ux, uz)) T.lost = (T.lost ?? 0) | bit; // the death library's piece on the ground, its bit on the body
+      side = key;
       if (part === 'arms') { m.armBroken = true; T.lostArm = key; }
       else { m.legBroken = true; T.lostLeg = key; if (T.alive) this.knockDown(T, 4); }
       T.bleed = 1;

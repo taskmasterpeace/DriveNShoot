@@ -6,15 +6,16 @@
 //   shambler  CROWD  a car ploughs through them (they are knocked down and under, never onto a fast car: a shambler
 //                    only latches below `latchBelow` m/s), and a choke point lines them up.
 //   sprinter  REFLEX it SCREAMS for `windup` s (rearing back: the tell), then charges along the heading it locked at the
-//                    scream, turning at most `steer` rad/s: step aside and it runs past (`overshoot` m before it can turn
-//                    back), then it is bent double for the overheat. A car is no answer: it LEAPS onto one inside
-//                    `carLeap` m at any speed and claws in through the glass.
+//                    scream: step aside and it runs past (`overshoot` m before it can turn back). Past, it SKIDS round for
+//                    `skid` s, turning at least `steer` rad/s, and charges again along a new line at where it now
+//                    perceives you: every dodge buys a moment, never the chase. Bent double only at the overheat. A car is
+//                    no answer: it LEAPS onto one inside `carLeap` m at any speed and claws in through the glass.
 //   echo     STEALTH it copies what it hears: a noise of `minR` m or more inside `hear` m comes back from where it stands
 //                    `delay` s later, `gain` as loud, at most once every `every` s; the infected round it walk to the copy
 //                    (and so to it). Loud fighting near an Echo doubles every crowd; a knife does not.
 export const BREED_ANSWERS = {
   shambler: { answer: 'crowd', latchBelow: 7 },
-  sprinter: { answer: 'reflex', windup: 0.6, steer: 1.1, overshoot: 4, carLeap: 5.5 },
+  sprinter: { answer: 'reflex', windup: 0.6, steer: 1.1, overshoot: 4, skid: 0.45, carLeap: 5.5 },
   echo: { answer: 'stealth', hear: 60, minR: 10, delay: 1.4, gain: 1.0, every: 4 },
 };
 

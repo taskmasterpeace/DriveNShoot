@@ -3,6 +3,7 @@ import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
 import { BALLISTICS as BL, ROUNDS, calOf } from '../data/ballistics.js';
 import { woundPart } from '../data/bodydoll.js';
+import { SHOT_READ } from '../data/shotread.js';
 
 const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, nobody's floor
 
@@ -101,10 +102,11 @@ export class Combat {
     // starts at the hand, so it still meets them.
     const hug = !g.statics.lineOfSight(ch.x, ch.z, ox, oz, RAY_SOLID, ry);
     if (ch === g.player) g.arms?.onShot(); // a shot raises the gun, whatever path fired it
-    g.fx.flash(hug ? ox : mx, 1.5 + fy, hug ? oz : mz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
-    g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
+    const atYou = g.shotRead?.at(ch, ox, oz, fx, fz, w.range, false) ? SHOT_READ.flashMul : 1; // a shot at the player: a bigger flash (data/shotread.js)
+    g.fx.flash(hug ? ox : mx, 1.5 + fy, hug ? oz : mz, (w.pellets > 1 ? 2.2 : 1.4) * atYou, 0.05);
+    g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', (w.pellets > 1 ? 30 : 18) * atYou, 0.07);
     const cal = calOf(w.cal ?? w.round ?? w.ammo); // the round it fires (data/ballistics.js ROUNDS; docs/design/WEB_CALIBERS.md)
-    g.audio.gun(w.sound ?? ROUNDS[cal]?.sound ?? 'pistol', Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
+    g.audio.gun(w.sound ?? ROUNDS[cal]?.sound ?? 'pistol', Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch, cal); // ch: whose gun (their faction's recordings), cal: the round's own report (data/audiosets.js CALIBER_SOUND)
     g.reactions?.onShot(ch.x, ch.z, 45, wkey, ch); // heard, not known: each ear's own bearing and error (systems/reactions.js); before noise, so ai.onNoise leaves them to it
     g.noise(ch.x, ch.z, 45, ch);
     g.farsound?.shot(ch, w); // heard far off, late, from its bearing (systems/farsound.js)
@@ -198,6 +200,7 @@ export class Combat {
         const P = this.inFlight, pan = g.pan(g.player.x + dx);
         if (P && P.sp > BL.sound && g.audio.crack) { g.ballistics.stats.cracks++; g.audio.crack(pan); }
         else { if (P) g.ballistics.stats.whispers++; g.audio.whiz(pan); }
+        g.shotRead?.nearMiss(shooter, F); // the marker toward where it came from (systems/shotread.js)
       }
     }
     if (tracer) g.fx.tracer(ox, oz, hx, hz, 1.45 + fy);
@@ -239,6 +242,7 @@ export class Combat {
       if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
       if (!up && Math.random() < 0.3) g.fx.decal(hx + wnx * 0.2, hz + wnz * 0.2, 0.3, '#1a1714');
     }
+    if (box || (kind && kind !== 'char')) g.shotRead?.impact(hx, hz, shooter, F); // dust where it lands near you
     if (!kind && !box) return 0;
     if (!o) { if (!kind) out.kind = 'wall'; return 1; }
     out.x = o.x; out.z = o.z; out.dx = o.dx; out.dz = o.dz; out.dmg = o.dmg; out.energy = o.energy; out.kind = 'wall';
@@ -285,7 +289,7 @@ export class Combat {
       if (cause === 'bullet') g.blood?.splash(c, dx, dz, dmg, c.hp <= 0); // onto the wall, door or car behind them (systems/blood.js)
     }
     g.audio.hit();
-    if (c === g.player) g.hud.hurt(dmg);
+    if (c === g.player) { g.hud.hurt(dmg); if (cause === 'bullet') g.shotRead?.hit(attacker); } // the marker on who shot you
     g.ai.onDamaged(c, attacker);
     if (attacker === g.player) g.qol.hit(c.hp <= 0);
     if (c.hp <= 0) this.kill(c, attacker, dx, dz, cause);

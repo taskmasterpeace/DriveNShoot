@@ -89,6 +89,18 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
   - glass and lamps stay clear; mud and dust kill the metalness and raise the roughness, while the paint's own colour always shows.
 - **`vehDamage.repair`** (the garage, a mechanic's "Repair my last ride") calls `look.clean`.
 
+### Lamps on bodies (`systems/lamplight.js`, row `LAMPS`; Robert's 845 playtest)
+- **The bug**: the headlights and the torch are additive cones painted on the ground (`vehiclelights.js` beams, main.js `buildFlashlight`), with no light of their own. A person standing in one was lit only by the night sky, so they showed as a black shape in a bright pool.
+- **The fix, still with no scene lights**: a fixed uniform array of `LAMPS.max` = 8 lamps, the nearest to the camera within `reach` 90 m. Each lamp is `(x, y, z, range)` + `(dx, dz, cos, I)`.
+  - **Headlamps**: one lamp per lit vehicle (driver aboard, night > `LAMPS.night`), at the middle of its working lenses. A smashed lamp leaves 0.55 of the light; a single-lens rig (bike, boat) uses the `bike` row.
+  - **The torch**: lit only while its cone is drawn. Its strength follows the cone's opacity, and its range scales with the cone's reach.
+- **Who wears it**: every body material is patched (chained `onBeforeCompile`, key `|lamp`, re-scanned every 2 s):
+  - the box people, their hats, gear, guns and melee props;
+  - the LSW bodies and their flags, so the infected too;
+  - dogs, and the fauna's quads, parts and wings.
+  The light is added to the direct diffuse, so it shows the body's real colours. Ground, walls and cars are not patched: the painted cones already light the ground.
+- **`look action=lamps`** lists this frame's lamps, the light at x,z, and the patched count. `on=false` gives the before shot.
+
 ## 4. Formulas (with examples)
 - **Time weight**: `x = max(0, 1 − d / (2·half))`, `w = x²(3 − 2x)`, normalised (d is the hour distance, wrapping the clock). At 18:36: dusk 0.58, day 0.24, night 0.17.
 - **Region weight** at (x, z) = share of 25 samples (centre + 2 rings × 12) whose state maps to the region. Example: I-10 at the California/Arizona line (s = 9600 m) gives desert 0.7, california 0.3. Six kilometres either side, it is 1.0.
@@ -109,7 +121,16 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
 - **Hit-stop**: frames frozen = ⌈stop / frame⌉. A 70 ms crash at 60 fps measured 3 frames after the frame it landed in; the sim advanced 0.002 s.
 - **Wind**: a 10 m palm (stiffness 0.75) in CLEAR in the desert: s = 0.55 × 1.2 × 1 = 0.66; sway ≈ 0.66·h²/100/0.75 ≈ 0.88 m at the crown. The same palm in a STORM: ×3.2. The check measures storm max > 2× clear max.
 
+- **Lamp light on a body**: E = Σ I · cone · (1 − d/range)² · wrapNdotL, then diffuse += E · colour · albedo/π.
+  - `cone` = smoothstep(cos, cos + 0.45(1 − cos), heading·toBody) on the ground plane.
+  - `wrapNdotL` = clamp((N·L + 0.3) / 1.3).
+  - Example: a man 5 m in front of a car's nose (I 7, range 30) gets 7 · 1 · 0.69 ≈ 4.98, which `look action=lamps` reads. At 18 m he gets 1.18. Behind the car he gets 0.
+  - On screen (check, I 5): his chest went from luma 2.9 to 34.6.
+
 ## 5. Edge Cases
+- **More than 8 lamps** (a convoy at night): the nearest 8 to the camera light bodies. The rest still paint their ground cones, so a body far down the road can stay dark while its pool is lit.
+- **The night grade** still pulls saturation to 0.6, so lit colours read a little muted. That is by design: night stays night.
+- **No lamp shadows**: a body behind another body is lit through it.
 - **A state the map leaves unnamed** (sea, outside the grid) falls back to `default`. All 48 legend states are listed (checked).
 - **The Phoenix island** is ARIZONA (desert).
 - **Two lights of grade** never stack. The pass is the last thing drawn; the screenshot command goes through it too, so shots match the game.
@@ -157,6 +178,10 @@ Rows in `DECALS`: skid 0.34×1.1, scorch 5, oil 1.6 (life 72 game hours), bonfir
 | `IMPACT.calibre.*.kick` | 0.1–0.6 m | 0–1.2 | camera kick |
 | `WEAR.dustBy.*`, `mudBy.*` | rows | ×0.25–×4 | how fast a car gets dirty |
 | `WEAR.max.*` | 0.8–0.9 | 0.5–1 | the cap (keeps the paint showing) |
+| `LAMPS.head.I` / `torch.I` / `bike.I` | 7 / 5.6 / 4.8 | 0–12 (validated) | how bright a body in a beam gets (the sun is 2.5) |
+| `LAMPS.*.range` | 30 / 19 / 24 m | 4–60 | how far down the beam a body is still lit |
+| `LAMPS.*.cos` | 0.76 / 0.84 / 0.84 | 0.5–0.99 | the cone's edge (lower = wider) |
+| `LAMPS.max` | 8 | 4–16 | lamps lighting bodies at once (a uniform-array size: changing it recompiles) |
 
 ## 8. Acceptance Criteria
 Selftest checks (`only=look-feel`, all green):
@@ -184,6 +209,15 @@ Measured (port 3484, a PC loaded by other lanes):
 - **Stress ms/frame** (same port): base 7.9 / 9.56 / 8.8. At 1fc28fce: 7.21 / 7.6 / 8.84. At 8c0e7ec2: 8.29 / 9.7 / 11.05 (93–95 draws; the PC was loaded by other lanes' batteries). No regression in the same-page on/off pairs.
 - **The pass's own cost**: render-only A/B at 1280×720 gives a median +0.01 ms (6 interleaved pairs × 40 frames, GPU-synced), inside a ±0.7 ms noise band. A LUT rebuild costs 0.5 ms of CPU, at most every 0.25 s and only when the blend moved.
 - `ip-lint`: 0 deny.
+
+- **Lamps (check `look-feel: at night a person in front of a car is lit by its headlights…`)**: it passes when all of these hold:
+  - a person 7 m ahead of the car gets more than 0.6;
+  - a person 20 m ahead gets more than 0 but less than 60% of that;
+  - a person behind the car gets 0;
+  - on screen, the lit chest is at least 6 luma and 1.4× brighter with the layer on than off;
+  - the materials compiled with the layer (14 patched);
+  - the torch lights a man in front of it.
+  On 0b688ced+ it passed alone 3 times; full batteries were skipped tonight, as the lead runs a combined battery. Renders: `headlights-on-people-before/after` (I 7) and `headlights-on-zombie-before/after` (the first tuning, I 5), Florida 23:00. There is no torch render: outside the battery the player carried no charged torch, so no cone was drawn.
 
 Renders, game camera, before (grade off) and after: `florida-day`, `arizona-dusk`, `cold-night`, `muddy-car` (+ `-side` at tilt 0.9), `skid-into-ditch` (+ `-close`).
 

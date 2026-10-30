@@ -120,3 +120,7 @@
 .hle-panel.min { width: auto !important; }
 .hle-min { all: unset; cursor: pointer; font: 700 14px var(--display); color: var(--muted); padding: 0 4px; transition: color 0.2s; }
 .hle-min:hover { color: var(--gold); }
+/* the selected element in plain words: its name and one line on what it shows (the row's tip) */
+.hle-tip { grid-column: 1 / -1; display: grid; gap: 2px; padding: 0 0 6px; border-bottom: 1px solid oklch(0.3 0.02 70 / 0.6); }
+.hle-tip b { font: 700 13px var(--display); letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
+.hle-tip span { font: 500 12px var(--road, system-ui); line-height: 1.35; color: var(--bone); }

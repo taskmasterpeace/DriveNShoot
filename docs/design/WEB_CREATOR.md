@@ -152,6 +152,10 @@ Writes into (each one line, listed in the hand-back): `skills.js` recompute (fx 
 repairMul / luckRolls, `survival.js` (drain, wake radius), `trade.js` (priceMul), `characters.js` (build scale, scar
 variant), `main.js` (construct), `agent/api.js` (commands, checks, snapshot/restore), `net/shard.js` (record + hook).
 
+The card's body is the faceted body the world draws (`WEB_LSW_BODIES.md` rule 10): the preview's LswBodies gets a
+focus, the draft's name and flag, the world's body mode, and the background kit's worn look through `systems/gear.js
+wornLook` (the same function BEGIN's `dress()` runs).
+
 Depended on by: the Florida start lane (`START.place` / `START.state`, `g.creator.onStart`); the controller lane (its
 virtual pad is read here); the shard lane (`CREATOR.shardNew`, `forShard`); roles (renown head starts).
 
