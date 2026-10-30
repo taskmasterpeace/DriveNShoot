@@ -115,7 +115,7 @@ export class PanelLayout {
   isOpen(pid) {
     const g = this.g;
     return { workshop: () => g.workshopUI?.open, pack: () => g.invUI?.open, sheet: () => g.charSheet?.open, crew: () => g.crewUI?.open, dialogue: () => !!g.dialogue?.active,
-      travel: () => g.travel?.ui?.open, creator: () => !!document.querySelector('.cr:not(.hidden)'), pause: () => g.qol?.menuOpen }[pid]?.() ?? false;
+      travel: () => g.travel?.ui?.open, table: () => !!g.tablePanel?.open, creator: () => !!document.querySelector('.cr:not(.hidden)'), pause: () => g.qol?.menuOpen }[pid]?.() ?? false;
   }
   open(pid, opts = {}) {
     const g = this.g, p = g.player;
@@ -142,6 +142,7 @@ export class PanelLayout {
           break;
         }
         case 'travel': g.travel.ui.show(SAMPLE_BOARD); break;
+        case 'table': g.tablePanel.preview(); break; // a sample hand (ui/tablepanel.js), no seat taken
         case 'creator': g.creatorUI.open({}); break;
         case 'pause': g.qol.toggleMenu(true); break;
         default:
@@ -153,7 +154,7 @@ export class PanelLayout {
     const g = this.g;
     try {
       ({ workshop: () => g.workshopUI.toggle(false), pack: () => g.invUI.toggle(false), sheet: () => g.charSheet.toggle(false), crew: () => g.crewUI.toggle(false),
-        dialogue: () => g.dialogue.close(), travel: () => g.travel.ui.close(), creator: () => g.creatorUI.close(false), pause: () => g.qol.toggleMenu(false) })[pid]?.();
+        dialogue: () => g.dialogue.close(), travel: () => g.travel.ui.close(), table: () => g.tablePanel.close(), creator: () => g.creatorUI.close(false), pause: () => g.qol.toggleMenu(false) })[pid]?.();
     } catch { /* already shut */ }
   }
   // A panel with tabs shows the one a region lives on (the editor's TAB buttons).

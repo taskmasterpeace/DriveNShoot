@@ -14,7 +14,7 @@ import { glassTexture, crackTexture } from '../world/textures.js';
 // Local vehicle frame: +z forward. 'left'/'right' are the DRIVER's left/right
 // (left = up x forward = local +x in this y-up, +z-forward frame). Sides: front | rear | left | right.
 
-const MAX_PANES = 384, SIDES = ['front', 'rear', 'left', 'right'];
+const MAX_PANES = 384, FRONT_KICK = 0.8, SIDES = ['front', 'rear', 'left', 'right'];
 const _m = new THREE.Matrix4(), _o = new THREE.Matrix4(), ONE = new THREE.Vector3(1, 1, 1);
 
 // Tinted safety glass. Instance attributes: aShape (taper, skew) cuts the quad to its pane; aCrack
@@ -72,7 +72,24 @@ export class CarCombat {
     const lay = this.layout(v);
     v.grabbers = [];
     v.windows = lay ? Object.fromEntries(SIDES.map((s) => [s, { hp: lay.hp, max: lay.hp }])) : null;
+    if (v.utility?.nowindshield) this.pullWindshield(v, true);
   }
+
+  // The workshop's PULL THE WINDSHIELD (data/workshop.js UTILITY nowindshield): the front pane is gone, not broken (no
+  // shards drawn), so the hood is an open front. Putting it back fits new glass.
+  pullWindshield(v, on) {
+    if (v.windows === undefined) return; // ensure() reads the utility when the car first needs its glass
+    const w = v.windows?.front;
+    if (!w) return;
+    w.gone = on; w.hp = on ? 0 : w.max;
+  }
+
+  // THE OPEN FRONT LAW (Robert, 2026-10-29): from inside a car you shoot out over the hood only when nothing is in the
+  // way: an open rig (buggy, bike, quad, airboat: no glass), a windshield pulled at the workshop, or one already shot out.
+  // Behind intact glass nobody fires through it: the first pull at the front arc kicks the windshield out instead (no
+  // round leaves, and the gun is busy FRONT_KICK seconds), and from then on the car has an open front - and so does
+  // whoever is shooting back at you. The sides and the back still shoot out their own windows as before.
+  openFront(v) { this.ensure(v); return !v.windows || v.windows.front.hp <= 0; }
 
   // Which side of the car faces world point (x,z)?
   sideToward(v, x, z) { return this.sideOfLocal(v, x - v.x, z - v.z); }
@@ -155,6 +172,14 @@ export class CarCombat {
     ang += (Math.random() - 0.5) * 2 * Math.min(S.max, sp * S.perMs) * (v.driver === ch ? S.driver : 1);
     ch.face = ang; ch.lastShotT = this.g.time;
     const side = this.sideOfAngle(v, ang);
+    if (side === 'front' && (ch.kickUntil ?? 0) > this.g.time) return false;
+    if (side === 'front' && !this.openFront(v)) {
+      this.damageWindow(v, 'front', 9999, ch, true);
+      ch.kickUntil = this.g.time + FRONT_KICK;
+      if (ch === this.g.player) this.g.hud.toast('KICKED OUT THE WINDSHIELD — the hood is open now', 'warn');
+      this.g.emit('windshieldKicked', { shooter: ch.id, vehicle: v.id });
+      return false;
+    }
     if (v.windows && v.windows[side].hp > 0 && !(v.utility?.gunports && v.driver !== ch)) this.damageWindow(v, side, 9999, ch, true); // gun ports: a passenger shoots through the door slot (data/workshop.js)
     const p = this.windowPos(v, side, -0.6); // just inside the frame: muzzle ends ~0.3m outside
     const sx = ch.x, sz = ch.z, wasIn = ch.inVehicle;
@@ -326,6 +351,7 @@ export class CarCombat {
     for (let k = 0; k < 4; k++) {
       const w = v.windows[SIDES[k]];
       if (n >= MAX_PANES) break;
+      if (w.gone) continue; // pulled at the workshop: no glass, no shards
       const p = lay.panes[SIDES[k]];
       this.mesh.setMatrixAt(n, _o.multiplyMatrices(_m, p.m));
       this.aCrack.array[n] = w.hp <= 0 ? 2 : 1 - w.hp / w.max;

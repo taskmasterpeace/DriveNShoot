@@ -172,6 +172,7 @@ export class Overrun {
       const dP = Math.hypot(H.x - P.x, H.z - P.z);
       if (dP < HO.bodyR && H.bodies.length < Math.min(HO.bodies, H.strength)) this.materialize(H);
       else if (dP > HO.bodyR * 1.6 && H.bodies.length) this.dematerialize(H);
+      if (H.route && g.migrations?.step(H, tick, live)) continue; // a horde MIGRATING down a highway (systems/migrations.js)
       // Drawn by a noise it heard (onNoise): it walks there on the world clock (the record at HO.speed, the bodies on their
       // own feet), stays DRIFT.linger s, then goes back to its road.
       if (H.drift) {

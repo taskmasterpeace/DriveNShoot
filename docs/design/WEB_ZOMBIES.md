@@ -202,6 +202,8 @@ v1 exposes it as `zombies occupy=<kind>`. Nothing calls it on its own yet (§5).
     records plus the existing daylight clean-up.
 
 ## 6. Dependencies
+- **WEB_DEATHS.md (2026-10-29)** builds on this lane. `onHurt` records the hit part (`c._hit`), drops one clean on a head round (`HEADSHOT`) and hands limb hits to `deaths.limbHit`; a severed leg calls `crawler()`. `burst()` now starts a wind-up scream before the charge. The charge runs a locked line (`charge`), a screaming or charging sprinter leaps onto cars (`leap`), and an Echo copies the noises it hears (`onNoise(..., src)`). Groans come before sight. The rows are in `data/hordes.js BREED_ANSWERS / WARNINGS`.
+
 | System | Needs from this | This needs from it |
 |---|---|---|
 | `main.js noise()` | — | every shot, kick, smash → `onNoise` (unchanged hook) |

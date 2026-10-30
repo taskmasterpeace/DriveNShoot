@@ -229,3 +229,5 @@ Screenshots from the game camera: `docs/renders/web/decks-stance/`.
 
 
 **Used by WEB_WATER_LIFE (2026-10-28):** a boat's deck riders also feel the swell (`v.waveFelt`, world/waves.js ride) added to the felt force, and a waterbike/airboat back in off a crest (`v.waveLand`) counts as a landing. New deck rows: `raftDeck`, `ferryDeck` (the cable ferry, systems/waterplace.js).
+
+**Used by WEB_SEMIS (2026-10-29):** the decks law extended to vehicles - a car in a trailer's hold keeps its pose in the trailer's frame (systems/semis.js). Hooks here: a door row may carry `needs` (open only while that vehicle flag is set: a trailer's `rampDown`), and `resolve`/`settle` push riders out of `v.cargoBoxes` (the cars in a hold).

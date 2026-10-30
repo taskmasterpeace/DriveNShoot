@@ -61,7 +61,7 @@ export class VehicleLights {
     for (const v of this.g.vehicles) {
       const A = v.anchors;
       if (v.dead || v.sunk || !A) continue;
-      const lit = !!v.driver;
+      const lit = !!(v.driver ?? v.towedBy?.driver); // a trailer is lit by its tractor (systems/semis.js)
       if (!lit && !v.braking) continue;
       const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
       // Beams are painted on the ground under the car (yaw only), and thin out as it leaves the ground: in the air

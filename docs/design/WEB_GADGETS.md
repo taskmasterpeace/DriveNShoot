@@ -90,6 +90,7 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 - Placed gadgets are not in the save yet (see §7).
 
 ## 6. Dependencies (the hooks, all one or two lines)
+- **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): `base action=fortify kind=bar_doors` puts the planks barricade on a base's doors (re-applied after a town rebuild).
 | File | Hook |
 |---|---|
 | `main.js` | construct `this.gadgets` (after `fauna`'s neighbours), `gadgets.update(simDt)` after `throwables.update`, the drone pilot early-return in `updatePlayer` (body frozen, car held parked), the `droneCam` follow in `updateCamera` (camera lane: one line) |

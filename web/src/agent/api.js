@@ -13,6 +13,7 @@ import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
 import { ITEMS, LOOT, GUN_ITEM, GUN_CARE } from '../data/items.js';
+import { calOf } from '../data/ballistics.js';
 import { ZOOM, CAMERA } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS, RING_OPENINGS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
@@ -38,7 +39,7 @@ import { decksStanceChecks } from './decks-stance-selftest.js';
 import { journeyCommands, journeyChecks } from './journeys-api.js'; // life insurance, the city picker, risky journeys (WEB_INSURANCE_JOURNEYS.md)
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
-import { GARAGE_BAYS } from '../data/survival.js';
+import { GARAGE_BAYS, TOWN_NIGHT } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
 import { forgetoolsCommands } from './forgetools.js';
@@ -56,10 +57,13 @@ import { nearFor } from '../engine/depthlayers.js'; // the depth layers: the z-f
 import { siteStoriesCommands, siteStoriesChecks } from './sitestories-api.js'; // site stories and the Tally: places' living state, parties on the roads, stories, bounties (WEB_SITE_STORIES.md)
 import { townJobs, rolesChecks } from './roles-api.js'; // the work of a settlement: town action=jobs|who|diversity (WEB_OCCUPATIONS.md)
 import { pullsCommands, pullsChecks } from './pulls-api.js'; // pulls: bars, road people, the radio, boards, needs; what reached you (WEB_PULLS.md)
+import { worldVoiceCommands, worldVoiceChecks } from './worldvoice-api.js'; // the world's voice: ambience, far real events, the radio feed, leftovers, the campfire (WEB_WORLD_VOICE.md)
 import { sitesCommands, sitesChecks } from './sites-api.js'; // the SITE rows in the world, real terrain by default (WEB_SITES_TERRAIN.md)
 import { citygenCommands, citygenChecks } from './citygen-api.js'; // procedural cities, sites, homesteads, bases, the overrun (WEB_CITYGEN.md)
 import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys, fenced back yards, docks, back doors (WEB_BACK_LOTS.md)
 import { wrecksCommands, wrecksChecks } from './wrecks-api.js'; // dead cars: our real bodies, in one batched mesh (WEB_BACK_LOTS.md §3.5)
+import { semisCommands } from './semis-api.js'; // tractor-trailers: the hitch, the ramp, cars in the hold, the freight (WEB_SEMIS.md)
+import { semisChecks } from './semis-selftest.js';
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -70,15 +74,19 @@ import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
+import { casinoCommands, casinoChecks } from './casinos-api.js'; // CASINOS: tables, the house's money, robbery, security drones (WEB_CASINOS.md)
+import { homesCommands, homesChecks } from './homes-api.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
+import { calibersCommands, calibersChecks } from './calibers-api.js'; // calibres and forensics (WEB_CALIBERS.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { craftingCommands, craftingChecks } from './crafting-api.js'; // THE MAKER: one recipe engine as rows (WEB_CRAFTING.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
+import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
 
 // ============================================================================
@@ -1084,10 +1092,11 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected). size=<n> (with at="x,z" or x,z, toward=<settlement id>, force=true to walk by day) instead raises a MIGRATING HORDE record (systems/overrun.js, docs/design/WEB_CITYGEN.md §3.6): it walks to that settlement (the nearest by default) at dusk, stands up to 40 bodies in the street near you (the rest stay strength), besieges it and may overrun it.',
-      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 }, size: { type: 'number' }, at: { type: 'string' }, toward: { type: 'string' }, force: { type: 'boolean', default: false } },
-      run: async ({ x, z, count, runners, radius, size, at, toward, force }) => {
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected). size=<n> (with at="x,z" or x,z, toward=<settlement id>, force=true to walk by day) instead raises a MIGRATING HORDE record (systems/overrun.js, docs/design/WEB_CITYGEN.md §3.6): it walks to that settlement (the nearest by default) at dusk, stands up to 40 bodies in the street near you (the rest stay strength), besieges it and may overrun it. action=migrate (x,z size= dir=+1|-1 road= ahead=) starts a horde MIGRATING down the nearest highway on the world clock (dust over it; the radio reports it only after a witness with a set saw it: systems/migrations.js, WEB_DEATHS.md); action=where lists the migrations (road position, walked, seen by, reported, whether you know); action=clear ends them.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 }, size: { type: 'number' }, at: { type: 'string' }, toward: { type: 'string' }, force: { type: 'boolean', default: false }, action: { type: 'string', enum: ['migrate', 'where', 'clear'] }, dir: { type: 'number' }, road: { type: 'string' }, ahead: { type: 'number' } },
+      run: async ({ x, z, count, runners, radius, size, at, toward, force, action, dir, road, ahead }) => {
         if (at) [x, z] = at.split(',').map(Number);
+        if (action) return hordeAction(api, need, { action, x, z, size, dir, road, ahead }); // highway migrations (systems/migrations.js, WEB_DEATHS.md)
         if (size !== undefined || toward !== undefined) {
           need(!toward || g.citygen.byId.has(toward), `no settlement "${toward}" (citygen lists them)`);
           const H = g.citygen.overrun.spawnHorde({ x: x ?? P().x + 300, z: z ?? P().z, size: size ?? 60, toward, force });
@@ -1108,7 +1117,7 @@ function buildCommands(api) {
         const live = g.chars.filter((c) => c.alive && c.faction === 'zombie' && c.zkind);
         return {
           sprinters: live.filter((c) => c.zkind === 'sprinter').map((c) => ({ id: c.id, state: c.zs.state, t: r1(c.zs.t), pace: r1(c.zSpeed), dist: near(c) })),
-          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
+          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, mind: g.zombies.minds.view(c), at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
           choir: live.filter((c) => c.zkind === 'choir').map((c) => ({ id: c.id, site: c.site ?? null, target: c.ztarget?.id ?? null, inAura: g.chars.filter((o) => o.alive && o.faction === 'zombie' && o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 30).length, dist: near(c) })),
           sites: Z.sites.map((q) => ({ id: q.id, name: q.name, x: q.x, z: q.z, lastNight: q.night })),
           counts: { ...Z.counts },
@@ -1955,7 +1964,7 @@ function buildCommands(api) {
     registerWeapon: {
       group: 'content', desc: 'Add/override a weapon row at runtime. def: {name, short, dmg, rate, mag, reload, spread, range, auto, pellets, ammo:pistol|smg|shells, sound:pistol|smg|shotgun, shake}. Then give {weapon:key}.',
       args: { key: { type: 'string', required: true }, def: { type: 'object', required: true } },
-      run: async ({ key, def }) => { WEAPONS[key] = { ...(WEAPONS[key] ?? WEAPONS.pistol), ...def }; return { weapon: key, def: WEAPONS[key] }; },
+      run: async ({ key, def }) => { const base = WEAPONS[key] ?? WEAPONS.pistol; WEAPONS[key] = { ...base, ...def, cal: def.cal ?? (def.ammo && def.ammo !== base.ammo ? calOf(def.ammo) : base.cal), content: !GUN_ITEM[key] }; return { weapon: key, def: WEAPONS[key] }; }, // a pack's gun fires the calibre of the box it loads (WEB_CALIBERS.md)
     },
     registerVehicle: {
       group: 'content', desc: 'Add/override a vehicle handling row. Base body shape is copied from def.base (rig|interceptor|buggy|pickup).',
@@ -2059,10 +2068,12 @@ function buildCommands(api) {
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
+    ...semisCommands(api, need), // semi (WEB_SEMIS.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
     ...siteStoriesCommands(api, need), // site (state, story, log), bounty (WEB_SITE_STORIES.md)
+    ...worldVoiceCommands(api, need), // the world's voice (WEB_WORLD_VOICE.md)
     ...hudCommands(api, need), // hud (WEB_UI_EDITOR.md)
     ...zfightCommands(api), // zfight (WEB_DEPTH_LAYERS.md)
     selftest: {
@@ -2101,13 +2112,17 @@ function buildCommands(api) {
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...kitCommands(api, need),
+    ...casinoCommands(api, need), // casinos (WEB_CASINOS.md)
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
+    ...homesCommands(api, need), // camp, base, home (src/agent/homes-api.js)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
+    ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...roadsideCommands(api, need),
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
+    ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
   };
 }
 
@@ -2195,9 +2210,36 @@ function compileNpc(def) {
 }
 
 
+// The player-neutral state a check expects to start from (dsoa-land §4's list), as one short string: only what is off
+// neutral is named, then the hour, the weather, the character budget and where you stand.
+function entryState(g) {
+  const p = g.player, out = [];
+  if (g.dialogue?.active) out.push('dialogue');
+  if (g.invUI?.open) out.push('pack');
+  if (p.inVehicle) out.push(`car:${p.inVehicle.id}`);
+  if (p.onDeck) out.push('deck');
+  if (p.onTrain) out.push('train');
+  if (p.ug) out.push(`ug:${p.ug}`);
+  if ((p.gy ?? 0) > 0.3) out.push(`gy:${(+p.gy).toFixed(1)}`);
+  if (p.crouch) out.push('crouch');
+  if (p.prone) out.push('prone');
+  if (p.hidden) out.push('hidden');
+  if (p.underwater || p.swim) out.push('water');
+  if (!p.alive) out.push('dead');
+  if (g.gunpoint?.standoff) out.push('standoff');
+  if (g.arms && g.arms.stance !== 'lowered') out.push(`arms:${g.arms.stance}`);
+  if (g.autopilot) out.push('autopilot');
+  if (g.aimOverride) out.push('aimOverride');
+  if (g.paused) out.push('paused');
+  out.push(`h${(g.sky?.time ?? 0).toFixed(1)}`, `w:${g.sky?.weatherKey ?? '?'}`, `free:${g.freeSlots?.length ?? '?'}`, `chars:${g.chars.length}`, `at:${Math.round(p.x)},${Math.round(p.z)}`);
+  return out.join(' ');
+}
+
 async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
+  g.selftestLive = { results, ms: [], done: false, at: Date.now() }; // what has run so far: exec can read it while a long battery runs (the bridge may stop waiting first)
+  globalThis.__selftestResults = results; // the results so far, readable from outside while it runs (or if the bridge drops)
   const check = async (name, fn) => {
     // a|b|c: any of them (only="witnesses|storeys" replays a pair in battery order).
     const any = (pat) => pat.split('|').some((s) => s && name.includes(s));
@@ -2206,8 +2248,16 @@ async function runSelfTest(api, only = null, skip = null) {
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
-    try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : v }); }
-    catch (e) { results.push({ name, pass: false, detail: String(e.message ?? e) }); }
+    // The check in flight, readable from outside while the battery runs (a debugger paused on a hung page names it).
+    globalThis.__selftestNow = name;
+    // What the earlier checks left as this one began (dsoa-land §4: a check that fails only in the full battery almost
+    // always meets STATE an earlier one left). Read only; on a failure it rides on the detail as [entry ...].
+    const entry = entryState(g);
+    const tag = (d) => `${typeof d === 'string' ? d : JSON.stringify(d)} [entry ${entry}]`;
+    const t0 = performance.now();
+    try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : tag(v) }); }
+    catch (e) { results.push({ name, pass: false, detail: tag(String(e.message ?? e)) }); }
+    g.selftestLive.ms.push(Math.round(performance.now() - t0));
   };
   const C = (cmd, a) => api.call(cmd, a);
   await C('start');
@@ -2248,6 +2298,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // force the flashlight on (flashOverride) with an emptied pack. Its own checks (agent/kit-api.js) clear this.
   const kitWas = g.kit.staged; g.kit.staged = true;
   const storiesWas = g.stories.enabled; g.stories.enabled = false; g.stories.sleep(); // site stories: off too, its own stage below
+  // The world's voice (systems/farsound.js, feed.js, marks.js, campfire.js) paints, captions and lights fires on its own:
+  // off for the battery; its checks (agent/worldvoice-api.js) turn it on in a stage of their own.
+  const voiceWas = { far: g.farsound.on, feed: g.feed.on, marks: g.marks.on, fire: g.campfire.on }; g.farsound.on = g.feed.on = g.marks.on = g.campfire.on = false;
   // The workforce (systems/workforce.js) would put workers into every town an unrelated check stamps: off for the battery;
   // its own checks (agent/roles-api.js) turn it on.
   const workWas = g.workforce.enabled; g.workforce.enabled = false;
@@ -2884,6 +2937,7 @@ async function runSelfTest(api, only = null, skip = null) {
   // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
   await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
+  await calibersChecks({ g, api, C, check, extra }); // calibres: every gun a row, a .50 through a wall, casings, a body's wounds, shorter tracers
   await lookfeelChecks({ g, api, C, check }); // LOOK-FEEL: rows and no purple, the horizon law, the grade's blend, wind, skids and the crash, hit-stop and kick, wear
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
@@ -3313,6 +3367,7 @@ async function runSelfTest(api, only = null, skip = null) {
     } finally { wvClean([v, d, a, t]); }
   }));
   await decksStanceChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // boats, the aisle, roofs, prone, footing, the turret seat (src/agent/decks-stance-selftest.js)
+  await semisChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // tractor-trailers: hitch, reverse, jackknife, a car into a moving semi, the RV, the road rules (src/agent/semis-selftest.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
@@ -3457,11 +3512,15 @@ async function runSelfTest(api, only = null, skip = null) {
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
-      for (let i = 0; i < 60 && !ike.sleeping; i++) await C('step', { seconds: 0.5 });
+      let since = 0; // game seconds since 23:00
+      for (let i = 0; i < 60 && !ike.sleeping; i++) { await C('step', { seconds: 0.5 }); since += 0.5; }
       const asleep = ike.sleeping === true;
-      // The rest walk to their beds from across town: give them up to 20 s to settle (a bed 90 m off is ~20 s at a walk).
+      // The rest walk to their beds from across town (1.3 m/s: a bed 90 m off is ~70 s), and whoever has not reached one
+      // TOWN_NIGHT.giveUp s after bedtime lies down where they stand. So the town is judged once that has run out on the game
+      // clock, counted from 23:00 and not from when Ike lay down: "20 s after Ike" ended before the give-up whenever he was
+      // quick, and read a town still walking home as awake (24 down, 31 up; docs/design/WEB_BATTERY_STABILITY.md §3.3).
       let town, most = false;
-      for (let i = 0; i < 10 && !most; i++) { await C('step', { seconds: 2 }); town = await C('town', { radius: 150 }); most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6); }
+      for (let i = 0; !most && (i < 10 || since < TOWN_NIGHT.giveUp + 4); i++) { await C('step', { seconds: 2 }); since += 2; town = await C('town', { radius: 150 }); most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6); }
       // He sleeps in his own bedroom behind the shop now (world/city.js, the island's floor plans): the shot is in his place,
       // at the one of his shelves and cupboards nearest his bed (a half-asleep ear reaches 13.5 m).
       const mine = [...inv.boxes.values()].filter((b) => b.owner === ike.id && !(b.y > 0.5)).sort((a, b) => Math.hypot(a.x - ike.x, a.z - ike.z) - Math.hypot(b.x - ike.x, b.z - ike.z));
@@ -3472,7 +3531,8 @@ async function runSelfTest(api, only = null, skip = null) {
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
-        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling }));
+        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling,
+          dBed: c.bed ? r1(Math.hypot(c.bed.x - c.x, c.bed.z - c.z)) : null, home: r1(Math.hypot(c.home.x - c.x, c.home.z - c.z)), busy: ['occRec', 'pullRec', 'barRole', 'storyM', 'crewRec', 'follower', 'knockT', 'cowerT', 'dragged', 'grabbing', 'res'].filter((k) => c[k]).join(',') }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
     } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
@@ -5230,6 +5290,7 @@ async function runSelfTest(api, only = null, skip = null) {
     for (const q of [famL, ...HH]) { if (!q || RG.household(q).kind !== 'family') continue; const r = RS.rec(q); m = r.members.find((x) => !x.dead && RS.plan(r, x, d).out); if (m) { L = q; break; } }
     if (!m) return `nobody in any family goes out on day ${d}`;
     const rec = RS.rec(L), p = RS.plan(rec, m, d);
+    freeUp(front(L)); // room for the household (staged, as atFamily does: alone, the check before it is not there to)
     await C('setTime', { hour: p.leave - 0.15 }); await C('teleport', front(L)); await C('step', { seconds: 2 });
     if (!m.c) return JSON.stringify({ id: rec.id, why: 'not promoted', free: g.freeSlots.length, n: RS.n });
     const homeFirst = RS.inside(rec, m.c);
@@ -5238,11 +5299,14 @@ async function runSelfTest(api, only = null, skip = null) {
     for (; t < 60 && RS.inside(rec, m.c); t++) await C('step', { seconds: 1 });
     for (let s = 0; s < 30 && Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz) < 14; s++) await C('step', { seconds: 1 }); // down the street
     const left = !RS.inside(rec, m.c), out = m.c.res.where, far = Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz);
+    const S = m.c.res, st = p.stops[Math.min(S.stop, p.stops.length - 1)]; // (the why, on a failure: where they were then and why)
+    const then = { at: [+m.c.x.toFixed(1), +m.c.z.toFixed(1)], stop: st && [+st.x.toFixed(1), +st.z.toFixed(1)], route: S.route?.length ?? null, ri: S.ri, wedged: S.wedged ?? 0, lost: S.lost ?? 0, stuck: +(m.c.stuck ?? 0).toFixed(1), hold: m.c.hold, flee: m.c.flee, target: m.c.target?.id ?? null, live: RS.live.size, chars: g.chars.length };
     await C('setTime', { hour: p.back + 0.02 });
     let u = 0;
     for (; u < 120 && !RS.inside(rec, m.c); u++) await C('step', { seconds: 1 });
     const back = RS.inside(rec, m.c);
-    return homeFirst && left && out === 'out' && far >= 14 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: m.c.res.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length } });
+    return homeFirst && left && out === 'out' && far >= 14 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: S.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length },
+      day: d, house: [rec.x0, rec.z0, rec.x1, rec.z1].map((v) => +v.toFixed(1)), then });
   });
   let thief = null;
   await check('ring residents: taking from a lived-in house\'s shelf in front of one of them is a `steal` they witness: the box is theirs, the record names them, their people hear of it, and they hold it against you', async () => {
@@ -5375,7 +5439,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('step', { seconds: 5 });
     const froze = rec.barricade.hp === hp1 && !!echo?.frozen;
     g.aimOverride = null;
-    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null });
+    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null, mind: echo ? g.zombies.minds.view(echo) : null, zm: echo?.zm ? { src: echo.zm.src, who: echo.zm.who } : null, work: !!echo?.work });
   });
   // What the R2 checks set off in the world's memory is taken back (see above), and the hour.
   for (const r of D0.rumors) if (r.live && r.seq > seq0) { r.live = false; D0.pending--; }
@@ -5534,7 +5598,7 @@ async function runSelfTest(api, only = null, skip = null) {
         if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
         if (g.storeys.sameFloor(r, p) && g.sees(r, p)) break; // up where it can see you and shoot: it may fight from the top steps
       }
-      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
+      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target, b: S.b.id ?? S.id, foot: [+f.bottomOut.x.toFixed(1), +f.bottomOut.z.toFixed(1)], state: r.state, stuck: +(r.stuck ?? 0).toFixed(1), hold: r.hold, flee: r.flee, cower: r.cowerT, knock: r.knockT, tac: r.tac?.force ?? null, sees: g.sees(r, p) });
     } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
   });
   await check('storeys: inside, you see your floor and the ones below, not the ones above (nor who is up there); outside, every floor shows', async () => {
@@ -5610,6 +5674,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('teleport', { x: W.x + W.nx * 8, z: W.z + W.nz * 8 });
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && zdist(c, W) < 30) g.removeChar(c);
     const e = g.zombies.spawnKind('echo', post.x, post.z, post);
+    e.face = Math.atan2(W.x - e.x, W.z - e.z); // at its window, its back to you (it has not seen you: law 6, it works on)
     let drift = 0;
     try {
       g.aimOverride = { x: e.x, z: e.z }; // you watch it
@@ -5691,6 +5756,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  await deathsChecks({ g, api, C, check, stage, hush }); // THE DEATH LIBRARY and zombie fun (src/agent/deaths-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
   // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----
@@ -6027,17 +6093,22 @@ async function runSelfTest(api, only = null, skip = null) {
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
+  await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
+  await casinoChecks(api, check, C); // CASINOS: blackjack, chess, the house's money, robbery, witnesses, the board, security drones (src/agent/casinos-api.js); loads the battery's save after
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
   g.kit.staged = kitWas;
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
+  g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice back on
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
+  g.selftestLive.done = true; g.selftestLive.ms = Date.now() - g.selftestLive.at;
   return { ok: passed === results.length, passed, total: results.length, results };
 }
 
@@ -6075,11 +6146,13 @@ export function snapshot(g) {
     materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
     clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
+    homes: g.homes?.save(), // camps, bases (stash, boards, rooms), every moved piece, owners' purses, tenure, the raid log (systems/homes.js)
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
     crafting: g.crafting?.save(), // what you know how to make, the benches you set down, the queue (systems/crafting.js)
+    voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
     roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
   };
 }
@@ -6106,6 +6179,7 @@ export function restore(g, s) {
   g.wilds.load(s.wilds); // theirs too: promoted again near you from the saved records (an old save: fresh records)
   g.stories?.load(s.stories ?? null); // the parties' people back onto their records (promoted again near you)
   g.pulls?.load(s.pulls ?? null); // the pulls' people back onto their records (promoted again near you), what everyone knows
+  g.feed?.load(s.voice?.feed ?? null); g.marks?.load(s.voice?.marks ?? null); g.campfire?.out?.('loaded'); g.farsound?.clear?.(); g.airwaves?.clear?.(); // the world's voice (WEB_WORLD_VOICE.md)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   g.crafting?.load(s.crafting ?? null); // what you know how to make, benches set down, the queue (systems/crafting.js)
   // Characters: remove everyone not in the save, update or recreate the rest.
@@ -6162,6 +6236,7 @@ export function restore(g, s) {
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
   g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
+  g.homes?.load(s.homes ?? null); // after the boxes: the bases put their stashes back
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
 

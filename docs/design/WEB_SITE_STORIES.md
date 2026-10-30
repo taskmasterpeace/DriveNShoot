@@ -141,6 +141,7 @@ A place with people that you stand in (within 420 m) records a sighting of you e
 - **Killing an NPC mark's guards** does not close the bounty. Only the master's death does.
 
 ## 6. Dependencies
+- **CASINOS** (`WEB_CASINOS.md`) posts on the Tally: a robbed room's witness who walks into the town calls `post()` there (the house funds the pay through the town's chest); an ad-hoc town gets a place through `addPlace()` so its board exists.
 | Uses | For |
 |---|---|
 | `pulls.k` (systems/knowledge.js) | every fact: places, boards, halls, parties and hunters are holders; `see`, `tell`, `put`, `broadcast`; the grapevine (`pulls.spread`) carries town facts |

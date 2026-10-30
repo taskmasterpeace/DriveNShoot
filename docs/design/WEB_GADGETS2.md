@@ -80,6 +80,7 @@ EM3 checks: **cost** (cells, filters, weight, scrip; a lit torch gets you seen; 
   - the bulls' dispatcher keys up from the station whenever security dispatches a car;
   - a SITE STORIES party on the road in a car (traders, raiders; `systems/sitestories.js` movers) keys up every `CHATTER.party.every` (90 s) from the record's own spot.
 - Each key-up records a `chatter` fact and calls `keyUp`. The player gets a copy only with a live scanner switched on and within range (`factHeard`, `scannerHeard`).
+- **One broadcast source (WORLD VOICE, `WEB_WORLD_VOICE.md` §3.3).** `keyUp` sends the key-up on THE AIRWAVES (`g.airwaves`, `systems/airwaves.js`) as one `scanner` row; the scanner hears it from there (`hearKey`). The feed stations' lines are rows on the same airwaves, so the scanner and the radio share one source and one log (`airwaves` command).
 - The fact is recorded whether or not anyone hears it, so the world still said it (`kit.lastKeyUp`).
 
 ### 3.7 Bad air
@@ -138,6 +139,8 @@ Variables: `d` (m) distance; `r` a row's radius; `night` = `sky.night` 0..1; `t`
 
 ## 6. Dependencies (both ways)
 **This lane uses:** `throwables.smokes`/`fires`, `gadgets.list` (flares), `gadgets.breach`, `vehDamage.popTyre`/`detach`, `garage.addUtility`, `convoy.active`/`lead()`, `security.counts.dispatched`/`stationOf`, `pulls.k` (`knowledge.record`/`put`/`holder`), `dogs.mine()`/`d.threat`, `under.A` (site kind, `rec.power`), `g.los`, `statics.lineOfSight`, `g.droneCam`, `g.flashMat`, `renderer.toneMappingExposure`, `world/textures.radialGlow`.
+
+**Used by:** the smart Echo (`systems/echomind.js`, WEB_DEATHS.md §3.6b) reads the beam main.js draws (`g.flashMat` opacity, `g.flashlight.scale`): a lit beam tells it where you stand and which way you face, and at night the cone is your eyes to it. WEB_DEATHS.md's heat check holds the death library's bodies (crawlers, the dropped infected) to `heatOf`'s cold.
 
 **Shared-file hooks (each one line unless noted):**
 

@@ -60,6 +60,8 @@ they were. A mid-dive dodge still rolls on the victim's side.
 ### 3.3 Tracers and sound
 - `tracerEvery` (per row): the Nth round a shooter fires of that kind draws a streak; the streak grows out of the muzzle
   to `tracerLen`, then runs ahead of its tail, and lingers 0.04 s at the impact (so a 3 m shot still draws muzzle to hit).
+  Since the calibres pass (`WEB_CALIBERS.md`) the streak is `min(tracerLen, speed x streakT, flown)`: half the old caps,
+  and a slow round barely streaks. The rows are now keyed by calibre (`ROUNDS['556']`; `ROUND_OF` maps the old ammo keys).
 - A round that passes within 1.6 m of the player: faster than sound (343 m/s) it **cracks** (`audio.crack`, new); slower
   it **whispers** (the old `audio.whiz`). The pistol (305 m/s) is the subsonic round; the counters are in `ballistics`.
 
@@ -100,6 +102,21 @@ they were. A mid-dive dodge still rolls on the victim's side.
   5. Lag: the victim resolves the round with the shooter's muzzle and time from the record; the victim's position is its
      own (no rewind). A round that takes longer than the victim's presence interval is simply judged by where they were.
 
+### 3.6 Shotgun shells
+
+A shotgun's fire modes are the shells it loads (`combat.js SHELLS`, the sawn-off and the pump):
+
+| Mode | Box in the pack | Pellets | Damage each | Reach | Spread | Flight row |
+|---|---|---|---|---|---|---|
+| BUCK | `ammo_shells` | the gun's (8 / 7) | 14 / 15 | 22 / 26 m | x1 | `shells` |
+| BIRD | `ammo_birdshot` | twice the gun's (16 / 14) | 27% of buck (4) | 65% of buck (14 / 17 m) | x1.45 | `birdshot` |
+| SLUG | `ammo_slug` | 1 | 82 / 85 | 40 / 45 m | x0.11 | `slug` |
+
+Each mode draws its own box (`g.inv.ammo[arms.ammoOf(k)]`). Switching to a different shell works the loaded shells back
+into the pack (mag to 0) and cancels a reload under way; auto-reload or R then loads the new kind. With none of the new
+kind on you the gun stays empty and the HUD's reserve reads 0. NPC shooters fire the weapon row as it stands (BUCK).
+Birdshot does about 64 damage a pull against buck's 112, spread wide: it drops a dog or a bird and stings a man.
+
 ## 4. Formulas
 
 Linear drag `k` (1/s), muzzle velocity `v0`, gravity `g = 9.81`.
@@ -123,7 +140,8 @@ the lead is 0.83 m, more than his 0.5 m body. Unled, a steady hand misses; led w
 | pistol | 305 | 0.55 | sub | 0.100 s | 555 m | every |
 | smg | 380 | 0.9 | super | 0.080 s | 422 m | 1 in 3 |
 | rifle | 850 | 0.64 | super | 0.036 s | 1328 m | 1 in 2 |
-| shells | 400 | 2.2 | super | 0.080 s | 182 m | every pellet |
+| shells (buck) | 400 | 2.2 | super | 0.082 s | 182 m | every pellet |
+| birdshot | 370 | 3.4 | super at the muzzle | 0.095 s | 109 m | 1 pellet in 2 |
 | slug | 450 | 1.1 | super | 0.068 s | 409 m | every |
 | bolt | 90 | 0.12 | sub | 0.339 s | 750 m | every (no weapon yet) |
 
@@ -153,6 +171,8 @@ the lead is 0.83 m, more than his 0.5 m body. Unled, a steady hand misses; led w
   `carcombat.js`, `vehicledamage.js`, `dogs.js`/`fauna.js`/`train.js` raycasts, `storeys.js` (floors), `decks.js`
   (covered), `fx.js` (sparks, decals, `up`), `audio.js` (whiz, new `crack`), `tactics.js` (aimMul).
 - **Used by:** every gun; `ai.js` (lead); `convoy.js` (lead); the `ballistics` command; the shard (record + contract).
+- **Calibres** (`WEB_CALIBERS.md`): the rows are calibres; `combat.segment` stamps each wound with the round's calibre
+  for `systems/forensics.js`; `ambient.eject` drops the calibre's casing.
 - Shared-file hooks: `main.js` (construct + one update call), `api.js` (commands, checks, the `fire` command settles its
   rounds), `arms.js` (a mode's `round`), `audio.js` (`crack`), `convoy.js` (lead).
 
@@ -161,9 +181,9 @@ the lead is 0.83 m, more than his 0.5 m body. Unled, a steady hand misses; led w
 | Knob | Default | Safe range | Effect |
 |---|---|---|---|
 | `velocity` | 90-850 | 60-1200 | flight time; under 343 it whispers instead of cracks |
-| `drag` | 0.12-2.2 | 0-4 | how fast it slows; reach = velocity / drag |
+| `drag` | 0.12-3.4 | 0-4 | how fast it slows; reach = velocity / drag |
 | `tracerEvery` | 1-3 | 0-10 | streak frequency (0: none) |
-| `tracerW` / `tracerLen` | 0.07-0.13 / 0.9-10 | 0.05-0.2 / 0.5-12 | streak look (under 0.07 m a streak is under 2 px from the game camera) |
+| `tracerW` / `tracerLen` | 0.02-0.055 / 0.6-4 | 0.015-0.08 / 0.4-6 | streak look: a pellet is a spark, a rifle round a needle. Robert (2026-10-29) rejected the first set (0.07-0.13 m wide, up to 10 m long) as planks |
 | `BALLISTICS.cap` | 256 | 64-512 | rounds in the air before recycling |
 | `BALLISTICS.maxStep` | 4 m | 1-8 | sub-step length (moving-target fidelity vs cost) |
 | `BALLISTICS.falloff` | 0.5 | 0-1 | damage lost with speed |
@@ -191,5 +211,9 @@ the lead is 0.83 m, more than his 0.5 m body. Unled, a steady hand misses; led w
 7. `ballistics: law 6 - out of sight, a shooter aims where the man was heading …` — seen running +z for 1 s, then
    doubling back unseen for 0.5 s: `seenAt` is the last sighting + 0.5 s of the seen motion (±0.6 m), > 4 m from the truth.
 8. `ballistics: one seed flies one flight …` — a shotgun pull replayed from its record lays the same eight lines.
+9. `ballistics: the sawn-off loads BUCK, BIRD or SLUG from its own box …` — 10 buck, 10 bird, 4 slug in the pack, 2 buck
+   loaded: BUCK fires 8 pellets on `shells`; switching to BIRD puts the 2 back (buck 12, mag 0), the reload takes 2
+   birdshot (8 left) and the pull flies 16 pellets on `birdshot`; SLUG puts those 2 back (birdshot 10), loads 2 slugs
+   (2 left) and flies 1 on `slug`. Check 1 also requires every mode's `ammo` to have a pack item and a flight row.
 Plus the existing combat, materials, security, roles checks green twice on fresh pages, `scenario name=stress` not
 regressed, and tracer screenshots in `docs/renders/web/ballistics/`.

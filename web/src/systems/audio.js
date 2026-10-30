@@ -236,6 +236,7 @@ export class Audio {
     const air = Math.max(0.35, 1 - dist / 120);
     if (kind === 'pistol') { this.burst({ dur: 0.35, freq: 2200 * air, vol: 0.9 * fall, decay: 0.28, pitchDrop: 0.15, pan }); this.tone(110, 0.12, 0.3 * fall, 'sine', 0.4, pan); }
     else if (kind === 'smg') { this.burst({ dur: 0.12, freq: 3000 * air, vol: 0.55 * fall, decay: 0.09, pitchDrop: 0.3, pan }); }
+    else if (kind === 'heavy') { this.burst({ dur: 0.6, freq: 1100 * air, vol: 1.2 * fall, decay: 0.5, pitchDrop: 0.08, pan }); this.tone(48, 0.32, 0.5 * fall, 'sine', 0.35, pan); } // the .50: a slam you feel (data/ballistics.js ROUNDS sound)
     else if (kind === 'rifle') { this.burst({ dur: 0.2, freq: 2600 * air, vol: 0.75 * fall, decay: 0.15, pitchDrop: 0.22, pan }); this.tone(150, 0.07, 0.2 * fall, 'sine', 0.5, pan); } // a sharper crack
     else { this.burst({ dur: 0.5, freq: 1400 * air, vol: 1.1 * fall, decay: 0.42, pitchDrop: 0.1, pan }); this.tone(70, 0.2, 0.4 * fall, 'sine', 0.4, pan); }
   }

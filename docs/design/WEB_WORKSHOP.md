@@ -75,10 +75,39 @@ in them (Kenji: uncommon; the Remnant motor pool: both, at standing 30).
 
 **The screen** (`U` at a garage with your car within 40 m, or Kenji's "Open the workshop" line): the car as a work order on
 paper (nose up), six faces as plates (click or Space to pick), mount rings with group numbers and their arcs drawn, a
-legend of what is on each. TABS: ARMOR / WEAPONS / UTILITY / AMMO / REPAIR / PAINT (two columns of price tags; no tab
+legend of what is on each. TABS: ARMOR / WEAPONS / WHEELS / UTILITY / AMMO / REPAIR / PAINT (two columns of price tags; no tab
 scrolls). Detail: description, the bill (part + labour + hours + kg). Numbers: top speed, pull, handling, braking, load,
-spaces, power, each ghosted red/green with the picked part fitted. Keys: 1-6 or Q/F tabs, WASD rack, Space face, E fit,
+spaces, power, each ghosted red/green with the picked part fitted. Keys: 1-7 or Q/F tabs, WASD rack, Space face, E fit,
 X take off, R repair the face, U/Tab/Esc close. Pad (menu context): D-pad, A fit, X off, Y face, LB/RB tabs, B close.
+
+**Wheels** (Robert, 2026-10-29; the WHEELS tab). One TREAD a car (`set: 'tread'`: fitting one swaps the last out; stock
+tyres are 1.0 everywhere): ROAD (grip +18% on pavement, -20% off it, top speed +4% on pavement), OFF-ROAD (-12% / +22%,
+wades 0.15 m deeper), ON/OFF-ROAD (+6% / +6%), and MONSTER TYRES (scarce; buggy, sedan, interceptor, pickup, patrol, van
+only: -8% / +20%, the body rides 0.6 m higher on round tyres 2.2x stock (cylinders, one instanced draw near a monster), hull held 0.5 m out of a ford, handling x0.8, top x0.93,
+240 kg, a nose that hits like a ram x1.6). AND THEY CLIMB: a monster that hits a car under 2.2 m tall nose-first at 7 m/s
+closing or more does not bounce off it, it goes up and over. On the roof (body up to 0.85 x the car's height, sagging
+as it caves) it does 60 hp/s to the car, 18/s to everyone inside, a 14-point crash to the car's parts every 0.25 s, pins
+the car (its speed decays e^-6t), and caves the roof (the body squashes to 62% height for good). It rolls off the far end
+and comes down. Slower than 7 m/s it is an ordinary (ram x1.6) shunt. A monster cannot climb another monster or a boat.
+"Pavement" is sampled 4 times a second (`workshop.paved`): the island's streets, the ring city's, an interstate's lanes;
+everything else is dirt. HUB SPIKES: blades out past the tyres. Anything alongside at speed takes them every 0.25 s: the
+other car's flank (24/s, scaled by closing speed) and its nearer tyre on that side (45% a tick, gone in three), anyone on
+foot by your wheels (35/s), and hands on your doors (grip -3/s). Drawn as steel cones out of each hub: one long blade
+straight out, four short ones round it (one instanced draw, only while a spiked car is near). Run-flat and puncture-proof tyres moved to this tab.
+
+**Grapples** (Robert, 2026-10-29). A hook on a chain, thrown off the nose or the tail (the harpoon's machinery,
+`vehicles.js fireHarpoon`). GRAPPLING HOOK (size 1, $250): 3 car lengths of chain. RIGGED GRAPPLE (size 2, $700, a winch
+drum): 6 car lengths. Either way it BITES ONE THROW IN THREE (`grapple.hook` = 1/3): a miss skids off in sparks ("DIDN'T
+BITE") and reels in, ready to throw again. A bite tows like the harpoon (the chain goes taut, the lighter car is dragged,
+it snaps 4 m past its length) and the second pull YANKS it sideways off its line. `hook` is the one knob a driving or
+mechanics skill can raise later. The HARPOON GUN stays: always bites, 40 m, a size-2 cable gun.
+
+**THE OPEN FRONT LAW** (Robert, 2026-10-29). From inside a car you shoot out over the hood only when nothing is in the
+way: an open rig (buggy, bike, quad, airboat: no glass), a windshield pulled at the workshop (`nowindshield`, $30: the
+pane is gone, no shards drawn), or one already shot out. Behind intact glass nobody fires through it: the first pull at the
+front arc kicks the windshield out instead (no round leaves, the gun is busy 0.8 s), and from then on it is an open front
+for you and for whoever shoots back. Sides and back shoot out their own windows as before. The buggy is the open gun
+platform: front, back, two light side pods (size 1) and a roof, and everyone aboard shoots every way from the start.
 
 **Arenas** (`ARENAS`, `LOANER`): THE DUST BOWL (derby, tyre wall, barrel stacks, a kicker, a wreck) and LOOPLINE SPEEDWAY
 (a 3-lap oval with checkpoints, barrel stacks, a kicker; the loaner night). Rows for the cities lane to stamp; `arena
@@ -94,7 +123,18 @@ top   = base.maxSpeed x (1 - 0.25 x (1 - ratio)) x turbo.top(1.05) x nitrous.top
 turn  = base.turn x ratio ^ 0.35
 brake = ratio ^ 0.5                                 (multiplies vehicledamage/upkeep fx.brake)
 plate stops = pts x absorb x vs[type]; rail: plate stops at most 35% of the slug, the rest goes on
+grip  = row.grip x solid(0.95) x tread[paved ? 'paved' : 'dirt'] x oil slick     (stock tyres: tread = 1)
+top  *= monster.top(0.93) x (road tyres on pavement: 1.04);  turn *= monster.turn(0.8)
+climb starts when monster && closing >= 7 m/s && the other car is in the monster's FRONT face && other.tall < 2.2
+on the roof: climbY -> other.tall x (0.85 - 0.25 x crushed); crushed += 1.5/s (max 1); other body scale.y = 1 - 0.38 x crushed
+ford depth seen by the hull = max(0, water depth - tread.wade)          (wade: off-road 0.15, monster 0.5 m)
+grapple reach = lengths x your car's length (pickup 5.0 m: 15 m / 30 m); bites if random < hook (1/3)
+hub spikes per 0.25 s tick: flank dmg = 24 x 0.25 x min(2, closing/8 + 0.5); tyre -= 0.45; person dmg = 35 x 0.25 x min(2, speed/8)
 ```
+
+**Example** (tyres): a sedan (grip 6.2) on road tyres slides on sand at 6.2 x 0.8 = 4.96 /s of sideways decay, on the
+blacktop at 7.32; on off-road tyres 7.56 on sand, 5.46 on the blacktop. 10 m/s sideways for 1/3 s is left at 1.9 m/s on
+road tyres in sand and 0.8 m/s on knobblies (the selftest measures it in-engine).
 
 **Example** (the selftest's): a SEDAN (mass 1.5 t, accel 18, top 40 m/s, turn 2.2) with 12 pts of sheet steel on each
 side face and 6 on top = 54 pts x 14 kg = 756 kg. mass 2.256, ratio 0.665 → accel 11.97, top 36.65 m/s (82 mph), turn
@@ -112,6 +152,13 @@ side face and 6 on top = 54 pts x 14 kg = 756 kg. mass 2.256, ratio 0.665 → ac
 - The workshop screen is modal: the pause menu and the map do not take Esc while it is open (main.js skips `qol.input`).
 - Fire suppression puts out a burning car (hp to 12%) twice, then is spent; reload with a suppressant bottle.
 - Painted glass ends after 4 s; a car mine ignores the car that laid it.
+- Fitting a second tread swaps the first out (no refund for the old set; its weight comes off the load check first).
+  Monster tyres on a bike, quad, RV, rig or APC are refused ("won't go on"); a windshield cannot be pulled from a car with
+  no glass. Puncture-proof tyres shrug off hub spikes as they do caltrops.
+- A climbing monster keeps the car it is on as an id (`v.climbing`), never the car itself, so the row stays plain JSON.
+  The pair's collision is skipped while it climbs; if the car under it is removed or sinks, it comes down.
+- An NPC gunner in a closed car facing you kicks out its own windshield on its first forward pull, so a chase costs the
+  chaser its glass; a pulled windshield survives save/load (`loadBuild` re-pulls it).
 
 ## 6. Dependencies
 
@@ -124,6 +171,8 @@ the save (`build`), the controls rows (`fireTurret`, `workshop`, `menuTabPrev`).
 group, angle, shooter)` and `aiFire(vehicle, tx, tz, dt)` (tactics, town security), `hitVehicle(v, x, z, dmg, type, by,
 face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flareUntil` (drones fooled by flares),
 `workshop.addSite({ name, where, x, z, r, rate, rare })` (cities: a town garage), `ARENAS` rows (cities: stamp them).
+**Semis** (WEB_SEMIS.md §3.5b): `systems/semis.js` adds `CHASSIS.semi`; a mount point with `drops: true` takes droppers only
+(`canMount`), and `dropFrom` asks `g.semis.dropTail(v)` so a tractor's oil falls behind its trailer.
 
 ## 7. Tuning knobs (safe ranges)
 
@@ -139,6 +188,14 @@ face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flar
 | seeker lock time / cone | `seeker.lock` | 1.2 s / 0.35 | 0.8-2 / 0.2-0.5 |
 | sell-back share | `workshop.remove` | 40% | 25-50% |
 | shop labour rate | `WORKSHOPS.*.rate` | 0-35 $/h | 0-60 |
+| tread grip on/off pavement | `UTILITY.tread_*.tread` | 0.8-1.22 | 0.7-1.35 (the gap is the choice) |
+| monster handling / top / ram | `UTILITY.monster.monster` | 0.8 / 0.93 / 1.6 | 0.65-0.95 / 0.85-1 / 1.2-2 |
+| ford lift | `tread.wade` | 0.15 / 0.5 m | 0-0.8 |
+| hub spike car / tyre / person | `UTILITY.hubspikes.hub` | 24 / 0.45 / 35 | 10-40 / 0.25-1 / 15-60 |
+| monster climb speed / max height car / roof dps | `monster.climb` | 7 m/s / 2.2 m / 60 | 5-12 / 1.8-2.6 / 30-120 |
+| grapple bite chance / chain | `MOUNT_WEAPONS.grapple*.grapple` | 1/3 / 3 and 6 lengths | 0.2-0.6 / 2-8 |
+| monster ride height | `monster.lift` | 0.6 m | 0.3-1 |
+| windshield bust-out time | `carcombat.js FRONT_KICK` | 0.8 s | 0.3-1.5 |
 
 ## 8. Acceptance criteria (the selftest checks, `only=workshop`)
 
@@ -152,12 +209,24 @@ face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flar
 6. The rail gun refuses on the alternator alone, charges while held (one frame: charging), then one slug goes through two cars.
 7. Fitting at the counter costs exactly the quote in scrip and passes exactly the labour hours; broke, it refuses; a ram
    plate refuses a flank.
-8. The screen opens with six tabs, every tab lists rows, E fits a part, F walks to the next tab, Esc closes.
-9. What the car wears (plate kinds, every mount, gadgets, paint) rides a save and a load.
+8. TYRES: in the same slide on the same ground, road tyres kill a sideways slide faster on pavement and off-road tyres
+   faster on dirt; fitting a third tread leaves exactly one.
+9. MONSTER TYRES: a buggy takes them and a bike refuses; handling drops, the ford lift and the ram multiplier are the rows'.
+10. MONSTER CLIMB: the body rides exactly `lift` higher; driven flat out at a broadside sedan it climbs (event), rides more
+    than 1 m up, caves the roof and costs it hp; crept into the same car at 12% throttle it does not climb.
+11. GRAPPLES: with the dice pinned just under 1/3 it bites, just over it skids off; 4 lengths away the 3-length hook
+    reaches nothing and the rigged one bites; thrown off the nose it bites too.
+12. HUB SPIKES: driven past a parked car, they hit its flank (hp drops) and only its tyres on the facing side.
+13. THE OPEN FRONT: behind glass the first forward pull fires nothing and kicks the windshield out, a second at once is still
+    busy, after 1 s it fires; a buggy and a pulled windshield fire ahead at once (the pulled pane draws nothing); a side shot
+    still shoots out its own window.
+14. The screen opens with seven tabs, every tab lists rows, E fits a part, F walks to the next tab, Esc closes.
+15. What the car wears (plate kinds, every mount, gadgets, paint) rides a save and a load.
 
 `scenario name=arena-night`: the loaner against three built Dustwolf cars at night in the Glass Flats; reports fire, rockets,
 breaches, slicks and kills. Renders: `docs/renders/web/workshop/01-armor.png` ... `06-paint.png` (Playwright, 1920x1080 full
-page), `07-game-camera-builds.jpg` (three builds from the game camera).
+page), `07-game-camera-builds.jpg` (three builds from the game camera), `08-wheels.png` (the WHEELS tab), `09-wheels-game.jpg`
+(a monster buggy with hub spikes and a twin MG, a pickup on off-road tyres with hub spikes, a sedan with its windshield pulled), `10-monster-climb.jpg` (a monster pickup up on a sedan, roof caving, cone spikes).
 
 
 > **Crafting (2026-10-29):** the keepers' benches (Kenji's yard, Ike's back room) follow this doc's keeper rule; the car bench is the model of a bench. See WEB_CRAFTING.md.
