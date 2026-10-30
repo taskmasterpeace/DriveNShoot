@@ -110,11 +110,19 @@ export class Corridor {
     this.exits = []; this.sIslW = -1e9; this.sIslE = -1e9; this.mainlineFrom = 0;
     // Clip the overlay to the region box (with the wall's fade inside it), then fillet and meander.
     const pts = [];
-    const inB = (p) => R.inBox(p.x, p.z, -400);
+    // (400 m in from a walled side; an open side, where a neighbour region continues the road, clips at the edge itself)
+    const inB = (p) => R.inClip(p.x, p.z, 400);
     const P = row.pts.map((p) => ({ x: toWorldX(p[0]), z: toWorldZ(p[1]) }));
     for (let i = 0; i < P.length; i++) {
       const p = P[i];
-      if (inB(p)) { pts.push(p); continue; }
+      if (inB(p)) {
+        if (!pts.length && i && !inB(P[i - 1])) { // entering: cut at the box (a road that starts in a neighbour region)
+          const a = P[i - 1]; let lo = 0, hi = 1;
+          for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (inB({ x: a.x + (p.x - a.x) * m, z: a.z + (p.z - a.z) * m })) hi = m; else lo = m; }
+          pts.push({ x: a.x + (p.x - a.x) * hi, z: a.z + (p.z - a.z) * hi });
+        }
+        pts.push(p); continue;
+      }
       if (i && inB(P[i - 1])) { // leaving: cut at the box
         const a = P[i - 1]; let lo = 0, hi = 1;
         for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (inB({ x: a.x + (p.x - a.x) * m, z: a.z + (p.z - a.z) * m })) lo = m; else hi = m; }
@@ -302,7 +310,8 @@ export class WorldIndex {
           dest = { x: f.x + v[0] * e.m, z: f.z + v[1] * e.m };
         }
         if (!dest) { const v = { E: [1, 0], W: [-1, 0], N: [0, -1], S: [0, 1] }[e.side ?? 'E']; dest = { x: f.x + v[0] * 900, z: f.z + v[1] * 900 }; }
-        const row = { id: `FL-${cor.id}-X${number}`, exit_number: number, name: e.name, archetype: e.archetype, community_tier: e.tier, service_tags: e.tags, risk_rating: e.risk };
+        const row = { id: `${R.id === 'florida' ? 'FL' : R.id.toUpperCase()}-${cor.id}-X${number}`, exit_number: number, name: e.name, archetype: e.archetype, community_tier: e.tier, service_tags: e.tags, risk_rating: e.risk,
+          ...(e.structures ? { structures: e.structures } : {}), ...(e.stamp ? { stamp: e.stamp } : {}) }; // a stamped exit names what stands at it (THE WORLD TOOLS)
         const X0 = this.addExit(cor, row, f.x, f.z, dest.x, dest.z, { town: town?.id ?? null, holdout: H });
         if (X0) { X0.region = R; R.exits.push(X0); if (H) H.exit = X0; }
       }
@@ -619,8 +628,9 @@ export class WorldIndex {
   community(X0) {
     const T = { T1: [4, 8], T2: [10, 20], T3: [25, 50] }[X0.tier] ?? [4, 8];
     const rng = rngOf(hash32(this.seed, ...[...X0.id].map((ch) => ch.charCodeAt(0))));
-    const hint = this.archById[X0.archetype]?.structures_hint?.length ? this.archById[X0.archetype].structures_hint : ['house_small', 'ruined_house', 'trailer_single'];
-    const n = rng.int(T[0], T[1]);
+    const hint = X0.row?.structures?.length ? X0.row.structures : this.archById[X0.archetype]?.structures_hint?.length ? this.archById[X0.archetype].structures_hint : ['house_small', 'ruined_house', 'trailer_single'];
+    let n = rng.int(T[0], T[1]);
+    if (X0.row?.structures) n = X0.row.structures.length; // a stamped exit: exactly what the stamp says stands there
     const acc = X0.access;
     const dirX = acc ? acc.x[acc.n - 1] - acc.x[acc.n - 2] : X0.nx * X0.side, dirZ = acc ? acc.z[acc.n - 1] - acc.z[acc.n - 2] : X0.nz * X0.side;
     const ew = Math.abs(dirX) >= Math.abs(dirZ); // main street runs east-west (or north-south)

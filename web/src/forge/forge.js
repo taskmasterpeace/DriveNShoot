@@ -6,6 +6,8 @@ import { F, el, svg, $, startHealth, undo, redo, openPalette, addPalette, openDr
 import { mapTab } from './tab-map.js';
 import { terrainTab } from './tab-terrain.js';
 import { brushTab } from './tab-brush.js';
+import { stampTab } from './tab-stamp.js'; // THE WORLD TOOLS (docs/design/WEB_WORLD_TOOLS.md)
+import { travelTab } from './tab-travel.js';
 import { observeTab, buildingTab } from './tab-mount.js';
 import { stubTab } from './tab-stub.js';
 import { HELP } from './help.js';
@@ -13,7 +15,7 @@ import { HELP } from './help.js';
 const FORGE = (window.FORGE = { ready: false, error: null });
 async function boot() {
 try {
-  const tabs = [mapTab(), terrainTab(), brushTab(), stubTab('town'), buildingTab(), stubTab('site'), stubTab('life'), stubTab('voice'), observeTab()];
+  const tabs = [mapTab(), terrainTab(), brushTab(), stampTab(), travelTab(), stubTab('town'), buildingTab(), stubTab('site'), stubTab('life'), stubTab('voice'), observeTab()];
   const nav = $('#tabs'), deck = $('#deck');
   for (const t of tabs) {
     F.tabs.set(t.id, t); F.order.push(t.id);
@@ -64,6 +66,7 @@ try {
     { label: 'Undo (this tab)', hint: 'Ctrl Z', tag: 'EDIT', run: () => undo() }, { label: 'Redo (this tab)', hint: 'Ctrl Y', tag: 'EDIT', run: () => redo() },
     { label: 'Push the map rows into the game', hint: 'forgePush file=usmap', tag: 'PUSH', run: () => push('usmap') },
     { label: 'Push the brush rows into the game', hint: 'forgePush file=brush', tag: 'PUSH', run: () => push('brush') },
+    { label: 'Push the stamp rows into the game', hint: 'forgePush file=stamps', tag: 'PUSH', run: () => push('stamps') },
     { label: 'Attach to a game tab', hint: 'the chip', tag: 'GAME', run: pickGameTab },
     { label: 'How to use this tab', hint: '?', tag: 'HELP', run: help },
   ]);
@@ -74,7 +77,7 @@ try {
   // Agents (and the selftest) drive the page through this.
   Object.assign(FORGE, {
     ready: true, F, show, tabs: () => [...F.order], tab: (id) => F.tabs.get(id),
-    map: F.tabs.get('map'), brush: F.tabs.get('brush'), terrain: F.tabs.get('terrain'), undo, redo, push,
+    map: F.tabs.get('map'), brush: F.tabs.get('brush'), terrain: F.tabs.get('terrain'), stamp: F.tabs.get('stamp'), travel: F.tabs.get('travel'), undo, redo, push,
   });
   emit('ready', {});
 } catch (e) {

@@ -1,0 +1,13 @@
+{
+  "kind": "dsoa-stamps",
+  "meta": {
+    "note": "THE WORLD TOOLS' stamp rows (docs/design/WEB_WORLD_TOOLS.md). Written by the World Forge's STAMP tab and the `stamp` command through the row law (src/forge/rows.js); folded into the world by src/world/stamps.js. Positions usmap metres; hood offsets world metres.",
+    "version": 1
+  },
+  "regions": [],
+  "cities": [],
+  "hoods": [],
+  "exits": [],
+  "outside": [],
+  "bases": []
+}

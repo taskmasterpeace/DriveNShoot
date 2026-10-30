@@ -40,6 +40,14 @@ export class Overrun {
     if (rec.kind === 'base') return; // a base's garrison is the bases lane's (systems/bases.js)
     const want = Math.min(rec.kind === 'rural' ? 2 : 6, Math.max(0, Math.floor((g.freeSlots?.length ?? 0) - AMBIENT_RESERVE - 8) / 2));
     const doors = t.built.doors.filter((d) => d.kind === 'door');
+    // A gated community (THE WORLD TOOLS' hood stamp) posts its guards at the gates, not the doors.
+    if (rec.gated) for (let i = 0; i < (rec.guards ?? 2) && i < want && t.T.gates?.length; i++) {
+      const G = t.T.gates[i % t.T.gates.length], ix = G.side === 'W' ? 3 : G.side === 'E' ? -3 : 0, iz = G.side === 'N' ? 3 : G.side === 'S' ? -3 : 0;
+      const c = g.addChar({ x: G.x + ix, z: G.z + iz, faction: 'warden', weapon: 'smg', hp: 110, colors: outfit('warden'), name: 'Gate Guard', flag: g.randomFlag(Math.random) });
+      if (!c) break;
+      c.cgTown = rec.id; c.home = { x: c.x, z: c.z }; c.gateGuard = true;
+      t.chars.push(c);
+    }
     for (let i = 0; i < want && doors.length; i++) {
       const d = doors[(i * 7 + ((rec.seed >>> 0) % 13)) % doors.length]; // >>> 0: a negative seed (hash ^ seed) gave a negative index
       const warden = !!t.T.wall && i % 2 === 0;

@@ -344,7 +344,7 @@ export function layoutRural(opts) {
   if (R.fence !== 'none') {
     clearBays(T.buildings, T);
     const Wr = WALLS[R.fence];
-    T.wall = { type: R.fence, h: Wr.h * 0.5, t: Wr.t, x0: T.x0, z0: T.z0, x1: T.x1, z1: T.z1, gates: [{ side: front, at: front === 'N' || front === 'S' ? cx : cz, w: 8 }], towers: false, look: Wr.look, gateW: 8, fence: true };
+    T.wall = { type: R.fence, h: R.fenceFull ? Wr.h : Wr.h * 0.5, t: Wr.t, x0: T.x0, z0: T.z0, x1: T.x1, z1: T.z1, gates: [{ side: front, at: front === 'N' || front === 'S' ? cx : cz, w: 8 }], towers: false, look: Wr.look, gateW: 8, fence: true };
     T.gates = T.wall.gates.map((g) => ({ ...g, x: g.side === 'W' ? T.x0 : g.side === 'E' ? T.x1 : g.at, z: g.side === 'N' ? T.z0 : g.side === 'S' ? T.z1 : g.at, open: true }));
   }
   return T;

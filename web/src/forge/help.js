@@ -6,6 +6,22 @@ const COMMON = `<h3>EVERY TAB</h3><ul>
 <li>Someone else changed a row you are editing since you opened it? The forge says so and asks before writing over it.</li>
 <li>Every click is a COMMANDS row an agent can run: <code>node tools/dl.mjs forge</code>, <code>mapEdit</code>, <code>mapCheck</code>, <code>brushPaint</code>, <code>brush</code>, <code>forgePatch</code>, <code>forgePush</code>, <code>terrain</code>.</li></ul>`;
 export const HELP = {
+  stamp: `<p>THE WORLD TOOLS (<code>docs/design/WEB_WORLD_TOOLS.md</code>): lay a state out with stamps, never hand placement. Every stamp is a row in <code>web/src/data/stamps.json</code>; <code>world/stamps.js</code> folds it into what the engine already builds.</p>
+<h3>STAMPS</h3><ol>
+<li><b>REGION</b> <kbd>R</kbd>: drag a box (it snaps to a neighbour's edge within 400 m). Look, climate, danger, faction lean. Its interstates come from the usmap; where it shares an edge with a region (Florida) the road runs on through on one line: no wall, no fog (the teal edge).</li>
+<li><b>CITY</b> <kbd>T</kbd>: click a town. Size class metro, city, town or village: it tiles that many neighbourhoods unless you stamp them.</li>
+<li><b>HOOD</b> <kbd>H</kbd>: click inside a city: downtown, residential, industrial, trailer park, or a <b>GATED COMMUNITY</b> (a wall, a gate, guards at it).</li>
+<li><b>EXIT</b> <kbd>E</kbd>: click beside a region's interstate. Its number is its mile from the region's south end. What stands at it: fuel, motel, truck stop, diner, a town, nothing.</li>
+<li><b>OUTSIDE</b> <kbd>O</kbd>: one farm, ranch, compound, church, school, prison, quarry or junkyard where you click; <b>DENSITY</b> writes a region's row: so many of each per km of road, kept off towns and exits.</li>
+<li><b>BASE</b> <kbd>B</kbd>: the state's base row (data/milbases.js), stood near your click inside the drivable box.</li></ol>
+<h3>PREVIEW, COMMIT, UNDO</h3><ul><li>Every stamp previews first: the engine's own fold runs in this page and draws it dashed, with its findings. <kbd>Enter</kbd> or COMMIT writes it, <kbd>Esc</kbd> discards, <kbd>Ctrl Z</kbd> takes a write back.</li>
+<li>PUSH: cities, hoods, outside places and bases re-plan in the game live; regions and exits need the game tab reloaded (the toast says so).</li>
+<li>Agents: <code>stamp op=preview|add|set|remove|undo kind= row=</code>, <code>stamp op=validate</code>, <code>worldTools</code>.</li></ul>`,
+  travel: `<p>THE TRAVEL MATH: real distances between real places on the compressed map. The built corridors are the road as you drive it; past the streamed world the usmap's interstates, county and dirt roads at x K and their measured sinuosity.</p>
+<ul><li>FROM, TO (click a place; shift-click for TO), VEHICLE (any land row), MODE (flat out, cruise 30 m/s, careful 20 m/s).</li>
+<li>The trip: game miles, minutes, litres on the engine's fuel law (idle + throttle), tanks and refuels, the km on each road class, how far one tank gets.</li>
+<li>THE TABLE prices the standard pairs for four rigs; THE CHECK holds it against the long road's measured I-10 drive (within 10%).</li>
+<li>Agents: <code>trip from= to= vehicle= mode=</code> (or <code>travel from= to= vehicle=</code>), <code>trip table=true</code>, <code>trip pace=true vehicle=</code>.</li></ul>`,
   map: `<p>The national map: <code>web/src/data/usmap.json</code>, the rows the engine streams (I-10 and its exits, the towns, their streets and building slots), plus the whole country's interstates, county and dirt roads, rivers and the travel network.</p>
 <h3>MOVE AROUND</h3><ul><li>Wheel zooms about the cursor, from the country to a town's street. Drag pans (shift-drag or right-drag when a tool holds the mouse). <kbd>0</kbd> the whole country, <kbd>G</kbd> the player, <kbd>F</kbd> the selection.</li>
 <li>Layers: toggle states, rivers, roads, streets, rails, towns, exits, building slots, the atlas's sites, the fifty bases, the brush, the checks, and the game (the P1 box, the dust wall, the island, where you are).</li></ul>

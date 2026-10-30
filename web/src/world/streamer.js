@@ -598,13 +598,13 @@ export class Streamer {
     this.wall.fade = RG.edgeFade(f.x, f.z);
     const clampIn = (o) => { const x = Math.max(RG.x0, Math.min(RG.x1, o.x)), z = Math.max(RG.z0, Math.min(RG.z1, o.z)); const out = x !== o.x || z !== o.z; o.x = x; o.z = z; return out; };
     for (const v of this.g.vehicles) {
-      if (!RG.inBox(v.x, v.z, 3000) || RG.inBox(v.x, v.z)) continue;
+      if (!RG.inBox(v.x, v.z, 3000) || RG.inBox(v.x, v.z) || this.W.regionOf(v.x, v.z)) continue; // inside a neighbour region: no wall (the seam law)
       const nx = v.x < RG.x0 ? 1 : v.x > RG.x1 ? -1 : 0, nz = v.z < RG.z0 ? 1 : v.z > RG.z1 ? -1 : 0;
       clampIn(v);
       if (nx && v.vx * nx < 0) v.vx *= -0.4; if (nz && v.vz * nz < 0) v.vz *= -0.4;
       if (v.driver === this.g.player && !this.wall.warned) { this.wall.warned = true; this.g.hud.toast(RG.wall.toast, 'warn'); }
     }
-    for (const ch of this.g.chars) if (!ch.inVehicle && RG.inBox(ch.x, ch.z, 3000) && !RG.inBox(ch.x, ch.z)) clampIn(ch);
+    for (const ch of this.g.chars) if (!ch.inVehicle && RG.inBox(ch.x, ch.z, 3000) && !RG.inBox(ch.x, ch.z) && !this.W.regionOf(ch.x, ch.z)) clampIn(ch);
     if (this.wall.fade < 0.5) this.wall.warned = false;
   }
 

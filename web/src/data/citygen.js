@@ -246,6 +246,28 @@ export const ARCHETYPES = {
     zoning: { core: 0.4, commercial: 0.35, res: 0.15, industrial: 0.1 }, storeys: { core: [4, 6], commercial: [1, 2], res: [1, 2], industrial: [1, 1] },
     kinds: { core: { hotel: 4, parking: 2, office: 1 }, commercial: { shop: 3, motel: 2, diner: 1, gas_station: 1 }, res: { apartment: 1, trailer: 2 }, industrial: { warehouse: 2, auto_shop: 1 } },
     density: { core: 0.8, edge: 0.35 }, age: 'sprawl', damage: 0.4, wealth: 0.7, walls: 'car_husk', roads: ['blacktop4', 'blacktop2', 'gravel'], pop: [60, 150], defense: 0.5 }),
+  // NEIGHBOURHOODS (docs/design/WEB_WORLD_TOOLS.md): a CITY stamp tiles these; never picked by the country's own plan
+  // (biome: [] - archFor draws only archetypes that grow in a biome). The citygen biome comes from the stamp's region look.
+  hood_downtown: A({ name: 'downtown', biome: [], hood: true, sizeM: [420, 560], blocks: 'grid', blockM: [60, 84], layout: 'grid_downtown',
+    zoning: { core: 0.45, commercial: 0.3, civic: 0.15, res: 0.1 }, storeys: { core: [3, 6], commercial: [2, 4], civic: [2, 4], res: [2, 4] },
+    kinds: { core: { office: 4, hotel: 2, apartment: 2, parking: 2 }, commercial: { shop: 5, diner: 1, saloon: 1 }, civic: { courthouse: 1, police_station: 1, hospital: 1, church: 1, fire_station: 1 }, res: { apartment: 3, rowhouse: 2 } },
+    density: { core: 0.92, edge: 0.7 }, age: 'postwar', damage: 0.55, wealth: 0.55, roads: ['blacktop4', 'blacktop2', 'brick'], pop: [60, 160], defense: 0.2 }),
+  hood_residential: A({ name: 'residential', biome: [], hood: true, sizeM: [380, 520], blocks: 'organic', blockM: [56, 76], layout: 'grid_downtown',
+    zoning: { res: 0.8, commercial: 0.1, civic: 0.1 }, storeys: { res: [1, 2], commercial: [1, 2], civic: [1, 2] },
+    kinds: { res: { house: 7, bungalow: 3, garage: 2, rowhouse: 1 }, commercial: { shop: 3, gas_station: 1, diner: 1 }, civic: { school: 2, church: 2, clinic: 1 } },
+    density: { core: 0.75, edge: 0.55 }, age: 'postwar', damage: 0.5, wealth: 0.45, roads: ['blacktop2', 'blacktop2', 'gravel'], pop: [30, 90], defense: 0.15 }),
+  hood_industrial: A({ name: 'industrial', biome: [], hood: true, sizeM: [380, 520], blocks: 'grid', blockM: [70, 96], layout: 'grid_downtown',
+    zoning: { industrial: 0.65, rail: 0.15, commercial: 0.1, res: 0.1 }, storeys: { industrial: [1, 3], rail: [1, 4], commercial: [1, 2], res: [1, 2] },
+    kinds: { industrial: { warehouse: 5, mill: 2, auto_shop: 2, quonset: 1 }, rail: { warehouse: 2, grain_elevator: 1 }, commercial: { gas_station: 2, diner: 1, truck_stop: 1 }, res: { trailer: 2, house: 2 } },
+    density: { core: 0.8, edge: 0.45 }, age: '1920s', damage: 0.55, wealth: 0.35, roads: ['blacktop4', 'gravel', 'dirt'], pop: [10, 40], defense: 0.2 }),
+  hood_trailer_park: A({ name: 'trailer park', biome: [], hood: true, sizeM: [200, 280], blocks: 'grid', blockM: [40, 56], layout: 'main_street_strip',
+    zoning: { res: 0.85, commercial: 0.15 }, storeys: { res: [1, 1], commercial: [1, 1] },
+    kinds: { res: { trailer: 8, garage: 1 }, commercial: { shop: 1, gas_station: 1 } },
+    density: { core: 0.8, edge: 0.6 }, age: 'sprawl', damage: 0.5, wealth: 0.15, roads: ['gravel', 'dirt', 'dirt'], pop: [15, 45], defense: 0.1 }),
+  hood_gated: A({ name: 'gated community', biome: [], hood: true, sizeM: [240, 320], blocks: 'organic', blockM: [50, 70], layout: 'grid_downtown',
+    zoning: { res: 0.88, civic: 0.12 }, storeys: { res: [2, 2], civic: [1, 2] },
+    kinds: { res: { house: 6, bungalow: 2, garage: 2 }, civic: { clinic: 1, church: 1 } },
+    density: { core: 0.7, edge: 0.6 }, age: 'sprawl', damage: 0.2, wealth: 0.75, walls: 'stone_terrace', roads: ['blacktop2', 'blacktop2', 'gravel'], pop: [20, 60], defense: 0.55 }),
 };
 
 // Walls (most towns have NONE: Robert, "I don't think all cities should have walls"). h: height; t: thickness; gates: per
@@ -272,6 +294,15 @@ export const RURAL = {
   trailer_park: { name: 'trailer park', parcel: [64, 56], buildings: [['trailer', [4, 7]], ['garage', [0, 1]]], fence: 'chainlink', biome: ['desert_sonoran', 'desert_mojave', 'gulf_coast', 'great_plains', 'deep_south_swamp', 'salt_flat'], every: 3400, off: [40, 120] },
   truck_stop: { name: 'truck stop', parcel: [72, 52], buildings: [['truck_stop', 1], ['diner', [0, 1]], ['motel', [0, 1]]], fence: 'none', biome: Object.keys(BIOMES), every: 6000, off: [30, 60] },
   stilt_camp: { name: 'stilt camp', parcel: [50, 44], buildings: [['stilt_house', [2, 3]], ['barn', [0, 1]]], fence: 'palisade', biome: ['deep_south_swamp', 'river_delta', 'gulf_coast'], every: 2600, off: [50, 120] },
+
+  // BUILDINGS OUTSIDE CITIES stamped by the world tools (data/worldtools.js OUTSIDE_KINDS): biome [] keeps the country's own
+  // homestead roll off them; only an outside stamp (one place, or a region's density row) puts them down.
+  compound: { name: 'compound', parcel: [70, 60], buildings: [['farmhouse', 1], ['barn', 1], ['trailer', [1, 2]], ['garage', 1]], fence: 'palisade', biome: [], every: 9000, off: [90, 200] },
+  country_church: { name: 'country church', parcel: [52, 44], buildings: [['church', 1], ['house', [0, 1]]], fence: 'none', biome: [], every: 6000, off: [30, 70] },
+  rural_school: { name: 'rural school', parcel: [72, 56], buildings: [['school', 1], ['garage', [0, 1]]], fence: 'chainlink', biome: [], every: 12000, off: [40, 90] },
+  prison_farm: { name: 'prison farm', parcel: [96, 84], buildings: [['barracks', 2], ['hq', 1], ['guardhouse', 2], ['barn', [0, 1]]], fence: 'chainlink', fenceFull: true, biome: [], every: 60000, off: [140, 260] },
+  quarry: { name: 'quarry', parcel: [84, 70], buildings: [['quonset', 1], ['warehouse', [0, 1]], ['trailer', 1]], fence: 'chainlink', biome: [], every: 30000, off: [120, 240] },
+  junkyard_lot: { name: 'junkyard', parcel: [70, 60], buildings: [['auto_shop', 1], ['garage', [1, 2]], ['trailer', [0, 1]]], fence: 'car_husk', biome: [], every: 15000, off: [30, 80] },
 };
 
 // ---- military bases with vast sealed bunkers (Robert: "far in between") ------------------------------------------------

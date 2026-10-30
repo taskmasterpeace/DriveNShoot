@@ -16,6 +16,7 @@ import { FILES, fnv, findRow, BRUSH_LAYERS, BRUSH_OPS } from '../forge/rows.js';
 import { checkMap } from '../forge/validate.js';
 import { fetchRows, patchRows, pushUsmap, pushBrush } from '../forge/live.js';
 import { rowToWorld, worldToRow } from '../forge/frame.js';
+import { pushStamps } from './worldtools-api.js'; // THE WORLD TOOLS' stamps file (WEB_WORLD_TOOLS.md)
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const pt1 = (p) => [r1(p[0]), r1(p[1])];
@@ -35,7 +36,7 @@ export function forgetoolsCommands(api, need) {
   const patch = async (file, ops, { expect, force, push = true, who = 'agent' } = {}) => {
     const r = await patchRows(file, ops, { expect, force, who });
     need(r.ok, `${r.error ?? `HTTP ${r.status}`}${r.conflict ? ` (rows: ${r.rows.join(', ')})` : ''}`);
-    const live = push ? (file === 'usmap' ? await pushUsmap(g, Object.keys(r.rows ?? {})) : await pushBrush(g)) : null;
+    const live = push ? (file === 'usmap' ? await pushUsmap(g, Object.keys(r.rows ?? {})) : file === 'stamps' ? await pushStamps(g, [...new Set(ops.map((o) => o.coll))]) : await pushBrush(g)) : null;
     return { r, live };
   };
   const brushCounts = (L) => (L ? { brush: L.brush ?? null, trees: Object.entries(L.counts ?? {}).filter(([k]) => k.startsWith('fl_')).reduce((s, [, n]) => s + n, 0), shrubs: L.counts?.shrubs ?? 0, glows: L.counts?.glows ?? 0, barrels: L.counts?.barrels ?? 0, hash: L.hash } : null);
@@ -66,12 +67,13 @@ export function forgetoolsCommands(api, need) {
     },
     forgePush: {
       group: 'forge', desc: 'Read a World Forge file back from disk into this running game, without a reload: usmap rows go into the module the engine holds and WorldIndex rebuilds the corridor, exits, towns and signs from them; brush rows reload the brush field. Only the chunks the changed rows reach are laid out again (rows=coll/id,... for usmap; none = all). I-10 moved inside the Phoenix ring needs a page reload (the ring buckets it at boot): it says so.',
-      args: { file: { type: 'string', enum: ['usmap', 'brush', 'all'], default: 'all' }, rows: { type: 'string' } },
+      args: { file: { type: 'string', enum: ['usmap', 'brush', 'stamps', 'all'], default: 'all' }, rows: { type: 'string' } },
       run: async ({ file, rows }) => {
         dev();
         const out = {};
         if (file === 'usmap' || file === 'all') out.usmap = await pushUsmap(g, rows ? list(rows) : null);
         if (file === 'brush' || file === 'all') out.brush = await pushBrush(g);
+        if (file === 'stamps' || file === 'all') { const s = await pushStamps(g, rows ? [...new Set(list(rows).map((k) => k.split('/')[0]))] : null); out.stamps = { ok: true, ...s, needsReload: s.reload, reason: s.why }; }
         return out;
       },
     },

@@ -14,6 +14,7 @@ import { ALLEYS } from '../data/backlots.js';
 import { ROLLUP } from '../data/actions.js'; // TIMED ACTIONS: a jammed roll-up's gap (WEB_TIMED_ACTIONS.md)
 import { MILBASES, MILBASES_BY_ID, MB_RULES } from '../data/milbases.js'; // THE MILITARY BASES (WEB_MILITARY_BASES.md)
 import { layoutMilbase, buildMilbase } from '../world/citygen/milbase.js';
+import { stampRecords } from '../world/stamps.js'; // THE WORLD TOOLS: cities, hoods, outside places, base moves (WEB_WORLD_TOOLS.md)
 
 // PROCEDURAL CITIES (docs/design/WEB_CITYGEN.md): the settlements of the streamed country, planned once at boot from the
 // corridors (a pure, seeded plan: towns of every archetype by biome, homesteads along the roads, real sites, military bases
@@ -61,6 +62,7 @@ class CgGrid {
 // ---- the plan: where the country's settlements stand (pure: the world index, the rows, the seed) -----------------------
 function biomeFor(W, x, z) {
   const ch = W.biomeAt?.(x, z) ?? 'd', R = W.regionOf?.(x, z);
+  if (R?.row?.citygen?.[ch]) return R.row.citygen[ch]; // a stamped region's look names its citygen biomes
   if (R && R.id === 'florida') return ch === 's' ? 'deep_south_swamp' : ch === 'F' ? 'temperate_forest' : ch === 'a' ? 'prairie_farm' : ch === 'w' ? 'river_delta' : ch === '.' ? 'atlantic_coast' : 'gulf_coast';
   return { d: x < -60000 ? 'desert_mojave' : 'desert_sonoran', f: 'desert_sonoran', u: 'desert_sonoran', m: 'high_plateau', p: 'great_plains', a: 'prairie_farm', w: 'badlands', F: 'northern_pine', s: 'deep_south_swamp', '.': 'gulf_coast' }[ch] ?? 'desert_sonoran';
 }
@@ -107,6 +109,9 @@ export function planWorld(W, seed = 0xc17e) {
     if (!at) continue;
     out.push({ kind: 'town', arch: M.arch, biome: M.biome, half, x: at.x, z: at.z, seed: hashStr(M.town) ^ seed, id: `cg-${out.length}`, name: `${M.city.toUpperCase()} METRO`, major: M.city, town: M.town });
   }
+  // THE WORLD TOOLS' stamps (world/stamps.js): a city's neighbourhoods, the places outside cities, the base moves.
+  const ST = stampRecords(W, seed, free);
+  for (const r of ST.records) out.push({ ...r, id: `cg-${out.length}` });
   // the SITE rows at their real anchors (data/sites/xz.js: the atlas projection), on free ground within 1.5 km of it.
   // Every row is accounted for (docs/design/WEB_SITES_TERRAIN.md §3.1): planned in the streamed world, planned BEYOND it
   // (a record at its anchor, stamped when someone gets there: the streamed world grows region by region), off the map
@@ -135,6 +140,7 @@ export function planWorld(W, seed = 0xc17e) {
   for (const cor of corridors) {
     const L = cor.L ?? 0;
     if (!(L > 2000)) continue;
+    if (cor.region?.row?.autoTowns === false) continue; // a stamped region: its towns and homesteads are its stamps
     const cs = makeRng(hashStr(cor.id ?? 'c') ^ seed);
     // towns: one per cityEvery along the road, alternating sides
     let side = cs() < 0.5 ? 1 : -1;
@@ -180,18 +186,20 @@ export function planWorld(W, seed = 0xc17e) {
   for (const M of MILBASES) {
     const rep = { id: M.id, state: M.state, anchor: M.xz, status: 'offmap', rec: null };
     mbReport.push(rep);
-    if (!M.xz) continue;
+    const moved = ST.bases.get(M.id), xz = moved ? [moved.x, moved.z] : M.xz; // a base stamp moves the row onto drivable ground
+    if (!xz) continue;
     const half = Math.round(Math.max(M.size[0] / 2 + MB_RULES.approach.len + 10, M.size[1] / 2 + 20));
     let at = null, beyond = false;
-    if (W.inWorld(M.xz[0], M.xz[1], -half)) { at = near(M.xz[0], M.xz[1], half, 0, 6000); if (!at) { rep.status = 'unplaced'; continue; } }
+    if (W.inWorld(xz[0], xz[1], -half)) { at = near(xz[0], xz[1], half, 0, 6000); if (!at) { rep.status = 'unplaced'; continue; } }
     else {
-      beyond = true; at = { x: M.xz[0], z: M.xz[1] };
-      for (let k = 0; k < 24 && out.some((o) => Math.abs(o.x - at.x) < o.half + half + 120 && Math.abs(o.z - at.z) < o.half + half + 120); k++) at = { x: M.xz[0] + Math.cos(k * 2.4) * (300 + 120 * k), z: M.xz[1] + Math.sin(k * 2.4) * (300 + 120 * k) };
+      beyond = true; at = { x: xz[0], z: xz[1] };
+      for (let k = 0; k < 24 && out.some((o) => Math.abs(o.x - at.x) < o.half + half + 120 && Math.abs(o.z - at.z) < o.half + half + 120); k++) at = { x: xz[0] + Math.cos(k * 2.4) * (300 + 120 * k), z: xz[1] + Math.sin(k * 2.4) * (300 + 120 * k) };
     }
-    const rec = { kind: 'base', arch: 'milbase', milbase: M.id, biome: biomeFor(W, at.x, at.z), half, x: at.x, z: at.z, seed: hashStr(M.id) ^ seed, id: `cg-${out.length}`, name: M.name, anchor: M.xz, ...(beyond ? { beyond: true } : {}) };
-    out.push(rec); rep.rec = rec.id; rep.status = beyond ? 'beyond' : 'planned';
+    const rec = { kind: 'base', arch: 'milbase', milbase: M.id, biome: biomeFor(W, at.x, at.z), half, x: at.x, z: at.z, seed: hashStr(M.id) ^ seed, id: `cg-${out.length}`, name: M.name, anchor: M.xz, ...(moved ? { stampedAt: xz } : {}), ...(beyond ? { beyond: true } : {}) };
+    out.push(rec); rep.rec = rec.id; if (moved) rep.moved = true; rep.status = beyond ? 'beyond' : 'planned';
   }
   out.milbaseReport = mbReport;
+  out.stampReport = ST.report;
   for (const r of out) {
     const A = ARCHETYPES[r.arch];
     r.infestation = 0; r.state = 'holding';

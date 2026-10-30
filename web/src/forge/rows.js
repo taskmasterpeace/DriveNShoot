@@ -34,7 +34,21 @@ export const FILES = {
     path: 'src/data/brush.json', style: 'rows', kind: 'dsoa-brush', top: ['knobs', 'palettes'],
     colls: { strokes: { geom: 'line', label: 'Brush stroke', engine: 'world/brush.js -> world/chunkgen.js' } },
   },
+  // THE WORLD TOOLS' stamps (docs/design/WEB_WORLD_TOOLS.md): data/worldtools.js says what each row may hold and
+  // validateStamps checks it; world/stamps.js folds them into regions, citygen records, exits and the state's base.
+  stamps: {
+    path: 'src/data/stamps.json', style: 'rows', kind: 'dsoa-stamps',
+    colls: {
+      regions: { geom: null, label: 'Region stamp', engine: 'world/stamps.js -> world/regions.js' },
+      cities: { geom: null, label: 'City stamp', engine: 'world/stamps.js -> systems/citygen.js planWorld' },
+      hoods: { geom: null, label: 'Neighbourhood stamp', engine: 'world/stamps.js -> systems/citygen.js planWorld' },
+      exits: { geom: null, label: 'Exit stamp', engine: 'world/stamps.js -> world/worldindex.js addExit' },
+      outside: { geom: null, label: 'Outside-city stamp', engine: 'world/stamps.js -> systems/citygen.js planWorld' },
+      bases: { geom: null, label: 'Military base stamp', engine: 'world/stamps.js -> systems/citygen.js planWorld' },
+    },
+  },
 };
+import { validateStamps } from '../data/worldtools.js';
 export const fileOf = (name) => FILES[name] ?? null;
 
 const isPt = (p) => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]);
@@ -222,5 +236,6 @@ export function checkFile(name, doc) {
       if (name === 'brush') for (const b of checkStroke(r)) errors.push(`strokes/${r.id}: ${b}`);
     }
   }
+  if (name === 'stamps') for (const e of validateStamps(doc).errors) errors.push(`${e.coll}/${e.id}: ${e.msg}`);
   return errors.slice(0, 40);
 }

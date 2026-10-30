@@ -5,6 +5,7 @@
 // with a `box` is laid out by the same chunk generator with its own rows. Everything is a pure function of the rows,
 // the seed and K: two boots build the same Florida.
 import { REGIONS } from '../data/regions.js';
+import { stampedRegions, sharedEdges } from './stamps.js'; // THE WORLD TOOLS: region stamps (docs/design/WEB_WORLD_TOOLS.md)
 import { STREAM } from '../data/streaming.js';
 import { toWorldX, toWorldZ, toUsmap, hash32, vnoise, chunkOf, chunkId, C } from './geo.js';
 
@@ -43,12 +44,22 @@ export class Region {
       for (let z = this.z0 + A.inletEvery * 0.6; z < this.z1; z += A.inletEvery) this.inlets.push(z + (vnoise(3, z, 500, this.seed + 15) - 0.5) * A.inletEvery * 0.5);
     }
     this.cache = new Map(); // chunk id -> water grid (set by chunkgen layouts; dropped with them)
+    // Edges shared with a neighbour region (THE WORLD TOOLS' seam law): no wall, no fog, the road runs on through.
+    // { side: N|S|W|E, a0, a1 } world metres along the edge (x for N/S, z for W/E). Set by buildRegions.
+    this.open = [];
+  }
+  // Is this side open (a neighbour region continues it) at the point's coordinate along that side?
+  openAt(side, x, z) { const t = side === 'N' || side === 'S' ? x : z; for (const o of this.open) if (o.side === side && t >= o.a0 - 1 && t <= o.a1 + 1) return true; return false; }
+  // Inside the box held m metres in from every WALLED side (an open side holds nothing back): a corridor's clip.
+  inClip(x, z, m) {
+    return x >= this.x0 + (this.openAt('W', x, z) ? 0 : m) && x <= this.x1 - (this.openAt('E', x, z) ? 0 : m) && z >= this.z0 + (this.openAt('N', x, z) ? 0 : m) && z <= this.z1 - (this.openAt('S', x, z) ? 0 : m);
   }
 
   inBox(x, z, pad = 0) { return x >= this.x0 - pad && x <= this.x1 + pad && z >= this.z0 - pad && z <= this.z1 + pad; }
   // 0 well inside .. 1 at (and past) the edge: the squall line's fog.
   edgeFade(x, z) {
-    const d = Math.min(x - this.x0, this.x1 - x, z - this.z0, this.z1 - z), F = this.wall.fade;
+    const o = this.open.length, d = Math.min(o && this.openAt('W', x, z) ? Infinity : x - this.x0, o && this.openAt('E', x, z) ? Infinity : this.x1 - x,
+      o && this.openAt('N', x, z) ? Infinity : z - this.z0, o && this.openAt('S', x, z) ? Infinity : this.z1 - z), F = this.wall.fade;
     return clamp01((F - d) / F);
   }
   // A biome row for a usmap legend letter (null rows fall back to scrub).
@@ -117,12 +128,20 @@ export class Region {
 
 export function buildRegions(W) {
   const out = {};
-  for (const [id, row] of Object.entries(REGIONS)) if (row.box) out[id] = new Region(id, row, W);
+  for (const [id, row] of Object.entries({ ...REGIONS, ...stampedRegions() })) if (row.box) out[id] = new Region(id, row, W);
+  // The seam law: where two boxes share an edge, both keep it open over the shared length.
+  const all = Object.values(out);
+  for (const a of all) for (const b of all) if (a !== b) for (const e of sharedEdges(a.row.box, b.row.box)) {
+    const ns = e.side === 'N' || e.side === 'S';
+    a.open.push({ side: e.side, a0: ns ? toWorldX(e.x0) : toWorldZ(e.y0), a1: ns ? toWorldX(e.x1) : toWorldZ(e.y1), with: b.id });
+  }
   return out;
 }
 
 // The region a world point is in (null: P1 Arizona or nowhere). A handful of box tests.
 export function regionAt(regions, x, z, pad = 0) {
+  // The region the point is IN wins over one it is merely near (two regions share an edge: THE WORLD TOOLS' seam law).
+  if (pad > 0) for (const k in regions) { const R = regions[k]; if (R.inBox(x, z, 0)) return R; }
   for (const k in regions) { const R = regions[k]; if (R.inBox(x, z, pad)) return R; }
   return null;
 }
