@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DSOA Test Lab</title>
+<style>
+  :root {
+    --bg: oklch(0.16 0.012 60); --card: oklch(0.21 0.014 60); --card2: oklch(0.25 0.016 60);
+    --line: oklch(0.33 0.02 60); --ink: oklch(0.93 0.015 80); --mute: oklch(0.70 0.03 70);
+    --gold: oklch(0.80 0.15 80); --rust: oklch(0.62 0.17 40); --ok: oklch(0.72 0.14 150);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 20% -10%, oklch(0.24 0.04 60), transparent), var(--bg);
+    color: var(--ink); font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  h1 { margin: 0; font-size: 1.875rem; letter-spacing: -0.025em; font-weight: 800; text-transform: uppercase; }
+  h1 span { color: var(--gold); }
+  .sub { color: var(--mute); margin: .25rem 0 0; }
+  .free { background: var(--gold); color: oklch(0.2 0.02 60); font-weight: 700; text-decoration: none; padding: .7rem 1.1rem;
+    border-radius: .625rem; text-transform: uppercase; letter-spacing: .04em; transition: transform .2s, box-shadow .2s; }
+  .free:hover { transform: translateY(-1px); box-shadow: 0 6px 18px oklch(0.8 0.15 80 / .25); }
+  h2 { font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 1.6rem 0 .6rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: .75rem; }
+  a.card { display: flex; flex-direction: column; gap: .35rem; background: var(--card); border: 1px solid var(--line);
+    border-radius: .625rem; padding: 1rem; color: inherit; text-decoration: none; transition: background .2s, box-shadow .2s, border-color .2s; }
+  a.card:hover { background: var(--card2); border-color: var(--gold); box-shadow: 0 8px 24px oklch(0 0 0 / .35); }
+  .t { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-weight: 700; letter-spacing: -0.01em; }
+  .tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: .15rem .45rem; border-radius: .4rem; }
+  .play { background: oklch(0.72 0.14 150 / .18); color: var(--ok); }
+  .watch { background: oklch(0.62 0.17 40 / .2); color: var(--rust); }
+  .look { background: oklch(0.8 0.15 80 / .15); color: var(--gold); }
+  .d { color: var(--mute); font-size: .82rem; }
+  .k { font-family: ui-monospace, Consolas, monospace; font-size: .72rem; color: oklch(0.6 0.02 70); }
+  .soon { opacity: .55; pointer-events: none; }
+  footer { margin-top: 2rem; color: var(--mute); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Divided States <span>Test Lab</span></h1>
+      <p class="sub">Every system, one click away. Each card loads the real game straight into that setup. Your browser's Back button returns here.</p>
+    </div>
+    <a class="free" href="/">Free play &rarr;</a>
+  </header>
+  <div id="lab"></div>
+  <footer>Tags: <b style="color:var(--ok)">PLAY</b> you drive it · <b style="color:var(--rust)">WATCH</b> it plays itself to prove a system · <b style="color:var(--gold)">LOOK</b> a photo booth to judge by eye. Greyed cards are scenarios being built for tonight's new systems.</footer>
+</div>
+<script>
+const S = [
+  ['Driving and cars', [
+    ['highway-heist', 'play', 'Highway heist', 'Night, rain, Route 66. You drive the War Rig after a raider convoy: harpoon one, yank it, watch it roll.'],
+    ['checkpoint-run', 'play', 'Checkpoint run', 'Three stars on you: the county posse throws a roadblock with a road chain across your way out of town.'],
+    ['arena-night', 'play', 'Arena night', 'A loaner junker with a hood gun, a rocket pod and an oil sprayer against three armed raider cars in a dust bowl.'],
+    ['garage-lineup', 'look', 'Garage lineup', 'Every car body side by side with a driver in each, plus glass under fire at 30%, 70% and shot out.'],
+    ['stream-drive', 'watch', 'Long drive', 'Each rig flat out across the streamed world: proves the map loads ahead of you at speed.'],
+  ]],
+  ['Fights', [
+    ['firefight-lab', 'play', 'Firefight lab', 'Your crew of four against six raiders in a block full of cover. Give orders, flank, hold fire.'],
+    ['night-raid', 'play', 'Night raid', 'Raiders hit the town gate at midnight in a dust storm. You arrive with an SMG.'],
+    ['gadget-range', 'play', 'Gadget range', 'Every gadget on one stretch of ground with a target each: road chain, crawler, buried mine, fan-mine wire.'],
+    ['crew-run', 'watch', 'Crew run', 'Recruit a crew by talking and hiring, drive to the raider camp, hit it in a wedge, cut the captive loose.'],
+  ]],
+  ['Zombies', [
+    ['zombie-siege', 'play', 'Zombie siege', 'A horde surrounds your parked car at night, claws the glass in and reaches for you. Shoot, then floor it.'],
+    ['overrun-test', 'watch', 'Overrun', 'A 200-strong horde hits a town at dusk: an open county seat falls, a walled stronghold holds.'],
+  ]],
+  ['Survival and the world', [
+    ['wilds-day', 'play', 'A day in the wilds', 'Nothing to eat, a rod, a knife, a sawn-off and snare wire: forage, set a snare, shoot a duck, cook it.'],
+    ['bounty-run', 'watch', 'Bounty run', 'A full bounty played start to finish with ordinary moves only: no god mode, no teleport.'],
+    ['bus-home', 'watch', 'Bus home', 'Die far from home with road cover, wake in your husk, and ride the bus back across the country.'],
+    ['pack-gear', 'look', 'Pack and gear', 'The PACK screen kitted out: armor in the doll, a dog at heel, a body at your feet with a vest on it.'],
+  ]],
+  ['People and looks', [
+    ['people-lineup', 'look', 'People lineup', 'One of every look and pose, front and back, frozen so you can judge every face, body and flag.'],
+    ['lsw-bodies', 'look', 'Bodies in action', 'A street crowd, a gunfight, a pickup-bed rider, a prone shooter, a biker and a body on the ground.'],
+    ['interior-lineup', 'look', 'Interiors', 'The mechanic\'s shop in every door and window state: flung doors, padlocks, cracked and boarded glass.'],
+    ['gait-strip', 'look', 'Walk cycles', 'One stride frozen at eight phases per gait, to catch skating feet and knees that bend wrong.'],
+  ]],
+  ['Coming next: tonight\'s new systems', [
+    ['', 'soon', 'Towing and boats', 'Tow a dead car, winch one out of the mud, launch a boat from its trailer at a ramp.'],
+    ['', 'soon', 'Semis', 'Drive a car up the ramp of a moving semi; the RV on the wide-load lowboy.'],
+    ['', 'soon', 'Melee yard', 'Fists, bats, machetes, the sword cane: block, parry, grab, take a hostage, struggle free.'],
+    ['', 'soon', 'Casino night', 'Blackjack and chess for real money, then rob the place past guards and security drones.'],
+    ['', 'soon', 'The long road', 'A city-to-city drive with travellers, roadside stops and the trip log at the end.'],
+    ['', 'soon', 'Police response', 'Fire a shot in town and watch the dispatch, the sirens and the investigation follow real evidence.'],
+  ]],
+  ['Tools', [
+    ['feel', 'watch', 'Feel report', 'Driving and gunplay measured like a player feels them: 0-60, steering delay, slides, hit chance.'],
+    ['camera-tour', 'watch', 'Camera tour', 'Every camera view on foot and at the wheel, with the cost of each.'],
+    ['stress', 'watch', 'Stress test', 'Fill the world with people, start a storm, and measure the frame cost.'],
+  ]],
+];
+const lab = document.getElementById('lab');
+for (const [group, rows] of S) {
+  const h = document.createElement('h2'); h.textContent = group; lab.appendChild(h);
+  const g = document.createElement('div'); g.className = 'grid'; lab.appendChild(g);
+  for (const [id, kind, title, desc] of rows) {
+    const a = document.createElement('a');
+    a.className = 'card' + (kind === 'soon' ? ' soon' : '');
+    if (id) a.href = '/?scenario=' + id;
+    const tag = { play: 'PLAY', watch: 'WATCH', look: 'LOOK', soon: 'SOON' }[kind];
+    a.innerHTML = `<div class="t">${title}<span class="tag ${kind === 'soon' ? 'look' : kind}">${tag}</span></div><div class="d">${desc}</div>${id ? `<div class="k">?scenario=${id}</div>` : ''}`;
+    g.appendChild(a);
+  }
+}
+</script>
+</body>
+</html>
