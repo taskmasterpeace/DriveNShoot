@@ -214,6 +214,7 @@ export async function floridaChecks({ g, check, C }) {
     await C('setTime', { hour: 23 }); await C('step', { seconds: 0.5 });
     const t0 = g.time; if (g.time < 200) g.time = 200;
     const before = g.chars.filter((c) => c.faction === 'zombie' && c.alive).length, since = g.eventSeq;
+    const gate = { enabled: !!g.zombies?.enabled, free: g.freeSlots.length, night: +(g.sky.night ?? 0).toFixed(2) }; // herdPass's own gates (systems/regions.js), for a failure's report
     for (let k = 0; k < 4; k++) Rg.herdPass(SW.region ?? FL);
     const herds = g.events.filter((e) => e.seq > since && e.type === 'hordeSpawned' && e.region === 'florida');
     const after = g.chars.filter((c) => c.faction === 'zombie' && c.alive);
@@ -223,6 +224,6 @@ export async function floridaChecks({ g, check, C }) {
     g.time = Math.max(g.time, t0);
     await C('setTime', { hour: 12 });
     await home();
-    return herds.length >= 1 && after.length > before && !wrong && !seen ? true : JSON.stringify({ herds: herds.length, before, after: after.length, wrong, seen });
+    return herds.length >= 1 && after.length > before && !wrong && !seen ? true : JSON.stringify({ herds: herds.length, before, after: after.length, wrong, seen, ...gate });
   });
 }
