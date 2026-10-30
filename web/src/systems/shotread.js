@@ -92,7 +92,7 @@ export class ShotRead {
       let ux = (_b.x * 0.5 + 0.5) * W - px, uy = (-_b.y * 0.5 + 0.5) * H - py;
       if (_b.z > 1) { ux = -ux; uy = -uy; } // behind the camera: the projection flips
       const l = Math.hypot(ux, uy);
-      if (l < 1e-3) { ux = m.x - p.x; uy = m.z - p.z; } // straight above: fall back to the world bearing
+      if (!(l >= 1e-3)) { ux = m.x - p.x; uy = m.z - p.z; } // straight above, or no view to project through (a 0-size page): the world bearing
       const n = Math.hypot(ux, uy) || 1;
       ux /= n; uy /= n;
       m.ang = Math.atan2(uy, ux);
