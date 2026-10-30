@@ -120,7 +120,7 @@ export const LEAF = {
 };
 // The colours the land wears (multiplied into foliage by the look layer; hex). amber = turned leaf, dry = summer-dry grass,
 // frost = winter grey-green, spring = new green. Checked for purple by validateSeasons.
-export const PALETTE = { spring: '#9bbf5a', summer: '#7a9a46', dry: '#b9a85a', amber: '#c98a2e', rust: '#a4502a', frost: '#8a9486', snow: '#9fa9b4', ice: '#bcd6e4' };
+export const PALETTE = { spring: '#9bbf5a', summer: '#7a9a46', dry: '#b9a85a', amber: '#c98a2e', rust: '#a4502a', frost: '#8a9486', snow: '#b4c0cc', ice: '#bcd6e4' };
 
 // ---- 6. snow ----------------------------------------------------------------------------------------------------------
 // The ground keeps a cover (0 bare .. 1 deep). A zone's own `snowy` and the day's mean air set the SEASONAL PACK (the

@@ -195,7 +195,7 @@ export class Seasons {
     this.cover = clamp(this.pack + this.fresh * (1 - this.pack), 0, 1);
   }
   // Added to the colour grade's temp (cool is negative): a snowed-under country reads blue-white, not cream.
-  gradeTemp() { return this.live ? -0.62 * this.cover - (this.here.frost ? 0.12 : 0) : 0; }
+  gradeTemp() { return this.live ? -1.8 * this.cover - (this.here.frost ? 0.2 : 0) : 0; }
   walkMul() { return 1 - (1 - SNOW.walk) * clamp((this.cover - 0.3) / (SNOW.deep - 0.3), 0, 1); } // a boot in deep snow
   trackHold() { return 1 + (SNOW.trackHold - 1) * this.cover; }
   airNow() { return this.g.needs?.air ?? (REF_MEAN + this.here.temp); }

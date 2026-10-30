@@ -231,7 +231,7 @@ export async function seasonChecks(api, check, C) {
         const gradeSnow = g.seasons.gradeTemp();
         A.pack = 0; A.fresh = 0; day('autumn', 0.8); A.pin = { x: P.phoenix[0], z: P.phoenix[1] }; A.placeT = 0; A.update(0);
         const fall = L.flakes.visible;
-        return snowMats > 40 && v.cover > 0.8 && v.flakes > 400 && fall !== undefined && puffs >= 1 && calls < 150 && gradeSnow < -0.4 && v.leaf < 0.2 ? true : `wrapped ${snowMats}, cover ${v.cover}, flakes ${v.flakes}, puffs ${puffs}, calls ${calls}, grade ${r2(gradeSnow)}, leaf ${v.leaf}`;
+        return snowMats > 40 && v.cover > 0.8 && v.flakes > 400 && fall !== undefined && puffs >= 1 && calls < 150 && gradeSnow < -0.9 && v.leaf < 0.2 ? true : `wrapped ${snowMats}, cover ${v.cover}, flakes ${v.flakes}, puffs ${puffs}, calls ${calls}, grade ${r2(gradeSnow)}, leaf ${v.leaf}`;
       } finally { g.survival.setProfile(prof); A.pin = null; A.placeT = 0; A.pack = 0; A.fresh = 0; await C('setWeather', { key: 'CLEAR', instant: true }); }
     });
 
