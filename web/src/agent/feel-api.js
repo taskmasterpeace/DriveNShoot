@@ -91,6 +91,24 @@ function pin(o, k) {
   return () => { if (d) Object.defineProperty(o, k, d); else delete o[k]; };
 }
 
+// What a probe on the real game changes, put back as it found it (a selftest check must leave no state: the battery
+// runs in god mode, and every check after this one assumes it still is).
+function keep(g) {
+  const I = g.inv, k = { god: !!g.godMode, zombies: g.zombies?.enabled, raiderTimer: g.raiderTimer, x: g.player.x, z: g.player.z, hp: g.player.hp,
+    gun: I.current, weapons: [...I.weapons], ammo: { ...I.ammo }, mag: { ...I.mag }, cond: { ...(I.cond ?? {}) }, jam: { ...(I.jam ?? {}) } };
+  return async (C) => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    g.godMode = k.god; if (g.zombies && k.zombies !== undefined) g.zombies.enabled = k.zombies; g.raiderTimer = k.raiderTimer;
+    g.player.x = k.x; g.player.z = k.z; if (g.player.alive) g.player.hp = Math.max(g.player.hp, k.hp);
+    I.weapons.length = 0; I.weapons.push(...k.weapons); Object.assign(I.ammo, k.ammo); // the guns and rounds the probe gave back
+    for (const w of Object.keys(I.mag)) if (!(w in k.mag)) delete I.mag[w]; Object.assign(I.mag, k.mag);
+    if (I.cond) { for (const w of Object.keys(I.cond)) if (!(w in k.cond)) delete I.cond[w]; Object.assign(I.cond, k.cond); }
+    if (I.jam) { for (const w of Object.keys(I.jam)) if (!(w in k.jam)) delete I.jam[w]; Object.assign(I.jam, k.jam); }
+    if (k.gun && I.current !== k.gun) await C('equip', { weapon: k.gun });
+    await C('teleport', { x: k.x, z: k.z });
+  };
+}
+
 async function stageClear(g, api, C, L) {
   if (g.player.inVehicle) g.exitVehicle(true);
   g.zombies.enabled = false; g.raiderTimer = 1e9;
@@ -100,6 +118,7 @@ async function stageClear(g, api, C, L) {
 
 export async function feelCamera(g, api, C) {
   const L = feelStrip(g, 140); if (!L) return { error: 'no clear strip' };
+  const back = keep(g);
   await stageClear(g, api, C, L);
   // On foot, settled: how far the frame reaches from you across (x) and up/down the screen (z), in metres.
   g.aimOverride = { x: L.x, z: L.z + 0.5 }; await api._step(90); g.aimOverride = null;
@@ -115,12 +134,13 @@ export async function feelCamera(g, api, C) {
       const sp = Math.hypot(v.vx, v.vz), fx = Math.sin(v.h), fz = Math.cos(v.h);
       if (t >= 0.5) out[`at${Math.round(sp)}`] = r2((g.camLook.x - v.x) * fx + (g.camLook.z - v.z) * fz); // m the view's centre leads the car
     }
-  } finally { g.driveOverride = null; if (g.player.inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(v); }
+  } finally { g.driveOverride = null; if (g.player.inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(v); await back(C); }
   return out;
 }
 
 export async function feelGuns(g, api, C, shots = 40) {
   const L = feelStrip(g, 40); if (!L) return { error: 'no clear strip' };
+  const back = keep(g);
   await stageClear(g, api, C, L);
   const B = g.ballistics, settle = async () => { for (let k = 0; k < 120 && B?.inFlight?.(); k++) await api._step(1, DT); };
   const unpin = [];
@@ -171,7 +191,7 @@ export async function feelGuns(g, api, C, shots = 40) {
     const hurts = g.events.filter((e) => e.seq > seq && e.type === 'hurt' && e.by === foe.id).length;
     out.enemy = { firstShot: theirs.length ? r2(theirs[0].t - t0) : null, shots: theirs.length, hits: hurts, hitRate: theirs.length ? r2(hurts / theirs.length) : 0, onScreen: theirs.length ? r2(on / theirs.length) : 0, told: theirs.length ? r2(told / theirs.length) : 0 };
     g.removeChar(foe);
-  } finally { g.combat.fire = realFire; for (const u of unpin) u(); await C('god', { on: false }); }
+  } finally { g.combat.fire = realFire; for (const u of unpin) u(); await back(C); }
   return out;
 }
 
