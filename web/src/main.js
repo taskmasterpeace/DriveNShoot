@@ -107,6 +107,7 @@ import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Gadgets } from './systems/gadgets.js';
 import { Rites } from './systems/rites.js';
 import { Forensics } from './systems/forensics.js';
+import { ShotRead } from './systems/shotread.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -258,6 +259,7 @@ class Game {
     this.crew = new Crew(this);
     this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
     this.forensics = new Forensics(this); // wounds keep their calibre, casings lie on the ground (WEB_CALIBERS.md)
+    this.shotRead = new ShotRead(this, ui); // a shot at you reads: its streak, the dust, the marker toward it (WEB_SHOT_READ.md)
     this.crewUI = new CrewUI(this, ui);
 
     this.cash = 120;
@@ -1431,6 +1433,7 @@ class Game {
     this.crewUI.update(dt);
     this.workshopUI.update(dt);
     this.feedback.update(dt);
+    this.shotRead.update(dt);
     this.recorder.tick(); // a time check; 4 times a game second, one sample into preallocated arrays
     I.endFrame();
   }

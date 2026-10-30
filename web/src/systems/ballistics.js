@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ROUNDS, BALLISTICS as B, roundRow, calOf } from '../data/ballistics.js';
+import { SHOT_READ as R } from '../data/shotread.js';
 
 // BULLET SPEED (docs/design/WEB_BALLISTICS.md). A gun's round is no longer a ray that lands the frame it is fired: it is
 // a body in the air with the speed its row gives it (data/ballistics.js ROUNDS), slowed by the air, pulled down by
@@ -34,7 +35,7 @@ export class Ballistics {
     this.pool = Array.from({ length: this.cap }, (_, i) => ({
       i, live: false, show: 0, id: 0, shooter: null, row: null, key: null, ammo: null,
       x: 0, z: 0, y: 0, dx: 0, dz: 1, sp: 0, sp0: 0, vy: 0, k: 0, t: 0, left: 0, dmg: 0, energy: 0, segs: 0,
-      mx: 0, mz: 0, flown: 0, tracer: false, _drawn: false, fy: 0, ghost: false, hitKind: null, hitT: -1,
+      mx: 0, mz: 0, flown: 0, tracer: false, read: false, _drawn: false, fy: 0, ghost: false, hitKind: null, hitT: -1,
       F: { x: 0, z: 0, gy: 0, ug: null, storey: null }, // the floor it was fired on (combat.segment's floor rules)
     }));
     this.next = 0;
@@ -140,6 +141,9 @@ export class Ballistics {
     // Every Nth round of this kind from this shooter draws its streak (the shooter's own count, per round kind).
     if (row.tracerEvery > 0 && shooter) { const c = (shooter._tracerN ??= {}); c[key] = ((c[key] ?? -1) + 1) % row.tracerEvery; p.tracer = c[key] === 0; }
     else p.tracer = row.tracerEvery === 1;
+    // A round at the player always draws, a little longer and wider (data/shotread.js: the shot at you must read).
+    p.read = !p.ghost && !!this.g.shotRead?.at(shooter, ox, oz, p.dx, p.dz, range);
+    if (p.read) p.tracer = true;
     this.live++;
     return p;
   }
@@ -212,6 +216,7 @@ export class Ballistics {
     if (!p.ghost) {
       g.fx.sparks(p.x, 0.1 + p.fy, p.z, -p.dx, -p.dz, 2);
       if (Math.random() < 0.25) g.fx.decal(p.x, p.z, 0.22, '#2a241c');
+      g.shotRead?.impact(p.x, p.z, p.shooter, p.F); // dust where it lands near you (systems/shotread.js)
     }
     this.stats.ground++;
     this.land(p, 'ground');
@@ -224,13 +229,17 @@ export class Ballistics {
     this.last = L;
     p.hitKind = kind;
     p.live = false; this.live--;
-    p.show = p.tracer ? B.fade : 0;
+    p.show = p.tracer ? (p.read ? R.fade : B.fade) : 0;
   }
 
   // ---- the streaks ----------------------------------------------------------------------------------------------------
   // A tracer round draws from max(muzzle, head - its length) to its head: out of the muzzle it grows, then it runs.
   // Its length is how far it flies in B.streakT at the speed it has now (capped by the row): a slow round barely streaks.
-  streakLen(p) { return Math.min(p.row.tracerLen, p.sp * B.streakT, Math.hypot(p.x - p.mx, p.z - p.mz)); }
+  // A round at the player (p.read) draws at least SHOT_READ.minLen and up to sp x lenT (capped at maxLen): short, but seen.
+  streakLen(p) {
+    const own = Math.min(p.row.tracerLen, p.sp * B.streakT), flown = Math.hypot(p.x - p.mx, p.z - p.mz);
+    return Math.min(p.read ? Math.max(own, Math.min(R.maxLen, Math.max(R.minLen, p.sp * R.lenT))) : own, flown);
+  }
   draw(dt) {
     if (!this.live && !this.drawn) return;
     const g = this.g, up = g.fx?.ground ? g.fx : null;
@@ -245,7 +254,8 @@ export class Ballistics {
       const y = up ? up.up(p.x, p.y + p.fy, p.z) : p.y + p.fy;
       _o.position.set((ax + p.x) / 2, y, (az + p.z) / 2);
       _o.rotation.set(0, Math.atan2(p.dx, p.dz), 0);
-      _o.scale.set(p.row.tracerW, p.row.tracerW, Math.max(0.05, back));
+      const w = p.row.tracerW * (p.read ? R.wMul : 1);
+      _o.scale.set(w, w, Math.max(0.05, back));
       _o.updateMatrix();
       this.mesh.setMatrixAt(i, _o.matrix);
       p._drawn = true; drawn++;

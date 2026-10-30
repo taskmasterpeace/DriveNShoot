@@ -167,6 +167,7 @@ the lead is 0.83 m, more than his 0.5 m body. Unled, a steady hand misses; led w
 
 ## 6. Dependencies
 
+- **Shot read** (`WEB_SHOT_READ.md`): `launch` marks a round fired at the player `read` (always drawn, a longer and wider streak, a longer fade); `groundHit` raises dust and the screen-edge marker near the player.
 - **Uses:** `combat.js` (fire, the resolver), `materials.js` (bullet, throughLeaf, punch), `interiors.js`, `garage.js`,
   `carcombat.js`, `vehicledamage.js`, `dogs.js`/`fauna.js`/`train.js` raycasts, `storeys.js` (floors), `decks.js`
   (covered), `fx.js` (sparks, decals, `up`), `audio.js` (whiz, new `crack`), `tactics.js` (aimMul).
