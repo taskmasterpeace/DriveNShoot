@@ -6,14 +6,14 @@ quotes the target it moves and the check that proves it.
 
 ## 1. Overview
 
-**The goal in one sentence:** by **18 December 2026**, a player can drive a ruined, lower-48 United States coast to coast
+**The goal in one sentence:** a player can drive a ruined, lower-48 United States coast to coast
 (about two real hours flat out). Every mile and every person on the way runs on real, honest systems. Nothing appears from
 nowhere and no one knows what they weren't told. **Eight players can share that world for 24 hours, and it remembers
 everything they did.**
 
 That's "Living World v1". It's ambitious on purpose: it is the whole country, not one state, and a shared server, not a
-single-player demo. It is defined by **twelve numeric targets** (§3, §8), and each is proven by a named audit or check. It is
-reached through **five dated gates** (§8). The world holds the *shape* of the post-collapse genre, never its names, slang,
+single-player demo. It is defined by **twelve world targets** and **ten game goals** (§3, §8), and each is proven by a named audit or check. It is
+reached through **five gates in order** (§8). Robert (2026-10-30): dates are not the point. The game is. The gates are an order of work, not deadlines. The world holds the *shape* of the post-collapse genre, never its names, slang,
 characters or plot (law 4).
 
 ## 2. Player Fantasy
@@ -48,8 +48,23 @@ raiders and traders on the long roads; convoys of armoured trucks.
 | T11 | It runs | ≥ 60 fps on Robert's PC at defaults; < 150 draw calls; no streaming hitch > 50 ms at 100 mph | `scenario name=stress`, `stream-drive`, feel report | Within budget in start areas |
 | T12 | Shared and persistent | 8 players, one shard, 24 h: 0 desyncs, 0 lost saves; the clock runs only while someone is on | shard soak (`npm run shard:test`, grown to 8 bots plus Robert) | Shard and dev seed exist; no 8-player soak |
 
+### The ten game goals (what it is like to play; Robert: "we need goals for the game")
+
+| # | Game goal | Number | Proven by |
+|---|---|---|---|
+| P1 | **A first hour that hooks** | Within 10 min of a new game: drive a car, win or flee a fight, loot something, and be shown a reason to go out | scripted new-player run plus Test Lab playtests (time to each beat) |
+| P2 | **Driving is the heart** | ≥ 50% of play time in or on a vehicle; ≥ 12 drivable vehicle rows, each with a distinct feel inside the feel bands | session recorder (time in vehicle); `feel` report |
+| P3 | **Many kinds of run** | ≥ 10 distinct run types: scavenge, rescue, escort, bounty, heist, trade run, salvage, town defence, delivery, hunt | pulls board census over a game week |
+| P4 | **Regions that feel different** | ≥ 8 regions, each with its own look, weather, threats, loot table, factions and road dangers; a blind tester names the region from a screenshot ≥ 7 of 10 times | region rows audit plus a screenshot test |
+| P5 | **Never more than 3 minutes without a decision** | In playtests, the longest stretch with no meaningful choice (route, fight or flee, take or leave, spend) is ≤ 3 min | recorder: input-decision timeline |
+| P6 | **Fights you read and win by thinking** | Every incoming shot can be placed (foeTold ≥ 0.75); cover, flanking, stance and range change the outcome in ≥ 80% of staged fights | `feel` gun bands plus the tactics checks |
+| P7 | **Coming home stronger** | A base that grows through ≥ 4 tiers; a crew of up to 6; dogs; ≥ 20 car upgrades; each tier visibly changes what you can attempt | homes, crew and workshop rows audit |
+| P8 | **Your choices show** | Every major act (a killing, a robbery, a rescue, a town saved or lost) changes something visible within 1 game day: prices, greetings, bounties, graves, flags | chronicle-to-reaction audit |
+| P9 | **Scarcity you feel, not starvation** | In a new game, ammo and fuel last ~3-5 runs before you must go further; nobody is ever soft-locked (a way out always exists: trade, scavenge, walk) | economy sim over 20 seeded games |
+| P10 | **The genre on every road** | Every interstate passes ≥ 1 walled town under a strongman, sealed pre-war tech, poisoned or acid hazards, and raiders or slavers, as genre shapes with 0 IP-lint deny | `worldAudit shapes` plus `ip-lint` |
+
 Rules that bind the targets:
-- **R1.** All twelve must hold **at once, on one build**, and the full selftest battery must be green twice on fresh pages.
+- **R1.** All twelve world targets and all ten game goals must hold **at once, on one build**, and the full selftest battery must be green twice on fresh pages.
 - **R2.** Honesty targets (T6-T8) are never traded for scale or speed. A failing honesty audit stops the line (§5).
 - **R3.** Every target's number appears in the status pane with today's value. The lead refreshes it from the audit, never by hand.
 
@@ -83,7 +98,7 @@ per game hour. Frame cost must stay inside T11 at the peak screen count.
 
 - **Performance misses (T11):** cut draw distance and screen-tier density first, then simplify far chunks. Honesty (T6-T8)
   is never cut.
-- **Stamping too slow (T1, T4):** improve the tools; never hand-place. If gate G3 slips more than 7 days, v1 ships the lower 48 at
+- **Stamping too slow (T1, T4):** improve the tools; never hand-place. If G3 drags on, v1 ships the lower 48 at
   **city-and-interstate depth** (rural detail in a later pass) and the pane says so.
 - **Population too heavy (T5):** lower the off-screen tier's tick rate before the head count. People who exist stay honest.
 - **The shard soak fails (T12):** v1 slips. Shared and persistent is part of the goal, not a stretch.
@@ -113,7 +128,6 @@ Used by: every living-world lane brief (each names its target), and the status p
 
 | Knob | Default | Safe range | What it changes |
 |---|---|---|---|
-| Ship date | 2026-12-18 | ± 4 weeks | The ambition. Gates move with it. |
 | Coast-to-coast time (T2) | 120 min | 90-180 | How big the country feels; fuel and breakdown pressure |
 | Max dead stretch (T3) | 90 s | 45-180 | How busy the road is versus how lonely |
 | Towns and cities (T4) | 600 | 300-1,200 | Density of destinations; stamping effort |
@@ -125,15 +139,17 @@ Used by: every living-world lane brief (each names its target), and the status p
 
 ## 8. Acceptance Criteria
 
-**The gates, with dates. A gate passes only when every line holds.**
+**The gates, in order (no dates; a gate passes only when every line holds).**
 
-| Gate | Date | Pass/fail criteria |
+| Gate | Order | Pass/fail criteria |
 |---|---|---|
-| **G0 Ground** | 2026-11-01 | (a) Tonight's integrate batch is on main. (b) The battery is green twice on fresh pages. (c) Seasons, horses, crafting, and house and garden have landed. (d) `worldAudit`, `cheatAudit`, `knowledgeAudit` and `stockLedger` exist and print today's values into the pane. |
-| **G1 Tools** | 2026-11-08 | (a) World tools and travel math are in the Forge. (b) T2 is within ± 15% on 5 city pairs. (c) Georgia or Alabama is laid out only with tools (T1 for that state). (d) T3 and T11 hold in it. |
-| **G2 The South-East** | 2026-11-22 | (a) FL, GA, AL, MS, SC, NC and TN are stamped (bases, cities, exits, rural buildings). (b) T3, T4 and T11 hold across them. (c) A 2-h `cheatAudit`, `knowledgeAudit` and `stockLedger` are all clean (T6-T8). |
-| **G3 The lower 48** | 2026-12-06 | (a) All 48 states are stamped (T1, T4). (b) T2 holds coast to coast. (c) T5 holds. (d) The 2-h audits are clean. |
-| **G4 Living World v1** | 2026-12-18 | (a) A 24-h, 8-player shard soak passes T9 and T12. (b) T10 passes (scripted plus Robert's playtests). (c) **All twelve targets are green at once on one build, with the battery green twice.** |
+| **G0 Ground** | first | (a) Tonight's integrate batch is on main. (b) The battery is green twice on fresh pages. (c) Seasons, horses, crafting, and house and garden have landed. (d) `worldAudit`, `cheatAudit`, `knowledgeAudit` and `stockLedger` exist and print today's values into the pane. |
+| **G1 Tools** | after G0 | (a) World tools and travel math are in the Forge. (b) T2 is within ± 15% on 5 city pairs. (c) Georgia or Alabama is laid out only with tools (T1 for that state). (d) T3 and T11 hold in it. |
+| **G2 The South-East** | after G1 | (a) FL, GA, AL, MS, SC, NC and TN are stamped (bases, cities, exits, rural buildings). (b) T3, T4 and T11 hold across them. (c) A 2-h `cheatAudit`, `knowledgeAudit` and `stockLedger` are all clean (T6-T8). |
+| **G3 The lower 48** | after G2 | (a) All 48 states are stamped (T1, T4). (b) T2 holds coast to coast. (c) T5 holds. (d) The 2-h audits are clean. |
+| **G4 Living World v1** | last | (a) A 24-h, 8-player shard soak passes T9 and T12. (b) T10 passes (scripted plus Robert's playtests). (c) **All twelve world targets and ten game goals are green at once on one build, with the battery green twice.** (d) P1, P5 and P10 also pass in Robert's own playtest. |
 
 **Not in v1 (on purpose):** VR and mobile (after v1, VR first), Alaska and Hawaii, the Version 2 maker layer beyond the four
 green-lit lanes (WEB_DEPTH_PLAN §10), and the room-scan base (parked).
+
+**Approved by Robert 2026-10-30** (numbers as written; dates removed: "not important, we need goals for the game"; the ten game goals P1-P10 added).
