@@ -76,7 +76,7 @@ export function regionRow(stamp, doc = STAMPS, base = REGIONS) {
   const corridors = corridorsFor(stamp, neighbours);
   const exits = (doc.exits ?? []).filter((x) => x.region === stamp.id).map((x) => {
     const O = EXIT_OFFERS[x.offers] ?? EXIT_OFFERS.nothing;
-    return { road: x.road, mile: x.mile, name: x.name, archetype: O.archetype, tier: x.tier ?? O.tier, tags: x.tags ?? O.tags, risk: x.risk ?? 2, side: x.side ?? 'E', m: x.m ?? 560,
+    return { road: x.road, ...(x.town ? { town: x.town } : { mile: x.mile }), name: x.name, archetype: O.archetype, tier: x.tier ?? O.tier, tags: x.tags ?? O.tags, risk: x.risk ?? 2, side: x.side ?? 'E', m: x.m ?? 560,
       ...(O.structures ? { structures: O.structures } : {}), stamp: x.id };
   });
   const C = CLIMATES[stamp.climate] ?? CLIMATES.humid_subtropical, danger = stamp.danger ?? 2;
@@ -91,6 +91,8 @@ export function regionRow(stamp, doc = STAMPS, base = REGIONS) {
     life: { fauna: from?.life?.fauna?.map((f) => ({ ...f, perKm2: f.perKm2 * C.wet })) ?? [],
       infected: { density: 1 + danger * 0.25, dayHerds: [1 + Math.floor(danger / 2), 2 + danger], nightHerds: [2 + danger, 4 + danger], every: 9, cap: 14 + danger * 4, runners: 0.1 + danger * 0.04, never: 'holdout' } },
     citygen: { ...(L.citygen ?? {}) },
+    // the ground a stamped city stands on stays dry (the slough law's clearance, as a built town's)
+    dry: (doc.cities ?? []).filter((c) => c.region === stamp.id).map((c) => { const t = c.town ? USMAP.towns.find((q) => q.id === c.town) : null, p = c.pos ?? t?.pos; return p ? { x: Math.round(toWorldX(p[0])), z: Math.round(toWorldZ(p[1])), r: Math.round((CITY_SIZES[c.size]?.across ?? 1000) / 2 + 300), city: c.id } : null; }).filter(Boolean),
     autoTowns: stamp.autoTowns ?? false, // the country's own town scatter stays off a stamped region: its cities are stamps
   };
 }
@@ -129,11 +131,14 @@ export function stampRecords(W, seed, free, doc = STAMPS) {
       const H = HOOD_KINDS[h.kind]; if (!H) continue;
       const hs = makeSeed(seed, `${c.id}/${h.id}`), size = h.size ?? Math.round(H.size[0] + ((hs >>> 8) % 1000) / 1000 * (H.size[1] - H.size[0]));
       const x = Math.round(cx + h.at[0]), z = Math.round(cz + h.at[1]), half = size / 2 + 30;
-      const ok = W.inWorld?.(x, z, -half) !== false && clear(x, z, half);
-      rep.hoods.push({ id: h.id, kind: h.kind, x, z, size, ok });
+      // a hood keeps off every interstate (the freeway runs between hoods, never through one) and on dry ground
+      const road = (W.corridors ?? []).some((cor) => { const p = cor.project?.(x, z, half + 80); return p && p.d < half + 40; });
+      const wet = [[0, 0], [-half, -half], [half, -half], [-half, half], [half, half]].some(([dx, dz]) => (W.depthAt?.(x + dx, z + dz, 0) ?? 0) > 0.05);
+      const ok = W.inWorld?.(x, z, -half) !== false && clear(x, z, half) && !road && !wet;
+      rep.hoods.push({ id: h.id, kind: h.kind, x, z, size, ok, ...(road ? { why: 'on an interstate' } : wet ? { why: 'in water' } : {}) });
       if (!ok) continue;
-      const rec = { kind: 'town', arch: H.arch, biome: biomeAt(x, z), half, size, x, z, seed: hs, name: `${(c.name ?? c.id).toUpperCase()} ${H.name.toUpperCase()}`,
-        city: c.id, hood: h.kind, stamp: h.auto ? c.id : h.id, ...(H.walls ? { wallsOverride: H.walls, gated: true, guards: H.guards ?? 2 } : {}) };
+      const rec = { kind: 'town', arch: H.arch, biome: c.biome ?? biomeAt(x, z), half, size, x, z, seed: hs, name: `${(c.name ?? c.id).toUpperCase()} ${H.name.toUpperCase()}`,
+        city: c.id, hood: h.kind, stampId: h.auto ? c.id : h.id, ...(H.walls ? { wallsOverride: H.walls, gated: true, guards: H.guards ?? 2 } : {}) };
       recs.push(rec); taken.push(rec); report.hoods++;
     }
     report.cities.push(rep);
@@ -153,7 +158,7 @@ export function stampRecords(W, seed, free, doc = STAMPS) {
     const K = OUTSIDE_KINDS[o.kind]; if (!K || !o.pos) continue;
     const x = Math.round(toWorldX(o.pos[0])), z = Math.round(toWorldZ(o.pos[1])), half = RURAL_HALF(o.kind);
     if (!okOutside(x, z, half)) { report.density.push({ id: o.id, placed: 0, why: 'no clear ground' }); continue; }
-    const rec = { kind: 'rural', arch: K.rural, biome: biomeAt(x, z), half, x, z, seed: makeSeed(seed, o.id), front: o.front ?? 'N', name: (o.name ?? K.name).toUpperCase(), stamp: o.id, outside: o.kind };
+    const rec = { kind: 'rural', arch: K.rural, biome: biomeAt(x, z), half, x, z, seed: makeSeed(seed, o.id), front: o.front ?? 'N', name: (o.name ?? K.name).toUpperCase(), stampId: o.id, outside: o.kind };
     recs.push(rec); taken.push(rec); report.outside++;
   }
   for (const o of doc.outside ?? []) {
@@ -171,7 +176,7 @@ export function stampRecords(W, seed, free, doc = STAMPS) {
           const x = Math.round(f.x + f.nx * sd * off), z = Math.round(f.z + f.nz * sd * off);
           if (!okOutside(x, z, half) || recs.some((q) => q.outside && Math.hypot(q.x - x, q.z - z) < OUTSIDE_RULES.apart)) continue;
           const front = Math.abs(f.nx) > Math.abs(f.nz) ? (f.nx * sd > 0 ? 'W' : 'E') : (f.nz * sd > 0 ? 'N' : 'S');
-          const rec = { kind: 'rural', arch: K.rural, biome: biomeAt(x, z), half, x, z, seed: makeSeed(seed, `${o.id}:${cor.id}:${s}`), front, name: K.name.toUpperCase(), stamp: o.id, outside: kind, cor: cor.id, s };
+          const rec = { kind: 'rural', arch: K.rural, biome: biomeAt(x, z), half, x, z, seed: makeSeed(seed, `${o.id}:${cor.id}:${s}`), front, name: K.name.toUpperCase(), stampId: o.id, outside: kind, cor: cor.id, s };
           recs.push(rec); taken.push(rec); placed[kind] = (placed[kind] ?? 0) + 1; n++;
           break; // one place a step
         }
@@ -190,7 +195,7 @@ function rngOf(s) { let a = s >>> 0 || 1; return () => { a = (a + 0x6d2b79f5) >>
 
 // The check with the engine's tables (the forge page, the command and the selftest call this one).
 export async function validateWithEngine(doc = STAMPS) {
-  const [{ ARCHETYPES, RURAL }, { MILBASES_BY_ID }] = await Promise.all([import('../data/citygen.js'), import('../data/milbases.js')]);
-  return validateStamps(doc, { usmap: USMAP, regions: REGIONS, milbases: MILBASES_BY_ID, archetypes: ARCHETYPES, rural: RURAL });
+  const [{ ARCHETYPES, RURAL, BIOMES }, { MILBASES_BY_ID }] = await Promise.all([import('../data/citygen.js'), import('../data/milbases.js')]);
+  return validateStamps(doc, { usmap: USMAP, regions: REGIONS, milbases: MILBASES_BY_ID, archetypes: ARCHETYPES, rural: RURAL, biomes: BIOMES });
 }
 export { hash32 };

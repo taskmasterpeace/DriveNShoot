@@ -15,6 +15,7 @@ import { STAMPS, resetFold } from '../world/stamps.js';
 import { LOOKS, CLIMATES, CITY_SIZES, HOOD_KINDS, EXIT_OFFERS, OUTSIDE_KINDS, OUTSIDE_DENSITY, LEAN_FACTIONS, STAMP_COLLS, validateStamps, GAME_MILE } from '../data/worldtools.js';
 import { MILBASES } from '../data/milbases.js';
 import { REGIONS } from '../data/regions.js';
+import { BIOMES as CG_BIOMES } from '../data/citygen.js';
 
 const TOOLS = [
   ['region', 'REGION', 'R', 'layers', 'drag a box: a region (biome look, climate, danger, faction lean)'],
@@ -136,7 +137,8 @@ export function stampTab() {
       { key: 'region', label: 'Region', type: 'select', options: regionsAll().map((r) => [r.id, r.name]), value: row?.region ?? R?.id ?? '' },
       { key: 'town', label: 'usmap town (blank: the clicked spot)', value: row?.town ?? snap?.id ?? '' },
       { key: 'size', label: 'Size class', type: 'select', options: Object.entries(CITY_SIZES).map(([k, s]) => [k, `${s.name} (${s.across} m, ${s.ring.length} hoods unless you stamp them)`]), value: row?.size ?? (snap?.kind === 'city' ? 'city' : 'town') },
-    ], (v) => ({ id: v.id.trim(), name: v.name.trim().toUpperCase(), region: v.region, ...(v.town.trim() ? { town: v.town.trim() } : { pos: [Math.round(p.ux), Math.round(p.uy)] }), size: v.size }),
+      { key: 'biome', label: 'Citygen biome (blank: the region look picks by the ground under each hood)', type: 'select', options: [['', '(the look decides)'], ...Object.keys(CG_BIOMES).map((b) => [b, b.replace(/_/g, ' ')])], value: row?.biome ?? '' },
+    ], (v) => ({ id: v.id.trim(), name: v.name.trim().toUpperCase(), region: v.region, ...(v.town.trim() ? { town: v.town.trim() } : { pos: [Math.round(p.ux), Math.round(p.uy)] }), size: v.size, ...(v.biome ? { biome: v.biome } : {}) }),
     'A city is a cluster of neighbourhoods, each laid by citygen. Stamp none and the size class tiles its own ring; stamp hoods (H) and only those stand.');
   }
   const cityCentre = (c) => { const t = c.town ? F.docs.usmap.doc.towns.find((q) => q.id === c.town) : null; const p = c.pos ?? t?.pos; return p ? toWorld(p) : null; };
@@ -163,12 +165,13 @@ export function stampTab() {
       { key: 'region', label: 'Region', value: row?.region ?? best.R.id },
       { key: 'road', label: 'Road', value: row?.road ?? best.cor.id },
       { key: 'mile', label: 'Mile (the exit number: miles from the region\'s south end)', type: 'number', value: mile },
+      { key: 'town', label: 'Serves a usmap town (blank: none; its number is where the town projects)', value: row?.town ?? '' },
       { key: 'name', label: 'Name (as the sign reads)', value: row?.name ?? `EXIT ${mile}` },
       { key: 'offers', label: 'What stands at it', type: 'select', options: Object.entries(EXIT_OFFERS).map(([k, o]) => [k, `${k.replace('_', ' ')}${o.structures?.length ? `: ${o.structures.join(', ')}` : ''}`]), value: row?.offers ?? 'fuel' },
       { key: 'side', label: 'Side E|W|N|S', value: side },
       { key: 'm', label: 'Off the road (world m)', type: 'number', value: row?.m ?? 560 },
       { key: 'risk', label: 'Risk 1-5', type: 'number', value: row?.risk ?? 2 },
-    ], (v) => ({ id: v.id.trim(), region: v.region, road: v.road, mile: num(v.mile, 'mile', 1, 500), name: v.name.trim().toUpperCase(), offers: v.offers, side: v.side.trim().toUpperCase(), m: num(v.m, 'm', 120, 3000), risk: num(v.risk, 'risk', 1, 5) }),
+    ], (v) => ({ id: v.id.trim(), region: v.region, road: v.road, ...(v.town.trim() ? { town: v.town.trim() } : { mile: num(v.mile, 'mile', 1, 500) }), name: v.name.trim().toUpperCase(), offers: v.offers, side: v.side.trim().toUpperCase(), m: num(v.m, 'm', 120, 3000), risk: num(v.risk, 'risk', 1, 5) }),
     'The interchange is the I-10 law at real size: deceleration lane, ramp, deck, the stop and the access road to what stands there.');
   }
   async function stampOutside(p, row = null) {
@@ -252,7 +255,7 @@ export function stampTab() {
   }
   function flyTo(kind, r) {
     if (kind === 'region') return mv.fit(r.box.x0, r.box.y0, r.box.x1, r.box.y1, 40);
-    const rec = S.plan?.find((q) => q.stamp === r.id || q.city === r.id);
+    const rec = S.plan?.find((q) => q.stampId === r.id || q.city === r.id);
     if (rec) { const u = toUsmap(rec.x, rec.z); return mv.flyTo(u[0], u[1], Math.max(mv.view.s, 0.6)); }
     const p = r.pos ?? r.at; if (p && kind !== 'hood') mv.flyTo(p[0], p[1], Math.max(mv.view.s, 0.3));
   }
@@ -279,8 +282,8 @@ export function stampTab() {
     }
     // the plan's stamped records: hoods by kind, outside places, the moved base
     for (const r of S.plan ?? []) {
-      if (!(r.stamp || (r.milbase && r.stampedAt))) continue;
-      const isP = pend && (pend.row.id === r.stamp || pend.row.id === r.city || (pend.kind === 'base' && pend.row.milbase === r.milbase));
+      if (!(r.stampId || (r.milbase && r.stampedAt))) continue;
+      const isP = pend && (pend.row.id === r.stampId || pend.row.id === r.city || (pend.kind === 'base' && pend.row.milbase === r.milbase));
       const c = r.hood ? COL.hood[r.hood] : r.outside ? COL.outside : COL.base;
       wsq(g, r.x, r.z, r.half - (r.hood ? 30 : 0), c, `${c}33`, isP);
       if (r.gated) { const u = toUsmap(r.x, r.z); g.fillStyle = COL.hood.gated; g.font = '700 10px sans-serif'; g.fillText('GATED', mv.sx(u[0]) - 14, mv.sy(u[1]) + 3); }

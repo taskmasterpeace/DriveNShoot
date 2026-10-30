@@ -125,9 +125,11 @@ export const BASE_RULES = { inState: true, edge: 1200 };
 
 // ---- THE STAMP FILE's collections (src/forge/rows.js FILES.stamps) ----------------------------------------------------
 //   regions  { id, name, state, box: {x0,x1,y0,y1} usmap, look, climate, danger 0-5, lean: {faction: w}, roads?: [ids] }
-//   cities   { id, region, name, town?: usmap town id, pos?: [x,y] usmap, size: CITY_SIZES key, seed? }
+//   cities   { id, region, name, town?: usmap town id, pos?: [x,y] usmap, size: CITY_SIZES key, biome?: a data/citygen.js
+//            BIOMES id (else the region look's map of the usmap letter under each hood) }
 //   hoods    { id, city, kind: HOOD_KINDS key, at: [dx, dz] world m from the city centre, size?, name? }
-//   exits    { id, region, road, mile, name, offers: EXIT_OFFERS key, side: E|W|N|S, m?: world m off the road, risk? }
+//   exits    { id, region, road, mile | town, name, offers: EXIT_OFFERS key, side: E|W|N|S, m?: world m off the road, risk? }
+//            (town: the exit serves that usmap town, its number is where the town projects onto the road, as Rosewood's)
 //   outside  { id, region, kind: OUTSIDE_KINDS key, pos: [x,y] }  ONE place
 //            { id, region, mix: { kind: perKm } by road class, roads: ['interstate', ...], seed? }  a DENSITY row
 //   bases    { id, state, milbase: data/milbases.js id, at?: [x,y] usmap }
@@ -233,6 +235,7 @@ export function validateStamps(doc, ctx = {}) {
   for (const c of doc.cities ?? []) {
     if (!knownRegion(c.region)) E('cities', c.id, `region ${c.region}?`);
     if (!CITY_SIZES[c.size]) E('cities', c.id, `size must be one of ${Object.keys(CITY_SIZES).join(', ')}`);
+    if (c.biome && ctx.biomes && !ctx.biomes[c.biome]) E('cities', c.id, `biome ${c.biome} is not a data/citygen.js biome`);
     const p = c.pos ?? towns.get(c.town)?.pos;
     if (!isPt(p ?? null)) E('cities', c.id, c.town ? `town ${c.town} is not a usmap town` : 'pos [x, y] usmap m, or town');
     else if (boxOf(c.region) && !inBox(boxOf(c.region), p, -300)) E('cities', c.id, `stands outside region ${c.region} (keep 300 usmap m inside)`);
@@ -254,7 +257,8 @@ export function validateStamps(doc, ctx = {}) {
   for (const x of doc.exits ?? []) {
     if (!knownRegion(x.region)) E('exits', x.id, `region ${x.region}?`);
     if (!EXIT_OFFERS[x.offers]) E('exits', x.id, `offers must be one of ${Object.keys(EXIT_OFFERS).join(', ')}`);
-    if (!(Number.isFinite(x.mile) && x.mile >= 1)) E('exits', x.id, 'mile >= 1 (an exit number is its milepost)');
+    if (x.town) { if (ctx.usmap && !ctx.usmap.towns.some((t) => t.id === x.town)) E('exits', x.id, `town ${x.town} is not a usmap town`); }
+    else if (!(Number.isFinite(x.mile) && x.mile >= 1)) E('exits', x.id, 'mile >= 1 (an exit number is its milepost), or town= (the exit serves that town: its number is where the town projects)');
     if (!['E', 'W', 'N', 'S'].includes(x.side ?? 'E')) E('exits', x.id, 'side E|W|N|S');
     if (!x.road) E('exits', x.id, 'road (an interstate id)');
     else if (ctx.usmap && !ctx.usmap.interstates.some((r) => r.id === x.road)) E('exits', x.id, `road ${x.road} is not a usmap interstate`);
@@ -262,7 +266,7 @@ export function validateStamps(doc, ctx = {}) {
   }
   // Exits on one road keep a mile and a half apart (the interchange builder needs the room: 220 m lanes, 230 m gores).
   const byRoad = new Map();
-  for (const x of doc.exits ?? []) { const k = `${x.region}/${x.road}`; if (!byRoad.has(k)) byRoad.set(k, []); byRoad.get(k).push(x); }
+  for (const x of (doc.exits ?? []).filter((q) => Number.isFinite(q.mile))) { const k = `${x.region}/${x.road}`; if (!byRoad.has(k)) byRoad.set(k, []); byRoad.get(k).push(x); }
   for (const [, list] of byRoad) { list.sort((a, b) => a.mile - b.mile); for (let i = 1; i < list.length; i++) if (list[i].mile - list[i - 1].mile < 1.5) E('exits', list[i].id, `within 1.5 miles of ${list[i - 1].id}`); }
   for (const o of doc.outside ?? []) {
     if (!knownRegion(o.region)) E('outside', o.id, `region ${o.region}?`);

@@ -196,6 +196,7 @@ export function regionWater(R, x, z, out = { d: 0, k: 0, s: 0 }, ctx = null) {
     // Clear of towns, holdouts and every other paved ribbon (exit roads, access roads, streets), shallowing toward them.
     for (const h of R.holdouts) s = Math.min(s, Math.max(Math.abs(x - h.cx) - h.hw - S.clearTown, Math.abs(z - h.cz) - h.hd - S.clearTown) * CLR);
     for (const t of ctx?.towns ?? W.towns) if (t.built && t.region === R) s = Math.min(s, (Math.hypot(t.x - x, t.z - z) - 420 - S.clearTown) * CLR);
+    for (const d of R.row.dry ?? []) s = Math.min(s, (Math.hypot(d.x - x, d.z - z) - d.r - S.clearTown) * CLR); // a stamped city stands on dry ground (THE WORLD TOOLS)
     if (s > -0.5) {
       const rbs = ctx?.ribbons ?? W.featuresOf(chunkOf(x), chunkOf(z))?.ribbons ?? [];
       for (const rb of rbs) if (!rb.mainline && x > rb.x0 - 60 && x < rb.x1 + 60 && z > rb.z0 - 60 && z < rb.z1 + 60) s = Math.min(s, (ribbonD(rb, x, z) - 34) * CLR);

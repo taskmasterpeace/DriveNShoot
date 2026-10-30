@@ -37,7 +37,7 @@ export async function pushStamps(g, changedColls = null) {
   if (C?.W && colls.some((c) => c === 'cities' || c === 'hoods' || c === 'outside' || c === 'bases')) {
     for (const id of [...C.live.keys()]) C.release(id);
     C.plan = planWorld(C.W); C.byId = new Map(C.plan.map((r) => [r.id, r])); C.bucket.clear(); for (const r of C.plan) C.index(r);
-    out.replanned = true; out.planned = C.plan.length; out.stamped = C.plan.filter((r) => r.stamp).length;
+    out.replanned = true; out.planned = C.plan.length; out.stamped = C.plan.filter((r) => r.stampId).length;
   }
   if (NET) NET.stale = true;
   return out;
@@ -110,7 +110,7 @@ export function worldToolsCommands(api, need) {
         const W = g.streamer?.W, N = travelNet(g);
         const regions = Object.values(W?.regions ?? {}).map((R) => ({ id: R.id, stamped: !!R.row.stamped, corridors: R.corridors.map((c) => ({ id: c.id, km: +(c.L / 1000).toFixed(1), exits: c.exits.length })), open: R.open.map((o) => ({ side: o.side, with: o.with, km: +((o.a1 - o.a0) / 1000).toFixed(1) })) }));
         const plan = g.citygen?.plan ?? [];
-        const by = {}; for (const r of plan) if (r.stamp) { const k = r.hood ? `hood:${r.hood}` : r.outside ? `outside:${r.outside}` : r.kind; by[k] = (by[k] ?? 0) + 1; }
+        const by = {}; for (const r of plan) if (r.stampId) { const k = r.hood ? `hood:${r.hood}` : r.outside ? `outside:${r.outside}` : r.kind; by[k] = (by[k] ?? 0) + 1; }
         return { ok: true, stamps: Object.fromEntries(STAMP_COLLS.map((c) => [c, STAMPS[c].length])), regions, plan: { stamped: by, report: report(), bases: (plan.milbaseReport ?? []).filter((m) => m.moved) }, net: N?.counts ?? null, looks: Object.keys(LOOKS), climates: Object.keys(CLIMATES) };
       },
     },
@@ -133,7 +133,7 @@ export async function worldToolsChecks(api, check) {
     for (const x of STAMPS.exits) { const R = W.regions[x.region]; const X = R?.exits.find((q) => q.row?.stamp === x.id); if (!X) return `exit ${x.id} not built (warnings: ${W.warnings.filter((w) => w.includes(x.name)).join('; ') || 'none'})`; }
     const plan = g.citygen?.plan ?? [], rep = plan.stampReport;
     for (const c of STAMPS.cities) { const n = plan.filter((r) => r.city === c.id).length; if (!n) return `city ${c.id}: no hood in the plan (${JSON.stringify(rep?.cities.find((q) => q.id === c.id)?.hoods ?? [])})`; }
-    for (const o of STAMPS.outside) if (!o.mix && !plan.some((r) => r.stamp === o.id)) return `outside ${o.id} not placed`;
+    for (const o of STAMPS.outside) if (!o.mix && !plan.some((r) => r.stampId === o.id)) return `outside ${o.id} not placed`;
     for (const o of STAMPS.outside) if (o.mix && !(rep?.density.find((d) => d.id === o.id)?.placed > 0)) return `density ${o.id} placed nothing`;
     for (const b of STAMPS.bases) { const m = plan.milbaseReport?.find((q) => q.id === b.milbase); if (!m || m.status === 'offmap' || m.status === 'unplaced') return `base ${b.id}: ${m?.status ?? 'no report'}`; }
     return regs.length ? true : 'no region stamps yet (the proof state lays one)';
