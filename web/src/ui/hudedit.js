@@ -82,7 +82,7 @@ export class HudLayout {
     w.dataset.ax = a.ax; w.dataset.ay = a.ay; w.dataset.group = b.row.group;
     w.classList.toggle('talk-hide', !!b.row.talkHide);
     w.style.minWidth = `${b.row.w ?? 0}px`; w.style.minHeight = `${b.row.h ?? 0}px`;
-    w.firstChild.textContent = b.row.name;
+    w.firstChild.textContent = b.row.name; w.title = b.row.tip ?? ''; // plain words and what it shows: the editor never prints an internal name
   }
 
   // Lift each element into its wrapper. Elements other modules build later (the compass, the weapon bar, the telltale
@@ -256,6 +256,7 @@ export class HudEditor {
           <div class="hle-row hle-hudonly"><span class="hle-k">ELEMENT</span><select class="hle-pick"></select></div>
           <div class="hle-pe hle-panonly"></div>
           <div class="hle-el hle-hudonly">
+            <div class="hle-tip"><b class="hle-tname"></b><span class="hle-ttext"></span></div>
             <div class="hle-anchor" title="The corner or edge it hangs from: it stays there whatever the window's size">${ANCHOR_ORDER.map((a) => `<button data-anchor="${a}" title="${ANCHORS[a].name}"></button>`).join('')}</div>
             <div class="hle-fields">
               <label>SIZE <input type="range" class="hle-size" min="${SCALE_MIN}" max="${SCALE_MAX}" step="0.05"><b class="hle-sv"></b></label>
@@ -269,7 +270,7 @@ export class HudEditor {
         <div class="hle-modal hidden"><div class="hle-mcard"><h3></h3><p></p><textarea spellcheck="false"></textarea><div class="hle-msay"></div><div class="hle-mbtns"><button data-m="copy">COPY</button><button data-m="apply">APPLY</button><button data-m="close">CLOSE</button></div></div></div>
       </div>`);
     const q = (s) => document.querySelector(s);
-    this.el = { root: q('.hle'), panel: q('.hle-panel'), pick: q('.hle-pick'), size: q('.hle-size'), sv: q('.hle-sv'), vis: q('.hle-vis'), insit: q('.hle-insit'), sitname: q('.hle-sitname'),
+    this.el = { root: q('.hle'), panel: q('.hle-panel'), pick: q('.hle-pick'), size: q('.hle-size'), sv: q('.hle-sv'), vis: q('.hle-vis'), insit: q('.hle-insit'), sitname: q('.hle-sitname'), tname: q('.hle-tname'), ttext: q('.hle-ttext'),
       gx: q('.hle-gx'), gy: q('.hle-gy'), modal: q('.hle-modal'), mTitle: q('.hle-mcard h3'), mText: q('.hle-mcard p'), mArea: q('.hle-mcard textarea'), mSay: q('.hle-msay'), elBox: q('.hle-el') };
     this.el.root.addEventListener('click', (e) => this.click(e));
     this.el.pick.addEventListener('change', () => this.select(this.el.pick.value));
@@ -335,7 +336,7 @@ export class HudEditor {
     for (const b of el.root.querySelectorAll('[data-g="preset"] button')) b.classList.toggle('on', b.dataset.v === L.preset);
     const sit = L.forced ?? 'auto';
     for (const b of el.root.querySelectorAll('[data-g="sit"] button')) b.classList.toggle('on', b.dataset.v === sit);
-    el.pick.innerHTML = `<option value="">— pick or click one —</option>${L.rows.map((r) => `<option value="${r.id}"${r.id === this.selId ? ' selected' : ''}>${r.name}${r.visible ? '' : ' (hidden)'}${r.situations.includes(L.sit) ? '' : ' · not here'}</option>`).join('')}`;
+    el.pick.innerHTML = `<option value="">— pick or click one —</option>${L.rows.map((r) => `<option value="${r.id}" title="${r.tip ?? ''}"${r.id === this.selId ? ' selected' : ''}>${r.name}${r.visible ? '' : ' (hidden)'}${r.situations.includes(L.sit) ? '' : ' · not here'}</option>`).join('')}`;
     const row = this.selId && L.byId[this.selId]?.row;
     el.elBox.classList.toggle('off', !row);
     if (row) {
@@ -344,6 +345,7 @@ export class HudEditor {
       el.vis.checked = row.visible;
       el.insit.checked = row.situations.includes(L.sit);
       el.sitname.textContent = SITUATIONS[L.sit]?.name ?? L.sit;
+      el.tname.textContent = row.name; el.ttext.textContent = row.tip ?? '';
     }
     el.root.querySelector('[data-a="undo"]').disabled = !this.undoS.length;
     el.root.querySelector('[data-a="redo"]').disabled = !this.redoS.length;

@@ -37,7 +37,20 @@ const SVG = {
   r: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
   ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
-const pad = (k, round = false) => `<span class="cr-pad${round ? ' round' : ''}">${k}</span>`;
+// What an attribute does in play at its current rank, in one plain line (Robert, 2026-10-29: "I like the skill stuff, but
+// it could be a lot better" - say what it changes, not the formula). V: the draft's view (systems/creator.js).
+const pct = (mul) => Math.round(Math.abs(1 - mul) * 100);
+export function inPlay(k, V) {
+  const fx = V.effects, sk = V.skills;
+  if (k === 'strength') return `Carry ${(24 + 3.5 * sk.strength + fx.carryKg).toFixed(0)} kg before the weight slows you down.`;
+  if (k === 'endurance') return `${V.maxHp} health; sprinting tires you ${pct(1 - 0.04 * sk.endurance)}% slower.`;
+  if (k === 'dexterity') return `Shots land ${pct(1 - 0.035 * sk.dexterity)}% tighter and you reload ${pct(1 - 0.03 * sk.dexterity)}% faster.`;
+  if (k === 'perception') return `Asleep, you wake when trouble is ${(12 * fx.wakeMul).toFixed(0)} m away${fx.luck ? `; ${fx.luck} extra find${fx.luck > 1 ? 's' : ''} in every box` : ''}.`;
+  if (k === 'wits') return fx.priceMul < 1 || fx.repair > 0 ? `Shops charge you ${pct(fx.priceMul)}% less; your repairs hold ${Math.round(fx.repair * 100)}% better.` : `Shops charge full price; your repairs are ordinary.`;
+  if (k === 'nerve') return fx.nightSpreadMul < 1 ? `In the dark your aim is ${pct(fx.nightSpreadMul)}% steadier.` : `In the dark your aim shakes like anyone's.`;
+  return '';
+}
+const pad = (k, round = false) =>`<span class="cr-pad${round ? ' round' : ''}">${k}</span>`;
 const cyc = (arr, i, d) => ((i + d) % arr.length + arr.length) % arr.length;
 const kg = (id, n) => (ITEMS[id]?.kg ?? 0) * n;
 
@@ -372,13 +385,14 @@ export class CreatorUI {
       rows.push({ kind: 'cycle', label: 'HOME STATE', sub: 'what your papers say', html: `<span class="txt">${esc(STATES[P.state]).toUpperCase()}</span>`,
         left: () => C.set({ state: STATE_KEYS[cyc(STATE_KEYS, si, -1)] }), right: () => C.set({ state: STATE_KEYS[cyc(STATE_KEYS, si, 1)] }) });
     } else if (id === 'background') {
-      for (const b of BACKGROUNDS) rows.push({ kind: 'pick', label: b.label, sub: Object.entries(b.skills).map(([k, n]) => `+${n} ${k}`).join(' · '), on: P.background === b.id,
+      for (const b of BACKGROUNDS) rows.push({ kind: 'pick', label: b.label, sub: `starts better at ${Object.keys(b.skills).join(' and ')}`, on: P.background === b.id,
         html: `<span class="txt">${esc(b.kit.guns.map(([w]) => WEAPONS[w]?.name ?? w).join(', '))}${b.kit.wear.length ? ` · ${esc(b.kit.wear.map((x) => GEAR[x]?.name ?? x).join(', '))}` : ''}</span>`,
         press: () => C.set({ background: b.id }), right: () => C.set({ background: b.id }), bg: b });
     } else if (id === 'attributes') {
+      const V = C.view();
       for (const a of ATTRS) {
         const r = P.attrs[a.k], up = r < CREATOR.rankMax ? ATTR_COST[r + 1] - ATTR_COST[r] : null;
-        rows.push({ kind: 'stepper', label: a.label, sub: a.does, attr: a,
+        rows.push({ kind: 'stepper', label: a.label, sub: inPlay(a.k, V), attr: a,
           html: `<span class="cr-pips">${Array.from({ length: CREATOR.rankMax }, (_, i) => `<i class="${i < r ? `f${i >= 4 ? ' hi' : ''}` : ''}"></i>`).join('')}</span><span class="cr-rank">${RANKS[r]}</span>`,
           cost: up === null ? '<span class="cr-cost">MAX</span>' : `<span class="cr-cost ${up <= tally(P).left ? 'pay' : ''}">+1 · ${up}p</span>`,
           left: () => C.bump(a.k, -1), right: () => C.bump(a.k, 1), press: () => C.bump(a.k, 1), noLeft: r <= CREATOR.rankMin, noRight: r >= CREATOR.rankMax });
@@ -477,29 +491,22 @@ export class CreatorUI {
     const C = this.C, P = C.draft, id = STEPS[this.step].id, row = this.rows[this.focus], V = C.view();
     if (id === 'origin') {
       const kin = [...new Set(NPCS.filter((n) => n.id && n.flag === P.flag).map((n) => n.name))].slice(0, 3);
-      return `<div class="cr-paper cr-papers"><canvas data-cloth="${P.flag}"></canvas><div><div class="big">${P.name ? esc(P.name) : '<span class="dim">no name yet</span>'}</div><div class="kv" style="margin-top:6px">
-        <span>COUNTRY</span><span>${esc(FLAGS[P.flag]?.name ?? P.flag)}${kin.length ? ` <span class="dim">· ${esc(kin.join(', '))} ${kin.length > 1 ? 'are' : 'is'} from there too, and will warm to you.</span>` : ' <span class="dim">· nobody in town is from there. You will stand out.</span>'}</span>
-        <span>HOME STATE</span><span>${esc(STATES[P.state])} <span class="dim">· held by ${esc(RULERS[P.state] ?? 'nobody')}.</span>${P.state === 'AZ' ? ' <span class="dim">A local: Rust Haven knows the accent.</span>' : ''}</span>
-        <span>KNOWN TO</span><span>${esc(backgroundById(P.background)?.knowing.line ?? '')} <span class="dim">(your background: step 2)</span></span></div></div></div>
+      // Two short facts, not a dossier: who will warm to the flag, who holds the state.
+      return `<div class="cr-paper cr-papers"><canvas data-cloth="${P.flag}"></canvas><div><div class="big">${esc((FLAGS[P.flag]?.name ?? P.flag).toUpperCase())}</div><ul class="cr-facts">
+        <li>${kin.length ? `${esc(kin[0])}${kin.length > 1 ? ` and ${kin.length - 1} more` : ''} ${kin.length > 1 ? 'are' : 'is'} from there too: they warm to you.` : 'Nobody in town is from there: you stand out.'}</li>
+        <li>${esc(STATES[P.state])} is held by ${esc(RULERS[P.state] ?? 'nobody')}.${P.state === 'AZ' ? ' Rust Haven knows the accent.' : ''}</li></ul></div></div>
         <div class="cr-flags">${FLAG_KEYS.map((k) => `<button class="cr-flagpick${k === P.flag ? ' on' : ''}"${C.lock ? ' aria-disabled="true"' : ''} data-pickflag="${k}" title="${esc(FLAGS[k].name)}"><canvas data-flag="${k}"></canvas><span>${esc(FLAGS[k].name)}</span></button>`).join('')}</div>`;
     }
     if (id === 'background') {
       const b = row?.bg ?? backgroundById(P.background), k = b.kit;
-      return `<div class="cr-paper"><b>${esc(b.label)}</b> <span class="dim">${esc(b.blurb)}</span><div class="kv" style="margin-top:6px">
-        <span>CARRIES</span><span>${esc(k.guns.map(([w, r]) => `${WEAPONS[w]?.name ?? w} (${r} rounds)`).join(', '))} · ${esc(k.items.map(([i, n]) => `${n > 1 ? `${n} × ` : ''}${ITEMS[i]?.name ?? i}`).join(', '))}${k.wear.length ? ` · wearing ${esc(k.wear.map((x) => GEAR[x]?.name ?? x).join(', '))}` : ''}</span>
-        <span>KNOWN TO</span><span>${esc(b.knowing.line)}</span></div></div>`;
+      return `<div class="cr-paper"><b>${esc(b.label)}</b> <span class="dim">${esc(b.blurb)}</span><ul class="cr-facts">
+        <li><i>STARTS WITH</i>${esc(k.guns.map(([w, r]) => `${WEAPONS[w]?.short ?? WEAPONS[w]?.name ?? w} (${r} rounds)`).join(', '))}${k.wear.length ? `, ${esc(k.wear.map((x) => GEAR[x]?.name ?? x).join(', '))}` : ''}, ${k.items.length} more things in the pack</li>
+        <li><i>KNOWN TO</i>${esc(b.knowing.line)}</li></ul></div>`;
     }
     if (id === 'attributes') {
-      const a = row?.attr ?? ATTRS[0], r = P.attrs[a.k], fx = V.effects, sk = V.skills;
-      const now = {
-        strength: `starts STRENGTH at level ${sk.strength}: carries ${(24 + 3.5 * sk.strength).toFixed(1)} kg before the load slows you`,
-        endurance: `starts ENDURANCE at level ${sk.endurance}, sprint drain x${(1 - 0.04 * sk.endurance).toFixed(2)}; max hp ${V.maxHp}`,
-        dexterity: `starts DEXTERITY at level ${sk.dexterity}: spread x${(1 - 0.035 * sk.dexterity).toFixed(2)}, reloads x${(1 - 0.03 * sk.dexterity).toFixed(2)}`,
-        perception: `asleep you wake to danger at ${(12 * fx.wakeMul).toFixed(1)} m; ${fx.luck ? `${fx.luck} more find${fx.luck > 1 ? 's' : ''} the first time you search a box` : `rank ${PER_RANK.luckAt[0]} finds more in a box`}`,
-        wits: `counter prices x${fx.priceMul.toFixed(2)}, repairs ${fx.repair >= 0 ? '+' : ''}${Math.round(fx.repair * 100)}%`,
-        nerve: `aim spread at night x${fx.nightSpreadMul.toFixed(2)}`,
-      }[a.k];
-      return `<div class="cr-paper"><b>${esc(a.label)} ${r} · ${RANKS[r]}</b> <span class="dim">${esc(a.does)}.</span><br>${esc(now)}.<br><span class="dim">Rank costs, held: ${ATTR_COST.slice(1).map((c, i) => `${i + 1}=${c}`).join('  ')} points. Skills still grow by doing, to 10.</span></div>`;
+      const a = row?.attr ?? ATTRS[0], r = P.attrs[a.k], up = r < CREATOR.rankMax ? ATTR_COST[r + 1] - ATTR_COST[r] : null;
+      return `<div class="cr-paper"><b>${esc(a.label)} · ${RANKS[r]}</b> <span class="dim">${esc(a.does)}.</span><ul class="cr-facts">
+        <li><i>NEXT RANK</i>${up === null ? 'as high as it goes' : `${up} point${up > 1 ? 's' : ''}`}${a.skill ? '<span class="dim"> · it keeps growing as you use it, to 10</span>' : ''}</li></ul></div>`;
     }
     if (id === 'traits') {
       const t = row?.trait, T = V.tally;
@@ -528,25 +535,27 @@ export class CreatorUI {
   }
 
   // The live numbers the sheet moves, beside the engine's default (good: better than a fresh drifter's).
+  // In words, and only what differs from a fresh drifter (health and carry always): "AIM · 7% steadier", not "x0.93".
   numbers(V) {
-    const fx = V.effects, sk = V.skills, mul = (x, lowGood = true) => [`x${x.toFixed(2)}`, Math.abs(x - 1) < 1e-9 ? null : (x < 1) === lowGood];
+    const fx = V.effects, sk = V.skills;
+    const word = (label, x, better, worse, lowGood = true) => { if (Math.abs(x - 1) < 0.005) return null; const good = (x < 1) === lowGood; return [label, `${pct(x)}% ${good ? better : worse}`, good]; };
     const carry = 24 + 3.5 * sk.strength + fx.carryKg;
     return [
-      ['MAX HP', `${V.maxHp}`, V.maxHp === 100 ? null : V.maxHp > 100],
-      ['CARRY', `${carry.toFixed(1)} kg`, null],
-      ['SPREAD', ...mul((1 - 0.035 * sk.dexterity) * fx.spreadMul)],
-      ['AT NIGHT', ...mul(fx.nightSpreadMul)],
-      ['RELOAD', ...mul((1 - 0.03 * sk.dexterity) * fx.reloadMul)],
-      ['SPRINT COST', ...mul((1 - 0.04 * sk.endurance) * fx.sprintDrainMul)],
-      ['SPEED', ...mul(fx.speedMul, false)],
-      ['SPOTTED AT', ...mul(fx.seenMul)],
-      ['PRICES', ...mul(fx.priceMul)],
-      ['REPAIRS', `${fx.repair >= 0 ? '+' : ''}${Math.round(fx.repair * 100)}%`, fx.repair ? fx.repair > 0 : null],
-      ['FINDS', `+${fx.luck}`, fx.luck ? true : null],
-      ['WAKES AT', `${(12 * fx.wakeMul).toFixed(1)} m`, Math.abs(fx.wakeMul - 1) < 1e-9 ? null : fx.wakeMul > 1],
-      ['THIRST', ...mul(fx.drain.water)],
-      ['HUNGER', ...mul(fx.drain.food)],
-    ];
+      ['HEALTH', `${V.maxHp}`, V.maxHp === 100 ? null : V.maxHp > 100],
+      ['CARRY', `${carry.toFixed(0)} kg`, null],
+      word('AIM', (1 - 0.035 * sk.dexterity) * fx.spreadMul, 'steadier', 'shakier'),
+      word('AIM AT NIGHT', fx.nightSpreadMul, 'steadier', 'shakier'),
+      word('RELOAD', (1 - 0.03 * sk.dexterity) * fx.reloadMul, 'faster', 'slower'),
+      word('SPRINTING', (1 - 0.04 * sk.endurance) * fx.sprintDrainMul, 'less tiring', 'more tiring'),
+      word('WALKING', fx.speedMul, 'faster', 'slower', false),
+      word('GETTING SPOTTED', fx.seenMul, 'harder', 'easier'),
+      word('SHOP PRICES', fx.priceMul, 'cheaper', 'dearer'),
+      fx.repair ? ['REPAIRS', `${Math.round(Math.abs(fx.repair) * 100)}% ${fx.repair > 0 ? 'better' : 'worse'}`, fx.repair > 0] : null,
+      fx.luck ? ['FINDS', `+${fx.luck} a box`, true] : null,
+      word('WAKING TO DANGER', 1 / fx.wakeMul, 'sooner', 'later'),
+      word('THIRST', fx.drain.water, 'slower', 'faster'),
+      word('HUNGER', fx.drain.food, 'slower', 'faster'),
+    ].filter(Boolean);
   }
 
   paintCard() {

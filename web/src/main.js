@@ -116,6 +116,7 @@ import { AgentAPI, snapshot, restore } from './agent/api.js';
 import { NavGrid } from './engine/nav.js';
 import { Feedback } from './ui/feedback.js';
 import { QOL } from './ui/qol.js';
+import { FocusKeeper } from './ui/focus.js';
 import { startBridge } from './agent/bridge.js';
 import { Recorder } from './agent/recorder.js';
 import { loadContentPacks } from './agent/content.js';
@@ -251,6 +252,7 @@ class Game {
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
     this.qol = new QOL(this, ui);
+    this.focus = new FocusKeeper(canvas, ui); // a click gives the keys back to the game; CLICK TO RESUME while the window has lost them
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
     this.crew = new Crew(this);
@@ -809,6 +811,8 @@ class Game {
     if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
     p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
+    // I / TAB / ESC always shut the PACK, whatever else holds the keys (a talk, sleep, a blackout): never stuck open.
+    if (this.invUI.open && !this.workshopUI.open && this.packCloseHit(I)) { this.invUI.toggle(false); return; }
     if (this.dialogue.active) { p.speed = 0; return; }
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
     if (this.survival.sleep) {
@@ -1009,7 +1013,7 @@ class Game {
       const i = this.inv.weapons.indexOf(this.inv.current);
       this.switchWeapon(this.inv.weapons[(i + I.wheelAlt + this.inv.weapons.length) % this.inv.weapons.length]);
     }
-    if (I.hit('KeyR')) this.reload();
+    if (I.hit('KeyR')) this.reload(true);
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
     this.updateThrowAim(dt, I);
     if (!p.swim && !(p.proneT > 0)) this.handleShooting(dt, p.face);
@@ -1117,11 +1121,15 @@ class Game {
   }
 
   // R: clear a jam if the gun has one (work the action, throw the stuck round), else reload from your pockets.
-  reload() {
+  packCloseHit(I) { return I.hit('KeyI') || I.hit('Tab') || I.hit('Escape'); }
+
+  // manual: R was pressed (not the auto-reload), so a reload that can't happen says why instead of doing nothing.
+  reload(manual = false) {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
-    if (p.reloading > 0) return;
+    if (!w?.mag || p.reloading > 0) return;
     if (this.inv.jam[k]) { p.reloading = GUN_CARE.clearTime * this.skills.reloadMul; p.clearing = true; this.audio.reload(); return; }
-    if (this.inv.mag[k] >= w.mag || this.inv.ammo[this.arms.ammoOf(k)] <= 0) return;
+    if (this.inv.mag[k] >= w.mag) { if (manual) this.hud.toast(`${w.short ?? w.name} IS FULL`, 'warn'); return; }
+    if (this.inv.ammo[this.arms.ammoOf(k)] <= 0) { if (manual) { this.audio.empty(); this.hud.toast(`NO SPARE AMMO FOR THE ${w.short ?? w.name}`, 'warn'); } return; }
     p.clearing = false;
     p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
@@ -1131,6 +1139,7 @@ class Game {
     const p = this.player, I = this.input, k = this.inv.current, w = WEAPONS[k];
     const fm = this.arms.row(k); // the gun as it fires: its fire mode, your grip, the recoil bloom (systems/arms.js)
     p.cool -= dt;
+    if ((p.inVehicle || p.onTrain || p.grabbing || p.mv) && I.hit('KeyR')) this.reload(true); // R reloads in every seat you hold a gun in (on foot it is read with the other keys)
     // At the wheel of a car with a hood gun: aim ahead and the gun fires; aim aside and you shoot out of the window.
     const car = p.inVehicle;
     if (car?.mounts && car.driver === p && I.mouse.left && this.garage.fireFront(car, p, ang)) return; // group 1: hood + pods, whichever arc holds the aim
@@ -1310,6 +1319,7 @@ class Game {
     if (!this.paused && !this.invUI.open && !this.dialogue.active) this.cam.input(I, dt); // wheel, Z / - / =, O, [ ]; a panel keeps the wheel
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
+      if (this.invUI.open && this.packCloseHit(I)) this.invUI.toggle(false); // a pause that came up over the PACK (the window lost focus) still lets I / TAB / ESC shut it
       this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
     }
 
