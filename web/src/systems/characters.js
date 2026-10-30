@@ -562,7 +562,6 @@ export class CharacterRenderer {
       _t.makeTranslation(ankle[s].x, ankle[s].y, ankle[s].z);
       if (footPitch[s]) _t.multiply(_r.makeRotationX(footPitch[s]));
       M.boot.setMatrixAt(j, _m.multiplyMatrices(_LF, _t));
-      if (ch.lost && ch.lost[s ? 'rleg' : 'lleg']) { M.shin.setMatrixAt(j, ZERO); M.boot.setMatrixAt(j, ZERO); } // taken off below the knee
     }
     M.hips.setMatrixAt(i, _m.multiplyMatrices(_LF, _t.makeTranslation(0, hipY + 0.02, 0)));
 
@@ -757,7 +756,7 @@ export class CharacterRenderer {
       this.seg(M.upper, j, _g, sh[s], el[s]);
       const fm = this.seg(M.fore, j, _g, el[s], hand[s]);
       M.hand.setMatrixAt(j, fm);
-      if (ch.lost && ch.lost[s ? 'rarm' : 'larm']) { M.fore.setMatrixAt(j, ZERO); M.hand.setMatrixAt(j, ZERO); continue; } // taken off (systems/melee.js sever)
+      if (ch.lost & (s ? 2 : 1)) continue; // taken off (systems/deaths.js sever; hideLost zeroes it): no prop in a hand that is gone
       // The melee weapon in the dominant hand (nothing when a gun is out): along the forearm, tipped forward.
       const prop = s === fh && alive && !gunKey && !gunHand && mode !== 'handsUp' && mode !== 'work' && mode !== 'bars' && mode !== 'held' ? ch.mProp ?? ch.meleeW : null;
       if (prop && this.meshes[`mw_${prop}`]) {

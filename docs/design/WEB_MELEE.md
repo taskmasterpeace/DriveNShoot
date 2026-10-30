@@ -66,7 +66,7 @@ The HUD row `melee` (`data/hudlayout.js`, bottom centre) shows what is in your h
 - **Push:** a hit gives velocity push / 0.22 s along the line of the blow, decaying with τ ≈ 0.1 s, resolved against the statics every frame.
 - **Trip:** hitting something solid at ≥ 2.2 m/s knocks the body down for 1.2 s ("over the table").
 - **Down:** `knockT` (the pose solver lays them out). A downed body in reach turns PUNCH into the **finisher**.
-- **Limbs:** a severed arm or leg sets `c.lost.{larm,rarm,lleg,rleg}`. The pose solver stops drawing the forearm and hand, or the shin and boot. A lost leg puts them down. A head comes off only a body that is done (`headless` + the neck spray already in ai.js).
+- **Limbs:** a severed arm or leg goes through the death library's `deaths.sever(c, 'armL'|'armR'|'legL'|'legR')`. That sets the bit in `c.lost` (`LIMB_BITS`: armL 1, armR 2, legL 4, legR 8), drops the piece on the ground, and the rig hides the limb (`hideLost`). Melee also records `c.lostArm`/`c.lostLeg` and the broken flags. A lost leg puts them down. A head comes off only a body that is done (`headless` + the neck spray already in ai.js).
 - The ragdoll and the stairs belong to the death library (deaths lane). It reads `limbOff`, `knockdown` and `boneBreak` events and `c.lost`.
 
 ### 3.5 The AI (same rules)
@@ -144,7 +144,7 @@ choke  += dt / 6 x (0.3 + 0.7 x bar)   while choking and bar > 0
   - 7 packed prop variants `mw_<id>`;
   - the poses `guard`, `hold`, `held`, the weapon swing and the stomp;
   - the swing's hip twist;
-  - lost limbs drawn as nothing.
+  - no prop in a hand that is gone (the limb itself is hidden by the death library's `hideLost`).
 - **`main.js`:** bruisers in the ambient raider spawns; the weapon onto the body box.
 - **`data/items.js`:** 4 new items (bat, knuckles, pipe, sledge).
 - **`data/hudlayout.js`:** row `melee`.
@@ -152,7 +152,7 @@ choke  += dt / 6 x (0.3 + 0.7 x bar)   while choking and bar > 0
 - **`agent/api.js`:** import, commands, checks, save/load.
 - **`agent/controller-api.js`:** the old dummy is `noGuard`.
 
-**For the death library (when it lands):** read `c.lost`, events `limbOff`, `boneBreak`, `knockdown` and `tripped`, and `c.chokedOut`. Put the downed body on the ragdoll on a trip or a knockdown. Stairs and furniture are its job.
+**The death library (landed):** melee's limbs go through `deaths.sever`, so the piece, the stump and the `c.lost` bits are one law. Events `limbOff`, `boneBreak`, `knockdown`, `tripped` and `c.chokedOut` are there for it to read; a ragdoll on a living knockdown is still its call.
 
 ## 7. Tuning knobs (data/melee.js; safe ranges)
 
@@ -218,8 +218,8 @@ Renders, from the game camera at close zoom (`docs/renders/web/melee/`):
 - 05: a sledge knockdown.
 
 ## Not done / follow-ups
-- The near people's faceted LSW bodies don't hide a severed limb yet; the classic rig does. The retarget lives in lswbodies.js.
-- No ragdoll on knockdown, no falls down stairs. Those are the death library's, and the events and `c.lost` are ready for it.
+- A body missing a limb falls back to the classic rig (the death library's rule: faceted bodies only drive whole people).
+- No ragdoll on a living knockdown, no falls down stairs. Those are the death library's; the events are ready for it.
 - An NPC-taken hostage of a *third* person (a raider grabbing a townsman when you draw on him) uses the same hold, but there is no scripted trigger for it yet. Today NPCs take the neck of whoever they fight.
 - Door-slam stuns already exist (interiors: shove a door into someone). A door shoved by a fist isn't separated out.
 - Melee items in loot tables were left out on purpose: the golden loot hashes would move. Today they reach the world through bruisers' bodies only.

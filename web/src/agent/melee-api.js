@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { MELEE_WEAPONS as MW, MELEE_RULES as R, MELEE_AI, validateMelee, WEAPON_IDS } from '../data/melee.js';
 import { outfit } from '../systems/characters.js';
+import { LIMB_BITS } from '../data/deaths.js';
 
 const _v = new THREE.Vector3();
 const r2 = (v) => +(+v).toFixed(2);
@@ -246,7 +247,7 @@ export async function meleeChecks(x) {
         mouseAt(d.x, d.z); await frames(1); I.mouseButton(0, true); await faceFor(d, R.heavyAt + 0.05); I.mouseButton(0, false); await faceFor(d, 0.9);
         if (S.last?.severed) off = S.last.severed;
       }
-      const lostShown = !!off && !!d.lost?.[off] && (off.endsWith('arm') ? d.lostArm === off : d.lostLeg === off);
+      const lostShown = !!off && !!((d.lost ?? 0) & LIMB_BITS[off]) && (off.startsWith('arm') ? d.lostArm === off : d.lostLeg === off);
       const bled = d.bleed > 0.5;
       // The blade on bare arms: a raider's machete on your guard opens your arms.
       cleanup([d]);
