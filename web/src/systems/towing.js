@@ -55,7 +55,7 @@ export class Towing {
   towing(v) { for (const L of this.links) if (L.b === v) return L; return null; }
   // A bar's two halves (and a boat on its trailer) never collide; a rope's or a chain's still bump (brake hard with a car
   // on a rope and it runs into your tail).
-  linked(v, o) { for (const L of this.links) if (L.L.rigid && ((L.a === v && L.b === o) || (L.a === o && L.b === v))) return true; return v.carriedBy === o || o.carriedBy === v; }
+  linked(v, o) { for (const L of this.links) if (L.L.rigid && ((L.a === v && L.b === o) || (L.a === o && L.b === v))) return true; return v.onTrailer === o || o.onTrailer === v; }
   canWinch(v) { return !!(v?.winch || v?.utility?.winch); }
   lineCount(v, id) {
     const I = this.g.inventory; if (!I) return 0;
@@ -70,7 +70,7 @@ export class Towing {
     const g = this.g, A = this.anchor(a, end, _A);
     let best = null, bd = reach;
     for (const v of g.vehicles) {
-      if (v === a || v.carriedBy || (v.driver && v.driver !== g.player) || v.driver === g.player || this.towing(v)) continue;
+      if (v === a || v.onTrailer || v.trailer || v.carriedBy || v.towedBy || (v.driver && v.driver !== g.player) || v.driver === g.player || this.towing(v)) continue;
       if (v.boat && (v.depth ?? 0) > 0.3 && !(end > 0 && this.canWinch(a))) continue; // a boat afloat: the trailer's winch hauls it, not a tow
       if (Math.abs(v.x - A.x) > reach + v.len || Math.abs(v.z - A.z) > reach + v.len) continue;
       for (const e of [1, -1]) {
@@ -104,7 +104,7 @@ export class Towing {
     if (b.anchors && this.towing(b)) return { ok: false, why: 'already on a line' };
     if (kind === 'cable' && !this.canWinch(a)) return { ok: false, why: 'no winch on this vehicle' };
     if (kind === 'boom' && a.tow !== 'boom') return { ok: false, why: 'only a wrecker has a boom' };
-    if (kind === 'hitch' && !b.trailer) return { ok: false, why: 'a hitch takes a trailer' };
+    if (kind === 'hitch' && !b.boatTrailer) return { ok: false, why: 'a hitch takes a trailer' };
     if (L.item && !opts.free) { if (!this.takeLine(a, L.item)) return { ok: false, why: `you have no ${L.name}` }; }
     let bEnd = opts.bEnd;
     if (b.anchors && bEnd === undefined) { this.anchor(a, aEnd, _A); const f = this.anchor(b, 1, _B), df = Math.hypot(f.x - _A.x, f.z - _A.z); this.anchor(b, -1, _B); bEnd = Math.hypot(_B.x - _A.x, _B.z - _A.z) < df ? -1 : 1; }
@@ -114,7 +114,7 @@ export class Towing {
     const d = Math.hypot(fx.x - _A.x, fx.z - _A.z);
     const link = { id: `t${this.nextId++}`, kind, L, a, b, aEnd, bEnd: bEnd ?? 1, len: opts.len ?? (L.winch ? Math.min(L.range, Math.max(2, d + 0.3)) : L.rigid ? L.len : Math.max(1.5, Math.min(L.len, d + TOW.tieSlack))), load: 0, loadS: 0, peak: 0, winching: false, item: opts.free ? null : L.item, t: g.time, stall: false };
     if (L.winch && d > L.range) return { ok: false, why: 'out of the cable\'s reach' };
-    if (b.anchors) { b.towedBy = a; b.parked = false; b.lifted = !!L.lift; if (L.rigid) b._tw = { x: b.x, z: b.z }; }
+    if (b.anchors) { b.towLine = a; b.parked = false; b.lifted = !!L.lift; if (L.rigid) b._tw = { x: b.x, z: b.z }; }
     this.links.push(link);
     this.counts.hitched++;
     g.emit('towHitched', { id: link.id, kind, from: a.id, to: b.id ?? b.door?.id ?? null, what: b.anchors ? b.type : b.kind });
@@ -126,7 +126,7 @@ export class Towing {
     if (i < 0) return false;
     this.links.splice(i, 1);
     const b = link.b;
-    if (b?.anchors) { b.towedBy = null; b.lifted = false; }
+    if (b?.anchors) { b.towLine = null; b.lifted = false; }
     if (why === 'released' && link.item) g.inventory?.stow(link.item, 1); // the line back in your pack
     if (why === 'snapped') {
       this.counts.snapped++;
@@ -166,7 +166,7 @@ export class Towing {
   // drop the line you have out; with a boat trailer at the water, a tap launches the boat or hauls one up. Hold G with a
   // winch: the cable to whatever is ahead, reeling in while held. Returns true when it used the key this frame.
   driveInput(p, v, I, dt) {
-    if (v.driver !== p) return false;
+    if (v.driver !== p || v.tractor || v.carriedBy) return false; // at a tractor's wheel (or in a semi's hold) G is the semis lane's (systems/semis.js)
     const down = I.key('KeyG');
     const tail = this.linkOf(v, -1), nose = this.linkOf(v, 1);
     if (nose?.winching && !down) { nose.winching = false; this.g.emit('winch', { id: nose.id, on: false, len: r2(nose.len) }); }
@@ -185,12 +185,12 @@ export class Towing {
     if (nose && !tail) { this.release(nose); return true; }
     if (tail) {
       const tr = tail.b;
-      if (tr?.trailer && this.atRamp(tr, tr.boat ? 1 : 0.6)) { if (tr.boat) { this.launch(tr); return true; } const b = this.boatBehind(tr); if (b) { this.haul(tr, b); return true; } }
+      if (tr?.boatTrailer && this.atRamp(tr, tr.boat ? 1 : 0.6)) { if (tr.boat) { this.launch(tr); return true; } const b = this.boatBehind(tr); if (b) { this.haul(tr, b); return true; } }
       this.release(tail); return true;
     }
     const t = this.find(v, -1);
     if (!t) { this.g.hud.toast('NOTHING BEHIND TO HITCH', 'warn'); return true; }
-    const kind = t.type === 'veh' && t.v.trailer ? 'hitch' : t.type === 'veh' && v.tow === 'boom' ? 'boom' : this.lineCount(v, 'tow_chain') ? 'chain' : this.lineCount(v, 'tow_rope') ? 'rope' : null;
+    const kind = t.type === 'veh' && t.v.boatTrailer ? 'hitch' : t.type === 'veh' && v.tow === 'boom' ? 'boom' : this.lineCount(v, 'tow_chain') ? 'chain' : this.lineCount(v, 'tow_rope') ? 'rope' : null;
     if (!kind) { this.g.hud.toast('NO TOW LINE · A ROPE OR A CHAIN IN YOUR PACK OR TRUNK', 'warn'); return true; }
     const r = this.hookTarget(v, t, kind);
     this.g.hud.toast(r.ok ? `HITCHED · ${LINES[kind].name.toUpperCase()}` : r.why.toUpperCase(), r.ok ? 'job' : 'warn');
@@ -208,7 +208,7 @@ export class Towing {
     if (v.bog > MUD.stuckAt) { H.prompt(`<b class="warn">BOGGED</b> · a winch or a tow pulls it out${this.canWinch(v) ? ' · hold <kbd>G</kbd> winch' : ''}`); return; }
     if (nose?.winching) { H.prompt(`WINCHING · ${nose.len.toFixed(1)} m · load ${Math.round(nose.loadS)}/${nose.L.breakLoad}${nose.stall ? ' · <b class="warn">STALLED</b>' : ''}`); return; }
     if (tail) {
-      const tr = tail.b, ramp = tr?.trailer && this.atRamp(tr, tr.boat ? 1 : 0.6);
+      const tr = tail.b, ramp = tr?.boatTrailer && this.atRamp(tr, tr.boat ? 1 : 0.6);
       H.prompt(ramp ? (tr.boat ? '<kbd>G</kbd> Launch the boat' : this.boatBehind(tr) ? '<kbd>G</kbd> Winch the boat up' : 'AT THE RAMP · back a boat onto the bunks') : `TOWING · ${tail.L.name} · load ${Math.round(tail.loadS)}/${tail.L.breakLoad} · <kbd>G</kbd> drop it`);
     }
   }
@@ -235,7 +235,7 @@ export class Towing {
   boatBehind(t) {
     this.anchor(t, -1, _A);
     for (const b of this.g.vehicles) {
-      if (!b.boat || b.carriedBy || b.driver && b.driver !== this.g.player || b.len > t.len + 1.4 || this.g.vehiclesSys.speed(b) > TRAILER.loadSpeed) continue;
+      if (!b.boat || b.onTrailer || b.driver && b.driver !== this.g.player || b.len > t.len + 1.4 || this.g.vehiclesSys.speed(b) > TRAILER.loadSpeed) continue;
       this.anchor(b, 1, _B);
       if (Math.hypot(_B.x - _A.x, _B.z - _A.z) > TRAILER.loadReach) continue;
       if (Math.abs(wrap(b.h - t.h)) > TRAILER.loadAngle) continue;
@@ -247,24 +247,24 @@ export class Towing {
   load(t, b) {
     if (b.driver === this.g.player) this.g.exitVehicle(true);
     for (const o of [...(b.occ ?? [])]) if (o) this.g.seats.leave(o, true);
-    t.boat = b; b.carriedBy = t; b.hauling = null; b.vx = b.vz = 0; b.av = 0;
+    t.boat = b; b.onTrailer = t; b.hauling = null; b.vx = b.vz = 0; b.av = 0;
     this.carryBoat(t);
   }
   launch(t) {
     const g = this.g, b = t.boat;
     if (!b || !this.atRamp(t)) return { ok: false, why: t.boat ? 'not at the water (the tail must stand in the water)' : 'no boat on it' };
-    t.boat = null; b.carriedBy = null;
+    t.boat = null; b.onTrailer = null;
     const fx = Math.sin(t.h), fz = Math.cos(t.h), back = t.len / 2 - b.len / 2 + 0.6;
     b.x = t.x - fx * back; b.z = t.z - fz * back; b.h = t.h;
     b.vx = -fx * TRAILER.launchPush; b.vz = -fz * TRAILER.launchPush;
     this.counts.launched++;
     g.fx?.spawn?.(2, b.x - fx * b.len * 0.5, 0.3, b.z - fz * b.len * 0.5, 0, 1.2, 0, 1.2, 0.5, '#dfe9ea', 3);
     g.emit('boatLaunched', { boat: b.id, trailer: t.id, x: r2(b.x), z: r2(b.z), depth: r2(g.water.depthAt(b.x, b.z)) });
-    if (t.towedBy?.driver === g.player) g.hud?.toast?.(`${b.name} AFLOAT`, 'job');
+    if (t.towLine?.driver === g.player) g.hud?.toast?.(`${b.name} AFLOAT`, 'job');
     return { ok: true, boat: b.id };
   }
   haul(t, b) {
-    if (t.boat || b.carriedBy) return { ok: false, why: 'the bunks are taken' };
+    if (t.boat || b.onTrailer) return { ok: false, why: 'the bunks are taken' };
     if (!this.atRamp(t, 0.6)) return { ok: false, why: 'back the trailer into the water first' };
     if (b.driver === this.g.player) this.g.exitVehicle(true);
     b.hauling = t;
@@ -293,7 +293,7 @@ export class Towing {
   removePit(id) { const i = this.pits.findIndex((p) => p.id === id); if (i >= 0) this.pits.splice(i, 1); }
   // vehicles.drive: the mud under v (fxm.power cut), returns the rolling-drag multiplier for this frame.
   ground(v, dt, fxm) {
-    if (v.boat || v.air || v.trailer) return 1;
+    if (v.boat || v.air || v.boatTrailer || v.trailer || v.carriedBy) return 1; // a semi's trailer and its cargo: systems/semis.js
     if (!this.pits.length && !v.bog) return 1;
     const m = this.mudAt(v.x, v.z); // only a pit holds a car: rain on the desert never bogs the whole road
     let bog = v.bog ?? 0;
@@ -387,8 +387,8 @@ export class Towing {
       b.group.rotation.set(-(b.pitch ?? 0) - lift, h, b.roll ?? 0);
     }
     for (const t of g.vehicles) {
-      if (t.boat && t.carriedBy && !g.vehicles.includes(t.carriedBy)) { t.carriedBy = null; continue; }
-      if (t.trailer && t.boat) this.carryBoat(t);
+      if (t.boat && t.onTrailer && !g.vehicles.includes(t.onTrailer)) { t.onTrailer = null; continue; }
+      if (t.boatTrailer && t.boat) this.carryBoat(t);
     }
     // a boat being winched up the bunks: along the trailer's line, onto it
     for (const b of g.vehicles) {
@@ -398,7 +398,7 @@ export class Towing {
       const fx = Math.sin(t.h), fz = Math.cos(t.h), tx = t.x + fx * TRAILER.bunkZ, tz = t.z + fz * TRAILER.bunkZ;
       const dx = tx - b.x, dz = tz - b.z, d = Math.hypot(dx, dz);
       b.h += wrap(t.h - b.h) * Math.min(1, dt * 3);
-      if (d < 0.3) { this.load(t, b); this.counts.hauled++; g.emit('boatHauled', { boat: b.id, trailer: t.id }); if (t.towedBy?.driver === g.player) g.hud?.toast?.(`${b.name} ON THE TRAILER`, 'job'); continue; }
+      if (d < 0.3) { this.load(t, b); this.counts.hauled++; g.emit('boatHauled', { boat: b.id, trailer: t.id }); if (t.towLine?.driver === g.player) g.hud?.toast?.(`${b.name} ON THE TRAILER`, 'job'); continue; }
       const s = Math.min(d, TRAILER.haulSpeed * dt) / (d || 1);
       b.x += dx * s; b.z += dz * s; b.vx = b.vz = 0;
       b.group.position.set(b.x, b.group.position.y + (TRAILER.bunkY - 0) * Math.min(1, dt * 1.5), b.z); b.group.rotation.y = b.h;
@@ -441,7 +441,7 @@ export class Towing {
       links: this.links.map((l) => ({ id: l.id, kind: l.kind, from: l.a.id, to: l.b.id ?? l.b.door?.id ?? null, toType: l.b.type ?? l.b.kind, len: r2(l.len), load: r2(l.loadS), peak: r2(l.peak), breakLoad: l.L.breakLoad, winching: l.winching, stall: l.stall, taut: l.L.rigid || r2(this.span(l)) >= r2(l.len) })),
       pits: this.pits.filter((p) => p.r > 0).map((p) => ({ id: p.id, x: r2(p.x), z: r2(p.z), r: p.r })),
       bogged: this.g.vehicles.filter((v) => v.bog > 0).map((v) => ({ id: v.id, type: v.type, bog: r2(v.bog), stuck: v.bog > MUD.stuckAt })),
-      trailers: this.g.vehicles.filter((v) => v.trailer).map((t) => ({ id: t.id, boat: t.boat?.id ?? null, ramp: this.atRamp(t), towedBy: t.towedBy?.id ?? null })),
+      trailers: this.g.vehicles.filter((v) => v.boatTrailer).map((t) => ({ id: t.id, boat: t.boat?.id ?? null, ramp: this.atRamp(t), towedBy: t.towLine?.id ?? null })),
       counts: this.counts,
     };
   }
