@@ -140,6 +140,24 @@ export async function bodyDollChecks({ api, g, check }) {
     return !bad.length && onBox ? true : JSON.stringify({ bad, onBox, title: b?.wrap?.title });
   });
 
+  await check('creator: every attribute says in one plain line what it changes in play (no "x0.93" formulas), the kit adds up in words, and the body has the bigger half of the screen', async () => {
+    const C = g.creatorUI;
+    if (!C) return 'no creator screen';
+    const was = C.open_;
+    try {
+      if (!was) C.open({});
+      C.goStep(2); await frames(2); // ATTRIBUTES
+      const subs = [...C.el.querySelectorAll('.cr-row .lab small')].map((s) => s.textContent);
+      const plain = subs.length === 6 && subs.every((t) => t.length > 12 && !/\bx\d|\d\.\d\d/.test(t));
+      C.goStep(5); await frames(2); // KIT
+      const nums = [...C.el.querySelectorAll('.cr-nums span')].map((s) => s.textContent);
+      const words = nums.length >= 2 && nums.every((t) => !/\bx\d/.test(t));
+      const card = C.$.model.getBoundingClientRect(), panel = C.el.querySelector('.cr-panel').getBoundingClientRect();
+      const big = card.width >= panel.width * 0.8 && card.height > innerHeight * 0.5;
+      return plain && words && big ? true : JSON.stringify({ subs, nums, card: [card.width, card.height], panel: panel.width });
+    } finally { if (!was) C.close(false); }
+  });
+
   // ---- the keys stay the game's (Robert's playtest, 2026-10-29: "I clicked off of it, and now I hit I and it won't close") ----
   const tap = async (code) => { g.input.keyDown(code); await frames(2); g.input.keyUp(code); await frames(2); };
 
