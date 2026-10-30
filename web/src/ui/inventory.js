@@ -114,12 +114,14 @@ export class InventoryUI {
 
   box(side) { return side === 0 ? this.g.inventory.carried : this.other; }
   guns(side) { return side === 0 ? this.g.inv.weapons : []; }
-  count(side) { return this.guns(side).length + (this.box(side)?.slots.length ?? 0); }
+  // The slots you can see: one still out of sight in a box only opened, not searched (s.hid; systems/actions.js), is not listed.
+  vis(side) { const b = this.box(side), out = this._vis ?? (this._vis = [[], []]), v = out[side]; v.length = 0; if (b) for (let j = 0; j < b.slots.length; j++) if (!b.slots[j].hid) v.push(j); return v; }
+  count(side) { return this.guns(side).length + this.vis(side).length; }
   // Row i of a side: a slung gun ({ gun }) or a slot ({ s, i } with i its index in the box).
   entry(side, i) {
     const G = this.guns(side);
     if (i < G.length) return { gun: G[i] };
-    const j = i - G.length, s = this.box(side)?.slots[j];
+    const j = this.vis(side)[i - G.length], s = j === undefined ? null : this.box(side)?.slots[j];
     return s ? { s, i: j } : null;
   }
 
@@ -245,7 +247,8 @@ export class InventoryUI {
       this.el.cols[side].classList.toggle('active', this.side === side);
       const rows = G.map((k, i) => this.gunRow(k, i, i === sel, D));
       if (G.length) rows.push('<li class="divider"></li>');
-      if (box?.slots.length) box.slots.forEach((s, j) => rows.push(this.row(s, G.length + j, G.length + j === sel, D, side)));
+      const V = this.vis(side);
+      if (V.length) V.forEach((j, k) => rows.push(this.row(box.slots[j], G.length + k, G.length + k === sel, D, side)));
       else rows.push(`<li class="empty">${side === 0 ? 'Nothing else on you.' : o?.kind === 'ground' ? 'Nothing on the ground here.' : 'Empty.'}</li>`);
       this.el.lists[side].innerHTML = rows.join('');
     }

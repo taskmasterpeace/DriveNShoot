@@ -76,7 +76,7 @@ export class Inventory {
     if (it.stack > 1) {
       for (const s of box.slots) {
         if (!left) break;
-        if (s.id !== id || s.n >= it.stack || (it.spoils && this.freshness(s) !== this.freshness({ id, made }))) continue;
+        if (s.hid || s.id !== id || s.n >= it.stack || (it.spoils && this.freshness(s) !== this.freshness({ id, made }))) continue;
         const k = Math.min(left, it.stack - s.n); s.n += k; left -= k;
         if (it.spoils) s.made = Math.min(s.made, made); // a stack is as old as its oldest
       }
@@ -632,7 +632,7 @@ export class Inventory {
 
   slotView(s) {
     const it = ITEMS[s.id];
-    return { id: s.id, name: it?.name ?? s.id, n: s.n, kind: it?.kind, kg: +slotKg(s).toFixed(2), litres: +((it?.bulk ?? 0) * s.n).toFixed(2), left: s.left, uses: it?.uses, fresh: this.freshness(s), value: it?.value, cond: s.cond, loaded: s.loaded };
+    return { id: s.id, name: it?.name ?? s.id, n: s.n, kind: it?.kind, kg: +slotKg(s).toFixed(2), litres: +((it?.bulk ?? 0) * s.n).toFixed(2), left: s.left, uses: it?.uses, fresh: this.freshness(s), value: it?.value, cond: s.cond, loaded: s.loaded, hidden: s.hid || undefined }; // hidden: out of sight until searched (systems/actions.js)
   }
 
   boxView(b) { return b && { id: b.id, label: b.label, kind: b.kind, litres: +b.litres().toFixed(1), cap: b.cap, kg: +b.kg().toFixed(1), items: b.slots.map((s) => this.slotView(s)) }; }
