@@ -1,7 +1,6 @@
 # WEB_LONG_ROAD: making the drive between towns the best part of the game
 
-**Status:** first cut, 2026-10-29, on `feat/web-long-road`. The code is written and passes `node --check`. It has NOT
-run in a game yet, because the harness browser never connected on the crowded machine (§8). **Rows:**
+**Status:** first cut on `feat/web-long-road`, measured and green 2026-10-30. Before: 6 dead stretches on I-10 (20 of 49 minutes of driving, the worst 257 s). After: 0. `selftest only=long-road` passes 7/7 and ip-lint shows 0 deny. Report and screenshots: [docs/renders/web/long-road/emptiness.md](../renders/web/long-road/emptiness.md). **Rows:**
 `web/src/data/longroad.js`. **Live:** `web/src/systems/longroad.js`. **Agent:** the `longRoad` command and the
 `long-road:` selftest checks in `web/src/agent/longroad-api.js`.
 
@@ -22,14 +21,15 @@ behind it. At the town where you stop, the trip log tells you how far you came, 
   A gap longer than `maxGapS` s at `cruise` m/s is DEAD.
 - **Wayside** (`build`): this is a pure function of the rows, the seed and the road. The road is audited WITHOUT
   beats, and only dead gaps are filled, with one beat every `everyS` s (jittered). There are no beats within
-  `townClear` of a town or within `edge` of either end of the road. Beats stand `offset` m out on the outer
-  shoulder. The kind is weighted by the biome there (`BIOME_MIX`). Every beat carries `source` (the audit mile
+  `townClear` of a town or within `edge` of either end of the road. Beats stand on the real shoulder: `WorldIndex.section(s).out` plus `offset` (5-12 m) m from the centreline. None stands within `rampClear` (900 m) of an exit. A spot inside a town's reach or by a ramp slides 300 m on and tries again.
+- **Rhythm:** never the same kind twice running, never an ambush within two beats of the last. Wrecks weigh light, because chunkgen already strews dead cars on every shoulder.
+- **One person, one place:** a name is used once along the road. A family beat is ONE household (`household` rows: parents in pairs, their kid at the same index). The kind is weighted by the biome there (`BIOME_MIX`). Every beat carries `source` (the audit mile
   range that called for it).
 - **Travellers:** every person at a beat has a role row (`TRAVELLERS`), a real flag, an ORIGIN (the nearest real town
   behind them in their direction of travel) and a DESTINATION (the nearest ahead). The open road is the fallback past
   the last town. Their line says both.
 - **No teleport, nothing in view:** a beat is made real only when the player is inside `wake` (460 m) and outside
-  `view` (120 m). Past `far` (760 m) it goes back to its record.
+  `view` (120 m), or 1.5x the camera's live `viewR` if that is wider (HIGH zoom shows 54 m). Past `far` (760 m) it goes back to its record.
 - **Nothing regenerates:** a traveller who died stays dead (`dead`). A cache taken stays taken (`taken`, E beside it on
   foot). Both ride the save.
 - **Trip log:** a journey starts when you drive off at more than 6 m/s. It ends when you have been stopped for 12 s
@@ -61,12 +61,13 @@ wayside fills only stretches that were dead, each beat with a source · every tr
 and a flag · nothing spawns in view (promote at 60 m: no; inside wake and outside view: yes; past far: back) · a cache
 is taken once and stays taken through a save round trip · a journey ends in a trip log.
 
-**Not run yet** (the harness never connected on the crowded machine): the selftest, the before and after audit, and
-the game-camera screenshots. **Left:**
-1. Run the audit and the checks, then fill in `docs/renders/web/long-road/emptiness.md`.
-2. Driven route logs that count moving things: traffic, semis, convoys, fauna and radio lines.
-3. Point the radio and the pulls board at beats down the road (both are only rows to add once the beats exist).
-4. Make fuel and breakdowns a distance decision: hook trip fuel use into the stall traders' counters.
-5. Signs and pull-off kinds that need meshes (the current beats are only dead cars and people).
-6. Back roads beyond I-10 (the audit only walks `W.cl`).
-7. Run `node tools/gen-commands.mjs`, then the ip-lint and the draw-call check.
+**Measured** (2026-10-30): 7/7 checks green; the audit and screenshots are in the report.
+
+**Left:**
+1. Driven route logs that count moving things: traffic, semis, convoys, fauna and radio lines (`look` sampled along a real drive).
+2. Point the radio (world voice) and the pulls board at beats down the road ("a stall at mile 39 has water"). Both are rows to add now that the beats exist.
+3. Fuel and breakdowns as a distance decision: stall traders sell fuel by the litre through the existing trade counter (they have only a line today, no counter).
+4. Beats that need meshes: signs, pull-offs with a fire ring, a dog (the dogs system's strays).
+5. Back roads and the Florida corridors (`W.corridors`): the audit and the placement walk only the I-10 centreline.
+6. A trip log that shows on the journal and on a page at journey's end, not only as a toast.
+7. Raiders at an ambush stand 6 m out on the x axis only. They should stand behind the wreck relative to the road.
