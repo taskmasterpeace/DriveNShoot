@@ -92,6 +92,7 @@ import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
+import { INFECTED } from '../data/infected.js'; // the sprinter's row (its burst clock) for the kinds check
 
 // ============================================================================
 // DSOA AGENT API
@@ -5655,12 +5656,13 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   // ---- the infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md) ----
   const zdist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  await check('infected: a sprinter walks like a shambler until you run near it - then 6 s at 9 m/s, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
+  await check('infected: a sprinter looks like a shambler until it perceives you (you run near it) - then it runs at 9 m/s, runs on 6 s once it has lost you, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
     await stage();
     g.godMode = true;
     const p = g.player, c = g.zombies.spawn(p.x + 14, p.z, true);
     try {
-      await C('step', { seconds: 2 }); // you stand still: it comes at a shambler's walk
+      c.face = Math.PI / 2; c.timer = 99; c.wx = c.x; c.wz = c.z; // looking away, standing: it does not know you are there
+      await C('step', { seconds: 2 }); // you stand still behind it
       const walk = +c.speed.toFixed(2), dormant = c.zs.state === 'dormant' && c.name === 'Shambler';
       g.input.down.add('ShiftLeft');
       await holdKey('KeyA', 1.5, () => c.zs.state === 'burst'); // you run (away)
@@ -5668,8 +5670,9 @@ async function runSelfTest(api, only = null, skip = null) {
       const broke = c.zs.state === 'burst';
       let top = 0;
       for (let t = 0; t < 1.5; t += 0.25) { await C('step', { seconds: 0.25 }); top = Math.max(top, c.speed); }
+      c.x += 120; c.wx = c.x; // contact lost (far beyond its senses): it runs on for INFECTED.sprinter.burst s, then it is spent
       let over = false;
-      for (let t = 0; t < 7 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
+      for (let t = 0; t < INFECTED.sprinter.burst + 2.5 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
       await C('step', { seconds: 0.5 });
       const still = over && c.speed < 0.1 && c.crouch;
       let back = false;

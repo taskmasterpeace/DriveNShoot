@@ -5,9 +5,13 @@
 
 // SHAMBLER   the horde body. Slow, many, and dangerous only together: alone it thumps a door for a long time.
 // SPRINTER   identical to a shambler until it breaks (same name, same walk) - the uncertainty is the point. It breaks
-//            when someone living moves faster than `trigger` m/s inside its `ear` (walk is safe, a run is not) or a
-//            noise goes off inside it: `burst` s at `burstSpeed`, claws x`claw`, then `overheat` s bent double and
-//            wheezing (the window), then dormant again after `rearm` s. A horde rolls its sprinters by its runners share.
+//            the moment it PERCEIVES one of the living (its own senses: sight, their steps, smell), when someone moves
+//            faster than `trigger` m/s inside its `ear` (a car counts), or at a noise it hears: inside its ear, or one of
+//            `wake` m or more (a shot, an engine) from as far as it can hear it. Then it COMMITS: it runs at `burstSpeed`,
+//            claws x`claw`, for as long as it still perceives them (up to `chase` s of running); a lost contact it runs on
+//            to the last-known spot and searches round it, and only `burst` s without contact makes it give up (law 6:
+//            memory, never the true position). Then `overheat` s bent double and wheezing (the window), and dormant again after `rearm` s.
+//            A horde rolls its sprinters by its runners share.
 // ECHO       the worker: works boarded windows, locked and barricaded doors (much harder than a shambler), never
 //            advances on anyone, only works unobserved (`watch` m, `cone` degrees) and freezes mid-motion while watched.
 //            It repeats its phrase every `phrase` s, heard to `hear` m, and the phrase CALLS: the infected within `call`
@@ -45,7 +49,7 @@ export const INFECTED = {
     fire: 6, light: 70,
   },
   sprinter: {
-    name: 'Shambler', hp: 55, trigger: 5.0, ear: 20, burst: 6, burstSpeed: 9, claw: 1.4, overheat: 3, rearm: 4,
+    name: 'Shambler', hp: 55, trigger: 5.0, ear: 20, wake: 25, burst: 6, chase: 30, burstSpeed: 9, claw: 1.4, overheat: 3, rearm: 4,
     sense: { sight: 34, night: 14, lit: 40, cone: 70, near: 5, steps: 1.3, hear: 1.2, smell: 4.5, memory: 30, search: 14, searchR: 9, scatter: 4 },
     door: { every: 2.0, dmg: 6 }, legs: 26, crawl: 0.7,
     lunge: { at: 4.0, speed: 10, t: 0.4, cool: 2.5 },
@@ -129,7 +133,7 @@ export function validateInfected(rows = INFECTED, breeds = BREEDS, steps = FOOTS
     num(`${k}.fire`, r.fire, 0, 30); num(`${k}.light`, r.light, 0, 200);
   }
   const sp = rows.sprinter, ec = rows.echo, sh = rows.shambler;
-  if (sp) { num('sprinter.trigger', sp.trigger, 4.7, 7.5); num('sprinter.ear', sp.ear, 5, 40); num('sprinter.burstSpeed', sp.burstSpeed, 5, 14); }
+  if (sp) { num('sprinter.trigger', sp.trigger, 4.7, 7.5); num('sprinter.ear', sp.ear, 5, 40); num('sprinter.burstSpeed', sp.burstSpeed, 7.7, 14); num('sprinter.burst', sp.burst, 1, 30); num('sprinter.chase', sp.chase, sp.burst, 120); num('sprinter.wake', sp.wake, 10, 80); } // faster than you sprint (7.6 m/s, main.js), or it never runs you down
   if (ec && sh && !(ec.door.dmg / ec.door.every > (sh.door.dmg / sh.door.every) * 2)) bad.push('an Echo must work a door more than twice as hard as a shambler');
   if (ec) { num('echo.call', ec.call, 0, 80); num('echo.watch', ec.watch, 10, 80); }
   for (const k of ['walk', 'run', 'crouch', 'swim', 'runAt']) num(`FOOTSTEPS.${k}`, steps[k], 0, 40);

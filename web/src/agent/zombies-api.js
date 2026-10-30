@@ -280,6 +280,21 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(walk, hurt, crawl); g.godMode = false; }
   }));
 
+  await check('infected minds: a sprinter that SEES you 30 m off on open ground (by day, you standing) commits - it breaks on the sight alone and runs you down, on you inside 7 s', async () => hush(async () => {
+    await flats();
+    await C('setTime', { hour: 12 });
+    const p = P(), c = Z.spawn(p.x + 30, p.z, true);
+    const seq0 = g.eventSeq;
+    try {
+      facing(c, p); standStill(c);
+      let t = 0, on = false, top = 0;
+      for (; t < 7 && !on; t += 0.1) { await C('step', { seconds: 0.1 }); top = Math.max(top, c.speed); on = dist(c, P()) < 1.6; }
+      const why = g.events.find((e) => e.seq > seq0 && e.type === 'sprinterBurst' && e.id === c.id)?.why ?? null, d = dist(c, P());
+      return on && why === 'saw you' && top > INFECTED.sprinter.burstSpeed - 0.5 ? true
+        : JSON.stringify({ on, t: r1(t), d: r1(d), why, state: c.zs.state, top: r1(top), zsee: c.zsee?.id ?? null, how: c.zhow, night: r1(g.sky?.night ?? 0) });
+    } finally { gone(c); g.godMode = false; }
+  }));
+
   await check('infected minds: a herd from above reads as people, not one blob - twelve of them wear at least six different shirts and four different skins', async () => hush(async () => {
     await flats();
     const p = P(), made = [];
