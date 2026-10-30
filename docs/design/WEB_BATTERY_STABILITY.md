@@ -19,6 +19,8 @@ re-staged or retried the STAGING, never the claim. Every bar, count and distance
 | storeys: a raider with a grudge… | not reproduced (alone 10/10; 16 timed trials 3–15 s against the 20 s bar, day and night) | — | richer failure detail |
 | tactics band: a rifleman holds 25-45 m… (added later, §3.9) | the rifleman killed you inside the window, dropped you and wandered home 12 m off; separately, an open goal at the band's edge left him `arrive` short of it, out of band | staging + **real game bug** | godMode for the window; `systems/tactics.js` (an edge goal goes `arrive` into the band) |
 | tactics band, again (§3.10, on integrate) | with many characters spawned (slot 60) the probe spin left no probe that beat `stay`, so a pin unit stood at 12 m all fight; a cover spot at the band edge was a second, rarer cause | **real game bugs** (2) | `systems/tactics.js`: out of band, search round the nearest in-band point; edge cover scores as open |
+| roadside: the rows validate… (§3.12, on integrate) | the layout's cost was one sample taken at boot; a dozen harnesses on one CPU stretched it to 137-243 ms against the 120 ms bar | timing sample under load | best of up to 3 builds (boot, then fresh ones on a copy of the index), same 120 ms bar |
+| tactics cost: … under 2% of nav paths over 8 ms (§3.13, on integrate) | one timing per path; with the machine crowded, stalls landed inside searches (slowest 390 ms) | timing sample under load | a path over 8 ms is timed again at once, on the same grid; it counts as slow only if both timings are over 8 ms |
 
 ## 2. Player Fantasy
 
@@ -197,6 +199,22 @@ speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
 - **Measured after:** a sweep of 72 slots (`band-slots.js`, godMode) put 0/72 out of band, against 1/72 with Fix 1
   alone. `only="crew|tactics"` passed 35/35 twice on integrate + fix, against 34/35 twice without it.
 
+### 3.12 roadside: the layout is a few milliseconds of boot (integrate `0fdca1a9`)
+
+**Cause.** `world/roadside.js` times its own constructor once, at boot (`R.buildMs`), and the check reads that one sample against 120 ms. Nothing roadside changed since it last passed. With about a dozen harnesses sharing the machine the lead measured 137, 187 and 243 ms: one sample measures the machine as much as the layout.
+
+**Fix (`agent/roadside-api.js` `layoutMs`).** The claim is unchanged: the layout builds in under 120 ms. Its cost is the best of up to 3 builds. Boot's sample counts first. Only when it is over the bar does the check build the layout again, at most twice, on a copy of the index: `Object.create(W)` with its own `ribbons`, `pieces` and `rails` (the dam road pushes into those), so the live index is never touched. A rebuild counts only if it lays out the same layout (same pylon and site counts). The failure detail adds `best` and `tries`.
+
+**Why this is not weakening.** A layout that really costs over 120 ms fails all 3 builds. Load only adds time and never removes it, so the minimum of 3 is the honest estimate of the layout's own cost.
+
+### 3.13 tactics cost: under 2% of nav paths take over 8 ms (integrate `0fdca1a9`)
+
+**Cause.** `systems/tactics.js` times each tactical `nav.foot.find` once. On a machine running about a dozen harnesses, OS and GC stalls land inside some searches: the lead saw a 390 ms slowest path and the over-8-ms share near the bar. The plan claims (average 0.24 ms against 0.3; 0.48-0.52% of plans over 2 ms, against 1%) passed and are unchanged.
+
+**Fix.** When a path's search takes over 8 ms, the same search runs again at once: same start, same goal, same budget, and the grid already covers both ends, so nothing is rebuilt. The path's time is the smaller of the two. It counts in `slowPaths` and `maxPathMs` only by that time. `stats.retimed` counts the re-runs, and the failure detail prints it.
+
+**Why this is not weakening.** A search that really costs over 8 ms is over 8 ms both times, so it still counts. Only a stall that hit one run is filtered out. The bar (2% over 8 ms) is unchanged. The cost is paid only on a slow path: one more search, at most as long as the first.
+
 ## 4. Formulas
 
 - **Town give-up:** asleep-or-floor by `t_bed + TOWN_NIGHT.giveUp` (25 s). The check now waits
@@ -220,8 +238,11 @@ speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
   `(tx, tz) + (c − t) · clamp(d, b0, b1) / d`. Example: rifle at 12 m → anchor at 25 m on the same bearing. The score
   there is `W.band · bandFit − W.travel · 13 = 1.5 · 0 − 0.65 = −0.65`, against `stay` at 12 m:
   `1.5 · (1 − |12 − 35| / 10) + 0.6 = −1.35`.
+- **Layout cost (§3.12):** `ms = min(t₀, t₁, t₂)`. Here t₀ is boot's sample, and t₁ and t₂ are rebuilds, taken only while the running minimum is ≥ 120. Pass iff `ms < 120`. Example: boot 187 under load, rebuild 96 → 96, pass. A layout that really costs 150 → 150, 150, 150 → fail.
 
 ## 5. Edge Cases
+- **A really slow tactical path** (over 8 ms on a quiet machine) pays its search twice. That happens on under 2% of paths by the claim, and the rest pay nothing extra.
+- **A roadside rebuild that lays out differently** (another pylon or site count) does not count toward the best time. If boot's sample was over the bar, the check fails as before.
 
 - A check that fails **only** in the full battery: read the new `[entry …]` tag on its detail (§6, tools) first. It
   names whatever was off neutral as the check began (dialogue, pack, car, deck, underground, upstairs, crouch, the hour,
