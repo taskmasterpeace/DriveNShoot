@@ -86,6 +86,7 @@ import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW 
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
 import { calibersCommands, calibersChecks } from './calibers-api.js'; // calibres and forensics (WEB_CALIBERS.md)
+import { feelCommands, feelChecks } from './feel-api.js'; // driving and gunplay measured and held in bands (WEB_FEEL.md)
 import { shotReadCommands, shotReadChecks } from './shotread-api.js'; // a shot at you reads (WEB_SHOT_READ.md)
 import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
@@ -2131,6 +2132,7 @@ function buildCommands(api) {
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
+    ...feelCommands(api), // FEEL: the feel harness (agent/feel-api.js; WEB_FEEL.md)
     ...shotReadCommands(api), // a shot at you: its streak, the dust, the marker (agent/shotread-api.js; WEB_SHOT_READ.md)
     ...meleeCommands(api), // fight action=view|wield|attack|heavy|finish|grab|release|arm|spawn|person|rows|clear (agent/melee-api.js)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
@@ -2955,7 +2957,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
   await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
   await calibersChecks({ g, api, C, check, extra }); // calibres: every gun a row, a .50 through a wall, casings, a body's wounds, shorter tracers
-  await shotReadChecks({ g, api, C, check, extra }); // a shot at you is drawn, cracks, puffs and marks where it came from; more first-stock rounds
+  await shotReadChecks({ g, api, C, check, extra });
+  await feelChecks({ g, api, C, check }); // FEEL: steering eases, the handbrake slides and is caught, 0-60 bands, the revolver lands (agent/feel-api.js) // a shot at you is drawn, cracks, puffs and marks where it came from; more first-stock rounds
   await lookfeelChecks({ g, api, C, check }); // LOOK-FEEL: rows and no purple, the horizon law, the grade's blend, wind, skids and the crash, hit-stop and kick, wear
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
