@@ -64,7 +64,7 @@ export const TOW_VEHICLES = {
   towtruck:    { name: 'WRECKER', base: 'pickup', look: 'wrecker', len: 5.6, wid: 2.25, tall: 2.0, maxSpeed: 33, reverse: 11, accel: 16, turn: 1.95, grip: 6.4, mass: 2.6, hp: 300, armor: 0.24, fuelCap: 95,
                  seats: [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }], tow: 'boom', winch: true },
   boattrailer: { name: 'BOAT TRAILER', base: 'boattrailer', len: 5.4, wid: 2.1, tall: 0.95, maxSpeed: 30, reverse: 10, accel: 0, turn: 0, grip: 6, mass: 0.45, hp: 120, armor: 0.5, fuelCap: 0,
-                 trailer: true, noEngine: true, seats: [] },
+                 boatTrailer: true, noEngine: true, seats: [] },
   // A fishing skiff: an outboard, a tiller console, two thwarts, a fish box. Light and shallow.
   skiff:       { name: 'FISHING SKIFF', base: 'skiff', len: 4.8, wid: 1.9, tall: 1.3, maxSpeed: 24, reverse: 6, accel: 14, turn: 2.2, grip: 2.4, mass: 0.8, hp: 110, armor: 0.5, fuelCap: 40, open: true, boat: true, shallow: true,
                  seats: [{ id: 'driver', side: 'left', row: 1, exposed: STAND, at: [0.25, 0.5, -1.55] }, { id: 'bow', side: 'right', row: 0, exposed: STAND, at: [-0.15, 0.5, 0.9] }] },

@@ -363,7 +363,7 @@ export class Vehicles {
       const a = (1 - (v.handbrake ? DRIVING.slide.hbCarry : DRIVING.slide.carry)) * dh, ca = Math.cos(a), sa = Math.sin(a), f0 = fwd;
       fwd = f0 * ca + side * sa; side = side * ca - f0 * sa;
     }
-    fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : v.towedBy ? this.g.towing.drag(v) : 1.4)) * mud; // towed: it rolls in neutral (systems/towing.js)
+    fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : v.towLine ? this.g.towing.drag(v) : 1.4)) * mud; // towed: it rolls in neutral (systems/towing.js)
     side *= Math.exp(-dt * grip);
     const nfx = Math.sin(v.h), nfz = Math.cos(v.h);
     v.vx = nfx * fwd + nfz * side;
@@ -428,7 +428,7 @@ export class Vehicles {
       if (Math.abs(o.x - v.x) > reach || Math.abs(o.z - v.z) > reach) continue;
       if (v.y > o.y + o.tall * 0.85 || o.y > v.y + v.tall * 0.85) continue; // one is flying over the other
       if ((v.climbing || o.climbing) && g.workshop?.climbs(v, o)) continue; // a monster truck up on (or going up onto) a car
-      if (g.towing && (v.carriedBy === o || o.carriedBy === v || v.hauling === o || o.hauling === v || (g.towing.links.length && g.towing.linked(v, o)))) continue; // a hitch's two halves, a boat on its trailer (systems/towing.js)
+      if (g.towing && (v.onTrailer === o || o.onTrailer === v || v.hauling === o || o.hauling === v || (g.towing.links.length && g.towing.linked(v, o)))) continue; // a hitch's two halves, a boat on its trailer (systems/towing.js)
       const vd = this.discs(v), od = this.discs(o);
       let best = null;
       for (const a of vd) for (const b of od) {

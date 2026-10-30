@@ -48,9 +48,9 @@ export function moveTowCommands(api, need) {
           case 'release': { need(T.release(link()), 'not released'); return T.view(); }
           case 'winch': { need(T.winch(link(), a.on), 'that line has no winch'); return T.view(); }
           case 'mud': { if (a.remove) { T.removePit(a.remove); return T.view(); } const pt = T.addPit(a.x ?? P().x, a.z ?? P().z, a.r); return { pit: pt, ...T.view() }; }
-          case 'launch': { const t = findV(a.id); need(t?.trailer, 'id= must be a trailer'); const r = T.launch(t); need(r.ok, r.why); return { ...r, ...T.view() }; }
-          case 'haul': { const t = findV(a.id), b = findV(a.boat) ?? T.boatBehind(t); need(t?.trailer && b, 'id= a trailer, boat= a boat at its tail'); const r = T.haul(t, b); need(r.ok, r.why); for (let i = 0; i < 600 && b.hauling; i++) await api._step(1); return { onTrailer: b.carriedBy === t, ...T.view() }; }
-          case 'load': { const t = findV(a.id), b = findV(a.boat); need(t?.trailer && b?.boat, 'id= a trailer, boat= a boat'); T.load(t, b); return T.view(); }
+          case 'launch': { const t = findV(a.id); need(t?.boatTrailer, 'id= must be a trailer'); const r = T.launch(t); need(r.ok, r.why); return { ...r, ...T.view() }; }
+          case 'haul': { const t = findV(a.id), b = findV(a.boat) ?? T.boatBehind(t); need(t?.boatTrailer && b, 'id= a trailer, boat= a boat at its tail'); const r = T.haul(t, b); need(r.ok, r.why); for (let i = 0; i < 600 && b.hauling; i++) await api._step(1); return { onTrailer: b.onTrailer === t, ...T.view() }; }
+          case 'load': { const t = findV(a.id), b = findV(a.boat); need(t?.boatTrailer && b?.boat, 'id= a trailer, boat= a boat'); T.load(t, b); return T.view(); }
           case 'spawn': {
             const x = a.x ?? P().x + 6, z = a.z ?? P().z, h = a.h;
             if (a.what === 'rig') {
@@ -322,24 +322,24 @@ export async function moveTowChecks(api, check, C, H) {
       g.enterVehicle(truck); await api._step(3);
       const dryRamp = T.atRamp(tr);
       await tk('KeyG'); await api._step(2);
-      const dryKept = tr.boat === sk && sk.carriedBy === tr; // on land a tap of G drops the hitch, never the boat
+      const dryKept = tr.boat === sk && sk.onTrailer === tr; // on land a tap of G drops the hitch, never the boat
       if (!T.links.some((l) => l.b === tr)) T.hitch(truck, tr, 'hitch', { free: true });
       await hk('KeyS', 12, () => T.atRamp(tr)); await hk('KeyS', 0.25); // just past the line, as a driver would
       await hk('KeyW', 2, () => g.vehiclesSys.speed(truck) < 0.25); await api._step(20); // on the brakes at the water's edge
       const ramp = T.atRamp(tr);
       await tk('KeyG'); await api._step(90);
-      const afloat = !sk.carriedBy && tr.boat === null && W.depthAt(sk.x, sk.z) > 0.12 && (sk.depth ?? 0) > 0.12;
+      const afloat = !sk.onTrailer && tr.boat === null && W.depthAt(sk.x, sk.z) > 0.12 && (sk.depth ?? 0) > 0.12;
       // haul: the skiff nosed back to the trailer's tail
       const fx = Math.sin(tr.h), fz = Math.cos(tr.h);
       sk.vx = sk.vz = 0; sk.h = tr.h; sk.x = tr.x - fx * (tr.len / 2 + sk.len / 2 - 0.4); sk.z = tr.z - fz * (tr.len / 2 + sk.len / 2 - 0.4);
       await api._step(3);
       await tk('KeyG');
       for (let f = 0; f < 600 && sk.hauling; f++) await api._step(1);
-      const back = tr.boat === sk && sk.carriedBy === tr;
+      const back = tr.boat === sk && sk.onTrailer === tr;
       g.exitVehicle(true);
       const ok = !dryRamp && dryKept && ramp && afloat && back;
       return ok ? true : JSON.stringify({ dryRamp, dryKept, ramp, afloat, skDepth: r2(sk.depth ?? 0), back, hauling: !!sk.hauling, trailerAt: [r2(tr.x - LAKE.x), r2(tr.z - LAKE.z)] });
-    } finally { for (const l of [...T.links]) if (l.a === truck) T.release(l, 'gone'); if (tr.boat) { tr.boat.carriedBy = null; tr.boat = null; } wvClean([truck, tr, sk]); }
+    } finally { for (const l of [...T.links]) if (l.a === truck) T.release(l, 'gone'); if (tr.boat) { tr.boat.onTrailer = null; tr.boat = null; } wvClean([truck, tr, sk]); }
   }));
 
   await check('move-tow: the rebuilt boats draw under the budget - the airboat, waterbike, gunboat, fishing skiff and pontoon barge, the boat trailer and the wrecker are each ONE merged mesh with real hull geometry (lofted: hundreds of vertices, a part id on every one), no heavier than the cars (under 12000 vertices each, the RV at 11820 the biggest car); all of them parked beside a sedan keep the frame under 150 draw calls', async () => hush(async () => {

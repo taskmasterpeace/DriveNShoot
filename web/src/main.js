@@ -1036,7 +1036,7 @@ class Game {
     }
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (veh.dead || veh.trailer || veh.carriedBy || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
+      if (veh.dead || veh.boatTrailer || veh.onTrailer || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
