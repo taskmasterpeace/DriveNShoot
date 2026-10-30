@@ -147,6 +147,10 @@ Uses: `engine/collision.js` (StaticWorld: the UnderWorld subclass; `resolveBody`
 light borrowed as the lamp), `data/items.js` (`LOOT` takes `UG_LOOT`), `data/interiors.js` (`DOOR_MATERIALS.blast`),
 `data/materials.js` (rules for `ug-*` tags), `data/atlas.js` (sites and bases).
 
+Selftest staging: `agent/underground-api.js` `stage()` calms a site's record (`alert`, `warnT`) before it enters - the
+hatch walk-down is challenged every time and its leftover warning once turned the next check's arrival hostile
+(docs/design/WEB_BATTERY_STABILITY.md §3.5).
+
 Used by: `main.js` (construct, `update`, `standOn` -> `siteOf`, `noise`, the camera's `view`, the E key, the flashlight),
 `agent/api.js` (commands, checks, `snapshot` / `restore`), the World Forge's SITE tab (to come: it edits these rows and
 runs `validateUnderground`), UNDER THE STREET (`docs/design/WEB_UNDERSTREET.md`: a town's drains are sites of kind

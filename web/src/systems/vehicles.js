@@ -67,7 +67,7 @@ export const VEHICLES = {
 //   shootSpread   shooting from anything that moves: extra spread (radians, +-) per m/s, its cap, and x driver (one hand)
 //   aimHold       an exposed rider (a bike, a quad, a deck seat) keeps aiming this long after a shot
 export const DRIVING = {
-  screenSteer: true,
+  screenSteer: false, // Robert 10-29: A always turns the car's own left (classic), like walking; true = screen-true
   reverseAccel: 0.85, reverseShare: 0.4, reverseCap: [6, 15],
   shootSpread: { perMs: 0.004, max: 0.1, driver: 1.5 },
   aimHold: 1.2,
@@ -283,9 +283,12 @@ export class Vehicles {
       v.depth = 0;
       return { fwd, side };
     }
-    let topSpeed = v.maxSpeed * fxm.top;
+    let topSpeed = v.maxSpeed * fxm.top * (v.treadTop ?? 1); // treadTop: road tyres on pavement (workshop.js)
+    const mud = this.g.towing ? this.g.towing.ground(v, dt, fxm) : 1; // soft ground holds a car that spins in it (systems/towing.js)
     // Water: boats need it, everything else drowns in it.
-    const depth = this.g.water ? this.g.water.depthAt(v.x, v.z, false, v.boat ? -Infinity : v.y) : 0; // y: a car up on a river's deck is dry; a boat under it is not
+    const depth0 = this.g.water ? this.g.water.depthAt(v.x, v.z, false, v.boat ? -Infinity : v.y) : 0; // y: a car up on a river's deck is dry; a boat under it is not
+    const wade = v.boat ? 0 : v.wadeLift ?? 0; // wadeLift: big tyres hold the hull out of a ford (garage.retune)
+    const depth = wade ? Math.max(0, depth0 - wade) : depth0;
     v.depth = depth;
     if (v.boat) {
       const afloat = depth > (v.shallow ? 0.12 : 0.55);
@@ -335,7 +338,7 @@ export class Vehicles {
     if (pivot) { v.x += pivot * (Math.sin(v.h + dh) - Math.sin(v.h)); v.z += pivot * (Math.cos(v.h + dh) - Math.cos(v.h)); }
     v.h += dh;
     // Rolling drag and lateral grip (handbrake = drift).
-    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js)
+    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js); treadGrip: the tyres on this ground (workshop.js)
     if (v.bike) {
       // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
       const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);
@@ -343,7 +346,7 @@ export class Vehicles {
       const wantWheelie = !v.fallen && v.boost && v.throttle > 0 && sp > 3 && sp < 24;
       v.wheelie += ((wantWheelie ? 0.42 : 0) - v.wheelie) * Math.min(1, dt * (wantWheelie ? 2.5 : 6));
     }
-    fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : 1.4));
+    fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : v.towedBy ? this.g.towing.drag(v) : 1.4)) * mud; // towed: it rolls in neutral (systems/towing.js)
     side *= Math.exp(-dt * grip);
     const nfx = Math.sin(v.h), nfz = Math.cos(v.h);
     v.vx = nfx * fwd + nfz * side;
@@ -403,10 +406,12 @@ export class Vehicles {
     // Vehicle vs vehicle: each body is a chain of discs along its length (a long rig is
     // 3-4 discs, a buggy 2), so cars can't slide into the side of a truck.
     for (const o of this.list) {
-      if (o === v) continue;
+      if (o === v || g.semis?.linked(v, o)) continue; // a tractor and its trailer; a car in a hold (systems/semis.js)
       const reach = (v.len + o.len) * 0.5 + 1;
       if (Math.abs(o.x - v.x) > reach || Math.abs(o.z - v.z) > reach) continue;
       if (v.y > o.y + o.tall * 0.85 || o.y > v.y + v.tall * 0.85) continue; // one is flying over the other
+      if ((v.climbing || o.climbing) && g.workshop?.climbs(v, o)) continue; // a monster truck up on (or going up onto) a car
+      if (g.towing && (v.carriedBy === o || o.carriedBy === v || v.hauling === o || o.hauling === v || (g.towing.links.length && g.towing.linked(v, o)))) continue; // a hitch's two halves, a boat on its trailer (systems/towing.js)
       const vd = this.discs(v), od = this.discs(o);
       let best = null;
       for (const a of vd) for (const b of od) {
@@ -421,6 +426,7 @@ export class Vehicles {
       v.x -= nx * pen * (o.mass / tm); v.z -= nz * pen * (o.mass / tm);
       o.x += nx * pen * (v.mass / tm); o.z += nz * pen * (v.mass / tm);
       const rv = (o.vx - v.vx) * nx + (o.vz - v.vz) * nz;
+      if (rv < 0 && g.workshop?.climbStart(v, o, -rv)) continue; // fast enough, nose-first, on monster tyres: up and over
       if (rv < 0) {
         const j = -1.4 * rv / (1 / v.mass + 1 / o.mass);
         v.vx -= (j / v.mass) * nx; v.vz -= (j / v.mass) * nz;
@@ -444,7 +450,7 @@ export class Vehicles {
     // Run people over.
     const sp = this.speed(v);
     for (const c of g.chars) {
-      if (!c.alive || c.inVehicle || c.dragged || c.grabbing || c.onDeck) continue; // a deck's riders are up on a vehicle, not on the road
+      if (!c.alive || c.inVehicle || c.dragged || c.grabbing || c.onDeck || (c.mv && sp < 2)) continue; // a deck's riders are up on a vehicle, not on the road; a vault goes over a parked one (systems/moves.js)
       const dx = c.x - v.x, dz = c.z - v.z;
       if (Math.abs(dx) > v.len || Math.abs(dz) > v.len) continue;
       const along = dx * fx + dz * fz, across = dx * fz - dz * fx;
@@ -551,6 +557,8 @@ export class Vehicles {
       v.handbrake = false;
     } else if (v.ai === 'convoy') {
       g.convoy.drive(v, dt);
+    } else if (v.ai === 'semi') {
+      g.semis.aiDrive(v, dt); // the freight's rigs and pilot cars (systems/semis.js)
     } else if (v.ai === 'raider') {
       // Hunt the player's vehicle; ram it.
       const p = g.player;
@@ -581,13 +589,18 @@ export class Vehicles {
   }
 
   // ---- harpoon -------------------------------------------------------------------------
-  fireHarpoon(v, ang) {
+  // opts (a workshop mount, data/workshop.js): front = thrown off the nose, not the tail; grapple = { lengths, hook }: the
+  // chain reaches lengths x this car's length and bites one throw in `hook`, the rest skid off and reel back in.
+  fireHarpoon(v, ang, opts = {}) {
     if (this.harpoon) {
       if (this.harpoon.state === 'attached') this.yank();
       return;
     }
-    const ox = v.x - Math.sin(v.h) * 1.4, oz = v.z - Math.cos(v.h) * 1.4;
-    this.harpoon = { from: v, x: ox, z: oz, dx: Math.sin(ang), dz: Math.cos(ang), dist: 0, target: null, kind: null, state: 'flying', len: 0 };
+    const end = opts.front ? 1 : -1, off = opts.front ? v.len / 2 - 0.2 : 1.4;
+    const ox = v.x + Math.sin(v.h) * off * end, oz = v.z + Math.cos(v.h) * off * end;
+    const G = opts.grapple;
+    this.harpoon = { from: v, x: ox, z: oz, dx: Math.sin(ang), dz: Math.cos(ang), dist: 0, target: null, kind: null, state: 'flying', len: 0,
+      end, off, reach: G ? G.lengths * v.len : 48, hook: G ? G.hook : 1, grapple: !!G };
     this.g.audio.harpoon();
     this.g.hud.shake(0.3);
   }
@@ -633,7 +646,7 @@ export class Vehicles {
     const g = this.g;
     const v = h.from;
     if (v.dead || v.driver !== g.player) { this.releaseHarpoon(); return; }
-    const ax = v.x - Math.sin(v.h) * 1.4, az = v.z - Math.cos(v.h) * 1.4;
+    const ax = v.x + Math.sin(v.h) * (h.off ?? 1.4) * (h.end ?? -1), az = v.z + Math.cos(v.h) * (h.off ?? 1.4) * (h.end ?? -1);
     let bx, bz;
     if (h.state === 'flying') {
       const step = 95 * dt;
@@ -650,8 +663,15 @@ export class Vehicles {
         const d = Math.hypot(c.x - (h.x + h.dx * step * 0.5), c.z - (h.z + h.dz * step * 0.5));
         if (d < 0.8 + step * 0.5) { hit = c; kind = 'char'; best = 0; break; }
       }
+      if (hit && Math.random() >= h.hook) { // a grapple that didn't bite: it skids off and reels in
+        g.fx.sparks(h.x, 1.2, h.z, -h.dx, -h.dz, 6); g.audio.clank();
+        g.emit('grappleMiss', { vehicle: v.id, target: hit.id });
+        if (v.driver === g.player) g.hud.toast('DIDN\'T BITE — REELING IN', 'warn');
+        h.state = 'retract'; hit = null;
+      }
       if (hit) {
         h.state = 'attached'; h.target = hit; h.kind = kind;
+        g.emit('grappleHit', { vehicle: v.id, target: hit.id, kind, grapple: h.grapple });
         h.len = Math.max(6, Math.hypot(hit.x - ax, hit.z - az));
         if (kind === 'char') {
           hit.dragged = h; g.combat.damage(hit, 55, g.player, h.dx, h.dz, 'bullet');
@@ -659,7 +679,7 @@ export class Vehicles {
         } else {
           this.damage(hit, 20, g.player);
           g.fx.sparks(hit.x, 1.2, hit.z, -h.dx, -h.dz, 12);
-          g.hud.toast('HOOKED — [H] TO YANK', 'hot');
+          g.hud.toast(h.grapple ? 'HOOKED — FIRE AGAIN TO YANK' : 'HOOKED — [H] TO YANK', 'hot');
           if (hit.driver && hit.driver !== g.player) g.ai.onDamaged(hit.driver, g.player);
         }
         g.audio.clank();
@@ -671,7 +691,7 @@ export class Vehicles {
         h.state = 'retract';
       } else {
         h.x += h.dx * step; h.z += h.dz * step; h.dist += step;
-        if (h.dist > 48) h.state = 'retract';
+        if (h.dist > h.reach) h.state = 'retract'; // the end of the chain
       }
       bx = h.x; bz = h.z;
     } else if (h.state === 'retract') {
@@ -727,14 +747,17 @@ export class Vehicles {
     const g = this.g;
     this.coneMat.opacity = 0.04 + night * 0.62;
     if (!this.decks.placed) this.decks.placeWorld(); // the RV in the middle of nowhere (data/decks.js PLACED)
+    g.towing?.pre(dt); // tow lines pull before anything drives (systems/towing.js)
     for (const v of this.list) {
       this.decks.capture(v); // its deck's riders back into its frame before it moves (systems/decks.js)
       if (v.driver && v.driver !== g.player && !v.dead) this.aiDrive(v, dt);
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
-      this.drive(v, dt);
-      this.collide(v, dt);
-      g.stunts?.step(v, dt); // the vertical half: ride the ground on its springs, fly, land
-      const lit = !!v.driver && !v.dead;
+      if (!g.semis?.tick(v, dt)) { // a trailer moves through its tractor, a car in a hold through its trailer (systems/semis.js)
+        this.drive(v, dt);
+        this.collide(v, dt);
+        g.stunts?.step(v, dt); // the vertical half: ride the ground on its springs, fly, land
+      }
+      const lit = (!!v.driver || !!v.towedBy?.driver) && !v.dead;
       // Brake lights: braking (throttle against the direction of travel) or the handbrake flares them.
       const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
       v.braking = lit && (v.handbrake || (v.throttle < 0 && fwd > 0.5) || (v.throttle > 0 && fwd < -0.5));
@@ -742,7 +765,7 @@ export class Vehicles {
       if (!v.dead) { const dmg = 1 - v.hp / v.maxHp; v.mesh.material.color.setRGB(1 - dmg * 0.6, 1 - dmg * 0.65, 1 - dmg * 0.7); }
       // The body: ride height (a landing can sink it into its springs, but never the tyres into the dirt), pitched and
       // rolled to the ground or to the arc it is flying; a bike adds its lean and its wheelie.
-      v.group.position.set(v.x, Math.max(v.y, v.gy - 0.07), v.z);
+      v.group.position.set(v.x, Math.max(v.y, v.gy - 0.07) + (v.liftY ?? 0) + (v.climbY ?? 0), v.z); // liftY: monster tyres; climbY: up on a car it is crushing (workshop.js)
       v.group.rotation.set(-v.pitch, v.h, v.roll);
       if (v.bike) { v.group.rotation.z += v.lean; v.group.rotation.x -= v.wheelie; v.group.position.y += v.wheelie * 0.25; }
       if (v.boat) {
@@ -806,6 +829,7 @@ export class Vehicles {
         if (Math.random() < dt * 6) g.fx.smoke(v.x, 2, v.z, true);
       }
     }
+    g.towing?.post(dt); // bars place what they tow, boats ride their trailers, the lines are drawn
     g.stunts?.update(); // blob shadows under whatever is in the air
     this.lights.update(night, g.time);
     this.updateHarpoon(dt);

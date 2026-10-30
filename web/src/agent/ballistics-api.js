@@ -1,6 +1,7 @@
 // BULLET SPEED's command and checks (systems/ballistics.js, data/ballistics.js, docs/design/WEB_BALLISTICS.md).
-import { ROUNDS, BALLISTICS as BL, LEAD, validateRounds } from '../data/ballistics.js';
+import { ROUNDS, BALLISTICS as BL, LEAD, validateRounds, roundRow, calOf } from '../data/ballistics.js';
 import { WEAPONS } from '../systems/combat.js';
+import { AMMO_ITEM } from '../data/items.js';
 import { RAY_BULLET } from '../engine/collision.js';
 import { outfit } from '../systems/characters.js';
 
@@ -69,13 +70,13 @@ export function ballisticsCommands(api) {
         need(B, 'no ballistics system');
         if (on !== undefined) B.on = !!on;
         if (!test) return B.view();
-        need(ROUNDS[round], `unknown round; known: ${Object.keys(ROUNDS).join(',')}`);
+        need(roundRow(round), `unknown round; known: ${Object.keys(ROUNDS).join(',')} (or an ammo key)`);
         need(dist > 0 && dist <= 1200, 'dist 0..1200 m');
         need(dt >= 1 / 240 && dt <= 0.1, 'dt 1/240..0.1 s');
         const tExp = B.flightTime(round, dist), dExp = B.dropAt(round, dist);
         if (ghost) {
           const f = ghostFlight(g, round, dist, dt);
-          need(f, `a ${round} round never flies ${dist} m (velocity / drag = ${Math.round(ROUNDS[round].velocity / ROUNDS[round].drag)} m)`);
+          need(f, `a ${round} round never flies ${dist} m (velocity / drag = ${Math.round(roundRow(round).velocity / roundRow(round).drag)} m)`);
           return { round, dist, dt: r3(dt), flightTime: r3(f.t), closedForm: r3(tExp), drop: r3(f.drop), closedFormDrop: r3(dExp), speedThere: r3(B.speedAt(round, dist)) };
         }
         return testShot(api, round, dist, dt);
@@ -101,7 +102,7 @@ export async function ballisticsChecks(ctx) {
       const missing = [];
       for (const [k, w] of Object.entries(WEAPONS)) {
         if (!ROUNDS[B.rowKey(w)]) missing.push(k);
-        for (const m of w.modes ?? []) if (m.round && !ROUNDS[m.round]) missing.push(`${k}.${m.id}`);
+        for (const m of w.modes ?? []) if (!roundRow(m.cal ?? m.round ?? m.ammo ?? B.rowKey(w)) || (m.ammo && !AMMO_ITEM[m.ammo])) missing.push(`${k}.${m.id}`);
       }
       const broken = validateRounds({ x: { velocity: -1, drag: 0.5, tracerEvery: 1.5, tracerW: 0.05, tracerLen: 3, speed: 3 } });
       return !bad.length && !missing.length && broken.length >= 3 ? true : JSON.stringify({ bad, missing, broken });
@@ -152,8 +153,8 @@ export async function ballisticsChecks(ctx) {
       const rd = B.pool[(B.next - 1 + B.cap) % B.cap];
       // The gun's line is where fireFromVehicle turned the shooter (p.face, its moving-car wobble in it); the muzzle
       // velocity along that line plus the car's is what the round must carry.
-      const vx = rd.dx * rd.sp, vz = rd.dz * rd.sp, ex = Math.sin(p.face) * ROUNDS.pistol.velocity + 22, ez = Math.cos(p.face) * ROUNDS.pistol.velocity;
-      const off = Math.hypot(vx - ex, vz - ez), still = Math.hypot(vx - Math.sin(p.face) * ROUNDS.pistol.velocity, vz - Math.cos(p.face) * ROUNDS.pistol.velocity);
+      const V = roundRow('pistol').velocity, vx = rd.dx * rd.sp, vz = rd.dz * rd.sp, ex = Math.sin(p.face) * V + 22, ez = Math.cos(p.face) * V;
+      const off = Math.hypot(vx - ex, vz - ez), still = Math.hypot(vx - Math.sin(p.face) * V, vz - Math.cos(p.face) * V);
       const bend = (Math.atan2(vx, vz) - p.face) * 180 / Math.PI;
       g.exitVehicle(true); g.vehiclesSys.remove?.(v);
       const ok = fired && B.stats.launched === n0 + 1 && off < 0.5 && still > 20 && bend > 2 && rd.shooter === p;
@@ -214,6 +215,37 @@ export async function ballisticsChecks(ctx) {
       const same = a.every((v, k) => Math.abs(v - b[k]) < 1e-9), spread = Math.max(...a) - Math.min(...a);
       await settle(p);
       return rec && rec.pellets === 8 && same && spread > 0.02 ? true : JSON.stringify({ rec, a: a.map(r3), b: b.map(r3), spread: r3(spread) });
+    });
+
+    await check('ballistics: the sawn-off loads BUCK, BIRD or SLUG from its own box in your pack: switching shell works the loaded ones back into the pack and the gun reloads the new kind; birdshot flies twice the pellets on its own row, the slug one on the slug row', async () => {
+      const p = g.player, I = g.inv, A = g.arms;
+      if (p.inVehicle) g.exitVehicle(true);
+      const keep = { cur: I.current, weapons: [...I.weapons], mag: I.mag.shotgun, mode: A.mode.shotgun, shells: I.ammo.shells, birdshot: I.ammo.birdshot, slug: I.ammo.slug };
+      const log = [];
+      const load = async () => { g.reload(); for (let f = 0; f < 240 && (I.mag.shotgun ?? 0) < WEAPONS.shotgun.mag; f++) await api._step(1); };
+      const shot = () => { g.combat.fire(p, 'shotgun', 0.4, A.row('shotgun')); const rec = B.record(1)[0], rd = B.pool[(B.next - 1 + B.cap) % B.cap]; return { pellets: rec?.pellets, key: rd.key }; };
+      try {
+        if (!I.weapons.includes('shotgun')) I.weapons.push('shotgun');
+        I.current = 'shotgun'; A.setMode('shotgun', 'buck');
+        I.ammo.shells = 10; I.ammo.birdshot = 10; I.ammo.slug = 4; I.mag.shotgun = 2; p.reloading = 0; p.cool = 0;
+        const buck = shot();
+        A.setMode('shotgun', 'bird');
+        const back = { mag: I.mag.shotgun, shells: I.ammo.shells };
+        await load();
+        const bird = { mag: I.mag.shotgun, left: I.ammo.birdshot, ...shot() };
+        A.setMode('shotgun', 'slug');
+        await load();
+        const slug = { mag: I.mag.shotgun, left: I.ammo.slug, birdBack: I.ammo.birdshot, ...shot() };
+        log.push({ buck, back, bird, slug });
+        const ok = buck.pellets === 8 && buck.key === calOf('shells') && back.mag === 0 && back.shells === 12
+          && bird.mag === 2 && bird.left === 8 && bird.pellets === 16 && bird.key === calOf('birdshot')
+          && slug.mag === 2 && slug.left === 2 && slug.birdBack === 10 && slug.pellets === 1 && slug.key === calOf('slug');
+        return ok ? true : JSON.stringify(log);
+      } finally {
+        A.mode.shotgun = keep.mode; I.mag.shotgun = keep.mag; I.ammo.shells = keep.shells; I.ammo.birdshot = keep.birdshot; I.ammo.slug = keep.slug;
+        I.weapons.length = 0; I.weapons.push(...keep.weapons); I.current = keep.cur; p.reloading = 0;
+        await settle(p);
+      }
     });
   } finally {
     for (const c of cast) if (g.chars.includes(c)) g.removeChar(c);

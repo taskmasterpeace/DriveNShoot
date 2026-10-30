@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CARRY } from '../data/arms.js';
+import { MELEE_WEAPONS } from '../data/melee.js';
 import { LswBodies } from './lswbodies.js';
 import { actLegs, actUpper, actArms } from './actposes.js'; // TIMED ACTIONS: the pose a timed action holds (docs/design/WEB_TIMED_ACTIONS.md)
+import { moveRoot } from './moves.js'; // the moves' root frame (data/moves.js)
 
 // People: one articulated low-poly body for everyone, drawn by InstancedMeshes shared by all 160
 // characters (left+right limbs pack into one mesh; hat, gear, accessory and gun variants pack only
@@ -20,6 +22,8 @@ const HIP_X = 0.125, HIP_Y = 0.92, THIGH = 0.44, SHIN = 0.4, ANKLE_Y = 0.08;
 const PRONE_HIP = 0.2, PRONE_LEAN = 1.42; // prone (data/stance.js): the hips 0.2 m up, the chest leant almost flat forward
 const WAIST_UP = 0.08, SHOULDER_X = 0.33, SHOULDER_UP = 0.56, UPPER = 0.3, FORE = 0.3, HEAD_UP = 0.86;
 const AIM_Y = 0.55; // hands and gun when aiming: above the waist, so 1.55 m standing
+// The rig's lengths, for the death points' ragdoll (systems/deaths.js) and anyone else who needs the body's measure.
+export const RIG = { HIP_X, HIP_Y, THIGH, SHIN, ANKLE_Y, WAIST_UP, SHOULDER_X, SHOULDER_UP, UPPER, FORE, HEAD_UP };
 
 // Weapon models. Origin at the grip (where the firing hand closes), +z down the barrel, +y up.
 // grip/support: how far in front of the chest the firing and support hands hold it at the aim;
@@ -160,6 +164,27 @@ function headGeo() {
     box(0.035, 0.08, 0.06, -0.19, -0.01, -0.01),
     box(0.045, 0.07, 0.05, 0, -0.02, 0.2),                               // nose
   ]);
+}
+
+// Melee props (data/melee.js model): origin at the grip, +z along the weapon. One packed variant per weapon.
+const PROP_KEYS = Object.keys(MELEE_WEAPONS).filter((k) => MELEE_WEAPONS[k].model);
+const PROP_TWO = new Set(PROP_KEYS.filter((k) => MELEE_WEAPONS[k].hands === 2));
+function propGeos() {
+  const out = {};
+  const b = (w, h, d, x, y, z, c) => tinted(box(w, h, d, x, y, z), c);
+  for (const k of PROP_KEYS) {
+    const M = MELEE_WEAPONS[k].model, [hw, hh, hd] = M.head, L = M.len;
+    if (k === 'bat') out[k] = mergeGeometries([tinted(new THREE.CylinderGeometry(0.042, 0.017, 0.86, 8).rotateX(Math.PI / 2).translate(0, 0, 0.36), M.metal), b(0.04, 0.04, 0.16, 0, 0, -0.02, M.grip)]);
+    else if (k === 'sledge') out[k] = mergeGeometries([b(0.035, 0.035, L + 0.1, 0, 0, L / 2 - 0.05, M.grip), b(hd, hh, hw, 0, 0, L + hw / 2 - 0.05, M.metal)]);
+    else if (k === 'knuckles') out[k] = mergeGeometries([b(hw, hh, hd, 0, 0.02, 0.05, M.metal), b(hw * 0.8, 0.02, 0.03, 0, -0.01, 0.02, M.grip)]);
+    else {
+      const parts = [b(0.032, 0.032, L, 0, 0, L / 2 - 0.05, M.grip), b(hw, hh, hd, 0, 0, L - 0.05 + hd / 2, M.metal)];
+      if (k === 'crowbar') parts.push(b(0.03, 0.09, 0.03, 0, 0.035, L - 0.05 + hd, M.metal)); // the hook
+      if (k === 'machete' || k === 'knife') parts.push(b(0.05, 0.02, 0.012, 0, 0, L - 0.05, '#2a2622')); // the guard
+      out[k] = mergeGeometries(parts);
+    }
+  }
+  return out;
 }
 
 function gunGeos() {
@@ -334,6 +359,8 @@ export class CharacterRenderer {
     for (const s of SCARS) variant(`scar_${s}`, G[`scar_${s}`], mat);
     const gunMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.5 });
     for (const k of GUN_KEYS) { const m = make(G[k], gunMat, MAX_CHARS, false); this.meshes[`gun_${k}`] = m; this.variant.push(`gun_${k}`); }
+    const PG = propGeos(), propMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.25, roughness: 0.6 });
+    for (const k of PROP_KEYS) { const m = make(PG[k], propMat, MAX_CHARS, false); m.castShadow = false; this.meshes[`mw_${k}`] = m; this.variant.push(`mw_${k}`); } // a bat, a machete in the hand (systems/melee.js)
     // Small parts don't need shadows from a top-down camera: skip them in the shadow pass.
     for (const k of ['face', 'hand', 'boot', 'fore', 'hips', 'hat_short', 'hat_mohawk', 'hat_cap', 'hat_bandana', 'gear_pads', 'gear_vest', 'gear_bandolier', 'acc_goggles', 'acc_mask', 'acc_eyepatch', ...SCARS.map((s) => `scar_${s}`), ...GUN_KEYS.map((k) => `gun_${k}`)]) this.meshes[k].castShadow = false;
     for (const k in this.meshes) for (const m of [this.meshes[k].material].flat()) m.userData.noCut = true; // people are never cut away (systems/cutaway.js)
@@ -412,6 +439,7 @@ export class CharacterRenderer {
     const w = ch.weapon && !ch.holstered && !ch.work ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null; // holstered: hands empty (systems/arms.js)
     const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
     const L = this.lsw, near = L.near[i] === 1; // an LSW body: the same solution, a different skin (systems/lswbodies.js)
+    if (!alive && ch.rag && !sp) { this.ragPose(ch, i, near); return; } // THE DEATH LIBRARY: a clip, then the ragdoll (systems/deaths.js)
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false, knocked = false;
@@ -431,9 +459,10 @@ export class CharacterRenderer {
         _root.multiply(_t.makeTranslation(0, 0.16 + (ch.bedY ?? 0), 0)).multiply(_r.makeRotationX(-Math.PI / 2)).multiply(_t.makeTranslation(0, -0.95, 0));
         lying = true;
       } else if (ch.vaultY) _root.multiply(_t.makeTranslation(0, ch.vaultY, 0)); // over the sill
+      if (ch.mv) moveRoot(ch, _root, _t, _r); // a roll, a slide, a vault, a climb, a jump (systems/moves.js)
       if (ch.dive > 0) {
         const k = Math.min(1, ch.dive * 3);
-        _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
+        _root.multiply(_t.makeTranslation(0, 0.95 - 0.5 * k, 0)).multiply(_r.makeRotationX(1.35 * k)).multiply(_t.makeTranslation(0, -0.95, 0)); // flat out at hip height, about the hips (it pivoted about the feet and went under the ground)
       }
       if (ch.underwater) _root.multiply(_t.makeTranslation(0, -1.6, 0));
       else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.5 + (ch.waveY ?? 0), 0)).multiply(_r.makeRotationX(1.2)); // waveY: on the swell (systems/sealife.js scanPeople)
@@ -451,7 +480,7 @@ export class CharacterRenderer {
     // cycle in reverse instead of twisting the hips round.
     let legYaw = 0, dirSign = 1;
     const downed = ch.knockT > 0;
-    const moving = alive && !sp && !ch.swim && !ch.dive && !downed && !ch.vault && ch.speed > 0.4;
+    const moving = alive && !sp && !ch.swim && !ch.dive && !downed && !ch.vault && !ch.mv && ch.speed > 0.4;
     if (moving && ch._rx !== undefined) {
       const dx = ch.x - ch._rx, dz = ch.z - ch._rz;
       if (dx * dx + dz * dz > 1e-6) {
@@ -468,7 +497,7 @@ export class CharacterRenderer {
     const v = moving ? ch.speed : 0;
     const k = clamp01(v / 1.2), run = clamp01((v - 3.2) / 3.2);
     const prone = alive && !sp && !downed && !ch.swim && !ch.dive && ch.prone ? 1 : 0; // data/stance.js: flat on the belly, gun forward
-    const crouch = alive && !sp && !downed && !prone && (ch.crouch || ch.vault || ch.stoop) ? 1 : 0; // stoop: a cabin lower than you stand
+    const crouch = alive && !sp && !downed && !prone && (ch.crouch || ch.vault || ch.stoop || (ch.mv && ch.mv.kind !== 'hang')) ? 1 : 0; // stoop: a cabin lower than you stand
     const aim = alive && !!gm && ch.aiming && !ch.handsUp && !(infected) && !downed && !ch.vault;
     const limp = infected ? (ch.limp ?? (i % 5 < 2 ? (i % 2 ? 1 : -1) : 0)) : 0; // ~40% of the infected drag a leg
     const phase = ch.walk * dirSign;
@@ -533,6 +562,7 @@ export class CharacterRenderer {
       _t.makeTranslation(ankle[s].x, ankle[s].y, ankle[s].z);
       if (footPitch[s]) _t.multiply(_r.makeRotationX(footPitch[s]));
       M.boot.setMatrixAt(j, _m.multiplyMatrices(_LF, _t));
+      if (ch.lost && ch.lost[s ? 'rleg' : 'lleg']) { M.shin.setMatrixAt(j, ZERO); M.boot.setMatrixAt(j, ZERO); } // taken off below the knee
     }
     M.hips.setMatrixAt(i, _m.multiplyMatrices(_LF, _t.makeTranslation(0, hipY + 0.02, 0)));
 
@@ -546,6 +576,10 @@ export class CharacterRenderer {
     if (sp?.twist) twist += sp.twist;   // shooting from the saddle: the upper body turns, the legs stay on the machine
     if (ch.swim || ch.underwater) lean = 0;
     if (prone) { lean = PRONE_LEAN; twist = wrap(ch.face - (ch.proneH ?? ch.face)); headTilt = 0; } // the chest on the ground, turned to the gun
+    if (alive && !knocked && ch.meleeT > 0 && PROP_KEYS.includes(ch.meleeKind)) { // the hips and shoulders turn into a swing
+      const t = ch.meleeT, h = ch.meleeHit ?? 0.35, w = t < h ? t / h : Math.max(0, 1 - (t - h) / (1 - h) * 1.6), s2 = ch.hand === 'L' ? -1 : 1;
+      twist += (t < h ? -0.6 : 0.5) * w * s2 * (PROP_TWO.has(ch.meleeKind) ? 1 : 0.6);
+    }
     if (act) { actUpper(act, _AU); lean = _AU.lean; twist = _AU.twist; headTilt = _AU.tilt; }
     _U.makeTranslation(0, hipY + WAIST_UP, 0);
     if (twist) _U.multiply(_r.makeRotationY(twist));
@@ -580,9 +614,13 @@ export class CharacterRenderer {
     else if (ch.handsUp) mode = 'handsUp';
     else if (act?.pose) mode = 'act';       // a timed action's hands (systems/actposes.js)
     else if (ch.work) mode = 'work';         // both hands on an interaction: boards, a lock, a shelf (systems/arms.js)
+    else if (ch.m?.heldBy) mode = 'held';     // a forearm across the throat (systems/melee.js)
+    else if (ch.m?.hold) mode = 'hold';       // the arm round somebody's neck
     else if (ch.meleeT > 0) mode = 'melee'; // a blow in flight (systems/melee.js)
+    else if (ch.m?.guard) mode = 'guard';     // the guard up: forearms (or the weapon) in front of the face
     else if (infected) mode = 'infected';
     else if (ch.swim || ch.underwater) mode = 'swim';
+    else if (ch.mv?.arms) mode = ch.mv.arms; // hands up on a climb, on a ledge (systems/moves.js)
     else if (ch.dive > 0) mode = 'dive';
     else if (aim) mode = 'aim';
     else if (gm && gm.carry === 'low') mode = 'low';
@@ -622,10 +660,37 @@ export class CharacterRenderer {
         // push for a shove, arms out for balance on a kick.
         const t = ch.meleeT, hit = ch.meleeHit ?? 0.35, k = ch.meleeKind;
         const ext = t < hit ? -0.25 * (t / hit) : Math.max(0, 1 - (t - hit) / (1 - hit)) * 1.0;
-        if (k === 'shove') { ikArm(0, 0.16, AIM_Y, 0.22 + 0.35 * Math.max(0, ext)); ikArm(1, -0.16, AIM_Y, 0.22 + 0.35 * Math.max(0, ext)); }
+        if (PROP_KEYS.includes(k) && k !== 'knuckles') {
+          // A weapon swing you can READ: the whole wind-up draws it back and up over the dominant shoulder, the contact
+          // brings it across and through, the recovery settles it (two hands on a bat or a sledge).
+          const two = PROP_TWO.has(k), u = t < hit ? t / hit : 1, f = t < hit ? 0 : Math.min(1, (t - hit) / ((1 - hit) * 0.3)), st = t < hit ? 0 : Math.max(0, (t - hit) / (1 - hit) - 0.3) / 0.7;
+          const big = ch.meleeHeavy ? 1.25 : 1;
+          let hx = -hs * (0.2 + 0.12 * u * big) + hs * 0.55 * f, hy = AIM_Y + 0.05 + 0.4 * u * big - 0.5 * f, hz = 0.22 - 0.42 * u * big + 0.62 * f;
+          if (st > 0) { hx += (-hs * 0.12 - hx) * st; hy += (AIM_Y - 0.05 - hy) * st; hz += (0.3 - hz) * st; }
+          ikArm(fh, hx, hy, hz);
+          if (two) ikArm(sup, hx + hs * 0.05, hy - 0.05, hz - 0.1); else ikArm(sup, SIDE[sup] * 0.34, 0.12 + 0.1 * u, 0.1);
+        } else if (k === 'stomp') { ikArm(0, 0.4, 0.38, 0.0); ikArm(1, -0.4, 0.36, 0.05); }
+        else if (k === 'shove') { ikArm(0, 0.16, AIM_Y, 0.22 + 0.35 * Math.max(0, ext)); ikArm(1, -0.16, AIM_Y, 0.22 + 0.35 * Math.max(0, ext)); }
         else if (k === 'kick') { ikArm(0, 0.42, 0.42, -0.05); ikArm(1, -0.42, 0.4, 0.1 - 0.2 * Math.max(0, ext)); }
         else { ikArm(1, -0.04, AIM_Y + 0.04, 0.2 + 0.36 * Math.max(0, ext) - 0.1 * Math.max(0, -ext)); ikArm(0, 0.12, AIM_Y + 0.08, 0.2); }
         if (gm && k === 'butt') { gunKey = model; ch._buttExt = Math.max(0, ext); }
+        break;
+      }
+      case 'guard': {
+        // Fists up: both forearms in front of the face; a weapon held crosswise in both hands.
+        const gp = ch.mProp ?? ch.meleeW;
+        if (gp && PROP_KEYS.includes(gp) && gp !== 'knuckles') { ikArm(fh, -hs * 0.2, AIM_Y + 0.3, 0.34); ikArm(sup, hs * 0.2, AIM_Y + 0.32, 0.34); }
+        else { ikArm(0, 0.12, AIM_Y + 0.36, 0.27); ikArm(1, -0.12, AIM_Y + 0.38, 0.25); }
+        break;
+      }
+      case 'hold': {
+        // The arm round the neck in front, the other hand on it.
+        ikArm(fh, hs * 0.08, AIM_Y + 0.22, 0.4); ikArm(sup, -hs * 0.12, AIM_Y + 0.18, 0.42);
+        break;
+      }
+      case 'held': {
+        // Both hands pulling at the arm across the throat.
+        ikArm(0, 0.09, AIM_Y + 0.3, 0.14); ikArm(1, -0.09, AIM_Y + 0.32, 0.12);
         break;
       }
       case 'low': {
@@ -692,6 +757,14 @@ export class CharacterRenderer {
       this.seg(M.upper, j, _g, sh[s], el[s]);
       const fm = this.seg(M.fore, j, _g, el[s], hand[s]);
       M.hand.setMatrixAt(j, fm);
+      if (ch.lost && ch.lost[s ? 'rarm' : 'larm']) { M.fore.setMatrixAt(j, ZERO); M.hand.setMatrixAt(j, ZERO); continue; } // taken off (systems/melee.js sever)
+      // The melee weapon in the dominant hand (nothing when a gun is out): along the forearm, tipped forward.
+      const prop = s === fh && alive && !gunKey && !gunHand && mode !== 'handsUp' && mode !== 'work' && mode !== 'bars' && mode !== 'held' ? ch.mProp ?? ch.meleeW : null;
+      if (prop && this.meshes[`mw_${prop}`]) {
+        _t.makeTranslation(0, -FORE, 0).multiply(_r.makeRotationX(prop === 'knuckles' ? 0 : 1.35));
+        const key = `mw_${prop}`;
+        this.meshes[key].setMatrixAt(this.packed[key]++, _G.multiplyMatrices(fm, _t));
+      }
       if (gunHand && s === fh) {
         // The revolver in the right fist: grip at the hand, barrel along the forearm, tipped forward.
         _t.makeTranslation(0, -FORE, 0).multiply(_r.makeRotationX(1.25));
@@ -710,7 +783,8 @@ export class CharacterRenderer {
         M[key].setMatrixAt(k2, _m.multiplyMatrices(_g, _t));
       }
     }
-    if (near) {
+    if (ch.lost) this.hideLost(ch.lost, i); // limbs that came off (systems/deaths.js sever)
+    if (near && !ch.lost) {
       // Which hands are closed on something: the gun hand (and the support hand on a two-hand hold), bars, a tool, fists.
       const both = mode === 'low' || mode === 'bars' || mode === 'work' || mode === 'act' || mode === 'melee' || (mode === 'aim' && !ch.oneHand);
       _grip[0] = both || ((mode === 'aim' || gunHand) && fh === 0) ? 1 : 0; _grip[1] = both || ((mode === 'aim' || gunHand) && fh === 1) ? 1 : 0;
@@ -720,6 +794,71 @@ export class CharacterRenderer {
 
   clear(slot) {
     this.hideSlot(slot);
+  }
+
+  // A limb that came off is not drawn (bits: armL 1, armR 2, legL 4, legR 8; side 0 is the left, +x).
+  hideLost(lost, i) {
+    const M = this.meshes;
+    for (let s = 0; s < 2; s++) {
+      const j = i * 2 + s;
+      if (lost & (s ? 2 : 1)) { M.upper.setMatrixAt(j, ZERO); M.fore.setMatrixAt(j, ZERO); M.hand.setMatrixAt(j, ZERO); }
+      if (lost & (s ? 8 : 4)) { M.thigh.setMatrixAt(j, ZERO); M.shin.setMatrixAt(j, ZERO); M.boot.setMatrixAt(j, ZERO); }
+    }
+  }
+
+  // THE DEATH LIBRARY (systems/deaths.js): a dying or dead body drawn from its 12 world points (0/1 hips, 2/3 knees, 4/5
+  // ankles, 6/7 shoulders, 8/9 elbows, 10/11 hands; even = the left). The leg frame stands on the hips with its up along
+  // the spine, the upper-body frame on the shoulders; the joints go into those frames and the segments are written as
+  // pose() writes them, so an LSW body wears the same solution (and death rites' rot colours, through paint()).
+  ragPose(ch, i, near) {
+    const M = this.meshes, P = ch.rag.P, L = this.lsw;
+    const pcx = (P[0] + P[3]) / 2, pcy = (P[1] + P[4]) / 2, pcz = (P[2] + P[5]) / 2;
+    const scx = (P[18] + P[21]) / 2, scy = (P[19] + P[22]) / 2, scz = (P[20] + P[23]) / 2;
+    _Y.set(scx - pcx, scy - pcy, scz - pcz).normalize();
+    _X.set(P[0] - P[3], P[1] - P[4], P[2] - P[5]); _X.addScaledVector(_Y, -_X.dot(_Y)).normalize(); _Z.crossVectors(_X, _Y);
+    _LF.makeBasis(_X, _Y, _Z).setPosition(pcx - _Y.x * HIP_Y, pcy - _Y.y * HIP_Y, pcz - _Y.z * HIP_Y);
+    _r.copy(_LF).invert();
+    for (let s = 0; s < 2; s++) {
+      hip[s].set(P[s * 3], P[s * 3 + 1], P[s * 3 + 2]).applyMatrix4(_r);
+      knee[s].set(P[(2 + s) * 3], P[(2 + s) * 3 + 1], P[(2 + s) * 3 + 2]).applyMatrix4(_r);
+      ankle[s].set(P[(4 + s) * 3], P[(4 + s) * 3 + 1], P[(4 + s) * 3 + 2]).applyMatrix4(_r);
+      footPitch[s] = 0;
+    }
+    _X.set(P[18] - P[21], P[19] - P[22], P[20] - P[23]); _X.addScaledVector(_Y, -_X.dot(_Y)).normalize(); _Z.crossVectors(_X, _Y);
+    _g.makeBasis(_X, _Y, _Z).setPosition(scx - _Y.x * SHOULDER_UP, scy - _Y.y * SHOULDER_UP, scz - _Y.z * SHOULDER_UP);
+    _r.copy(_g).invert();
+    for (let s = 0; s < 2; s++) {
+      sh[s].set(P[(6 + s) * 3], P[(6 + s) * 3 + 1], P[(6 + s) * 3 + 2]).applyMatrix4(_r);
+      el[s].set(P[(8 + s) * 3], P[(8 + s) * 3 + 1], P[(8 + s) * 3 + 2]).applyMatrix4(_r);
+      hand[s].set(P[(10 + s) * 3], P[(10 + s) * 3 + 1], P[(10 + s) * 3 + 2]).applyMatrix4(_r);
+    }
+    for (let s = 0; s < 2; s++) {
+      const j = i * 2 + s;
+      this.seg(M.thigh, j, _LF, hip[s], knee[s]);
+      this.seg(M.shin, j, _LF, knee[s], ankle[s]);
+      M.boot.setMatrixAt(j, _m.multiplyMatrices(_LF, _t.makeTranslation(ankle[s].x, ankle[s].y, ankle[s].z)));
+      this.seg(M.upper, j, _g, sh[s], el[s]);
+      M.hand.setMatrixAt(j, this.seg(M.fore, j, _g, el[s], hand[s]));
+    }
+    M.hips.setMatrixAt(i, _m.multiplyMatrices(_LF, _t.makeTranslation(0, HIP_Y + 0.02, 0)));
+    M.torso.setMatrixAt(i, _g);
+    _t.makeTranslation(0, near ? L.headUp : HEAD_UP, 0);
+    if (near) _t.multiply(L.hatScale);
+    const headFrame = _H.multiplyMatrices(_g, _t), c = ch.colors;
+    if (ch.headless) { M.head.setMatrixAt(i, ZERO); M.face.setMatrixAt(i, ZERO); }
+    else {
+      M.head.setMatrixAt(i, headFrame); M.face.setMatrixAt(i, headFrame);
+      const hat = c.hatStyle ?? 'short';
+      if (hat !== 'bald' && M[`hat_${hat}`] && !(near && !ch.lost && L.ownsHair(ch))) this.put(`hat_${hat}`, headFrame, 0, 0, 0, 0, HAIR_STYLES.has(hat) ? c.hair : c.hat ?? c.hair);
+      const acc = c.accStyle ?? 'none';
+      if (acc !== 'none' && M[`acc_${acc}`]) this.put(`acc_${acc}`, headFrame, 0, 0, 0, 0, acc === 'mask' ? c.mask ?? '#6a2a1e' : '#2a2622');
+      if (c.scar && M[`scar_${c.scar}`]) this.put(`scar_${c.scar}`, headFrame, 0, 0, 0, 0, c.scarColor ?? '#d9a58a');
+    }
+    const gear = c.gearStyle ?? 'none';
+    if (gear !== 'none' && M[`gear_${gear}`]) this.put(`gear_${gear}`, near ? _GS.multiplyMatrices(_g, L.gearScale) : _g, 0, 0.3, 0, 0, c.gear ?? '#3a3128');
+    ch._pose = 'dead';
+    if (ch.lost) this.hideLost(ch.lost, i);
+    else if (near) { _grip[0] = _grip[1] = 0; if (L.drive(ch, _LF, HIP_Y, hip, knee, ankle, footPitch, _g, headFrame, el, hand, true, -1, _grip)) this.hideSlot(i); }
   }
 }
 

@@ -122,6 +122,7 @@ On the radio, a voice says somebody is bleeding out at a ranch west of the dead 
 - **A hired gun:** `seats.recruit` gives followers `mag 99`. The hire puts the gun's own magazine back. The engine's AI reload still refills from nothing; that is the AI's law, not this lane's.
 
 ## 6. Dependencies
+- **CASINOS** (`WEB_CASINOS.md`, systems/casinos.js) reads a saloon's bar: its back-room blackjack table sits on `plan(bar).tables[0]` (read only) and its house is the bar's own `till` (bets in, payouts out, never a second purse).
 | Uses | For |
 |---|---|
 | `citygen` (plan, live towns, buildings) | towns as nodes; saloons; rural parcels |
@@ -146,11 +147,14 @@ Shared-file hooks (exact):
 | `web/src/agent/api.js` | import, `...pullsCommands`, `await pullsChecks(...)` before the perf budget; the snapshot excludes `pullRec`/`barRole` characters and saves `pulls`; restore calls `g.pulls.load` before the characters |
 | `web/docs/COMMANDS.md` | regenerated |
 
+| WORLD-VOICE (`WEB_WORLD_VOICE.md`) | reads this knowledge model: chronicle rows a town witnessed become `news` facts, a town's own market a `market` fact; feed stations air only copies their mast town holds; towns paint DON'T GO only from facts they hold; the grapevine's trucks set when the radio can know |
+
 What other lanes can use:
 - `g.pulls.k`, the knowledge model: `holder`, `record`, `see`, `tell`, `broadcast`, `sendWire`, `holds`, `copyOf`, `view`.
 - SITE-STORIES (WEB_SITE_STORIES.md) builds on this model: places, boards (`board:<id>`, the same holder the saloon board reads), Tally halls, parties and hunters are holders; travellers carry postings and news with `put`/`tell`; the town grapevine carries sightings; three fact kinds (`story`, `posting`, `sighting`) join `FACT_KINDS` at load. Its bounties are the Tally's own (`stories.post`), hunted from copies, never from your true position.
 - DEATH-RITES: already bridged (`rites.learn` calls `deathNews`).
 - UI-EDITOR: the chip is the `pulls` row.
+- GUNFIRE REACTIONS (WEB_GUNFIRE_REACTIONS.md): someone who calls a shot in becomes a holder `rx:<id>`, records a `gunfire` fact (life 3 h) whose `where` is their HEARD guess of the spot, not the truth, on the new `heard` channel (conf 0.6); it is broadcast to radio sets within 400 m and put into the nearest town's talk.
 
 ## 7. Tuning Knobs (`web/src/data/pulls.js`)
 | knob | default | safe range | effect |

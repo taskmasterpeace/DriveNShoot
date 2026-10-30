@@ -3,6 +3,7 @@ import { RAY_BULLET, rayCircle } from '../engine/collision.js';
 import { ITEMS } from '../data/items.js';
 import { FACES6, FACE_BEARING, ARMOR, CHASSIS, MOUNT_WEAPONS, UTILITY, AMMO_ITEMS, PAINTS, REPAIR, WORKSHOPS, ARENAS, LOANER, validateWorkshop } from '../data/workshop.js';
 import { groupOf } from './garage.js';
+import { roadLines } from '../world/city.js';
 
 // THE WORKSHOP (docs/design/WEB_WORKSHOP.md): the counter and the guns.
 //   The counter: install / remove / repair / reload / paint at a shop (data/workshop.js WORKSHOPS: Kenji's, a town
@@ -339,13 +340,13 @@ export class Workshop {
       if (!shooter) return false;
       g.fx.flash(mz.x, mz.y, mz.z, W.size > 1 ? 1.8 : 1.1, 0.04);
       g.audio.gun(W.sound ?? 'smg', near, g.pan(mz.x));
-      g.combat.hitscan(shooter, mz.x, mz.z, dx, dz, W.range, W.dmg);
+      g.combat.hitscan(shooter, mz.x, mz.z, dx, dz, W.range, W.dmg, W.cal ?? null, 0, null); // its calibre punches and wounds (WEB_CALIBERS.md); it still lands now
       if (W.size > 1) { v.vx -= dx * 0.6 / v.mass; v.vz -= dz * 0.6 / v.mass; } // the autocannon rocks the car
     } else if (W.kind === 'rocket') this.launch(v, mz, dx, dz, W, shooter, m);
     else if (W.kind === 'flame') this.flame(v, mz, a, W, shooter);
     else if (W.kind === 'beam') this.beam(v, mz, dx, dz, W, shooter, 1);
     else if (W.kind === 'rail') this.beam(v, mz, dx, dz, W, shooter, W.pierce);
-    else if (W.kind === 'harpoon') { if (v.driver === g.player) g.vehiclesSys.fireHarpoon(v, a); else return false; }
+    else if (W.kind === 'harpoon') { if (v.driver === g.player) g.vehiclesSys.fireHarpoon(v, a, { front: face === 'front', grapple: W.grapple }); else return false; }
     else if (W.kind === 'emp') this.emp(v, mz, a, W, shooter);
     g.emit('mountFire', { vehicle: v.id, face, kind: m.kind, by: shooter?.id ?? null });
     return true;
@@ -441,7 +442,8 @@ export class Workshop {
     if (m.charges <= 0) { if (v.driver === g.player && g.time > (m.dry ?? 0)) { m.dry = g.time + 0.5; g.hud?.toast?.(`${W.name} EMPTY`, 'warn'); } return null; }
     if (g.time < (m.cool ?? 0)) return null;
     m.cool = g.time + 0.35; m.charges--;
-    const G = g.garage, back = -(v.len / 2 + 1.6), x = v.x + Math.sin(v.h) * back, z = v.z + Math.cos(v.h) * back;
+    const S = g.semis?.dropTail?.(v) ?? v; // a tractor drops behind its trailer (systems/semis.js)
+    const G = g.garage, back = -(S.len / 2 + 1.6), x = S.x + Math.sin(S.h) * back, z = S.z + Math.cos(S.h) * back;
     if (m.kind === 'oil') { G.hazard('oil', x, z, W.slick.r, W.slick.life); g.fx.decal(x, z, W.slick.r * 1.15, '#0d0b09'); }
     else if (m.kind === 'caltrops') { G.hazard('caltrops', x, z, W.field.r, W.field.life); for (let i = 0; i < 6; i++) g.fx.decal(x + (Math.random() - 0.5) * 4, z + (Math.random() - 0.5) * 4, 0.25, '#2a2724'); }
     else if (m.kind === 'smoke') { g.throwables.smokes.push({ x, z, r: 5.5, t: 0, dur: 14 }); g.audio.hiss?.(g.pan(x)); }
@@ -528,6 +530,85 @@ export class Workshop {
   }
 
   // ---- every frame ---------------------------------------------------------------------------------------------------
+  // Is (x, z) pavement: the island's streets, the ring city's, an interstate's lanes. Off it is dirt, sand, mud.
+  paved(x, z) {
+    const g = this.g;
+    if (!g.stunts?.outside(x, z)) return roadLines.some((c) => Math.abs(z - c) < 7 || Math.abs(x - c) < 7) || Math.abs(z) < 7;
+    const W = g.streamer?.W;
+    if (!W) return false;
+    if (W.ring?.solid?.(x, z, 0)) return true;
+    return W.projectAny(x, z, 40).d < 11;
+  }
+
+  // MONSTER TYRES climb (data/workshop.js UTILITY monster.climb): a monster truck that hits a lower car nose-first fast
+  // enough goes up and over it instead of bouncing off. vehicles.js asks climbStart on an impact and skips the pair's
+  // collision while climbs() holds; climbTick rides it across the roof and caves it in.
+  climbStart(a, b, closing) {
+    for (const [m, o] of [[a, b], [b, a]]) {
+      const C = m.utility?.monster && UTILITY.monster.monster.climb;
+      if (!C || m.climbing || m.dead || o.utility?.monster || o.boat || (o.tall ?? 2) > C.under || closing < C.speed) continue;
+      if (this.g.garage.faceAt(m, o.x, o.z) !== 'front') continue;
+      m.climbing = o.id; m.climbHitT = 0; // an id, not the car: the row stays plain JSON for saves and the shard
+      this.g.emit('monsterClimb', { vehicle: m.id, over: o.id, speed: Math.round(closing * 10) / 10 });
+      if (m.driver === this.g.player) this.g.hud?.toast?.(`UP AND OVER THE ${o.name}`, 'job');
+      return true;
+    }
+    return false;
+  }
+  climbs(a, b) { return a.climbing === b.id || b.climbing === a.id; }
+  climbTick(v, dt) {
+    const g = this.g, o = v.climbing ? g.vehicles.find((x) => x.id === v.climbing) : null, C = UTILITY.monster.monster.climb;
+    let target = 0;
+    if (o && !o.sunk) {
+      const fx = Math.sin(v.h), fz = Math.cos(v.h), along = (o.x - v.x) * fx + (o.z - v.z) * fz;
+      if (along < -(o.len / 2 + v.len * 0.45) || along > o.len / 2 + v.len * 0.6) v.climbing = null; // rolled off the far end (or backed off)
+      else {
+        if (Math.abs(along) < o.len / 2 + v.len * 0.15) target = (o.tall ?? 1.8) * (0.85 - 0.25 * (o.crushed ?? 0)); // on the roof
+        const k = Math.exp(-dt * 6); o.vx *= k; o.vz *= k; o.av *= k; // pinned under it
+        if (target > 0) {
+          g.vehiclesSys.damage(o, C.dps * dt, v.driver);
+          o.crushed = Math.min(1, (o.crushed ?? 0) + dt * 1.5); o.group.scale.y = 1 - 0.38 * o.crushed; // the roof caves
+          for (const c of o.occ ?? []) if (c?.alive) g.combat.damage(c, C.dps * 0.3 * dt, v.driver, 0, 0, 'vehicle');
+          if ((v.climbHitT -= dt) <= 0) { v.climbHitT = 0.25; g.vehDamage.hit(o, o.x, o.z, C.part, 'crash'); if (v.driver === g.player || o.driver === g.player) g.hud?.shake?.(0.35); }
+        }
+      }
+    } else v.climbing = null;
+    v.climbY = (v.climbY ?? 0) + (target - (v.climbY ?? 0)) * Math.min(1, dt * 8);
+    if (!v.climbing && v.climbY < 0.01) v.climbY = 0;
+  }
+
+  // HUB SPIKES (data/workshop.js UTILITY hubspikes): blades out past the tyres. Anything alongside at speed gets them:
+  // the other car's tyre on that side and its flank, somebody on foot by your wheels, a hand on your door.
+  hubSpikes(v, dt) {
+    const g = this.g, H = UTILITY.hubspikes.hub, sp = g.vehiclesSys.speed(v);
+    if (sp < 3) return;
+    const c = Math.cos(v.h), s = Math.sin(v.h), mo = v.utility.monster ? 0.55 : 0, reach = v.wid / 2 + mo + H.reach;
+    for (const o of g.vehicles) {
+      if (o === v || o.dead || o.sunk) continue;
+      const dx = o.x - v.x, dz = o.z - v.z;
+      if (dx * dx + dz * dz > 64) continue;
+      const lx = dx * c - dz * s, lz = dx * s + dz * c; // o in v's frame (+x = v's left)
+      if (Math.abs(lz) > (v.len + o.len) * 0.4 || Math.abs(lx) > reach + o.wid / 2 || Math.abs(lx) < v.wid / 2) continue;
+      const rel = Math.hypot(o.vx - v.vx, o.vz - v.vz) + sp * 0.3; // grinding along at speed, or slammed into
+      const side = g.carCombat.sideToward(o, v.x, v.z); // o's side that faces v
+      this.hitVehicle(o, v.x, v.z, H.car * dt * Math.min(2, rel / 8 + 0.5), 'pierce', v.driver ?? null, side);
+      g.emit('hubSpikes', { vehicle: o.id, by: v.id, side });
+      // the tyre it faces is popped by the same row's `slash` (systems/kit.js cars): one owner per job
+      g.fx.spawn(2, v.x + dx * 0.5, 0.5, v.z + dz * 0.5, (Math.random() - 0.5) * 4, 2, (Math.random() - 0.5) * 4, 0.3, 0.12, '#f5c26a', 6);
+    }
+    for (const ch of g.chars) {
+      if (!ch.alive || ch.inVehicle || ch === v.driver) continue;
+      const dx = ch.x - v.x, dz = ch.z - v.z;
+      if (dx * dx + dz * dz > 25) continue;
+      const lx = dx * c - dz * s, lz = dx * s + dz * c;
+      if (Math.abs(lz) < v.len / 2 && Math.abs(lx) > v.wid / 2 - 0.2 && Math.abs(lx) < reach + 0.3) {
+        g.combat.damage(ch, H.person * dt * Math.min(2, sp / 8), v.driver ?? null, Math.sign(lx) * c, -Math.sign(lx) * s);
+        g.emit('hubSpikes', { char: ch.id, by: v.id });
+      }
+    }
+    for (const gr of v.grabbers ?? []) if (gr.side === 'left' || gr.side === 'right') gr.grip -= dt * H.grip;
+  }
+
   update(dt) {
     const g = this.g, P = g.player;
     for (const v of g.vehicles) {
@@ -550,6 +631,14 @@ export class Workshop {
           v.nitroOn = on;
         }
         v.boostWas = v.boost;
+        // Tyres: what's under them, four times a second (data/workshop.js UTILITY tread rows).
+        const T = g.garage.tread(v);
+        if (T && (v.treadT = (v.treadT ?? 0) - dt) <= 0) {
+          v.treadT = 0.25; v.paved = this.paved(v.x, v.z);
+          v.treadGrip = v.paved ? T.paved : T.dirt; v.treadTop = v.paved ? T.topPaved ?? 1 : 1;
+        }
+        if (v.climbing || v.climbY) this.climbTick(v, dt);
+        if (U.hubspikes && (v.hubT = (v.hubT ?? 0) - dt) <= 0) { v.hubT = 0.25; this.hubSpikes(v, 0.25); }
       }
       if (v.mounts) this.lockTick(v, dt);
       // Spikes and a cowcatcher: hands come off that face fast and bloody.

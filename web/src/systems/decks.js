@@ -41,6 +41,7 @@ const centre = (b) => [(b.box[0] + b.box[1]) / 2, (b.box[2] + b.box[3]) / 2];
 const boxDist = (b, p) => Math.hypot(Math.max(b.box[0] - p.x, 0, p.x - b.box[1]), Math.max(b.box[2] - p.z, 0, p.z - b.box[3]));
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const deckOfRider = (c) => c.onDeck?.D ?? c.onDeck?.v.deck;
+const NO_BOXES = [];
 
 export class Decks {
   constructor(game) {
@@ -162,6 +163,7 @@ export class Decks {
     const D = deckOfRider(c) ?? v.deck, r = R.radius;
     for (let it = 0; it < 3; it++) {
       for (const f of solidBoxes(D)) pushOut(f.box, p, r);
+      for (const b of v.cargoBoxes ?? NO_BOXES) pushOut(b, p, r);
       p.x = Math.min(D.floor[1] - r, Math.max(D.floor[0] + r, p.x));
       p.z = Math.min(D.floor[3] - r, Math.max(D.floor[2] + r, p.z));
       for (const f of solidBoxes(D)) pushOut(f.box, p, r);
@@ -238,7 +240,7 @@ export class Decks {
       const dx = Math.max(D.floor[0] - L.x, 0, L.x - D.floor[1]), dz = Math.max(D.floor[2] - L.z, 0, L.z - D.floor[3]);
       return Math.hypot(dx, dz) < R.climbReach && L.z < D.floor[3] + 0.3 ? (v.boat ? 'Climb aboard' : 'Climb into the bed') : null;
     }
-    return this.doorAt(D, L, R.doorZone + 0.4) ? 'Step inside' : null;
+    return this.doorAt(D, L, R.doorZone + 0.4, v) ? 'Step inside' : null;
   }
   climb(c, v) {
     toLocal(v, c.x, c.z, L);
@@ -263,8 +265,9 @@ export class Decks {
   }
 
   // The door of D whose outside zone holds frame point p (out to `zone` m past its edge), or null.
-  doorAt(D, p, zone) {
+  doorAt(D, p, zone, v) {
     for (const d of D.doors ?? []) {
+      if (d.needs && !v?.[d.needs]) continue; // shut: a trailer's ramp is up (data/trailers.js)
       const out = past(D, d.edge, p), a = along(d.edge, p);
       if (out > -0.3 && out < zone && a > d.span[0] && a < d.span[1]) return d;
     }
@@ -301,7 +304,7 @@ export class Decks {
     const D = v.deck;
     toLocal(ref, p.x, p.z, L);
     if (D.open) return; // an open bed: E climbs in (main.js), a walk into its side just meets the truck
-    const door = this.doorAt(D, L, R.doorZone);
+    const door = this.doorAt(D, L, R.doorZone, v);
     if (!door) return;
     toLocal(ref, p._rx, p._rz, Q); // where they were last frame: walking toward the door?
     const n = NORMAL[door.edge];
@@ -316,11 +319,12 @@ export class Decks {
   resolve(v, c, p) {
     const D = deckOfRider(c), r = R.radius;
     for (const f of solidBoxes(D)) pushOut(f.box, p, r);
+    for (const b of v.cargoBoxes ?? NO_BOXES) pushOut(b, p, r); // the cars in a trailer's hold (systems/semis.js)
     for (const e of EDGES) {
       const over = past(D, e, p) + r;
       if (over <= 0) continue;
       const a = along(e, p);
-      const door = !c.prone && (D.doors ?? []).find((d) => d.edge === e && a > d.span[0] + r * 0.5 && a < d.span[1] - r * 0.5);
+      const door = !c.prone && (D.doors ?? []).find((d) => d.edge === e && a > d.span[0] + r * 0.5 && a < d.span[1] - r * 0.5 && !(d.needs && !v[d.needs]));
       if (door) { if (past(D, e, p) > 0.05) return { how: 'door', edge: e }; continue; }
       if ((D.edges?.[e]?.h ?? 2) < R.railMax && c.dive > 0) { if (past(D, e, p) > 0.1) return { how: 'vault', edge: e }; continue; }
       const n = NORMAL[e];
@@ -627,6 +631,7 @@ export class Decks {
     const D = c.onDeck?.D ?? v.deck, d = c.onDeck;
     let best = null, bd = Infinity;
     for (const o of D.doors ?? []) {
+      if (o.needs && !v[o.needs]) continue;
       const n = NORMAL[o.edge], a = (o.span[0] + o.span[1]) / 2, e = edgeLine(D, o.edge);
       const lx = n[0] ? e + n[0] * 0.6 : a, lz = n[1] ? e + n[1] * 0.6 : a;
       const w = Math.hypot(lx - d.lx, lz - d.lz);

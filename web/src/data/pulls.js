@@ -20,6 +20,7 @@ export const CHANNELS = {
   board:     { name: 'read on a board', conf: 0.95, range: 3, desc: 'written on a town board: read where it hangs' },
   note:      { name: 'read a note', conf: 1.0, range: 2, desc: 'written by the one who left it' },
   scanner:   { name: 'heard on the scanner', conf: 0.8, range: 1800, needs: 'radio_scanner', desc: 'a convoy or the bulls keying up: only inside its range, only with a live scanner (systems/kit.js)' },
+  heard:     { name: 'heard it', conf: 0.6, range: 140, desc: 'a sound: a gunshot by its bearing and loudness, never where it truly was (systems/reactions.js)' },
   grapevine: { name: 'the grapevine', conf: 0.8, speed: 450, hops: 3, desc: 'town to town with the traders: arrives after the road is driven' },
 };
 
@@ -44,6 +45,8 @@ export const FACT_KINDS = {
   funeral:    { name: 'Funeral', pull: true, life: 48, icon: 'news' },   // death rites' funerals, carried as word (systems/rites.js learn)
   outcome:    { name: 'What happened', pull: false, life: 999, icon: 'news' },
   place:      { name: 'A place', pull: false, life: 999, icon: 'pin' },
+  horde:      { name: 'Horde on the move', pull: false, life: 12, icon: 'skull' }, // a migration someone saw (systems/migrations.js)
+  gunfire:    { name: 'Shots fired', pull: false, life: 3, icon: 'radio' },   // called in by someone who heard it (systems/reactions.js): a heard spot, not the truth
 };
 
 // ---- the rules ---------------------------------------------------------------------------------------------------------

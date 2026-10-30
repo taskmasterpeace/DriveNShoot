@@ -4,6 +4,8 @@ import {
   INFECTION, SICKNESS, TREATMENTS, MED_ITEMS, MED_LOOT, MOODS, APPRAISALS, MOOD_EFFECTS, SHELTER, HOLD, SLEEP_COMFORT, PROWL, CONDITION,
 } from '../data/survival.js';
 import { ITEMS, LOOT } from '../data/items.js';
+import { HIT_ODDS } from '../data/gear.js';
+import { woundPart, DOLL_PART_IDS, WOUND_PARTS } from '../data/bodydoll.js';
 import { Upkeep } from './upkeep.js';
 import { Telltales } from '../ui/telltales.js';
 
@@ -83,7 +85,7 @@ export class Survival {
     const g = this.g, p = g.player, v = p.inVehicle;
     if (v) return v.open || v.bike || v.boat ? 'rough' : 'car';
     const b = g.insideBuilding;
-    if (!b) return 'rough';
+    if (!b) return g.homes?.shelterKind() ?? 'rough'; // your pitched camp (systems/homes.js)
     return this.isHold(b) ? 'hold' : 'house';
   }
   isHold(b) { const H = this.hold; return !!(H && b && Math.abs(b.minX - H.minX) < 0.01 && Math.abs(b.maxX - H.maxX) < 0.01 && Math.abs(b.minZ - H.minZ) < 0.01 && Math.abs(b.maxZ - H.maxZ) < 0.01); }
@@ -269,7 +271,7 @@ export class Survival {
       if (PR.mood) this.appraise('hurt', Math.min(2, (e.amount ?? 10) / 15));
       if (PR.injuries) {
         const cause = e.cause === 'bullet' && !e.by ? 'impact' : e.cause;
-        for (const [kind, chance, min] of WOUND_FROM[cause] ?? []) if ((e.amount ?? 0) >= min && Math.random() < chance) { this.wound(kind); break; }
+        for (const [kind, chance, min] of WOUND_FROM[cause] ?? []) if ((e.amount ?? 0) >= min && Math.random() < chance) { this.wound(kind, { part: woundPart(e.part, HIT_ODDS[cause]) }); break; } // on the part the hit landed on (data/bodydoll.js)
       }
     } else if (e.type === 'kill') {
       if (!PR.mood) return;
@@ -286,6 +288,8 @@ export class Survival {
     if (!def) return null;
     if (N.wounds.length >= MAX_WOUNDS) N.wounds.shift(); // the oldest has half-mended under the new ones
     const w = { kind, left: def.heal, open: def.bleeds > 0 || def.needs.includes('bandage'), clean: !def.dirt, set: false, dirt: 0, heal: 1, at: +this.hours().toFixed(2), ...opts };
+    w.part = DOLL_PART_IDS.includes(w.part) ? w.part : woundPart(w.part, null); // where it is (the body doll): a gear part picks a side, none is the torso
+    const can = WOUND_PARTS[kind]; if (can && !can.includes(w.part)) w.part = can[Math.floor(Math.random() * can.length)]; // a sprain is a limb's
     N.wounds.push(w);
     if (def.bleeds && w.open) g.player.bleed = Math.max(g.player.bleed ?? 0, 0.5);
     g.hud?.toast?.(`${def.label}${def.bleeds ? ' · BLEEDING' : ''}${def.needs.includes('splint') ? ' · SPLINT IT' : ''}`, 'hot');
@@ -441,10 +445,11 @@ export class Survival {
   shelterFor(kind) {
     const sh = SHELTER[kind] ?? SHELTER.rough;
     if (this.prof.shelter === false) return { kind, rest: 1, danger: 0, parts: null };
+    if (kind === 'camp' && this.g.homes?.camp) return this.g.homes.shelterFor(); // its danger read off roads, towns, hordes, the fire, the watch
     if (kind !== 'hold') return { kind, rest: sh.rest, danger: sh.danger, parts: null };
     const parts = this.holdParts();
     const water = parts.water >= HOLD.water.uses;
-    return { kind, rest: sh.rest + (parts.door ? HOLD.door.rest : 0) + (water ? HOLD.water.rest : 0), danger: parts.door ? HOLD.door.danger : sh.danger, parts: { door: parts.door, water: parts.water, stored: water, doors: parts.doors } };
+    return { kind, rest: sh.rest + (parts.door ? HOLD.door.rest : 0) + (water ? HOLD.water.rest : 0) + (this.g.homes?.restBonus() ?? 0), danger: parts.door ? HOLD.door.danger : sh.danger, parts: { door: parts.door, water: parts.water, stored: water, doors: parts.doors } };
   }
 
   // Lie down in a bed (bed = { x, z }), on a bedroll you carry, or on the bare ground. Refused at the wheel, when

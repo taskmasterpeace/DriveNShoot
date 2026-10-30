@@ -51,7 +51,15 @@ export class Arms {
     const M = this.modes(k), m = M.find((x) => x.id === id);
     if (!m) return false;
     if (this.modeOf(k).id !== m.id) { this.counts.modeChanges++; this.g.audio?.blip?.(); this.g.emit('fireMode', { weapon: k, mode: m.id, burst: m.burst }); }
+    // A shotgun's mode is its shell (combat.js SHELLS): switching kind works the loaded shells back into the pack, and
+    // the gun loads the new kind (auto-reload or R). A reload under way is cancelled.
+    const was = this.ammoOf(k), inv = this.g.inv;
     this.mode[k] = m.id; this.burstLeft = 0;
+    if (inv && was !== this.ammoOf(k) && inv.mag?.[k] > 0) {
+      if (inv.ammo) inv.ammo[was] = (inv.ammo[was] ?? 0) + inv.mag[k];
+      inv.mag[k] = 0;
+      if (inv.current === k && this.g.player && !this.g.player.clearing) this.g.player.reloading = 0;
+    }
     this.barT = this.g.time + 4;
     return true;
   }
@@ -62,6 +70,8 @@ export class Arms {
     return this.setMode(k, M[(i + step + M.length) % M.length].id);
   }
 
+  // The rounds gun k loads right now: its mode's shell, else its own (the pack pool g.inv.ammo[...] reload draws on).
+  ammoOf(k) { return this.modeOf(k)?.ammo ?? WEAPONS[k]?.ammo; }
   gun(k) { return GRIP.guns[k] ?? GRIP.guns.default; }
   gripSpread(k) { return this.grip === 'one' ? 1 + (GRIP.one.spread - 1) * this.gun(k).oneHand : GRIP.two.spread; }
   gripKick(k) { return this.grip === 'one' ? 1 + (GRIP.one.kick - 1) * this.gun(k).oneHand : GRIP.two.kick; }
@@ -76,7 +86,9 @@ export class Arms {
     r.rate = m.rate ?? w.rate; r.dmg = m.dmg ?? w.dmg; r.pellets = m.pellets ?? w.pellets; r.range = m.range ?? w.range;
     r.auto = m.burst === 0; r.after = m.after ?? r.rate; r.kick = m.kick ?? 0.25;
     r.spread = w.spread * (m.spread ?? 1) * this.gripSpread(k) * (1 + this.bloom);
+    r.ammo = m.ammo ?? w.ammo; // the shell it loads (birdshot, slug), and so its flight row unless `round` names one
     r.round = m.round ?? w.round; // the flight row (data/ballistics.js): the slug flies as a slug
+    r.cal = m.cal ?? w.cal; // the calibre (data/ballistics.js ROUNDS): the shell it loads is the round it fires
     r.grip = this.grip;
     return r;
   }
@@ -87,7 +99,7 @@ export class Arms {
   trigger(I, k) {
     const g = this.g, pull = I.mouse.left, pulled = I.mouse.leftPressed;
     if (g.melee?.act) return false;                 // mid-swing
-    if (this.stance === 'holstered') { if (pulled) this.draw(); return false; }
+    if (this.stance === 'holstered') { if (pulled && !g.melee?.fistsUp()) this.draw(); return false; } // fists up: the pull is a punch (systems/melee.js)
     if (this.drawT > 0) { if (pulled) this.burstLeft = 0; return false; }
     if (this.stance === 'lowered' && pulled) this.raise('fire');
     if (this.stance !== 'raised') return false;
@@ -158,7 +170,7 @@ export class Arms {
   }
 
   moveMul() {
-    if (this.stance === 'holstered') return STANCE.move.holstered;
+    if (this.stance === 'holstered') return STANCE.move.holstered * (this.g.melee?.moveMul() ?? 1); // a guard up, a hostage walked (systems/melee.js)
     if (this.stance === 'lowered') return STANCE.move.lowered;
     const h = this.gun(this.g.inv.current).heft;
     return 1 - (this.gripPref === 'two' ? GRIP.moveTwo : GRIP.moveOne) * h; // the grip you hold at a walk
@@ -201,7 +213,7 @@ export class Arms {
       }
       this.holdDone = false;
     }
-    if (C.hit('grip')) {
+    if (C.hit('grip') && !g.melee?.fistsUp()) {
       this.setGrip(this.gripPref === 'two' ? 'one' : 'two');
       g.hud?.toast?.(this.gripPref === 'one' ? 'ONE HAND · QUICKER, WILDER' : 'TWO HANDS · STEADY, SLOWER');
     }
@@ -211,7 +223,7 @@ export class Arms {
       if (!this.radialOpen && !this.wheelDone && C.heldFor('wheel') >= PAD.holdTime && !driving) this.openRadial();
     } else if (C.released('wheel')) {
       if (this.radialOpen) this.closeRadial(true);
-      else if (!this.wheelDone) this.nextWeapon(1);
+      else if (!this.wheelDone && !g.melee?.cycleHeld(1)) this.nextWeapon(1); // fists up: what is in your hand
       this.wheelDone = false;
     }
     if (this.radialOpen) this.updateRadial(C);

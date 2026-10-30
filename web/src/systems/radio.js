@@ -170,6 +170,7 @@ export class Radio {
       if ((this.hissT = (this.hissT ?? 0) - 30) <= 0) { this.hissT = 0; g.audio?.sample?.('common', 'radio.static', { dist: 1, vol: 0.25 }); }
       const h = this.headline(); if (h) { this.stats.news++; this.say(S, h); }
     }
+    if (S.kind === 'feed') this.g.feed?.tick(S, dt); // a town's set reading its news (systems/feed.js)
     if (S.kind === 'emergency' && (this.toneT -= dt) <= 0) { this.toneT = 8; this.stats.alerts++; g.audio?.tone?.(720, 0.9, 0.06 * this.volume, 'sine'); g.audio?.tone?.(960, 0.9, 0.06 * this.volume, 'sine'); }
   }
 

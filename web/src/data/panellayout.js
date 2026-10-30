@@ -36,9 +36,13 @@ export const PANELS = {
     name: 'Pack', root: '.invmenu > .inv-card',
     regions: [
       { id: 'head', name: 'Title and load', sel: '.inv-head' },
-      { id: 'doll', name: 'Paperdoll', sel: '.inv-doll' },
+      { id: 'doll', name: 'Your body (the big doll and its slots)', sel: '.inv-doll' },
+      { id: 'figure', name: 'The figure (lifts out of the HUD)', sel: '.dl-stage' },
+      { id: 'wounds', name: 'What is wrong with each part', sel: '.dl-wounds' },
       { id: 'dogs', name: 'Dogs', sel: '.inv-dogs' },
-      { id: 'columns', name: 'Your things / theirs', sel: '.inv-cols', list: true, cols: 2 },
+      { id: 'columns', name: 'Body, on you and near your feet', sel: '.inv-body' },
+      { id: 'carry', name: 'On you: pockets, belt, vest, backpack', sel: '.inv-comps', list: true, cols: 1 },
+      { id: 'near', name: 'Near your feet', sel: '.inv-groups', list: true, cols: 1 },
       { id: 'detail', name: 'Detail block', sel: '.inv-detail' },
       { id: 'buttons', name: 'Use / move / drop', sel: '.inv-acts' },
       { id: 'say', name: 'Trade talk', sel: '.inv-say' },
@@ -82,6 +86,17 @@ export const PANELS = {
       { id: 'note', name: 'Note', sel: '.tp-note' },
       { id: 'table', name: 'Timetable', sel: '.tp-table', list: true },
       { id: 'foot', name: 'Key hints', sel: '.tp-foot' },
+    ],
+  },
+  table: {
+    name: 'Card and chess table', root: '.tb',
+    regions: [
+      { id: 'head', name: 'Room, game and cash', sel: '.tb-head' },
+      { id: 'cards', name: 'Dealer and your hands', sel: '.tb-rows' },
+      { id: 'chips', name: 'Bet', sel: '.tb-chips' },
+      { id: 'board', name: 'Chess board and moves', sel: '.tb-chessside', tab: true }, // the chess view (blackjack shows the cards instead)
+      { id: 'say', name: 'Table talk', sel: '.tb-say' },
+      { id: 'foot', name: 'Key hints', sel: '.tb-foot' },
     ],
   },
   creator: {

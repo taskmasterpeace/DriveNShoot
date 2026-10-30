@@ -34,7 +34,7 @@ export class Tactics {
     this.g = game;
     this.budget = T.perFrame;
     this.on = true;            // false: every faction back on the plain ai.js fight (an A/B for perf or a test)
-    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0, slowPaths: 0 };
+    this.stats = { plans: 0, paths: 0, raycasts: 0, flanks: 0, breaks: 0, suppressed: 0, maxPlanMs: 0, maxPathMs: 0, planMs: 0, boxCover: 0, slowPlans: 0, slowPaths: 0, retimed: 0 };
     this.mark = 0;
 
   }
@@ -121,7 +121,21 @@ export class Tactics {
       const dd = d || 1, step = clamp(d - mid, -8, 8); ax = c.x - ((c.x - tx) / dd) * step; az = c.z - ((c.z - tz) / dd) * step; r = R * 0.7;
     } else if (role === 'hold') { ax = c.home.x; az = c.home.z; r = Math.min(R, D.holdR * 0.6); }
     else if (U.force === 'cover' || U.force === 'holdpos') { ax = U.anchorX ?? c.x; az = U.anchorZ ?? c.z; r = U.force === 'holdpos' ? 3.5 : R * 0.8; }
+    else if (d > 0 && (d < b0 || d > b1)) {
+      // Out of band: search round the nearest in-band point on the line from the threat, not round where he stands. Round
+      // himself, the probes' spin (by slot) could leave no probe far enough out to beat staying put (a rifleman at slot 60
+      // stood at 12 m all fight: stay -1.35, best probe -1.37; docs/design/WEB_BATTERY_STABILITY.md §3.10).
+      const k = clamp(d, b0, b1) / d; ax = tx + (c.x - tx) * k; az = tz + (c.z - tz) * k;
+    }
     this.search(c, t, tx, tz, ax, az, r, b0, b1, D, U, role);
+    // An open spot at the band's edge: steer stops `arrive` short of a goal, so a goal at 25.1 m walked to from inside
+    // left a rifleman at 24.3 m, out of his band. Such a goal goes `arrive` into the band along the line from the threat
+    // (a cover spot stays put: the thing it hides behind does not move).
+    if (!CAND.cover && role !== 'retreat') {
+      const gx = CAND.x - tx, gz = CAND.z - tz, gd = Math.hypot(gx, gz) || 1, A = T.arrive;
+      const want = gd < b0 + A && gd > b0 - 2 * A ? b0 + A : gd > b1 - A && gd < b1 + 2 * A ? b1 - A : gd;
+      if (want !== gd && !g.statics.pointBlocked(tx + gx / gd * want, tz + gz / gd * want, 0.45)) { CAND.x = tx + gx / gd * want; CAND.z = tz + gz / gd * want; }
+    }
     U.gx = CAND.x; U.gz = CAND.z; U.cover = CAND.cover; U.goal = true; U.veh = CAND.veh;
     // A cover point with no line on the target gets a PEEK spot: a step to one side where the eye clears the edge.
     // (On the street every box stops a round, low or not, so a fighter in cover leans out to shoot and ducks back.)
@@ -145,7 +159,11 @@ export class Tactics {
       U.pathAt = g.time;
       const t1 = performance.now(), p = g.nav.foot.find(c.x, c.z, U.gx, U.gz, 1500); // a tactical move is short: a small search budget
       this.stats.paths++;
-      const pm = performance.now() - t1; if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm; if (pm > 8) this.stats.slowPaths++;
+      let pm = performance.now() - t1;
+      // Over 8 ms: time the same search again at once (same grid, no rebuild). A slow search is slow twice; a busy machine's
+      // stall is not (the lead saw 390 ms paths with a dozen harnesses on one CPU; docs/design/WEB_BATTERY_STABILITY.md §3.13).
+      if (pm > 8) { const t2 = performance.now(); g.nav.foot.find(c.x, c.z, U.gx, U.gz, 1500); pm = Math.min(pm, performance.now() - t2); this.stats.retimed++; }
+      if (pm > this.stats.maxPathMs) this.stats.maxPathMs = pm; if (pm > 8) this.stats.slowPaths++;
       if (p && p.length) { U.path = p; U.pi = 0; }
     }
   }
@@ -164,6 +182,9 @@ export class Tactics {
     for (const o of g.chars) { const ot = o.tac; if (o === c || !ot?.goal || !o.alive || o.faction !== c.faction) continue; if (Math.abs(ot.gx - ax) > r + 20 || Math.abs(ot.gz - az) > r + 20) continue; mates.push(ot); }
     const score = (px, pz, cover, veh, stay) => {
       const dT = Math.hypot(px - tx, pz - tz);
+      // Cover hugging the band's edge is not cover in band: steer stops `arrive` short of it (a car at 25.3 m left a
+      // rifleman at 24.9 m). Scored as open, the band-edge nudge in plan() then moves it in (§3.10).
+      if (cover && role !== 'retreat' && bandW === 1 && (dT > b0 - 2 * T.arrive && dT < b0 + T.arrive || dT > b1 - T.arrive && dT < b1 + 2 * T.arrive)) cover = 0;
       const bandFit = clamp(1 - Math.abs(dT - mid) / half, -3, 1); // out of band counts more the further out
       const walk = Math.hypot(px - c.x, pz - c.z);
       let crowd = 0;

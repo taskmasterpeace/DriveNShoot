@@ -59,8 +59,10 @@ export const HUD_LAYOUT = [
   { id: 'killfeed', name: 'Kill feed', group: 'messages', sel: '.kill-slot', anchor: 'tr', x: 12, y: 402, scale: 1, visible: true, situations: [...PLAY, 'dead'], w: 300, h: 100 },
   { id: 'pulls', name: 'Pulls chip', group: 'social', sel: '.pulls-chip', anchor: 'tr', x: 12, y: 512, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 284, h: 40 }, // why go out today: what reached you (ui/pullsboard.js)
   { id: 'kit', name: 'Kit chip (goggles, glass, torch, scanner, mask)', group: 'vitals', sel: '.kit-chip', anchor: 'tr', x: 12, y: 558, scale: 1, visible: true, situations: PLAY, w: 300, h: 26 }, // what is switched on and its charge (systems/kit.js)
+  { id: 'radiofeed', name: 'Radio feed', group: 'messages', sel: '.rf-feed', anchor: 'tr', x: 12, y: 592, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 330, h: 96 }, // the world feed's last lines on the air (ui/radiofeed.js)
   { id: 'feed', name: 'Messages', group: 'messages', sel: '.feed', anchor: 'tl', x: 24, y: 268, scale: 1, visible: true, situations: ALL, w: 330, h: 120 },
   // ---- you ----
+  { id: 'doll', name: 'Body doll (where you are hurt)', group: 'vitals', sel: '.bodydoll', anchor: 'bl', x: 8, y: 258, scale: 1, visible: true, situations: PLAY, w: 112, h: 168, talkHide: true },
   { id: 'status', name: 'Health and stamina', group: 'vitals', sel: '.status', anchor: 'bl', x: 244, y: 6, scale: 1, visible: true, situations: PLAY, w: 432, h: 132, talkHide: true },
   { id: 'needs', name: 'Food, water and rest', group: 'vitals', sel: '.needs-plate', anchor: 'bl', x: 682, y: 6, scale: 1, visible: true, situations: PLAY, w: 262, h: 132, talkHide: true },
   { id: 'flag', name: 'Your flag', group: 'vitals', sel: '.flagpatch', anchor: 'bl', x: 950, y: 22, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 132, h: 86, talkHide: true },
@@ -73,6 +75,7 @@ export const HUD_LAYOUT = [
   // ---- the gun in your hands ----
   { id: 'weapon', name: 'Weapon plate', group: 'combat', sel: '.weapon-panel', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: FOOT, w: 307, h: 252, talkHide: true },
   { id: 'weaponbar', name: 'Weapon bar', group: 'combat', sel: '.wbar', anchor: 'br', x: 330, y: 10, scale: 1, visible: true, situations: FOOT, w: 300, h: 90, talkHide: true },
+  { id: 'melee', name: 'Hand to hand (in hand, guard, arm, struggle)', group: 'combat', sel: '.melee-plate', anchor: 'bc', x: 0, y: 356, scale: 1, visible: true, situations: FOOT, w: 300, h: 44, talkHide: true }, // fists up and holds (systems/melee.js)
   { id: 'reticle', name: 'Reticle', group: 'combat', sel: '.reticle', anchor: 'mouse', x: 0, y: 0, scale: 1, visible: true, situations: PLAY, w: 28, h: 28 },
   // ---- the car ----
   { id: 'speedo', name: 'Speedometer and dash', group: 'vehicle', sel: '.speedo', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: ['driving', 'passenger'], w: 330, h: 252, talkHide: true },

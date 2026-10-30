@@ -66,7 +66,8 @@ export class Inventory {
   room(box) { return Math.max(0, box.cap - box.litres()); }
 
   // Put n of an item into a box: tops up matching slots first, then opens new ones. Returns how many went in
-  // (fewer than n when the box runs out of room). state: { left, made } for a thing that has them.
+  // (fewer than n when the box runs out of room). state: { left, made } for a thing that has them; where: the compartment
+  // of what you carry it goes in (data/bodydoll.js COMPARTMENTS): it only joins a stack already in there.
   add(box, id, n = 1, state = {}) {
     const it = ITEMS[id];
     if (!it || n <= 0) return 0;
@@ -76,7 +77,7 @@ export class Inventory {
     if (it.stack > 1) {
       for (const s of box.slots) {
         if (!left) break;
-        if (s.hid || s.id !== id || s.n >= it.stack || (it.spoils && this.freshness(s) !== this.freshness({ id, made }))) continue;
+        if (s.hid || s.id !== id || s.n >= it.stack || (it.spoils && this.freshness(s) !== this.freshness({ id, made })) || (state.where && s.where !== state.where)) continue;
         const k = Math.min(left, it.stack - s.n); s.n += k; left -= k;
         if (it.spoils) s.made = Math.min(s.made, made); // a stack is as old as its oldest
       }
@@ -87,6 +88,7 @@ export class Inventory {
       if (it.uses) s.left = state.left ?? it.uses;
       if (it.spoils) s.made = made;
       if (it.kind === 'gun') { s.cond = state.cond ?? 1; s.loaded = state.loaded ?? 0; }
+      if (state.where) s.where = state.where;
       box.slots.push(s); left -= k;
     }
     return fit;
@@ -104,13 +106,15 @@ export class Inventory {
   }
 
   // Move n from slot i of one box to another. Returns how many moved. paid: bought over a counter (trade.js), not taken.
-  move(from, i, to, n = 1, paid = false) {
+  // where: into that compartment of what you carry (the PACK screen), its room checked by the caller.
+  move(from, i, to, n = 1, paid = false, where = null) {
     const s = from.slots[i];
     if (!s || from === to) return 0;
     const it = ITEMS[s.id];
     const k = Math.min(n, s.n, it.bulk > 0 ? Math.floor((this.room(to) + 1e-6) / it.bulk) : n);
     if (k <= 0) return 0;
     const t = this.take(from, i, k);
+    if (where) t.where = where;
     this.add(to, t.id, t.n, t);
     // Out of somebody's shop and anywhere not theirs (your pocket, your trunk, the floor): theft, as the world sees it
     // (deeds: witnesses, word, memory). Bought over the counter, it is not.
@@ -480,7 +484,7 @@ export class Inventory {
 
   gunView() {
     const inv = this.g.inv;
-    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[WEAPONS[k]?.ammo] ?? 0, inHand: inv.current === k }));
+    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[this.g.arms?.ammoOf(k) ?? WEAPONS[k]?.ammo] ?? 0, loads: this.g.arms?.ammoOf(k), inHand: inv.current === k }));
   }
 
   // ---- the world's containers ------------------------------------------------------------------------------
@@ -546,6 +550,7 @@ export class Inventory {
   open(box) {
     if (!box.rolled) { this.roll(box, this.g.gear?.luckRolls() ?? 0); box.rolled = true; this.g.roles?.onSearch(box); } // first time through: a search (a lucky charm: more turns up)
     this.opened = box;
+    this.g.forensics?.onSearch(box); // going through a body you read its wounds (systems/forensics.js; a timed search ends here too)
     this.g.emit('containerOpened', { id: box.id, kind: box.kind, items: box.slots.length });
     return box;
   }

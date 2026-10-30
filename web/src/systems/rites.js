@@ -148,7 +148,11 @@ export class Rites {
     const fact = { source: f.source, who: f.who ?? null, at: r2(this.hours()), killer: f.killer ?? null };
     N.facts.push(fact);
     const rec = this.g.residents?.recs.get(N.house);
-    if (!N.learned && rec) { N.learned = fact; this.schedule(R, rec, fact); }
+    if (!N.learned && rec) {
+      N.learned = fact;
+      if (this.holdsFuneral(R, rec)) this.schedule(R, rec, fact);
+      else { N.noFuneral = true; this.g.emit('noFuneral', { body: R.id, name: R.name, house: rec.id }); } // mourned at home; the body stays where it is
+    }
     if (fact.killer === 'player' && !N.standing && rec) { N.standing = true; this.g.society?.factions?.add(rec.fid, FUNERAL.standing.killer); this.g.emit('killerKnown', { body: R.id, house: N.house, source: fact.source }); }
     this.g.emit('deathLearned', { body: R.id, name: R.name, house: N.house, ...fact });
     this.g.pulls?.deathNews?.(R, fact); // the death as word in their town's talk, and the funeral when one is set (systems/pulls.js, law 6)
@@ -190,6 +194,7 @@ export class Rites {
     const R = this.bodies.get(c.riteId ?? c.id);
     if (!R || R.c !== c) return;
     R.x = c.x; R.z = c.z; R.y = c.gy ?? R.y; R.face = c.face ?? R.face;
+    R.pose = c.rag?.phase === 'still' && !c.rag.on ? Array.from(c.rag.P) : R.pose ?? null; // how it lay (systems/deaths.js), for when it is a character again
     R.c = null; R.folded = true; this.stats.folded++; this.dirty = true;
     const m = this.memberOf(R); if (m) { m.x = r2(R.x); m.z = r2(R.z); if (R.stage >= 3) m.gone = true; } // the household brings the body back as itself near you (link() finds it); bones are ours
   }
@@ -251,7 +256,7 @@ export class Rites {
     for (const c of this.g.chars) {
       if (c.alive || c.riteId || c === this.g.player) continue;
       const key = c.res?.m?.key;
-      for (const R of this.bodies.values()) if (!R.c && ((key && R.member === key) || R.id === c.id)) { R.c = c; R.folded = false; c.riteId = R.id; c.rot = DECAY.stages[R.stage].k; this.g.charR?.paint(c); break; }
+      for (const R of this.bodies.values()) if (!R.c && ((key && R.member === key) || R.id === c.id)) { R.c = c; R.folded = false; c.riteId = R.id; c.rot = DECAY.stages[R.stage].k; if (R.pose) this.g.deaths?.restore(c, R.pose, R.x, R.z); this.g.charR?.paint(c); break; }
     }
   }
   placeOf(x, z) {
@@ -342,11 +347,17 @@ export class Rites {
     const S = DECAY.stages[R.stage], C = R.colors ?? { shirt: '#5a5048', pants: '#3a342c', skin: '#a07858' };
     _t.set(S.tint);
     const y = (R.y ?? 0) + 0.06, a = (R.face ?? 0) + Math.PI, x = R.x, z = R.z; // head away from the shooter, as the death sprawl lies
-    if (R.stage >= 3) { // the bone pile: skull, ribs, the long bones scattered a little
-      const rng = makeRng(hash(R.id));
-      i = this.putL(i, x, y, z, a, 0, 0.06, 0.62, 0.18, 0.16, 0.2, '#cfc4a4');
-      i = this.putL(i, x, y, z, a, 0, 0.03, 0.15, 0.34, 0.07, 0.42, '#c2b796');
-      for (let k = 0; k < 4; k++) i = this.putL(i, x, y, z, a + (rng() - 0.5) * 0.6, (k % 2 ? 0.18 : -0.18) + (rng() - 0.5) * 0.15, 0.02, k < 2 ? -0.45 : 0.2, 0.05, 0.05, k < 2 ? 0.5 : 0.36, '#bdb190');
+    if (R.stage >= 3) { // the skeleton as it lay: a white skull, then thin bones (spine, ribs, pelvis, arms, legs), each a little scattered
+      const rng = makeRng(hash(R.id)), j = () => (rng() - 0.5) * 0.06, bone = '#d6ccb0', BT = 0.035;
+      i = this.putL(i, x, y, z, a + j(), j(), 0.07, 0.62, 0.15, 0.13, 0.18, '#f4f1e8');                                   // skull (white)
+      i = this.putL(i, x, y, z, a, j(), 0.025, 0.56, 0.1, 0.04, 0.06, '#ece6d6');                                        // jaw
+      i = this.putL(i, x, y, z, a, 0, 0.02, 0.1, 0.04, BT, 0.78, bone);                                                  // spine
+      for (let k = 0; k < 4; k++) i = this.putL(i, x, y, z, a, j(), 0.04, 0.36 - k * 0.07, 0.3 - k * 0.03, 0.025, 0.025, bone); // ribs
+      i = this.putL(i, x, y, z, a, 0, 0.032, -0.3, 0.24, 0.04, 0.08, bone);                                              // pelvis
+      for (const sd of [-1, 1]) {
+        i = this.putL(i, x, y, z, a + sd * (0.35 + j() * 4), sd * 0.24 + j(), 0.018, 0.14, BT, BT, 0.5, bone);            // arm
+        i = this.putL(i, x, y, z, a + sd * (0.06 + j()), sd * 0.1 + j(), 0.022, -0.66, BT, BT, 0.7, bone);                // leg
+      }
       return i;
     }
     const sw = S.swell, k = S.k;
@@ -996,6 +1007,13 @@ export class Rites {
   }
 
   // ---- funerals ----------------------------------------------------------------------------------------------------
+  // Not everybody gets a funeral (FUNERAL.held): a roll on the body, likelier the more of the family is left to stand at
+  // the grave. R.funeral (true/false) decides it outright (a test's staging; a story that needs one).
+  holdsFuneral(R, rec) {
+    if (typeof R.funeral === 'boolean') return R.funeral;
+    const H = FUNERAL.held, left = rec.members.filter((m) => !m.dead && m.key !== R.member).length;
+    return makeRng(hash(`${R.id}:funeral`))() < Math.min(H.max, H.base + H.mourner * left);
+  }
   // A resident with family died: their funeral, 1-2 game days on at FUNERAL.hour, at their quarter's yard.
   schedule(R, rec, fact) {
     const g = this.g, now = this.hours(), rng = makeRng(hash(R.id));

@@ -15,7 +15,7 @@ Every place the world plans has a cemetery: all 305 citygen plan records (towns,
 Each one is sized by one formula.
 Its old graves are a seeded history: names, birth and death years, causes, and a battle year for a mass grave.
 
-A ring resident who dies with family gets a funeral 1–2 game days after **their people learn of it**.
+A ring resident who dies with family may get a funeral 1–2 game days after **their people learn of it**. Not everybody does: when the family learns, a roll on the body (`FUNERAL.held`: 30%, +10% for each of the family left alive, at most 80%) decides. The rest are mourned at home and left where they fell, for anyone to bury.
 Under law 6 (NPCs only know what they were told), the death is news that nobody holds until a sourced fact reaches them.
 The funeral is at their quarter's yard.
 One of the family fetches the body and drags it there. The others walk there on foot paths (no teleport), stand at the grave, and go home.
@@ -39,7 +39,7 @@ Out in the ring, the family whose son you killed buries him tomorrow at ten. You
 | fresh | 0 | the dead character; clothes tinted toward old blood | 0 | 0 | 0 |
 | bloated | 24 | tint toward green-grey, the folded torso swells ×1.45 | 30 m | 6 | 12% / 60 |
 | rotting | 72 | dark brown, swell ×1.15 | 42 m | 9 | 25% / 60 |
-| bones | 240 | a bone pile: skull, ribs, long bones (the character is removed) | 0 | 0 | 0 |
+| bones | 240 | a thin skeleton as it lay: a white skull and jaw, then thin bone-coloured spine, ribs, pelvis, arms and legs, each a little scattered (the character is removed) | 0 | 0 | 0 |
 
 - **Climate:** air ≥ 30 °C ×1.5, ≤ 5 °C ×0.5, otherwise ×1. The air comes from `survival.airAt` for each hour that passed, so a clock jump (a sleep, `rites action=wait`) ages a body by the weather of every hour it skipped. A body in water (depth > 0.15 m) also gets ×1.3.
 - **Smell:** every 2 s, a bloated or rotting body within 220 m of you pulls any infected inside its smell radius that has no target of its own (`c.wx/wz`, the same pull a lure uses). Flies swarm the 12 nearest smelling bodies.
@@ -176,6 +176,8 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 - The funeral spot is chosen when the funeral is planned, so the grave row can land a few slots along.
 
 ## 6. Dependencies (both ways)
+- **WEB_DEATHS.md (2026-10-29)**: every body now dies through a clip and a ragdoll (`systems/deaths.js`). Rites gets the same Character, lying where the ragdoll settled: on stairs, in a truck bed or riding a car, with `c.x`/`c.z` at its pelvis. The rot comes through `paint()` onto the frozen pose; the bone pile replaces it as before. Severed limb pieces are not bodies and rites never sees them.
+
 
 **Rites reads:** `survival.airAt`, `water.depthAt`, `inventory` (boxes, place, roll, add), `citygen.plan/live/recAt`, `streamer.W` (groundAt, project, ring, holdouts), `residents` (recs, walk), `society` (day, chronicle, factions, director.radio), `skillsSys`, `fx`, `noise`.
 

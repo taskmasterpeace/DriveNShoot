@@ -3,6 +3,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { deckOf } from '../data/decks.js';
 import { RUNDOWN } from '../data/gadgets.js';
+import { TRAILERS } from '../data/trailers.js';
+import { HULLS, LOOKS, hullLamps } from './movetowbodies.js'; // the boats, the boat trailer, the wrecker (WEB_MOVE_TOW.md)
 
 // Vehicle bodies, built to measurements in code: ONE merged, vertex-coloured mesh per vehicle with a
 // per-vertex `part` id, so damage (vehicledamage.js) can dent, scrape and drop exact pieces.
@@ -33,6 +35,8 @@ const GREENHOUSE = {
   van:         { zA: 2.25, roofF: 1.7, roofR: -2.665, zC: -2.665, yB: 1.32, yR: 2.02, wB: 2.15, wR: 2.0, sideRear: 0.95, hp: 40 },
   // The RV's cab: a van's windshield and doors; behind the seats a glass partition into the coach (the rear pane).
   rv:          { zA: 3.2, roofF: 2.62, roofR: 1.85, zC: 1.85, yB: 1.45, yR: 2.2, wB: 2.34, wR: 2.18, sideRear: 1.97, hp: 40 },
+  // The LONGHAULER's sleeper cab (docs/design/WEB_SEMIS.md): a conventional's long nose, a tall flat screen, a sleeper behind.
+  semi:        { zA: 1.7, roofF: 1.28, roofR: 0.35, zC: 0.28, yB: 2.05, yR: 2.92, wB: 2.42, wR: 2.22, hp: 80 },
   rig:         { zA: 2.62, roofF: 2.18, roofR: 1.25, zC: 1.18, yB: 2.0, yR: 2.78, wB: 2.5, wR: 2.3, hp: 80 },
   gunboat:     { zA: 1.42, roofF: 1.1, roofR: -0.45, zC: -0.62, yB: 1.75, yR: 2.25, wB: 2.42, wR: 2.2, hp: 60 },
   // Military: thick laminated glass. The carrier's "greenhouse" is its driver's cupola: slits of armoured glass.
@@ -90,22 +94,28 @@ function axle(parts, z, r, w, x, front) {
 // can hide while someone is inside (systems/decks.js): the coach seen from above with its roof cut away, as a building's
 // is. Everything a builder pushes into ROOF while it runs ends up there (the greenhouse's roof panel too).
 let ROOF = null;
+// The helpers movetowbodies.js builds with (its hulls are lofted; everything else is these same parts).
+const K = { tag, slab, beam, coloredBox, wheel, axle, greenhouse, GREENHOUSE, PART };
 export function buildBody(s, type, paint, out = null) {
   const base = s.base ?? type;
   const parts = [];
   const roof = ROOF = deckOf(s.deck)?.open === false ? [] : null;
-  if (base === 'rig') rigBody(parts, s, paint);
+  if (HULLS[base]) HULLS[base](parts, s, paint, K); // lofted hulls and the trailer (systems/movetowbodies.js)
+  else if (base === 'rig') rigBody(parts, s, paint);
   else if (base === 'buggy') buggyBody(parts, s, paint);
   else if (base === 'van') vanBody(parts, s, paint);
   else if (base === 'rv') rvBody(parts, s, paint);
   else if (base === 'bike') bikeBody(parts, s, paint);
   else if (base === 'atv') atvBody(parts, s, paint);
-  else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
   else if (base === 'raft' || base === 'ferry') raftBody(parts, s, base);
   else if (base === 'patrol') patrolBody(parts, s, paint);
   else if (base === 'apc') apcBody(parts, s, paint);
   else if (base === 'bus') busBody(parts, s, paint);
+  else if (base === 'semi') semiBody(parts, s, paint); // SEMIS (docs/design/WEB_SEMIS.md): the tractor and its trailers
+  else if (base === 'boxtrailer') boxTrailerBody(parts, s, paint);
+  else if (base === 'widetrailer') wideTrailerBody(parts, s, paint);
   else carBody(parts, s, GREENHOUSE[base] ? base : 'sedan', paint);
+  if (s.look && LOOKS[s.look]) LOOKS[s.look](parts, s, paint, K); // the wrecker's boom over a pickup
   lenses(parts, s, type);
   ROOF = null;
   if (out) out.roof = roof?.length ? mergeGeometries(roof) : null;
@@ -672,29 +682,6 @@ function bikeBody(parts, s, paint) {
   parts.push(coloredBox(0.1, 0.1, 0.7, -0.22, 0.42, -0.45, '#9a948c', PART.frame));     // exhaust
 }
 
-function boatBody(parts, s, base, paint) {
-  const L = s.len, W = s.wid, hullC = base === 'gunboat' ? '#3a3632' : paint;
-  // Flat-bottomed hulls with a raked bow (two angled boxes), decks, fittings.
-  parts.push(coloredBox(W, base === 'jetski' ? 0.45 : 0.7, L * 0.78, 0, 0.32, -L * 0.1, hullC));
-  for (const sd of [-1, 1]) { const g = new THREE.BoxGeometry(W * 0.62, base === 'jetski' ? 0.45 : 0.7, L * 0.36).toNonIndexed(); g.rotateY(sd * 0.42); g.translate(sd * W * 0.2, 0.32, L * 0.32); parts.push(tag(g, hullC, PART.bumperF)); }
-  if (base === 'airboat') {
-    parts.push(coloredBox(0.9, 0.9, 0.9, 0, 1.0, -0.4, '#2a2826'));                     // raised driver seat
-    const ring = new THREE.TorusGeometry(1.05, 0.08, 6, 20).toNonIndexed(); ring.translate(0, 1.5, -L / 2 + 0.5); parts.push(tag(ring, '#8a8580', PART.frame));
-    for (let k = 0; k < 3; k++) { const b = new THREE.BoxGeometry(0.16, 1.9, 0.06).toNonIndexed(); b.rotateZ(k * Math.PI / 3); b.translate(0, 1.5, -L / 2 + 0.55); parts.push(tag(b, '#5a5550', PART.frame)); }
-    parts.push(coloredBox(0.5, 0.5, 0.5, 0, 1.1, -L / 2 + 0.95, '#3a3632'));          // engine
-  } else if (base === 'jetski') {
-    parts.push(coloredBox(0.4, 0.2, 1.1, 0, 0.7, -0.2, '#1a1816'));                    // saddle
-    parts.push(coloredBox(0.7, 0.06, 0.06, 0, 1.0, 0.55, '#8a8580', PART.frame));       // bars
-  } else {
-    const G = GREENHOUSE.gunboat;
-    parts.push(slab(-G.wB / 2, G.wB / 2, 0.85, G.yB, G.zC, G.zA, '#4a3a2a'));         // cabin walls
-    greenhouse(parts, G, '#4a3a2a', '#4a3a2a');
-    parts.push(coloredBox(0.6, 0.5, 0.6, 0, 0.95, L / 2 - 1.3, '#2d2a28'));            // gun mount
-    parts.push(coloredBox(0.14, 0.14, 1.4, 0, 1.25, L / 2 - 0.8, '#6a6560'));          // barrel
-    parts.push(coloredBox(0.8, 0.6, 0.8, 0, 0.8, -L / 2 + 0.7, '#7a3a1c'));            // fuel drums
-  }
-}
-
 // A raft: logs lashed over oil drums, a pole; a ferry: a plank deck on two steel pontoons, rails, the cable post.
 function raftBody(parts, s, base) {
   const L = s.len, W = s.wid;
@@ -723,6 +710,7 @@ function lenses(parts, s, type) {
 // vehiclelights.js throws the light from here.
 export function lampAnchors(s, type) {
   const base = s.base ?? type, L = s.len, W = s.wid;
+  const hl = hullLamps(base, s); if (hl) return hl;
   const pair = (x, y, z) => [[x, y, z], [-x, y, z]];
   const car = { beamW: 6 + W * 2.4, beamL: 15 + W * 2, halo: 1.15 };
   if (base === 'bike') return { head: [[0, 0.98, L / 2 - 0.42]], tail: [[0, 0.82, -L / 2 + 0.2]], beamW: 7, beamL: 16, halo: 0.8 };
@@ -736,8 +724,204 @@ export function lampAnchors(s, type) {
   if (base === 'apc') return { head: pair(0.95, 1.08, L / 2 - 0.36), tail: pair(W / 2 - 0.3, 1.7, -L / 2 + 0.06), ...car };
   if (base === 'rv') return { head: pair(W / 2 - 0.38, 1.05, L / 2 + 0.02), tail: pair(W / 2 - 0.25, 1.2, -L / 2 - 0.02), ...car };
   if (base === 'bus') return { head: pair(W / 2 - 0.35, 0.95, L / 2 + 0.17), tail: pair(W / 2 - 0.3, 1.0, -L / 2 - 0.04), ...car };
+  if (base === 'semi') return { head: pair(W / 2 - 0.24, 1.2, L / 2 - 0.36), tail: pair(W / 2 - 0.42, 0.95, -L / 2 + 0.05), ...car };
+  if (base === 'boxtrailer') return { head: [], tail: pair(W / 2 - 0.32, 0.98, -L / 2 - 0.09), ...car };
+  if (base === 'widetrailer') return { head: [], tail: pair(W / 2 - 0.4, 0.78, -L / 2 - 0.09), ...car };
   const y = base === 'pickup' ? 1.0 : base === 'van' ? 1.02 : 0.92;
   return { head: pair(W / 2 - 0.35, y, L / 2 + 0.02), tail: pair(W / 2 - 0.3, y, -L / 2 - 0.02), ...car };
+}
+
+// ---- SEMIS: the LONGHAULER tractor and its trailers (docs/design/WEB_SEMIS.md; data/trailers.js) --------------------
+
+const STEEL = '#2a2826', AMBER = '#f0a020', DECKWOOD = '#6b543a';
+
+// A conventional sleeper tractor: the long square-nosed hood with its chrome grille and air cleaners, a flat screen, a tall
+// sleeper with a roof fairing, stacks at its back corners, saddle tanks under the doors, then the deck plate and the fifth
+// wheel the trailer's kingpin locks into (`tractor.fifth`), tandem drive axles on duals, mud flaps.
+function semiBody(parts, s, paint) {
+  const L = s.len, hw = s.wid / 2, G = GREENHOUSE.semi, yFloor = 1.25, zf = L / 2 - 1.05, zS = -1.15, F = s.tractor?.fifth ?? -2.35;
+  for (const sd of [1, -1]) parts.push(slab(sd * 0.36, sd * 0.52, 0.62, 0.92, -L / 2 + 0.05, L / 2 - 0.3, STEEL, PART.frame)); // ladder frame rails
+  // The hood, its spine, the grille in its chrome surround, the bumper.
+  parts.push(slab(-hw + 0.22, hw - 0.22, 0.95, 1.95, G.zA - 0.05, L / 2 - 0.12, paint));
+  parts.push(slab(-hw + 0.28, hw - 0.28, 1.95, 2.02, G.zA + 0.05, L / 2 - 0.25, paint, PART.hood));
+  parts.push(slab(-0.07, 0.07, 2.02, 2.05, G.zA + 0.1, L / 2 - 0.3, CHROME, PART.hood));
+  parts.push(slab(-hw + 0.32, hw - 0.32, 1.0, 1.92, L / 2 - 0.14, L / 2 - 0.06, CHROME));
+  parts.push(slab(-hw + 0.4, hw - 0.4, 1.06, 1.86, L / 2 - 0.08, L / 2 - 0.03, GRILLE));
+  for (let k = 0; k < 7; k++) { const y = 1.1 + k * 0.11; parts.push(slab(-hw + 0.42, hw - 0.42, y, y + 0.025, L / 2 - 0.04, L / 2, CHROME)); }
+  parts.push(slab(-hw - 0.05, hw + 0.05, 0.55, 0.95, L / 2 - 0.12, L / 2 + 0.18, CHROME, PART.bumperF));
+  parts.push(slab(-0.22, 0.22, 0.66, 0.84, L / 2 + 0.18, L / 2 + 0.2, PLATE, PART.bumperF));
+  // Fenders over the steer axle, the air cleaners standing beside the hood.
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * (hw - 0.44), sd * (hw + 0.04), 1.05, 1.2, zf - 0.7, zf + 0.62, paint));
+    parts.push(slab(sd * (hw - 0.44), sd * (hw + 0.04), 0.7, 1.12, zf + 0.55, zf + 0.66, paint));
+    parts.push(tag(new THREE.CylinderGeometry(0.17, 0.17, 0.95, 12).translate(sd * (hw - 0.02), 1.5, G.zA + 0.32).toNonIndexed(), CHROME, PART.body));
+  }
+  // The cab: floor, doors, two chrome steps, a grab bar, the tall mirrors on their arms; inside, the seats and dash.
+  parts.push(slab(-hw + 0.1, hw - 0.1, 0.9, yFloor, G.zC, G.zA, CARPET));
+  for (const sd of [1, -1]) {
+    const part = sd > 0 ? PART.doorL : PART.doorR;
+    parts.push(slab(sd * (hw - 0.1), sd * hw, 0.95, G.yB, G.zC + 0.05, G.zA, paint, part));
+    for (const y of [0.52, 0.86]) parts.push(slab(sd * (hw - 0.05), sd * (hw + 0.1), y, y + 0.06, G.zC + 0.25, G.zA - 0.2, CHROME));
+    parts.push(beam([sd * (hw + 0.04), 1.2, G.zC + 0.12], [sd * (hw + 0.04), 2.0, G.zC + 0.12], 0.04, CHROME));
+    parts.push(beam([sd * (hw - 0.02), G.yB + 0.05, G.zA - 0.12], [sd * (hw + 0.28), G.yB + 0.28, G.zA - 0.05], 0.04, CHROME, part));
+    parts.push(slab(sd * (hw + 0.24), sd * (hw + 0.36), G.yB + 0.18, G.yB + 0.75, G.zA - 0.12, G.zA + 0.02, BUMPER, part));
+    parts.push(slab(sd * (hw + 0.25), sd * (hw + 0.35), G.yB + 0.22, G.yB + 0.71, G.zA - 0.13, G.zA - 0.12, MIRROR, part));
+  }
+  interior(parts, G, hw, yFloor, false);
+  greenhouse(parts, G, paint, paint);
+  parts.push(slab(-hw + 0.15, hw - 0.15, G.yR - 0.02, G.yR + 0.05, G.roofF, G.roofF + 0.3, paint)); // sun visor
+  for (let k = -2; k <= 2; k++) parts.push(slab(k * 0.32 - 0.05, k * 0.32 + 0.05, G.yR + 0.07, G.yR + 0.12, G.roofF - 0.05, G.roofF + 0.03, AMBER, PART.light)); // cab clearance lamps
+  // The sleeper, its raised roof and the fairing that sweeps up to it, a bunk window each side, cab extenders.
+  parts.push(slab(-hw + 0.06, hw - 0.06, 0.95, 3.25, zS, G.zC + 0.02, paint));
+  parts.push(slab(-hw + 0.04, hw - 0.04, 3.25, 3.6, zS, G.roofR + 0.05, paint));
+  { const z0 = G.roofR + 0.05, z1 = G.roofF, y0 = 3.6, y1 = G.yR + 0.07, len = Math.hypot(z1 - z0, y0 - y1); parts.push(coloredBox(2 * hw - 0.24, 0.08, len, 0, (y0 + y1) / 2, (z0 + z1) / 2, paint, PART.body, Math.atan2(y0 - y1, z1 - z0))); }
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * hw, sd * (hw + 0.012), 2.3, 2.66, -0.78, -0.24, '#1f2b33'));
+    parts.push(slab(sd * (hw - 0.04), sd * (hw + 0.02), 1.0, 3.5, zS - 0.32, zS, paint));
+    parts.push(slab(sd * hw, sd * (hw + 0.012), 1.25, 1.42, zS, G.zA, '#8a3a1c')); // the stripe along the cab and sleeper
+  }
+  // Stacks at the sleeper's back corners, with heat shields; air lines coiled behind.
+  for (const sd of [1, -1]) {
+    parts.push(beam([sd * (hw - 0.22), 1.1, zS - 0.2], [sd * (hw - 0.22), 4.05, zS - 0.2], 0.17, CHROME));
+    parts.push(slab(sd * (hw - 0.32), sd * (hw - 0.12), 1.6, 2.6, zS - 0.32, zS - 0.08, '#9a958b'));
+  }
+  parts.push(tag(new THREE.TorusGeometry(0.17, 0.025, 5, 14).translate(0.32, 1.75, zS - 0.08).toNonIndexed(), '#b02a1a', PART.frame));
+  parts.push(tag(new THREE.TorusGeometry(0.17, 0.025, 5, 14).translate(-0.32, 1.75, zS - 0.08).toNonIndexed(), '#2a4a7a', PART.frame));
+  // Saddle tanks under the sleeper, strapped.
+  for (const sd of [1, -1]) {
+    parts.push(tag(new THREE.CylinderGeometry(0.34, 0.34, 1.25, 14).rotateX(Math.PI / 2).translate(sd * (hw - 0.4), 0.82, -0.4).toNonIndexed(), CHROME, PART.body));
+    for (const z of [-0.85, 0.05]) parts.push(slab(sd * (hw - 0.76), sd * (hw - 0.04), 0.46, 1.19, z - 0.04, z + 0.04, STEEL));
+  }
+  // The deck plate behind the sleeper and the fifth wheel (its jaw slot facing the trailer).
+  parts.push(slab(-hw + 0.3, hw - 0.3, 0.92, 1.0, -L / 2 + 0.2, zS - 0.05, '#3a3632'));
+  parts.push(tag(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 18).translate(0, 1.06, F).toNonIndexed(), '#2f2d2a', PART.frame));
+  parts.push(slab(-0.09, 0.09, 1.12, 1.135, F - 0.62, F - 0.08, '#0e0e0e', PART.frame));
+  for (const sd of [1, -1]) parts.push(slab(sd * 0.48, sd * 0.62, 0.95, 1.08, F - 0.3, F + 0.3, STEEL, PART.frame)); // its mounts
+  // The tail: a crossmember, mud flaps behind the drive axles.
+  parts.push(slab(-hw + 0.4, hw - 0.4, 0.6, 0.76, -L / 2, -L / 2 + 0.12, STEEL, PART.bumperR));
+  for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.62), sd * (hw - 0.04), 0.2, 0.95, -L / 2 + 0.06, -L / 2 + 0.1, '#111111', PART.bumperR));
+  axle(parts, zf, 0.53, 0.36, hw - 0.2, true);
+  axle(parts, -1.78, 0.53, 0.62, hw - 0.33, false);
+  axle(parts, -2.98, 0.53, 0.62, hw - 0.33, false);
+}
+
+// A long dry box: the oak floor on its rails, corrugated walls with a stripe and amber side markers, the front wall over
+// the upper coupler and its kingpin, the rear frame round the opening (the roll-up door and the slide-out ramp are
+// their own meshes: holdDoorGeometry, rampGeometry), the ramp's pocket under the floor, landing gear, the underride
+// bar, tandem axles on duals. The roof (with its bows) cuts away while you are inside (systems/decks.js).
+function boxTrailerBody(parts, s, paint) {
+  const T = TRAILERS[s.trailer] ?? TRAILERS.box, L = s.len, hw = s.wid / 2, F = T.floorY, top = s.tall - 0.02, H = T.hold;
+  const rib = '#a59d8d', rail = '#7d776c', R = ROOF ?? parts;
+  parts.push(slab(-hw, hw, 1.1, F - 0.02, -L / 2, L / 2, '#3b3632'));                                         // the floor's rails
+  parts.push(slab(H.x0, H.x1, F - 0.02, F, -L / 2 + 0.12, L / 2 - 0.08, DECKWOOD));                            // oak floor
+  for (let k = 1; k < 8; k++) { const x = H.x0 + k * (H.x1 - H.x0) / 8; parts.push(slab(x - 0.01, x + 0.01, F, F + 0.004, -L / 2 + 0.14, L / 2 - 0.1, '#4f3d2a')); }
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * (H.x1 - 0.12), sd * H.x1, F, F + 0.05, -L / 2 + 0.2, L / 2 - 0.15, '#8a857a'));       // tie-down track
+    parts.push(slab(sd * H.x1, sd * hw, F, top, -L / 2 + 0.15, L / 2, paint));                                 // the wall
+    for (let z = -L / 2 + 0.6; z < L / 2 - 0.3; z += 0.9) parts.push(slab(sd * hw, sd * (hw + 0.03), F + 0.05, top - 0.12, z - 0.04, z + 0.04, rib));
+    parts.push(slab(sd * hw, sd * (hw + 0.04), top - 0.12, top, -L / 2, L / 2, rail));
+    parts.push(slab(sd * hw, sd * (hw + 0.04), F - 0.2, F + 0.06, -L / 2, L / 2, rail));
+    parts.push(slab(sd * (hw + 0.03), sd * (hw + 0.035), 2.15, 2.42, -L / 2 + 0.3, L / 2 - 0.3, '#8a3a1c'));    // a faded stripe
+    for (const z of [L / 2 - 0.35, 0, -L / 2 + 0.35]) parts.push(slab(sd * (hw + 0.04), sd * (hw + 0.07), F - 0.12, F, z - 0.07, z + 0.07, AMBER, PART.light));
+  }
+  // The front wall, the upper coupler plate and its kingpin, the glad hands.
+  parts.push(slab(-hw, hw, F, top, L / 2 - 0.08, L / 2, paint));
+  for (let x = -hw + 0.4; x < hw - 0.2; x += 0.55) parts.push(slab(x - 0.04, x + 0.04, F + 0.05, top - 0.12, L / 2, L / 2 + 0.03, rib));
+  parts.push(slab(-hw + 0.25, hw - 0.25, 1.08, 1.12, T.kingpin - 1.1, L / 2 - 0.05, '#2b2a28'));
+  parts.push(tag(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 8).translate(0, 1.02, T.kingpin).toNonIndexed(), CHROME, PART.frame));
+  parts.push(slab(0.25, 0.4, 1.45, 1.6, L / 2, L / 2 + 0.06, '#b02a1a'));
+  parts.push(slab(-0.4, -0.25, 1.45, 1.6, L / 2, L / 2 + 0.06, '#2a4a7a'));
+  // The rear frame round the opening: corner posts, the header, the sill the ramp hinges from, hinge knuckles.
+  for (const sd of [1, -1]) parts.push(slab(sd * (H.x1 - 0.06), sd * (hw + 0.04), F - 0.25, top, -L / 2, -L / 2 + 0.16, rail, PART.bumperR));
+  parts.push(slab(-hw, hw, F + H.h, top, -L / 2, -L / 2 + 0.16, rail, PART.bumperR));
+  parts.push(slab(-hw, hw, F - 0.26, F, -L / 2 - 0.05, -L / 2 + 0.16, STEEL, PART.bumperR));
+  for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.32), sd * (hw - 0.04), 0.86, 1.06, -L / 2 - 0.06, -L / 2 - 0.02, '#1b1a18', PART.bumperR)); // lamp boxes
+  // The ramp's pocket under the floor, the underride bar on its uprights, the landing gear, the axles and mud flaps.
+  parts.push(slab(-T.ramp.width / 2 - 0.08, T.ramp.width / 2 + 0.08, 0.86, 1.1, -L / 2 + 0.1, -L / 2 + T.ramp.len + 0.1, '#24221f'));
+  parts.push(slab(-hw + 0.15, hw - 0.15, 0.42, 0.58, -L / 2 + 0.22, -L / 2 + 0.36, '#b8b2a6', PART.bumperR));
+  for (const sd of [1, -1]) parts.push(slab(sd * 0.85, sd * 0.97, 0.5, 1.1, -L / 2 + 0.24, -L / 2 + 0.34, STEEL, PART.bumperR));
+  for (const sd of [1, -1]) {
+    const x = sd * (hw - 0.45), z = L / 2 - 2.4;
+    parts.push(slab(x - 0.07, x + 0.07, 0.25, 1.1, z - 0.07, z + 0.07, '#5a5650', PART.frame));
+    parts.push(slab(x - 0.16, x + 0.16, 0.18, 0.25, z - 0.2, z + 0.2, STEEL, PART.frame));
+  }
+  parts.push(beam([-(hw - 0.45), 0.7, L / 2 - 2.4], [hw - 0.45, 0.7, L / 2 - 2.4], 0.06, '#5a5650'));
+  const a0 = T.axle - 0.58, a1 = T.axle + 0.58;
+  axle(parts, a0, 0.5, 0.6, hw - 0.35, false);
+  axle(parts, a1, 0.5, 0.6, hw - 0.35, false);
+  for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.66), sd * (hw - 0.06), 0.22, 0.95, a0 - 0.62, a0 - 0.58, '#111111'));
+  parts.push(slab(-0.7, 0.7, 0.75, 1.1, a0 - 0.2, a1 + 0.2, STEEL, PART.frame));                                   // the slider box over the axles
+  // Inside: the chain box at the front corner (TRAILER_DECKS.boxHold container), a coiled strap on the wall.
+  parts.push(slab(0.96, H.x1, F, F + 0.8, 5.45, 6.0, '#4a463e'));
+  parts.push(slab(1.0, H.x1 - 0.04, F + 0.8, F + 0.83, 5.5, 5.96, '#6e6a62'));
+  parts.push(tag(new THREE.TorusGeometry(0.2, 0.05, 5, 12).rotateY(Math.PI / 2).translate(H.x1 - 0.06, F + 1.5, 4.6).toNonIndexed(), '#c8962a', PART.body));
+  // The roof (it lifts away while you are inside), its bows, a vent.
+  R.push(slab(-hw, hw, top, top + 0.06, -L / 2, L / 2, '#bdb6a8'));
+  for (let z = -L / 2 + 0.5; z < L / 2 - 0.3; z += 1.0) R.push(slab(-hw + 0.05, hw - 0.05, top + 0.06, top + 0.075, z - 0.03, z + 0.03, '#a8a194'));
+  R.push(slab(-0.3, 0.3, top + 0.06, top + 0.2, L / 2 - 2.2, L / 2 - 1.7, '#8a857a'));
+}
+
+// The wide-load lowboy: a gooseneck over the tractor's fifth wheel, then a drop deck wider than a lane with hazard
+// chevrons along its rails (they read from above), amber markers down both sides, red flags at its four corners, a beacon
+// on the neck, small wheels in pairs under the back, and a pair of folding ramps at the tail (rampGeometry). The WIDE LOAD
+// banners are textured, their own mesh (systems/semis.js).
+function wideTrailerBody(parts, s, paint) {
+  const T = TRAILERS[s.trailer] ?? TRAILERS.wide, L = s.len, hw = s.wid / 2, F = T.floorY, H = T.hold, front = H.z1;
+  const neck = 1.25, yel = '#d8a81e', blk = '#1a1816';
+  // The gooseneck: its raised deck over the kingpin, its sides, the bulkhead face that steps down to the well.
+  parts.push(slab(-neck, neck, 1.18, 1.62, front + 0.2, L / 2, paint));
+  parts.push(slab(-neck + 0.05, neck - 0.05, 1.62, 1.66, front + 0.25, L / 2 - 0.05, '#4a4038'));
+  parts.push(slab(-hw + 0.1, hw - 0.1, F - 0.2, F + 0.85, front, front + 0.2, paint));
+  for (let k = 0; k < 9; k++) { const x0 = -hw + 0.25 + k * ((2 * hw - 0.5) / 9); parts.push(slab(x0, x0 + 0.28, F + 0.55, F + 0.8, front - 0.012, front, k % 2 ? blk : yel)); }
+  for (const sd of [1, -1]) parts.push(beam([sd * neck, 1.4, front + 0.25], [sd * (hw - 0.3), F + 0.3, front + 0.05], 0.12, paint));
+  parts.push(slab(-neck + 0.2, neck - 0.2, 1.08, 1.18, T.kingpin - 0.8, L / 2 - 0.1, '#2b2a28'));
+  parts.push(tag(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 8).translate(0, 1.02, T.kingpin).toNonIndexed(), CHROME, PART.frame));
+  parts.push(tag(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 10).translate(0, 1.77, L / 2 - 0.35).toNonIndexed(), AMBER, PART.light)); // beacon
+  // The deck: steel under a plank floor, planks across, the main beams under it.
+  parts.push(slab(-hw + 0.15, hw - 0.15, F - 0.2, F - 0.01, -L / 2, front, '#4a4038'));
+  for (let z = -L / 2 + 0.2; z < front; z += 0.32) parts.push(slab(H.x0 + 0.02, H.x1 - 0.02, F - 0.01, F, z, z + 0.29, (Math.round(z * 3) % 2) ? DECKWOOD : '#5e4a33'));
+  for (const sd of [1, -1]) parts.push(slab(sd * 0.9, sd * 1.2, 0.45, F - 0.2, -L / 2 + 0.3, L / 2 - 0.4, STEEL, PART.frame));
+  // The side rails: chevrons on top, stake pockets, amber markers, and a red flag on a staff at each corner.
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * (hw - 0.18), sd * (hw - 0.02), F - 0.35, F + 0.3, -L / 2, front, paint));
+    for (let z = -L / 2, k = 0; z < front - 0.05; z += 0.5, k++) parts.push(slab(sd * (hw - 0.18), sd * (hw - 0.02), F + 0.3, F + 0.32, z, Math.min(front, z + 0.5), k % 2 ? blk : yel));
+    for (let z = -L / 2 + 0.8; z < front; z += 1.2) parts.push(slab(sd * (hw - 0.02), sd * (hw + 0.03), F - 0.3, F + 0.2, z - 0.07, z + 0.07, '#26241f'));
+    for (let z = -L / 2 + 0.4; z < front; z += 1.6) parts.push(slab(sd * (hw + 0.03), sd * (hw + 0.06), F - 0.1, F + 0.04, z - 0.08, z + 0.08, AMBER, PART.light));
+    for (const z of [front - 0.1, -L / 2 + 0.12]) {
+      parts.push(beam([sd * (hw - 0.1), F + 0.3, z], [sd * (hw - 0.1), 2.35, z], 0.035, '#2a2622'));
+      parts.push(slab(sd * (hw - 0.12), sd * (hw - 0.08), 1.85, 2.3, z - (z > 0 ? 0.55 : -0.05), z + (z > 0 ? 0.05 : 0.55), '#d8401a'));
+    }
+  }
+  // The tail: the hinge bar the ramps fold from, lamp boxes, the axles (two pairs of small wheels each side).
+  parts.push(slab(-hw + 0.1, hw - 0.1, F - 0.28, F, -L / 2 - 0.06, -L / 2 + 0.1, STEEL, PART.bumperR));
+  for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.55), sd * (hw - 0.22), 0.66, 0.88, -L / 2 - 0.08, -L / 2 - 0.04, '#1b1a18', PART.bumperR));
+  for (const z of [T.axle - 0.5, T.axle + 0.5]) for (const sd of [1, -1]) for (const x of [hw - 0.55, 1.55]) wheel(parts, sd * x, z, 0.38, 0.3, sd > 0 ? PART.wheelRL : PART.wheelRR);
+}
+
+// The drop ramp of trailer row `s` (data/trailers.js TRAILERS[s.trailer].ramp), in its hinge's frame: the hinge on the
+// x axis at y = 0 (its top face), the ramp running back along -z for `len`. A box's is one diamond-plate slab with curbs;
+// a lowboy's is a pair of plates, a gap between them. Its mesh is the trailer group's child (systems/semis.js poses it).
+export function rampGeometry(s) {
+  const R = (TRAILERS[s.trailer] ?? TRAILERS.box).ramp, parts = [], hw = R.width / 2, plate = '#5c5852', bump = '#77736a';
+  const spans = R.kind === 'flip' ? [[-hw, -0.4], [0.4, hw]] : [[-hw, hw]];
+  for (const [x0, x1] of spans) {
+    parts.push(slab(x0, x1, -0.09, 0, -R.len, 0, plate));
+    for (let z = -R.len + 0.2; z < -0.1; z += 0.28) parts.push(slab(x0 + 0.08, x1 - 0.08, 0, 0.015, z, z + 0.05, bump));
+    for (const x of [x0, x1 - 0.06]) parts.push(slab(x, x + 0.06, 0, 0.08, -R.len, 0, '#3e3b36'));
+    parts.push(slab(x0, x1, -0.05, 0.005, -R.len - 0.12, -R.len, '#8e8a80')); // the tip's lip
+  }
+  for (let x = -hw + 0.2; x < hw - 0.1; x += 0.6) parts.push(tag(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8).rotateZ(Math.PI / 2).translate(x, -0.05, 0).toNonIndexed(), CHROME, PART.frame));
+  return mergeGeometries(parts);
+}
+// A box trailer's roll-up door, hanging down from its top edge (y = 0) across the opening: slats, a handle, a pull strap.
+// systems/semis.js sets it in the header and scales it up into the roof as the ramp comes down.
+export function holdDoorGeometry(s) {
+  const T = TRAILERS[s.trailer] ?? TRAILERS.box, H = T.hold, parts = [], w0 = H.x0 + 0.02, w1 = H.x1 - 0.02;
+  parts.push(slab(w0, w1, -H.h, 0, -0.04, 0, '#b4ad9f'));
+  for (let y = -H.h + 0.2; y < -0.05; y += 0.25) parts.push(slab(w0, w1, y, y + 0.025, -0.06, -0.04, '#8f897d'));
+  parts.push(slab(-0.25, 0.25, -H.h + 0.1, -H.h + 0.16, -0.09, -0.04, CHROME));
+  parts.push(slab(0.6, 0.66, -H.h + 0.05, -H.h + 0.6, -0.08, -0.06, '#c8962a'));
+  return mergeGeometries(parts);
 }
 
 // ---- glass ------------------------------------------------------------------------------------------

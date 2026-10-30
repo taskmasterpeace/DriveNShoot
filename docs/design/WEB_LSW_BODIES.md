@@ -141,6 +141,8 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
   `gl_VertexID`.
 
 ## 6. Dependencies, both ways
+- **WEB_DEATHS.md (2026-10-29)**: a dying or dead body is drawn by `characters.js ragPose` from the ragdoll's 12 points, and calls `drive()` with those frames, so LSW keeps the dead. A body missing a limb (`c.lost`) is drawn by the classic rig, which shows the stump.
+
 - **Reads:** `systems/characters.js` (the solver's frames and joints, the classic instance colours, `hideSlot`),
   `data/voices.js` (`VOICES`, `genderOf`), `systems/rites.js` (indirectly: the rot tint through `paint()`),
   `ui/portrait.js` (`FLAGS`, `FLAG_KEYS`), `ui/qol.js` (the `bodies` setting), `main.js` (`charR.lsw.focus = player`).
