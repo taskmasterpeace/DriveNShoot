@@ -174,6 +174,9 @@ The same man **asleep**:
 
   Now nothing about a bar is saved; a save mid-bar loads a plain closed door. Others stop at it like any shut door. A
   kick (`interiors.fling` zeroes `jamT`) or the door forced open breaks it (`barBroken`), and the plank comes off.
+- **A sleeper holding a pending reaction** is skipped by `ai.onNoise` only for the shot they are already reacting to
+  (`heardNow`). Any other noise within the half-ear still wakes them; the battery caught Ike sleeping through the shot in
+  his own shop.
 - **Bedtime.** At night (`ai.night`), anyone `ai.sleeper` keeps a reaction up for at most `nightSecs` (10 s), then goes
   back to bed. Parents running to family finish the run first. Hiding for most of a minute kept Phoenix awake past the
   hour it sleeps (the battery's "the town sleeps").
@@ -216,7 +219,7 @@ The same man **asleep**:
 |---|---|
 | `web/src/main.js` | import; `this.reactions = new Reactions(this)`; `this.reactions.update(simDt)` after witnesses |
 | `web/src/systems/combat.js` | `g.reactions?.onShot(ch.x, ch.z, 45, wkey, ch)` one line **before** `g.noise` |
-| `web/src/systems/ai.js` | `onNoise`: `\|\| c.rx` in the skip; `update`: `if (c.rx && g.reactions.think(c, dt)) continue;` after the hold line |
+| `web/src/systems/ai.js` | `onNoise`: `\|\| (c.rx && (!c.sleeping \|\| g.reactions.heardNow(c)))` in the skip (asleep, any OTHER noise still wakes them); `update`: `if (c.rx && g.reactions.think(c, dt)) continue;` after the hold line |
 | `web/src/data/pulls.js` | `CHANNELS.heard` row; `FACT_KINDS.gunfire` row |
 | `web/src/agent/api.js` | import; `...reactionsCommands(api, need)`; `await reactionsChecks(api, check, C)` before the draw-call check |
 | `web/src/systems/interiors.js` | none: barring uses its `orient`, `syncLock`, `flush` and the leaves' `jamT` |

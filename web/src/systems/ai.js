@@ -85,7 +85,7 @@ export class AI {
   onNoise(x, z, r, src) {
     if (src?.weapon) this.g.tactics?.onShot(src); // rounds passing close pin people down (systems/tactics.js suppression)
     for (const c of this.g.chars) {
-      if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug || c.rx) continue; // c.rx: reacting to a shot they heard (systems/reactions.js); below the street: it never reaches them (systems/underground.js)
+      if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug || (c.rx && (!c.sleeping || this.g.reactions.heardNow(c)))) continue; // c.rx: reacting to a shot they heard (systems/reactions.js; asleep, any other noise still wakes them); below the street: it never reaches them (systems/underground.js)
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r) continue;
       if (c.sleeping) { if (d > r * TOWN_NIGHT.hearAsleep) continue; this.wake(c, 'a noise'); } // asleep: half an ear

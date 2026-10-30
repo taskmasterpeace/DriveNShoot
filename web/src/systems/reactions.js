@@ -130,6 +130,7 @@ export class Reactions {
   onShot(x, z, r = 45, wkey = null, src = null) {
     if (!this.enabled) return null;
     const g = this.g, seq = ++this.seq;
+    this.shotAt = g.time;
     this.stats.shots++;
     const loudMul = REACT.loud[wkey] ?? REACT.loud.default, night = g.ai?.night?.() ?? false;
     const base = r * REACT.earMul * loudMul;
@@ -169,6 +170,9 @@ export class Reactions {
     g.emit('shotHeard', { seq, x: sum.x, z: sum.z, by: sum.by, n: sum.heard.length, kinds: sum.kinds });
     return sum;
   }
+
+  // Is c reacting to the shot being fired this very moment (combat.fire calls onShot, then g.noise for the same shot)?
+  heardNow(c) { return c.rx?.seqHeard === this.seq && this.shotAt === this.g.time; }
 
   // What c heard of this shot: the bearing with its error, the guessed distance, the spot they think it came from.
   hear(c, rx, x, z, d, wall, seq) {
