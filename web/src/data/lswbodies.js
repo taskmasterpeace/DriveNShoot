@@ -71,7 +71,11 @@ export const LSW_RULES = {
   grip: [1.1, 1.35, 1.1], // finger curl (rad) per joint when the hand closes on a gun, bars or a tool
   relax: 0.25,         // curl of an empty hand
   breath: 0.012,       // idle chest rise (fraction of torso height) at 0.25 Hz: the one thing DSOA has no pose for
-  flag: { w: 0.12, h: 0.08, at: [0.13, 0.05, -0.02] }, // the shoulder flag patch: size (m) and where on the left shoulder (bind space, from the shoulder joint)
+  // The flag patches on BOTH shoulder tops (Robert 10-29: the flag ON the person, read from the top-down camera, not
+  // floating over them; the shoulder tops either side of the head are what the camera always sees): size (m), where on
+  // the left shoulder (bind space, from the shoulder joint; the right one is its mirror), and how far each tilts out
+  // over its shoulder (rad).
+  flag: { w: 0.19, h: 0.125, at: [0.16, 0.05, -0.02], tilt: 0.38, lift: 0.025 },
   default: 'lsw',      // the bodies setting: 'lsw' | 'classic'
 };
 

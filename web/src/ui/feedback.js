@@ -10,6 +10,12 @@ import { paintRibbon } from './hudart.js';
 // so anything that emits an event gets feedback for free. All DOM is pooled.
 
 const _v = new THREE.Vector3();
+// NAME TAGS (Robert's playtest 10-29: "when you're looking down, you shouldn't see the flag covering the person"). The flag
+// lives ON the person (the faceted body's back patch, systems/lswbodies.js); the floating tag is small, beside the body
+// (never over it), and only for who matters: the one you aim at (within `aim` m of the aim point), anyone within `near` m
+// (`nearAll` with the Name tags setting on "Everyone close by"), and a running witness. At most `max`, fading in and out
+// at `fade` per second. `side` is how far beside the body's middle the tag starts (m, toward the camera's right).
+const TAGS = { aim: 2.2, near: 4, nearAll: 9, max: 4, fade: 6, side: 0.5, chest: 1.25 };
 const FACTION_COL = { raider: 'var(--blood)', ally: 'var(--green)', zombie: 'oklch(0.62 0.12 125)', drifter: 'var(--muted)', town: 'var(--bone)' };
 const BEARINGS = [['N', 0], ['NE', 45], ['E', 90], ['SE', 135], ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]];
 // The brass ribbon: 540 px of plate, a 488 px window, 3 px per degree (about ±80° in view).
@@ -165,7 +171,7 @@ export class Feedback {
       const k = this.kills[i]; k.t += dt;
       if (k.t > 7) { k.el.remove(); this.kills.splice(i, 1); } else if (k.t > 6) k.el.style.opacity = (7 - k.t).toFixed(2);
     }
-    this.updateTags();
+    this.updateTags(dt);
     this.updateCompass();
     // Low ammo flash + heartbeat.
     const w = g.inv?.current, mag = g.inv?.mag?.[w];
@@ -182,24 +188,36 @@ export class Feedback {
     }
   }
 
-  updateTags() {
+  updateTags(dt = 0) {
     const g = this.g, p = g.player, aim = g.aim;
     const cand = [], mode = g.qol?.settings?.nameTags ?? 'aim'; // aim | near | off (the pause menu's Name tags)
+    let aimed = null, aimD = TAGS.aim;
     for (const c of g.chars) {
       if (c === p || !c.alive || c.hidden || c.underwater) continue;
       const dp = Math.hypot(c.x - p.x, c.z - p.z);
       if (c.telling && dp < 60) { cand.push({ c, s: -10 }); continue; } // a witness running home: always tagged, first
       if (mode === 'off' || dp > 34) continue;
       const da = Math.hypot(c.x - aim.x, c.z - aim.z);
-      const named = !!c.npc;
-      if (mode === 'near' ? dp < 20 : da < 7 || (named && dp < 12)) cand.push({ c, s: (mode === 'near' ? dp / 3 : da) - (named ? 4 : 0) });
+      if (da < aimD) { aimD = da; aimed = c; }
+      if (dp < (mode === 'near' ? TAGS.nearAll : TAGS.near)) cand.push({ c, s: dp });
     }
+    if (aimed && !cand.some((e) => e.c === aimed)) cand.push({ c: aimed, s: -1 }); // the one under your aim, before the rest
     cand.sort((a, b) => a.s - b.s);
+    if (cand.length > TAGS.max) cand.length = TAGS.max;
     this.lastTags = [];
-    this.tags.forEach((t, i) => {
-      const e = cand[i];
-      if (!e) { t.el.style.display = 'none'; t.id = null; return; }
-      const c = e.c;
+    // Wanted tags keep their slot (so a fade is one tag's), new ones take a slot that has faded out.
+    const k = Math.min(1, dt * TAGS.fade);
+    for (const t of this.tags) { t.want = false; if (t.c) for (const e of cand) if (e.c === t.c) { t.want = true; e.slot = t; } }
+    for (const e of cand) {
+      if (e.slot) continue;
+      const t = this.tags.find((x) => !x.want && !(x.a > 0.02));
+      if (t) { t.c = e.c; t.want = true; t.a = 0; t.id = null; e.slot = t; }
+    }
+    const cam = g.camera.matrixWorld.elements, rx = cam[0], ry = cam[1], rz = cam[2]; // the camera's right
+    for (const t of this.tags) {
+      t.a = (t.a ?? 0) + ((t.want ? 1 : 0) - (t.a ?? 0)) * (dt > 0 ? k : 1);
+      const c = t.c;
+      if (!c || t.a < 0.02 || (!t.want && (!c.alive || c.hidden))) { t.el.style.display = 'none'; if (!t.want) { t.c = null; t.id = null; t.a = 0; } continue; }
       const key = c.telling ? c.id + ':w' : c.name === 'Sprinter' ? c.id + ':s' : c.id; // a tag re-reads when what it says changes
       if (t.id !== key) {
         t.id = key;
@@ -208,13 +226,15 @@ export class Feedback {
         t.el.style.setProperty('--acc', c.telling ? 'var(--blood, #ff3b3b)' : c.npc ? 'var(--gold)' : FACTION_COL[c.faction] ?? 'var(--muted)');
         t.el.classList.toggle('runner', !!c.telling);
       }
-      const y = c.seatPose?.y ?? 0;
-      const [sx, sy, on] = this.screen(c.x, y + 2.3, c.z);
+      // Beside the body: the chest's screen point, pushed right by what `side` metres are on screen there, the tag's
+      // left edge at that point and its middle at chest height. It never sits on the person.
+      const y = (c.seatPose?.y ?? 0) + TAGS.chest;
+      const [sx, sy, on] = this.screen(c.x, y, c.z), [bx] = this.screen(c.x + rx * TAGS.side, y + ry * TAGS.side, c.z + rz * TAGS.side);
       t.el.style.display = on ? '' : 'none';
-      t.el.style.transform = `translate(${sx.toFixed(0)}px, ${sy.toFixed(0)}px) translate(-50%, -100%)`;
-      t.el.style.opacity = c.telling ? '1' : Math.max(0.35, 1 - e.s / 9).toFixed(2);
-      this.lastTags.push({ id: c.id, name: t.name.textContent, flag: c.flag, faction: c.faction, runner: !!c.telling });
-    });
+      t.el.style.transform = `translate(${(sx + Math.max(10, bx - sx) + 4).toFixed(0)}px, ${sy.toFixed(0)}px) translate(0, -50%)`;
+      t.el.style.opacity = (c.telling ? 1 : t.a * 0.92).toFixed(2);
+      if (t.want) this.lastTags.push({ id: c.id, name: t.name.textContent, flag: c.flag, faction: c.faction, runner: !!c.telling, aimed: c === aimed });
+    }
   }
 
   updateCompass() {

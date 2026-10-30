@@ -1,4 +1,3 @@
-import { FN_MELEE } from './fannods.js';
 // How a gun is carried and how a fight goes hand to hand (docs/design/WEB_CONTROLLER.md §3). Rows and numbers only; the
 // rules live in systems/arms.js (stance, grip, fire modes, recoil), systems/gunpoint.js and systems/melee.js.
 
@@ -107,7 +106,6 @@ export const MELEE = {
   lunge: 0.35,       // m you step into a blow
   infectedKnock: 0.7, // the infected stagger for less (they don't feel it)
 };
-Object.assign(MELEE, FN_MELEE); // the found things' cane and blades (data/fannods.js)
 
 // ---- the carry: the gun at the side, on the dominant hand (docs/design/WEB_CAMERA.md §3.6; gap G2) -------------------
 // Aimed, a gun sits off the body's centre line on the shooter's dominant side (m, from the chest centre):

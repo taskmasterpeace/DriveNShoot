@@ -81,7 +81,8 @@ export async function startHarness(port, { path = '/?agent=1', width = 1600, hei
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
     '--remote-debugging-port=0', `--user-data-dir=${profile}`, `${base}${path}`], { stdio: 'ignore' });
   kids.push(chrome);
-  for (let i = 0; i < 90 && !(await connected(base)); i++) await sleep(500);
+  const bootN = Math.max(90, Number(process.env.DL_BOOT_S ?? 45) * 2); // DL_BOOT_S: how long a cold game page may take to reach its bridge (a loaded machine needs more than 45 s)
+  for (let i = 0; i < bootN && !(await connected(base)); i++) await sleep(500);
   if (!(await connected(base))) { for (const k of kids) stopTree(k); throw new Error(`the game page on ${port} never reached its bridge`); }
   // The DevTools port Chrome picked.
   let devPort = null;

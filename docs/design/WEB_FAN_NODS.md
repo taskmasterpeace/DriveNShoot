@@ -85,11 +85,12 @@ from. Each one is an object or a place, built as rows in a system that already e
   - **BALL mode:** a .44 lead ball (`ball44`): slow, heavy, no casing.
   - **SHOT BARREL mode:** nine pellets of loose shot (`capshot`), a wide cloud, 18 m reach.
   - Both modes draw on one box, `ammo_capball` (lead, powder, caps and shot).
-- **The cane** (`sword_cane`): `systems/melee.js` reads `FN_MELEE_CARRY` before the knife.
-  - A tap raps with the knob (`cane`: a knock, a push).
-  - Holding the button past `heavyAt` draws the blade in the same motion (`caneblade`: reach 1.6 m, narrow arc, bleed).
-    It replaces the kick.
-  - With a gun raised it is the gun butt and the kick, as ever.
+- **The cane** is a row of the melee system (`data/melee.js` MELEE_WEAPONS `cane`, its item `sword_cane` in MELEE_ITEMS). Fists
+  up (the gun holstered) with the cane in hand:
+  - A tap raps with the knob: blunt, a knock, a push.
+  - Held past the heavy threshold, the knob twists and the blade comes out in the same motion. The row's `heavy.as:
+    'caneblade'` makes the held swing the `caneblade` row's: a blade, 1.6 m reach, a narrow arc, bleed, a small chance to
+    take a limb. `heavy.as` is one generic line in `systems/melee.js attack()`, and `validateMelee` checks it names a row.
 
 ### 3.3 The jungle blade
 - **Where:** `DITCH_BONES` holds three rows. Each sits at a share of the interstate's length, on a side, set metres (about 3) past
@@ -98,8 +99,8 @@ from. Each one is an object or a place, built as rows in a system that already e
   blade). It draws a skeleton face down: the skull, the ribs, the hips, the legs, one arm out, and a rag of coat. The
   blade lies in the gravel by the hand, and once taken it is no longer drawn. Past `far` m the box is written back
   (`ringKept`), so what you took stays taken.
-- **The blade** (`jungle_blade`, `jungleblade` strike) is heavy at the tip: a slow wind-up, a wide arc, 40 damage, bleed
-  and a knock. It keeps the kick as its held strike.
+- **The blade** is the melee row `jungleblade` (item `jungle_blade` in MELEE_ITEMS): heavy at the tip, a slow wind-up, a
+  wide arc, 36 damage, bleed, a knock, and the best chance of any blade to take a limb; its held swing is the row's own heavy.
 
 ### 3.4 The lapel counter
 - **The item:** `lapel_counter`, a tool. Carrying it is the whole switch.
@@ -208,7 +209,7 @@ from. Each one is an object or a place, built as rows in a system that already e
 
 - **Reads:** `data/milbases.js` (sealed rows), `data/underground.js`, `world/undergen.js`, `systems/underlook.js`,
   `systems/underground.js`, `data/ring.js`, `data/floorplans.js`, `world/ring.js`, `systems/combat.js` WEAPONS,
-  `data/ballistics.js`, `data/arms.js` MELEE, `systems/melee.js`, `data/items.js`, `systems/inventory.js`,
+  `data/ballistics.js`, `data/melee.js` MELEE_WEAPONS, `systems/melee.js`, `data/items.js`, `systems/inventory.js`,
   `data/hotground.js`, `systems/sky.js`, `systems/survival.js` (shelter), `systems/semis.js` (freight, lanes),
   `data/trailers.js` FREIGHT, `systems/decks.js`, `systems/trade.js`.
 - **Hooks added to shared files** (one or two lines each):
@@ -220,8 +221,9 @@ from. Each one is an object or a place, built as rows in a system that already e
   - `data/ring.js`: the `glasscase` FURNITURE row.
   - `data/floorplans.js`: `rare` on `sales`.
   - `world/ring.js`: `rareRoll` and the rare push; `world/furnish.js`: `noRare` on the island's furnisher.
-  - `systems/combat.js`, `data/ballistics.js`, `data/arms.js`, `data/items.js`: `Object.assign` folds of the rows.
-  - `systems/melee.js`: `carried()`, the strike pick and the held strike.
+  - `systems/combat.js`, `data/ballistics.js`, `data/items.js`: `Object.assign` folds of the rows.
+  - `data/melee.js`: the `cane`, `caneblade` and `jungleblade` weapon rows and their two items; `validateMelee` checks
+    `heavy.as`. `systems/melee.js`: one line in `attack()` for `heavy.as`.
   - `systems/inventory.js`: `all` tables and the `heatmeal` act.
   - `systems/sky.js`: the `SICKSKY` row, the rare pick, `burn` easing and the rain colour.
   - `systems/semis.js`: `lanePoint` `pull`, the `trailerPaint` pass-through, the `halt` and `hold` in `aiDrive` (a held rig
@@ -266,11 +268,11 @@ from. Each one is an object or a place, built as rows in a system that already e
      none.
    - Opened, it holds the revolver, the cane and the ball and caps.
    - The shot mode is nine `capshot` pellets and the ball mode one `ball44`.
-   - A tap is the cane; held, the blade comes out and cuts.
+   - Fists up with the cane: a tap is the cane; held, the blade comes out, cuts and bleeds.
 4. **The jungle blade.**
    - Three ditches.
    - Standing by one: the bones are drawn past the shoulder, and the box holds the blade.
-   - Carried, a tap is its chop and hits harder than a fist.
+   - Fists up with it, a tap is its chop and hits harder than a fist.
 5. **The lapel counter.** It is silent out of reach, ticks slowly past the edge and fast in the middle, and says nothing
    when not carried.
 6. **The armoured convoy.**

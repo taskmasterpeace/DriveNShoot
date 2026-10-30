@@ -176,6 +176,7 @@ export class Controls {
         const harp = !!this.g.player?.inVehicle?.harpoon;
         if ((r.id === 'harpoon' && !harp) || (r.id === 'wheel' && harp)) desc = null;
       }
+      if (desc && ctx === 'foot' && (r.id === 'throw' || r.id === 'reload') && this.g.melee?.fistsUp()) desc = null; // fists up: LT is the guard, X the grab (systems/melee.js)
       let on = false, rose = false;
       if (desc === 'back') {
         // The map on a clean tap of VIEW (no chord was used while it was down).

@@ -2,6 +2,7 @@ import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './g
 import { GADGETS, DRONES, DOOR_KIT, KIT, CELLS, KIT_LOOT_ADD } from './gadgets.js';
 import { DOG_GEAR } from './dogs.js';
 import { FN_ITEMS, FN_LOOT, FN_AMMO_ITEM, FN_GUN_ITEM } from './fannods.js';
+import { MELEE_ITEMS } from './melee.js'; // bats, knuckles, pipes, sledges (WEB_MELEE.md)
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
@@ -71,6 +72,20 @@ export const ITEMS = {
     desc: 'A bow saw for metal and a spare blade. Slow work, and nobody hears it.' },
   crowbar: { name: 'Crowbar', kind: 'tool', kg: 2.4, bulk: 1.2, stack: 1, value: 18, use: { act: 'pry' }, tags: ['pry', 'steel'],
     desc: 'Forged steel, the paint worn off the end that does the work. Opens what keys don\'t. Loudly.' },
+  // TIMED ACTIONS (data/actions.js TOOLS; docs/design/WEB_TIMED_ACTIONS.md): break-in tools that wear (slot.wear), a
+  // ladder you carry, and the small things look-around and a thorough search turn up. Not in any loot table yet.
+  bolt_cutters: { name: 'Bolt cutters', kind: 'tool', kg: 3.2, bulk: 1.4, stack: 1, value: 26, tags: ['cutters', 'steel'],
+    desc: 'Two-foot jaws on long handles. A padlock\'s shackle or a run of chain-link, quietly.' },
+  sledgehammer: { name: 'Sledgehammer', kind: 'tool', kg: 4.5, bulk: 1.6, stack: 1, value: 20, tags: ['sledge', 'steel'],
+    desc: 'Ten pounds on a hickory handle. Any door, any lock, and everyone for a block hears it.' },
+  hammer_nails: { name: 'Hammer and nails', kind: 'tool', kg: 1.1, bulk: 0.5, stack: 1, value: 12, tags: ['hammer'],
+    desc: 'A claw hammer and a coffee tin of bent nails. Boards go up, boards come down.' },
+  ladder_portable: { name: 'Aluminium ladder', kind: 'tool', kg: 7.5, bulk: 2.8, stack: 1, value: 30, use: { act: 'place_ladder' }, tags: ['ladder'],
+    desc: 'A folding ladder, sixteen feet open. Set it against a wall and the roof is yours.' },
+  door_key: { name: 'Door key', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 4, value: 2,
+    desc: 'A brass key on a split ring. Somebody\'s door, somewhere near.' },
+  scrap_note: { name: 'Folded note', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 1, value: 0,
+    desc: 'A page torn from a pad, folded small. Whoever dropped it was in a hurry.' },
   // The portable radio (systems/radio.js): the stations anywhere, not only in a car. Not in any loot table yet (a content call).
   radio_portable: { name: 'Portable radio', kind: 'tool', kg: 0.7, bulk: 0.6, stack: 1, value: 40, tags: ['radio'],
     desc: 'A battered transistor set with a bent aerial. Comma and period walk the dial.' },
@@ -195,14 +210,15 @@ Object.assign(ITEMS, {
   gator_hide: { name: 'Gator hide', kind: 'valuable', kg: 2.2, bulk: 2.5, stack: 2, value: 35,
     desc: 'A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.' },
 });
+Object.assign(ITEMS, MELEE_ITEMS); // the melee rows' carried things (data/melee.js)
 export const LOOT = {
   gator: { rolls: [1, 2], none: 0, rows: [['gator_meat', 5, 1, 2], ['gator_hide', 3, 1, 1]] },
   kitchen: { rolls: [1, 3], none: 4, rows: [['beans_tin', 5, 1, 2], ['peaches_tin', 3, 1, 1], ['water_bottle', 4, 1, 2], ['honey', 1, 1, 1], ['can_opener', 2, 1, 1], ['knife', 1, 1, 1], ['silverware', 2, 1, 3], ['flatbread', 1, 1, 1]] },
   bathroom: { rolls: [1, 2], none: 3, rows: [['bandage', 4, 1, 2], ['rag', 3, 1, 3], ['painkillers', 2, 1, 1], ['antibiotics', 1, 1, 1], ['suture_kit', 1, 1, 1]] },
-  bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1], ['bedroll', 2, 1, 1]] },
-  garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
+  bedroom: { rolls: [1, 2], none: 5, rows: [['ammo_pistol', 2, 6, 14], ['ammo_shells', 1, 2, 6], ['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1], ['bedroll', 2, 1, 1]] },
+  garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1], ['cleaning_kit', 1, 1, 1], ['ammo_shells', 1, 3, 8]] },
   // Ike's shop: rounds of every kind, the odd second-hand gun, the kit to keep one running.
-  gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_birdshot', 2, 4, 12], ['ammo_slug', 1, 2, 8], ['ammo_rifle', 1, 10, 30], ['ammo_22lr', 2, 25, 100], ['ammo_357mag', 2, 6, 24], ['ammo_762x39', 2, 15, 45], ['ammo_762x51', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['gun_rimfire', 1, 1, 1], ['gun_magnum', 1, 1, 1], ['gun_carbine', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
+  gunsmith: { rolls: [3, 5], none: 1, rows: [['ammo_pistol', 6, 18, 48], ['ammo_smg', 5, 30, 75], ['ammo_shells', 4, 8, 20], ['ammo_birdshot', 2, 4, 12], ['ammo_slug', 1, 2, 8], ['ammo_rifle', 2, 15, 40], ['ammo_22lr', 2, 25, 100], ['ammo_357mag', 2, 6, 24], ['ammo_762x39', 2, 15, 45], ['ammo_762x51', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['gun_rimfire', 1, 1, 1], ['gun_magnum', 1, 1, 1], ['gun_carbine', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
   office: { rolls: [1, 2], none: 5, rows: [['photograph', 2, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 3], ['lockpicks', 1, 1, 1], ['road_atlas', 2, 1, 1], ['painkillers', 1, 1, 1], ['ammo_pistol', 1, 6, 18]] },
   military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1], ['ammo_rifle', 4, 15, 60], ['ammo_762x51', 2, 20, 60], ['ammo_50bmg', 1, 5, 15], ['gun_battle', 1, 1, 1], ['gun_lmg', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
   wreck: { rolls: [0, 2], none: 5, rows: [['scrap', 5, 1, 3], ['fuel_can', 1, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 2], ['duct_tape', 1, 1, 1], ['photograph', 1, 1, 1]] },
@@ -210,10 +226,13 @@ export const LOOT = {
   // The Phoenix ring's shops (data/ring.js): a corner store's shelves, a fuel stop's counter and back room.
   storefront: { rolls: [1, 3], none: 4, rows: [['beans_tin', 4, 1, 3], ['peaches_tin', 3, 1, 2], ['water_bottle', 4, 1, 2], ['jerky', 3, 1, 2], ['painkillers', 1, 1, 1], ['duct_tape', 1, 1, 1], ['can_opener', 1, 1, 1], ['road_atlas', 1, 1, 1]] },
   pumps: { rolls: [1, 3], none: 3, rows: [['fuel_can', 3, 1, 1], ['spare_tyre', 1, 1, 1], ['spark_plugs', 2, 1, 1], ['jerky', 2, 1, 2], ['water_bottle', 2, 1, 1], ['road_atlas', 2, 1, 1], ['duct_tape', 1, 1, 1]] },
-  person: { rolls: [0, 2], none: 3, rows: [['water_bottle', 4, 1, 1], ['jerky', 3, 1, 2], ['rag', 3, 1, 2], ['photograph', 3, 1, 1], ['flatbread', 2, 1, 1], ['wristwatch', 1, 1, 1], ['gold_ring', 1, 1, 1], ['painkillers', 1, 1, 1], ['knife', 1, 1, 1]] },
-  raider: { rolls: [1, 3], none: 2, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1], ['ammo_smg', 3, 8, 30], ['ammo_pistol', 2, 4, 14], ['ammo_shells', 1, 2, 6]] },
+  person: { rolls: [0, 2], none: 3, rows: [['ammo_pistol', 2, 3, 10], ['ammo_smg', 1, 5, 15], ['water_bottle', 4, 1, 1], ['jerky', 3, 1, 2], ['rag', 3, 1, 2], ['photograph', 3, 1, 1], ['flatbread', 2, 1, 1], ['wristwatch', 1, 1, 1], ['gold_ring', 1, 1, 1], ['painkillers', 1, 1, 1], ['knife', 1, 1, 1]] },
+  raider: { rolls: [1, 3], none: 1, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1], ['ammo_smg', 4, 12, 36], ['ammo_pistol', 3, 6, 18], ['ammo_shells', 2, 3, 8]] },
   // A Federal Remnant soldier's pockets and webbing (bases.js): issue kit, nothing personal left.
-  soldier: { rolls: [1, 3], none: 2, rows: [['ration', 4, 1, 1], ['canteen', 3, 1, 1], ['bandage', 4, 1, 2], ['first_aid', 1, 1, 1], ['knife', 1, 1, 1], ['photograph', 1, 1, 1], ['ammo_rifle', 4, 10, 40], ['bedroll', 1, 1, 1]] },
+  soldier: { rolls: [1, 3], none: 2, rows: [['ration', 4, 1, 1], ['canteen', 3, 1, 1], ['bandage', 4, 1, 2], ['first_aid', 1, 1, 1], ['knife', 1, 1, 1], ['photograph', 1, 1, 1], ['ammo_rifle', 5, 20, 50], ['bedroll', 1, 1, 1]] },
+  // A patrol car's trunk (systems/inventory.js trunk: rolled once, the first time it is opened, never again): the
+  // department's spare rounds and the shotgun rack's shells (WEB_SHOT_READ.md §3.2: enough to fight a few times).
+  trunk_patrol: { rolls: [2, 3], none: 1, rows: [['ammo_smg', 5, 12, 30], ['ammo_pistol', 4, 8, 24], ['ammo_shells', 4, 4, 12], ['ammo_slug', 1, 2, 6], ['bandage', 2, 1, 2], ['flare', 2, 1, 2], ['gun_pump', 1, 1, 1]] },
 };
 
 // What you start with: pockets, a satchel on your back, a bottle and a little food (plus the guns in g.inv).

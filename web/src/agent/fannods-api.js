@@ -9,7 +9,7 @@ import { ROOMS as UG_ROOMS, PROPS as UG_PROPS, KINDS as UG_KINDS } from '../data
 import { ROOMS as FLOOR_ROOMS } from '../data/floorplans.js';
 import { FURNITURE } from '../data/ring.js';
 import { ITEMS, LOOT } from '../data/items.js';
-import { MELEE } from '../data/arms.js';
+import { MELEE_WEAPONS } from '../data/melee.js';
 import { WEAPONS } from '../systems/combat.js';
 import { WEATHER } from '../systems/sky.js';
 import { HOT_GROUND } from '../data/hotground.js';
@@ -19,7 +19,7 @@ import { freeSpot } from './citygen-api.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const _v = new THREE.Vector3(), _c = new THREE.Color();
-const rowsCheck = () => validateFanNods({ milbases: MILBASES, rooms: UG_ROOMS, props: UG_PROPS, items: ITEMS, loot: LOOT, melee: MELEE, weapons: WEAPONS, weather: WEATHER, furniture: FURNITURE, floorRooms: FLOOR_ROOMS });
+const rowsCheck = () => validateFanNods({ milbases: MILBASES, rooms: UG_ROOMS, props: UG_PROPS, items: ITEMS, loot: LOOT, melee: MELEE_WEAPONS, weapons: WEAPONS, weather: WEATHER, furniture: FURNITURE, floorRooms: FLOOR_ROOMS });
 
 // The ring's planned buildings that have a gun shop or a study, and those with the glass case in them (the real furnishing:
 // world/ring.js geo). -> { shops, studies, cases: [{ lot, room, x, z }] }
@@ -80,6 +80,10 @@ export async function fannodsChecks({ api, g, check, C }) {
   const unCarry = (id) => { const s = inv.carried; for (let i = s.slots.length - 1; i >= 0; i--) if (s.slots[i].id === id) inv.take(s, i, s.slots[i].n); inv.changed(); };
   const stand = async (x, z) => { if (p.inVehicle) g.exitVehicle(true); await C('teleport', { x, z }); p.vx = 0; p.vz = 0; await frames(3); };
   const gm = g.godMode;
+  // the melee system's own way in (agent/melee-api.js): the gun holstered, fists up, the thing you carry in your hand; LMB swings
+  const fistsUp = async (id) => { g.melee.clear?.(); I.mouseButton(0, false); I.mouseButton(2, false); g.aimOverride = null; g.arms.holster('test'); g.melee.wield(id); await frames(3); };
+  const fistsDown = async () => { g.melee.clear?.(); I.mouseButton(0, false); I.mouseButton(2, false); g.arms.setStance('lowered'); await frames(2); };
+  const lmb = async (c, hold) => { mouseAt(c.x, c.z); await frames(1); I.mouseButton(0, true); for (let i = 0; i < Math.max(1, Math.round(hold * 60)); i++) { mouseAt(c.x, c.z); await frames(1); } I.mouseButton(0, false); await frames(1); };
 
   await check('fan nods: the rows validate - six glass rooms in six sealed bases in six regions, every tint out of the purple band; the old revolver has a shot barrel, the cane a blade, every found thing an item and a table; the burning rain is hue 20-140 and rare; three ditches; the convoy rare with two or three rigs; calendars only in sealed offices, never a year', async () => {
     const bad = rowsCheck();
@@ -144,19 +148,19 @@ export async function fannodsChecks({ api, g, check, C }) {
     g.arms.setMode('percussion', 'ball');
     const ball = g.arms.row('percussion').pellets === 1 && g.arms.row('percussion').cal === 'ball44';
     // the cane: tap raps, held draws the blade (the real button)
-    g.arms.setStance?.('lowered');
     carry('sword_cane');
     const dummy = person(p.x, p.z + 1.05);
     let tap = null, held = null;
     try {
       for (let i = 0; i < 8; i++) { mouseAt(dummy.x, dummy.z); await frames(1); }
-      p.stamina = 1; I.mouseButton(2, true); mouseAt(dummy.x, dummy.z); await frames(2); I.mouseButton(2, false); await secs(0.6);
-      tap = g.melee.last?.kind ?? null;
+      await fistsUp('cane');
+      p.stamina = 1; await lmb(dummy, 0.03); await secs(0.6);
+      tap = g.melee.last?.weapon ?? null;
       p.stamina = 1; dummy.knockT = 0; const hp0 = dummy.hp;
-      I.mouseButton(2, true); for (let i = 0; i < 27; i++) { mouseAt(dummy.x, dummy.z); await frames(1); } I.mouseButton(2, false); await secs(0.7);
-      held = { kind: g.melee.last?.kind ?? null, cut: hp0 - dummy.hp, bleed: (dummy.bleed ?? 0) > 0 };
-    } finally { I.mouseButton(2, false); unCarry('sword_cane'); drop(dummy); }
-    const ok = R.cases.length >= 1 && where && share < 0.1 && island === 0 && holds && nine && ball && tap === 'cane' && held?.kind === 'caneblade' && held.cut > 0;
+      await lmb(dummy, 0.45); await secs(0.8);
+      held = { kind: g.melee.last?.weapon ?? null, heavy: !!g.melee.last?.heavy, cut: hp0 - dummy.hp, bleed: (dummy.bleed ?? 0) > 0 };
+    } finally { await fistsDown(); unCarry('sword_cane'); drop(dummy); }
+    const ok = R.cases.length >= 1 && where && share < 0.1 && island === 0 && holds && nine && ball && tap === 'cane' && held?.kind === 'caneblade' && held.heavy && held.cut > 0 && held.bleed;
     return ok ? true : JSON.stringify({ cases: R.cases, sales: R.sales, island, lots: R.lots, share: +share.toFixed(3), where, holds, nine, ball, tap, held });
   });
 
@@ -175,11 +179,12 @@ export async function fannodsChecks({ api, g, check, C }) {
     let hit = null;
     try {
       for (let i = 0; i < 8; i++) { mouseAt(dummy.x, dummy.z); await frames(1); }
+      await fistsUp('jungleblade');
       p.stamina = 1; const hp0 = dummy.hp;
-      I.mouseButton(2, true); mouseAt(dummy.x, dummy.z); await frames(2); I.mouseButton(2, false); await secs(0.8);
-      hit = { kind: g.melee.last?.kind ?? null, cut: hp0 - dummy.hp };
-    } finally { I.mouseButton(2, false); unCarry('jungle_blade'); drop(dummy); }
-    const ok = DITCH_BONES.length === 3 && live && past && drawn >= 8 && blade && hit?.kind === 'jungleblade' && hit.cut > MELEE.fists.dmg;
+      await lmb(dummy, 0.03); await secs(0.8);
+      hit = { kind: g.melee.last?.weapon ?? null, cut: hp0 - dummy.hp };
+    } finally { await fistsDown(); unCarry('jungle_blade'); drop(dummy); }
+    const ok = DITCH_BONES.length === 3 && live && past && drawn >= 8 && blade && hit?.kind === 'jungleblade' && hit.cut > MELEE_WEAPONS.fists.dmg;
     return ok ? true : JSON.stringify({ r, live: !!live, past, drawn, blade, hit });
   });
 

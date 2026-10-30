@@ -6,7 +6,8 @@
 //
 // A row:
 //   id          stable key (saves, the `hud` command and the selftest use it; never rename one)
-//   name        what the editor's label and the screenshot sheet call it
+//   name        what the editor's label and the screenshot sheet call it: plain words a player knows, never an internal name
+//   tip         one line on what it shows (the editor's tooltip and its selected-element card)
 //   group       navigation | vitals | combat | social | messages | vehicle (the editor colours its outline by group)
 //   sel         CSS selector of the element under #ui (the HUD, the feedback layer and the weapon bar build them)
 //   anchor      tl tc tr ml mc mr bl bc br: the screen corner or edge it hangs from ('mouse': follows the pointer)
@@ -48,48 +49,51 @@ const FOOT = ['on_foot', 'passenger', 'deck', 'prone', 'night'];              //
 
 export const HUD_LAYOUT = [
   // ---- navigation: where you are and where you're going ----
-  { id: 'minimap', name: 'Minimap', group: 'navigation', sel: '.mm', anchor: 'bl', x: 8, y: 6, scale: 1, visible: true, situations: PLAY, w: 232, h: 246 },
-  { id: 'sign', name: 'Location sign', group: 'navigation', sel: '.sign', anchor: 'bl', x: 248, y: 147, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 352, h: 112 },
-  { id: 'compass', name: 'Compass ribbon', group: 'navigation', sel: '.fb-compass', anchor: 'tc', x: 0, y: 9, scale: 1, visible: true, situations: PLAY, w: 540, h: 36 },
-  { id: 'objective', name: 'Orders (objective)', group: 'navigation', sel: '.obj-slot', anchor: 'tl', x: 14, y: 0, scale: 1, visible: true, situations: PLAY, w: 316, h: 256 },
+  { id: 'minimap', name: 'Minimap', tip: 'The streets around you, with you in the middle and marks for where you are going.', group: 'navigation', sel: '.mm', anchor: 'bl', x: 8, y: 6, scale: 1, visible: true, situations: PLAY, w: 232, h: 246 },
+  { id: 'sign', name: 'Place name', tip: 'The name of the town, street or place you are in right now.', group: 'navigation', sel: '.sign', anchor: 'bl', x: 248, y: 147, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 352, h: 112 },
+  { id: 'compass', name: 'Compass', tip: 'Which way you are facing, with markers for your waypoint and anything you have marked.', group: 'navigation', sel: '.fb-compass', anchor: 'tc', x: 0, y: 9, scale: 1, visible: true, situations: PLAY, w: 540, h: 36 },
+  { id: 'objective', name: 'Current goal', tip: 'What you are trying to do right now and the next step.', group: 'navigation', sel: '.obj-slot', anchor: 'tl', x: 14, y: 0, scale: 1, visible: true, situations: PLAY, w: 316, h: 256 },
   // ---- the world's clock and what it thinks of you ----
-  { id: 'clock', name: 'Clock, weather and wanted', group: 'social', sel: '.wx-plate', anchor: 'tr', x: 12, y: 10, scale: 1, visible: true, situations: ALL, w: 272, h: 166 },
-  { id: 'respect', name: 'Respect chips', group: 'social', sel: '.respect', anchor: 'tr', x: 12, y: 185, scale: 1, visible: true, situations: [...FOOT, 'menu'], w: 272, h: 86 },
-  { id: 'cash', name: 'Cash plate', group: 'social', sel: '.cash-plate', anchor: 'tr', x: 12, y: 280, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 226, h: 112 },
-  { id: 'killfeed', name: 'Kill feed', group: 'messages', sel: '.kill-slot', anchor: 'tr', x: 12, y: 402, scale: 1, visible: true, situations: [...PLAY, 'dead'], w: 300, h: 100 },
-  { id: 'pulls', name: 'Pulls chip', group: 'social', sel: '.pulls-chip', anchor: 'tr', x: 12, y: 512, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 284, h: 40 }, // why go out today: what reached you (ui/pullsboard.js)
-  { id: 'kit', name: 'Kit chip (goggles, glass, torch, scanner, mask)', group: 'vitals', sel: '.kit-chip', anchor: 'tr', x: 12, y: 558, scale: 1, visible: true, situations: PLAY, w: 300, h: 26 }, // what is switched on and its charge (systems/kit.js)
-  { id: 'radiofeed', name: 'Radio feed', group: 'messages', sel: '.rf-feed', anchor: 'tr', x: 12, y: 592, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 330, h: 96 }, // the world feed's last lines on the air (ui/radiofeed.js)
-  { id: 'feed', name: 'Messages', group: 'messages', sel: '.feed', anchor: 'tl', x: 24, y: 268, scale: 1, visible: true, situations: ALL, w: 330, h: 120 },
+  { id: 'clock', name: 'Time, weather and wanted level', tip: 'The time of day, the weather, and how hard the law is looking for you.', group: 'social', sel: '.wx-plate', anchor: 'tr', x: 12, y: 10, scale: 1, visible: true, situations: ALL, w: 272, h: 166 },
+  { id: 'respect', name: 'Standing with groups', tip: 'How the groups near you feel about you: friendly, wary or hostile.', group: 'social', sel: '.respect', anchor: 'tr', x: 12, y: 185, scale: 1, visible: true, situations: [...FOOT, 'menu'], w: 272, h: 86 },
+  { id: 'cash', name: 'Money', tip: 'How much cash you are carrying.', group: 'social', sel: '.cash-plate', anchor: 'tr', x: 12, y: 280, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 226, h: 112 },
+  { id: 'killfeed', name: 'Kills', tip: 'Who just died and who did it.', group: 'messages', sel: '.kill-slot', anchor: 'tr', x: 12, y: 402, scale: 1, visible: true, situations: [...PLAY, 'dead'], w: 300, h: 100 },
+  { id: 'pulls', name: 'Favours you can call', tip: 'Favours people owe you that you can cash in. Click it to see them.', group: 'social', sel: '.pulls-chip', anchor: 'tr', x: 12, y: 512, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 284, h: 40 }, // why go out today: what reached you (ui/pullsboard.js)
+  { id: 'kit', name: 'Gadgets in use', tip: 'Gadgets switched on right now (night vision, thermal, scanner, flashlight, gas mask) and their charge.', group: 'vitals', sel: '.kit-chip', anchor: 'tr', x: 12, y: 558, scale: 1, visible: true, situations: PLAY, w: 300, h: 26 }, // what is switched on and its charge (systems/kit.js)
+  { id: 'radiofeed', name: 'Radio', tip: 'What is coming in over the radio.', group: 'messages', sel: '.rf-feed', anchor: 'tr', x: 12, y: 592, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 330, h: 96 }, // the world feed's last lines on the air (ui/radiofeed.js)
+  { id: 'feed', name: 'Messages', tip: 'Short notes about what just happened: items picked up, things learned, warnings.', group: 'messages', sel: '.feed', anchor: 'tl', x: 24, y: 268, scale: 1, visible: true, situations: ALL, w: 330, h: 120 },
   // ---- you ----
-  { id: 'status', name: 'Health and stamina', group: 'vitals', sel: '.status', anchor: 'bl', x: 244, y: 6, scale: 1, visible: true, situations: PLAY, w: 432, h: 132, talkHide: true },
-  { id: 'needs', name: 'Food, water and rest', group: 'vitals', sel: '.needs-plate', anchor: 'bl', x: 682, y: 6, scale: 1, visible: true, situations: PLAY, w: 262, h: 132, talkHide: true },
-  { id: 'flag', name: 'Your flag', group: 'vitals', sel: '.flagpatch', anchor: 'bl', x: 950, y: 22, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 132, h: 86, talkHide: true },
-  { id: 'ailments', name: 'Ailments', group: 'vitals', sel: '.ailments', anchor: 'bl', x: 950, y: 116, scale: 1, visible: true, situations: PLAY, w: 170, h: 90, talkHide: true },
-  { id: 'telltales', name: 'Telltales (needs and ailments)', group: 'vitals', sel: '.tt-rail', anchor: 'tc', x: 0, y: 52, scale: 1, visible: true, situations: PLAY, w: 420, h: 70 },
-  { id: 'roles', name: 'Role tapes', group: 'social', sel: '.roles', anchor: 'bl', x: 612, y: 147, scale: 1, visible: true, situations: FOOT, w: 168, h: 90, talkHide: true },
-  { id: 'breath', name: 'Breath', group: 'vitals', sel: '.breath-tab', anchor: 'bl', x: 612, y: 147, scale: 1, visible: true, situations: FOOT, w: 186, h: 44, talkHide: true },
-  { id: 'footing', name: 'Footing', group: 'vitals', sel: '.footing', anchor: 'bc', x: 0, y: 310, scale: 1, visible: true, situations: ['deck', 'prone'], w: 320, h: 30, talkHide: true },
+  { id: 'doll', name: 'Body (where you are hurt)', tip: 'Your body. A part lights up when it is hurt, bleeding, broken or patched up.', group: 'vitals', sel: '.bodydoll', anchor: 'bl', x: 8, y: 258, scale: 1, visible: true, situations: PLAY, w: 112, h: 168, talkHide: true },
+  { id: 'status', name: 'Health and stamina', tip: 'Your health, and how much running and fighting you have left before you need a breather.', group: 'vitals', sel: '.status', anchor: 'bl', x: 244, y: 6, scale: 1, visible: true, situations: PLAY, w: 432, h: 132, talkHide: true },
+  { id: 'needs', name: 'Food, water and sleep', tip: 'How hungry, thirsty and tired you are.', group: 'vitals', sel: '.needs-plate', anchor: 'bl', x: 682, y: 6, scale: 1, visible: true, situations: PLAY, w: 262, h: 132, talkHide: true },
+  { id: 'flag', name: 'Your flag', tip: 'Where you are from.', group: 'vitals', sel: '.flagpatch', anchor: 'bl', x: 950, y: 22, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 132, h: 86, talkHide: true },
+  { id: 'ailments', name: 'Sickness and injuries', tip: 'What is wrong with you right now, like a cold, poisoning or a wound, and how bad it is.', group: 'vitals', sel: '.ailments', anchor: 'bl', x: 950, y: 116, scale: 1, visible: true, situations: PLAY, w: 170, h: 90, talkHide: true },
+  { id: 'telltales', name: 'Warning lights', tip: 'Lights across the top that come on when something about you needs attention soon.', group: 'vitals', sel: '.tt-rail', anchor: 'tc', x: 0, y: 52, scale: 1, visible: true, situations: PLAY, w: 420, h: 70 },
+  { id: 'roles', name: 'Your reputation', tip: 'What people know you for (driver, scavenger, fighter...) and how far you have come in it.', group: 'social', sel: '.roles', anchor: 'bl', x: 612, y: 147, scale: 1, visible: true, situations: FOOT, w: 168, h: 90, talkHide: true },
+  { id: 'breath', name: 'Air underwater', tip: 'How long you can stay under. Only shows while you are swimming.', group: 'vitals', sel: '.breath-tab', anchor: 'bl', x: 612, y: 147, scale: 1, visible: true, situations: FOOT, w: 186, h: 44, talkHide: true },
+  { id: 'actring', name: 'Action timer', tip: 'How long until what you are doing is done (searching, bandaging, picking a lock).', group: 'vitals', sel: '.actring', anchor: 'bc', x: 0, y: 380, scale: 1, visible: true, situations: ['on_foot', 'night', 'deck', 'prone'], w: 284, h: 64, talkHide: true }, // TIMED ACTIONS: the ring while you search, pick, pry, climb (systems/actions.js)
+  { id: 'footing', name: 'Balance on a moving vehicle', tip: 'How close you are to being thrown off when you ride on a truck bed, a roof or a boat.', group: 'vitals', sel: '.footing', anchor: 'bc', x: 0, y: 310, scale: 1, visible: true, situations: ['deck', 'prone'], w: 320, h: 30, talkHide: true },
   // ---- the gun in your hands ----
-  { id: 'weapon', name: 'Weapon plate', group: 'combat', sel: '.weapon-panel', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: FOOT, w: 307, h: 252, talkHide: true },
-  { id: 'weaponbar', name: 'Weapon bar', group: 'combat', sel: '.wbar', anchor: 'br', x: 330, y: 10, scale: 1, visible: true, situations: FOOT, w: 300, h: 90, talkHide: true },
-  { id: 'reticle', name: 'Reticle', group: 'combat', sel: '.reticle', anchor: 'mouse', x: 0, y: 0, scale: 1, visible: true, situations: PLAY, w: 28, h: 28 },
+  { id: 'weapon', name: 'Weapon and ammo', tip: 'The gun or tool in your hands, and how much ammo is loaded and spare.', group: 'combat', sel: '.weapon-panel', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: FOOT, w: 307, h: 252, talkHide: true },
+  { id: 'weaponbar', name: 'Weapon slots', tip: 'Every weapon you carry. Press its number to switch to it.', group: 'combat', sel: '.wbar', anchor: 'br', x: 330, y: 10, scale: 1, visible: true, situations: FOOT, w: 300, h: 90, talkHide: true },
+  { id: 'melee', name: 'Hand-to-hand', tip: 'What you are holding up close, whether you are guarding, and who has the upper hand in a struggle.', group: 'combat', sel: '.melee-plate', anchor: 'bc', x: 0, y: 356, scale: 1, visible: true, situations: FOOT, w: 300, h: 44, talkHide: true }, // fists up and holds (systems/melee.js)
+  { id: 'reticle', name: 'Aim point', tip: 'Where you are aiming. It opens up when your aim is shaky.', group: 'combat', sel: '.reticle', anchor: 'mouse', x: 0, y: 0, scale: 1, visible: true, situations: PLAY, w: 28, h: 28 },
   // ---- the car ----
-  { id: 'speedo', name: 'Speedometer and dash', group: 'vehicle', sel: '.speedo', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: ['driving', 'passenger'], w: 330, h: 252, talkHide: true },
+  { id: 'speedo', name: 'Speed and car health', tip: 'How fast you are going, your fuel, and how damaged the car is.', group: 'vehicle', sel: '.speedo', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: ['driving', 'passenger'], w: 330, h: 252, talkHide: true },
   // ---- what the game is telling you right now ----
-  { id: 'prompt', name: 'Action prompt', group: 'messages', sel: '.prompt', anchor: 'bc', x: 0, y: 262, scale: 1, visible: true, situations: PLAY, w: 360, h: 40, talkHide: true },
-  { id: 'subtitle', name: 'Subtitles', group: 'messages', sel: '.subtitle', anchor: 'tc', x: 0, y: 150, scale: 1, visible: true, situations: ALL, w: 700, h: 40, talkHide: true },
+  { id: 'prompt', name: 'Action prompt', tip: 'The button to press for what is in front of you (open, take, talk, climb in).', group: 'messages', sel: '.prompt', anchor: 'bc', x: 0, y: 262, scale: 1, visible: true, situations: PLAY, w: 360, h: 40, talkHide: true },
+  { id: 'subtitle', name: 'Subtitles', tip: 'What people are saying out loud.', group: 'messages', sel: '.subtitle', anchor: 'tc', x: 0, y: 150, scale: 1, visible: true, situations: ALL, w: 700, h: 40, talkHide: true },
 ];
 
 // Presets: a layout scale and per-row overrides on top of HUD_LAYOUT. A player's own edits ride on top of a preset.
 export const HUD_PRESETS = {
   default: { name: 'Default', scale: 0.75, blurb: 'the standard layout, three quarters of the old size', rows: {} },
   compact: {
-    name: 'Compact', scale: 0.62, blurb: 'smallest: the world first, the respect chips and role tapes tucked away',
+    name: 'Compact', scale: 0.62, blurb: 'smallest: the world first, your standing with groups and your reputation tucked away',
     rows: { respect: { visible: false }, roles: { visible: false }, objective: { scale: 0.8 }, killfeed: { scale: 0.85 }, feed: { y: 230 } },
   },
   streamer: {
-    name: 'Streamer', scale: 0.7, blurb: 'the top-left corner kept clear for a camera; orders and messages down the left edge; big subtitles',
+    name: 'Streamer', scale: 0.7, blurb: 'the top-left corner kept clear for a camera; your goal and messages down the left edge; big subtitles',
     rows: { objective: { anchor: 'ml', x: 14, y: -150 }, feed: { anchor: 'ml', x: 24, y: 120 }, subtitle: { scale: 1.3 }, killfeed: { scale: 1.15 } },
   },
   controller: {
@@ -130,6 +134,7 @@ export function resolveLayout(preset = 'default', edits = {}, base = HUD_LAYOUT)
   return base.map((r) => {
     const o = { ...r, ...(P.rows[r.id] ?? {}), ...(edits?.[r.id] ?? {}) };
     o.situations = [...(o.situations ?? r.situations)];
+    o.name = r.name; o.tip = r.tip; // the words are the game's, never a saved or imported copy's
     return o;
   });
 }

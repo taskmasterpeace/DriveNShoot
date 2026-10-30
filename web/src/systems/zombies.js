@@ -126,7 +126,8 @@ export class Zombies {
     return c;
   }
 
-  // A sprinter breaks: the burst (6 s at 9 m/s, claws x1.4), the overheat (3 s bent double, wheezing), dormant again.
+  // A sprinter breaks: the scream, then the run (9 m/s, claws x1.4) for as long as it has you, 6 s more once it has lost
+  // you, the overheat (3 s bent double, wheezing), dormant again.
   burst(c, why = 'moved') {
     if (c.zkind !== 'sprinter' || c.zs.state !== 'dormant' || !c.alive) return false;
     // It SCREAMS first (BREED_ANSWERS.sprinter.windup: the tell, the moment to step aside), then charges.
@@ -147,8 +148,9 @@ export class Zombies {
       if ((Z.t -= dt) > 0) { c.speed = 0; c.handsUp = true; if (t) c.face = Math.atan2((t.inVehicle?.x ?? t.x) - c.x, (t.inVehicle?.z ?? t.z) - c.z); return true; } // reared back, screaming
       // The charge: locked on where the target stood at the end of the scream; it runs straight past that spot by
       // BS.overshoot m before it can turn (a step aside and it goes by).
-      c.handsUp = false; Z.state = 'burst'; Z.t = SP.burst; c.zSpeed = SP.burstSpeed;
-      const tx = t ? (t.inVehicle?.x ?? t.x) : c.x + Math.sin(c.face), tz = t ? (t.inVehicle?.z ?? t.z) : c.z + Math.cos(c.face);
+      c.handsUp = false; Z.state = 'burst'; Z.t = SP.burst; Z.run = 0; c.zSpeed = SP.burstSpeed;
+      const m = !t && this.fresh(c) ? c.zm : null; // broke at a noise: at where it heard it
+      const tx = t ? (t.inVehicle?.x ?? t.x) : m ? m.x : c.x + Math.sin(c.face), tz = t ? (t.inVehicle?.z ?? t.z) : m ? m.z : c.z + Math.cos(c.face);
       c.zhead = Math.atan2(tx - c.x, tz - c.z); c.zlock = { x: tx, z: tz, past: false };
       return false;
     }
@@ -167,6 +169,10 @@ export class Zombies {
         if (sp > SP.trigger) { this.burst(c, o === g.player ? 'you ran' : 'someone ran'); if (!c.ztarget) c.ztarget = o; break; }
       }
       return false;
+    }
+    if (Z.state === 'burst') { // committed: the clock only runs once it has lost you (its own senses: c.zsee), or when it is spent
+      if (c.zsee?.alive) Z.t = SP.burst;
+      if ((Z.run = (Z.run ?? 0) + dt) > SP.chase) Z.t = 0;
     }
     if ((Z.t -= dt) > 0) {
       if (Z.state === 'overheat') { c.speed = 0; c.crouch = true; if (Math.random() < dt * 0.8) g.audio.wheeze?.(g.pan(c.x), Math.hypot(c.x - g.player.x, c.z - g.player.z)); return true; }
@@ -449,8 +455,8 @@ export class Zombies {
       if (c.faction !== 'zombie' || !c.alive || c.ug) continue; // below the street a noise travels its own corridors (systems/underground.js)
       // An Echo hears it and will give it back (never its own copy, nor another Echo's: one echo, not a chain).
       if (c.zkind === 'echo' && !this._echoing && !c.ecopy && r >= BE.minR && g.time >= (c.ecopyAt ?? 0) && Math.abs(c.x - x) < BE.hear && Math.abs(c.z - z) < BE.hear && Math.hypot(c.x - x, c.z - z) < BE.hear) { c.ecopy = { t: BE.delay, r: r * BE.gain }; c.ecopyAt = g.time + BE.every; c.ecopyWhat = r >= 60 ? 'BANG' : r >= 25 ? 'CRACK' : 'TAP'; }
-      // A sprinter breaks at a noise inside its ear.
-      if (c.zkind === 'sprinter' && !c.crawl && Math.abs(c.x - x) < SP.ear && Math.abs(c.z - z) < SP.ear && Math.hypot(c.x - x, c.z - z) <= Math.min(r, SP.ear)) this.burst(c, 'noise');
+      // A sprinter breaks at a noise inside its ear, or at a loud one (a shot, an engine) from as far as it hears it.
+      if (c.zkind === 'sprinter' && !c.crawl) { const hr = r >= SP.wake ? r * SP.sense.hear : Math.min(r, SP.ear); if (Math.abs(c.x - x) <= hr && Math.abs(c.z - z) <= hr && Math.hypot(c.x - x, c.z - z) <= hr) this.burst(c, 'noise'); }
       if (c.zsee || c.zkind === 'echo' || c.zkind === 'choir' || c.wild) continue;
       const S = rowOf(c).sense, rr = r * S.hear;
       if (Math.abs(c.x - x) > rr || Math.abs(c.z - z) > rr || Math.hypot(c.x - x, c.z - z) > rr) continue;
@@ -500,11 +506,17 @@ export class Zombies {
   }
 
   // The sprinter's charge (BREED_ANSWERS.sprinter): straight along its locked heading until it is `overshoot` m past the
-  // spot it locked at the scream, then it may turn toward (tx, tz) at no more than `steer` rad/s.
+  // spot it locked, then it skids round toward (tx, tz) for `skid` s (slowed, turning as fast as it needs: at least
+  // `steer` rad/s) and locks a new line at (tx, tz): where it perceives its target now. A dodge costs it time, not you.
   charge(c, tx, tz, pace, dt) {
     const L = c.zlock, hx = Math.sin(c.zhead), hz = Math.cos(c.zhead);
-    if (!L.past && (L.x - c.x) * hx + (L.z - c.z) * hz < -BS.overshoot) { L.past = true; this.counts.overshoots = (this.counts.overshoots ?? 0) + 1; this.g.emit('sprinterOvershoot', { id: c.id }); }
-    if (L.past) { const m = BS.steer * dt; c.zhead += Math.max(-m, Math.min(m, wrapA(Math.atan2(tx - c.x, tz - c.z) - c.zhead))); }
+    if (!L.past && (L.x - c.x) * hx + (L.z - c.z) * hz < -BS.overshoot) { L.past = true; L.skid = BS.skid; this.counts.overshoots = (this.counts.overshoots ?? 0) + 1; this.g.emit('sprinterOvershoot', { id: c.id }); }
+    if (L.past) {
+      const want = wrapA(Math.atan2(tx - c.x, tz - c.z) - c.zhead), m = Math.max(BS.steer, Math.abs(want) / Math.max(L.skid, dt)) * dt;
+      c.zhead += Math.max(-m, Math.min(m, want));
+      if ((L.skid -= dt) <= 0) { L.x = tx; L.z = tz; L.past = false; c.zhead = Math.atan2(tx - c.x, tz - c.z); } // round: a new line
+      pace *= 0.35;
+    }
     this.g.ai.move(c, Math.sin(c.zhead), Math.cos(c.zhead), pace, dt);
   }
   // A screaming or charging sprinter LEAPS onto a moving car inside BS.carLeap m, at any speed (a car is no answer to it).
@@ -554,6 +566,8 @@ export class Zombies {
       this.nearFire(c, R);
       if (!c.zsee && !this.fresh(c)) { this.forget(c); this.seekLight(c, R); }
       c.ztarget = c.zsee; // who it is after right now (only ever someone it perceives)
+      // A sprinter that perceives one of the living (it saw them, heard their steps, smelled them) breaks and commits.
+      if (c.zkind === 'sprinter' && !c.crawl && c.zsee?.alive && c.zs.state === 'dormant' && c.zs.t <= 0) this.burst(c, c.zsee === g.player ? 'saw you' : 'saw someone');
       // Stuck pressing at a locked door or a boarded window on its way: it works that.
       const moved = Math.abs(c.x - (c._zpx ?? 0)) + Math.abs(c.z - (c._zpz ?? 0));
       c._zpx = c.x; c._zpz = c.z;

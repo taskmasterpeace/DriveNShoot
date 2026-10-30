@@ -21,13 +21,13 @@ export const PANELS = {
   workshop: {
     name: 'Workshop', root: '.ws-card',
     regions: [
-      { id: 'head', name: 'Title and scrip', sel: '.ws-head' },
+      { id: 'head', name: 'Title and money', sel: '.ws-head' },
       { id: 'chassis', name: 'Chassis diagram', sel: '.ws-bp' },
       { id: 'tabs', name: 'Tabs', sel: '.ws-tabs' },
       { id: 'parts', name: 'Parts grid', sel: '.ws-rack', list: true, cols: 2 },
       { id: 'detail', name: 'Detail block', sel: '.ws-detail' },
       { id: 'buttons', name: 'Fit / take off / next face / repair', sel: '.ws-acts' },
-      { id: 'stats', name: 'Stats bar', sel: '.ws-stats' },
+      { id: 'stats', name: 'How the car drives (speed, handling, load)', sel: '.ws-stats' },
       { id: 'say', name: 'Shop talk', sel: '.ws-say' },
       { id: 'keys', name: 'Key hints', sel: '.ws-keys' },
     ],
@@ -36,9 +36,13 @@ export const PANELS = {
     name: 'Pack', root: '.invmenu > .inv-card',
     regions: [
       { id: 'head', name: 'Title and load', sel: '.inv-head' },
-      { id: 'doll', name: 'Paperdoll', sel: '.inv-doll' },
+      { id: 'doll', name: 'Your body (the big doll and its slots)', sel: '.inv-doll' },
+      { id: 'figure', name: 'The figure (lifts out of the HUD)', sel: '.dl-stage' },
+      { id: 'wounds', name: 'What is wrong with each part', sel: '.dl-wounds' },
       { id: 'dogs', name: 'Dogs', sel: '.inv-dogs' },
-      { id: 'columns', name: 'Your things / theirs', sel: '.inv-cols', list: true, cols: 2 },
+      { id: 'columns', name: 'Body, on you and near your feet', sel: '.inv-body' },
+      { id: 'carry', name: 'On you: pockets, belt, vest, backpack', sel: '.inv-comps', list: true, cols: 1 },
+      { id: 'near', name: 'Near your feet', sel: '.inv-groups', list: true, cols: 1 },
       { id: 'detail', name: 'Detail block', sel: '.inv-detail' },
       { id: 'buttons', name: 'Use / move / drop', sel: '.inv-acts' },
       { id: 'say', name: 'Trade talk', sel: '.inv-say' },
@@ -51,15 +55,15 @@ export const PANELS = {
       { id: 'head', name: 'Name and flag', sel: '.cs-head' },
       { id: 'tabs', name: 'Tabs', sel: '.cs-tabs' },
       { id: 'body', name: 'Cards', sel: '.cs-body', list: true },
-      { id: 'pulls', name: 'Pulls board', sel: '.pb-list', list: true, cols: 1, tab: 'pulls' }, // what reached you (ui/pullsboard.js)
-      { id: 'pulls_empty', name: 'Pulls board (nothing yet)', sel: '.pb-empty', tab: 'pulls' },
+      { id: 'pulls', name: 'Favours you can call', sel: '.pb-list', list: true, cols: 1, tab: 'pulls' }, // what reached you (ui/pullsboard.js)
+      { id: 'pulls_empty', name: 'Favours you can call (none yet)', sel: '.pb-empty', tab: 'pulls' },
       { id: 'close', name: 'Close', sel: '.cs-x' },
     ],
   },
   crew: {
     name: 'Crew', root: '.crewp-card',
     regions: [
-      { id: 'head', name: 'Title and orders', sel: '.crewp-head' },
+      { id: 'head', name: 'Title and current orders', sel: '.crewp-head' },
       { id: 'cards', name: 'Crew cards', sel: '.crewp-grid', list: true },
       { id: 'foot', name: 'Footer', sel: '.crewp-foot' },
     ],

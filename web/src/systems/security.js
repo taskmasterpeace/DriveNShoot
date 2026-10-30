@@ -241,7 +241,9 @@ export class Security {
     // New stars: send the next rung (from the town whose patch you're in).
     if (this.auto && g.wanted > this.lastWanted && P.alive) {
       const T = this.townNear(P.x, P.z);
-      if (T) this.dispatch(this.tierFor(g.wanted), `wanted ${g.wanted}`, T);
+      // A generated town with its own desk answers through its own reports (systems/police.js): Rust Haven's bulls never
+      // drive across the country to stars you earned there.
+      if (T && !g.police?.owns(P.x, P.z)) this.dispatch(this.tierFor(g.wanted), `wanted ${g.wanted}`, T);
     }
     this.lastWanted = g.wanted;
     for (let i = this.responses.length - 1; i >= 0; i--) {

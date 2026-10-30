@@ -14,7 +14,7 @@
 .hud.talking .hl.talk-hide { opacity: 0; transition: opacity 0.2s; }
 
 /* the elements, lifted out of their clusters */
-.hl > .sign, .hl > .status, .hl > .needs-plate, .hl > .mm, .hl > .flagpatch, .hl > .roles, .hl > .ailments, .hl > .breath-tab { position: relative; left: auto; right: auto; top: auto; bottom: auto; flex: none; }
+.hl > .bodydoll, .hl > .sign, .hl > .status, .hl > .needs-plate, .hl > .mm, .hl > .flagpatch, .hl > .roles, .hl > .ailments, .hl > .breath-tab { position: relative; left: auto; right: auto; top: auto; bottom: auto; flex: none; }
 .hl > .prompt, .hl > .footing, .hl > .fb-compass, .hl > .tt-rail, .hl > .wbar, .hl > .subtitle { position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none; flex: none; }
 .hl > .subtitle { font-size: 19px; max-width: 900px; }
 .hl > .cash-plate { margin-right: 0; }
@@ -120,3 +120,7 @@
 .hle-panel.min { width: auto !important; }
 .hle-min { all: unset; cursor: pointer; font: 700 14px var(--display); color: var(--muted); padding: 0 4px; transition: color 0.2s; }
 .hle-min:hover { color: var(--gold); }
+/* the selected element in plain words: its name and one line on what it shows (the row's tip) */
+.hle-tip { grid-column: 1 / -1; display: grid; gap: 2px; padding: 0 0 6px; border-bottom: 1px solid oklch(0.3 0.02 70 / 0.6); }
+.hle-tip b { font: 700 13px var(--display); letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
+.hle-tip span { font: 500 12px var(--road, system-ui); line-height: 1.35; color: var(--bone); }

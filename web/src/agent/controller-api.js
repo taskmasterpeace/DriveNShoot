@@ -398,7 +398,7 @@ export async function controllerChecks(x) {
   await check('melee: a strike lands at its moment of contact (not the click), a held button kicks a man down, a sprint shoves, three quick strikes chain into a knockdown - and a shambler beaten to death costs no rounds', async () => hush(async () => {
     await stage(); await reset();
     const p = g.player, M = g.melee;
-    const dummy = person('drifter', 0, 1.05, { hp: 900 });
+    const dummy = person('drifter', 0, 1.05, { hp: 900, noGuard: true }); // a dummy: no guard (systems/melee.js; blocking is the melee checks')
     const face = () => { mouseAt(dummy.x, dummy.z); };
     const rmb = async (hold) => { face(); await frames(1); I.mouseButton(2, true); for (let i = 0; i < Math.max(1, Math.round(hold * 60)); i++) { face(); await frames(1); } I.mouseButton(2, false); };
     try {

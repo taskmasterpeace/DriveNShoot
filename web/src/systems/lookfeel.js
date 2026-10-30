@@ -5,6 +5,7 @@ import { WEAPONS } from './combat.js';
 import { PART } from './vehiclebodies.js';
 import { variantPatch } from '../world/flora.js';
 import { roadLines, HALF } from '../world/city.js';
+import { LampLight } from './lamplight.js';
 
 // LOOK-FEEL (docs/design/WEB_LOOK_FEEL.md; rows in data/looks.js). Seven things, one system:
 //   grade     ONE full-screen pass: the scene renders into a target, a triangle tone-maps it and looks it up in a 16^3 LUT
@@ -178,6 +179,7 @@ export class LookFeel {
   constructor(g) {
     this.g = g;
     this.settings = { grade: 1, hitStop: 1, kick: 1, dirt: 1 };
+    this.lamps = new LampLight(g); // headlights and the torch light the bodies standing in them (systems/lamplight.js)
     // ---- the grade pass
     const r = g.renderer;
     // The scene renders to the canvas exactly as it always has (tone mapping, sRGB and every additive glow blended where
@@ -679,7 +681,8 @@ void main() {
     this.updateWind(dt);
     this.updateImpact(dt);
     if (dt > 0) { this.updateEvents(dt); this.updateFade(dt); this.updateSeeds(dt); this.updateWear(dt); }
-    if ((this.windScanT = (this.windScanT ?? 0) - dt) <= 0) { this.windScanT = 2; this.patchWind(); }
+    this.lamps.update();
+    if ((this.windScanT = (this.windScanT ?? 0) - dt) <= 0) { this.windScanT = 2; this.patchWind(); this.lamps.patch(); }
   }
 
   view() {
@@ -691,6 +694,7 @@ void main() {
         lut: N, rebuilds: this.rebuilds, lastBuildMs: r3(this.lastBuildMs), frame: `${this.rt.image.width}x${this.rt.image.height}` },
       wind: { strength: r3(this.windStrength), weather: r3(this.windWeather), ...this.windNow(), patched: this.patchedWind },
       decals: { counts: { ...this.counts }, stories: [...this.stories.values()].filter((s) => s.kind).map((s) => ({ kind: s.kind, at: s.at, road: s.road, site: s.site })), seededSlots: SEED_CAP - this.seedFree.length, last: this.lastDecal },
+      lamps: this.lamps.view(),
       impact: { stops: this.stops, lastStop: this.lastStop, lastKick: this.lastKick, dirt: r3(this.dirt), kick: { x: r3(this.kick.x), z: r3(this.kick.z) } },
     };
   }

@@ -66,20 +66,9 @@ export const FN_ROUND_OF = { capball: 'ball44' };
 export const FN_AMMO_ITEM = { capball: 'ammo_capball' };
 export const FN_GUN_ITEM = { percussion: 'gun_percussion' };
 
-// The blades (data/arms.js MELEE rows; systems/melee.js picks by what you carry, FN_MELEE_CARRY, before the knife):
-//   cane        the silver-topped cane, closed: a rap with a heavy knob
-//   caneblade   HOLD the strike past heavyAt: the knob twists and the thin blade inside comes out in the same motion
-//   jungleblade the broad single-edged jungle blade: heavy at the tip, slow, a chop that opens a man up
-export const FN_MELEE = {
-  cane: { name: 'CANE', dmg: 13, windup: 0.11, recover: 0.3, reach: 1.4, arc: 0.8, stamina: 0.07, knock: 0.4, push: 0.35, noise: 4 },
-  caneblade: { name: 'SWORD CANE', dmg: 34, windup: 0.14, recover: 0.42, reach: 1.6, arc: 0.45, stamina: 0.11, knock: 0, push: 0.1, noise: 3, bleed: 0.5 },
-  jungleblade: { name: 'JUNGLE BLADE', dmg: 40, windup: 0.2, recover: 0.46, reach: 1.45, arc: 0.95, stamina: 0.13, knock: 0.5, push: 0.5, noise: 5, bleed: 0.6 },
-};
-// Carried item -> its strike (tap) and its held strike (heavy; none: the kick). First match wins, in this order.
-export const FN_MELEE_CARRY = [
-  { item: 'jungle_blade', tap: 'jungleblade' },
-  { item: 'sword_cane', tap: 'cane', heavy: 'caneblade' },
-];
+// The blades are rows of the melee system (data/melee.js MELEE_WEAPONS cane, caneblade, jungleblade; their items
+// sword_cane and jungle_blade are MELEE_ITEMS there): the cane's held swing is the drawn blade (its heavy.as).
+export const FN_BLADES = { cane: 'sword_cane', caneblade: 'sword_cane', jungleblade: 'jungle_blade' };
 
 // ---- 4 and 8: the badge and the meal ------------------------------------------------------------------------------------
 // The lapel counter (systems/fannods.js): carried, it ticks near hot ground (systems/hotground.js zones) before the
@@ -95,10 +84,6 @@ export const FN_ITEMS = {
     desc: 'A long-barrelled cap-and-ball revolver, nine chambers round a second, fatter barrel slung under the first. Flip the hammer\'s nose down and it fires that one: a load of shot.' },
   ammo_capball: { name: 'Ball, powder and caps', kind: 'ammo', kg: 0.02, bulk: 0.01, stack: 60, value: 1.6, ammo: 'capball',
     desc: 'Soft lead balls, a flask of black powder, a tin of percussion caps and a bag of shot. Loads the cylinder and the barrel under it alike. Slowly.' },
-  sword_cane: { name: 'Silver-topped cane', kind: 'tool', kg: 0.7, bulk: 0.6, stack: 1, value: 180, tags: ['blade', 'steel'],
-    desc: 'A black walking cane under a worn silver knob. Hold your swing and the knob twists free: a slim blade comes out of the shaft with it.' },
-  jungle_blade: { name: 'Broad jungle blade', kind: 'tool', kg: 1.1, bulk: 0.8, stack: 1, value: 70, tags: ['blade', 'steel'],
-    desc: 'A heavy single-edged blade, broad and weighted toward the tip, the grip wrapped in old cord. Made to take a sapling in one cut.' },
   lapel_counter: { name: 'Lapel counter', kind: 'tool', kg: 0.05, bulk: 0.03, stack: 1, value: 95, tags: ['electronic'],
     desc: 'A clip-on counter the size of a matchbox. Carry it and it ticks near hot ground, long before you feel it: faster the nearer, faster the hotter.' },
   heater_meal: { name: 'Self-heating meal', kind: 'food', kg: 0.5, bulk: 0.6, stack: 4, value: 34, use: { act: 'heatmeal' },
@@ -241,7 +226,8 @@ export function validateFanNods({ milbases, rooms, props, items, loot, melee, we
   for (const [k, it] of Object.entries(FN_ITEMS)) if (items && items[k] !== it && !items[k]) bad.push(`item ${k}: not folded in`);
   for (const [k, T] of Object.entries(FN_LOOT)) for (const [id] of T.rows) if (items && !items[id]) bad.push(`loot ${k}: no item ${id}`);
   for (const [k, rows] of Object.entries(FN_LOOT_ADD)) for (const [id] of rows) if (items && !items[id]) bad.push(`loot add ${k}: no item ${id}`);
-  for (const r of FN_MELEE_CARRY) { if (!FN_ITEMS[r.item]) bad.push(`melee carry ${r.item}: no item`); if (melee && (!melee[r.tap] || (r.heavy && !melee[r.heavy]))) bad.push(`melee carry ${r.item}: no strike row`); }
+  for (const [w, it] of Object.entries(FN_BLADES)) { if (items && !items[it]) bad.push(`blade ${w}: no item ${it}`); if (melee && melee[w]?.item !== it) bad.push(`blade ${w}: no melee row carried by ${it}`); }
+  if (melee && melee.cane?.heavy?.as !== 'caneblade') bad.push('the cane held does not draw its blade');
   if (weapons && !weapons.percussion?.modes?.some((m) => m.id === 'shot' && m.pellets > 1)) bad.push('the percussion revolver has no shot barrel');
   const W = weather?.[SICK_SKY.weather];
   if (weather && !W) bad.push('no burning-rain weather row');

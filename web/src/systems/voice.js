@@ -225,11 +225,11 @@ export class Voice {
     const f = ctx.createBiquadFilter(), gain = ctx.createGain();
     if (line.c === 'radio') {
       f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.8; gain.gain.value = 0.7;
-      src.connect(f).connect(gain).connect(A.master);
+      src.connect(f).connect(gain).connect(A.sfx ?? A.master);
     } else {
       f.type = 'lowpass'; f.frequency.value = 8000;
       const pan = ctx.createStereoPanner();
-      src.connect(f).connect(gain).connect(pan).connect(A.master);
+      src.connect(f).connect(gain).connect(pan).connect(A.sfx ?? A.master);
       line.panner = pan;
     }
     line.src = src; line.filter = f; line.amp = gain; line.started = true; line.t0 = this.g.time; line.at = t;

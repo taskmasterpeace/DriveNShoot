@@ -50,6 +50,7 @@ import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { Roles } from './systems/roles.js';
 import { Witnesses } from './systems/witnesses.js';
+import { Reactions } from './systems/reactions.js';
 import { Storeys } from './world/storeys.js';
 import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
@@ -60,6 +61,7 @@ import { ZOOM, CAMERA } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
+import { Actions } from './systems/actions.js'; // TIMED ACTIONS: search, look around, break in, climb (docs/design/WEB_TIMED_ACTIONS.md)
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Population } from './systems/population.js';
@@ -83,6 +85,8 @@ import { Homes } from './systems/homes.js'; // camps, bases, houses you rent or 
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
 import { Casinos } from './systems/casinos.js'; // CASINOS: card tables, chess, the house's money, guards, safes, security drones (WEB_CASINOS.md)
 import { TablePanel } from './ui/tablepanel.js'; // the table on green felt (WEB_CASINOS.md)
+import { Investigate } from './systems/investigate.js'; // one shared INVESTIGATE behaviour: a search party that finds you only from what it perceives
+import { Police } from './systems/police.js'; // POLICE RESPONSE: stations, beats, the desk, units that drive from the station, sirens (WEB_POLICE_RESPONSE.md)
 import { SiteStories } from './systems/sitestories.js'; // every place's living state, the parties between them, the stories, the Tally (WEB_SITE_STORIES.md)
 import { FarSound } from './systems/farsound.js'; // the world's voice: ambience layers, far real events (WEB_WORLD_VOICE.md)
 import { Feed } from './systems/feed.js';
@@ -98,10 +102,13 @@ const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
 import { Stance } from './systems/stance.js';
+import { Moves } from './systems/moves.js'; // dive to prone, roll, slide, vault, climb, jump, drop-hang (data/moves.js, WEB_MOVE_TOW.md)
+import { Towing } from './systems/towing.js'; // ropes, chains, the winch, the wrecker's boom, the boat trailer, the mud (data/towing.js, WEB_MOVE_TOW.md)
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Gadgets } from './systems/gadgets.js';
 import { Rites } from './systems/rites.js';
 import { Forensics } from './systems/forensics.js';
+import { ShotRead } from './systems/shotread.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -111,6 +118,7 @@ import { AgentAPI, snapshot, restore } from './agent/api.js';
 import { NavGrid } from './engine/nav.js';
 import { Feedback } from './ui/feedback.js';
 import { QOL } from './ui/qol.js';
+import { FocusKeeper } from './ui/focus.js';
 import { startBridge } from './agent/bridge.js';
 import { Recorder } from './agent/recorder.js';
 import { loadContentPacks } from './agent/content.js';
@@ -209,15 +217,18 @@ class Game {
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
     this.witnesses = new Witnesses(this);
+    this.reactions = new Reactions(this); // who heard a shot and what they do about it (systems/reactions.js, WEB_GUNFIRE_REACTIONS.md)
     this.talk = new Talk(this); // what a stranger talks about: the news, the road, what their people make of you // the one who saw it runs home to tell it (catch them on the way)
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
+    this.moves = new Moves(this); // SPACE reads the ground ahead: vault, climb, jump, roll, dive to prone, drop-hang (systems/moves.js)
     this.throwables = new Throwables(this);
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
+    this.towing = new Towing(this); // tow lines between vehicles, the winch, bogged cars, the boat trailer (systems/towing.js)
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.workshop = new Workshop(this); // THE WORKSHOP: six faces, mounts with arcs, the counter (data/workshop.js, WEB_WORKSHOP.md)
@@ -243,11 +254,13 @@ class Game {
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
     this.qol = new QOL(this, ui);
+    this.focus = new FocusKeeper(canvas, ui); // a click gives the keys back to the game; CLICK TO RESUME while the window has lost them
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
     this.crew = new Crew(this);
     this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
     this.forensics = new Forensics(this); // wounds keep their calibre, casings lie on the ground (WEB_CALIBERS.md)
+    this.shotRead = new ShotRead(this, ui); // a shot at you reads: its streak, the dust, the marker toward it (WEB_SHOT_READ.md)
     this.crewUI = new CrewUI(this, ui);
 
     this.cash = 120;
@@ -269,12 +282,15 @@ class Game {
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.actions = new Actions(this); // TIMED ACTIONS: every interaction that takes time, its pose, its noise, its ring (systems/actions.js)
     this.workshopUI = new WorkshopUI(this, ui); // the WORKSHOP screen (U at a garage, or Kenji)
     this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.kit = new Kit(this); // what you wear and look through, and what feeds it (systems/kit.js, WEB_GADGETS2.md)
+    this.investigate = new Investigate(this); // search parties (systems/investigate.js): police, hunters, a guard who heard something
+    this.police = new Police(this); // the town desks: stations, beats, reports by real channels, units from the motor pool (systems/police.js)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
     this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
@@ -397,7 +413,7 @@ class Game {
       for (let k = 0; k < (Math.max(Math.abs(d.x), Math.abs(d.z)) < TOWN ? 2 : 1); k++)
         { const c = this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) }); if (c) c.amb = true; } // amb: may fold far away (systems/population.js)
     }
-    for (const r of S.raiders) { const c = this.spawnRaider(r.x, r.z, rng); if (c) c.amb = true; }
+    for (const r of S.raiders) { const c = this.spawnRaider(r.x, r.z, rng); if (c) { c.amb = true; this.melee?.bruiser(c); } } // some fight with a bat (systems/melee.js)
 
     // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
@@ -539,7 +555,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.milbases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); this.sealife?.onNoise(x, z, r, src); this.casinos?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); this.police?.onNoise(x, z, r, src); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.milbases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); this.sealife?.onNoise(x, z, r, src); this.casinos?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -672,6 +688,7 @@ class Game {
       const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
       if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
+      this.melee?.onBody(body, c); // the bat or the machete they fought with lies with them
     }
     this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
     this.stories?.onKill(c, attacker); // a party's person, a fallen place's master, a hunter (systems/sitestories.js)
@@ -798,6 +815,8 @@ class Game {
     if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
     p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
+    // I / TAB / ESC always shut the PACK, whatever else holds the keys (a talk, sleep, a blackout): never stuck open.
+    if (this.invUI.open && !this.workshopUI.open && this.packCloseHit(I)) { this.invUI.toggle(false); return; }
     if (this.dialogue.active) { p.speed = 0; return; }
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
     if (this.survival.sleep) {
@@ -851,6 +870,7 @@ class Game {
         this.hud.prompt('<kbd>G</kbd> Jump onto the train');
         if (I.hit('KeyG')) { this.exitVehicle(true); this.train.board(p); this.hud.prompt(null); return; }
       }
+      this.towing.driveInput(p, v, I, dt); // G at the wheel: hitch / drop a tow line, launch or haul a boat; hold G: the winch (systems/towing.js)
       if (I.hit('KeyF') || I.hit('Enter')) { if (!this.travel.cord()) this.exitVehicle(); return; } // aboard a moving coach (or a lift): pull the cord (systems/travel.js)
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
@@ -890,6 +910,8 @@ class Game {
     // takes its time. Neither lets you shoot.
     if (p.knockT > 0) { p.knockT -= dt; p.speed = 0; p.aiming = false; p.dive = 0; this.hud.prompt(null); return; }
     if (p.vault) { this.interiors.stepVault(p, dt * this.arms.vaultMul()); this.hud.prompt(null); return; } // free hands climb faster
+    if (this.actions.busyBody(p, I, dt)) return; // on a ladder, or ducking under a roll-up: no walking, no gun (systems/actions.js)
+    if (p.mv) { const dv = p.mv.kind === 'dive'; this.hud.prompt(null); if (this.moves.step(p, dt)) { if (dv) this.handleShooting(dt, p.face); return; } if (p.vault) return; } // committed to a move (systems/moves.js): a dive still shoots
     let mx = 0, mz = 0;
     if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
@@ -907,22 +929,10 @@ class Game {
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
     p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul * this.arms.sprintDrain() : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
-    // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
+    // SPACE reads the ground ahead (systems/moves.js): vault, climb, jump, roll when crouched, else a dive that lands you prone.
     if (I.hit('Space') && p.prone) this.stance.setProne(p, false); // Space from prone: up, not a dive
-    else if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); this.startDive(p, w.x, w.z); }
-    p.diveCool = (p.diveCool ?? 0) - dt;
-    if (p.dive > 0) {
-      p.dive -= dt;
-      const f = p.dive > 0.25 ? 9.5 : 3; // flight, then belly slide
-      const t = { x: p.x + p.diveDx * f * dt, z: p.z + p.diveDz * f * dt };
-      this.statics.resolveBody(t, p.radius, p); // a dive shoulders doors open and goes through windows
-      p.x = t.x; p.z = t.z; p.speed = 0;
-      this.standOn(p);
-      if (p.vault) return; // dove into a window: through it
-      if (p.dive <= 0) { this.emit('dived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); this.fx.dust(p.x, p.z, 3); }
-      this.handleShooting(dt, p.face);
-      return;
-    }
+    else if (I.hit('Space')) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); if (this.moves.verb(p, w.x, w.z, sprint)) return; } // vault / climb / jump / roll / dive to prone (systems/moves.js)
+    else if ((I.hit('ControlLeft') || I.hit('ControlRight')) && (I.key('ShiftLeft') || I.key('ShiftRight')) && (mx || mz) && this.moves.slide(p, mx, mz)) return; // CTRL at a sprint: the slide
     // Water: wade slow, swim slower (no shooting), Ctrl dives under on a breath meter.
     const wet = this.water.stateAt(p.x, p.z, p.gy); // gy: up on a river's bridge deck you are dry (world/rivers.js)
     p.swim = wet === 'swim';
@@ -976,9 +986,8 @@ class Game {
     p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
     const prevStep = Math.floor(p.walk / Math.PI);
     p.walk += stridePhase(p.speed, dt);
-    if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
-      const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
-      this.audio.step(this.insideBuilding || p.ug ? 'floor' : onRoad ? 'road' : 'sand', 0);
+    if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5 && wet !== 'swim') { // one footfall a half-stride (stridePhase), on what you stand on, as you move
+      this.audio.step(this.soundscape.footSurface(p, wet), 0, p.prone ? 'prone' : p.crouch ? 'crouch' : sprint ? 'run' : 'walk');
     }
     if (this.qol.settings.aimAssist && !this.aimOverride) {
       // Aim assist: snap to the closest living character within 2.2m of the cursor.
@@ -1007,7 +1016,7 @@ class Game {
       const i = this.inv.weapons.indexOf(this.inv.current);
       this.switchWeapon(this.inv.weapons[(i + I.wheelAlt + this.inv.weapons.length) % this.inv.weapons.length]);
     }
-    if (I.hit('KeyR')) this.reload();
+    if (I.hit('KeyR')) this.reload(true);
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
     this.updateThrowAim(dt, I);
     if (!p.swim && !(p.proneT > 0)) this.handleShooting(dt, p.face);
@@ -1025,7 +1034,7 @@ class Game {
     }
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
+      if (veh.dead || veh.trailer || veh.carriedBy || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
@@ -1042,7 +1051,8 @@ class Game {
     this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
+    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
+    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
     const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
@@ -1063,15 +1073,14 @@ class Game {
     else if (dk) this.hud.prompt(dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
-    else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
+    else if (box) this.actions.boxKey(box, I, dt); // tap E opens it (what's on top), hold E searches it properly (systems/actions.js)
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op && !ugI) this.hud.prompt(null);
+    else if (!op && !ugI) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
-    else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
@@ -1100,13 +1109,10 @@ class Game {
     } else this.throwables.showArc(null);
   }
 
+  // The dive (systems/moves.js MOVES.dive): flat out forward, landing prone. Returns false when it can't start.
   startDive(c, dx, dz) {
     if (!dx && !dz) { dx = Math.sin(c.face); dz = Math.cos(c.face); }
-    const l = Math.hypot(dx, dz) || 1;
-    c.diveDx = dx / l; c.diveDz = dz / l;
-    c.dive = 0.65; c.diveCool = 0.9;
-    c.stamina = Math.max(0, (c.stamina ?? 1) - 0.25);
-    this.audio.throwWhoosh?.(0);
+    return this.moves.start(c, 'dive', dx, dz);
   }
 
   switchWeapon(k) {
@@ -1118,11 +1124,15 @@ class Game {
   }
 
   // R: clear a jam if the gun has one (work the action, throw the stuck round), else reload from your pockets.
-  reload() {
+  packCloseHit(I) { return I.hit('KeyI') || I.hit('Tab') || I.hit('Escape'); }
+
+  // manual: R was pressed (not the auto-reload), so a reload that can't happen says why instead of doing nothing.
+  reload(manual = false) {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
-    if (p.reloading > 0) return;
+    if (!w?.mag || p.reloading > 0) return;
     if (this.inv.jam[k]) { p.reloading = GUN_CARE.clearTime * this.skills.reloadMul; p.clearing = true; this.audio.reload(); return; }
-    if (this.inv.mag[k] >= w.mag || this.inv.ammo[this.arms.ammoOf(k)] <= 0) return;
+    if (this.inv.mag[k] >= w.mag) { if (manual) this.hud.toast(`${w.short ?? w.name} IS FULL`, 'warn'); return; }
+    if (this.inv.ammo[this.arms.ammoOf(k)] <= 0) { if (manual) { this.audio.empty(); this.hud.toast(`NO SPARE AMMO FOR THE ${w.short ?? w.name}`, 'warn'); } return; }
     p.clearing = false;
     p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
@@ -1132,6 +1142,7 @@ class Game {
     const p = this.player, I = this.input, k = this.inv.current, w = WEAPONS[k];
     const fm = this.arms.row(k); // the gun as it fires: its fire mode, your grip, the recoil bloom (systems/arms.js)
     p.cool -= dt;
+    if ((p.inVehicle || p.onTrain || p.grabbing || p.mv) && I.hit('KeyR')) this.reload(true); // R reloads in every seat you hold a gun in (on foot it is read with the other keys)
     // At the wheel of a car with a hood gun: aim ahead and the gun fires; aim aside and you shoot out of the window.
     const car = p.inVehicle;
     if (car?.mounts && car.driver === p && I.mouse.left && this.garage.fireFront(car, p, ang)) return; // group 1: hood + pods, whichever arc holds the aim
@@ -1255,7 +1266,7 @@ class Game {
       if (alive < cap && this.freeSlots.length > AMBIENT_RESERVE && this.time > ARRIVAL_QUIET) { // leave the director room (systems/director.js needs 10 free)
         const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
-        if (camp) for (let k = 0; k < 2; k++) { const c = this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10); if (c) c.amb = true; }
+        if (camp) for (let k = 0; k < 2; k++) { const c = this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10); if (c) { c.amb = true; this.melee?.bruiser(c); } }
       }
     }
     // Wanted level cools off.
@@ -1280,7 +1291,7 @@ class Game {
           <div><b>E</b>talk / kick doors / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
           <div><b>E</b>at a window: smash · climb</div><div><b>hold E</b>board a broken window</div><div><b>SHIFT</b>into a door: bash it open</div>
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
-          <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
+          <div><b>SPACE</b>dive / vault / handbrake</div><div><b>CTRL</b>crouch / slide / dive under</div><div><b>H</b>harpoon / yank</div>
           <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom out (Shift: in)</div>
           <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
           <div><b>H</b>gun up/down · hold: holster</div><div><b>J</b>one / two hands</div><div><b>RMB</b>melee · hold: kick</div>
@@ -1311,6 +1322,7 @@ class Game {
     if (!this.paused && !this.invUI.open && !this.dialogue.active) this.cam.input(I, dt); // wheel, Z / - / =, O, [ ]; a panel keeps the wheel
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
+      if (this.invUI.open && this.packCloseHit(I)) this.invUI.toggle(false); // a pause that came up over the PACK (the window lost focus) still lets I / TAB / ESC shut it
       this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
     }
 
@@ -1321,6 +1333,7 @@ class Game {
     if (simDt) this.crew.input(I); // E beside a downed crew member is theirs: patch up, or hold to drag
     if (simDt) this.rites.input(I); // beside the dead: hold E to drag, G to bury, F to burn (systems/rites.js)
     this.updatePlayer(dt);
+    this.actions.update(dt); // after the E chain: a target it no longer reaches is let go (systems/actions.js)
     this.arms.update(dt);  // H, J, B, RB: stance, grip, fire mode, the wheel; who has noticed your gun
     this.melee.update(dt); // RMB / R3: the blow in flight lands at its moment of contact
     this.nanGuard('player');
@@ -1328,6 +1341,7 @@ class Game {
       this.ai.update(simDt); this.nanGuard('ai');
       this.bases.update(simDt); // sentries watch the wire, searchlights sweep
       this.witnesses.update(simDt);
+      this.reactions.update(simDt);
       this.society.update(simDt);
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
@@ -1349,6 +1363,8 @@ class Game {
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.investigate.update(simDt); // the search parties out: sweep, hiding places, blood, witnesses (systems/investigate.js)
+      this.police.update(simDt); // the desks hear what reached them and send from the station (systems/police.js)
       this.kit.update(simDt); // cells drain, the glass marks, the scanner listens, bad air, dog gear, car kit (systems/kit.js)
       this.rites.update(simDt); // the dead age on the clock, the cemeteries near you, funerals (systems/rites.js)
       this.materials.update(simDt); // things burning down, cars ramming through, blood drying
@@ -1419,6 +1435,7 @@ class Game {
     this.crewUI.update(dt);
     this.workshopUI.update(dt);
     this.feedback.update(dt);
+    this.shotRead.update(dt);
     this.recorder.tick(); // a time check; 4 times a game second, one sample into preallocated arrays
     I.endFrame();
   }

@@ -66,7 +66,8 @@ export class Inventory {
   room(box) { return Math.max(0, box.cap - box.litres()); }
 
   // Put n of an item into a box: tops up matching slots first, then opens new ones. Returns how many went in
-  // (fewer than n when the box runs out of room). state: { left, made } for a thing that has them.
+  // (fewer than n when the box runs out of room). state: { left, made } for a thing that has them; where: the compartment
+  // of what you carry it goes in (data/bodydoll.js COMPARTMENTS): it only joins a stack already in there.
   add(box, id, n = 1, state = {}) {
     const it = ITEMS[id];
     if (!it || n <= 0) return 0;
@@ -76,7 +77,7 @@ export class Inventory {
     if (it.stack > 1) {
       for (const s of box.slots) {
         if (!left) break;
-        if (s.id !== id || s.n >= it.stack || (it.spoils && this.freshness(s) !== this.freshness({ id, made }))) continue;
+        if (s.id !== id || s.n >= it.stack || (it.spoils && this.freshness(s) !== this.freshness({ id, made })) || (state.where && s.where !== state.where)) continue;
         const k = Math.min(left, it.stack - s.n); s.n += k; left -= k;
         if (it.spoils) s.made = Math.min(s.made, made); // a stack is as old as its oldest
       }
@@ -87,6 +88,7 @@ export class Inventory {
       if (it.uses) s.left = state.left ?? it.uses;
       if (it.spoils) s.made = made;
       if (it.kind === 'gun') { s.cond = state.cond ?? 1; s.loaded = state.loaded ?? 0; }
+      if (state.where) s.where = state.where;
       box.slots.push(s); left -= k;
     }
     return fit;
@@ -104,13 +106,15 @@ export class Inventory {
   }
 
   // Move n from slot i of one box to another. Returns how many moved. paid: bought over a counter (trade.js), not taken.
-  move(from, i, to, n = 1, paid = false) {
+  // where: into that compartment of what you carry (the PACK screen), its room checked by the caller.
+  move(from, i, to, n = 1, paid = false, where = null) {
     const s = from.slots[i];
     if (!s || from === to) return 0;
     const it = ITEMS[s.id];
     const k = Math.min(n, s.n, it.bulk > 0 ? Math.floor((this.room(to) + 1e-6) / it.bulk) : n);
     if (k <= 0) return 0;
     const t = this.take(from, i, k);
+    if (where) t.where = where;
     this.add(to, t.id, t.n, t);
     // Out of somebody's shop and anywhere not theirs (your pocket, your trunk, the floor): theft, as the world sees it
     // (deeds: witnesses, word, memory). Bought over the counter, it is not.
@@ -195,6 +199,7 @@ export class Inventory {
   // Tools and parts that work on something nearby: the car you're in or standing at, the lock in front of you.
   act(verb, s, it) {
     const g = this.g, P = g.player;
+    if (verb === 'place_ladder') return g.actions?.beginPlace() ?? { ok: false, why: 'not here' }; // TIMED ACTIONS: set a carried ladder against the wall in front of you
     const v = P.inVehicle ?? g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - P.x, c.z - P.z) < Math.max(3.4, c.len * 0.65));
     const d = v?.dmg;
     if (verb === 'refuel') {
@@ -552,8 +557,8 @@ export class Inventory {
   }
 
   // extra: rolls on top (the player's luck, systems/gear.js): drawn after the box's own, so they only ever add.
-  roll(box, extra = 0) {
-    const T = LOOT[box.kind];
+  roll(box, extra = 0, table = box.kind) {
+    const T = LOOT[table];
     if (!T) return;
     const rng = makeRng(box.seed);
     if (T.all) { for (const [id, , lo, hi] of T.rows) { const it = ITEMS[id]; this.add(box, id, lo + Math.floor(rng() * (hi - lo + 1)), it.kind === 'gun' ? { cond: +(0.7 + rng() * 0.25).toFixed(3), loaded: 0 } : {}); } return; } // a set piece: every row, once (data/fannods.js)
@@ -577,7 +582,7 @@ export class Inventory {
   // y: the asker's height. A box on another floor (world/storeys.js) is out of reach whatever its x, z. Without y, any floor.
   nearest(x, z, reach = 2.2, notGround = false, y = undefined) {
     let best = null, bd = reach;
-    for (const b of this.boxes.values()) { if (notGround && b.kind === 'ground') continue; if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) { if (b.unseen || (notGround && b.kind === 'ground')) continue; /* unseen: lying where nobody has looked (systems/actions.js look-around) */ if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     return best;
   }
 
@@ -585,7 +590,7 @@ export class Inventory {
   // y: the floor it lies on (upstairs: world/storeys.js); by default the player's.
   groundAt(x, z, y = this.g.player?.gy ?? 0) {
     let best = null, bd = 1.6;
-    for (const b of this.boxes.values()) if (b.kind === 'ground' && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) if (b.kind === 'ground' && !b.unseen && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     if (best) return best;
     const b = this.place(`ground:${++this.piles}`, 'ground', x, z, 999, 'THE GROUND');
     if (y > 0.5) b.y = y;
@@ -614,7 +619,7 @@ export class Inventory {
     let n = 0;
     const o = _o;
     for (const b of this.boxes.values()) {
-      if (b.kind !== 'ground' || !b.slots.length || n >= 96) continue;
+      if (b.kind !== 'ground' || b.unseen || !b.slots.length || n >= 96) continue;
       o.position.set(b.x, this.g.stunts?.heightAt(b.x, b.z) ?? 0, b.z); o.rotation.set(0, (b.seed % 628) / 100, 0);
       const k = Math.min(1.6, 0.8 + b.litres() * 0.04); o.scale.set(k, k, k); o.updateMatrix();
       m.setMatrixAt(n++, o.matrix);
@@ -624,7 +629,12 @@ export class Inventory {
 
   trunk(v) {
     let t = this.trunks.get(v.id);
-    if (!t) { t = new Container(`trunk:${v.id}`, `${v.name} · ${v.bike || v.quad ? 'SADDLEBAGS' : v.type === 'pickup' ? 'BED' : 'TRUNK'}`, TRUNK[v.type] ?? 200, 'trunk'); this.trunks.set(v.id, t); }
+    if (!t) {
+      t = new Container(`trunk:${v.id}`, `${v.name} · ${v.bike || v.quad ? 'SADDLEBAGS' : v.type === 'pickup' ? 'BED' : 'TRUNK'}`, TRUNK[v.type] ?? 200, 'trunk'); this.trunks.set(v.id, t);
+      // What a kind of car carries from the start (data/items.js LOOT trunk_<type>: a patrol car's shotgun shells): rolled
+      // once, seeded by the car, never again (a load restores the trunk as it was left).
+      if (LOOT[`trunk_${v.type}`]) { let h = 7; for (const ch of String(v.id)) h = (h * 31 + ch.charCodeAt(0)) | 0; t.seed = h >>> 0; this.roll(t, 0, `trunk_${v.type}`); }
+    }
     return t;
   }
 
