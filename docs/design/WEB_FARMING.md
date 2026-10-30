@@ -130,6 +130,7 @@ One `InstancedMesh` (1,500 boxes), redrawn every 0.5 s (0.12 s while a hen is in
 - **Save and load**: beds, coops (hens, eggs, troughs), consignments, the log and stats ride the save (`farming`, `cooking` blocks); the world clock and the garden's own `skew` (the `age` test hook) are saved with it. Growth catches up on load by the game clock.
 - **Long absences**: up to 60 days are simulated hour by hour on return. A bed left dry for 5 days is dead; a ripe bed unpicked for `hold` days rots.
 - **A full pack**: harvest refuses with "make room" rather than leaving fruit on the plant; eggs stop at the pack's limit.
+- **Where seed comes from**: NOT the world's loot tables (adding rows there moved the pinned P1 chunk hash `-6,0`, so it is forbidden for this lane). Seed packets, a hoe, a bucket, feed and a hen or two are on Mags' counter (`TRADERS.mags.keeps`) and in the crew's scavenge-run table (`CREW_RUN_LOOT`). A check asserts no loot table carries them.
 - **Houses**: a garden's beds and coop are removed with the base (§3.1). An evicted tenant loses the garden with the house; a burned house too.
 - **Two hostiles at one bed**: the first takes it; the second finds a bare bed.
 - **Off-season sowing** is allowed (it teaches); frost then usually wins.
@@ -177,7 +178,7 @@ One `InstancedMesh` (1,500 boxes), redrawn every 0.5 s (0.12 s while a hen is in
 | `GARDEN.tillSecs, sowSecs, waterSecs, harvestSecs` | 8, 3, 3, 4 | 2 to 20 | the timed jobs |
 
 ## 8. Acceptance Criteria
-Proved by `selftest only=farming:|cooking:` (35 checks), each through the real path (commands, the pack's own verbs, the job clock, a spawned raider, the crew's job cycle), staging positions the documented exception:
+Proved by `selftest only=farming:|cooking:` (36 checks), each through the real path (commands, the pack's own verbs, the job clock, a spawned raider, the crew's job cycle), staging positions the documented exception:
 1. **Rows**: `validateFarming` and `validateCooking` are clean (seeds and produce are items, best months are planting months, no purple, build costs are real, no recipe without ingredients, no meal out of nothing) and an empty recipe is refused.
 2. **Calendar shim**: fixed April until `g.seasons` exists; then its month.
 3. **A house first**: claiming a ranch house makes its yard count; a house you do not hold has none.
@@ -195,4 +196,4 @@ Proved by `selftest only=farming:|cooking:` (35 checks), each through the real p
 15. **House**: a garden goes with its house.
 16. **Cooking**: a recipe refuses without ingredients, a fire or a pot; consumes the ingredients; quality rises with level, herbs, stove and freshness; a rotten ingredient makes an `off` meal that poisons; a fine meal lifts food, hp and morale and keeps you well fed.
 
-Looked at by eye (docs/renders/web/farming/): see the lane report's critique.
+Looked at by eye (docs/renders/web/farming/, game camera): ripe tomatoes, mid squash, a fenced ripe corn bed and a wilted bed read clearly with raised boards; the hens and the coop read poorly from straight above (see the lane report's critique: bigger hens, a roof with a hatch, wet/dry soil contrast).

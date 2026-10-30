@@ -338,9 +338,10 @@ export class Farming {
   }
 
   // ---- the infected, the thieves, the deer ------------------------------------------------------------------------------
-  livePass() {
+  livePass(dt = 1) {
     const g = this.g;
     if (!this.plots.length) return;
+    const slow = (this.grazeT = (this.grazeT ?? 0) - dt) <= 0; if (slow) this.grazeT = 1; // the deer graze and the thieves' bodies are checked once a second
     const P = g.player;
     for (const p of this.plots) {
       if (!p.crop || p.state === 'bare' || p.state === 'wilted') continue;
@@ -354,14 +355,14 @@ export class Farming {
         this.steal(p, c);
       }
       // the deer and the birds: live prey grazes an open bed in front of you
-      if (!p.fenced && !p.scarecrow && !this.scarecrowNear(p)) for (const a of g.fauna?.live ?? []) {
+      if (slow && !p.fenced && !p.scarecrow && !this.scarecrowNear(p)) for (const a of g.fauna?.live ?? []) {
         if (a.dead || a.S?.temper !== 'prey') continue;
         if (Math.abs(a.x - p.x) > GARDEN.pest.grazeR || Math.abs(a.z - p.z) > GARDEN.pest.grazeR) continue;
         if (Math.random() < 0.3) { p.health -= GARDEN.pest.grazeDmg; this.stats.grazed++; g.emit('cropGrazed', { id: p.id, who: a.S.name }); if (p.health <= GARDEN.healthFloor) this.wilt(p, 'pests'); }
       }
     }
     // a thief killed on the road gives back what he carried (the real item moved from the bed to him, and onto his body)
-    for (let i = this.thieves.length - 1; i >= 0; i--) {
+    if (slow) for (let i = this.thieves.length - 1; i >= 0; i--) {
       const T = this.thieves[i];
       if (T.c.alive && g.chars.includes(T.c)) continue;
       const box = this.inv().boxes.get(`body:${T.c.id}`);
@@ -639,7 +640,7 @@ export class Farming {
     if (this.job) this.jobStep(dt);
     if (!this.plots.length && !this.coops.length && !this.consign.length) { this.last = null; if (this.mesh?.count) { this.mesh.count = 0; this.mesh.visible = false; } return; }
     this.drawT -= dt;
-    if ((this.liveT = (this.liveT ?? 0) - dt) <= 0) { this.liveT = 0.4; this.livePass(); } // thieves and the dead are quick
+    this.livePass(dt); // every frame: a raider at a run is in reach of a bed for a third of a second
     if ((this.slowT -= dt) <= 0) { this.slowT = 1; this.orphans(); this.clock(); if (this.consign.length) this.marketPass(); }
     if (this.drawT <= 0) { this.drawT = this.coops.some((c) => c.hens.length && Math.abs(c.x - this.g.player.x) < 40 && Math.abs(c.z - this.g.player.z) < 40) ? 0.12 : 0.5; this.draw(); } // hens move: quick when you can see them
   }
