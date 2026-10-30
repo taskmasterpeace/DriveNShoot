@@ -90,6 +90,20 @@ The **HUD editor** (F6, or EDIT HUD LAYOUT in the pause menu) pauses the game an
 - **Agent:** the `panelLayout` command (list, open, close, set, preset, reset, export, import, audit, edit).
 - **Sheet:** `web/tools/panel-sheet.mjs` writes `docs/renders/web/ui-editor/panels/`: each panel's before and after shots, the after shots at 1280×720 and 2560×1440, the `-names` shots with regions labelled, and `audit-<tag>.json`. It exits 1 if any text crosses at any size.
 
+**3.9 The body doll and the PACK (Robert, 2026-10-29).** "I would like the little doll to be at the bottom left. So you can see where you're damaged at... when you go to your inventory, what if that just animated up and then you get to see what's near your feet, what's near your backpack, what's in your backpack."
+
+- **Locational damage:** a hit already landed on a gear part (`HIT_ODDS` by cause, the same roll armor soaks on). Combat now puts that part on the `hurt` event, picking a side for an arm or a leg, and every wound records the part it is on (`wound.part`, one of head, torso, arm_l, arm_r, leg_l, leg_r; saved with the wound). A sprain only sits on a limb (`WOUND_PARTS`). Rows: `web/src/data/bodydoll.js`.
+- **No per-part health pool:** health stays one pool; the game is balanced on it. The doll shades a part "hurt" from the share of your missing health each hit on it took, mending as you mend. Its wounds give the rest: bleeding, broken, burned, bitten, sprained, splinted, bandaged.
+- **Lost limbs:** the doll can draw a part as gone (`g.needs.lost`), but no system takes a limb yet.
+- **The HUD doll:** HUD row `doll` ("Body doll (where you are hurt)"), bottom left above the minimap. Your flag hangs behind the figure, and the worst part is named under it (`LEFT ARM · BROKEN`). It is updated on the HUD's slow tick, and only written when a part changes.
+- **The PACK opens by lifting the doll:** a FLIP from the HUD doll's box to the big figure (0.42 s), with the rest of the screen rising in behind it. It has three columns:
+  - **YOUR BODY:** the big doll with all 19 paperdoll slots hung beside the part each sits on (`DOLL_SLOTS`; a chip's edge takes its part's colour, and hovering a chip lights its part), what is wrong with each part and what treats it, and the soak.
+  - **ON YOU:** the slung guns, then each container you wear: pockets, belt and vest when worn, and the backpack (`COMPARTMENTS`). Each slot is in one compartment (`slot.where`). The belt's and vest's litres come out of the body's share, so wearing them changes where things sit, never how much you carry.
+  - **NEAR YOUR FEET:** every container within reach on your floor (`NEAR_REACH` 2.6 m): the ground, the dead, crates and cupboards, and the trunk you stand at. A first look at one is a search.
+- **Moving things:** drag a row onto any compartment or container to move it there (the drop handler and the selftest share `InventoryUI.transfer`). Double-click, Space, E and X work as before. D again cycles the container on the other side.
+- **Editor:** the PACK's regions are `head`, `doll`, `figure`, `wounds`, `dogs`, `columns` (the three-column body, id kept), `carry` and `near` (lists: columns and density), `detail`, `buttons`, `say` and `keys`.
+- **Sheet:** `web/tools/doll-sheet.mjs` writes `docs/renders/web/ui-editor/doll/`: the HUD hurt, the PACK mid-lift and open (1600×900 and 1280×720), and the PACK and HUD with every region named.
+
 **3.7 Multiplayer.** A layout is per player and local. It is never sent to the shard, and no other player sees it. What *is* shared is the standard: the row ids, the names, and the Default positions everyone starts from. That is how "people get used to seeing certain things, certain places" holds across a co-op session. The `situations` follow your own seat, so a passenger sees their gun plate and the dash while the driver beside them sees the dash only.
 
 ## 4. Formulas
@@ -172,5 +186,11 @@ Panels (phase 2), 7 more checks:
 14. **panels: a panel layout round-trips export/import and reaches the stylesheet.** The parts grid shows 3 columns, the key hints are hidden, the detail text is at 130%, and a bad import is refused and changes nothing.
 15. **panels: the HUD steps out of a panel's way.**
 16. **panel editor: the workshop's regions are outlined and named; a click picks one, the wheel sizes it, undo puts it back.**
+17. **body doll: the rows validate, the doll has a HUD row, the PACK its regions.**
+18. **body doll: a broken left arm shows on the HUD doll (that part only), and splinting it shows splinted.**
+19. **body doll: a hit lands where it lands.** A head shot shades the head; a cut to the arms wounds one arm, and that arm shows bleeding.
+20. **pack: it opens by lifting the HUD doll.** The figure sets off from the HUD doll's box, moves, and comes to rest.
+21. **pack: NEAR YOUR FEET lists exactly what is within reach.** That is checked against the world, not the screen, and the far crate is absent.
+22. **pack: dragging a thing from the ground onto the backpack moves that very thing into the backpack.** It goes through real drag events.
 
 The full battery must stay green twice on fresh pages, `scenario name=stress` must not regress, and ip-lint must report 0 deny. The sheet `docs/renders/web/ui-editor/` (INDEX.md) has edit mode with names on for each preset and each situation, the editor panel, the live HUD before and after, the live HUD driving, and the layout at 1280×720 and 2560×1440.

@@ -680,6 +680,7 @@ export class Gadgets {
     }
     this.drones.draw(this);
     this.security.draw(this);
+    this.g.police?.draw(this); // the desks' light bars, shields and rams (systems/police.js)
     this.parts.count = this.n; this.parts.visible = this.n > 0;
     this.parts.instanceMatrix.needsUpdate = true; if (this.parts.instanceColor) this.parts.instanceColor.needsUpdate = true;
     this.glow.count = this.ng; this.glow.visible = this.ng > 0;
