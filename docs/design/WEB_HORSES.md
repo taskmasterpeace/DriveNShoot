@@ -63,7 +63,7 @@ tire, no gallop; out of its depth (> 1.15 m) it swims at 0.4x, 2.6x tire. A hors
 
 **Jumps.** Tap Space at a trot or better with 0.07 of the tank: a hop 0.55 s long, 1.0 m high, clears a box up to 1.05 m
 (the collision grid's own heights: a rail fence, a hedge, a low wall). A tall wall stops it (the stride breaks, speed
-halves). `rideTo hop=true` hops on its own.
+halves). `horseRideTo hop=true` hops on its own.
 
 **Noise by gait** (heard by AI, dogs, the infected, other animals through `g.noise`): walk 3 m, trot 9, canter 17,
 gallop 30. A horse's own hoofbeats never frighten it.
@@ -149,15 +149,16 @@ shot (`mul 1, loud 1`): `0.65 x 0.38 = 0.25`: a one in four chance it bolts.
 
 **Uses:** `systems/fauna.js` (the body, the herd brain, butchering, damage), `systems/dogs.js` (the quad renderer and bond
 tiers' shape), `systems/outdoors.js` (`patch`, the same grazing/foraging patches), `systems/inventory.js` (saddlebags are a
-Container; items), `systems/deeds.js` (theft), `systems/combat.js` / `melee.js` (the accuracy and melee tax), `systems/characters.js`
+Container; items), `systems/deeds.js` (theft), `systems/combat.js` / `melee.js` (the accuracy and melee tax), `systems/radio.js` (the fallback headline is the nearest loose herd, `radioLine`), `systems/characters.js`
 (the seated rider), `engine/collision.js` (hop heights), `data/items.js` (feed and tack rows), the stable keeper is an
 ordinary character (`g.addChar`).
 **Used by (hooks other lanes can read):** `g.horses.mine()`, `g.horses.strayNear(x, z)` (pulls and the radio can mention a
 stray), `g.horses.nearFor(p)` (the E prompt), `p.mount` (the rider's record: other systems treat a mounted player as
 not-in-a-vehicle, not-on-foot-combat), `g.horses.aimTax`, `H.owner` (a faction/crew lane can hand a horse to a follower).
 **Not done (other lanes' hooks):** timed-action mount (uses the fixed 0.9 s), camps/bases stall block, towing (a horse
-cannot tow a car yet), seasons (winter feed), crafting (saddle, saddlebags and ropes are found, not made), the radio and
-pulls lines about a stray horse (the data call `strayNear` is there).
+cannot tow a car yet), seasons (winter feed), crafting (saddle, saddlebags and ropes are found, not made), a pulls-board
+listing of a horse for sale (the radio line is done; `strayNear` is the data call for a pull), horses for crew followers,
+wet saddlebags in deep water.
 
 ## 7. Tuning Knobs
 
@@ -198,5 +199,5 @@ All as named selftest checks (`only=horses`):
 11. **noise and HUD**: noise by gait; the footing chip says its wind, feed and water.
 12. **lameness**: a lame horse cannot canter, heals only at rest and fed, a bandage halves the time.
 13. **save**: the ledger, tack, bags and a mounted state round-trip; the herds are not laid again; a dead wild horse stays dead.
-14. **stray**: `strayNear` names the nearest wild horse and its herd.
+14. **stray**: `strayNear` names the nearest wild horse and its herd, and the radio's fallback headline (`radioLine`) says where a loose herd is.
 Plus: `node --check` on every edited file, `ip-lint` 0 deny, `scenario name=stress` not regressed, golden hashes unmoved, under 150 draw calls (the tack, rails and graves are one instanced mesh).

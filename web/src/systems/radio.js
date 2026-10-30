@@ -128,7 +128,7 @@ export class Radio {
       if (r.a === 'player') { const t = (r.ws ? R.witnessed : R.unwitnessed)?.[r.v]; if (t) return fill(t); }
       else if (r.v === 'kill' && r.on) return fill(R.world.kill);
     }
-    return null;
+    return this.g.horses?.radioLine?.() ?? null; // nothing worth a headline: a stray horse on the road (systems/horses.js)
   }
   // Today's shelter: honest (a town) or a lure (open ground, raiders waiting). Seeded by the game day.
   shelterNow() {

@@ -36,22 +36,22 @@ export const BREEDS = {
   mustang: {
     name: 'Mustang', speed: { walk: 1.9, trot: 4.9, canter: 8.2, gallop: 12.0 }, tire: 0.8, hp: 120, carryKg: 105, bagL: 36, spook: 0.65, feedDay: 0.34, waterDay: 0.6, price: 90,
     desc: 'Wild-born and wiry. Sees a rattlesnake before you do and will not forgive a heavy hand.',
-    body: { scale: 1.85, coats: ['#8a5a36', '#a8794a', '#5a3e2a', '#c4a070', '#6e6a62'], mask: '#4a3424', legs: '#3a2a20', head: 'deer', tail: 0.9, tailR: 1.5, build: 'lean', legK: 1.42, lenK: 1.12, neckK: 1.7, neckR: 2.4, neckUp: 1.0, eyes: '#e0c070' },
+    body: { scale: 1.85, coats: ['#9a6a3e', '#b98a56', '#7a4a2c', '#c8a878', '#8a8478'], mask: '#4a3424', legs: '#3a2a20', head: 'deer', tail: 0.9, tailR: 1.5, build: 'lean', legK: 1.42, lenK: 1.12, neckK: 2.7, neckR: 2.2, neckUp: 1.15, eyes: '#e0c070' },
   },
   quarter: {
     name: 'Quarter horse', speed: { walk: 2.0, trot: 5.2, canter: 8.8, gallop: 13.0 }, tire: 1.0, hp: 140, carryKg: 130, bagL: 48, spook: 0.35, feedDay: 0.4, waterDay: 0.65, price: 160,
     desc: 'A ranch horse, bred for a short sprint and a long working day. Steady under a gun if you have raised it.',
-    body: { scale: 1.95, coats: ['#7a4a2a', '#9a6a3a', '#3e2c22', '#b88a54', '#2a2622'], mask: '#3a281c', legs: '#2c2018', head: 'deer', tail: 0.9, tailR: 1.5, build: 'heavy', legK: 1.38, lenK: 1.1, wideK: 1.08, neckK: 1.6, neckR: 2.4, neckUp: 1.0, eyes: '#e0c070' },
+    body: { scale: 1.95, coats: ['#8a4a26', '#a8703a', '#6a3a22', '#c09660', '#4a3a30'], mask: '#3a281c', legs: '#2c2018', head: 'deer', tail: 0.9, tailR: 1.5, build: 'heavy', legK: 1.38, lenK: 1.1, wideK: 1.08, neckK: 2.8, neckR: 2.2, neckUp: 1.15, eyes: '#e0c070' },
   },
   draft: {
     name: 'Draft horse', speed: { walk: 1.7, trot: 4.1, canter: 6.4, gallop: 9.0 }, tire: 1.25, hp: 200, carryKg: 210, bagL: 90, spook: 0.15, feedDay: 0.55, waterDay: 0.8, price: 240,
     desc: 'Slow, huge and nearly unflappable. It will carry a house of your belongings and not much else.',
-    body: { scale: 2.25, coats: ['#8a6a4a', '#4a3a2e', '#a89a88', '#6a5238'], mask: '#3a2c22', legs: '#d8d0c0', head: 'deer', tail: 0.8, tailR: 1.5, build: 'heavy', legK: 1.3, lenK: 1.18, wideK: 1.2, deepK: 1.15, neckK: 1.5, neckR: 2.6, neckUp: 0.95, eyes: '#d0b070' },
+    body: { scale: 2.25, coats: ['#9a7a54', '#6a5848', '#b8aa96', '#7a5e40'], mask: '#3a2c22', legs: '#d8d0c0', head: 'deer', tail: 0.8, tailR: 1.5, build: 'heavy', legK: 1.3, lenK: 1.18, wideK: 1.2, deepK: 1.15, neckK: 2.5, neckR: 2.4, neckUp: 1.05, eyes: '#d0b070' },
   },
   pony: {
     name: 'Pony', speed: { walk: 1.7, trot: 4.3, canter: 7.0, gallop: 10.0 }, tire: 0.9, hp: 80, carryKg: 75, bagL: 26, spook: 0.45, feedDay: 0.26, waterDay: 0.45, price: 55,
     desc: 'Small, stubborn, cheap to keep. A child\'s horse, and a loner\'s: it can live on weeds.',
-    body: { scale: 1.45, coats: ['#a07a50', '#d8c8a8', '#4a4036', '#7a6a58'], mask: '#5a4630', legs: '#4a3a2c', head: 'deer', tail: 0.9, tailR: 1.5, build: 'heavy', legK: 1.2, lenK: 1.05, wideK: 1.1, neckK: 1.4, neckR: 2.3, neckUp: 0.95, eyes: '#e0c070' },
+    body: { scale: 1.45, coats: ['#a88258', '#d8c8a8', '#6a5a46', '#8a7a64'], mask: '#5a4630', legs: '#4a3a2c', head: 'deer', tail: 0.9, tailR: 1.5, build: 'heavy', legK: 1.2, lenK: 1.05, wideK: 1.1, neckK: 2.3, neckR: 2.1, neckUp: 1.05, eyes: '#e0c070' },
   },
 };
 

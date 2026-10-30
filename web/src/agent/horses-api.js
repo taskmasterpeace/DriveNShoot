@@ -56,7 +56,7 @@ export function horseCommands(api, need) {
         return { horse: S().view(H) };
       },
     },
-    mount: {
+    horseMount: {
       group: 'player', desc: 'Mount a horse (the E key beside a tame one): id=<id|name|nearest> within about 3.7 m, else `moveTo` it first (force=true stands you beside it, for tests). A stable\'s horse is bought (buy=true, with the cash you have) or taken (a theft deed, witnessed if its keeper is near). A wild horse is gentled first (`horseCare action=gentle`). The swing up takes about a second; you are in the saddle at once and cannot steer until it is done.',
       args: { id: { type: 'string', default: 'nearest' }, force: { type: 'boolean', default: false }, buy: { type: 'boolean', default: false } },
       run: async ({ id, force, buy }) => {
@@ -71,7 +71,7 @@ export function horseCommands(api, need) {
         return { mounted: P().mount === H, horse: S().view(H), text: r.text, stolen: !!r.stolen };
       },
     },
-    dismount: {
+    horseDismount: {
       group: 'player', desc: 'Get down (E in the saddle). A horse left within about 3 m of a hitching rail is tied to it. thrown=true is a fall instead of a step (testing).',
       args: { thrown: { type: 'boolean', default: false } },
       run: async ({ thrown }) => {
@@ -82,7 +82,7 @@ export function horseCommands(api, need) {
         return { horse: S().view(H), you: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: Math.round(p.hp) } };
       },
     },
-    rideTo: {
+    horseRideTo: {
       group: 'player', desc: 'Ride to x,z (like moveTo, on a horse; you must be mounted): gait=walk|trot|canter|gallop (default trot), hop=true jumps a low fence in the way, maxSeconds= (default 60). The horse still tires, slows in water and on rough ground, goes blown at an empty wind and cannot canter lame. Returns where it got to, the stamina left and the time taken.',
       args: { x: { type: 'number', required: true }, z: { type: 'number', required: true }, gait: { type: 'string', default: 'trot' }, hop: { type: 'boolean', default: false }, maxSeconds: { type: 'number', default: 60 }, tolerance: { type: 'number', default: 2.2 } },
       run: async ({ x, z, gait, hop, maxSeconds, tolerance }) => {

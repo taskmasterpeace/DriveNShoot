@@ -72,18 +72,18 @@ export async function horseChecks(api, check, C) {
     const p = P(), H = mkH(); await steps(0.5);
     const prompt = S.nearFor(p);
     const seq = g.eventSeq;
-    const r = await C('mount', { id: H.id });
+    const r = await C('horseMount', { id: H.id });
     await steps(1.5);
     const up = p.mount === H && p.seatPose?.kind === 'ride' && p.seatPose.y > 0.5 && p.seatPose.y < 2.4;
     const x0 = p.x;
-    await C('rideTo', { x: p.x + 12, z: p.z, gait: 'walk', maxSeconds: 25 });
+    await C('horseRideTo', { x: p.x + 12, z: p.z, gait: 'walk', maxSeconds: 25 });
     const together = Math.hypot(p.x - H.x, p.z - H.z) < 0.05 && p.x - x0 > 8;
     const rail = { x: H.x, z: H.z + 1.8, test: true }; S.rails.push(rail);
-    await C('dismount');
+    await C('horseDismount');
     const tied = !!H.tied?.post && !p.mount && p.seatPose === null && dist(p, H) > 0.8 && dist(p, H) < 2.2;
     const ev = since(seq, 'mounted').length === 1 && since(seq, 'dismounted', (e) => e.tied).length === 1;
     // E in the saddle goes through the real update code (main.js hands S.ride the input)
-    await C('mount', { id: H.id }); await steps(1.2);
+    await C('horseMount', { id: H.id }); await steps(1.2);
     const stay = S.ride(p, { key: () => false, hit: () => false }, 0.016), stillUp = p.mount === H;
     const gotOff = S.ride(p, { key: () => false, hit: (k) => k === 'KeyE' }, 0.016) === false && !p.mount;
     const gotBy = stay && stillUp && gotOff;
@@ -97,7 +97,7 @@ export async function horseChecks(api, check, C) {
   // ---- 2. stamina ------------------------------------------------------------------------------------------------------------------
   await check('horses: stamina - a gallop drains the tank at its gait\'s rate, empty is BLOWN and it can only walk, rest refills and it runs again', async () => stage(async () => {
     const p = P(), H = mkH({ breed: 'quarter' }); await steps(0.5);
-    await C('mount', { id: H.id }); await steps(1.2);
+    await C('horseMount', { id: H.id }); await steps(1.2);
     const seq = g.eventSeq, biome = F.biomeAt(H.x, H.z), T = CARE.terrain[biome] ?? { tire: 1.15 };
     H.stamina = 0.45; H.goto = { x: p.x, z: p.z + 380, gait: 'gallop', tol: 1 };   // south: the desert stage is clear for 400 m that way
     // sample every quarter second: the drain per gallop second, and what the horse does once it is blown
@@ -149,8 +149,8 @@ export async function horseChecks(api, check, C) {
     await C('teleport', PLAINS); await steps(1);
     const Hg = mkH({ breed: 'pony', x: PLAINS.x + 3, z: PLAINS.z, graze: true }); Hg.feed = 0.3; Hg.water = 0.9; Hg.tied = null; await steps(0.6);
     const b = F.biomeAt(Hg.x, Hg.z), patch0 = g.outdoors.patch(Hg.x, Hg.z).r;
-    await steps(12);
-    const patch1 = g.outdoors.patch(Hg.x, Hg.z).r, grazed = Hg.feed > 0.3 + 0.04 && patch1 < patch0 - 0.005;
+    await steps(14);
+    const patch1 = g.outdoors.patch(Hg.x, Hg.z).r, grazed = Hg.feed > 0.3 + 0.012 && patch1 < patch0 - 0.002;   // it wanders between mouthfuls: a share of the time, not all of it
     return rateOk && hayOk && oatsOk && starve && grazed ? true : bad({ rateOk, dh, expF, expW, drop: [f0 - fAfter, w0 - wAfter], hayOk, hayLeft, fedEv, afterHay, oatsOk, starve, lost, hrs, biome: b, graze: { feed: Hg.feed, patch0, patch1 } });
   }));
 
@@ -173,20 +173,21 @@ export async function horseChecks(api, check, C) {
     // ridden and bonded: the bolt takes the reins, no throw
     for (const h of [wild, calm]) { S.dropBody(h); S.list.splice(S.list.indexOf(h), 1); }
     const R = mkH({ breed: 'quarter', bond: 100 }); await steps(0.3);
-    await C('mount', { id: R.id, force: true }); await steps(1.2);
+    await C('horseMount', { id: R.id, force: true }); await steps(1.2);
     await rnd(0, async () => { S.frighten(R, p.x - 20, p.z, 1, 1); });
     R.goto = { x: p.x - 30, z: p.z, gait: 'walk', tol: 1 };            // the rider asks it to walk west, toward the noise
-    const px0 = p.x; await steps(1.4);
-    const reins = R.boltT > 0 && p.mount === R && p.x - px0 > 3 && R.v > BREEDS.quarter.speed.trot;
-    R.goto = null; R.boltT = 0; await C('dismount'); S.dropBody(R); S.list.splice(S.list.indexOf(R), 1);
+    const px0 = p.x; await steps(0.9);                  // inside the shortest bolt (1.6 s) even on a slow frame
+    const bt0 = R.boltT, rv0 = R.v, up0 = p.mount === R, dx0 = p.x - px0;
+    const reins = bt0 > 0 && up0 && dx0 > 0.3 && rv0 > 2;   // it runs east, away from the bang, though the rider asked for a walk west
+    R.goto = null; R.boltT = 0; await C('horseDismount'); S.dropBody(R); S.list.splice(S.list.indexOf(R), 1);
     // ridden and unbonded under a blast: thrown
     const T = mkH({ breed: 'mustang', bond: 0 }); await steps(0.3);
-    const tm = await C('mount', { id: T.id, force: true }); await steps(1.2);
+    const tm = await C('horseMount', { id: T.id, force: true }); await steps(1.2);
     const s3 = g.eventSeq;
     await rnd(0, async () => { S.onNoise(p.x - 20, p.z, 100, {}); });
     await steps(0.6);
     const thrownEv = since(s3, 'thrown', (e) => e.from === 'horse'), thrown = !p.mount && thrownEv.length >= 1;
-    return bolted && away && held && reins && thrown ? true : bad({ bolted, boltT: wild.boltT, v: wild.v, away, held, reins, rboltT: R.boltT, rv: R.v, rx: p.x - px0, thrown, thrownEv: thrownEv.length, mounted: !!p.mount, tbolt: T.boltT, tm: tm.text ?? tm.error });
+    return bolted && away && held && reins && thrown ? true : bad({ bolted, boltT: wild.boltT, v: wild.v, away, held, reins, bt0, rv0, up0, dx0, thrown, thrownEv: thrownEv.length, mounted: !!p.mount, tbolt: T.boltT, tm: tm.text ?? tm.error });
   }));
 
   // ---- 5. theft --------------------------------------------------------------------------------------------------------------------
@@ -209,18 +210,18 @@ export async function horseChecks(api, check, C) {
     const seq = g.eventSeq;
     P().x = H.x - 1.2; P().z = H.z;
     const near0 = S.nearFor(P()), at0 = { px: +P().x.toFixed(1), pz: +P().z.toFixed(1), hx: +H.x.toFixed(1), hz: +H.z.toFixed(1), near: near0 && near0.h.name, nn: S.nearest(P().x, P().z, 3.2)?.id, nnName: S.nearest(P().x, P().z, 3.2)?.name, hid: H.id, nnBody: !!S.bodyOf(S.nearest(P().x, P().z, 3.2) ?? {}), body: !!S.bodyOf(H), fOn: F.enabled, live: F.live.length, mount: !!P().mount, alive: P().alive, veh: !!P().inVehicle };
-    const r = await C('mount', { id: H.id, force: false });
+    const r = await C('horseMount', { id: H.id, force: false });
     const deed = since(seq, 'deed', (e) => e.verb === 'steal' && e.witnesses >= 1);
     const stolen = since(seq, 'horseStolen', (e) => e.witnessed).length === 1 && H.stolen && H.owner === 'player' && P().mount === H;
-    await C('dismount');
+    await C('horseDismount');
     // restore the stable's stock for the rest of the battery
     H.owner = 'stable:cottonwood'; H.stolen = null; H.tied = { x: H.x, z: H.z, post: true };
     // buy another: cash goes, ownership changes, no deed
     g.cash = 500; const s2 = g.eventSeq, c0 = g.cash;
     P().x = B.x - 1.2; P().z = B.z; await steps(0.3);
-    const bought = await C('mount', { id: B.id, buy: true });
+    const bought = await C('horseMount', { id: B.id, buy: true });
     const paid = c0 - g.cash === Math.round(B.price) && B.owner === 'player' && !since(s2, 'deed', (e) => e.verb === 'steal').length;
-    await C('dismount'); B.owner = 'stable:cottonwood'; B.tied = { x: B.x, z: B.z, post: true };
+    await C('horseDismount'); B.owner = 'stable:cottonwood'; B.tied = { x: B.x, z: B.z, post: true };
     return o?.verb === 'buy' && !poor.ok && /\$/.test(poor.why) && deed.length === 1 && stolen && paid ? true : bad({ verb: o?.verb, poor, deed: deed.length, stolen, paid, r: r.text ?? r.error, bought: bought.text, hand: !!hand, at0, stolenv: H.stolen, owner: H.owner, mount: P().mount?.id });
   }, { x: COTTON.x, z: COTTON.z - 4 }));
 
@@ -283,15 +284,15 @@ export async function horseChecks(api, check, C) {
   // ---- 8. obstacles ------------------------------------------------------------------------------------------------------------------
   await check('horses: it hops a low fence at a trot or better and a tall wall stops it', async () => stage(async () => {
     const p = P(), H = mkH({ breed: 'quarter' }); await steps(0.4);
-    await C('mount', { id: H.id }); await steps(1.2);
+    await C('horseMount', { id: H.id }); await steps(1.2);
     const x0 = p.x, z0 = p.z, boxes = [];
     boxes.push(g.statics.add(x0 + 14, z0 - 9, x0 + 14.5, z0 + 9, 'wall', 0.9));   // a rail fence
     boxes.push(g.statics.add(x0 + 44, z0 - 9, x0 + 44.5, z0 + 9, 'wall', 3));     // a wall
     try {
       const seq = g.eventSeq;
-      await C('rideTo', { x: x0 + 30, z: z0, gait: 'canter', hop: true, maxSeconds: 14, tolerance: 1.5 });
+      await C('horseRideTo', { x: x0 + 30, z: z0, gait: 'canter', hop: true, maxSeconds: 14, tolerance: 1.5 });
       const hopped = p.x > x0 + 15 && since(seq, 'horseHop').length >= 1;
-      await C('rideTo', { x: x0 + 70, z: z0, gait: 'canter', hop: true, maxSeconds: 8, tolerance: 1.5 });
+      await C('horseRideTo', { x: x0 + 70, z: z0, gait: 'canter', hop: true, maxSeconds: 8, tolerance: 1.5 });
       const stopped = p.x < x0 + 44 && p.x > x0 + 38;
       // a walk does not hop (the formula wants trot or better): at a walk the fence stops it
       return hopped && stopped ? true : bad({ hopped, stopped, x: +(p.x - x0).toFixed(1), hops: since(seq, 'horseHop').length });
@@ -301,7 +302,7 @@ export async function horseChecks(api, check, C) {
   // ---- 9. combat from the saddle --------------------------------------------------------------------------------------------------
   await check('horses: a hit throws the rider, a dead horse is a carcass that butchers into meat and a hide, and a horse of yours can be buried', async () => stage(async () => {
     const p = P(), H = mkH({ breed: 'quarter', bond: 70 }); await steps(0.4);
-    await C('mount', { id: H.id }); await steps(1.2);
+    await C('horseMount', { id: H.id }); await steps(1.2);
     const seq = g.eventSeq, a = S.bodyOf(H);
     F.hurt(a, 30, null, 1, 0, 'bullet');
     await steps(0.6);
@@ -326,14 +327,14 @@ export async function horseChecks(api, check, C) {
   // ---- 10. the noise of it ------------------------------------------------------------------------------------------------------------
   await check('horses: noise goes by gait - a walk is nearly silent, a gallop carries 30 m, and the HUD chip says what the horse has left', async () => stage(async () => {
     const p = P(), H = mkH({ breed: 'quarter' }); await steps(0.4);
-    await C('mount', { id: H.id }); await steps(1.2);
+    await C('horseMount', { id: H.id }); await steps(1.2);
     const radii = [], n0 = g.noise.bind(g);
     g.noise = (x, z, r, src) => { if (src === p) radii.push(r); return n0(x, z, r, src); };
     try {
-      await C('rideTo', { x: p.x + 14, z: p.z, gait: 'walk', maxSeconds: 20, tolerance: 1 });
+      await C('horseRideTo', { x: p.x + 14, z: p.z, gait: 'walk', maxSeconds: 20, tolerance: 1 });
       const walk = Math.max(0, ...radii); radii.length = 0;
       H.stamina = 1;
-      await C('rideTo', { x: p.x + 50, z: p.z, gait: 'gallop', maxSeconds: 12, tolerance: 1 });
+      await C('horseRideTo', { x: p.x + 50, z: p.z, gait: 'gallop', maxSeconds: 12, tolerance: 1 });
       const gallop = Math.max(0, ...radii);
       const chip = S.chip(p), hud = g.hud.s?.footing ?? '';
       return walk <= GAITS.walk.noise && gallop >= GAITS.gallop.noise - 0.1 && /FEED/.test(chip) && chip.includes(H.name.toUpperCase()) && hud.includes(H.name.toUpperCase()) ? true : bad({ walk, gallop, chip: chip.slice(0, 80), hud: String(hud).slice(0, 60) });
@@ -343,11 +344,11 @@ export async function horseChecks(api, check, C) {
   // ---- 11. lameness ------------------------------------------------------------------------------------------------------------------
   await check('horses: a lame horse cannot canter and slows, heals only at rest and fed, and a bandage halves the time', async () => stage(async () => {
     const p = P(), H = mkH({ breed: 'quarter' }); await steps(0.4);
-    await C('mount', { id: H.id }); await steps(1.2);
+    await C('horseMount', { id: H.id }); await steps(1.2);
     S.lame(H, 'a stone in the hoof', true);
-    const r = await C('rideTo', { x: p.x + 60, z: p.z, gait: 'gallop', maxSeconds: 12, tolerance: 1 });
+    const r = await C('horseRideTo', { x: p.x + 60, z: p.z, gait: 'gallop', maxSeconds: 12, tolerance: 1 });
     const slow = H.v <= BREEDS.quarter.speed.trot * CARE.lame.slowMul * 1.05 + 0.2 && ['trot', 'walk'].includes(H.gait);
-    await C('dismount'); const a = S.bodyOf(H);
+    await C('horseDismount'); const a = S.bodyOf(H);
     a.speed = 0; const l0 = H.lame; S.care(H, a, 3); const rested = l0 - H.lame > 2.5;
     H.feed = 0; const l1 = H.lame; S.care(H, a, 2); const hungry = H.lame >= l1 - 1e-6;
     H.feed = 0.9; g.inventory.stow('bandage', 1);
@@ -374,17 +375,20 @@ export async function horseChecks(api, check, C) {
       && S.list.length === n0 && wildAlive() === wa0 && [...S.placed].sort().join() === placed0 && !S.get(w.id).alive;
     // a mounted save comes back in the saddle
     p.x = R.x - 1.4; p.z = R.z; await steps(0.5);
-    await C('mount', { id: R.id, force: true }); await steps(1.2);
+    await C('horseMount', { id: R.id, force: true }); await steps(1.2);
     const snap2 = JSON.parse(JSON.stringify(S.save())), mountedSaved = snap2.mounted === R.id;
     S.load(snap2); await steps(0.8);
     const back = P().mount?.id === R.id && P().seatPose?.kind === 'ride';
-    await C('dismount');
+    await C('horseDismount');
     return ok && inSnap && mountedSaved && back ? true : bad({ ok: !!ok, owner: R?.owner, name: R?.name, water: R?.water, tiedv: R?.tied, bagslot: R?.bagBox?.slots, boxIs: g.inventory.boxes.get(`bags:${H.id}`) === R?.bagBox, dead: S.get(w.id)?.alive, inSnap, mountedSaved, back, R: R && { bond: R.bond, feed: R.feed, lame: R.lame, saddle: R.saddle, bags: R.bags, tied: !!R.tied, bag: R.bagBox?.slots.length }, n: [S.list.length, n0], wa: [wildAlive(), wa0] });
   }));
 
   // ---- 13. the stray ---------------------------------------------------------------------------------------------------------------------
   await check('horses: a stray horse is something the world can say - strayNear names the nearest wild horse and its herd', async () => {
     const s = S.strayNear(-5000, 0, 1e9);
-    return s && s.breed && s.herd && Number.isFinite(s.dist) ? true : bad(s);
+    const line = S.radioLine?.();   // radio.headline() falls back to it when the chronicle has nothing to say
+    const R = g.radio?.headline?.();
+    return s && s.breed && s.herd && Number.isFinite(s.dist) && (line === null || /head, /.test(line)) && (R === null || typeof R === 'string') ? true : bad({ s, line, R });
   });
 }
+

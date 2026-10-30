@@ -85,8 +85,8 @@ export class Horses {
       this.rails.push(...rails);
       this.stables.set(s.id, { handDead: false });
       s.horses.forEach((hr, i) => {
-        const rail = rails[i % rails.length], H = this.mk(hr.breed, { x: rail.x, z: rail.z - 1.2, owner: `stable:${s.id}`, name: hr.name, bond: 20, saddle: i === 0, price: BREEDS[hr.breed].price });
-        H.tied = { x: rail.x, z: rail.z - 1.2, post: true }; H.hx = H.x; H.hz = H.z;
+        const rail = rails[i % rails.length], H = this.mk(hr.breed, { x: rail.x, z: rail.z - 1.8, owner: `stable:${s.id}`, name: hr.name, bond: 20, saddle: i === 0, price: BREEDS[hr.breed].price });
+        H.tied = { x: rail.x, z: rail.z - 1.8, post: true }; H.hx = H.x; H.hz = H.z;
       });
     }
   }
@@ -717,6 +717,15 @@ export class Horses {
     return b && { id: b.id, breed: b.breed, name: BREEDS[b.breed].name, herd: b.herd, x: r1(b.x), z: r1(b.z), dist: Math.round(bd) };
   }
 
+  // What the radio says when there is nothing else: loose horses near the road (data/horses.js HERDS name the place).
+  radioLine() {
+    const P = this.g.player, s = this.strayNear(P.x, P.z, 6000);
+    if (!s) return null;
+    const herd = HERDS.find((h) => h.id === s.herd), n = this.list.filter((h) => h.alive && h.owner === 'wild' && h.herd === s.herd).length;
+    const dir = Math.abs(s.x - P.x) > Math.abs(s.z - P.z) ? (s.x > P.x ? 'east' : 'west') : (s.z > P.z ? 'south' : 'north');
+    return `Travellers on the road say ${herd?.name ?? 'a herd'} is loose ${Math.round(s.dist / 100) / 10} km ${dir} of here: ${n} head, ${s.name.toLowerCase()}s, unbranded. Bring oats and a rope, and go slow.`;
+  }
+
   // ---- the shard and the save -------------------------------------------------------------------------------------------------------------------------------------------
   save() {
     for (const H of this.list) { const a = this.bodyOf(H); if (a) this.syncDown(H, a); }
@@ -797,8 +806,8 @@ class HorseRenderer {
     // rails: two posts and a bar each, graves: a mound and a marker
     for (const R of S.rails) {
       if (Math.abs(R.x - cam.x) > R2 || Math.abs(R.z - cam.z) > R2) continue;
-      this.box(R.x - 0.9, 0.55, R.z, 0.14, 1.1, 0.14, 0, 0, 0, '#5a432b'); this.box(R.x + 0.9, 0.55, R.z, 0.14, 1.1, 0.14, 0, 0, 0, '#5a432b');
-      this.box(R.x, 0.95, R.z, 2.1, 0.1, 0.1, 0, 0, 0, '#6e5236');
+      this.box(R.x - 1.15, 0.6, R.z, 0.2, 1.2, 0.2, 0, 0, 0, '#6a5034'); this.box(R.x + 1.15, 0.6, R.z, 0.2, 1.2, 0.2, 0, 0, 0, '#6a5034');
+      this.box(R.x, 1.0, R.z, 2.5, 0.14, 0.14, 0, 0, 0, '#a07a4c'); this.box(R.x, 0.62, R.z, 2.5, 0.1, 0.1, 0, 0, 0, '#8a6a42');
     }
     for (const G of S.graves) {
       if (Math.abs(G.x - cam.x) > R2 || Math.abs(G.z - cam.z) > R2) continue;
