@@ -238,7 +238,7 @@ export async function seasonChecks(api, check, C) {
       } finally { g.survival.setProfile(prof); A.pin = null; A.placeT = 0; A.pack = 0; A.fresh = 0; await C('setWeather', { key: 'CLEAR', instant: true }); }
     });
 
-    await check('seasons: the cold costs you (snow holds a track 2x as long, deep snow slows the walker, the road under packed snow gives half grip, the HUD line and the radio carry the season in words)', async () => {
+    await check('seasons: the cold costs you (snow holds a track 2x as long, deep snow slows a person on foot, the road under packed snow gives half grip, the HUD line and the radio carry the season in words)', async () => {
       const prof = g.survival.profileName;
       try {
         g.survival.setProfile('full');

@@ -59,7 +59,7 @@ length (`sky.sunRise`, `sky.dayLen`). Seattle midwinter is 9 h of day, midsummer
 **3.6 Hooks (the cold costs, the land yields).** Warmth worn (`WARM` rows; 5 winter pieces added to GEAR: wool coat, parka, knit cap,
 insulated boots, wool gloves) and a fire beside you add to what you *feel*; a coat in a desert noon is a cost. Foraging, fishing
 and snares multiply by season rows (and deep snow thins the forager again); prey migrates or sleeps (`FAUNA_SEASON`). Snow holds
-a track 2.4x as long; deep snow slows the walker to 0.88; the road gives `ROAD_GRIP` (wet .88, slush .7, packed .5, ice .34,
+a track 2.4x as long; deep snow slows a person on foot to 0.88; the road gives `ROAD_GRIP` (wet .88, slush .7, packed .5, ice .34,
 closed .3) through `seasons.grip` (read in systems/vehicles.js). Passes (Donner, Raton, Vail, Teton, Snoqualmie, Cumberland, the Mogollon Rim) close when
 their pack passes `at`. A counter's worth moves with scarcity (`PRICES`: fuel and warm clothes in winter, water in the heat).
 
