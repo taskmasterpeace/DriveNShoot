@@ -5,6 +5,7 @@ import { CARRY } from '../data/arms.js';
 import { MELEE_WEAPONS } from '../data/melee.js';
 import { LswBodies } from './lswbodies.js';
 import { actLegs, actUpper, actArms } from './actposes.js'; // TIMED ACTIONS: the pose a timed action holds (docs/design/WEB_TIMED_ACTIONS.md)
+import { moveRoot } from './moves.js'; // the moves' root frame (data/moves.js)
 
 // People: one articulated low-poly body for everyone, drawn by InstancedMeshes shared by all 160
 // characters (left+right limbs pack into one mesh; hat, gear, accessory and gun variants pack only
@@ -458,9 +459,10 @@ export class CharacterRenderer {
         _root.multiply(_t.makeTranslation(0, 0.16 + (ch.bedY ?? 0), 0)).multiply(_r.makeRotationX(-Math.PI / 2)).multiply(_t.makeTranslation(0, -0.95, 0));
         lying = true;
       } else if (ch.vaultY) _root.multiply(_t.makeTranslation(0, ch.vaultY, 0)); // over the sill
+      if (ch.mv) moveRoot(ch, _root, _t, _r); // a roll, a slide, a vault, a climb, a jump (systems/moves.js)
       if (ch.dive > 0) {
         const k = Math.min(1, ch.dive * 3);
-        _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
+        _root.multiply(_t.makeTranslation(0, 0.95 - 0.5 * k, 0)).multiply(_r.makeRotationX(1.35 * k)).multiply(_t.makeTranslation(0, -0.95, 0)); // flat out at hip height, about the hips (it pivoted about the feet and went under the ground)
       }
       if (ch.underwater) _root.multiply(_t.makeTranslation(0, -1.6, 0));
       else if (ch.swim) _root.multiply(_t.makeTranslation(0, -0.5 + (ch.waveY ?? 0), 0)).multiply(_r.makeRotationX(1.2)); // waveY: on the swell (systems/sealife.js scanPeople)
@@ -478,7 +480,7 @@ export class CharacterRenderer {
     // cycle in reverse instead of twisting the hips round.
     let legYaw = 0, dirSign = 1;
     const downed = ch.knockT > 0;
-    const moving = alive && !sp && !ch.swim && !ch.dive && !downed && !ch.vault && ch.speed > 0.4;
+    const moving = alive && !sp && !ch.swim && !ch.dive && !downed && !ch.vault && !ch.mv && ch.speed > 0.4;
     if (moving && ch._rx !== undefined) {
       const dx = ch.x - ch._rx, dz = ch.z - ch._rz;
       if (dx * dx + dz * dz > 1e-6) {
@@ -495,7 +497,7 @@ export class CharacterRenderer {
     const v = moving ? ch.speed : 0;
     const k = clamp01(v / 1.2), run = clamp01((v - 3.2) / 3.2);
     const prone = alive && !sp && !downed && !ch.swim && !ch.dive && ch.prone ? 1 : 0; // data/stance.js: flat on the belly, gun forward
-    const crouch = alive && !sp && !downed && !prone && (ch.crouch || ch.vault || ch.stoop) ? 1 : 0; // stoop: a cabin lower than you stand
+    const crouch = alive && !sp && !downed && !prone && (ch.crouch || ch.vault || ch.stoop || (ch.mv && ch.mv.kind !== 'hang')) ? 1 : 0; // stoop: a cabin lower than you stand
     const aim = alive && !!gm && ch.aiming && !ch.handsUp && !(infected) && !downed && !ch.vault;
     const limp = infected ? (ch.limp ?? (i % 5 < 2 ? (i % 2 ? 1 : -1) : 0)) : 0; // ~40% of the infected drag a leg
     const phase = ch.walk * dirSign;
@@ -618,6 +620,7 @@ export class CharacterRenderer {
     else if (ch.m?.guard) mode = 'guard';     // the guard up: forearms (or the weapon) in front of the face
     else if (infected) mode = 'infected';
     else if (ch.swim || ch.underwater) mode = 'swim';
+    else if (ch.mv?.arms) mode = ch.mv.arms; // hands up on a climb, on a ledge (systems/moves.js)
     else if (ch.dive > 0) mode = 'dive';
     else if (aim) mode = 'aim';
     else if (gm && gm.carry === 'low') mode = 'low';

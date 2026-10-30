@@ -36,6 +36,7 @@ import { waterCommands } from './water-api.js';
 import { waterChecks } from './water-selftest.js';
 import { sealifeCommands, sealifeChecks } from './sealife-api.js';
 import { decksStanceChecks } from './decks-stance-selftest.js';
+import { moveTowCommands, moveTowChecks } from './movetow-api.js'; // the moves, towing, the boats (WEB_MOVE_TOW.md)
 import { journeyCommands, journeyChecks } from './journeys-api.js'; // life insurance, the city picker, risky journeys (WEB_INSURANCE_JOURNEYS.md)
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
@@ -727,16 +728,18 @@ function buildCommands(api) {
       },
     },
     dive: {
-      group: 'player', desc: 'Dive-roll toward x,z (or facing): ~5m burst, most bullets miss mid-air, costs stamina.',
-      args: { x: { type: 'number' }, z: { type: 'number' } },
-      run: async ({ x, z }) => {
+      group: 'player', desc: 'Dive toward x,z (or facing): ~4 m flat out forward (systems/moves.js MOVES.dive), low through it (harder to hit because you are low, data/moves.js LOW_BODY - never untouchable), costs stamina. The key (SPACE) lands you PRONE; this command gets you back up after unless up=false. The other moves: the `move` command.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, up: { type: 'boolean', default: true } },
+      run: async ({ x, z, up }) => {
         const p = P();
         need(!p.inVehicle && p.alive, 'must be on foot');
-        need((p.stamina ?? 1) > 0.2, 'too winded to dive (stamina)');
+        need((p.stamina ?? 1) > 0.22, 'too winded to dive (stamina)');
         const x0 = p.x, z0 = p.z;
-        g.startDive(p, x !== undefined ? x - p.x : 0, z !== undefined ? z - p.z : 0);
-        await api._step(42);
-        return { moved: r1(Math.hypot(p.x - x0, p.z - z0)), x: r1(p.x), z: r1(p.z), stamina: r1(p.stamina) };
+        need(g.startDive(p, x !== undefined ? x - p.x : 0, z !== undefined ? z - p.z : 0), 'cannot dive now');
+        for (let i = 0; i < 90 && (p.mv || p.vault); i++) await api._step(1);
+        const prone = !!p.prone;
+        if (up && p.prone) { g.stance.setProne(p, false); p.proneT = 0; }
+        return { moved: r1(Math.hypot(p.x - x0, p.z - z0)), x: r1(p.x), z: r1(p.z), stamina: r1(p.stamina), landed: prone ? 'prone' : 'feet', prone: !!p.prone };
       },
     },
     crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
@@ -2072,6 +2075,7 @@ function buildCommands(api) {
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
     ...semisCommands(api, need), // semi (WEB_SEMIS.md)
+    ...moveTowCommands(api, need), // move, tow (WEB_MOVE_TOW.md)
     ...sitesCommands(api, need), // sites (WEB_SITES_TERRAIN.md)
     ...roadscapeCommands(api, need), // roadscape (WEB_ROADSCAPE.md)
     ...pullsCommands(api, need), // pulls (WEB_PULLS.md)
@@ -3376,6 +3380,7 @@ async function runSelfTest(api, only = null, skip = null) {
   }));
   await decksStanceChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // boats, the aisle, roofs, prone, footing, the turret seat (src/agent/decks-stance-selftest.js)
   await semisChecks(api, check, C, { hush, person, wvClean, wvReady, crewed, hk, tk, WV }); // tractor-trailers: hitch, reverse, jackknife, a car into a moving semi, the RV, the road rules (src/agent/semis-selftest.js)
+  await moveTowChecks(api, check, C, { hush, wvClean, wvReady, hk, tk, WV }); // dive to prone, vault, roll, slide, drop-hang, tow, snap, winch, launch, the boats' budget (src/agent/movetow-api.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };

@@ -101,6 +101,8 @@ const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
 import { Stance } from './systems/stance.js';
+import { Moves } from './systems/moves.js'; // dive to prone, roll, slide, vault, climb, jump, drop-hang (data/moves.js, WEB_MOVE_TOW.md)
+import { Towing } from './systems/towing.js'; // ropes, chains, the winch, the wrecker's boom, the boat trailer, the mud (data/towing.js, WEB_MOVE_TOW.md)
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Gadgets } from './systems/gadgets.js';
 import { Rites } from './systems/rites.js';
@@ -218,10 +220,12 @@ class Game {
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
+    this.moves = new Moves(this); // SPACE reads the ground ahead: vault, climb, jump, roll, dive to prone, drop-hang (systems/moves.js)
     this.throwables = new Throwables(this);
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
+    this.towing = new Towing(this); // tow lines between vehicles, the winch, bogged cars, the boat trailer (systems/towing.js)
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.workshop = new Workshop(this); // THE WORKSHOP: six faces, mounts with arcs, the counter (data/workshop.js, WEB_WORKSHOP.md)
@@ -858,6 +862,7 @@ class Game {
         this.hud.prompt('<kbd>G</kbd> Jump onto the train');
         if (I.hit('KeyG')) { this.exitVehicle(true); this.train.board(p); this.hud.prompt(null); return; }
       }
+      this.towing.driveInput(p, v, I, dt); // G at the wheel: hitch / drop a tow line, launch or haul a boat; hold G: the winch (systems/towing.js)
       if (I.hit('KeyF') || I.hit('Enter')) { if (!this.travel.cord()) this.exitVehicle(); return; } // aboard a moving coach (or a lift): pull the cord (systems/travel.js)
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
@@ -898,6 +903,7 @@ class Game {
     if (p.knockT > 0) { p.knockT -= dt; p.speed = 0; p.aiming = false; p.dive = 0; this.hud.prompt(null); return; }
     if (p.vault) { this.interiors.stepVault(p, dt * this.arms.vaultMul()); this.hud.prompt(null); return; } // free hands climb faster
     if (this.actions.busyBody(p, I, dt)) return; // on a ladder, or ducking under a roll-up: no walking, no gun (systems/actions.js)
+    if (p.mv) { const dv = p.mv.kind === 'dive'; this.hud.prompt(null); if (this.moves.step(p, dt)) { if (dv) this.handleShooting(dt, p.face); return; } if (p.vault) return; } // committed to a move (systems/moves.js): a dive still shoots
     let mx = 0, mz = 0;
     if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
@@ -915,22 +921,10 @@ class Game {
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
     p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul * this.arms.sprintDrain() : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
-    // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
+    // SPACE reads the ground ahead (systems/moves.js): vault, climb, jump, roll when crouched, else a dive that lands you prone.
     if (I.hit('Space') && p.prone) this.stance.setProne(p, false); // Space from prone: up, not a dive
-    else if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); this.startDive(p, w.x, w.z); }
-    p.diveCool = (p.diveCool ?? 0) - dt;
-    if (p.dive > 0) {
-      p.dive -= dt;
-      const f = p.dive > 0.25 ? 9.5 : 3; // flight, then belly slide
-      const t = { x: p.x + p.diveDx * f * dt, z: p.z + p.diveDz * f * dt };
-      this.statics.resolveBody(t, p.radius, p); // a dive shoulders doors open and goes through windows
-      p.x = t.x; p.z = t.z; p.speed = 0;
-      this.standOn(p);
-      if (p.vault) return; // dove into a window: through it
-      if (p.dive <= 0) { this.emit('dived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); this.fx.dust(p.x, p.z, 3); }
-      this.handleShooting(dt, p.face);
-      return;
-    }
+    else if (I.hit('Space')) { const w = this.cam.toWorld(mx0(I) + pm.x, mz0(I) + pm.z); if (this.moves.verb(p, w.x, w.z, sprint)) return; } // vault / climb / jump / roll / dive to prone (systems/moves.js)
+    else if ((I.hit('ControlLeft') || I.hit('ControlRight')) && (I.key('ShiftLeft') || I.key('ShiftRight')) && (mx || mz) && this.moves.slide(p, mx, mz)) return; // CTRL at a sprint: the slide
     // Water: wade slow, swim slower (no shooting), Ctrl dives under on a breath meter.
     const wet = this.water.stateAt(p.x, p.z, p.gy); // gy: up on a river's bridge deck you are dry (world/rivers.js)
     p.swim = wet === 'swim';
@@ -1033,7 +1027,7 @@ class Game {
     }
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
+      if (veh.dead || veh.trailer || veh.carriedBy || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
@@ -1108,13 +1102,10 @@ class Game {
     } else this.throwables.showArc(null);
   }
 
+  // The dive (systems/moves.js MOVES.dive): flat out forward, landing prone. Returns false when it can't start.
   startDive(c, dx, dz) {
     if (!dx && !dz) { dx = Math.sin(c.face); dz = Math.cos(c.face); }
-    const l = Math.hypot(dx, dz) || 1;
-    c.diveDx = dx / l; c.diveDz = dz / l;
-    c.dive = 0.65; c.diveCool = 0.9;
-    c.stamina = Math.max(0, (c.stamina ?? 1) - 0.25);
-    this.audio.throwWhoosh?.(0);
+    return this.moves.start(c, 'dive', dx, dz);
   }
 
   switchWeapon(k) {
@@ -1288,7 +1279,7 @@ class Game {
           <div><b>E</b>talk / kick doors / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
           <div><b>E</b>at a window: smash · climb</div><div><b>hold E</b>board a broken window</div><div><b>SHIFT</b>into a door: bash it open</div>
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
-          <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
+          <div><b>SPACE</b>dive / vault / handbrake</div><div><b>CTRL</b>crouch / slide / dive under</div><div><b>H</b>harpoon / yank</div>
           <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom out (Shift: in)</div>
           <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
           <div><b>H</b>gun up/down · hold: holster</div><div><b>J</b>one / two hands</div><div><b>RMB</b>melee · hold: kick</div>
