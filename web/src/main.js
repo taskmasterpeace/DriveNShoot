@@ -70,6 +70,7 @@ import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
 import { UnderStreet } from './systems/understreet.js'; // UNDER THE STREET: storm drains under every town (docs/design/WEB_UNDERSTREET.md)
+import { FanNods } from './systems/fannods.js'; // the found things: the glass room's hum, the counter, the meal, the burning rain, the convoy, the bones (docs/design/WEB_FAN_NODS.md)
 import { Milbases } from './systems/milbases.js'; // the military bases' garrisons, hordes and sealed doors (docs/design/WEB_MILITARY_BASES.md)
 import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
 import { Wrecks } from './systems/wrecks.js';
@@ -286,6 +287,7 @@ class Game {
     this.airwaves = new Airwaves(this); this.farsound = new FarSound(this); this.feed = new Feed(this); this.marks = new Marks(this); this.campfire = new Campfire(this); // the world's voice (WEB_WORLD_VOICE.md)
     this.feedUI = new RadioFeedUI(this, ui); // the radio feed's lines on the HUD (ui/radiofeed.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
+    this.fannods = new FanNods(this); // the found things (systems/fannods.js; after the semis, the trade and the tables it adds rows to)
     this.casinos = new Casinos(this); this.tablePanel = new TablePanel(this, ui); // gaming rooms in the towns near you, and the table you sit at (systems/casinos.js, ui/tablepanel.js)
     this.insideBuilding = null;
     this.paused = true;
@@ -1380,6 +1382,7 @@ class Game {
     this.updateInterior();
     this.updateCamera(dt);
     this.milbases.update(simDt); // the bases' gate rule, the horde's moans (systems/milbases.js)
+    this.fannods.update(simDt); // the found things: the hum, the counter's ticks, the meal, the burning rain, the convoy, the ditch's bones
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
     this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power

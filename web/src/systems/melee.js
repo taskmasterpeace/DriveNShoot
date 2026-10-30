@@ -1,4 +1,5 @@
 import { MELEE as M } from '../data/arms.js';
+import { FN_MELEE_CARRY } from '../data/fannods.js';
 
 // Melee that saves rounds (docs/design/WEB_CONTROLLER.md §3.6). The player's hands, boots and whatever they hold:
 // tap (RMB / pad R3) strikes with what is in your hand - fists, the gun's butt when it is up, a knife you carry when it is
@@ -28,8 +29,18 @@ export class Melee {
   strikeKind() {
     const g = this.g, A = g.arms;
     if (A?.stance === 'raised' && g.player.weapon) return 'butt';
+    const held = this.carried(); if (held) return held.tap; // the found blades (data/fannods.js)
     if (g.inventory?.carried?.count?.('knife') > 0) return 'knife';
     return 'fists';
+  }
+
+  // A carried blade of the found things (data/fannods.js FN_MELEE_CARRY), first match; its held strike replaces the kick
+  // (the cane's blade comes out of the shaft). Not while a gun is up: then it is the butt and the kick as ever.
+  carried() {
+    const inv = this.g.inventory?.carried;
+    if (!inv || (this.g.arms?.stance === 'raised' && this.g.player.weapon)) return null;
+    for (const r of FN_MELEE_CARRY) if (inv.count?.(r.item) > 0) return r;
+    return null;
   }
 
   update(dt) {
@@ -42,7 +53,7 @@ export class Melee {
       this.ready = true;
     }
     if (this.ready) {
-      if (C.held('melee') && C.heldFor('melee') >= M.heavyAt) { this.ready = false; this.swing('kick'); }
+      if (C.held('melee') && C.heldFor('melee') >= M.heavyAt) { this.ready = false; this.swing(this.carried()?.heavy ?? 'kick'); }
       else if (!C.held('melee')) { this.ready = false; this.swing(this.strikeKind()); }
     }
   }

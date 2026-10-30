@@ -502,8 +502,8 @@ export class Semis {
   // ---- the freight: hauler crews on the interstate --------------------------------------------------------------------
   get W() { return this.g.streamer?.W ?? null; }
   outside(x, z) { return Math.abs(x) > 464 || Math.abs(z) > 464; }
-  lanePoint(s, dir) {
-    const W = this.W, f = W.at(s), sec = W.section(s), u = dir * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
+  lanePoint(s, dir, pull = 0) { // pull: m further out from the lane's middle (a run pulled onto the shoulder: systems/fannods.js)
+    const W = this.W, f = W.at(s), sec = W.section(s), u = dir * (sec.lane0 + (sec.lane1 - sec.lane0) / 2 + pull);
     return { x: f.x + f.nx * u, z: f.z + f.nz * u, h: Math.atan2(f.tx * dir, f.tz * dir) };
   }
   // A freight run of `kind` (FREIGHT.rigs): out on the corridor it rolls in along I-10 from `back` m behind you (near: from
@@ -524,7 +524,7 @@ export class Semis {
       else { x = (near ? px + dir * start : -dir * 380) - dir * r.gap; z = F.lane; h = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
       let v;
       if (r.role === 'rig') {
-        const rig = this.spawnRig(r.trailer, x, z, h, r.paint, { ai: 'semi' });
+        const rig = this.spawnRig(r.trailer, x, z, h, r.paint, { ai: 'semi', trailerPaint: r.trailerPaint });
         v = rig.K;
         for (const t of r.cargo ?? []) { const C = g.vehiclesSys.spawn(t, rig.T.x, rig.T.z, h, '#5a5248'); const ok = this.load(C, rig.T); if (!ok.ok) g.vehiclesSys.remove(C); }
       } else v = g.vehiclesSys.spawn(r.type, x, z, h, r.paint, { ai: 'semi' });
@@ -574,9 +574,10 @@ export class Semis {
     const W = this.W;
     if (W && (this.outside(v.x, v.z) || this.outside(lead.x, lead.z))) {
       const sv = W.project(v.x, v.z, 400).s, ls = W.project(lead.x, lead.z, 400).s;
-      const q = this.lanePoint(sv + dir * (12 + v.len), dir);
+      const q = this.lanePoint(sv + dir * (12 + v.len), dir, F.pull ?? 0);
       tx = q.x; tz = q.z;
       if (lead !== v) want = F.cruise + clamp(((ls - dir * m.gap) - sv) * dir * 0.6, -6, 6);
+      if (F.halt) want = lead === v ? 0 : Math.max(0, Math.min(want, ((ls - dir * m.gap) - sv) * dir * 0.5)); // pulled over: the lead stops, the rest close up behind it
     } else {
       tx = v.x + dir * (14 + v.len); tz = F.lane;
       if (lead !== v) want = F.cruise + clamp(((lead.x - dir * m.gap) - v.x) * dir * 0.6, -6, 6);

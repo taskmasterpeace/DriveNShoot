@@ -221,6 +221,7 @@ export class Inventory {
     if (verb === 'gadget' || verb === 'drone' || verb === 'barricade' || verb === 'wedge' || verb === 'keys') return g.gadgets?.useItem(verb, s.id) ?? { ok: false, why: 'not here' }; // set, thrown or flown (systems/gadgets.js)
     if (verb === 'kit' || verb === 'doggear') return g.kit?.useItem(verb, s.id) ?? { ok: false, why: 'not here' }; // switched on and off, or put on your dog (systems/kit.js)
     if (verb === 'sleep') return g.survival?.sleepAt('bedroll') ?? { ok: false, why: 'not now' }; // where you stand
+    if (verb === 'heatmeal') return g.fannods?.heatMeal(P) ?? { ok: false, why: 'not now' }; // the self-heating meal's tab (systems/fannods.js)
     if (verb === 'snare') return g.fauna?.setSnare() ?? { ok: false, why: 'not here' }; // a snare a stride ahead (systems/fauna.js)
     if (verb === 'flare') { // struck and put down: a small fire at your feet for a minute (dogs keep off it, systems/dogs.js)
       if (!g.throwables || P.inVehicle) return { ok: false, why: 'not from in here' };
@@ -555,6 +556,7 @@ export class Inventory {
     const T = LOOT[box.kind];
     if (!T) return;
     const rng = makeRng(box.seed);
+    if (T.all) { for (const [id, , lo, hi] of T.rows) { const it = ITEMS[id]; this.add(box, id, lo + Math.floor(rng() * (hi - lo + 1)), it.kind === 'gun' ? { cond: +(0.7 + rng() * 0.25).toFixed(3), loaded: 0 } : {}); } return; } // a set piece: every row, once (data/fannods.js)
     const n = T.rolls[0] + Math.floor(rng() * (T.rolls[1] - T.rolls[0] + 1)) + extra;
     const total = T.none + T.rows.reduce((a, r) => a + r[1], 0);
     for (let k = 0; k < n; k++) {

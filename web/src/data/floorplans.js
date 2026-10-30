@@ -1,3 +1,4 @@
+import { FN_CASE_RARE } from './fannods.js';
 // FLOOR PLANS as rows (docs/design/WEB_FLOORPLANS.md): what rooms a ring building has, at what sizes, and what stands in
 // them. world/floorplan.js turns a footprint + a kind into typed rooms and partition walls from these rows; world/ring.js
 // builds the walls, doors, windows and furniture. Change a row here, not the code. No purple (hue 270-320 is banned).
@@ -62,12 +63,12 @@ export const ROOMS = {
     furniture: [['extable', 1, 1], ['vanity', 1, 1], ['medcab', 1, 1], ['cabinet', 0, 1]] },
   pharmacy: { name: 'PHARMACY', min: 2.6, max: 4.4, grow: 0.9, via: ['waiting', 'corridor'], floor: '#c4bca6', loot: 'bathroom', stay: true,
     furniture: [['shelf', 2, 4], ['medcab', 0, 1]] },
-  study: { name: 'OFFICE', min: 2.6, max: 4.4, grow: 0.5, via: ['corridor', 'waiting', 'lobby', 'sales', 'offices', 'backroom'], back: 5, floor: '#7a786e', loot: 'office', stay: true,
+  study: { name: 'OFFICE', min: 2.6, max: 4.4, grow: 0.5, via: ['corridor', 'waiting', 'lobby', 'sales', 'offices', 'backroom'], back: 5, floor: '#7a786e', loot: 'office', stay: true, rare: [['glasscase', FN_CASE_RARE.study]],
     furniture: [['desk', 1, 1], ['cabinet', 0, 1], ['shelf', 0, 1]] },
   wc: { name: 'RESTROOM', min: 2.4, max: 2.8, grow: 0.2, via: ['corridor', 'waiting', 'barroom', 'lobby', 'sales', 'offices', 'backroom', 'study'], floor: '#bdbdb4', loot: 'bathroom',
     furniture: [['toilet', 1, 1], ['vanity', 1, 1]] },
   // Rust Haven's working front rooms (the shopkeeper's counter faces the door).
-  gunshop: { name: 'GUN SHOP', min: 5.0, grow: 3, entry: true, back: 4, floor: '#8a7660', stay: true,
+  gunshop: { name: 'GUN SHOP', min: 5.0, grow: 3, entry: true, back: 4, floor: '#8a7660', stay: true, rare: [['glasscase', FN_CASE_RARE.gunshop]], // rare: [piece, chance] by a hash of the room (world/ring.js)
     furniture: [['counter', 1, 1], ['gunrack', 2, 4], ['workbench', 1, 1], ['shelf', 1, 2], ['crate', 1, 2]] },
   garage: { name: 'GARAGE', min: 5.0, grow: 3, entry: true, back: 3, floor: '#8e8a80', stay: true,
     furniture: [['workbench', 1, 2], ['tyres', 2, 4], ['rack', 1, 2], ['crate', 1, 3], ['shelf', 0, 1]] },

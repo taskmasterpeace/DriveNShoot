@@ -102,6 +102,7 @@ export const MATERIAL_RULES = {
     // flanks, the lift's gate, the collar round an open hatch, a pool's lip
     'ug-wall': 'concrete', 'ug-rock': 'rock', 'ug-rubble': 'rock', 'ug-flank': 'concrete', 'ug-endblock': 'concrete', 'ug-rail': 'steel',
     'ug-gate': 'steel', 'ug-collar': 'concrete', 'ug-water': 'rock', 'ug-door': 'steel',
+    'ug-glass': 'steel', // the glass room's chamber (data/fannods.js): panels a hand thick, a round glances off
     // THE ROADSIDE (world/roadside.js): a pylon's lattice, a hulk, a silo, a billboard's legs, a canal's lining, the dam,
     // a substation's chain-link.
     pylon: 'steel', hulk: 'carbody', silo: 'sheet_metal', billboard: 'wood', canal: 'concrete', dam: 'concrete', wirefence: 'chainlink',

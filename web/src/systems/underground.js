@@ -7,6 +7,7 @@ import { WEAPONS } from './combat.js';
 import { outfit } from './characters.js';
 import { randomName } from '../data/npcs.js';
 import { UG, LIGHT, LIFT, GENERATOR, NOISE, COLLAPSE, BLAST, HOLDOUT, LOGS, KINDS, PROJECTS, UG_LOOT, LOCAL_SITES, underSites } from '../data/underground.js';
+import { hexPanels } from '../data/fannods.js';
 import { planSite, genLevel, flightHeight, siteCodes, ROCK, OPEN, POOL, STAIR, HOLE, SHAFT } from '../world/undergen.js';
 import { makeMaterials, buildLevel, buildEntrance, buildPlatform, buildEyes, buildDrones } from './underlook.js';
 
@@ -283,7 +284,8 @@ export class Underground {
     for (const id of A.rec.collapsed) { const C = L.collapses.find((c) => c.id === id); if (C) P.boxes.push(U.addBox(C.x - C.r, C.z - C.r, C.x + C.r, C.z + C.r, 'ug-rubble', y, y + UG.wallH)); }
     if (L.gate) { P.gate = U.addBox(L.gate.x0, L.gate.z0, L.gate.x1, L.gate.z1, 'ug-gate', y, y + LIFT.gateH); }
     // Furniture is solid (cover).
-    for (const p of L.props) if (p.kind !== 'rock' || p.h > 0.5) P.boxes.push(U.addBox(p.x0, p.z0, p.x1, p.z1, PROP_TAG[p.kind] ?? p.kind, y, y + p.h)); // tagged as what it is (data/materials.js reads the tag)
+    for (const p of L.props) if (p.kind === 'glasshex') { for (const pn of hexPanels((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)) for (const b of pn.boxes) P.boxes.push(U.addBox(b.x0, b.z0, b.x1, b.z1, 'ug-glass', y, y + p.h)); } // the glass room's chamber: a collider a panel, its door side open (data/fannods.js)
+    else if (p.kind !== 'rock' || p.h > 0.5) P.boxes.push(U.addBox(p.x0, p.z0, p.x1, p.z1, PROP_TAG[p.kind] ?? p.kind, y, y + p.h)); // tagged as what it is (data/materials.js reads the tag)
     // Doors: leaves from the interiors pool, their ops in the UnderWorld at this level's heights.
     for (const d of L.doors) {
       const saved = lr.doors[d.id];
@@ -739,6 +741,7 @@ export class Underground {
         else if (it.kind === 'gen') c.set(on ? '#5cff6a' : A.rec.fuel > 0 ? '#ffb020' : '#ff3a22');
         else if (it.kind === 'lift') c.set(on ? '#ffd040' : LIGHT.stripOff);
         else if (it.kind === 'screen') c.set(on ? '#7ad8b0' : LIGHT.stripOff);
+        else if (it.kind === 'deadpad') c.set(LIGHT.stripOff); // the glass room's keypad: no power reaches it (data/fannods.js)
         else c.set(on ? LIGHT.strip : LIGHT.stripOff);
         S.setColorAt(i, c);
       });

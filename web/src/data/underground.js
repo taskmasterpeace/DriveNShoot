@@ -174,6 +174,9 @@ export const ROOMS = {
   ward: { label: 'WARD', w: [7, 10], d: [6, 8], floor: '#6c6e68', props: [['cot', 6], ['cabinet', 1]], loot: 'ug_med', door: 'metal', locked: 0.2, beds: true },
   cold: { label: 'COLD ROOM', w: [6, 9], d: [5, 7], floor: '#5d6a6c', props: [['shelf', 4], ['crate', 2]], loot: 'ug_seeds', door: 'metal', locked: 0.6, keypad: 'cold' },
   chamber: { label: 'TEST CHAMBER', w: [6, 9], d: [6, 8], floor: '#4f5554', props: [['console', 2], ['pylon', 1, 'mid']], loot: 'ug_lab', door: 'metal', locked: 0.3 },
+  // A few sealed bases' deepest room (data/fannods.js GLASS_ROOMS): the six-sided glass chamber in its middle, a cold
+  // console against a wall. No loot, no log: it is only there.
+  glassroom: { label: 'GLASS ROOM', w: [9, 11], d: [9, 11], floor: '#4b4a45', props: [['glasshex', 1, 'mid'], ['deadconsole', 1]], loot: null, door: 'metal', locked: 0 },
 };
 // The generator's own extras (never in a programme): the corridor and the hall a downward flight stands in.
 export const SPACES = {
@@ -206,6 +209,10 @@ export const PROPS = {
   pump: { size: [1.6, 1.2], h: 1.3, color: '#5e6a5a' },
   pylon: { size: [1.2, 1.2], h: 2.2, color: '#6a6e60', screen: true },
   generator: { size: [2.6, 1.4], h: 1.6, color: '#7a6a3a' },
+  // The glass room's (data/fannods.js): a six-sided chamber of tinted panels (hex: its own colliders, one per panel, the
+  // door side open; systems/underlook.js draws it) and a console that never lights.
+  glasshex: { size: [5.2, 5.2], h: 2.45, color: '#3a3832', hex: true },
+  deadconsole: { size: [2.0, 0.7], h: 1.1, color: '#45483f' },
 };
 
 // ---- the secret facilities' projects (our own inventions) --------------------------------------------------------------

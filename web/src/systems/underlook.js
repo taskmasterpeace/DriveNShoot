@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { radialGlow } from '../world/textures.js';
 import { UG, LIGHT, LIFT, ENTRANCES, PROPS } from '../data/underground.js';
+import { GLASS_ROOMS, GLASS_BY_BASE, GLASS_CHAMBER, CALENDAR, hexPanels } from '../data/fannods.js';
 import { ROCK, OPEN, POOL, DEEP, mergeRects } from '../world/undergen.js';
 
 // How the underground looks (systems/underground.js builds a promoted level's meshes here, and a surface entrance's).
@@ -12,6 +13,26 @@ import { ROCK, OPEN, POOL, DEEP, mergeRects } from '../world/undergen.js';
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const PLANE = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const WALLPLANE = new THREE.PlaneGeometry(1, 1); // upright, facing +z (a calendar on a wall)
+// The frozen calendar's page (data/fannods.js CALENDAR): drawn once. A red band with the month, the week's initials, the
+// month's grid of days; no year anywhere. Paper gone the colour of weak tea.
+function calendarPage() {
+  if (typeof document === 'undefined') return null;
+  const C = CALENDAR, cv = document.createElement('canvas'); cv.width = 128; cv.height = 184;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#d9cfae'; x.fillRect(0, 0, 128, 184);
+  x.fillStyle = '#5a5246'; x.fillRect(0, 0, 128, 70);             // the picture: a dark ridge under a pale sky
+  x.fillStyle = '#9aa29a'; x.fillRect(0, 0, 128, 40);
+  x.fillStyle = '#4a4438'; x.beginPath(); x.moveTo(0, 70); x.lineTo(30, 38); x.lineTo(52, 54); x.lineTo(84, 30); x.lineTo(128, 62); x.lineTo(128, 70); x.fill();
+  x.fillStyle = '#9a3a2a'; x.fillRect(0, 72, 128, 20);
+  x.fillStyle = '#efe6cc'; x.font = 'bold 14px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(C.month, 64, 83);
+  x.fillStyle = '#3a342a'; x.font = '9px sans-serif';
+  'SMTWTFS'.split('').forEach((d, i) => x.fillText(d, 10 + i * 18, 99));
+  for (let n = 1; n <= C.days; n++) { const k = n - 1 + C.firstDay; x.fillText(String(n), 10 + (k % 7) * 18, 112 + Math.floor(k / 7) * 15); }
+  x.strokeStyle = 'rgba(80, 60, 30, 0.35)'; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(0, 105 + i * 15); x.lineTo(128, 105 + i * 15); x.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
 const hash = (x, z, k = 0) => { const s = Math.sin(x * 12.9898 + z * 78.233 + k * 37.719) * 43758.5453; return s - Math.floor(s); };
 // A lump of rock (a cave's wall, a boulder): a low-poly ball pushed about, flat-shaded; scaled per instance.
 const ROCKG = (() => { const g = new THREE.IcosahedronGeometry(0.62, 1), P = g.attributes.position; for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i), k = 0.82 + 0.3 * hash(x * 3.1, z * 2.7, y * 5.3); P.setXYZ(i, x * k, y * k, z * k); } g.computeVertexNormals(); return g; })();
@@ -26,6 +47,8 @@ export function makeMaterials() {
     glow: new THREE.MeshBasicMaterial({ map: radialGlow(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
     black: new THREE.MeshBasicMaterial({ color: '#000000', fog: false }),
     water: new THREE.MeshStandardMaterial({ roughness: 0.12, metalness: 0.35, color: '#ffffff' }),
+    glass: new THREE.MeshStandardMaterial({ roughness: 0.12, metalness: 0.35, transparent: true, opacity: GLASS_CHAMBER.opacity, depthWrite: false }), // the glass room's chamber (data/fannods.js)
+    calendar: new THREE.MeshStandardMaterial({ map: calendarPage(), roughness: 0.9 }), // a frozen calendar's page (data/fannods.js CALENDAR)
   };
 }
 
@@ -49,7 +72,7 @@ const span = (x0, z0, x1, z1, y0, y1, col) => [(x0 + x1) / 2, (y0 + y1) / 2, (z0
 // Returns { group, strips, stripItems, glows, glowItems } (strips and glows are repainted when the power changes).
 export function buildLevel(L, plan, site, rec, lr, M) {
   const y = L.y, wallH = UG.wallH, built = !!L.walls, W = L.W, H = L.H;
-  const walls = [], lumps = [], fill = [], floors = [], water = [], props = [], strips = [], stripItems = [], glows = [], glowItems = [];
+  const walls = [], lumps = [], fill = [], floors = [], water = [], glass = [], props = [], strips = [], stripItems = [], glows = [], glowItems = [];
   // The solid rock between the passages: black, a metre up (it stops your light where a wall would).
   // In a cave, black a metre up; in a built level, the solid mass between the rooms level with the wall tops, dark.
   const fh = built ? wallH : 1.2, fc = L.fillColor ?? (built ? '#5a564d' : '#000000'); // a town's drains: the earth between the pipes (data/understreet.js SEWER.fill)
@@ -88,6 +111,7 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   // Props: furniture and fittings.
   for (const p of L.props) {
     const P = PROPS[p.kind], h = p.h, x0 = p.x0, z0 = p.z0, x1 = p.x1, z1 = p.z1;
+    if (p.kind === 'glasshex') { glassChamber(p, y, site, props, floors, glass, strips, stripItems); continue; } // the glass room (data/fannods.js)
     if (p.kind === 'rock') { const k = hash(x0, z0, 5); lumps.push([(x0 + x1) / 2, y + h * 0.4, (z0 + z1) / 2, (x1 - x0) * 1.3, h * 1.1, (z1 - z0) * 1.3, k < 0.5 ? '#5d4a3a' : '#6b5644', k * 6.28]); continue; } // fallen rock
     if (p.kind === 'bunk' || p.kind === 'cot') {
       props.push(span(x0, z0, x1, z1, y + 0.3, y + 0.42, '#4a4f3e'));                              // the frame
@@ -183,10 +207,38 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   add(batch(floors, M.floor, BOX, { receive: true }));
   add(batch(water, M.water, BOX));
   add(batch(props, M.props, BOX, { receive: true }));
+  add(batch(glass, M.glass, BOX, { order: 1 })); // the glass room's panels: one more draw call, on that one level only
+  add(batch((L.calendars ?? []).map((c) => [c.x, y + CALENDAR.y, c.z, CALENDAR.w, CALENDAR.h, 1, '#ffffff', c.rot]), M.calendar, WALLPLANE)); // frozen calendars: one draw call on a level that has any
   const sm = add(batch(strips, M.strip, BOX));
   const gm = add(batch(glows, M.glow, PLANE, { order: 2 }));
   group.visible = false;
   return { group, strips: sm, stripItems, stripBase: strips.map((s) => s[6]), glows: gm, glowItems, glowBase: glows.map((g) => g[6]) };
+}
+
+// The glass room's chamber (data/fannods.js GLASS_ROOMS): six tinted panels a hand thick on a steel sill and under a steel
+// head, a post at every corner, the door side's glass leaf standing open on its hinge, a dead keypad on the post beside it,
+// and the floor inside burnt black in a ring. The tint is the base's row's.
+function glassChamber(p, y, site, props, floors, glass, strips, stripItems) {
+  const C = GLASS_CHAMBER, tint = GLASS_BY_BASE.get(site.base)?.tint ?? GLASS_ROOMS[0].tint, cx = (p.x0 + p.x1) / 2, cz = (p.z0 + p.z1) / 2;
+  const panels = hexPanels(cx, cz), steel = '#55574f';
+  for (const pn of panels) {
+    for (const [ex, ez] of pn.ends) props.push([ex, y + C.h / 2, ez, 0.2, C.h, 0.2, steel]);              // the corner posts
+    props.push([pn.x, y + C.h - 0.06, pn.z, pn.len, 0.12, C.thick + 0.06, steel, pn.rot]);              // the head
+    if (pn.door) {
+      const [hx, hz] = pn.ends[0], a = pn.rot + 1.25, L = pn.len - 0.2;                                   // the leaf, swung out
+      glass.push([hx + (Math.cos(a) * L) / 2, y + (C.h - 0.2) / 2, hz - (Math.sin(a) * L) / 2, L, C.h - 0.2, C.thick * 0.6, tint, a]);
+      const [kx, kz] = pn.ends[1];
+      props.push([kx + 0.22, y + 1.3, kz - 0.22, 0.2, 0.3, 0.12, '#3a3c36', pn.rot]);                     // the keypad (dead: its lamp never lit)
+      strips.push([kx + 0.22, y + 1.47, kz - 0.22, 0.12, 0.03, 0.08, LIGHT.stripOff, pn.rot]); stripItems.push({ kind: 'deadpad' });
+      continue;
+    }
+    props.push([pn.x, y + 0.06, pn.z, pn.len, 0.12, C.thick + 0.06, steel, pn.rot]);                     // the sill
+    glass.push([pn.x, y + C.h / 2, pn.z, pn.len - 0.2, C.h - 0.24, C.thick, tint, pn.rot]);              // the panel
+  }
+  // the scorch: a ring of overlapping dark plates, blacker at the middle (the floor below shows round its edge)
+  const R = C.r * C.scorch;
+  for (let i = 0; i < 6; i++) floors.push([cx, y + 0.004 + i * 0.001, cz, R * 1.7, 0.01, R * 0.98, i % 2 ? '#1f1c18' : '#26221d', (i * Math.PI) / 6]);
+  floors.push([cx, y + 0.012, cz, R * 0.9, 0.01, R * 0.9, '#141210', Math.PI / 4]);
 }
 
 function stairs(f, props, y, wallH) {
