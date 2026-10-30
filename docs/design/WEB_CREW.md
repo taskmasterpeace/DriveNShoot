@@ -356,3 +356,7 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
 - camp talk and interjections;
 - the pack screen's CREW column (give and take is on the CREW panel and in the member's talk for now);
 - the crew walking down into the Carousel with you (G6).
+
+
+## Dependents added by WEB_FARMING (2026-10-29)
+- WEB_FARMING.md: the `farm` job now runs `farming.crewTend` from real stock and `cook` makes a real recipe (`cooking.crewCook`).

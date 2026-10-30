@@ -212,3 +212,7 @@ Example: a 10 × 9 m one-storey house = 5.5 × 90 = **$495**, rent **$30 a week*
 - The kitchen's stove doesn't yet feed `fauna.cook`.
 - A burglar is a record, not a walking person you can catch.
 - `tent`, `trip_bells` and `turret_kit` are in no loot table yet (a content call, like the portable radio).
+
+
+## Dependents added by WEB_FARMING (2026-10-29)
+- WEB_FARMING.md: a held base's yard is where beds and a coop go, `homes.baseAt`, and losing the base removes the garden; a kitchen room is the stove bench.

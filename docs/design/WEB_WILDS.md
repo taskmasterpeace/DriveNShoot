@@ -272,3 +272,7 @@ evening's take, supper; the summary lists what came in, food before and after, a
 - Tracks on interior floors and storeys (prints are ground-level only), and tracks surviving a save.
 - Leading a crossing bird by hand (the aim snaps to the bird; the lag is the miss model), and visual wing-shot feedback.
 - A fishing UI beyond the toast and the float (a tension bar), and a visible net/trap model.
+
+
+## Dependents added by WEB_FARMING (2026-10-29)
+- WEB_FARMING.md: the fire pit, the rain catcher, the biome/region lookups and the cooking skill are read by the garden and by meal cooking.
