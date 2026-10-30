@@ -1,4 +1,4 @@
-import { WITNESS_RUN as W, VERBS } from '../data/society.js';
+import { WITNESS_RUN as W, VERBS, CAUGHT } from '../data/society.js';
 
 // Witnesses who run home (docs/design/WEB_WORLD_MEMORY.md, phase 5). Somebody who put a name to your face for a deed
 // that matters doesn't wait for the gossip to carry it: they run to their people's hub and tell it there, and the report
@@ -19,6 +19,34 @@ export class Witnesses {
     this.runners = [];   // people carrying a report on foot right now
     this.aimAt = null; this.aimT = 0;
     this.ran = 0; this.arrived = 0; this.stopped = { killed: 0, cowed: 0, paid: 0 };
+    this.chasers = [];   // caught you stealing: { c, until, t0 } (caught)
+    this.caughtN = 0;
+  }
+
+  // A theft seen up close (inventory.stole): the owner, or one of the owner's people, within CAUGHT.r of you calls it
+  // out now, and an armed one comes after you for CAUGHT.chase seconds. A household's own people have their own lines
+  // and grudge (residents.onSteal), so they are left to it. Returns who called it, or null.
+  // The one off to tell about THIS theft can still shout first (record() picks the runner before this runs).
+  caught(rec, owner, fid, house = null) {
+    const g = this.g, P = g.player, saw = new Set(rec?.w ?? []);
+    if (!saw.size) return null;
+    let best = null, bd = CAUGHT.r;
+    for (const c of g.chars) {
+      if (!saw.has(c.id) || !c.alive || (c.telling && c.telling.seq !== rec.seq) || (house && c.house === house) || (c !== owner && (!fid || c.fid !== fid))) continue;
+      const d = Math.hypot(c.x - P.x, c.z - P.z);
+      if (d <= bd) { best = c; bd = d; }
+    }
+    if (!best) return null;
+    this.caughtN++;
+    g.feedback?.floater(best.x, best.z, CAUGHT.lines[this.caughtN % CAUGHT.lines.length], 'bark');
+    const chase = !!best.weapon && best.grudge !== P;
+    if (chase) {
+      best.grudge = P; best.target = P; best.state = 'fight'; best.hold = 0;
+      this.chasers.push({ c: best, until: g.time + CAUGHT.chase, t0: g.time });
+    }
+    g.hud?.toast?.(`CAUGHT IN THE ACT — ${(best.npc?.name ?? best.name ?? 'THEY').toUpperCase()} SAW YOU`, 'hot');
+    g.emit('caughtStealing', { id: best.id, name: best.npc?.name ?? best.name, dist: +bd.toFixed(1), chase });
+    return best;
   }
 
   consider(r, c, rec) {
@@ -93,6 +121,13 @@ export class Witnesses {
   // ---- per frame: the dead and the gone, and the player's gun on a runner --------------------------------------
   update(dt) {
     const g = this.g, P = g.player;
+    // The chase after a theft cools once its time is up, unless you hurt them since (then it is their own grudge).
+    for (let i = this.chasers.length - 1; i >= 0; i--) {
+      const h = this.chasers[i], c = h.c;
+      if (g.time < h.until && c.alive) continue;
+      if (c.alive && c.grudge === P && !((c.hitAt ?? -1) > h.t0)) { c.grudge = null; if (c.target === P) { c.target = null; c.state = 'idle'; } }
+      this.chasers.splice(i, 1);
+    }
     if (!this.runners.length) return;
     for (let i = this.runners.length - 1; i >= 0; i--) {
       const c = this.runners[i];
@@ -152,7 +187,7 @@ export class Witnesses {
     return { ok: true, cost };
   }
 
-  clear() { for (const c of this.runners) c.telling = null; this.runners.length = 0; this.aimAt = null; this.aimT = 0; }
+  clear() { for (const c of this.runners) c.telling = null; this.runners.length = 0; this.aimAt = null; this.aimT = 0; this.chasers.length = 0; }
 
   view() {
     const g = this.g;
@@ -162,6 +197,7 @@ export class Witnesses {
         return { id: c.id, name: c.npc?.name ?? c.name, faction: R.fid, verb: R.verb, x: +c.x.toFixed(1), z: +c.z.toFixed(1), toHub: +Math.hypot(R.hub.x - c.x, R.hub.z - c.z).toFixed(1), secs: +(g.time - R.t0).toFixed(1), dueIn: +(R.slot.due - g.time).toFixed(1), brave: R.brave, bribe: this.bribeCost(c) };
       }),
       ran: this.ran, arrived: this.arrived, stopped: { ...this.stopped },
+      chasing: this.chasers.map((h) => ({ id: h.c.id, name: h.c.npc?.name ?? h.c.name, secsLeft: +Math.max(0, h.until - g.time).toFixed(1) })), caught: this.caughtN,
     };
   }
 }

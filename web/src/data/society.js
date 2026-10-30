@@ -31,6 +31,14 @@ export const WITNESS_RUN = {
   bribe: { base: 20, perVerb: 15, namedMul: 2, reach: 2.6 },
 };
 
+// Caught in the act (systems/witnesses.js caught). A theft seen up close by the owner, or by the owner's own people,
+// is not left to the gossip: the nearest of them within `r` metres calls it out at once, and an armed one comes after
+// you for `chase` seconds (a grudge that cools if you get away and never hurt them). The word still travels as before.
+export const CAUGHT = {
+  r: 6, chase: 25,
+  lines: ['Hey! Put that back!', "That's not yours!", 'Thief! Drop it!', 'I saw that!'],
+};
+
 // Standing (-100..100) to tier. Behaviour changes at each line: hostile and hunted shoot on sight.
 export const TIERS = { hunted: -80, hostile: -40, wary: -10, neutral: 20, friendly: 60 };
 export const TIER_NAMES = ['hunted', 'hostile', 'wary', 'neutral', 'friendly', 'allied'];

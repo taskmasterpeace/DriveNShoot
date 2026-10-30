@@ -4151,6 +4151,60 @@ async function runSelfTest(api, only = null, skip = null) {
     g.society.memory.entry('reyes').mems = g.society.memory.entry('reyes').mems.filter((m) => m.kind !== 'robbedMe');
     return took === 2 && deed?.witnesses >= 1 && mems > mems0 ? true : JSON.stringify({ took, deed: deed ?? null, mems0, mems, diag });
   });
+  await check('inventory: a theft seen at 2 m is called out at once (a bark, CAUGHT IN THE ACT) before any word lands; an armed owner comes after you and cools off when the chase runs out', async () => {
+    await stage();
+    const inv = g.inventory, W = g.witnesses, D = g.society.deeds, sv = JSON.parse(JSON.stringify(inv.save()));
+    const box = [...inv.boxes.values()].find((b) => b.ownerName === 'Doc Lupe Reyes');
+    const reyes = g.chars.find((c) => c.npc?.id === 'reyes');
+    if (!box || !reyes) { inv.load(sv); return JSON.stringify({ box: !!box, reyes: !!reyes }); }
+    // Where you would really stand to reach her shelf (clear floor, the shelf the nearest box), and a clear spot 2 m off
+    // that sees you: a staged point inside the shelf or the wall behind it sees nobody past 1 m.
+    const S = g.statics;
+    let stand = null, spot = null;
+    for (let rr = 0.8; rr <= 2 && !stand; rr += 0.2) for (let a = 0; a < 16 && !stand; a++) {
+      const x = box.x + Math.sin(a * Math.PI / 8) * rr, z = box.z + Math.cos(a * Math.PI / 8) * rr;
+      if (!S.pointBlocked(x, z, 0.4) && inv.nearest(x, z)?.id === box.id) stand = { x, z };
+    }
+    for (let a = 0; stand && a < 32 && !spot; a++) {
+      const x = stand.x + Math.sin(a * Math.PI / 16) * 2, z = stand.z + Math.cos(a * Math.PI / 16) * 2;
+      if (!S.pointBlocked(x, z, 0.4) && g.los(x, z, stand.x, stand.z)) spot = { x, z };
+    }
+    if (!spot) { inv.load(sv); return JSON.stringify({ stand, spot }); }
+    const home = { x: reyes.x, z: reyes.z }, gun = reyes.weapon, said = [], fl = g.feedback.floater;
+    g.feedback.floater = function (x, z, t, k) { said.push([t, k]); return fl.apply(this, arguments); };
+    const steal = async (armed) => {
+      await C('teleport', stand);
+      reyes.x = spot.x; reyes.z = spot.z; reyes.hold = 1.5; reyes.grudge = null; reyes.target = null; // 2 m off, facing you
+      reyes.face = Math.atan2(g.player.x - reyes.x, g.player.z - reyes.z);
+      reyes.gy = 0; g.standOn(reyes); g.player.gy = 0; g.standOn(g.player);
+      if (reyes.sleeping) g.ai.wake(reyes, 'staged');
+      reyes.telling = null; W.runners = W.runners.filter((o) => o !== reyes); // the last run's errand is called off
+      reyes.weapon = armed ? 'pistol' : gun;
+      inv.open(box); box.slots = []; inv.add(box, 'bandage', 2); box.stealT = -99;
+      said.length = 0;
+      const seq0 = g.eventSeq, landed0 = D.landed;
+      await C('item', { take: 'bandage', n: 2 });
+      const ev = g.events.find((e) => e.seq > seq0 && e.type === 'caughtStealing');
+      return { ev, bark: said.find(([, k]) => k === 'bark')?.[0] ?? null, wordLanded: D.landed > landed0, grudge: reyes.grudge === g.player };
+    };
+    try {
+      const calm = await steal(false);
+      const hot = await steal(true);
+      const chasing = W.chasers.some((h) => h.c === reyes);
+      W.chasers.forEach((h) => { if (h.c === reyes) h.until = g.time; }); // the chase runs out
+      reyes.x = g.player.x + 40; reyes.target = null; // got away
+      await C('step', { seconds: 0.2 });
+      const cooled = reyes.grudge !== g.player && !W.chasers.some((h) => h.c === reyes);
+      const ok = calm.ev?.id === reyes.id && !!calm.bark && !calm.wordLanded && calm.ev.chase === false && !calm.grudge
+        && hot.ev?.chase === true && hot.grudge && chasing && cooled;
+      return ok ? true : JSON.stringify({ calm, hot, chasing, cooled });
+    } finally {
+      g.feedback.floater = fl; reyes.weapon = gun; reyes.grudge = null; reyes.target = null; reyes.state = 'idle';
+      W.chasers = W.chasers.filter((h) => h.c !== reyes); reyes.telling = null; W.runners = W.runners.filter((o) => o !== reyes);
+      reyes.x = home.x; reyes.z = home.z; inv.opened = null; box.stealT = -99; inv.load(sv);
+      g.society.memory.entry('reyes').mems = g.society.memory.entry('reyes').mems.filter((m) => m.kind !== 'robbedMe');
+    }
+  });
   await check('locks: lockpicks open a locked door without a sound (one pick spent); a crowbar opens it loud and stays in your pack', async () => {
     await stage();
     const I = g.interiors, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
