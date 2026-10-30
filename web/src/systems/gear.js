@@ -10,6 +10,16 @@ import { ITEMS } from '../data/items.js';
 // Anyone else may wear gear too (c.worn, the same shape): soak() reads it from the character it is asked about.
 const MODS = ['carry', 'speed', 'reload', 'stealth', 'repair', 'luck', 'unarmed'];
 
+// What worn gear shows on the body (the hat, and the chest piece over the rest) on top of the look underneath (L: hatStyle,
+// hat, gearStyle, gear). Pure: the creator's preview dresses its body with it too (ui/creator.js), so the card shows what
+// BEGIN puts on you. rowOf(slot) -> the GEAR row worn there, or null.
+export function wornLook(L, rowOf) {
+  let hat = L.hatStyle, hatC = L.hat, gear = L.gearStyle, gearC = L.gear;
+  for (const slot of ['sash', 'coat', 'chest']) { const k = rowOf(slot)?.look; if (k?.gear) { gear = k.gear; gearC = k.color ?? gearC; } } // the chest piece shows over the rest
+  const h = rowOf('head')?.look; if (h?.hat) { hat = h.hat; hatC = h.color ?? hatC; }
+  return { hatStyle: hat, hat: hatC, gearStyle: gear, gear: gearC };
+}
+
 export class Gear {
   constructor(game) {
     this.g = game;
@@ -115,12 +125,9 @@ export class Gear {
     const P = this.g.player, C = P?.colors;
     if (!C) return;
     this.look0 ??= { hatStyle: C.hatStyle, hat: C.hat, gearStyle: C.gearStyle, gear: C.gear };
-    const L = this.look0;
-    let hat = L.hatStyle, hatC = L.hat, gear = L.gearStyle, gearC = L.gear;
-    for (const slot of ['sash', 'coat', 'chest']) { const k = this.row(this.worn[slot])?.look; if (k?.gear) { gear = k.gear; gearC = k.color ?? gearC; } } // the chest piece shows over the rest
-    const h = this.row(this.worn.head)?.look; if (h?.hat) { hat = h.hat; hatC = h.color ?? hatC; }
-    if (C.hatStyle === hat && C.gearStyle === gear && C.hat === hatC && C.gear === gearC) return;
-    Object.assign(C, { hatStyle: hat, hat: hatC, gearStyle: gear, gear: gearC });
+    const W = wornLook(this.look0, (slot) => this.row(this.worn[slot]));
+    if (C.hatStyle === W.hatStyle && C.gearStyle === W.gearStyle && C.hat === W.hat && C.gear === W.gear) return;
+    Object.assign(C, W);
     this.g.charR?.paint(P);
   }
 
