@@ -71,6 +71,14 @@ export const DRIVING = {
   reverseAccel: 0.85, reverseShare: 0.4, reverseCap: [6, 15],
   shootSpread: { perMs: 0.004, max: 0.1, driver: 1.5 },
   aimHold: 1.2,
+  // steerRate / steerReturn (1/s): the player's wheel turns toward the keys at steerRate and back to centre at
+  // steerReturn, so a tapped key is a nudge, never a twitch (docs/design/WEB_FEEL.md); the AI steers its own curves.
+  steerRate: 6, steerReturn: 10,
+  // slide: how the car's weight follows the nose (docs/design/WEB_FEEL.md). `carry` is the share of each frame's turn the
+  // velocity takes with it (1 = on rails, the old model: it never slid); the rest stays behind as sideways slip that
+  // the row's `grip` pulls back in. On the handbrake only `hbCarry` follows and grip drops to `hbGrip` x: a real slide
+  // you can hold, then catch by letting go. The player's car (and the feel probe) only; the AI keeps the rails for now.
+  slide: { carry: 0.86, hbCarry: 0.35, hbGrip: 0.18 },
   parkBrake: 14, // m/s^2: a car its driver got out of brakes to a stop (it no longer rolls off out of reach)
 };
 export const reverseOf = (v) => v.reverse ?? clamp(v.maxSpeed * DRIVING.reverseShare, DRIVING.reverseCap[0], DRIVING.reverseCap[1]);
@@ -318,7 +326,12 @@ export class Vehicles {
       }
       if (fwd < -rev) fwd = -rev;
       // Steering bites with speed, softens at top speed.
-      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
+      let st = v.steer;
+      if (v.driver === this.g.player || v.feelProbe) { // the wheel eases toward the keys (DRIVING.steerRate)
+        const back = Math.abs(v.steer) < Math.abs(v.steerIn ?? 0) || v.steer * (v.steerIn ?? 0) < 0, r = (back ? DRIVING.steerReturn : DRIVING.steerRate) * dt;
+        v.steerIn = st = clamp(v.steer, (v.steerIn ?? 0) - r, (v.steerIn ?? 0) + r);
+      }
+      const steerAmt = (st + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a
       // crash, a shove) settled on the target + 2πk instead and spun at ~28 rad/s for good, in place, at 16 m/s,
       // flattening anyone near it (a traffic LAWMAN spinning by the sheriff's corner ran bounty-run's player down).
@@ -338,13 +351,17 @@ export class Vehicles {
     if (pivot) { v.x += pivot * (Math.sin(v.h + dh) - Math.sin(v.h)); v.z += pivot * (Math.cos(v.h + dh) - Math.cos(v.h)); }
     v.h += dh;
     // Rolling drag and lateral grip (handbrake = drift).
-    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js); treadGrip: the tyres on this ground (workshop.js)
+    const grip = (v.handbrake ? v.grip * DRIVING.slide.hbGrip : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js); treadGrip: the tyres on this ground (workshop.js)
     if (v.bike) {
       // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
       const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);
       v.lean += (targetLean - v.lean) * Math.min(1, dt * (v.fallen ? 3 : 8));
       const wantWheelie = !v.fallen && v.boost && v.throttle > 0 && sp > 3 && sp < 24;
       v.wheelie += ((wantWheelie ? 0.42 : 0) - v.wheelie) * Math.min(1, dt * (wantWheelie ? 2.5 : 6));
+    }
+    if (dh && (v.driver === this.g.player || v.feelProbe) && !v.boat) { // the weight lags the nose (DRIVING.slide)
+      const a = (1 - (v.handbrake ? DRIVING.slide.hbCarry : DRIVING.slide.carry)) * dh, ca = Math.cos(a), sa = Math.sin(a), f0 = fwd;
+      fwd = f0 * ca + side * sa; side = side * ca - f0 * sa;
     }
     fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : v.towedBy ? this.g.towing.drag(v) : 1.4)) * mud; // towed: it rolls in neutral (systems/towing.js)
     side *= Math.exp(-dt * grip);

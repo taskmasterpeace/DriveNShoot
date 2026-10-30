@@ -1,0 +1,187 @@
+{
+ "note": "BEFORE: origin/play/845 + classic steering (2026-10-29 23:15), the first feel run. Steering a step input, no slide model (velocity turned with the nose), sway unbounded. Guns: a fresh gun, the live shooter after a long session (sway 2.41 x skill 1.54).",
+ "drive": {
+  "interceptor": {
+   "t060": 2.15,
+   "top": 37.5,
+   "turnRadius": 10,
+   "cornerSlip": 0,
+   "steerDelay": 0.18,
+   "hbSwing": 88,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.32,
+   "revTop": 15,
+   "slalomSpeed": 36.8,
+   "slalomSlip": 0
+  },
+  "sedan": {
+   "t060": 3.25,
+   "top": 32,
+   "turnRadius": 9.8,
+   "cornerSlip": 0,
+   "steerDelay": 0.2,
+   "hbSwing": 80,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.38,
+   "revTop": 14,
+   "slalomSpeed": 31.4,
+   "slalomSlip": 0
+  },
+  "buggy": {
+   "t060": 1.93,
+   "top": 35.5,
+   "turnRadius": 8.9,
+   "cornerSlip": 0,
+   "steerDelay": 0.18,
+   "hbSwing": 105,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.27,
+   "revTop": 14,
+   "slalomSpeed": 35.2,
+   "slalomSlip": 0
+  },
+  "pickup": {
+   "t060": 4.3,
+   "top": 29.2,
+   "turnRadius": 10,
+   "cornerSlip": 0,
+   "steerDelay": 0.2,
+   "hbSwing": 75,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.42,
+   "revTop": 13,
+   "slalomSpeed": 28.8,
+   "slalomSlip": 0
+  },
+  "van": {
+   "t060": null,
+   "top": 25.4,
+   "turnRadius": 10.8,
+   "cornerSlip": 0,
+   "steerDelay": 0.22,
+   "hbSwing": 63,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.52,
+   "revTop": 12,
+   "slalomSpeed": 25,
+   "slalomSlip": 0
+  },
+  "patrol": {
+   "t060": 4.05,
+   "top": 29.8,
+   "turnRadius": 10.5,
+   "cornerSlip": 0,
+   "steerDelay": 0.2,
+   "hbSwing": 72,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.42,
+   "revTop": 13,
+   "slalomSpeed": 29.3,
+   "slalomSlip": 0
+  },
+  "rv": {
+   "t060": null,
+   "top": 20.2,
+   "turnRadius": 12.8,
+   "cornerSlip": 0,
+   "steerDelay": 0.23,
+   "hbSwing": 47,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.77,
+   "revTop": 10,
+   "slalomSpeed": 19.9,
+   "slalomSlip": 0
+  },
+  "rig": {
+   "t060": null,
+   "top": 23.7,
+   "turnRadius": 12.5,
+   "cornerSlip": 0,
+   "steerDelay": 0.22,
+   "hbSwing": 52,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.57,
+   "revTop": 11,
+   "slalomSpeed": 23.4,
+   "slalomSlip": 0
+  },
+  "apc": {
+   "t060": null,
+   "top": 19.7,
+   "turnRadius": 13.8,
+   "cornerSlip": 0,
+   "steerDelay": 0.23,
+   "hbSwing": 43,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.77,
+   "revTop": 10,
+   "slalomSpeed": 19.5,
+   "slalomSlip": 0
+  },
+  "bike": {
+   "t060": 1.37,
+   "top": 44.7,
+   "turnRadius": 9.5,
+   "cornerSlip": 0,
+   "steerDelay": 0.18,
+   "hbSwing": 112,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.25,
+   "revTop": 10,
+   "slalomSpeed": 44.2,
+   "slalomSlip": 0
+  },
+  "atv": {
+   "t060": 1.83,
+   "top": 34.7,
+   "turnRadius": 8.9,
+   "cornerSlip": 0,
+   "steerDelay": 0.18,
+   "hbSwing": 108,
+   "hbSlide": 0,
+   "catchT": 0,
+   "rev5": 0.25,
+   "revTop": 12,
+   "slalomSpeed": 34.6,
+   "slalomSlip": 0
+  }
+ },
+ "guns": {
+  "shooter": {
+   "sway": 2.41,
+   "spreadMul": 1.54
+  },
+  "pistol": {
+   "rate": 0.26,
+   "reload": 1.3,
+   "mag": 6,
+   "hit5": 0.82,
+   "hit15": 0.25,
+   "hit30": 0.1
+  },
+  "smg": {
+   "rate": 0.075,
+   "reload": 1.7,
+   "mag": 32,
+   "hit5": 0.47,
+   "hit15": 0.2,
+   "hit30": 0.05
+  },
+  "enemy": {
+   "firstShot": null,
+   "onScreen": 0,
+   "told": 0.67,
+   "note": "firstShot BEFORE was measured with acquire skipped (a probe bug); placed share with only the 1.6 m near miss marking"
+  }
+ }
+}

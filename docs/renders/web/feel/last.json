@@ -1,0 +1,360 @@
+{
+ "ok": true,
+ "drive": {
+  "interceptor": {
+   "type": "interceptor",
+   "t060": 2.15,
+   "top": 37.49,
+   "turnRadius": 9.84,
+   "cornerSlip": 0.83,
+   "steerDelay": 0.28,
+   "hbSwing": 79.01,
+   "hbSlide": 6.06,
+   "hbSpeed": 7.69,
+   "catchT": 0.3,
+   "rev5": 0.32,
+   "revTop": 14.96,
+   "slalomSpeed": 36.3,
+   "slalomSlip": 1.29
+  },
+  "sedan": {
+   "type": "sedan",
+   "t060": 3.25,
+   "top": 31.98,
+   "turnRadius": 9.7,
+   "cornerSlip": 0.71,
+   "steerDelay": 0.28,
+   "hbSwing": 71.67,
+   "hbSlide": 5.72,
+   "hbSpeed": 7.74,
+   "catchT": 0.3,
+   "rev5": 0.38,
+   "revTop": 13.96,
+   "slalomSpeed": 30.99,
+   "slalomSlip": 1.07
+  },
+  "buggy": {
+   "type": "buggy",
+   "t060": 1.93,
+   "top": 35.48,
+   "turnRadius": 8.65,
+   "cornerSlip": 1.25,
+   "steerDelay": 0.27,
+   "hbSwing": 92.18,
+   "hbSlide": 7.34,
+   "hbSpeed": 8.1,
+   "catchT": 0.4,
+   "rev5": 0.27,
+   "revTop": 13.96,
+   "slalomSpeed": 34.52,
+   "slalomSlip": 1.81
+  },
+  "pickup": {
+   "type": "pickup",
+   "t060": 4.3,
+   "top": 29.23,
+   "turnRadius": 9.87,
+   "cornerSlip": 0.67,
+   "steerDelay": 0.28,
+   "hbSwing": 67.63,
+   "hbSlide": 5.53,
+   "hbSpeed": 7.77,
+   "catchT": 0.3,
+   "rev5": 0.42,
+   "revTop": 12.96,
+   "slalomSpeed": 28.45,
+   "slalomSlip": 0.96
+  },
+  "van": {
+   "type": "van",
+   "t060": null,
+   "top": 25.36,
+   "turnRadius": 10.63,
+   "cornerSlip": 0.56,
+   "steerDelay": 0.3,
+   "hbSwing": 57.11,
+   "hbSlide": 4.93,
+   "hbSpeed": 7.79,
+   "catchT": 0.3,
+   "rev5": 0.52,
+   "revTop": 11.96,
+   "slalomSpeed": 24.73,
+   "slalomSlip": 0.78
+  },
+  "patrol": {
+   "type": "patrol",
+   "t060": 4.05,
+   "top": 29.78,
+   "turnRadius": 10.4,
+   "cornerSlip": 0.58,
+   "steerDelay": 0.28,
+   "hbSwing": 64.73,
+   "hbSlide": 5.15,
+   "hbSpeed": 7.67,
+   "catchT": 0.27,
+   "rev5": 0.42,
+   "revTop": 12.96,
+   "slalomSpeed": 29.01,
+   "slalomSlip": 0.85
+  },
+  "rv": {
+   "type": "rv",
+   "t060": null,
+   "top": 20.2,
+   "turnRadius": 12.71,
+   "cornerSlip": 0.39,
+   "steerDelay": 0.32,
+   "hbSwing": 42.19,
+   "hbSlide": 3.46,
+   "hbSpeed": 7.04,
+   "catchT": 0.25,
+   "rev5": 0.77,
+   "revTop": 9.97,
+   "slalomSpeed": 19.8,
+   "slalomSlip": 0.49
+  },
+  "rig": {
+   "type": "rig",
+   "t060": null,
+   "top": 23.7,
+   "turnRadius": 12.43,
+   "cornerSlip": 0.51,
+   "steerDelay": 0.3,
+   "hbSwing": 47.08,
+   "hbSlide": 4.31,
+   "hbSpeed": 7.81,
+   "catchT": 0.32,
+   "rev5": 0.57,
+   "revTop": 10.97,
+   "slalomSpeed": 23.19,
+   "slalomSlip": 0.68
+  },
+  "apc": {
+   "type": "apc",
+   "t060": null,
+   "top": 19.72,
+   "turnRadius": 13.75,
+   "cornerSlip": 0.27,
+   "steerDelay": 0.32,
+   "hbSwing": 38.94,
+   "hbSlide": 2.81,
+   "hbSpeed": 6.77,
+   "catchT": 0.17,
+   "rev5": 0.77,
+   "revTop": 9.97,
+   "slalomSpeed": 19.41,
+   "slalomSlip": 0.33
+  },
+  "bike": {
+   "type": "bike",
+   "t060": 1.37,
+   "top": 44.73,
+   "turnRadius": 9.28,
+   "cornerSlip": 1.22,
+   "steerDelay": 0.27,
+   "hbSwing": 97.28,
+   "hbSlide": 7.16,
+   "hbSpeed": 7.74,
+   "catchT": 0.32,
+   "rev5": 0.25,
+   "revTop": 9.97,
+   "slalomSpeed": 43.34,
+   "slalomSlip": 1.91
+  },
+  "atv": {
+   "type": "atv",
+   "t060": 1.83,
+   "top": 34.71,
+   "turnRadius": 8.63,
+   "cornerSlip": 1.16,
+   "steerDelay": 0.27,
+   "hbSwing": 94.56,
+   "hbSlide": 7.23,
+   "hbSpeed": 7.92,
+   "catchT": 0.35,
+   "rev5": 0.25,
+   "revTop": 11.96,
+   "slalomSpeed": 33.96,
+   "slalomSlip": 1.61
+  },
+  "surfaces": {
+   "blacktop": {
+    "grip": 1,
+    "cornerSlip": 0.83,
+    "hbSlide": 6.06,
+    "hbSwing": 79.01,
+    "catchT": 0.3,
+    "turnRadius": 9.84
+   },
+   "gravel": {
+    "grip": 0.8,
+    "cornerSlip": 1.04,
+    "hbSlide": 6.54,
+    "hbSwing": 78.87,
+    "catchT": 0.38,
+    "turnRadius": 9.8
+   },
+   "dirt": {
+    "grip": 0.72,
+    "cornerSlip": 1.15,
+    "hbSlide": 6.75,
+    "hbSwing": 78.81,
+    "catchT": 0.43,
+    "turnRadius": 9.78
+   }
+  }
+ },
+ "camera": {
+  "footAcross": 17,
+  "footUpDown": 8.5,
+  "at17": 5.03,
+  "at22": 7.16,
+  "at26": 8.76,
+  "at29": 9.95,
+  "at31": 10.83,
+  "at33": 11.5
+ },
+ "guns": {
+  "shooter": {
+   "sway": 1.7,
+   "spreadMul": 1.68
+  },
+  "pistol": {
+   "rate": 0.26,
+   "reload": 1.3,
+   "mag": 6,
+   "draw": 0.28,
+   "recover": 0.08,
+   "hit5": 1,
+   "hit15": 1,
+   "hit30": 0.65
+  },
+  "smg": {
+   "rate": 0.075,
+   "reload": 1.7,
+   "mag": 32,
+   "draw": 0.42,
+   "recover": 0.04,
+   "hit5": 1,
+   "hit15": 0.55,
+   "hit30": 0.2
+  },
+  "enemy": {
+   "firstShot": 0.83,
+   "shots": 12,
+   "hits": 4,
+   "hitRate": 0.33,
+   "onScreen": 0,
+   "told": 1
+  }
+ },
+ "rows": {
+  "steerRate": 6,
+  "steerReturn": 10,
+  "slide": {
+   "carry": 0.86,
+   "hbCarry": 0.35,
+   "hbGrip": 0.18
+  }
+ },
+ "outside": [],
+ "bands": {
+  "drive": {
+   "steerDelay": [
+    0.22,
+    0.4
+   ],
+   "cornerSlip": [
+    0.3,
+    3.5
+   ],
+   "hbSlide": [
+    3,
+    14
+   ],
+   "hbSwing": [
+    45,
+    200
+   ],
+   "catchT": [
+    0.15,
+    1.6
+   ]
+  },
+  "t060": {
+   "interceptor": [
+    1.6,
+    3.2
+   ],
+   "buggy": [
+    1.4,
+    3
+   ],
+   "bike": [
+    1,
+    2.4
+   ],
+   "atv": [
+    1.3,
+    3
+   ],
+   "sedan": [
+    2.4,
+    4.5
+   ],
+   "pickup": [
+    3,
+    5.5
+   ],
+   "patrol": [
+    3,
+    5.5
+   ]
+  },
+  "gun": {
+   "pistol": {
+    "hit5": [
+     0.9,
+     1
+    ],
+    "hit15": [
+     0.75,
+     1
+    ]
+   },
+   "smg": {
+    "hit5": [
+     0.85,
+     1
+    ],
+    "hit15": [
+     0.3,
+     0.75
+    ]
+   },
+   "swayCap": [
+    1.3,
+    2
+   ],
+   "foeFirst": [
+    0.35,
+    1.3
+   ],
+   "foeTold": [
+    0.75,
+    1
+   ]
+  },
+  "probe": {
+   "corner": 15,
+   "handbrake": 20,
+   "hbHold": 0.8,
+   "surfaces": {
+    "blacktop": 1,
+    "gravel": 0.8,
+    "dirt": 0.72
+   }
+  }
+ },
+ "ms": 33682
+}

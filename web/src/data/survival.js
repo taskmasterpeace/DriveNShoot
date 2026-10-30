@@ -46,6 +46,10 @@ export const TOWN_NIGHT = { from: 22, to: 6, bedR: 25, giveUp: 25, wakeStand: 1.
 // clock again. It runs `hours` game hours and taxes the body (stamina regen, hunger, a little sway and a little dark at
 // the edges); antibiotics and then a full night's sleep break it early. It never kills by itself, and the player
 // never turns: a fever is a dirty wound, and that is all the game will ever say.
+// The shakes stack (tired x afraid x cold x a fever x a wound) but never past `cap` x the gun's own cone: each state
+// still shows in your aim, together they no longer turn a revolver into a shotgun (docs/design/WEB_FEEL.md; the feel
+// harness measured 3.76 x after one long playtest, a 15 m shot landing 1 in 4).
+export const SWAY = { cap: 1.7 };
 export const FEVER = { hours: 36, staminaRegen: 0.75, foodDrain: 1.3, sway: 1.1, vignette: 0.12 };
 
 // What restores a need. Pickup kinds and shop goods both point here.

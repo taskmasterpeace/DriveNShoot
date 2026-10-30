@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  NEEDS, STAGES, EFFECTS, CONSUMABLES, SLEEP, FEVER, PROFILES, CLIMATE, WARMTH, WET, BODY_EFFECTS, INJURIES, MAX_WOUNDS, WOUND_FROM,
+  NEEDS, STAGES, EFFECTS, CONSUMABLES, SLEEP, FEVER, SWAY, PROFILES, CLIMATE, WARMTH, WET, BODY_EFFECTS, INJURIES, MAX_WOUNDS, WOUND_FROM,
   INFECTION, SICKNESS, TREATMENTS, MED_ITEMS, MED_LOOT, MOODS, APPRAISALS, MOOD_EFFECTS, SHELTER, HOLD, SLEEP_COMFORT, PROWL, CONDITION,
 } from '../data/survival.js';
 import { ITEMS, LOOT } from '../data/items.js';
@@ -176,7 +176,7 @@ export class Survival {
       if (!S && (this.breathT -= dt) <= 0) { this.breathT = 3.2 + Math.random() * 0.9; g.audio?.breath?.(F.treated ? 0.45 : 1); } // you can hear it
       if (this.hours() >= F.until) this.feverEnds('passed');
     }
-    N.staminaRegen = A.regen; N.maxStamina = A.maxSt; N.vignette = A.vig; N.sway = A.sway;
+    N.staminaRegen = A.regen; N.maxStamina = A.maxSt; N.vignette = A.vig; N.sway = Math.min(SWAY.cap, A.sway); // the stack's cap (data/survival.js SWAY)
     N.speedMul = A.speed; N.healMul = A.heal * (g.deep?.fx.healMul ?? 1); N.sight = A.sight; // healMul: + Grit, First aid, Resilient (systems/stats.js)
     this.waterMul = A.water; this.foodMul = A.food; this.gloomMul = A.gloom;
     N.condition = this.condition();
