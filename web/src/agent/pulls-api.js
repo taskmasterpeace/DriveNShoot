@@ -241,7 +241,7 @@ export async function pullsChecks(api, check, C) {
       for (const [hx, hz] of [[620, 40], [-640, 60], [40, 620]]) { if (rec) break; await stand(hx, hz); await C('step', { seconds: 3 }); rec = pickRec(); } // the ring's households are on record once their chunks are hot
       if (!rec) return `no household on record (${RS.recs.size})`;
       const now = S.hours(), x = (rec.x0 + rec.x1) / 2 + 40, z = (rec.z0 + rec.z1) / 2;
-      const R = { id: 'pulls-test-body', name: 'Wes Hollis', flag: 'US', x, z, y: 0, at: now, stage: 0, decay: 0, c: null, by: 'unknown', place: null, house: rec.id, member: null,
+      const R = { id: 'pulls-test-body', name: 'Wes Hollis', flag: 'US', x, z, y: 0, at: now, stage: 0, decay: 0, c: null, by: 'unknown', place: null, house: rec.id, member: null, funeral: true, // (rites: not everybody gets a funeral - this one does)
         news: { house: rec.id, facts: [], learned: null, w: [], named: false, at: now, told: false, standing: false } };
       RT.bodies.set(R.id, R); RT.news.push(R);
       const n = S.nearestNode(x, z), town = `town:${n.id}`;
