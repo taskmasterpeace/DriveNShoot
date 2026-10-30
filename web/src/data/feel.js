@@ -23,9 +23,11 @@ export const FEEL_BANDS = {
   //   hit<d>      share of rounds that land at d metres (seeded spread, 40 rounds)
   //   foeFirst    s from an angry raider seeing you at 20 m to its first shot (it answers, not instantly)
   //   foeOnScreen share of its shots fired from inside your view (you can see who is shooting)
+  //   (the guns are measured for a rested, healthy shooter; the live sway and skill multipliers ride apart as `shooter`)
   gun: {
-    pistol: { hit5: [0.85, 1], hit15: [0.45, 0.9] },
-    smg: { hit5: [0.6, 1], hit15: [0.3, 0.8] },
+    pistol: { hit5: [0.9, 1], hit15: [0.75, 1] },
+    smg: { hit5: [0.85, 1], hit15: [0.3, 0.75] },
+    swayCap: [1.3, 2], // the shakes' stack cap (data/survival.js SWAY): felt, never a shotgun
     foeFirst: [0.1, 1.5],
     foeOnScreen: [0.8, 1],
   },

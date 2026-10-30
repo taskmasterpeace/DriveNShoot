@@ -5,6 +5,7 @@
 import { FEEL_BANDS as FB, validateFeel } from '../data/feel.js';
 import { VEHICLES, DRIVING } from '../systems/vehicles.js';
 import { WEAPONS } from '../systems/combat.js';
+import { SWAY } from '../data/survival.js';
 import { RAY_BULLET } from '../engine/collision.js';
 
 const DT = 1 / 60, MPH60 = 26.82, LAND = ['interceptor', 'sedan', 'buggy', 'pickup', 'van', 'patrol', 'rv', 'rig', 'apc', 'bike', 'atv'];
@@ -75,6 +76,14 @@ export function feelDrive(g, rows = LAND) {
 }
 
 // ---- the real game: the camera's lead at speed, the guns, the enemy -------------------------------------------------------
+// Hold a recomputed number at 1 while a probe runs (it is rebuilt every tick); returns the undo.
+function pin(o, k) {
+  if (!o) return () => {};
+  const d = Object.getOwnPropertyDescriptor(o, k);
+  Object.defineProperty(o, k, { get: () => 1, set: () => {}, configurable: true, enumerable: true });
+  return () => { if (d) Object.defineProperty(o, k, d); else delete o[k]; };
+}
+
 async function stageClear(g, api, C, L) {
   if (g.player.inVehicle) g.exitVehicle(true);
   g.zombies.enabled = false; g.raiderTimer = 1e9;
@@ -104,22 +113,29 @@ export async function feelGuns(g, api, C, shots = 40) {
   const L = feelStrip(g, 40); if (!L) return { error: 'no clear strip' };
   await stageClear(g, api, C, L);
   const B = g.ballistics, settle = async () => { for (let k = 0; k < 120 && B?.inFlight?.(); k++) await api._step(1, DT); };
-  const out = {}, realFire = g.combat.fire.bind(g.combat), log = [];
-  g.combat.fire = (ch, ...a) => { log.push({ who: ch, t: g.time }); return realFire(ch, ...a); };
+  const unpin = [];
+  const out = { shooter: { sway: r2(g.needs?.sway ?? 1), spreadMul: r2(g.skills?.spreadMul ?? 1) } }, realFire = g.combat.fire.bind(g.combat), log = [];
+  let hold = null; // the stand-in target, held on its mark at the trigger (it may step in the frame the aim takes)
+  g.combat.fire = (ch, ...a) => { log.push({ who: ch, t: g.time }); if (hold && ch === g.player) { hold.c.x = hold.x; hold.c.z = hold.z; } return realFire(ch, ...a); };
   try {
+    await C('god', { on: true }); // the stand-in target answers fire; the gun cells only count rounds
+    unpin.push(pin(g.needs, 'sway'), pin(g.skills, 'spreadMul')); // a rested, healthy shooter: the gun's own feel (the live state is reported as `shooter`)
     for (const gun of ['pistol', 'smg']) {
       await C('give', { weapon: gun, [WEAPONS[gun].ammo]: shots * 4 }); await C('equip', { weapon: gun });
       const row = WEAPONS[gun], res = { rate: row.rate, reload: row.reload, mag: row.mag };
       for (const d of [5, 15, 30]) {
         const c = g.spawnRaider(L.x, L.z + d, Math.random, 'pistol'); let hits = 0;
+        hold = { c, x: L.x, z: L.z + d };
         for (let i = 0; i < shots; i++) {
-          c.x = L.x; c.z = L.z + d; c.state = 'idle'; c.target = null; c.grudge = null; c.hp = 9999; c.alive = true;
-          g.player.x = L.x; g.player.z = L.z; g.player.hp = g.player.maxHp ?? 100;
           await api._step(Math.ceil(row.rate * 60) + 1, DT); // a fresh trigger pull each round: rate, not bloom, decides
-          const hp0 = c.hp; await C('fire', { x: c.x, z: c.z }); await settle();
+          c.x = L.x; c.z = L.z + d; c.vx = c.vz = 0; c.prone = false; c.mv = null; c.dive = 0; c.state = 'idle'; // a still, standing body: the gun is measured, not a duck (data/moves.js LOW_BODY)
+           c.target = null; c.grudge = null; c.hp = 9999; c.alive = true;
+          g.player.x = L.x; g.player.z = L.z; g.player.hp = g.player.maxHp ?? 100;
+          (g.inv.cond ??= {})[gun] = 1; (g.inv.jam ??= {})[gun] = false; // a gun fresh from the bench: hundreds of probe rounds wear it (inventory.js GUN_CARE)
+          const hp0 = c.hp; await C('fire', { id: c.id }); // the cursor on the body (the game's aim takes the person, not the ground at their feet) await settle();
           if (c.hp < hp0) hits++;
         }
-        res[`hit${d}`] = r2(hits / shots);
+        res[`hit${d}`] = r2(hits / shots); hold = null;
         g.removeChar(c);
       }
       out[gun] = res;
@@ -137,7 +153,7 @@ export async function feelGuns(g, api, C, shots = 40) {
     const hurts = g.events.filter((e) => e.seq > seq && e.type === 'hurt' && e.by === foe.id).length;
     out.enemy = { firstShot: theirs.length ? r2(theirs[0].t - t0) : null, shots: theirs.length, hits: hurts, hitRate: theirs.length ? r2(hurts / theirs.length) : 0, onScreen: theirs.length ? r2(on / theirs.length) : 0 };
     g.removeChar(foe);
-  } finally { g.combat.fire = realFire; await C('god', { on: false }); }
+  } finally { g.combat.fire = realFire; for (const u of unpin) u(); await C('god', { on: false }); }
   return out;
 }
 
@@ -198,6 +214,15 @@ export async function feelChecks(ctx) {
   await check('feel: 0-60 per row holds its band', () => {
     const bad = Object.entries(FB.t060).filter(([k, b]) => drive()[k] && !inBand(drive()[k].t060, b)).map(([k, b]) => `${k} ${drive()[k].t060} not in [${b}]`);
     return bad.length ? bad.join('; ') : true;
+  });
+  await check('feel: the shakes stack but never past the cap', async () => {
+    if (!inBand(SWAY.cap, FB.gun.swayCap)) return `SWAY.cap ${SWAY.cap} not in [${FB.gun.swayCap}]`;
+    const N = g.needs; if (!N) return true;
+    const was = { rest: N.rest, warmth: N.warmth, fear: N.mood?.fear ?? 0 };
+    try {
+      await C('needs', { rest: 0.02, warmth: 0.05, fear: 10 }); await api._step(30); // worn out, frozen and terrified at once
+      const raw = N.pips; return N.sway <= SWAY.cap + 1e-9 && N.sway >= 1.3 ? true : `sway ${N.sway} (cap ${SWAY.cap}) pips ${JSON.stringify(raw)}`;
+    } finally { await C('needs', was); await api._step(2); }
   });
   await check('feel: the revolver lands at 5 m and mostly at 15 m', async () => {
     const m = await feelGuns(g, api, C, 24); if (m.error) return m.error;
