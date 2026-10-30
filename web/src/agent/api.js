@@ -73,6 +73,7 @@ import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
+import { policeCommands, policeChecks } from './police-api.js'; // POLICE RESPONSE: stations, beats, the desk, units, sirens (WEB_POLICE_RESPONSE.md)
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
 import { casinoCommands, casinoChecks } from './casinos-api.js'; // CASINOS: tables, the house's money, robbery, security drones (WEB_CASINOS.md)
 import { homesCommands, homesChecks } from './homes-api.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
@@ -2110,6 +2111,7 @@ function buildCommands(api) {
     ...crewCommands(api, need),
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
+    ...policeCommands(api, need), // police: stations, patrols, dispatch, units (src/agent/police-api.js)
     ...kitCommands(api, need),
     ...casinoCommands(api, need), // casinos (WEB_CASINOS.md)
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
@@ -2291,6 +2293,8 @@ async function runSelfTest(api, only = null, skip = null) {
   // would drive through them: off for the battery; its own checks turn it on.
   const secWas = { auto: g.security.auto, ambient: g.security.ambient };
   g.security.auto = false; g.security.ambient = false;
+  // The town desks (systems/police.js) likewise: no beats driving through unrelated checks, no reports filed off them.
+  const polWas = { on: g.police.enabled, beats: g.police.beatsOn }; g.police.enabled = false; g.police.beatsOn = false; g.police.clear();
   // The pulls (systems/pulls.js) would grow road people on the I-10 round unrelated drive checks: off for the battery;
   // their own checks (agent/pulls-api.js) turn them on in a stage of their own.
   const pullsWas = g.pulls.enabled; g.pulls.enabled = false;
@@ -6087,6 +6091,8 @@ async function runSelfTest(api, only = null, skip = null) {
   g.population.enabled = foldWas;
   await gadgetsChecks(api, check, C); // gadgets, drones, town security, door barricades (src/agent/gadgets-api.js)
   g.security.auto = secWas.auto; g.security.ambient = secWas.ambient;
+  await policeChecks(api, check, C); // POLICE RESPONSE: the table by size, nobody saw = nobody comes, from the station by the streets, sirens, the reported spot, the heavy team, beats (src/agent/police-api.js)
+  g.police.enabled = polWas.on; g.police.beatsOn = polWas.beats;
   await kitChecks(api, check, C); // GADGETS-2: goggles, torch, glass, scanner, heat scope, mask, nitrous, winch, hub spikes, dog gear (src/agent/kit-api.js)
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
@@ -6120,8 +6126,9 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
-    vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
+    // (c.pol, v.pol: a town desk's officers and motor pool are not saved: systems/police.js stands them up again with the town)
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
