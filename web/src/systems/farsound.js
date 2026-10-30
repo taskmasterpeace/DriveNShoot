@@ -67,7 +67,7 @@ export class FarSound {
   apply() {
     const A = this.g.audio, ctx = A?.ctx;
     if (!ctx || !A.noiseBuf) return;
-    if (!this.bus) { this.bus = ctx.createGain(); this.bus.gain.value = AMBIENCE.master; this.bus.connect(A.master); }
+    if (!this.bus) { this.bus = ctx.createGain(); this.bus.gain.value = AMBIENCE.master; this.bus.connect(A.sfx ?? A.master); }
     const t = ctx.currentTime;
     for (const k in this.mix) {
       const want = this.mix[k] * AMBIENT_LAYERS[k].gain;

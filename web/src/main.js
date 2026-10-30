@@ -978,9 +978,8 @@ class Game {
     p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
     const prevStep = Math.floor(p.walk / Math.PI);
     p.walk += stridePhase(p.speed, dt);
-    if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
-      const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
-      this.audio.step(this.insideBuilding || p.ug ? 'floor' : onRoad ? 'road' : 'sand', 0);
+    if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5 && wet !== 'swim') { // one footfall a half-stride (stridePhase), on what you stand on, as you move
+      this.audio.step(this.soundscape.footSurface(p, wet), 0, p.prone ? 'prone' : p.crouch ? 'crouch' : sprint ? 'run' : 'walk');
     }
     if (this.qol.settings.aimAssist && !this.aimOverride) {
       // Aim assist: snap to the closest living character within 2.2m of the cursor.

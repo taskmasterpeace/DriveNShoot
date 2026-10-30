@@ -59,10 +59,15 @@ export const LICENSE = {
   cc0: { name: 'Kenney / OpenGameArt', terms: 'CC0 1.0 (public domain)' },
   ef: { name: 'Energetic Forms', terms: 'UNCONFIRMED - not shipped until the terms are confirmed' },
 };
+// THE BAN (Robert, 2026-10-29): no BBC sound effects and no Gamemaster sounds, ever, whatever their EULA says. Every
+// pick is Sonniss GDC or Kenney/OpenGameArt CC0. The selftest re-checks the shipped manifest against this.
+export const BANNED = new Set(['pse', 'gamemaster', 'ef']);
+// Gamemaster's naming, for its files that ride inside a Sonniss bundle (its GDC 2017 drop): banned with the pack.
+const GM_NAME = /^(gun_|explosion_(large|med|small|far)|punch_|radio_(tv|walkie)|switch_button|metal_sheet)/;
 function licenseOf(r, packs) {
   if (/_EF[_.]|_PSE_EF_/.test(r.file)) return 'ef';
   if (/_PSE_BBC-/.test(r.file)) return 'pse';
-  if (r.sub === 'gamemaster' || packs.gamemaster.has(r.file)) return 'gamemaster';
+  if (r.sub === 'gamemaster' || packs.gamemaster.has(r.file) || GM_NAME.test(r.file)) return 'gamemaster';
   if (r.sub === 'kenney' || r.sub === 'opengameart' || packs.cc0.has(r.file)) return 'cc0';
   return 'sonniss';
 }
@@ -74,108 +79,114 @@ const anySon = /^sonniss-/;
 const SLOTS = [
   // ---- weapons: each faction's own guns, outdoor (dry, open air) and indoor (a room's tail) ----------------------
   // RUST HAVEN: wardens' revolvers, bolt rifles, a pump gun
-  { set: 'rusthaven', kind: 'shot.pistol', q: [[G, 'gamemaster', /revolver_pistol_shot/], [G, anySon, /Python 357|M29_\.44|M66_\.357/]], n: 6, mode: 'slice', dur: 0.9 },
-  { set: 'rusthaven', kind: 'shot.rifle', q: [[G, anySon, /M1903A3|K98k, Firing|Remington_700|MN0115|MNSD/]], n: 5, mode: 'slice', dur: 1.2 },
+  { set: 'rusthaven', kind: 'shot.pistol', q: [[G, anySon, /Python 357 Magnum - FIRING|M29_\.44|M66_\.357/]], n: 6, mode: 'slice', dur: 0.9 },
+  { set: 'rusthaven', kind: 'shot.rifle', q: [[G, anySon, /M1903A3, Firing|K98k, Firing|Remington_700|MN0115|MNSD/]], n: 5, mode: 'slice', dur: 1.2 },
   { set: 'rusthaven', kind: 'shot.shotgun', q: [[G, anySon, /Remington_870|0003_Shotgun_Fire/]], n: 4, mode: 'slice', dur: 1.1 },
   { set: 'rusthaven', kind: 'shot.pistol.in', q: [[G, anySon, /Warehouse_Colt_M1911|Small Living Room/]], n: 4, mode: 'slice', dur: 1.3 },
   // DUSTWOLVES: cheap automatics, AKs, a sawn-off
-  { set: 'dustwolves', kind: 'shot.smg', q: [[G, anySon, /Uzi_9mm|Mini_Uzi|Ingram_M10|Vz61_Scorpion|Grease_Gun|PPSh41|Thompson/]], n: 6, mode: 'slice', dur: 0.5 },
+  { set: 'dustwolves', kind: 'shot.smg', q: [[G, anySon, /Uzi_9mm|Mini_Uzi|Ingram_M10|Vz61_Scorpion|Grease_Gun|PPSh41, Firing|Thompson/]], n: 6, mode: 'slice', dur: 0.5 },
   { set: 'dustwolves', kind: 'shot.rifle', q: [[G, anySon, /AK47_|AKM_|AK0405|AKSD|AK4_long|AK5_valley/]], n: 6, mode: 'slice', dur: 0.9 },
-  { set: 'dustwolves', kind: 'shot.shotgun', q: [[G, 'gamemaster', /gun_shotgun_shot/], [G, anySon, /SAIGA-12_12g_solid_slug_1m|USAS-12/]], n: 5, mode: 'slice', dur: 1.1 },
-  { set: 'dustwolves', kind: 'shot.pistol', q: [[G, anySon, /TT33|Glock_18/]], n: 3, mode: 'slice', dur: 0.8 },
-  // FEDERAL REMNANT: service rifles, the belt-fed, sidearms
+  { set: 'dustwolves', kind: 'shot.shotgun', q: [[G, null, /SAIGA-12_12g_solid_slug_1m|USAS-12_12g_solid_slug_1m|Saiga 12 Cal\.12 SOURCE Single Shots/]], n: 5, mode: 'slice', dur: 1.1 },
+  { set: 'dustwolves', kind: 'shot.pistol', q: [[G, anySon, /TT33, Firing|Glock_18/]], n: 3, mode: 'slice', dur: 0.8 },
+  // FEDERAL REMNANT: service rifles, the belt-fed (single-shot takes: one round a cut, never a burst baked into a round)
   { set: 'remnant', kind: 'shot.rifle', q: [[G, anySon, /HK_416|G36C|Enfield_L85|FAMAS|Tavor|Assault Rifle - M4/]], n: 6, mode: 'slice', dur: 0.8 },
-  { set: 'remnant', kind: 'shot.mg', q: [[G, anySon, /HK_MG4|L110A2|L7A2|M1919A4/], [G, 'gamemaster', /machinegun_auto_heavy_shot/]], not: /tail_only/, n: 5, mode: 'slice', dur: 0.7 },
+  { set: 'remnant', kind: 'shot.mg', q: [[G, anySon, /L110A2_LMG_5\.56mm_belt_fed_1m|L7A2_GPMG_7\.62x51mm_belt_fed_1m|M1919A4_Browning_Machine_Gun_\.30cal_(on_turret_1m|5m)|HK_MG4_5\.56mm_1m/]], n: 5, mode: 'slice', dur: 0.4 },
   { set: 'remnant', kind: 'shot.pistol', q: [[G, anySon, /SIG_P229|Beretta_93R|M1911A1, Firing/]], n: 4, mode: 'slice', dur: 0.8 },
   { set: 'remnant', kind: 'shot.smg', q: [[G, anySon, /HK_MP5|HK_MP7|FN_P90|MP5_Burst/]], n: 4, mode: 'slice', dur: 0.5 },
   { set: 'remnant', kind: 'shot.rifle.in', q: [[G, anySon, /Small_Room_H&K_416|Medium_Warehouse_Browning/]], n: 3, mode: 'slice', dur: 1.3 },
   // DRIFTERS: whatever they found
-  { set: 'drifter', kind: 'shot.pistol', q: [[G, 'gamemaster', /gun_pistol_shot_\d/]], n: 5, mode: 'shot', dur: 0.9 },
-  { set: 'drifter', kind: 'shot.shotgun', q: [[G, anySon, /Shotgun_Fire_Round|PM_FSSF_GUN_SHOTGUN/]], n: 4, mode: 'slice', dur: 1.1 },
+  { set: 'drifter', kind: 'shot.pistol', q: [[G, anySon, /Glock 17 - FIRING - Take 1|P38, Firing|SIG_P229_9mm_1m|Beretta_93R_9mm_1m/]], n: 5, mode: 'slice', dur: 0.8 },
+  { set: 'drifter', kind: 'shot.shotgun', q: [[G, anySon, /Shotgun_Fire_Round|Shotgun_Fire_Slug|PM_FSSF_GUN_SHOTGUN/]], n: 4, mode: 'slice', dur: 1.1 },
   { set: 'drifter', kind: 'shot.rifle', q: [[G, anySon, /\.22 Long Rifle|M38, Firing|FN_FAL/]], n: 4, mode: 'slice', dur: 1.0 },
-  { set: 'drifter', kind: 'shot.smg', q: [[G, 'gamemaster', /submachine_auto_shot/]], not: /tail_only/, n: 5, mode: 'shot', dur: 0.45 },
+  { set: 'drifter', kind: 'shot.smg', q: [[G, anySon, /Submachine Gun - MP 40|GreaseGun_Submachine_Gun_Single|Steyr_TMP_9mm_1m|Vz61_Scorpion_9mm_1\.5m/]], n: 5, mode: 'slice', dur: 0.4 },
   // MERIDIAN: marksmen's rifles and a good pump
   { set: 'meridian', kind: 'shot.rifle', q: [[G, anySon, /Sako_TRG|Barrett_M98B_\.338_Lapua_2m|HK_G3/]], n: 5, mode: 'slice', dur: 1.3 },
-  { set: 'meridian', kind: 'shot.shotgun', q: [[G, anySon, /SPAS-12/]], n: 4, mode: 'slice', dur: 1.1 },
+  { set: 'meridian', kind: 'shot.shotgun', q: [[G, anySon, /SPAS-12/]], not: /foley|Handling/, n: 4, mode: 'slice', dur: 1.1 },
   { set: 'meridian', kind: 'shot.pistol', q: [[G, anySon, /FN_Five-seveN|HK_VP70|Desert Eagle/]], n: 4, mode: 'slice', dur: 0.8 },
   // the shared gun foley + distance
   { set: 'common', kind: 'shot.far', q: [[G, anySon, /55m_in_front|50m_behind|75m_behind|200m|long distance|far burst/]], n: 6, mode: 'slice', dur: 1.6 },
-  { set: 'common', kind: 'reload.pistol', q: [[G, 'gamemaster', /gun_pistol_(insert_mag|slide_fast|remove_mag)/]], n: 4, mode: 'shot', dur: 0.8 },
-  { set: 'common', kind: 'reload.rifle', q: [[G, 'gamemaster', /gun_(semi_auto_rifle|rifle)_magazine_load|gun_rifle_cock/]], n: 4, mode: 'shot', dur: 1.0 },
-  { set: 'common', kind: 'reload.shotgun', q: [[G, 'gamemaster', /gun_shotgun_(load_bullet|cock)/]], n: 4, mode: 'shot', dur: 0.8 },
-  { set: 'common', kind: 'dry', q: [[G, 'gamemaster', /dry_fire/]], n: 4, mode: 'shot', dur: 0.4 },
+  { set: 'common', kind: 'reload.pistol', q: [[G, anySon, /P38, Handling, Removing Magazine|TT33, Handling, Clearing|EFX INT Unloading Magazine|Colt Python 357 Magnum - VAR SFX - Loading/]], n: 4, mode: 'slice', dur: 0.8 },
+  { set: 'common', kind: 'reload.rifle', q: [[G, anySon, /M1903A3, Handling, Cycling Bolt|K98k, Handling|M38, Handling|MP 40, Handling, Cocking|PPSh41, Handling|Dragunov.*Magazine Insert|Weapon Reload-16/]], n: 4, mode: 'slice', dur: 1.0 },
+  { set: 'common', kind: 'reload.shotgun', q: [[G, anySon, /Shotgun_Quick Pump|0019_Shotgun_Pump_Action|SAIGA-12_12g_solid_slug_foley_close_up_RSM191_R_cocking|Saiga 12 Cal\.12 SOURCE Chamber Eject/]], n: 4, mode: 'slice', dur: 0.8 },
+  { set: 'common', kind: 'dry', q: [[G, anySon, /Handling, Dry Fire|cocking_&_dry_fire/]], n: 4, mode: 'slice', dur: 0.35 },
   { set: 'common', kind: 'whiz', q: [[G, anySon, /bullet_flyby|Passby_Whizzby/]], n: 4, mode: 'shot', dur: 0.6 },
   { set: 'common', kind: 'ricochet', q: [['Guns', anySon, /Bullet Impact|bullet_impact_ice/], ['Weapons', null, /ricochet|Ricochet/]], n: 4, mode: 'shot', dur: 0.8 },
   { set: 'common', kind: 'shell', q: [[G, anySon, /ShotgunShell_Land|Cartridges and Casings|bullet_shell_bounce/]], n: 3, mode: 'slice', dur: 0.5 },
-  { set: 'common', kind: 'explosion.near', q: [[G, 'gamemaster', /explosion_(large|small)/], ['Explosions', null, /./]], not: /_EF|distant|Distant|far|Laser|[Ss]ci|Future|Magic/, n: 5, mode: 'shot', dur: 3.0 },
-  { set: 'common', kind: 'explosion.far', q: [[G, 'gamemaster', /explosion_far_distant/], ['Explosions', null, /[Dd]istant|Far/]], not: /_EF/, n: 4, mode: 'shot', dur: 3.5 },
+  { set: 'common', kind: 'explosion.near', q: [['Explosions', null, /Mortar Explosion|EXPLReal_|Explosion 8|explosionCrunch|lowFrequency_explosion|^explosion_0\d/]], n: 5, mode: 'shot', dur: 3.0 },
+  { set: 'common', kind: 'explosion.far', q: [['Explosions', null, /Distant Blast/]], n: 4, mode: 'shot', dur: 3.5 },
 
-  // ---- footsteps by surface, impacts by material, doors and glass ---------------------------------------------------
-  { set: 'common', kind: 'step.sand', q: [['Footsteps', null, /[Ss]and|[Dd]irt|Gravel|gravel/], ['Footsteps', 'kenney', /^footstep0d/], ['Foley', 'Feet', /Caves Caving/]], not: /Horse|Market|CHIL/, n: 8, mode: 'slice', dur: 0.32 },
-  { set: 'common', kind: 'step.road', q: [['Footsteps', null, /Asphalt|asphalt|Concrete|concrete|BOOT_CONC/], ['Foley', 'Feet', /Road|Stone/]], n: 8, mode: 'slice', dur: 0.3 },
-  { set: 'common', kind: 'step.floor', q: [['Footsteps', null, /[Ww]ood|Wooden/], ['Foley', 'Feet', /Wood|Floor/]], not: /Stairs/, n: 8, mode: 'slice', dur: 0.3 },
-  { set: 'common', kind: 'step.metal', q: [['Footsteps', null, /Metal_Boot|Metal Soldier|Metal_Boots/], ['Foley', 'Feet', /Metal/]], n: 6, mode: 'slice', dur: 0.32 },
-  { set: 'common', kind: 'step.grass', q: [['Footsteps', null, /[Gg]rass/]], n: 6, mode: 'slice', dur: 0.32 },
-  { set: 'common', kind: 'step.water', q: [['Footsteps', null, /[Ww]ater|[Ss]plash|[Mm]ud/], ['Water', null, /[Ff]ootstep|[Ww]ading|Wade/]], n: 6, mode: 'slice', dur: 0.45 },
-  { set: 'common', kind: 'impact.metal', q: [['Metal', 'Impact', /./], [G, 'gamemaster', /metal_sheet_impacts/]], n: 6, mode: 'slice', dur: 0.7 },
-  { set: 'common', kind: 'impact.wood', q: [['Wood', 'Impact', /./]], n: 5, mode: 'slice', dur: 0.6 },
-  { set: 'common', kind: 'impact.flesh', q: [[G, 'gamemaster', /punch_(grit_wet|general_body)_impact/], ['Guns', anySon, /bullet_impact_body/]], n: 6, mode: 'shot', dur: 0.45 },
+  // ---- footsteps by surface: single footfalls, never a walk loop cut blind; 5-8 takes a surface --------------------
+  // (2026-10-29 sound pass: the old picks were BBC cave/road RUN takes - banned, and the wrong surface.)
+  { set: 'common', kind: 'step.dirt', q: [['Footsteps', 'kenney', /^footstep0\d/], ['Footsteps', null, /FS Ground Civilian Walk|PM_SDNG_Single_Step/]], n: 8, mode: 'slice', dur: 0.3 },
+  { set: 'common', kind: 'step.gravel', q: [['Footsteps', null, /Gravel_Loafers|289_Foley_Footsteps_Rocks/]], n: 6, mode: 'slice', dur: 0.32 },
+  { set: 'common', kind: 'step.road', q: [['Footsteps', 'kenney', /footstep_concrete/], ['Footsteps', null, /015_Foley_Footsteps_Asphalt|FS Concrete Soldier/]], n: 8, mode: 'slice', dur: 0.3 },
+  { set: 'common', kind: 'step.floor', q: [['Footsteps', 'kenney', /footstep_wood/], ['Footsteps', null, /FS Wood Civilian|wooden floor 1 loop/]], n: 8, mode: 'slice', dur: 0.3 },
+  { set: 'common', kind: 'step.metal', q: [['Footsteps', null, /FS Metal Soldier Walk|237_Foley_Footsteps_Metal_Boot|S23_SFX_Footsteps_Metal_Boots|Metal Plate Walk/]], n: 6, mode: 'slice', dur: 0.32 },
+  { set: 'common', kind: 'step.grass', q: [['Footsteps', 'kenney', /footstep_grass/], ['Footsteps', null, /PM_SDGS_(14|113|186) |grass 3 single step|169_Foley_Footsteps_Grass/]], n: 8, mode: 'slice', dur: 0.32 },
+  { set: 'common', kind: 'step.water', q: [['Footsteps', null, /0014_Footsteps_water_puddle/], ['Water', null, /slush asphalt 11|Bluezone_BC0256_water_splash_small|mud_splat_heavy/]], n: 6, mode: 'slice', dur: 0.45 },
+  { set: 'common', kind: 'step.snow', q: [['Footsteps', 'kenney', /footstep_snow/], ['Footsteps', null, /Snow Footstep Light Slow|snow 7 single step/]], n: 6, mode: 'slice', dur: 0.32 },
+  { set: 'common', kind: 'step.carpet', q: [['Footsteps', 'kenney', /footstep_carpet/]], n: 5, mode: 'slice', dur: 0.28 },
+  // ---- impacts by material, doors and glass --------------------------------------------------------------------------
+  { set: 'common', kind: 'impact.metal', q: [['Designed', 'kenney', /^impactMetal|^impactPlate/], ['Metal', null, /Metal Shelf Hit|Metal plate bang|Metal_Hit_Crash|METLImpt_/], ['Destruction', null, /Metal Impact Drop|dry hard metal impact/]], n: 6, mode: 'slice', dur: 0.7 },
+  { set: 'common', kind: 'impact.wood', q: [['Designed', 'kenney', /^impactWood|^impactPlank/], ['Wood', 'Impact', /./]], n: 5, mode: 'slice', dur: 0.6 },
+  { set: 'common', kind: 'impact.flesh', q: [['Designed', 'kenney', /^impactPunch|^impactSoft_heavy/], ['Guns', anySon, /bullet_impact_body/], ['Fight', null, /GORE Punch/]], n: 6, mode: 'shot', dur: 0.45 },
   { set: 'common', kind: 'impact.concrete', q: [['Rocks', null, /Impact|impact|hit/]], not: /Bicycle|offload/, n: 5, mode: 'slice', dur: 0.6 },
   { set: 'common', kind: 'impact.dirt', q: [['Destruction', null, /dirt|DIRT|Sand/], ['Water', null, /Rock Hit Dirt|Rock into Gravel/]], n: 4, mode: 'slice', dur: 0.6 },
-  { set: 'common', kind: 'impact.glass', q: [['Guns', anySon, /Bullet_Impact_Glass/], ['Glass', null, /[Ii]mpact|[Hh]it/]], n: 4, mode: 'slice', dur: 0.6 },
-  { set: 'common', kind: 'bodyfall', q: [['Games', null, /bodyfall/], ['Fight', 'Bodyfall', /./]], n: 5, mode: 'slice', dur: 0.8 },
-  { set: 'common', kind: 'door.open', q: [['Doors', 'Wood', /Doors House/], ['Doors', null, /[Oo]pen/]], not: /Stage/, n: 4, mode: 'shot', dur: 1.6 },
-  { set: 'common', kind: 'door.close', q: [['Doors', null, /[Cc]lose|[Ss]lam/]], n: 4, mode: 'shot', dur: 1.4 },
+  { set: 'common', kind: 'impact.glass', q: [['Guns', anySon, /Bullet_Impact_Glass/], ['Designed', 'kenney', /^impactGlass/], ['Glass', null, /[Ii]mpact|[Hh]it/]], n: 4, mode: 'slice', dur: 0.6 },
+  { set: 'common', kind: 'bodyfall', q: [['Games', null, /bodyfall/], ['Fight', 'Bodyfall', /./], [null, null, /RL_bodyfall/]], n: 5, mode: 'slice', dur: 0.8 },
+  { set: 'common', kind: 'door.open', q: [['Doors', 'kenney', /doorOpen/], ['Doors', 'Wood', /Doors House/], ['Doors', null, /door-household|DOORCreak/]], not: /Stage|Ferrari|Dodge|Elevator/, n: 4, mode: 'shot', dur: 1.6 },
+  { set: 'common', kind: 'door.close', q: [['Doors', 'kenney', /doorClose/], ['Doors', null, /Door Slams|door-household/]], not: /Elevator|Ferrari|Dodge/, n: 4, mode: 'shot', dur: 1.4 },
   { set: 'common', kind: 'door.kick', q: [['Destruction', null, /wood_breaking|[Ww]ood.*([Bb]reak|[Cc]rack|[Ss]plinter)/], ['Wood', null, /[Bb]reak|[Ss]nap|[Ss]plinter|[Cc]rack/]], n: 4, mode: 'shot', dur: 1.2 },
-  { set: 'common', kind: 'door.metal', q: [['Doors', 'Metal', /./]], n: 4, mode: 'shot', dur: 2.0 },
-  { set: 'common', kind: 'glass.break', q: [['Glass', 'Break', /./], ['Glass', 'Crash & Debris', /./]], n: 6, mode: 'shot', dur: 1.6 },
-  { set: 'common', kind: 'melee.swing', q: [['Swooshes', null, /[Ww]hoosh|[Ss]wish|[Ss]woosh/]], not: /_EF|Electronic|glow|Beep|[Ss]ci/, n: 4, mode: 'shot', dur: 0.5 },
+  { set: 'common', kind: 'door.metal', q: [['Doors', null, /Big Metal Gate|hatchway|garage_gate_metal/], ['Ambience', null, /garage_gate_metal/]], n: 4, mode: 'shot', dur: 2.0 },
+  { set: 'common', kind: 'glass.break', q: [['Glass', null, /Glass_Break_(Pane|BeerBottle|WineBottle)|Window,Small,Break|Glass,Shards,Smash|GLASBrk_/], ['Destruction', null, /Shattered Glass Impact|glass_impact_break/]], n: 6, mode: 'shot', dur: 1.6 },
+  { set: 'common', kind: 'melee.swing', q: [['Swooshes', null, /[Ww]hoosh|[Ss]wish|[Ss]woosh/]], not: /_EF|Electronic|glow|Beep|[Ss]ci|Ghost|Transition|Doppler|Gore/, n: 4, mode: 'shot', dur: 0.5 },
 
   // ---- alarms, radio --------------------------------------------------------------------------------------------------
-  { set: 'common', kind: 'alarm.siren', q: [['Alarms', 'Siren', /Air Raid/]], n: 3, mode: 'shot', dur: 6.0 },
-  { set: 'common', kind: 'alarm.bell', q: [['Alarms', 'Bell', /./]], n: 3, mode: 'shot', dur: 3.0 },
-  { set: 'common', kind: 'alarm.klaxon', q: [['Alarms', null, /[Kk]laxon|[Bb]uzzer|Electronic/], ['Alarms', 'Buzzer', /./]], n: 3, mode: 'shot', dur: 2.5 },
-  { set: 'common', kind: 'radio.static', q: [['Communications', 'Static', /Static|Interfere|Receivers/], [G, 'gamemaster', /radio_(tv_electronic|walkie_talkie)_static/]], n: 4, mode: 'shot', dur: 2.0 },
-  { set: 'common', kind: 'radio.stinger', q: [['Communications', 'Radio', /Morse|Receivers/], [G, 'gamemaster', /switch_button_push/]], n: 4, mode: 'shot', dur: 1.5 },
+  { set: 'common', kind: 'alarm.siren', q: [['Alarms', null, /Emergency Siren 02|Emergency Siren 10|Siren_ST 03|Siren_ST 10|siren_modulation/]], n: 3, mode: 'shot', dur: 6.0 },
+  { set: 'common', kind: 'alarm.bell', q: [['Alarms', null, /alarm_loops_08|CSFX-2_Alarms_09|LargeAlarm5\.2/], ['Bells', null, /[Aa]larm|[Ff]ire [Bb]ell/]], n: 3, mode: 'shot', dur: 3.0 },
+  { set: 'common', kind: 'alarm.klaxon', q: [['Alarms', null, /Alarm_Fast_DDM23|Bluezone_BC0242_alarm|SmlAlarm6_Single_Fast|SW011_Alarms_Siren_High/]], n: 3, mode: 'shot', dur: 2.5 },
+  { set: 'common', kind: 'radio.static', q: [['Communications', null, /CB Radio_Freq|OldRadioTuningStaticNoise|Radio Static 9|Radio Tuning Static Noise|Walkie Talkie,Cobra MicroTalk,Radio Communication,Static/]], n: 4, mode: 'shot', dur: 2.0 },
+  { set: 'common', kind: 'radio.stinger', q: [['Communications', null, /vintage_radio_button|Walkie Talkie,Cobra MicroTalk,Radio Communication,End|Walkie Talkie,AEG Voxtel|Bluezone_BC0266_radio_beep/]], n: 4, mode: 'shot', dur: 1.5 },
 
   // ---- vehicles: an engine class per kind of machine (idle / rev / strain loops); rows map onto them -----------------
-  { set: 'engine.car', kind: 'idle', q: [['Vehicles', 'Car', /[Ii]dle|Exterior/]], n: 2, mode: 'loop', dur: 2.4, at: 0.15 },
-  { set: 'engine.car', kind: 'rev', q: [['Vehicles', 'Car', /[Rr]ev|[Aa]ccel|Driving|driving/]], n: 2, mode: 'loop', dur: 2.4, at: 0.4 },
-  { set: 'engine.car', kind: 'strain', q: [['Vehicles', 'Racing', /./], ['Vehicles', 'Car', /[Ff]ast|[Hh]igh|Pass/]], n: 2, mode: 'loop', dur: 2.4, at: 0.45 },
-  { set: 'engine.truck', kind: 'idle', q: [['Vehicles', 'Truck Van & Suv', /Land Rover|Unimog|[Ii]dle/]], n: 2, mode: 'loop', dur: 2.6, at: 0.1 },
-  { set: 'engine.truck', kind: 'rev', q: [['Vehicles', 'Truck Van & Suv', /[Aa]ccel|Pass|Drive/]], n: 2, mode: 'loop', dur: 2.6, at: 0.45 },
-  { set: 'engine.truck', kind: 'strain', q: [['Vehicles', 'Truck Van & Suv', /Fire Engine|Lorr|Unimog/], ['Vehicles', 'Freight', /./]], n: 2, mode: 'loop', dur: 2.6, at: 0.5 },
+  // Loops are cut from STEADY stretches (idle, constant rpm) so the crossfade never pumps a gearshift every 2 s.
+  { set: 'engine.car', kind: 'idle', q: [['Vehicles', null, /BMW E46, Cars, Vehicles, Engine, Idle, Loop|Skoda_Octavia_1\.6_t1_onboard_start_stop_idle|BMW 114i Engine Start Idle/]], n: 2, mode: 'loop', dur: 2.4, at: 0.45 },
+  { set: 'engine.car', kind: 'rev', q: [['Vehicles', null, /Alfa_Romeo_159_SW_t2_onboard_driving_steady|Porsche_911_SC_-81_t5_onboard_driving_constant|BMW E46, Cars, Vehicles, Engine, Acceleration Medium, Driving At Constant/]], n: 2, mode: 'loop', dur: 2.4, at: 0.45 },
+  { set: 'engine.car', kind: 'strain', q: [['Vehicles', null, /Dodge_Challenger_Hemi_-70_t3_onboard_driving_steady_rpms_shutdown_Interior_L|pontiac_gto_t13_onbrd_drive_steady|Plymouth_Cuda_Hemi_-71_t2/]], n: 2, mode: 'loop', dur: 2.4, at: 0.5 },
+  { set: 'engine.truck', kind: 'idle', q: [['Vehicles', null, /Volvo_dump_truck_t1_ext_startup_idle|Renault Master F3500 dCi135 Engine Start Up Idle|M1_Corbitt_t1_onbrd_startup_idle/]], n: 2, mode: 'loop', dur: 2.6, at: 0.35 },
+  { set: 'engine.truck', kind: 'rev', q: [['Vehicles', null, /Iveco_Daily_van_-12_t2_onboard_driving_steady|gaz_69_t21_onbrd_idle_steady/]], n: 2, mode: 'loop', dur: 2.6, at: 0.5 },
+  { set: 'engine.truck', kind: 'strain', q: [['Vehicles', null, /Volvo_F12_truck_t2_onboard_slow_accel|chevrolet_silverado_tow_truck_t5_onbrd/]], n: 2, mode: 'loop', dur: 2.6, at: 0.5 },
   { set: 'engine.moto', kind: 'idle', q: [['Vehicles', 'Motorcycle', /[Ii]dle|Startup/]], n: 2, mode: 'loop', dur: 2.0, at: 0.2 },
-  { set: 'engine.moto', kind: 'rev', q: [['Vehicles', 'Motorcycle', /[Aa]ccel|Racing|Pass/]], n: 2, mode: 'loop', dur: 2.0, at: 0.45 },
+  { set: 'engine.moto', kind: 'rev', q: [['Vehicles', 'Motorcycle', /Constant RPM|Racing|Pass/]], n: 2, mode: 'loop', dur: 2.0, at: 0.45 },
   { set: 'engine.moto', kind: 'strain', q: [['Vehicles', 'Motorcycle', /Racing|Fast/]], n: 2, mode: 'loop', dur: 2.0, at: 0.6 },
-  { set: 'engine.heavy', kind: 'idle', q: [['Vehicles', 'Military', /Tanks/], ['Vehicles', anySon, /Infanterikanonvagn.*IDLE|Tankietka/]], n: 2, mode: 'loop', dur: 3.0, at: 0.1 },
-  { set: 'engine.heavy', kind: 'rev', q: [['Vehicles', 'Military', /./], ['Vehicles', anySon, /GEARSHIFTS|Pvpjbv/]], n: 2, mode: 'loop', dur: 3.0, at: 0.4 },
-  { set: 'engine.heavy', kind: 'strain', q: [['Vehicles', 'Military', /Chieftain|ECD100|ECD99/]], n: 2, mode: 'loop', dur: 3.0, at: 0.6 },
-  { set: 'engine.boat', kind: 'idle', q: [['Boats', null, /Motor|Launch|Lifeboat|Outboard/]], n: 2, mode: 'loop', dur: 2.6, at: 0.15 },
-  { set: 'engine.boat', kind: 'rev', q: [['Boats', null, /Speed|Motor|Racing|Power/]], n: 2, mode: 'loop', dur: 2.6, at: 0.5 },
-  { set: 'engine.boat', kind: 'strain', q: [['Boats', null, /Speed|Racing|Power|Hovercraft|Jet/]], n: 2, mode: 'loop', dur: 2.6, at: 0.6 },
-  { set: 'common', kind: 'vehicle.door', q: [['Vehicles', 'Door', /./]], n: 4, mode: 'shot', dur: 1.2 },
-  { set: 'common', kind: 'vehicle.skid', q: [['Vehicles', 'Skid', /./], ['Vehicles', 'Tire', /./]], n: 3, mode: 'shot', dur: 1.4 },
-  { set: 'common', kind: 'vehicle.crash', q: [['Vehicles', null, /[Cc]rash/], ['Destruction', null, /[Cc]ar|[Mm]etal [Cc]rash/], ['Metal', 'Crash & Debris', /./]], n: 5, mode: 'shot', dur: 2.0 },
-  { set: 'common', kind: 'vehicle.horn', q: [['Vehicles', 'Horn', /./], ['Horns', null, /[Cc]ar/]], n: 3, mode: 'shot', dur: 1.0 },
+  { set: 'engine.heavy', kind: 'idle', q: [['Vehicles', null, /chaffee_m24_t6_onbrd_start_idle|T-34_t2_onboard_startup_driving_idle|M8_t2_onbrd_startup_blips_steady/]], n: 2, mode: 'loop', dur: 3.0, at: 0.35 },
+  { set: 'engine.heavy', kind: 'rev', q: [['Vehicles', anySon, /Pvpjbv 2062 - t9|Tankietka_t5_Onbrd_Slow_Drive/]], n: 2, mode: 'loop', dur: 3.0, at: 0.4 },
+  { set: 'engine.heavy', kind: 'strain', q: [['Vehicles', null, /excavator MF 860 exterior engine passby medium speed constant|Tractor Magnum 7250 ONBOARD Driving Sequence Constant|Claas Lexion 530/]], n: 2, mode: 'loop', dur: 3.0, at: 0.55 },
+  { set: 'engine.boat', kind: 'idle', q: [[null, null, /boat Arvor 215 exterior engine diesel on low rpms|boat Arvor 215 engine neutral gear/]], n: 2, mode: 'loop', dur: 2.6, at: 0.3 },
+  { set: 'engine.boat', kind: 'rev', q: [[null, null, /0051 - motor boat ride|fishing_boat_trawler_t28_onbrd_various_speeds|BOATWash_Boat Mercury ONBOARD Riding/]], n: 2, mode: 'loop', dur: 2.6, at: 0.5 },
+  { set: 'engine.boat', kind: 'strain', q: [[null, null, /BOATMotr_Boat Mercury ONBOARD Ramp Up|Drag_Boat_t2_Ext|F2_Boat_t5/]], n: 2, mode: 'loop', dur: 2.6, at: 0.6 },
+  { set: 'common', kind: 'vehicle.door', q: [['Vehicles', 'Door', /./], ['Doors', null, /VEHDoor_|close door and shut/]], n: 4, mode: 'shot', dur: 1.2 },
+  { set: 'common', kind: 'vehicle.skid', q: [['Vehicles', 'Skid', /./], ['Vehicles', 'Tire', /./], ['Vehicles', null, /[Ss]kid|[Tt]yre [Ss]queal|[Tt]ire [Ss]queal/]], n: 3, mode: 'shot', dur: 1.4 },
+  { set: 'common', kind: 'vehicle.crash', q: [['Vehicles', null, /[Cc]rash/], ['Destruction', null, /Car_Destruction|DESTRCrsh_|[Mm]etal [Cc]rash/], ['Metal', null, /Metal_Hit_Crash/]], not: /Casings|Cartdridges/, n: 5, mode: 'shot', dur: 2.0 },
+  { set: 'common', kind: 'vehicle.horn', q: [['Vehicles', 'Horn', /./], [null, null, /VEHHorn_|Volvo_dump_truck_t7_ext_horn|Horn Various - Mono/]], n: 3, mode: 'shot', dur: 1.0 },
 
   // ---- ambience beds: per biome, per kind of settlement -------------------------------------------------------------
   { set: 'bed.desert', kind: 'day', q: [['Wind', null, /Desert|desert/], [null, null, /Desert canyon|Uyuni_Desert|MOROCCO Desert/]], n: 2, mode: 'bed', dur: 36 },
   { set: 'bed.desert', kind: 'night', q: [['Ambience', null, /[Cc]ricket|Night.*[Ii]nsect|vineyard evening/]], n: 2, mode: 'bed', dur: 36 },
   { set: 'bed.ruins', kind: 'day', q: [['Wind', null, /Urban|Alley|Apartment|Flutter/]], n: 2, mode: 'bed', dur: 36 },
   { set: 'bed.ruins', kind: 'night', q: [['Ambience', null, /City Night|QUIET STREET Night/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.swamp', kind: 'day', q: [['Ambience', 'Swamp', /./], ['Ambience', 'Tropical', /./]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.swamp', kind: 'night', q: [['Animals', null, /[Ff]rog|[Tt]oad/], ['Ambience', 'Tropical', /[Nn]ight/], ['Animals', 'Insect', /./]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.swamp', kind: 'day', q: [['Ambience', null, /TROPICAL Wetland swamp|BG_SouthAfrica_Wetland|THAILAND, KORAT/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.swamp', kind: 'night', q: [['Ambience', null, /swamp_ambience_night|0457 - amazon jungle night/], ['Animals', null, /Rice field frogs/]], n: 2, mode: 'bed', dur: 36 },
   { set: 'bed.forest', kind: 'day', q: [['Ambience', 'Forest', /./]], not: /Nighttime/, n: 2, mode: 'bed', dur: 36 },
   { set: 'bed.forest', kind: 'night', q: [['Ambience', 'Forest', /Nighttime/], ['Ambience', null, /[Oo]wl|[Cc]icada/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.coast', kind: 'day', q: [['Ambience', 'Nautical', /Birds|Atmosphere|Boatyards/], ['Water', 'Waves', /./]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.coast', kind: 'night', q: [['Ambience', 'Nautical', /Evening|Winter/], ['Water', 'Lapping', /./]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.plains', kind: 'day', q: [['Ambience', 'Rural', /Field|Farms|Atmos/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.plains', kind: 'night', q: [['Ambience', 'Rural', /Dawn|Night|Evening/], ['Ambience', null, /Coyotes|coyotes/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.market', kind: 'day', q: [['Ambience', 'Market', /Africa|Morocco|Auctions|Cattle/], ['Human', null, /Market souk/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.market', kind: 'night', q: [['Ambience', 'Restaurant & Bar', /./], ['Crowds', 'Walla', /Int Chatter|Cafes/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.gate', kind: 'day', q: [['Ambience', 'Industrial', /Bricklaying|Factories|Industry/], ['Ambience', 'Warfare', /Drill Army/]], n: 2, mode: 'bed', dur: 36 },
-  { set: 'bed.gate', kind: 'night', q: [['Ambience', 'Industrial', /Power Station/], ['Ambience', 'Warfare', /./]], not: /Air Raid|Anti Aircraft/, n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.coast', kind: 'day', q: [['Ambience', null, /NS01_002_Nature ambience with seaguls|Beach_Ocean_Waves_Fienup|AMBNaut_Atmos, EXT Marina/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.coast', kind: 'night', q: [['Ambience', null, /Port ambience, small waves|South Pacific, Exterior, Atmosphere, Desert Island/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.plains', kind: 'day', q: [['Ambience', 'Rural', /Field|Farms|Atmos|Countryside/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.plains', kind: 'night', q: [['Ambience', null, /ValleySirensCoyotes|ErieValleyHowl/], ['Animals', null, /Summer in the Fields - Evening-Night/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.market', kind: 'day', q: [['Ambience', 'Public Place', /./], ['Human', null, /Market souk/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.market', kind: 'night', q: [['Ambience', 'Restaurant & Bar', /./], ['Ambience', null, /AMBRest_/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.gate', kind: 'day', q: [['Ambience', 'Industrial', /Warehouse Construction|WorkShop04|Industrial Town/], ['Ambience', null, /Industrial Warehouse_Mid/]], n: 2, mode: 'bed', dur: 36 },
+  { set: 'bed.gate', kind: 'night', q: [['Ambience', 'Industrial', /Power Plant|Industrial Town/], ['Ambience', null, /BM Ambient Machinery 08|Bluezone_BC0239_background_industrial/]], n: 2, mode: 'bed', dur: 36 },
   { set: 'bed.weather', kind: 'rain', q: [['Rain', null, /Rain|rain/]], not: /car window|CNC|SciFi/, n: 2, mode: 'bed', dur: 30 },
   { set: 'bed.weather', kind: 'wind', q: [['Wind', null, /Massive|Heavy|Gust/]], n: 2, mode: 'bed', dur: 30 },
 
@@ -184,29 +195,29 @@ const SLOTS = [
   { set: 'shambler', kind: 'attack', q: [[null, null, /Zombie biting|ZombieVocalizationsGeneral|Zombie Specimens/]], n: 4, mode: 'slice', dur: 1.6 },
   { set: 'shambler', kind: 'pain', q: [[null, null, /GroanyMonster_Pain|Creature_Monster_Pain|troll_monster_hurt/]], n: 4, mode: 'slice', dur: 1.2 },
   { set: 'sprinter', kind: 'alert', q: [['Animals', null, /pain_scream|Monster Within|LargeMonster.*Roar/]], n: 4, mode: 'slice', dur: 1.4 },
-  { set: 'sprinter', kind: 'idle', q: [['Human', 'Breath', /./]], n: 4, mode: 'slice', dur: 1.6 },
-  { set: 'echo', kind: 'idle', q: [['Voices', 'Futzed', /./], ['Crowds', 'Walla', /Crowd Int Chatter/]], n: 4, mode: 'shot', dur: 2.2 },
+  { set: 'sprinter', kind: 'idle', q: [['Human', null, /Breaths,Male,Exhale,Ghost,Evil|scared breath|Breathe 6|voice_male_breathing_mask_loop_run/]], n: 4, mode: 'slice', dur: 1.6 },
+  { set: 'echo', kind: 'idle', q: [['Human', null, /Female Ghostly Breath|Ethereal Breaths - Abstract/], ['Crowds', null, /WALLA - Crowd laugh and shout - Interior - Softer/], ['Communications', null, /Bluezone-BC0223-noise-radio-signal/]], n: 4, mode: 'shot', dur: 2.2 },
   { set: 'choir', kind: 'idle', q: [['Designed', 'Eerie', /./], ['Electricity', null, /[Hh]um/]], not: /_EF/, n: 4, mode: 'shot', dur: 3.5 },
-  { set: 'howler', kind: 'howl', q: [['Animals', 'Dog', /Howling/], [null, null, /Coyotes 2015|CloseCoyote|Steens Night/]], n: 4, mode: 'slice', dur: 3.5 },
-  { set: 'howler', kind: 'snarl', q: [[null, null, /Growl Dry|Monster Growls|Dinosaur Growl/], ['Animals', 'Cat Domestic', /Growling/]], n: 4, mode: 'slice', dur: 1.4 },
+  { set: 'howler', kind: 'howl', q: [[null, null, /Coyotes 2015|CloseCoyote|Steens Night|ErieValleyHowl/]], n: 4, mode: 'slice', dur: 3.5 },
+  { set: 'howler', kind: 'snarl', q: [[null, null, /Growl Dry|Monster Growls|Dinosaur Growl|Dog Snarling/]], n: 4, mode: 'slice', dur: 1.4 },
   { set: 'fauna.coyote', kind: 'call', q: [[null, null, /Coyotes|coyotes/]], n: 3, mode: 'slice', dur: 3.0 },
-  { set: 'fauna.dog', kind: 'bark', q: [['Animals', 'Dog', /Barking|Golde|Spring|Irish/]], n: 5, mode: 'slice', dur: 0.7 },
-  { set: 'fauna.dog', kind: 'growl', q: [['Animals', 'Dog', /[Gg]rowl/], ['Animals', 'Cat Domestic', /Growling/]], n: 3, mode: 'slice', dur: 1.3 },
+  { set: 'fauna.dog', kind: 'bark', q: [['Animals', null, /Dog_big_close_barking|Dog_German_Shepherd_t2_Ext_Field_Bark|Dog_German Short-Haired Pointer_Bark|Dog_Border Collie Mix_Whining and Bark/]], n: 5, mode: 'slice', dur: 0.7 },
+  { set: 'fauna.dog', kind: 'growl', q: [['Animals', null, /EFX INT Dog Snarling|EFX INT Dog Fight/]], n: 3, mode: 'slice', dur: 1.3 },
   { set: 'fauna.hog', kind: 'call', q: [['Animals', 'Farm', /Pigs/], ['Animals', null, /Pig_Grunt|Pig 07 Squeal/]], n: 4, mode: 'slice', dur: 1.2 },
   { set: 'fauna.snake', kind: 'call', q: [['Animals', null, /snake_hiss/], [null, null, /Rattle-Mechanics/]], n: 3, mode: 'slice', dur: 1.4 },
   { set: 'fauna.bird', kind: 'call', q: [['Birds', 'Bird Of Prey', /./], ['Birds', null, /Goshawk|Kite/]], n: 3, mode: 'slice', dur: 1.8 },
-  { set: 'fauna.cat', kind: 'call', q: [['Animals', 'Wild', /Leopards/], ['Animals', 'Cat Domestic', /Growling/]], n: 3, mode: 'slice', dur: 1.8 },
+  { set: 'fauna.cat', kind: 'call', q: [['Animals', null, /ANMLCat_Cat Moew|animals cat Fiona|animals cat blue meow/]], n: 3, mode: 'slice', dur: 1.8 },
   { set: 'fauna.gator', kind: 'call', q: [[null, null, /Swamp Fish Creature|Camel A, Grunt|Dinosaur Growl/]], n: 3, mode: 'slice', dur: 1.6 },
 
   // ---- BARK BEDS: the wordless half of every faction's voice (shouts, pain, alert, retreat) ---------------------------
   // Each faction draws from different takes so a Dustwolf scream never sounds like a warden's.
   { set: 'bark.male', kind: 'pain', q: [['Human', null, /Pain|Hurt|Grunts? \d|Male_Grunt|EMOTE/], ['Animals', null, /troll_monster_hurt/]], not: /Female|female|Woman|Child|laugh/, n: 8, mode: 'slice', dur: 0.9 },
   { set: 'bark.male', kind: 'shout', q: [['Human', null, /Battle Cry|Male_Grunt-Shout/], ['Crowds', null, /War Unit.*Shout/]], n: 6, mode: 'slice', dur: 1.2 },
-  { set: 'bark.male', kind: 'death', q: [['Voices', 'Scream', /Male in Shock|Screams_PSE/]], n: 4, mode: 'slice', dur: 1.4 },
-  { set: 'bark.female', kind: 'shout', q: [['Human', null, /Female|female|Woman|woman/]], not: /Breath|breath|Sneeze|Snore|Cough|laugh|Laugh/, n: 5, mode: 'slice', dur: 1.2 },
-  { set: 'bark.crowd', kind: 'alert', q: [['Crowds', 'Angry', /./], ['Crowds', 'Battle', /./]], n: 4, mode: 'shot', dur: 2.5 },
-  { set: 'bark.crowd', kind: 'retreat', q: [['Crowds', 'Reaction', /./], ['Crowds', null, /Jeers|Demo/]], n: 3, mode: 'shot', dur: 2.0 },
-  { set: 'bark.whistle', kind: 'signal', q: [['Whistles', 'Human', /./], ['Whistles', 'Misc', /./]], not: /Comedy/, n: 4, mode: 'slice', dur: 1.2 },
+  { set: 'bark.male', kind: 'death', q: [['Voices', 'Scream', /Male in Shock/], ['Human', null, /Scream,Male,Mid Thirties/]], n: 4, mode: 'slice', dur: 1.4 },
+  { set: 'bark.female', kind: 'shout', q: [['Human', null, /Female|female|Woman|woman/]], not: /Breath|breath|Sneeze|Snore|Cough|laugh|Laugh|Ghostly/, n: 5, mode: 'slice', dur: 1.2 },
+  { set: 'bark.crowd', kind: 'alert', q: [['Crowds', null, /City Protest in street voices shouting|Protests_|War Unit - Small Crowd Mixed, Shout Charge/]], n: 4, mode: 'shot', dur: 2.5 },
+  { set: 'bark.crowd', kind: 'retreat', q: [['Crowds', null, /WALLA - Crowd laugh and shout - Interior - (Louder|Medium)|Crowd Lutte/]], n: 3, mode: 'shot', dur: 2.0 },
+  { set: 'bark.whistle', kind: 'signal', q: [['Whistles', null, /./]], not: /Comedy|comedy/, n: 4, mode: 'slice', dur: 1.2 },
 ];
 
 // ---- matching ---------------------------------------------------------------------------------------------------------
@@ -216,7 +227,7 @@ function candidates(slot, idx, packs) {
   for (const q of slot.q) for (const r of idx) {
     if (!matchQ(r, q) || seen.has(r.file) || (slot.not && slot.not.test(r.file))) continue;
     const lic = licenseOf(r, packs);
-    if (lic === 'ef') continue; // never shipped until its terms are confirmed
+    if (BANNED.has(lic)) continue; // never shipped: BBC (via PSE) and Gamemaster by Robert's rule, EF until its terms are confirmed
     seen.add(r.file); out.push({ ...r, lic });
   }
   return out.sort((a, b) => a.file.localeCompare(b.file));
@@ -278,7 +289,9 @@ function plan() {
 function build() {
   const only = opt('only') ? new RegExp(opt('only')) : null;
   const idx = loadIndex(), packs = packNames();
-  const man = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { v: 1, sets: {} };
+  // A full build starts from an empty manifest and an empty public/audio, so no banned or retired slot survives.
+  const man = only && existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { v: 1, sets: {} };
+  if (!only) for (const d of existsSync(OUT) ? readdirSync(OUT) : []) rmSync(join(OUT, d), { recursive: true, force: true });
   man.note = 'tools/audio-pick.mjs writes this from the studio library; data/audiosets.js reads it. Files under public/audio/.';
   for (const s of SLOTS) {
     const id = `${s.set}/${s.kind}`;
@@ -297,7 +310,7 @@ function build() {
       for (const r of pool) {
         const src = pathOf(r);
         if (!existsSync(src)) { console.log(`  missing ${src}`); continue; }
-        const total = probeDur(src), pk = ffErr(['-t', '40', '-i', src, '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-']).match(/max_volume: (-?[d.]+) dB/);
+        const total = probeDur(src), pk = ffErr(['-t', '40', '-i', src, '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-']).match(/max_volume: (-?[\d.]+) dB/);
         const segs = segments(src, Math.min(-30, (pk ? +pk[1] : 0) - 24), total).filter(([a, b]) => b - a > 0.05);
         if (segs.length) decks.push({ r, src, total, segs, hits: spread(segs, s.n) });
       }
