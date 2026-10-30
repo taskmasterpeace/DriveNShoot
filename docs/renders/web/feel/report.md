@@ -35,8 +35,18 @@ angry one loose on you (god mode). Raw JSON: `scratchpad/feel/before.json`, `aft
 5. **Reverse is very brisk** (5 m/s in 0.25-0.77 s) — matches Robert's ask for an easier reverse.
 
 ## Driving AFTER (DRIVING.steerRate 6/s, steerReturn 10/s)
-See `scratchpad/feel/after.json` (interceptor, sedan, rv, bike): steer delay rises from ~0.18 s to the ramp's
-~0.3 s on purpose (a tap is a nudge, a hold is full lock); every other column unchanged.
+| row | steer delay s before → after | handbrake swing ° before → after |
+|---|---|---|
+| interceptor | 0.18 → 0.28 | 88 → 80 |
+| sedan | 0.20 → 0.28 | 80 → 72 |
+| buggy | 0.18 → 0.27 | 105 → 95 |
+| van | 0.22 → 0.30 | 63 → 57 |
+| rv | 0.23 → 0.32 | 47 → 42 |
+| bike | 0.18 → 0.27 | 112 → 101 |
+
+Every other driving column is unchanged. The delay rises on purpose (a tap is a nudge, a hold is full lock in
+~0.17 s of wheel travel). Not yet playtested by hand. **Combat noise:** with no combat change, the revolver at 15 m
+read 0.50 one run and 0.25 the next. 16 shots is too few, so the probe needs 60+ shots per cell before any band is set.
 
 ## Combat (BEFORE)
 | gun | rate s | reload s | mag | hit 5 m | hit 15 m | hit 30 m |
