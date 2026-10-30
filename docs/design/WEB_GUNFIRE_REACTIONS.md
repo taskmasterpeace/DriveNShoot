@@ -233,6 +233,7 @@ The same man **asleep**:
 | delay / wake | 0.25–0.7 / 2.6–5 s | wake must start after delay ends (validated) | reaction speed |
 | seeR / seeRNight | 40 / 18 m | 15–70 / 8–30 | return fire needs sight inside this |
 | doorR / bedR / kinR | 24 / 20 / 70 m | 10–40 / 8–30 / 30–120 | how far they go for cover |
+| hop / shortLeg | 35 / 40 m | 20–60 / 20–80 | a look's longest planned leg; a leg this short is always path-planned (else, outside the nav window, straight) |
 | jump.perShot / halfLife | 0.16 / 90 s | 0.05–0.4 / 30–600 | how fast a town gets jumpy and calms |
 | jump.delayCut / secsAdd / calmCut / scareAdd / earAdd | 0.5 / 0.8 / 0.85 / 1 / 0.25 | 0–0.8 / 0–2 / 0–1 / 0–3 / 0–0.6 | what jumpiness does |
 | maxPerShot | 48 | 16–80 | a cost cap |

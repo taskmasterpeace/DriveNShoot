@@ -304,7 +304,9 @@ export class Reactions {
     if (Math.hypot(gx - c.x, gz - c.z) < arrive) { c.speed = 0; return true; }
     rx.repath = (rx.repath ?? 0) - dt;
     if (!rx.route || (rx.repath <= 0 && (Math.abs(rx.gx - gx) + Math.abs(rx.gz - gz) > drift || (c.stuck ?? 0) > 0.6))) {
-      rx.route = this.inWindow(c.x, c.z, gx, gz) ? g.footPath?.(c.x, c.z, gx, gz) ?? null : null; // never drag the shared nav window (tactics pays the rebuild): outside it, straight
+      // A long leg outside the shared nav window walks straight (dragging the window made tactics pay a rebuild); a short
+      // one (a door, a bed, family a street away) is always planned: straight there runs a mother into the wall between.
+      rx.route = this.inWindow(c.x, c.z, gx, gz) || Math.abs(gx - c.x) + Math.abs(gz - c.z) < REACT.shortLeg ? g.footPath?.(c.x, c.z, gx, gz) ?? null : null;
       if (!rx.route?.length) rx.route = [{ x: gx, z: gz }];
       rx.ri = 0; rx.gx = gx; rx.gz = gz; rx.repath = 1.5;
     }
