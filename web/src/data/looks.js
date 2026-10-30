@@ -186,9 +186,9 @@ export const LAMPS = {
   wrap: 0.3,         // light wraps round a body this far past its silhouette (a face half turned still reads)
   color: '#fff1cc',  // the headlamp's warm white (vehiclelights.js HEAD)
   night: 0.08,       // below this much night the lamps are not worth a body (the beams aren't drawn either)
-  head: { I: 5.0, range: 30, cos: 0.82, y: 0.75 },   // a car's pair, one lamp at the middle of the nose; one eye left = 0.55
-  bike: { I: 3.4, range: 24, cos: 0.88, y: 1.0 },
-  torch: { I: 4.2, range: 19, cos: 0.86, y: 1.25 },  // range follows the torch cone's own reach (kit.beamReach, the dark)
+  head: { I: 7.0, range: 30, cos: 0.76, y: 0.75 },   // a car's pair, one lamp at the middle of the nose; one eye left = 0.55
+  bike: { I: 4.8, range: 24, cos: 0.84, y: 1.0 },
+  torch: { I: 5.6, range: 19, cos: 0.84, y: 1.25 },  // range follows the torch cone's own reach (kit.beamReach, the dark)
 };
 
 // ---- validation ------------------------------------------------------------------------------------------------------

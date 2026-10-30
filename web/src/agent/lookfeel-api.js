@@ -297,12 +297,13 @@ export async function lookfeelChecks({ g, api, C, check }) {
     const off = at(near, 0), on = at(near, 1);
     const compiled = !!g.charR.meshes.torso.material.userData.lampCompiled && F.lamps.patched >= 6;
     // The torch: on foot, facing the man, the cone reaches him.
-    g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); p.face = Math.PI / 2; await api._step(6);
-    const torch = F.lamps.view().lamps.some((l) => l.kind === 'torch'), lTorch = chest(near);
+    g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); await api._step(6);
+    p.face = Math.atan2(near.x - p.x, near.z - p.z); F.lamps.update(); // the aim follows the mouse in a frame: point it now
+    const torch = F.lamps.view().lamps.some((l) => l.kind === 'torch'), lTorch = chest(near), tAt = [r3(p.x), r3(p.z), r3(near.x), r3(near.z)];
     for (const d of [near, far, back]) g.removeChar(d);
     dropMine(g); await C('setTime', { hour: 12 });
     const ok = head && lNear > 0.6 && lFar > 0 && lFar < lNear * 0.6 && lBack === 0 && on > off + 6 && on > off * 1.4 && compiled && torch && lTorch > 0.3;
-    return ok ? true : JSON.stringify({ head, lNear: r3(lNear), lFar: r3(lFar), lBack: r3(lBack), off: r3(off), on: r3(on), compiled, patched: F.lamps.patched, torch, lTorch: r3(lTorch), lamps: F.lamps.view().lamps });
+    return ok ? true : JSON.stringify({ head, lNear: r3(lNear), lFar: r3(lFar), lBack: r3(lBack), off: r3(off), on: r3(on), compiled, patched: F.lamps.patched, torch, lTorch: r3(lTorch), tAt, lamps: F.lamps.view().lamps });
   });
 
   await check('look-feel: a site the site-story system marks as raided shows it on the ground (scorch, blood, tyre tracks), and a camp has its bonfire ring', async () => {
