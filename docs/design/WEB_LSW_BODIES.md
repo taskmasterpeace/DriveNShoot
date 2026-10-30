@@ -96,7 +96,21 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
    The glow is 0.9. The clothes of every veined breed take 14% of #5b4a38. The baked face quad keeps its own eyes: LSW's
    #f5f4dc infected eyes are not ported, because the faces are baked PNGs.
 8. **Breath.** An idle, living chest rises 1.2% at 0.25 Hz. No LSW motion clip is used.
-9. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
+9. **Portraits are the real model** (Robert's playtest, 2026-10-29: "They're right when you end the game, but not when
+   you select your character. And when I talk to somebody, the dialogue thing shows the wrong model"; his law: a portrait
+   must look like the real model, never a stylized stand-in). Both screens draw the body with the game's own
+   `CharacterRenderer` + `LswBodies` on a small WebGL canvas of their own, made once for the page's life:
+   - **The creator card** (`ui/creator.js` Preview): its LswBodies is given a focus at the body (`focus = {x: 0, z: 0}`),
+     so the one body is the nearest and wears the faceted kit (before this it had no focus and fell back to the classic
+     rig). It carries the draft's `name` and `flag` (the world keys face, hair and frame on the name), the world's body
+     mode, and the background kit's worn hat and chest piece (`systems/gear.js wornLook`, the same function `dress()`
+     runs at BEGIN). Until the kit has loaded the card draws nothing, never the classic rig as a stand-in.
+   - **The talk box** (`ui/liveportrait.js` LivePortrait, used by `ui/dialogue.js`): one Character copies the person's
+     look fields (`colors`, `build`, `look`, `hand`, `faction`, `name`, `npc`, `flag`, `weapon`, `holstered`, `oneHand`,
+     `zkind`, `rot`, `blood`, `charred`), so the recipe (face, hair module, frame, muscle) is the one the world drew them
+     with. Head and shoulders, over their weathered flag, turning ±0.12 rad and breathing, re-rendered every frame the talk
+     is open. The 2D `drawPortrait` face is no longer used by the talk box.
+10. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
    set; the next frame is byte-identical to the classic rig (a check proves it).
 
 ## 4. Formulas, with an example
@@ -135,6 +149,11 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
   chose that legibility over the canon's surprise. At the classic distance it still looks like the rest.
 - **An infected in long sleeves:** the forearm is not the skin's colour, so only the head and hands vein; the sleeve
   takes the 14% grave tint.
+- **Talking before the kit has loaded** (the first seconds of a session): the portrait shows the flag alone and the body
+  appears on the first frame after the load. **No WebGL for the portrait** (`dialogue.noLive`): the flag alone, never
+  a drawn face. **Classic mode:** both screens draw the classic rig, because that is what the world draws.
+- **The creator card's look vs BEGIN:** `applyIdentity` sets name, flag, `lookColors`, build and hand, then
+  `gear.dress()` puts the kit's hat and chest piece on. The card sets the same fields through the same functions.
 - **Photo mode, paused:** `sync(chars, 0)` still runs the pose pass, so photos show faceted bodies.
 - **WebGL's 16-attribute limit:** the kit's per-vertex data is 6 attributes (+4 for the instance matrix). Colours and the
   recipe ride the bone texture row (9 extra texels), and the morph deltas ride a second texture fetched by
@@ -153,6 +172,9 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
     and gear scale, `drive`), and **+1 condition** in this cut (the classic hair piece skips when `ownsHair`).
   - `main.js`: +1 (focus), +1 (the heat scope switch, `charR.lsw.heat.value`). `systems/kit.js`: +1 (`this.eyes`, the optic live this frame). `ui/qol.js`: +3 (default, the select, apply). `agent/api.js`: +3 (import, commands, checks).
   - `docs/COMMANDS.md`: regenerated.
+  - Portraits: `ui/creator.js` +6 (focus, name/flag, mode, worn kit, no stand-in while loading); `ui/dialogue.js` (the
+    drawn portrait replaced by `ui/liveportrait.js`); `systems/gear.js` (`dress()`'s look logic lifted into the pure
+    `wornLook`, behaviour unchanged). `WEB_CREATOR.md` lists this doc as a dependency.
 
 ## 7. Tuning knobs (`data/lswbodies.js`; safe ranges)
 | Knob | Default | Safe range | What it does |
@@ -172,6 +194,8 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 | `VEIN_STYLES.*.width` / `glow` | 13 / 9 / 7 px; #ff2a1a / none / #3dff6e | 3–16 px; any hue outside 260–330° | vein thickness and the colour they glow |
 | `VEIN_RULES.glowIntensity` | 0.9 | 0.4–1.5 | how hard glowing veins glow |
 | `VEIN_RULES.clothesMix` | 0.14 | 0–0.3 | how much the clothes take the grave colour |
+| `PORTRAIT.frameH` / `faceAt` (`ui/liveportrait.js`) | 0.78 m / 0.42 | 0.6–1.2 m / 0.3–0.5 | how much of them the talk box shows, and where the head sits |
+| `PORTRAIT.face` / `sway` | 0.32 / 0.12 rad | 0–0.8 / 0–0.3 | the three-quarter turn toward you, and how far it drifts |
 
 ## 8. Acceptance criteria (the named selftest checks, `lsw-bodies:`)
 1. **Kit.** The rows validate; the kit loads with 53 bones, 46 modules and six faces; `PROVENANCE.md` names the
@@ -192,6 +216,12 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 8c. **Cold under the heat scope.** With the scope live, `lswBodies.heat` is 1, and it is 0 again once the scope is off.
     A close night render of a red shambler and a neon echo through the scope differs in more than 20 pixels from the same
     render with the glow forced on, so the glow is really gone (the selftest renders both).
+8d. **The creator card.** With the draft set to a gate guard named Ada Okafor from Nigeria, the card's body is drawn on
+    the faceted kit in the world's mode, carries that name and flag, wears `lookColors(draft)`'s skin, hair, shirt,
+    trousers and boots and the riot helmet, and its recipe is `facetRecipe` of that body.
+8e. **The talk box.** Talking to a drifter, the portrait body is drawn on the faceted kit with exactly the recipe the
+    world drew them with, their own colours object, flag and name, and over 20% of the middle of the portrait differs
+    from the bare flag (the body is really there). Before/after: `docs/renders/web/lsw-faceted/portrait-*.jpg`.
 9. **Decay.** A bloated body (rot 0.6) wears exactly the classic rig's rotted shirt, trousers and skin, and the tint
    really changes them.
 10. **Budget.** With 160 people, draw calls stay under 150, faceted bodies add at most 3, 24 are drawn, and the CPU cost

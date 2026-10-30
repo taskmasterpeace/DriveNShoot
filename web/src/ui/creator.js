@@ -9,6 +9,7 @@ import { paintClothFlag } from './hudart.js';
 import { RULERS } from '../data/atlas.js';
 import { ITEMS } from '../data/items.js';
 import { GEAR } from '../data/gear.js';
+import { wornLook } from '../systems/gear.js';
 import { NPCS } from '../data/npcs.js';
 import { Character, CharacterRenderer } from '../systems/characters.js';
 import { WEAPONS } from '../systems/combat.js';
@@ -61,6 +62,7 @@ class Preview {
     this.floor = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false }));
     this.floor.rotation.x = -Math.PI / 2; this.floor.position.y = 0.005; this.scene.add(this.floor);
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
+    this.charR.lsw.focus = { x: 0, z: 0 }; // the body stands here, nearest: it wears the faceted body the world will draw (systems/lswbodies.js)
     this.ch = new Character(0, { x: 0, z: 0, face: 0.5, hp: 100, faction: 'player', weapon: 'pistol', colors: lookColors({}) });
     this.ch.timer = 0;
     this.list = [this.ch]; // what sync() draws, made once (no allocation per frame)
@@ -71,9 +73,13 @@ class Preview {
     canvas.addEventListener('pointermove', (e) => { if (this.drag !== null) { this.spin += (e.clientX - this.drag) * 0.012; this.drag = e.clientX; } });
     canvas.addEventListener('pointerup', () => { this.drag = null; });
   }
-  set(picks, weapon) {
+  set(picks, weapon, mode = 'lsw', wear = []) {
     const ch = this.ch;
+    ch.name = picks.name || null; ch.flag = picks.flag ?? 'US'; // what the world keys the face, hair and frame on (systems/creator.js apply)
+    this.charR.lsw.setMode(mode);
     ch.colors = lookColors(picks);
+    const worn = {}; for (const id of wear) if (GEAR[id]) worn[GEAR[id].slot] = GEAR[id]; // the background's kit, worn as BEGIN wears it (systems/gear.js)
+    Object.assign(ch.colors, wornLook(ch.colors, (slot) => worn[slot] ?? null));
     const b = buildOf(picks); ch.build = b.w === 1 && b.h === 1 ? null : b;
     ch.hand = picks.look?.hand === 'L' ? 'L' : 'R';
     ch.weapon = WEAPONS[weapon] ? weapon : 'pistol';
@@ -97,6 +103,8 @@ class Preview {
     }
     if (this.drag === null) this.spin += dt * 0.55;
     this.ch.face = this.spin;
+    const L = this.charR.lsw;
+    if (L.mode === 'lsw' && !L.ready && !L.error) { this.r.clear(); return; } // the kit still loading: nothing, never the classic stand-in
     this.charR.sync(this.list, dt);
     this.r.render(this.scene, this.cam);
   }
@@ -563,7 +571,7 @@ export class CreatorUI {
     this.$.stats.innerHTML = ATTRS.map((a) => `<div class="cr-stat"><b>${P.attrs[a.k]}</b><i>${a.short}</i></div>`).join('');
     const flaws = P.traits.filter(isFlaw).map((x) => traitById(x)?.label), goods = P.traits.filter((x) => !isFlaw(x)).map((x) => traitById(x)?.label);
     this.$.line2.innerHTML = `<span><b>HP</b>${V.maxHp}</span><span><b>SCRIP</b>$${V.kit.cash}</span>${goods.length ? `<span><b>+</b>${esc(goods.join(', '))}</span>` : ''}${flaws.length ? `<span><b>−</b>${esc(flaws.join(', '))}</span>` : ''}`;
-    this.preview?.set(P, b?.kit.guns[0]?.[0] ?? 'pistol');
+    this.preview?.set(P, b?.kit.guns[0]?.[0] ?? 'pistol', this.g.charR?.lsw?.mode ?? 'lsw', b?.kit.wear ?? []);
   }
 
   view() { return { open: this.open_, step: STEPS[this.step].id, stepIndex: this.step, focus: this.focus, row: this.rows[this.focus]?.label ?? null, rows: this.rows.length, padPresses: this.pressed, mode: this.mode ? { fromTitle: this.mode.fromTitle, shard: this.mode.shard } : null }; }

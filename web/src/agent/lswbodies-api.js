@@ -1,7 +1,10 @@
 // LSW-BODIES as COMMANDS rows and selftest checks (docs/design/WEB_LSW_BODIES.md; systems/lswbodies.js, data/lswbodies.js).
 // buildCommands() in api.js spreads lswBodiesCommands into COMMANDS; runSelfTest calls lswBodiesChecks.
 import * as THREE from 'three';
-import { LSW_RULES, validateLswBodies } from '../data/lswbodies.js';
+import { LSW_RULES, validateLswBodies, facetRecipe } from '../data/lswbodies.js';
+import { lookColors } from '../data/creator.js';
+import { GEAR } from '../data/gear.js';
+import { genderOf } from '../data/voices.js';
 import { outfit } from '../systems/characters.js';
 import { FLAG_KEYS } from '../ui/portrait.js';
 
@@ -276,6 +279,54 @@ export async function lswBodiesChecks(api, check, C) {
       g.paused = false; K.on.eyes = had.eyes; K.charge.thermal_scope = had.charge; g.inventory.spend('thermal_scope', 1); rt.dispose();
       await C('setTime', { hour: 12 });
     }
+  }));
+
+  await check('lsw-bodies: the CREATOR card wears the real faceted body (Robert 10-29: "right when you end the game, but not when you select your character") - its body is drawn on the faceted kit, with the name, flag, colours and frame the world will key it on, and the background\'s worn kit (a gate guard\'s riot helmet) on it as BEGIN puts it on', async () => {
+    const U = g.creatorUI, K = g.creator, d0 = JSON.parse(JSON.stringify(K.draft)), was = U.open_;
+    try {
+      if (!U.open_) U.open({});
+      const V = U.preview;
+      if (!V) return `no creator preview (${U.noPreview})`;
+      await V.charR.lsw.loaded;
+      K.draft.background = 'guardsman'; K.draft.name = 'Ada Okafor'; K.draft.flag = 'NG';
+      U.paintCard(); V.frame(1 / 60); V.frame(1 / 60);
+      const L2 = V.charR.lsw, ch = V.ch, P = K.draft, out = [];
+      if (L2.mode !== L.mode) out.push(`mode ${L2.mode}, the world draws ${L.mode}`);
+      if (L.mode === 'lsw' && !L2.drawn[0]) out.push('the card body is not on the faceted kit');
+      if (ch.name !== P.name || ch.flag !== P.flag) out.push(`name/flag ${ch.name}/${ch.flag}`);
+      const look = lookColors(P);
+      for (const k of ['skin', 'hair', 'shirt', 'pants', 'boots']) if (ch.colors[k] !== look[k]) out.push(`${k} ${ch.colors[k]} want ${look[k]}`);
+      if (ch.colors.hatStyle !== GEAR.riot_helmet.look.hat) out.push(`hat ${ch.colors.hatStyle}, the gate guard wears a ${GEAR.riot_helmet.look.hat}`);
+      const want = facetRecipe(ch, genderOf(P.name) === 'f'), got = L2.recipeOf[0];
+      if (L.mode === 'lsw' && JSON.stringify(got) !== JSON.stringify(want)) out.push(`recipe ${JSON.stringify(got)} want ${JSON.stringify(want)}`);
+      return out.length ? out.join('; ') : true;
+    } finally {
+      K.draft = d0; if (!was && U.open_) U.close(false); else U.paintCard?.();
+    }
+  });
+
+  await check('lsw-bodies: the TALK BOX portrait is the person\'s REAL in-game model, live (Robert 10-29: "the dialogue thing shows the wrong model") - the same faceted recipe the world drew them with, their own colours and flag, the body really painted over the flag backdrop, no drawn stand-in', () => stage(async () => {
+    const c = add('drifter', 0, 2.5, { name: 'Birgit Diaz' }, 'pistol', 'MX');
+    frame();
+    const D = g.dialogue, out = [];
+    D.open(c);
+    try {
+      const V = D.live;
+      if (!V) return `no live portrait (${D.noLive})`;
+      await V.charR.lsw.loaded;
+      D.drawPortrait(1 / 60); const drew = D.drawPortrait(1 / 60);
+      const L2 = V.charR.lsw;
+      if (!drew) out.push('nothing drawn over the flag');
+      if (L.mode === 'lsw' && !L2.drawn[0]) out.push('the portrait body is not on the faceted kit');
+      if (V.ch.colors !== c.colors || V.ch.flag !== 'MX' || V.ch.name !== c.name) out.push('the portrait is not wearing this person\'s look');
+      if (L.mode === 'lsw' && JSON.stringify(L2.recipeOf[0]) !== JSON.stringify(L.recipeOf[c.slot])) out.push(`recipe ${JSON.stringify(L2.recipeOf[0])}, the world drew ${JSON.stringify(L.recipeOf[c.slot])}`);
+      // The body really covers the flag: the middle of the portrait differs from the bare backdrop.
+      const W = D.canvas.width, H = D.canvas.height, a = D.canvas.getContext('2d').getImageData(W * 0.3, H * 0.2, W * 0.4, H * 0.6).data;
+      const b = V.back.getContext('2d').getImageData(W * 0.3, H * 0.2, W * 0.4, H * 0.6).data;
+      let diff = 0; for (let p = 0; p < a.length; p += 4) if (Math.abs(a[p] - b[p]) + Math.abs(a[p + 1] - b[p + 1]) + Math.abs(a[p + 2] - b[p + 2]) > 30) diff++;
+      if (diff < a.length / 4 * 0.2) out.push(`only ${diff} of ${a.length / 4} middle pixels differ from the bare flag`);
+      return out.length ? out.join('; ') : true;
+    } finally { D.close(); }
   }));
 
   await check('lsw-bodies: the dead decay on the LSW body as on the classic rig - a bloated body (systems/rites.js rot tint) wears exactly the classic rig\'s rotted shirt, trousers and skin colours', () => stage(async () => {
