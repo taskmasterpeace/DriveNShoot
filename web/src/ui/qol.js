@@ -632,7 +632,7 @@ export class QOL {
   togglePhoto(on = !this.photo) {
     const g = this.g;
     if (on) this.photo = { x: g.camLook.x, z: g.camLook.z, h: g.camHeight, tilt: 0.14 };
-    else this.photo = null;
+    else { this.photo = null; this.photoCap?.remove(); this.photoCap = null; }
     document.getElementById('ui').classList.toggle('photo', !!on);
     g.paused = !!on || this.menuOpen || this.mapOpen;
     g.emit('photoMode', { on: !!on });
@@ -640,12 +640,32 @@ export class QOL {
   updatePhoto(dt, I) {
     const ph = this.photo, g = this.g;
     if (I.hit('Escape')) { this.togglePhoto(false); return; }
+    if (ph.stops?.length) { const d = I.hit('Period') || I.hit('ArrowRight') ? 1 : I.hit('Comma') || I.hit('ArrowLeft') ? -1 : 0; if (d) this.photoStop((ph.i ?? 0) + d); }
     const sp = (I.key('ShiftLeft') ? 60 : 22) * (ph.h / 33) * dt;
     if (I.key('KeyW')) ph.z -= sp; if (I.key('KeyS')) ph.z += sp;
     if (I.key('KeyA')) ph.x -= sp; if (I.key('KeyD')) ph.x += sp;
     if (I.wheel) ph.h = Math.max(6, Math.min(160, ph.h * (I.wheel > 0 ? 1.12 : 0.89)));
     if (I.key('KeyQ')) ph.tilt = Math.max(0, ph.tilt - dt * 0.6);
     if (I.key('KeyE')) ph.tilt = Math.min(1.6, ph.tilt + dt * 0.6);
+    this.placePhotoCamera();
+  }
+  // A lineup frames itself for a player (scenarios/*-lineup.js): `stops` is a list of { x, z, h, tilt, label } along the row,
+  // `.` / `,` (or the arrow keys) step the camera along it, and a caption says where you are in it. W A S D still pans.
+  lookStops(stops, at = 0) {
+    this.photo.stops = stops;
+    if (!this.photoCap) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9;padding:.5rem .9rem;border-radius:.625rem;background:oklch(0.2 0.02 60 / .86);color:oklch(0.93 0.015 80);font:600 13px Inter,system-ui,sans-serif;letter-spacing:.02em;border:1px solid oklch(0.45 0.05 70);pointer-events:none;white-space:nowrap';
+      document.body.appendChild(d); this.photoCap = d;
+    }
+    this.photoStop(at);
+  }
+  photoStop(i) {
+    const ph = this.photo, n = ph?.stops?.length; if (!n) return;
+    ph.i = ((i % n) + n) % n;
+    const s = ph.stops[ph.i];
+    ph.x = s.x; ph.z = s.z; ph.h = s.h ?? ph.h; ph.tilt = s.tilt ?? ph.tilt;
+    if (this.photoCap) this.photoCap.textContent = `${s.label ?? ''}   ·   ${ph.i + 1} of ${n}   ·   , and . step along the row   ·   WASD pan   ·   K or Esc to play`;
     this.placePhotoCamera();
   }
   // Also called by the agent's screenshot, so a photo-mode shot keeps its framing.

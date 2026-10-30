@@ -35,5 +35,13 @@ export default async (DL, game) => {
   const damaged = await row(333, [['sedan', 9, { front: 0.3 }], ['sedan', 16, { front: 0.7 }], ['interceptor', 23, { front: 1 }], ['van', 30, { left: 1, front: 0.5 }]]);
   await DL.teleport({ x: 22, z: 350 });
   await DL.step({ seconds: 0.3 });
+  // For a player: the camera sits on the lineup (not on you); `.` and `,` step it along both rows, a car at a time.
+  const xs = [0, 9, 16, 23, 30, 37, 43, 48], names = ['Rig', 'Interceptor', 'Sedan', 'Pickup', 'Van', 'Buggy', 'Bike', 'ATV'];
+  const stops = [{ x: 24, z: 326, h: 30, tilt: 0.14, label: 'GARAGE LINEUP: every car body, and below them the glass under fire' }];
+  xs.forEach((x, i) => stops.push({ x, z: 320, h: 9, tilt: 0.14, label: names[i] }));
+  [[9, 'Sedan · windshield 30% cracked'], [16, 'Sedan · windshield 70% cracked'], [23, 'Interceptor · windshield shot out'], [30, 'Van · side window out, windshield 50%']].forEach(([x, label]) => stops.push({ x, z: 333, h: 9, tilt: 0.14, label }));
+  if (!game.qol.photo) game.qol.togglePhoto(true);
+  Object.assign(game.qol.photo, { x: 24, z: 326, h: 30, tilt: 0.14 });
+  game.qol.lookStops(stops, 0);
   return { bodies, damaged, look: { x: 21.5, z: 326, zoom: 30 } };
 };

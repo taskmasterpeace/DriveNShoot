@@ -32,6 +32,7 @@
   .watch { background: oklch(0.62 0.17 40 / .2); color: var(--rust); }
   .look { background: oklch(0.8 0.15 80 / .15); color: var(--gold); }
   .d { color: var(--mute); font-size: .82rem; }
+  kbd { font: 700 .72rem ui-monospace, Consolas, monospace; background: var(--card2); border: 1px solid var(--line); border-radius: .3rem; padding: 0 .3rem; }
   .k { font-family: ui-monospace, Consolas, monospace; font-size: .72rem; color: oklch(0.6 0.02 70); }
   .soon { opacity: .55; pointer-events: none; }
   footer { margin-top: 2rem; color: var(--mute); font-size: .8rem; }
@@ -47,7 +48,7 @@
     <a class="free" href="/">Free play &rarr;</a>
   </header>
   <div id="lab"></div>
-  <footer>Tags: <b style="color:var(--ok)">PLAY</b> you drive it · <b style="color:var(--rust)">WATCH</b> it plays itself to prove a system · <b style="color:var(--gold)">LOOK</b> a photo booth to judge by eye. Greyed cards are scenarios being built for tonight's new systems.</footer>
+  <footer>Tags: <b style="color:var(--ok)">PLAY</b> you drive it · <b style="color:var(--rust)">WATCH</b> it plays itself to prove a system · <b style="color:var(--gold)">LOOK</b> a photo booth to judge by eye: the camera sits on the lineup, <kbd>.</kbd> and <kbd>,</kbd> step it along the row, W A S D pans, K leaves.</footer>
 </div>
 <script>
 const S = [
@@ -55,7 +56,7 @@ const S = [
     ['highway-heist', 'play', 'Highway heist', 'Night, rain, Route 66. You drive the War Rig after a raider convoy: harpoon one, yank it, watch it roll.'],
     ['checkpoint-run', 'play', 'Checkpoint run', 'Three stars on you: the county posse throws a roadblock with a road chain across your way out of town.'],
     ['arena-night', 'play', 'Arena night', 'A loaner junker with a hood gun, a rocket pod and an oil sprayer against three armed raider cars in a dust bowl.'],
-    ['garage-lineup', 'look', 'Garage lineup', 'Every car body side by side with a driver in each, plus glass under fire at 30%, 70% and shot out.'],
+    ['garage-lineup', 'look', 'Garage lineup', 'Every car body side by side with a driver in each, plus glass under fire at 30%, 70% and shot out. . and , step along the row.'],
     ['stream-drive', 'watch', 'Long drive', 'Each rig flat out across the streamed world: proves the map loads ahead of you at speed.'],
   ]],
   ['Fights', [
@@ -75,18 +76,20 @@ const S = [
     ['pack-gear', 'look', 'Pack and gear', 'The PACK screen kitted out: armor in the doll, a dog at heel, a body at your feet with a vest on it.'],
   ]],
   ['People and looks', [
-    ['people-lineup', 'look', 'People lineup', 'One of every look and pose, front and back, frozen so you can judge every face, body and flag.'],
-    ['lsw-bodies', 'look', 'Bodies in action', 'A street crowd, a gunfight, a pickup-bed rider, a prone shooter, a biker and a body on the ground.'],
+    ['people-lineup', 'look', 'People lineup', 'One of every look and pose, front and back, frozen so you can judge every face, body and flag. . and , step person to person.'],
+    ['lsw-bodies', 'look', 'Bodies in action', 'A street crowd, a gunfight, a pickup-bed rider, a prone shooter, a biker and a body on the ground. . and , step shot to shot.'],
     ['interior-lineup', 'look', 'Interiors', 'The mechanic\'s shop in every door and window state: flung doors, padlocks, cracked and boarded glass.'],
-    ['gait-strip', 'look', 'Walk cycles', 'One stride frozen at eight phases per gait, to catch skating feet and knees that bend wrong.'],
+    ['gait-strip', 'look', 'Walk cycles', 'One stride frozen at eight phases per gait, to catch skating feet and knees that bend wrong. . and , step gait to gait.'],
   ]],
-  ['Coming next: tonight\'s new systems', [
-    ['', 'soon', 'Towing and boats', 'Tow a dead car, winch one out of the mud, launch a boat from its trailer at a ramp.'],
-    ['', 'soon', 'Semis', 'Drive a car up the ramp of a moving semi; the RV on the wide-load lowboy.'],
-    ['', 'soon', 'Melee yard', 'Fists, bats, machetes, the sword cane: block, parry, grab, take a hostage, struggle free.'],
-    ['', 'soon', 'Casino night', 'Blackjack and chess for real money, then rob the place past guards and security drones.'],
-    ['', 'soon', 'The long road', 'A city-to-city drive with travellers, roadside stops and the trip log at the end.'],
-    ['', 'soon', 'Police response', 'Fire a shot in town and watch the dispatch, the sirens and the investigation follow real evidence.'],
+  ['Tonight\'s new systems', [
+    ['towing-boats', 'play', 'Towing and boats', 'At the wheel of a wrecker: hook a dead sedan, winch a bogged pickup out of the mud, then launch a skiff off its trailer into the lake.'],
+    ['semi-run', 'play', 'Semis', 'On I-10 in an interceptor: catch a car-hauler rolling with its ramp down and drive up into the hold; a wide-load lowboy with an RV runs behind.'],
+    ['melee-yard', 'play', 'Melee yard', 'A bat, a machete, knuckles and a sword cane on the dirt; three raiders to fight and a fourth with his back turned to take hostage.'],
+    ['casino-night', 'play', 'Casino night', 'On the street outside a gaming hall with $300: blackjack and chess tables, guards, cameras, a drone over the safe. Play, or rob it.'],
+    ['long-road', 'play', 'The long road', 'A full tank, a sedan and Phoenix\'s east edge: drive I-10 to the next city past travellers, a stalled car and a checkpoint, then read your trip log.'],
+    ['police-response', 'play', 'Police response', 'On the main street of a county seat with a sheriff\'s station. Fire a shot and watch the dispatch, the sirens and the search of where you stood.'],
+    ['moves-course', 'play', 'Dives and moves', 'A low wall, a fence, a chest-high wall, a car hood and an RV roof in a line: vault, climb, roll, slide, dive and drop-hang.'],
+    ['doll-pack', 'play', 'Body doll and Pack', 'A broken arm and a bleeding leg, a full backpack, a ration and a fuel can on the ground, a crate three paces off. Splint, bandage, drag things across.'],
   ]],
   ['Tools', [
     ['feel', 'watch', 'Feel report', 'Driving and gunplay measured like a player feels them: 0-60, steering delay, slides, hit chance.'],

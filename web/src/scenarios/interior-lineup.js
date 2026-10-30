@@ -45,6 +45,10 @@ export default async (DL, game) => {
   await DL.step({ seconds: 0.1 });
   if (!game.qol.photo) game.qol.togglePhoto(true);
   Object.assign(game.qol.photo, { x: cx, z: cz, h: 30, tilt: 0.14 });
-  game.qol.placePhotoCamera();
+  // For a player: the camera sits on the shop; `.` and `,` step it from the whole room to each door and window in turn.
+  const stops = [{ x: cx, z: cz, h: 30, tilt: 0.14, label: `INTERIORS: ${b.shopName}, every door and window state` }];
+  for (const d of doors) stops.push({ x: d.x, z: d.z, h: 9, tilt: 0.7, label: `${d.kind} door${d.locked ? ' · padlocked' : ''}` });
+  for (const w of dressed) { const win = wins.find((q) => q.id === w.id); if (win) stops.push({ x: win.x, z: win.z, h: 9, tilt: 0.7, label: `window · ${w.look}` }); }
+  game.qol.lookStops(stops, 0);
   return { building: b.shopName, doors: doors.map((d) => ({ id: d.id, kind: d.kind, locked: d.locked })), windows: dressed, look: { x: +cx.toFixed(1), z: +cz.toFixed(1), zoom: 30 } };
 };

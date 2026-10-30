@@ -66,6 +66,7 @@ import { backlotsCommands, backlotsChecks } from './backlots-api.js'; // alleys,
 import { wrecksCommands, wrecksChecks } from './wrecks-api.js'; // dead cars: our real bodies, in one batched mesh (WEB_BACK_LOTS.md §3.5)
 import { semisCommands } from './semis-api.js'; // tractor-trailers: the hitch, the ramp, cars in the hold, the freight (WEB_SEMIS.md)
 import { semisChecks } from './semis-selftest.js';
+import { testLabChecks } from './testlab-selftest.js'; // THE TEST LAB: one check per scenario on testlab.html
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
@@ -784,15 +785,16 @@ function buildCommands(api) {
       } },
     photo: {
       group: 'observe', desc: 'Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K.',
-      args: { on: { type: 'boolean', default: true }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' }, tilt: { type: 'number' } },
-      run: async ({ on, x, z, zoom, tilt }) => {
+      args: { on: { type: 'boolean', default: true }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' }, tilt: { type: 'number' }, stop: { type: 'number', desc: 'the lineup camera stop to go to (0 = the whole lineup); the `.` and `,` keys step it' } },
+      run: async ({ on, x, z, zoom, tilt, stop }) => {
         if (!on) { if (g.qol.photo) g.qol.togglePhoto(false); return { photo: false }; }
         if (!g.qol.photo) g.qol.togglePhoto(true);
         const ph = g.qol.photo;
         if (x !== undefined) ph.x = x; if (z !== undefined) ph.z = z;
         if (zoom !== undefined) ph.h = Math.max(6, Math.min(160, zoom)); if (tilt !== undefined) ph.tilt = Math.max(0, Math.min(1.6, tilt));
+        if (stop !== undefined) g.qol.photoStop(stop);
         g.qol.updatePhoto(0, g.input);
-        return { photo: true, ...ph };
+        return { photo: true, ...ph, stop: ph.i ?? null, stops: ph.stops?.map((q) => q.label) ?? null };
       },
     },
     ambient: {
@@ -6132,6 +6134,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
   await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
   await casinoChecks(api, check, C); // CASINOS: blackjack, chess, the house's money, robbery, witnesses, the board, security drones (src/agent/casinos-api.js); loads the battery's save after
+  await testLabChecks(api, check, C); // THE TEST LAB: each scenario loads, its pieces exist, the player can act (src/agent/testlab-selftest.js)
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
   await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
