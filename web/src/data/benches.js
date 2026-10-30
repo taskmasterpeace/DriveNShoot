@@ -17,7 +17,7 @@ export const BENCHES = {
   sewing:    { name: 'SEWING TABLE', kind: 'placed', item: 'sewing_table', reach: 3.5, desc: 'a treadle machine: cloth and leather' },
   kitchen:   { name: 'KITCHEN', kind: 'placed', item: 'camp_stove', reach: 3.5, desc: 'a stove and a clean surface: meals' },
   reloading: { name: 'RELOADING BENCH', kind: 'placed', item: 'reload_press', reach: 3.5, desc: 'a press and a scale: loading rounds' },
-  chem:      { name: 'CHEM TABLE', kind: 'placed', item: 'chem_set', reach: 3.5, desc: 'flasks and a burner: medicines and fuels' },
+  chem:      { name: 'CHEM TABLE', kind: 'placed', item: 'chem_set', reach: 3.5, desc: 'flasks and a spirit lamp: medicines and fuels' },
   mobile:    { name: 'TOOL ROLL', kind: 'mobile', item: 'tool_roll', desc: 'a roll of small tools in the trunk: simple jobs on the road' },
 };
 
