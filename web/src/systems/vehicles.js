@@ -67,7 +67,7 @@ export const VEHICLES = {
 //   shootSpread   shooting from anything that moves: extra spread (radians, +-) per m/s, its cap, and x driver (one hand)
 //   aimHold       an exposed rider (a bike, a quad, a deck seat) keeps aiming this long after a shot
 export const DRIVING = {
-  screenSteer: true,
+  screenSteer: false, // Robert 10-29: A always turns the car's own left (classic), like walking; true = screen-true
   reverseAccel: 0.85, reverseShare: 0.4, reverseCap: [6, 15],
   shootSpread: { perMs: 0.004, max: 0.1, driver: 1.5 },
   aimHold: 1.2,
