@@ -458,6 +458,8 @@ export class Gadgets {
     this.drones.update(dt);
     // ` (the detonate row; the workshop has U): every remote charge you set goes up (a drone in the air drops its bomb).
     if (g.input.hit('Backquote') && !g.dialogue?.active) { if (this.drones.piloting) this.drones.dropBomb(); else this.detonate(P); }
+    // \ (the dronebay row): the car's outrider up, home, or a drone from the pack into an empty bay.
+    if (g.input.hit('Backslash') && !g.dialogue?.active && P.inVehicle) { const r = this.drones.bay(P.inVehicle); g.hud?.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'info' : 'warn'); }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i], def = p.def;
       p.t += dt;

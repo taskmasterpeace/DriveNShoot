@@ -50,6 +50,8 @@ Launch from the pack (the item leaves it; it lands back in it). **WASD** fly (`d
 
 **Theirs** (`FOE_DRONES`, `drones.foes`, at most 4 up): a **spotter** goes up off the skip tracers' first car when that rung is sent; a **drop drone** is what a raider flies (`drone action=foe foe=dropper`). Each circles what it watches (`orbit` m, at `alt`): you while it sees you (inside `sight`, not standing in smoke), else where it last saw you. A spotter, every `callEvery` s while it sees you, gives its own side's armed and idle people within `call` m of you you as their target (`foeDroneCalled`). A drop drone lets a charge go every `bombEvery` s once within `orbit + 2` m of its mark (`foeDroneBomb`, `on: you|flare`). After `life` s (or with its bombs gone) it turns away and is gone at 120 m. **Counters** (`ANTI_DRONE`): a round whose line passes within `shotR` of it under it hits on `shotHit` of the time (`combat.hitscan` hands every round's line to `drones.shotThrough`; its own side's rounds pass); a **lit signal flare** within `flareR` pulls it off you, so it circles and bombs the flare (`foeDroneDecoyed`); **smoke** you stand in hides you. Shot down it falls and leaves `scrap` on the ground. Red diamonds on the minimap.
 
+**The outrider** (`BAY_DRONE`, `drones.o`): a DRONE BAY (`data/workshop.js` `UTILITY.dronebay`, 1 space, 35 kg, 650 scrip) fits only the bodies in its `bodies` list: pickup, van, RV, rig, interceptor, patrol car, APC (`garage.addUtility` refuses the rest). **Backslash** (`dronebay` row; pad VIEW+LEFT at the wheel or riding) sends its drone up from the car you are in, at any speed, and calls it home. Nobody flies it: it holds `lead` m ahead of the car along its heading, circles `orbit` m out while the car is parked, marks what is hostile inside `mark` m like the scout (yellow diamond on the minimap), and comes home on its own past `range` m from the car or under `low` of its battery. Over the car it rides down onto the cradle and docks; docked it charges `charge`/s while you are in the car. Its battery lives on the bay (`v.utility.dronebay.bat`), so it rides the car's build save. The armed and hostile shoot at it like any flier; shot down (or flat, or its car lost), it falls, leaves scrap, and the bay is empty (`slot.empty`) until you press Backslash with a scout drone in your pack (it goes in at a quarter charge).
+
 **Traders:** Kenji keeps the hardware on his shelves (chain, strip, bells, noise maker, flares, smoke, car alarm, planks, wedges, a scout drone), Ike the bangs (car mines, a fan mine, remote charges, a breach frame); each buys back what he sells (`data/trade.js` `deals`/`keeps`). Under the loot law the keeps are the opening stock; after that only deliveries fill the shelves.
 
 **Saves:** `snapshot().gadgets` keeps every gadget that is arming, armed or tripped (one in the air or burning is a moment, not a record), its owner by id, its door or car by id, how far it had armed, a timer's fuse, who had spotted it; and every barricade by door id. The door's lock strength is the interiors' own save, loaded first; a barricade whose door is no longer locked in the save is dropped. A drone in the air is not saved.
@@ -109,6 +111,9 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `systems/combat.js` | `hitscan` hands every round's line to `g.drones?.shotThrough(...)` first (their drones can be shot) |
 | `data/trade.js` | Kenji and Ike's `deals` and `keeps` carry the gadgets |
 | `main.js` (kill) | a dead officer's body: `this.security?.onDeath(c, body)` puts the key ring in it |
+| `data/workshop.js` | the `UTILITY.dronebay` row (with a `bodies` list) |
+| `systems/garage.js` | `addUtility`: one line refusing a row whose `bodies` list leaves the car's chassis out |
+| `data/controls.js` | the `dronebay` row (Backslash; pad VIEW+LEFT driving and riding) |
 
 ## 7. Tuning knobs
 | Knob (data/gadgets.js) | Default | Safe range | Affects |
@@ -128,6 +133,9 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `FOE_DRONES.dropper.bombs / bombEvery` | 2 / 4 s | 1-4 / 2-8 | how much a drop drone can hurt before it turns home |
 | `ANTI_DRONE.shotHit / shotR` | 0.5 / 1.0 m | 0.2-0.8 / 0.6-1.6 | how many rounds one of theirs takes (spotter 50 hp: about 3 revolver hits) |
 | `ANTI_DRONE.flareR` | 32 m | 15-60 | how close a flare must burn to pull one off you |
+| `BAY_DRONE.lead / orbit` | 25 m / 12 m | 15-40 / 8-20 | how far up the road the outrider looks |
+| `BAY_DRONE.battery / charge` | 120 s / 2 per s | 60-240 / 1-4 | how long it stays up, how long it sits docked after |
+| `BAY_DRONE.range / mark` | 90 m / 34 m | 60-140 / 20-45 | its leash from the car, how wide it marks |
 
 Not done: the cities lane's `security_station` building is still not in the tree, so the stub stands at (-44, 40); a drone in the air is not saved; no raider camp sends a drop drone up on its own yet (`drone action=foe` does).
 
@@ -150,5 +158,6 @@ Not done: the cities lane's `security_station` building is still not in the tree
 | `trade: Kenji's shelves keep the hardware gadgets ...` | Kenji keeps and buys chain, strip, bells, flares, a scout drone; Ike car mines, fan mine, remote and breach charges; every kept id is an item |
 | `security: a town bull shot dead leaves the town's key ring ...` | the bull's body box holds 1 key ring; a skip tracer's holds none |
 | `drones: theirs - a lit signal flare pulls a raider drop drone off you ...` | a drop drone 26 m off is decoyed by a flare 16 m away and bombs it, you unhurt; a spotter makes a held raider 60 m away target you; revolver rounds fired at it bring it down |
+| `drones: a drone bay goes on a pickup (not a sedan) ...` | a sedan refuses the bay, a pickup takes it; Backslash (the real key) sends the outrider up, it holds over 15 m ahead of the moving pickup and marks a raider 40 m up the road; Backslash calls it home and it docks; shot down the bay is empty, Backslash with no drone in the pack is refused, with one it loads |
 
 Scenarios: `gadget-range` (every gadget on one stretch, each with a target), `checkpoint-run` (three stars at the wheel, the posse's roadblock ahead). Renders: `docs/renders/web/gadgets/`.

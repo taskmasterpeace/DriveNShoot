@@ -138,6 +138,13 @@ export const FOE_DRONES = {
 // from it (it circles where it last saw you). scrap: what one shot down leaves on the ground.
 export const ANTI_DRONE = { shotR: 1.0, shotHit: 0.5, flareR: 32, scrap: 2 };
 
+// THE BAY DRONE (systems/drones.js outrider): it rides a DRONE BAY on the car (data/workshop.js UTILITY.dronebay) and
+// flies itself. Backslash sends it up and calls it home. It holds `lead` m ahead of the car along its heading (circles
+// `orbit` m out while the car is parked), marks enemies inside `mark` m every `markEvery` s, and comes home past `range`
+// m from the car or under `low` of its battery. Docked, it charges `charge` per second. Shot down, the bay stays empty
+// until a `refill` from your pack goes in (Backslash again).
+export const BAY_DRONE = { name: 'Outrider', battery: 120, speed: 24, alt: 8, lead: 25, orbit: 12, range: 90, low: 0.15, mark: 34, markEvery: 0.5, hp: 30, charge: 2, refill: 'drone_scout', look: '#4a3a22' };
+
 // Things the security lane carries and drops: keys open the doors they belong to (`door` on the slot, or any door of a
 // building `kind`), the bulls carry a ring; planks and a wedge barricade a door from inside.
 export const DOOR_KIT = {

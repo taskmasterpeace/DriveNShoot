@@ -170,6 +170,8 @@ export const UTILITY = {
                   desc: 'Slots cut in the doors with sliding covers. Your passengers shoot without losing the glass.' },
   targeting:    { name: 'TARGETING COMPUTER', kg: 15, space: 1, price: 1200, labour: 1, rare: 'uncommon', spread: 0.5, lock: 0.6,
                   desc: 'A pre-war fire-control box wired to the triggers. Tightens every gun and locks the seekers faster.' },
+  dronebay:     { name: 'DRONE BAY', kg: 35, space: 1, price: 650, labour: 1, bodies: ['pickup', 'van', 'rv', 'rig', 'interceptor', 'patrol', 'apc'],
+                  desc: 'A roof cradle with a charger and a latch. Its outrider flies ahead of you on its own and marks what waits up the road (\).' },
   radar:        { name: 'RADAR DETECTOR', kg: 5, space: 0, price: 150, labour: 0.25, warn: 120,
                   desc: 'A dash box that screams when something locks onto you, or an armed car closes within a long block.' },
 };

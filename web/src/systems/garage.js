@@ -157,6 +157,7 @@ export class Garage {
     if (!U) return { ok: false, why: `unknown utility; known: ${Object.keys(UTILITY).join(',')}` };
     if (!C) return { ok: false, why: `a ${v.name} can't be worked on` };
     if (v.utility?.[id]) return { ok: false, why: `already fitted: ${U.name}` };
+    if (U.bodies && !U.bodies.includes(this.chassisKey(v))) return { ok: false, why: `a ${v.name} has nowhere to take a ${U.name}` }; // a row's body list (the drone bay)
     if (this.spacesUsed(v) + U.space > C.spaces) return { ok: false, why: `no room: ${C.spaces} spaces, ${this.spacesUsed(v)} used` };
     if (this.kgOn(v) + U.kg > C.maxKg) return { ok: false, why: `over the ${v.name}'s load (${C.maxKg} kg)` };
     v.utility ??= {};
