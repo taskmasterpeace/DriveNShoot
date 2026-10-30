@@ -587,7 +587,7 @@ function furnishBuilt(c) {
       }
     }
     room.pieces = made;
-    const cal = calendarOn(room, L.doors); if (cal) L.calendars.push(cal); // a frozen calendar (data/fannods.js), by a hash: no rng drawn
+    const cal = calendarOn(room, L.doors, L.props); if (cal) L.calendars.push(cal); // a frozen calendar (data/fannods.js), by a hash: no rng drawn
   }
   void k;
 }

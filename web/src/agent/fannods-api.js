@@ -15,6 +15,7 @@ import { WEATHER } from '../systems/sky.js';
 import { HOT_GROUND } from '../data/hotground.js';
 import { genLevel } from '../world/undergen.js';
 import { outfit } from '../systems/characters.js';
+import { freeSpot } from './citygen-api.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const _v = new THREE.Vector3(), _c = new THREE.Color();
@@ -24,7 +25,7 @@ const rowsCheck = () => validateFanNods({ milbases: MILBASES, rooms: UG_ROOMS, p
 // world/ring.js geo). -> { shops, studies, cases: [{ lot, room, x, z }] }
 function ringCases(g, maxLots = 4000) {
   const RG = g.streamer?.W?.ring;
-  const out = { shops: 0, studies: 0, cases: [], lots: 0 };
+  const out = { shops: 0, studies: 0, sales: 0, cases: [], lots: 0 };
   if (!RG) return out;
   const n = Math.ceil(RG.reach / 256) + 1;
   for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) for (const L of RG.owned(cx, cz)) {
@@ -32,7 +33,7 @@ function ringCases(g, maxLots = 4000) {
     const geo = RG.geo(L);
     if (!geo.plan) continue;
     out.lots++;
-    for (const r of geo.rooms ?? []) { if (r.type === 'gunshop') out.shops++; else if (r.type === 'study') out.studies++; }
+    for (const r of geo.rooms ?? []) { if (r.type === 'gunshop') out.shops++; else if (r.type === 'study') out.studies++; else if (r.type === 'sales') out.sales++; }
     for (const b of geo.boxesIn ?? []) if (b.table === 'fn_case') { const r = geo.rooms.find((q) => b.x >= q.x0 - 0.5 && b.x <= q.x1 + 0.5 && b.z >= q.z0 - 0.5 && b.z <= q.z1 + 0.5); out.cases.push({ lot: L.id, room: r?.type ?? null, x: r1(b.x), z: r1(b.z), id: b.id }); }
   }
   return out;
@@ -60,7 +61,7 @@ export function fannodsCommands(api, need) {
           await api._step(40);
           return { id: row.id, x: r1(q.x), z: r1(q.z), live: F.ditch.has(row.id), box: g.inventory.boxes.get(`fn:${row.id}`)?.id ?? null };
         }
-        if (action === 'convoy') { need(!F.convoy, 'a convoy is already out'); if (g.semis.freight) g.semis.despawnFreight(); const C = F.startConvoy(true); need(C, 'no convoy (out on the interstate? the freight running?)'); return F.status().convoy; }
+        if (action === 'convoy') { need(!F.convoy, 'a convoy is already out'); need(F.out(), 'out on the interstate only (fannods action=ditch stands you by its road)'); if (g.semis.freight) g.semis.despawnFreight(); const C = F.startConvoy(true); need(C, 'no convoy (out on the interstate? the freight running?)'); return F.status().convoy; }
         if (action === 'storm') { g.sky.setWeather(on ? SICK_SKY.weather : 'CLEAR'); Object.assign(g.sky.cur, WEATHER[on ? SICK_SKY.weather : 'CLEAR']); g.sky.cur.burn = on ? 1 : 0; g.sky.targetTint?.set?.(WEATHER[g.sky.weatherKey].tint); g.sky.curTint?.set?.(WEATHER[g.sky.weatherKey].tint); return { weather: g.sky.weatherKey, label: WEATHER[g.sky.weatherKey].label }; }
         if (action === 'give') { need(ITEMS[item] && ['gun_percussion', 'ammo_capball', 'sword_cane', 'jungle_blade', 'lapel_counter', 'heater_meal', 'hot_meal'].includes(item), 'item= gun_percussion | ammo_capball | sword_cane | jungle_blade | lapel_counter | heater_meal | hot_meal'); g.inventory.add(g.inventory.carried, item, item === 'ammo_capball' ? 18 : 1); g.inventory.changed(); return { item, carried: g.inventory.carried.count(item) }; }
         return F.status();
@@ -94,8 +95,11 @@ export async function fannodsChecks({ api, g, check, C }) {
     }
     const others = MILBASES.filter((M) => !GLASS_ROOMS.some((G) => G.base === M.id)).slice(0, 12).filter((M) => genLevel({ id: `mb_${M.id}`, kind: 'bunker', entrance: 'hatch', levels: 2, base: M.id, seed: 9001, x: 0, z: 0, dir: 'S' }, 2).rooms.some((r) => r.type === 'glassroom'));
     const panels = hexPanels(0, 0), doorSides = panels.filter((q) => q.door).length;
-    // live: down into one (an atlas base's own site under its state's base)
-    const site = g.under.sites.find((s) => GLASS_ROOMS.some((G) => G.base === s.base));
+    // live: down into one. The glass bases' own sites stand out of the drivable world (or come only with a stamped base),
+    // so the check stages one glass base's site row on free desert in Arizona, as the bases' own checks stage a base.
+    const U = g.under, at = freeSpot(g, -4000, -9000, 60);
+    const site = at ? { id: 'fn_glass_test', name: 'GLASS TEST · BELOW', kind: 'bunker', entrance: 'hatch', dir: 'S', levels: 2, seed: 4242, base: GLASS_ROOMS[0].base, x: at.x, z: at.z, place: true, power: false, fuel: 0 } : null;
+    if (site) { U.sites.push(site); U.byId.set(site.id, site); }
     let live = null;
     if (site) {
       await C('underground', { action: 'enter', id: site.id, level: site.levels });
@@ -117,14 +121,16 @@ export async function fannodsChecks({ api, g, check, C }) {
         live = { glass, inside, shut, hums: F.counts.hums - h0, near: !!F.chamberNear(p), door: door && { x: r1(door.x), z: r1(door.z) } };
       }
       await C('teleport', { x: 0, z: 0 }); await frames(10);
+      U.deactivate?.(); U.detach?.(site.id); U.sites.splice(U.sites.indexOf(site), 1); U.byId.delete(site.id); U.recs?.delete(site.id);
     }
     const ok = Object.values(out).every(Boolean) && !others.length && doorSides === 1 && live && live.glass >= 10 && live.inside && live.shut && live.hums > 0;
     return ok ? true : JSON.stringify({ out, others: others.map((M) => M.id), doorSides, site: site?.id ?? null, live });
   });
 
-  await check('fan nods: the glass case - a rare piece (a gun shop or a study, by a hash of the room): the ring\'s real furnishing puts it in under a fifth of its gun shops and nowhere else; opened, it holds the long revolver, the cane and the box of ball and caps; the revolver\'s shot barrel throws nine pellets, the cane raps on a tap and, held, its blade comes out and cuts', async () => {
+  await check('fan nods: the glass case - a rare piece (a gun shop, a shop\'s sales floor or a study, by a hash of the room): the ring\'s real furnishing puts it on a few of its shop floors (under one in ten of the rooms that may have one) and nowhere else; opened, it holds the long revolver, the cane and the box of ball and caps; the revolver\'s shot barrel throws nine pellets, the cane raps on a tap and, held, its blade comes out and cuts', async () => {
     const R = ringCases(g);
-    const where = R.cases.every((c) => c.room === 'gunshop' || c.room === 'study'), share = R.shops ? R.cases.filter((c) => c.room === 'gunshop').length / R.shops : 0;
+    const where = R.cases.every((c) => FN_CASE_RARE[c.room]), rooms = R.sales, share = rooms ? R.cases.length / rooms : 1;
+    const island = [...inv.boxes.values()].filter((b) => b.kind === 'fn_case' && !b.id.startsWith('ring:')).length;
     // the contents (a case's own box, opened as any container)
     const box = inv.place('fn:test:case', 'fn_case', p.x, p.z, 12, 'GLASS CASE');
     inv.open(box);
@@ -150,8 +156,8 @@ export async function fannodsChecks({ api, g, check, C }) {
       I.mouseButton(2, true); for (let i = 0; i < 27; i++) { mouseAt(dummy.x, dummy.z); await frames(1); } I.mouseButton(2, false); await secs(0.7);
       held = { kind: g.melee.last?.kind ?? null, cut: hp0 - dummy.hp, bleed: (dummy.bleed ?? 0) > 0 };
     } finally { I.mouseButton(2, false); unCarry('sword_cane'); drop(dummy); }
-    const ok = R.cases.length >= 1 && where && share < 0.25 && holds && nine && ball && tap === 'cane' && held?.kind === 'caneblade' && held.cut > 0;
-    return ok ? true : JSON.stringify({ cases: R.cases.length, shops: R.shops, studies: R.studies, lots: R.lots, share: +share.toFixed(3), where, holds, nine, ball, tap, held });
+    const ok = R.cases.length >= 1 && where && share < 0.1 && island === 0 && holds && nine && ball && tap === 'cane' && held?.kind === 'caneblade' && held.cut > 0;
+    return ok ? true : JSON.stringify({ cases: R.cases, sales: R.sales, island, lots: R.lots, share: +share.toFixed(3), where, holds, nine, ball, tap, held });
   });
 
   await check('fan nods: the jungle blade - bones face-down in three of the interstate\'s ditches (no more), past the shoulder; standing there they are drawn and their box holds the broad blade; carried, a tap is its heavy chop, harder than a fist', async () => {
@@ -207,7 +213,7 @@ export async function fannodsChecks({ api, g, check, C }) {
     const guardsUp = () => Cv.guards.filter((c) => c.alive && c.onDeck?.D === CONVOY_ROOF && (c.gy ?? 0) > 3.5).length;
     const up0 = guardsUp();
     let halted = false, open = false;
-    for (let i = 0; i < 60 && !open; i++) { await secs(0.5); halted ||= !!Cv.F.halt; open = Cv.phase === 'open'; }
+    for (let i = 0; i < 100 && !open; i++) { await secs(0.5); halted ||= !!Cv.F.halt; open = Cv.phase === 'open'; }
     const T = Cv.mid, sh = T && F.shoulder(T), pr = T && W.project(T.x, T.z, 400), sec = pr && W.section(pr.s);
     const onShoulder = !!(pr && pr.d > sec.lane0 + 2);
     let stock = null;
@@ -243,7 +249,9 @@ export async function fannodsChecks({ api, g, check, C }) {
     let inCar = null;
     if (car) { await C('enterVehicle', { id: car.id, force: true }).catch(() => null); await frames(10); if (p.inVehicle) { p.hp = p.maxHp; const h1 = hp(); await secs(3); inCar = { took: h1 - hp(), shelter: g.survival?.shelterKind?.() }; g.exitVehicle(true); } g.vehiclesSys.remove(car); }
     // folk near you: an unarmed one makes for a door
-    const sh0 = F.counts.sheltered, walker = g.addChar({ x: p.x + 6, z: p.z + 3, faction: 'civilian', colors: outfit('civilian'), name: 'Passer-by', flag: 'US' });
+    const door = (g.interiors?.doors ?? []).reduce((b, d) => (!b || Math.hypot(d.x, d.z) < Math.hypot(b.x, b.z) ? d : b), null); // a street door in town (Rust Haven's)
+    if (door) await stand(door.x + 8, door.z + 8);
+    const sh0 = F.counts.sheltered, walker = g.addChar({ x: p.x + 2, z: p.z + 2, faction: 'civilian', colors: outfit('civilian'), name: 'Passer-by', flag: 'US' });
     await secs(1.5);
     const ran = F.counts.sheltered > sh0 || (walker?.flee ?? 0) > 0;
     drop(walker);

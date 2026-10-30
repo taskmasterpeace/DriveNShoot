@@ -14,12 +14,12 @@ import { Ring } from './ring.js';
 
 let F = null; // made on first use: ring.js and city.js import each other's module graph, so not at load time
 export function furnishRooms(L, g, rooms, K, Z, rng) {
-  if (!F) { F = Object.create(Ring.prototype); F.seed = 0x15a1d; }
+  if (!F) { F = Object.create(Ring.prototype); F.seed = 0x15a1d; F.noRare = true; }
   return F.furnish(L, g, rooms, K, Z, rng, []);
 }
 // One piece into a room through the same rules (opt as ring.js placeOne: aisle, gap, cands, defer). ctx from furnishRooms,
 // or a bare one for a floor with no probe ({ zones, zr: new Map(), placed: [], spots: [], on: false }).
 export function placePiece(t, room, g, K, Z, rng, ctx, opt) {
-  if (!F) { F = Object.create(Ring.prototype); F.seed = 0x15a1d; }
+  if (!F) { F = Object.create(Ring.prototype); F.seed = 0x15a1d; F.noRare = true; }
   return F.placeOne(t, room, g, K, Z, rng, ctx, opt);
 }

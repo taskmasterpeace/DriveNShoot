@@ -23,7 +23,7 @@ import { randomName } from '../data/npcs.js';
 import { makeRng } from '../engine/rng.js';
 
 const CAP = 160;
-const _o = new THREE.Object3D(), _c = new THREE.Color();
+const _o = new THREE.Object3D(), _c = new THREE.Color(), _m = new THREE.Matrix4();
 const r1 = (v) => Math.round(v * 10) / 10;
 const CONVOY_FLAGS = ['US', 'US', 'US', 'MX', 'CA', 'US'];
 
@@ -217,12 +217,12 @@ export class FanNods {
     if (!lead) return;
     const d = Math.hypot(lead.x - px, lead.z - pz);
     if (C.phase === 'rolling' && C.t > 2 && d < CONVOY.halt) { F.halt = true; F.pull = CONVOY.pull; C.phase = 'pulling'; C.t = 0; this.counts.halts++; g.emit('convoyHalt', { d: r1(d) }); }
-    else if (C.phase === 'pulling' && (F.members.every((m) => m.v.dead || g.vehiclesSys.speed(m.v) < 0.6) || C.t > 25)) this.openSide(C);
+    else if (C.phase === 'pulling') { C.still = F.members.every((m) => m.v.dead || g.vehiclesSys.speed(m.v) < 0.6) ? (C.still ?? 0) + dt : 0; if (C.still > 1.5 || C.t > 40) { F.hold = true; this.openSide(C); } } // all stopped a moment (or long enough): every rig holds where it is
     else if (C.phase === 'open') {
       C.flap = Math.min(1, C.flap + dt * 0.6);
       C.away = Math.hypot(C.mid.x - px, C.mid.z - pz) > 60 ? C.away + dt : 0;
       if (C.t > CONVOY.stay || C.away > CONVOY.leave || (C.trader && !C.trader.alive)) this.closeSide(C);
-    } else if (C.phase === 'closing') { C.flap = Math.max(0, C.flap - dt * 0.8); if (C.flap <= 0) { F.halt = false; F.pull = 0; C.phase = 'leaving'; C.t = 0; g.emit('convoyRollsOn', {}); } }
+    } else if (C.phase === 'closing') { C.flap = Math.max(0, C.flap - dt * 0.8); if (C.flap <= 0) { F.halt = false; F.hold = false; F.pull = 0; C.phase = 'leaving'; C.t = 0; g.emit('convoyRollsOn', {}); } }
   }
   // The middle trailer's shoulder side: unit (x, z) out from it, away from the traffic.
   shoulder(T) {
@@ -306,10 +306,13 @@ export class FanNods {
     _o.position.set(x, y, z); _o.rotation.set(0, h, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
     this.mesh.setMatrixAt(this.n, _o.matrix); this.mesh.setColorAt(this.n, _c.set(col)); this.n++;
   }
-  // a box in a vehicle's frame: lx across (+ right), ly up from its ground, lz along (+ forward)
+  // a box in a vehicle's own frame (its group's world matrix: heading, and the pitch a trailer rides at on its fifth wheel):
+  // lx across, ly up from its ground, lz along (+ forward)
   putOn(v, lx, ly, lz, sx, sy, sz, col) {
-    const fx = Math.sin(v.h), fz = Math.cos(v.h), y0 = v.group?.position.y ?? v.y ?? 0;
-    this.put(v.x + fx * lz + fz * lx, y0 + ly, v.z + fz * lz - fx * lx, sx, sy, sz, v.h, col);
+    if (this.n >= CAP || !v.group) return;
+    _o.position.set(lx, ly, lz); _o.rotation.set(0, 0, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
+    _m.multiplyMatrices(v.group.matrixWorld, _o.matrix);
+    this.mesh.setMatrixAt(this.n, _m); this.mesh.setColorAt(this.n, _c.set(col)); this.n++;
   }
   flush() {
     const C = this.convoy, inv = this.g.inventory;
@@ -317,6 +320,7 @@ export class FanNods {
       const T = m.v.towing;
       if (!T || T.dead) continue;
       const hw = T.wid / 2 + 0.02, y = T.tall * 0.66;
+      for (let k = 0; k < 4; k++) this.putOn(T, 0, T.tall + 0.02, (k - 1.5) * T.len * 0.235, T.wid - 0.16, 0.05, T.len * 0.215, k % 2 ? CONVOY.plate : '#47483b'); // plate over the roof, in panels (what the camera sees)
       for (const s of [-1, 1]) {
         this.putOn(T, s * hw, T.tall * 0.42, 0, 0.05, 0.5, T.len * 0.86, CONVOY.plate);                                        // a plated band along the side
         for (let k = 0; k < CONVOY.slits; k++) this.putOn(T, s * (hw + 0.01), y, (k / (CONVOY.slits - 1) - 0.5) * T.len * 0.7, 0.05, 0.11, 0.85, CONVOY.slit); // the slits

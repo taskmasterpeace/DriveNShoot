@@ -34,7 +34,7 @@ export const ROOMS = {
   // Shops and diners.
   floor: { name: 'SHOP FLOOR', min: 5.0, grow: 3, entry: true, back: 3, floor: null, stay: true,
     furniture: [['rack', 2, 3], ['crate', 1, 3], ['bench', 0, 1]] },
-  sales: { name: 'SALES FLOOR', min: 4.0, grow: 3, entry: true, back: 4, floor: null, stay: true,
+  sales: { name: 'SALES FLOOR', min: 4.0, grow: 3, entry: true, back: 4, floor: null, stay: true, rare: [['glasscase', FN_CASE_RARE.sales]], // rare: [piece, chance] by a hash of the room (world/ring.js; the ring's buildings only)
     furniture: [['counter', 1, 1], ['shelf', 3, 5], ['crate', 0, 1]] },
   diningroom: { name: 'DINING ROOM', min: 5.0, grow: 3, entry: true, back: 4, floor: '#a89c84', stay: true,
     furniture: [['counter', 1, 1], ['booth', 2, 4], ['shelf', 0, 1]] },
@@ -63,12 +63,12 @@ export const ROOMS = {
     furniture: [['extable', 1, 1], ['vanity', 1, 1], ['medcab', 1, 1], ['cabinet', 0, 1]] },
   pharmacy: { name: 'PHARMACY', min: 2.6, max: 4.4, grow: 0.9, via: ['waiting', 'corridor'], floor: '#c4bca6', loot: 'bathroom', stay: true,
     furniture: [['shelf', 2, 4], ['medcab', 0, 1]] },
-  study: { name: 'OFFICE', min: 2.6, max: 4.4, grow: 0.5, via: ['corridor', 'waiting', 'lobby', 'sales', 'offices', 'backroom'], back: 5, floor: '#7a786e', loot: 'office', stay: true, rare: [['glasscase', FN_CASE_RARE.study]],
+  study: { name: 'OFFICE', min: 2.6, max: 4.4, grow: 0.5, via: ['corridor', 'waiting', 'lobby', 'sales', 'offices', 'backroom'], back: 5, floor: '#7a786e', loot: 'office', stay: true,
     furniture: [['desk', 1, 1], ['cabinet', 0, 1], ['shelf', 0, 1]] },
   wc: { name: 'RESTROOM', min: 2.4, max: 2.8, grow: 0.2, via: ['corridor', 'waiting', 'barroom', 'lobby', 'sales', 'offices', 'backroom', 'study'], floor: '#bdbdb4', loot: 'bathroom',
     furniture: [['toilet', 1, 1], ['vanity', 1, 1]] },
   // Rust Haven's working front rooms (the shopkeeper's counter faces the door).
-  gunshop: { name: 'GUN SHOP', min: 5.0, grow: 3, entry: true, back: 4, floor: '#8a7660', stay: true, rare: [['glasscase', FN_CASE_RARE.gunshop]], // rare: [piece, chance] by a hash of the room (world/ring.js)
+  gunshop: { name: 'GUN SHOP', min: 5.0, grow: 3, entry: true, back: 4, floor: '#8a7660', stay: true,
     furniture: [['counter', 1, 1], ['gunrack', 2, 4], ['workbench', 1, 1], ['shelf', 1, 2], ['crate', 1, 2]] },
   garage: { name: 'GARAGE', min: 5.0, grow: 3, entry: true, back: 3, floor: '#8e8a80', stay: true,
     furniture: [['workbench', 1, 2], ['tyres', 2, 4], ['rack', 1, 2], ['crate', 1, 3], ['shelf', 0, 1]] },

@@ -577,7 +577,7 @@ export class Semis {
       const q = this.lanePoint(sv + dir * (12 + v.len), dir, F.pull ?? 0);
       tx = q.x; tz = q.z;
       if (lead !== v) want = F.cruise + clamp(((ls - dir * m.gap) - sv) * dir * 0.6, -6, 6);
-      if (F.halt) want = lead === v ? 0 : Math.max(0, Math.min(want, ((ls - dir * m.gap) - sv) * dir * 0.5)); // pulled over: the lead stops, the rest close up behind it
+      if (F.halt) want = lead === v || F.hold ? 0 : Math.max(0, Math.min(want, ((ls - dir * m.gap) - sv) * dir * 0.5)); // pulled over: the lead stops, the rest close up behind it (hold: every rig stays put)
     } else {
       tx = v.x + dir * (14 + v.len); tz = F.lane;
       if (lead !== v) want = F.cruise + clamp(((lead.x - dir * m.gap) - v.x) * dir * 0.6, -6, 6);
@@ -594,6 +594,7 @@ export class Semis {
     v.steer = clamp(diff * 2.2, -1, 1);
     v.throttle = sp < want ? 0.8 : sp > want + 1.5 ? (want < 1 ? -1 : -0.4) : 0.1;
     v.handbrake = false;
+    if (F.hold) { v.throttle = 0; v.handbrake = true; } // parked (a convoy trading on the shoulder: systems/fannods.js): no creep
   }
 
   // ---- WIDE LOAD ------------------------------------------------------------------------------------------------------

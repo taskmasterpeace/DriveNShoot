@@ -3,6 +3,9 @@
 **Status:** v1 built 2026-10-29 on `feat/web-fan-nods`. **Engine:** the three.js web engine (`web/`).
 **Rows:** `web/src/data/fannods.js`. **Run:** `web/src/systems/fannods.js`. **Agents:** `web/src/agent/fannods-api.js`
 (the `fannods` command and nine named checks, `selftest only=fan nods`).
+**Renders:** `docs/renders/web/fan-nods/` (the amber and the green glass rooms, the case on a shop floor, the bones in the
+ditch, the convoy open on the shoulder and its counter close up, the burning rain over Rust Haven, a calendar on a command
+room's wall).
 
 ---
 
@@ -15,7 +18,7 @@ from. Each one is an object or a place, built as rows in a system that already e
 | # | The thing | Where it lives | System it is a row of |
 |---|---|---|---|
 | 1 | A six-sided room of thick tinted glass | the bottom level under six sealed military bases, one per region | the underground's rooms and props (`data/underground.js`, `world/undergen.js`, `systems/underlook.js`) |
-| 2 | A glass display case: a long cap-and-ball revolver with a shot barrel under it, and a silver-topped cane with a blade inside | rarely in a gun shop or a study | ring furniture (`data/ring.js`, `data/floorplans.js`, `world/ring.js`), weapons, rounds, melee |
+| 2 | A glass display case: a long cap-and-ball revolver with a shot barrel under it, and a silver-topped cane with a blade inside | rarely on a shop's sales floor in the Phoenix ring | ring furniture (`data/ring.js`, `data/floorplans.js`, `world/ring.js`), weapons, rounds, melee |
 | 3 | A broad, heavy, single-edged jungle blade | beside bones in three of the interstate's ditches | melee rows, a ring box (`systems/inventory.js`) |
 | 4 | A lapel counter that ticks near hot ground | rare military, hospital and lab loot | items, the hot ground's zones (`data/hotground.js`) |
 | 5 | An armoured trade convoy | out on the interstate, rarely | a semis freight run (`systems/semis.js`), the trade counter (`systems/trade.js`), decks |
@@ -28,7 +31,7 @@ from. Each one is an object or a place, built as rows in a system that already e
 - Two levels under a sealed base, behind a door like every other door, there is a room with a glass chamber in the middle.
   It is amber in one base and bottle green in another. The keypad by its door is dead and the floor inside is burnt black.
   It hums when you stand close. Nothing happens. You leave, and you remember it.
-- In the back of a gun shop there is a case under glass. Behind the glass there is a revolver with a barrel too many and a
+- On the floor of a shop in the city there is a case under glass. Behind the glass there is a revolver with a barrel too many and a
   black cane with a silver knob. You break the lid and take them both. The revolver is slow to load. The cane is a cane
   until you hold the swing.
 - In the ditch past the shoulder a skeleton lies face down. One arm is out toward a heavy blade lying in the gravel.
@@ -69,7 +72,9 @@ from. Each one is an object or a place, built as rows in a system that already e
   felt. On the felt you can see, from above:
   - the revolver: a long barrel, the fatter barrel under it, the cylinder and a wooden grip;
   - the cane: a black shaft and a silver knob.
-- **Where:** `data/floorplans.js` ROOMS `gunshop` and `study` carry `rare: [['glasscase', p]]`.
+- **Where:** `data/floorplans.js` ROOMS `sales` carries `rare: [['glasscase', 0.02]]`: a few of the Phoenix ring's ~400 shop
+  sales floors (a pawn shop's front), about six. Never on the island: its furnisher (`world/furnish.js`) sets `noRare`, so
+  the start town is exactly as it was.
   - `world/ring.js` reads `rareRoll(seed, room, piece)`, a hash of the room's corner. It never uses the furnishing rng, so
     no other room in the world is laid out differently.
   - The case goes first in its room's list, so it finds a wall.
@@ -87,7 +92,7 @@ from. Each one is an object or a place, built as rows in a system that already e
   - With a gun raised it is the gun butt and the kick, as ever.
 
 ### 3.3 The jungle blade
-- **Where:** `DITCH_BONES` holds three rows. Each sits at a share of the interstate's length, on a side, set metres past
+- **Where:** `DITCH_BONES` holds three rows. Each sits at a share of the interstate's length, on a side, set metres (about 3) past
   the outer shoulder edge (`W.section(s).out`).
 - **When you come near:** within `near` m, `systems/fannods.js` registers a ring box `fn:<id>` (`fn_ditch`, `all`: the
   blade). It draws a skeleton face down: the skull, the ribs, the hips, the legs, one arm out, and a rag of coat. The
@@ -113,12 +118,14 @@ from. Each one is an object or a place, built as rows in a system that already e
   rolls in from behind.
 - **The guards:** two ride each trailer's roof on a `CONVOY_ROOF` deck (`decks.mount`, `load`), armed with rifles. They
   stay up there while it halts and while it rolls on.
-- **The look:** a plated band and four slits along each trailer side, drawn each frame in the trailer's frame.
+- **The look:** four plate panels over each trailer's roof (what the top-down camera sees), a plated band and four slits
+  along each side, all drawn each frame in the trailer's own world matrix (so they ride its pitch on the fifth wheel).
 - **The stop:**
   1. Within `halt` m of you, the run's `halt` and `pull` flags are set (two small hooks in `systems/semis.js`: `lanePoint`
      takes a `pull` offset, and `aiDrive` stops the lead and closes the rest up behind it). It steers onto the shoulder
      and stops.
-  2. When all rigs are below 0.6 m/s (or after 25 s), the middle trailer's side lets down into a flap counter on the
+  2. When all rigs have been below 0.6 m/s for 1.5 s (or after 40 s), every rig holds (`F.hold`: brakes on) and the middle
+     trailer's side lets down into a flap counter on the
      shoulder side, away from traffic. A trader stands there: npc `fn_convoy`, a `TRADERS` row with broad deals and a
      pistol.
   3. `boxes` boxes of `fn_convoy` stand behind the flap, owned by the trader. That is real stock: fuel, rounds, water,
@@ -130,7 +137,8 @@ from. Each one is an object or a place, built as rows in a system that already e
 - **The row:** `WEATHER.SICKSKY`, labelled `BURNING RAIN`.
   - Fog tint `#9c8f2c` (hue 53), clouds 1, rain 1.35, a little storm.
   - It has its own `burn` key, eased like the rest but kept outside `BLENDED` so no other row needs it.
-  - The rain's lines go yellow (`#c8bc4a`) as `burn` rises.
+  - The rain's lines go yellow (`#d8c440`) as `burn` rises, and the sky fill and the sun are pulled toward an orange-green
+    light (`#c8a830`, hue 46).
 - **Rare:** it is never in `ORDER`. Each weather change has a `SICK_SKY.chance` of bringing it instead.
 - **What it does:**
   - **Bare skin:** with `burn` past `from`, a player under the open sky takes `dmg x burn` hp a second, as `sickness`, in
@@ -144,7 +152,8 @@ from. Each one is an object or a place, built as rows in a system that already e
 - **Which rooms:** `CALENDAR.rooms` gives a share per room type: office 0.35, command 0.5, comms 0.25, guard 0.15.
 - **The roll:** `calendarOn(room, doors)` hashes the room's corner. It draws no rng, so every level's layout is the same
   byte for byte except for the calendar.
-- **Placement:** it hangs on the wall whose middle is farthest from the room's door, at 1.55 m, facing in.
+- **Placement:** it hangs on the north wall at 1.55 m, facing in (toward the camera), unless the room's door is within
+  1.6 m of that wall's middle; then on the wall farthest from the door.
 - **The page:** drawn once on a canvas.
   - a picture of a dark ridge under a pale sky;
   - a red band with the month, JANUARY;
@@ -174,8 +183,8 @@ from. Each one is an object or a place, built as rows in a system that already e
   health in about 31 s.
 - **The convoy's rarity.** A check every 60 s at 0.06 gives about one every 17 minutes of interstate driving, and only
   when no other freight is out. The freight itself runs every 4-7 minutes, so in practice it comes about every half hour.
-- **The case's rarity.** 0.14 of gun shops and 0.03 of studies. The `fannods` cases action counts the real ones in the
-  ring.
+- **The case's rarity.** 0.02 of the ring's sales floors. With 401 of them that is about 8 expected; the real furnishing
+  makes 6 (the hash decides which). The `fannods` cases action lists them.
 
 ## 5. Edge cases
 
@@ -192,8 +201,8 @@ from. Each one is an object or a place, built as rows in a system that already e
 - **The rain and the dead:** the infected neither flee it nor burn (law: they don't feel it).
 - **Save and load:** ring boxes are kept by the inventory's `ringKept`, so the case and the ditch stay looted. The
   convoy, the heating timer and the hum are moments, and they are not saved.
-- **Golden ring hash:** the case changes the furniture of the few rooms that get one. `data/golden.json ringPlans` is
-  re-pinned on this branch (the floor plans check prints the new hash).
+- **Golden ring hash:** the case changes the furniture of the six sales floors that get one. `data/golden.json ringPlans`
+  is re-pinned on this branch (0e6b74b9, was 6bc92d8a). The island's furniture does not change.
 
 ## 6. Dependencies (both ways)
 
@@ -209,13 +218,16 @@ from. Each one is an object or a place, built as rows in a system that already e
   - `systems/underlook.js`: the glass and calendar materials, `glassChamber()`, the calendar page and two batches.
   - `data/materials.js`: the `ug-glass` tag.
   - `data/ring.js`: the `glasscase` FURNITURE row.
-  - `data/floorplans.js`: `rare` on `gunshop` and `study`.
-  - `world/ring.js`: `rareRoll` and the rare push.
+  - `data/floorplans.js`: `rare` on `sales`.
+  - `world/ring.js`: `rareRoll` and the rare push; `world/furnish.js`: `noRare` on the island's furnisher.
   - `systems/combat.js`, `data/ballistics.js`, `data/arms.js`, `data/items.js`: `Object.assign` folds of the rows.
   - `systems/melee.js`: `carried()`, the strike pick and the held strike.
   - `systems/inventory.js`: `all` tables and the `heatmeal` act.
   - `systems/sky.js`: the `SICKSKY` row, the rare pick, `burn` easing and the rain colour.
-  - `systems/semis.js`: `lanePoint` `pull`, the `trailerPaint` pass-through, the `halt` in `aiDrive`.
+  - `systems/semis.js`: `lanePoint` `pull`, the `trailerPaint` pass-through, the `halt` and `hold` in `aiDrive` (a held rig
+    brakes with no throttle: before, a target speed of zero still crept at 0.1 throttle).
+  - `systems/decks.js`: a rider's perch is clamped to the vehicle's own ground, not to 0.05 m. On land below render zero
+    (the interstate west of Phoenix sits about 218 m down) the old clamp put every deck rider at 0.05, far above the vehicle.
   - `main.js`: construct and update.
   - `agent/api.js`: the command and the checks.
   - `tools/ip-terms.mjs`: new deny and review terms.
@@ -228,7 +240,7 @@ from. Each one is an object or a place, built as rows in a system that already e
 | `GLASS_ROOMS` rows | 6 | 4-8 (validated) |
 | `GLASS_CHAMBER.r` | 2.4 m | 2.0-2.6 (the room's mid needs side + 2.8 m) |
 | `GLASS_CHAMBER.hum` / `humEvery` | 7 m / 2.6 s | 4-12 / 2-4 |
-| `FN_CASE_RARE` | gunshop 0.14, study 0.03 | 0.01-0.2 (validated at most 0.2) |
+| `FN_CASE_RARE` | sales 0.02 | 0.005-0.05 (validated at most 0.2); how many cases the ring has |
 | `BADGE.reach` / `rate` | 60 m / [0.6, 14] | 30-120 / max 6-20 |
 | `HEATER.wait` | 25 s | 10-60 |
 | `SICK_SKY.chance` / `dmg` | 0.035 / 1.6 hp/s | at most 0.06 / 0.5-3 |
@@ -250,7 +262,8 @@ from. Each one is an object or a place, built as rows in a system that already e
    - Gone down into one: at least 10 glass colliders; you step through the open side into the middle; the far side is
      shut; it hums.
 3. **The glass case.**
-   - The ring's real furnishing puts at least one case in, only in a gun shop or a study, in under a quarter of gun shops.
+   - The ring's real furnishing puts at least one case in, only on sales floors, in under one in ten of them; the island has
+     none.
    - Opened, it holds the revolver, the cane and the ball and caps.
    - The shot mode is nine `capshot` pellets and the ball mode one `ball44`.
    - A tap is the cane; held, the blade comes out and cuts.

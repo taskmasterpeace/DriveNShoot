@@ -754,7 +754,7 @@ export class Ring {
     const lists = rooms.map((room) => {
       const list = [];
       for (const [t0, lo, hi] of ROOMS[room.type]?.furniture ?? []) for (let n = rng.int(lo, hi), q = 0; q < n; q++) list.push(t0 === 'bed' && master.get(room.ui) !== room ? 'sbed' : t0);
-      for (const [t0, p] of ROOMS[room.type]?.rare ?? []) if (rareRoll(this.seed, room, t0) < p) list.unshift(t0); // a rare piece (data/fannods.js the glass case): by a hash of the room, first so it finds a wall
+      if (!this.noRare) for (const [t0, p] of ROOMS[room.type]?.rare ?? []) if (rareRoll(this.seed, room, t0) < p) list.unshift(t0); // a rare piece (data/fannods.js the glass case): by a hash of the room, first so it finds a wall; the ring's only (the island's furnisher sets noRare: the start town stays as it was)
       return list;
     });
     // Proofs cost a flood each, so: the whole building at once, one proof; if it fails, it all comes out and goes in a room

@@ -126,7 +126,7 @@ export class Decks {
     c.firingFrom = v; c.dive = 0; c.vault = null; c.storey = null;
     toWorld(v, L.x, L.z, W);
     c.x = W.x; c.z = W.z;
-    c.perchY = Math.max(0.05, this.floorY(v, L.x, L.z, D)); c.gy = c.perchY;
+    c.perchY = Math.max(v.group.position.y + 0.05, this.floorY(v, L.x, L.z, D)); c.gy = c.perchY; // never under the vehicle's own ground (which is below 0 where the land is: not 0.05)
     if (c !== this.g.player) { c.wx = c.x; c.wz = c.z; }
     this.g.emit('deckBoard', { id: c.id, vehicle: v.id, how, deck: D.key });
     if (c === this.g.player && how !== 'load') this.g.hud.toast(D === v.roofDeck ? `ON THE ROOF OF THE ${v.name} · [E] AT THE LADDER TO CLIMB DOWN` : D.open ? `ON THE ${v.boat ? 'DECK' : 'BED'} OF THE ${v.name} · [SPACE] OVER THE SIDE` : `INSIDE THE ${v.name}`, 'job');
@@ -360,7 +360,7 @@ export class Decks {
       const d = c.onDeck, D = d.D;
       toWorld(v, d.lx, d.lz, W);
       c.x = W.x; c.z = W.z;
-      c.perchY = Math.max(0.05, _v.set(d.lx, D.y, d.lz).applyMatrix4(v.group.matrix).y);
+      c.perchY = Math.max(v.group.position.y + 0.05, _v.set(d.lx, D.y, d.lz).applyMatrix4(v.group.matrix).y);
       c.gy = c.perchY;
       if (c.prone) c.proneH = wrap(d.bh + v.h); // the body turns with the vehicle
       if (c !== g.player) { c.face += dh; c.wx = c.x; c.wz = c.z; }

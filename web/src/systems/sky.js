@@ -21,7 +21,7 @@ const RAIN_N = 2600, MOTE_N = 2400, BOX = 110, BOX_H = 50;
 // update() runs every frame, so its colour blends use these constants and scratch objects instead
 // of allocating ~10 THREE.Colors (and regex-parsing hex strings) per frame.
 const BLENDED = ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm'];
-const RAIN_COL = new THREE.Color('#b9c4c8'), RAIN_BURN = new THREE.Color(SICK_SKY.rain); // the burning rain comes down yellow
+const RAIN_COL = new THREE.Color('#b9c4c8'), RAIN_BURN = new THREE.Color(SICK_SKY.rain), LIGHT_BURN = new THREE.Color(SICK_SKY.light); // the burning rain comes down yellow, under an orange-green light
 const SUN_DAY = new THREE.Color('#fff4e0'), SUN_LOW = new THREE.Color('#ff9a52'), MOON = new THREE.Color('#a3b6cc');
 const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82a0'), HEMI_LOW = new THREE.Color('#f0b884');
 // Light levels. three.js r155+ no longer multiplies a light by pi, and these were never raised to match: noon in Rust
@@ -190,6 +190,7 @@ export class Sky {
     this.hemi.intensity = lerp(lerp(NIGHT_I.hemi[0], NIGHT_I.hemi[1], nl), HEMI_I[1], day) * (1 + GOLDEN_FILL * golden) * (1 - 0.25 * c.clouds) + flicker * 2.5;
     this.hemi.color.copy(HEMI_DAY).lerp(HEMI_LOW, golden * 0.45).lerp(HEMI_NIGHT, this.night);
     this.hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, this.night);
+    if (this.cur.burn > 0.01) { this.hemi.color.lerp(LIGHT_BURN, 0.85 * this.cur.burn); this.sun.color.lerp(LIGHT_BURN, 0.75 * this.cur.burn); } // the burning rain: the light goes orange-green
 
     // Fog / sky colour.
     _fog.copy(FOG_DAY).lerp(this.curTint, Math.min(1, c.clouds + c.dust + c.ash)).lerp(FOG_DUSK, low * day * 0.35);

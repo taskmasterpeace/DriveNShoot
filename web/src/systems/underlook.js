@@ -47,7 +47,7 @@ export function makeMaterials() {
     glow: new THREE.MeshBasicMaterial({ map: radialGlow(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
     black: new THREE.MeshBasicMaterial({ color: '#000000', fog: false }),
     water: new THREE.MeshStandardMaterial({ roughness: 0.12, metalness: 0.35, color: '#ffffff' }),
-    glass: new THREE.MeshStandardMaterial({ roughness: 0.12, metalness: 0.35, transparent: true, opacity: GLASS_CHAMBER.opacity, depthWrite: false }), // the glass room's chamber (data/fannods.js)
+    glass: new THREE.MeshBasicMaterial({ transparent: true, opacity: GLASS_CHAMBER.opacity, depthWrite: false, toneMapped: false }), // the glass room's chamber (data/fannods.js): unlit, so its tint holds in the dark (a faint glow of its own)
     calendar: new THREE.MeshStandardMaterial({ map: calendarPage(), roughness: 0.9 }), // a frozen calendar's page (data/fannods.js CALENDAR)
   };
 }

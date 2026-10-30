@@ -24,7 +24,7 @@ export const GLASS_ROOMS = [
 export const GLASS_BY_BASE = new Map(GLASS_ROOMS.map((G) => [G.base, G]));
 // The chamber: r centre to corner (m), panel thickness and height, the glass's opacity, how far its hum carries (m) and
 // how often it is heard (s), the scorch's radius share.
-export const GLASS_CHAMBER = { r: 2.4, thick: 0.22, h: 2.45, opacity: 0.62, hum: 7, humEvery: 2.6, scorch: 0.78 };
+export const GLASS_CHAMBER = { r: 2.4, thick: 0.22, h: 2.45, opacity: 0.5, hum: 7, humEvery: 2.6, scorch: 0.78 };
 // The chamber's six panels round (cx, cz): corners every 60 degrees from +x, so the side facing -z is level with the x
 // axis; that side is the door (its leaf stands open). Each panel: its middle, length, the y-rotation that lays a box's
 // local x along it, and colliders: small square boxes along it (one long one for the level side) a walker cannot slip
@@ -128,7 +128,7 @@ export const FN_LOOT_ADD = {
 // colour; dmg: hp a second on bare skin under the open sky (a roof, a hard-topped car, a box trailer or below ground is
 // cover; a coat of armour on the chest halves it); warn: once a storm, the moment it first stings. No purple: every hue
 // here is 20-140 (validateFanNods checks the sky's tint and the rain).
-export const SICK_SKY = { weather: 'SICKSKY', chance: 0.035, rain: '#c8bc4a', dmg: 1.6, from: 0.45, armorMul: 0.5, flee: 22 };
+export const SICK_SKY = { weather: 'SICKSKY', chance: 0.035, rain: '#d8c440', light: '#c8a830', dmg: 1.6, from: 0.45, armorMul: 0.5, flee: 22 };
 
 // ---- 3: the bones in the ditch ------------------------------------------------------------------------------------------
 // Out on the interstate (the streamed corridor, systems/semis.js W): a skeleton face-down in the ditch past the shoulder,
@@ -136,9 +136,9 @@ export const SICK_SKY = { weather: 'SICKSKY', chance: 0.035, rain: '#c8bc4a', dm
 // length; side: 1 the corridor's +normal side, -1 the other; set: m out past the
 // shoulder. Three on the whole road: rare by place.
 export const DITCH_BONES = [
-  { id: 'ditch_a', at: 0.21, side: 1, set: 7.5 },
-  { id: 'ditch_b', at: 0.53, side: -1, set: 8.5 },
-  { id: 'ditch_c', at: 0.86, side: 1, set: 7 },
+  { id: 'ditch_a', at: 0.21, side: 1, set: 3 },
+  { id: 'ditch_b', at: 0.53, side: -1, set: 3.5 },
+  { id: 'ditch_c', at: 0.86, side: 1, set: 2.8 },
 ];
 export const DITCH = { near: 220, far: 300, reach: 2.2, bone: '#d9d0b8', cloth: '#4a4636', blade: '#7c7e78', grip: '#5a4a32' };
 
@@ -181,9 +181,10 @@ export const CALENDAR = { rooms: { office: 0.35, command: 0.5, comms: 0.25, guar
 // A collector's display case against a wall: a dark wood cabinet, a framed glass lid, red felt, and on the felt the long
 // revolver (barrel, the fatter barrel under it, the cylinder, the grip) and the cane with its silver knob. Seen from above
 // through the lid. Its box is fn_case: both pieces and the drawer's ball and powder, once.
-// Where: a gun shop's floor, rarely; a study (a collector's den), more rarely (data/floorplans.js ROOMS `rare`; the roll is a
-// hash of the room, so no other room's furniture moves).
-export const FN_CASE_RARE = { gunshop: 0.14, study: 0.03 };
+// Where: a shop's sales floor in the Phoenix ring (a pawn shop's front: the ring has some four hundred), rarely: about six.
+// data/floorplans.js ROOMS `rare`; the roll is a hash of the room, so no other room's furniture moves. Never on the island
+// (world/furnish.js sets noRare): the start town stays as it was.
+export const FN_CASE_RARE = { sales: 0.02 };
 export const FN_CASE = {
   size: [1.8, 0.62, 1.0], colors: ['#3e2a1c', '#4a3020'], box: { label: 'GLASS CASE', cap: 12, loot: 'fn_case' }, solid: true,
   parts: [
@@ -198,19 +199,25 @@ export const FN_CASE = {
     [0, 1, 0, 0.04, 0.84, 1.0, '#8a6a32'], [0, 1, 0.96, 1, 0.84, 1.0, '#8a6a32'], [0, 0.02, 0, 1, 0.84, 1.0, '#8a6a32'], [0.98, 1, 0, 1, 0.84, 1.0, '#8a6a32'],
   ],
 };
-// The calendar a room has (a hash of its corner, no rng: nobody else's layout moves), or null: on the wall whose middle is
-// farthest from the room's own door, at CALENDAR.y, facing in. -> { x, z, rot } (rot: the y-rotation that turns a plane
-// facing +z to face into the room).
+// The calendar a room has (a hash of its corner, no rng: nobody else's layout moves), or null. It hangs at CALENDAR.y, facing
+// in, on a clear stretch of wall: no tall piece (over 1.2 m: a locker, a shelf, a cabinet) in front of it and not beside the
+// room's door. The north wall first (it faces the camera), then the others, the wall farthest from the door first; along
+// each wall the middle, then either side.
 const h01 = (a, b, c) => { let v = 2166136261 ^ Math.imul(Math.round(a * 10) | 0, 73856093) ^ Math.imul(Math.round(b * 10) | 0, 19349663) ^ Math.imul(c | 0, 83492791); v = Math.imul(v ^ (v >>> 15), 2246822507); v = Math.imul(v ^ (v >>> 13), 3266489909); return ((v ^ (v >>> 16)) >>> 0) / 4294967296; };
-export function calendarOn(room, doors) {
+export function calendarOn(room, doors, props = []) {
   const p = CALENDAR.rooms[room.type];
   if (!p || h01(room.x0, room.z0, 7) >= p) return null;
-  const d = doors.find((q) => q.room === room.id), cx = (room.x0 + room.x1) / 2, cz = (room.z0 + room.z1) / 2, off = 0.03;
-  const walls = [{ x: cx, z: room.z0 + off, rot: 0 }, { x: cx, z: room.z1 - off, rot: Math.PI }, { x: room.x0 + off, z: cz, rot: Math.PI / 2 }, { x: room.x1 - off, z: cz, rot: -Math.PI / 2 }];
-  if (!d) return walls[0];
-  let best = walls[0], bd = -1;
-  for (const w of walls) { const dd = Math.hypot(w.x - d.x, w.z - d.z); if (dd > bd) { bd = dd; best = w; } }
-  return best;
+  const d = doors.find((q) => q.room === room.id), off = 0.03, w = room.x1 - room.x0, dd = room.z1 - room.z0;
+  const walls = [
+    { at: (t) => ({ x: room.x0 + w * t, z: room.z0 + off }), rot: 0, mid: { x: room.x0 + w / 2, z: room.z0 } },
+    { at: (t) => ({ x: room.x0 + w * t, z: room.z1 - off }), rot: Math.PI, mid: { x: room.x0 + w / 2, z: room.z1 } },
+    { at: (t) => ({ x: room.x0 + off, z: room.z0 + dd * t }), rot: Math.PI / 2, mid: { x: room.x0, z: room.z0 + dd / 2 } },
+    { at: (t) => ({ x: room.x1 - off, z: room.z0 + dd * t }), rot: -Math.PI / 2, mid: { x: room.x1, z: room.z0 + dd / 2 } },
+  ];
+  const order = [walls[0], ...walls.slice(1).sort((a, b) => (d ? Math.hypot(b.mid.x - d.x, b.mid.z - d.z) - Math.hypot(a.mid.x - d.x, a.mid.z - d.z) : 0))];
+  const clear = (q) => (!d || Math.hypot(q.x - d.x, q.z - d.z) > 1.4) && !props.some((b) => b.h > 1.2 && q.x > b.x0 - 0.4 && q.x < b.x1 + 0.4 && q.z > b.z0 - 0.4 && q.z < b.z1 + 0.4);
+  for (const W of order) for (const t of [0.5, 0.3, 0.7, 0.18, 0.82]) { const q = W.at(t); if (clear(q)) return { x: q.x, z: q.z, rot: W.rot }; }
+  return null;
 }
 
 // ---- the check (the selftest's and the World Forge's) -------------------------------------------------------------------
@@ -238,7 +245,7 @@ export function validateFanNods({ milbases, rooms, props, items, loot, melee, we
   if (weapons && !weapons.percussion?.modes?.some((m) => m.id === 'shot' && m.pellets > 1)) bad.push('the percussion revolver has no shot barrel');
   const W = weather?.[SICK_SKY.weather];
   if (weather && !W) bad.push('no burning-rain weather row');
-  for (const hex of [W?.tint, SICK_SKY.rain].filter(Boolean)) { const h = hueOf(hex); if (h === null || h < 20 || h > 140) bad.push(`burning rain colour ${hex}: hue ${h} outside 20-140`); }
+  for (const hex of [W?.tint, SICK_SKY.rain, SICK_SKY.light].filter(Boolean)) { const h = hueOf(hex); if (h === null || h < 20 || h > 140) bad.push(`burning rain colour ${hex}: hue ${h} outside 20-140`); }
   if (!(SICK_SKY.chance > 0 && SICK_SKY.chance <= 0.06)) bad.push(`burning rain chance ${SICK_SKY.chance}: rare is at most 0.06`);
   if (!(DITCH_BONES.length >= 1 && DITCH_BONES.length <= 5 && DITCH_BONES.every((r) => r.at > 0 && r.at < 1 && Math.abs(r.side) === 1))) bad.push('ditch rows');
   if (!(CONVOY.chance > 0 && CONVOY.chance <= 0.1 && CONVOY.rigs.length >= 2 && CONVOY.rigs.length <= 3)) bad.push('convoy: rare, two or three rigs');
