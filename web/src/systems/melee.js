@@ -22,7 +22,7 @@ export class Melee {
 
   can() {
     const g = this.g, p = g.player;
-    return p.alive && !p.inVehicle && !p.grabbing && !p.onTrain && !p.swim && !p.vault && !(p.knockT > 0) && !(p.dive > 0) && !g.dialogue.active && !g.invUI?.open && !g.survival?.sleep;
+    return p.alive && !p.inVehicle && !(p.mount && !g.horses.canMelee(p)) && !p.grabbing && !p.onTrain && !p.swim && !p.vault && !(p.knockT > 0) && !(p.dive > 0) && !g.dialogue.active && !g.invUI?.open && !g.survival?.sleep;
   }
 
   strikeKind() {
@@ -97,7 +97,7 @@ export class Melee {
     const combo = strike && this.chain >= M.combo.at;
     if (combo) { this.chain = 0; this.counts.combos++; }
     const str = 1 + 0.05 * (g.skillsSys?.lv?.strength ?? 0); // strength, grown by doing (skills.js)
-    const dmg = K.dmg * (a.weak ? 0.5 : 1) * (combo ? M.combo.mul : 1) * str * (g.deep?.fx.meleeMul ?? 1); // Brawn, Blunt/Unarmed, Pacifist (systems/stats.js)
+    const dmg = K.dmg * (a.weak ? 0.5 : 1) * (combo ? M.combo.mul : 1) * str * (g.deep?.fx.meleeMul ?? 1) * (p.mount ? g.horses.meleeTax() : 1); // Brawn, Blunt/Unarmed, Pacifist (systems/stats.js)
     const dl = Math.max(0.01, bd), ux = (best.x - p.x) / dl, uz = (best.z - p.z) / dl;
     const hp0 = best.hp;
     g.combat.damage(best, dmg, p, ux, uz, 'bash');

@@ -74,7 +74,7 @@ export class Combat {
     const B = g.ballistics, round = B ? B.rowKey(w) : w.ammo;
     if (B) { if (seed !== null) B.reseed(seed); else B.seed(ch, w.ammo, round, hug ? ch.x : ox, hug ? ch.z : oz, ang0, w.pellets); }
     for (let p = 0; p < w.pellets; p++) {
-      const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
+      const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) * (ch.mount ? g.horses.aimTax(ch) : 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
       const a = ang0 + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp;
       const reach = w.range * (0.85 + (B ? B.rand() : Math.random()) * 0.15), rise = lift ? lift + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp : 0;
       this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, w.ammo, rise, round);

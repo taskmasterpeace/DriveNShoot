@@ -279,3 +279,6 @@ its sheriff's canal job counts this layer's gator kills too (`faunaKilled` with 
 
 Also, for the whole battery: under 150 draw calls, no runtime errors, `scenario name=stress` not regressed (the hand-back
 has the A/B), `node tools/ip-lint.mjs` 0 deny.
+
+
+> **See also WEB_HORSES.md:** horses are a `quad` body of this layer (`SPECIES horse_<breed>`) with a ledger record on top (`systems/horses.js`); `fauna.js` gives them two hooks (`a.ctl`: the ledger moves it; `a.gentle`: a wild horse tolerates a slow person with feed).

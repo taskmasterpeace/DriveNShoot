@@ -202,3 +202,6 @@ Also: the draw-call budget (selftest "perf budget") holds with dogs on screen (m
 closest and widest zoom, over a pack and over Rust Haven).
 
 **Used by GADGETS-2** (`WEB_GADGETS2.md`): DOG_GEAR (vest, lamp, bark collar). `dogs.hurt` takes the vest share (`g.kit.dogSoak`), and the collar marks only what `dogs.sense` set as `d.threat`.
+
+
+> **See also WEB_HORSES.md:** horses are a `quad` body of this layer (`SPECIES horse_<breed>`) with a ledger record on top (`systems/horses.js`); `fauna.js` gives them two hooks (`a.ctl`: the ledger moves it; `a.gentle`: a wild horse tolerates a slow person with feed).

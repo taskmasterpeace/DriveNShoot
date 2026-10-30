@@ -389,7 +389,7 @@ export class CharacterRenderer {
     for (const ch of chars) {
       const i = ch.slot;
       maxSlot = Math.max(maxSlot, i + 1);
-      const sp = ch.inVehicle ? ch.seatPose : null; // exposed seat: bike saddle / truck bed / train roof
+      const sp = ch.inVehicle || ch.mount ? ch.seatPose : null; // exposed seat: bike saddle / truck bed / train roof / a horse's saddle (systems/horses.js)
       // ownMesh: an animal drawn by its own renderer (systems/regions.js): shootable, seen, but not a person's body.
       if (ch.hidden || ch.ownMesh || (ch.inVehicle && !sp)) { this.hideSlot(i); ch._rx = undefined; continue; }
       if (cu && (ch.gy ?? 0) > cu.y && ch.x > cu.b.minX && ch.x < cu.b.maxX && ch.z > cu.b.minZ && ch.z < cu.b.maxZ) { this.hideSlot(i); ch._rx = undefined; continue; }
@@ -408,7 +408,7 @@ export class CharacterRenderer {
   pose(ch, sp, dt) {
     const M = this.meshes, i = ch.slot, alive = ch.alive;
     const w = ch.weapon && !ch.holstered && !ch.work ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null; // holstered: hands empty (systems/arms.js)
-    const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
+    const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike' || sp?.kind === 'ride';
     const L = this.lsw, near = L.near[i] === 1; // an LSW body: the same solution, a different skin (systems/lswbodies.js)
 
     // ---- root frame --------------------------------------------------------------------------
@@ -537,7 +537,7 @@ export class CharacterRenderer {
     if (aim) lean = 0.03 + 0.12 * crouch;
     else if (infected && alive) { lean = 0.32 + 0.2 * run; headTilt = 0.22 * Math.sin(ch.walk * 0.5 + i); }
     else if (moving && !gm) twist = -0.1 * Math.sin(phase) * k;
-    if (bike) lean = aim ? 0.12 : 0.7; // over the tank on the bars; sat up to shoot
+    if (bike) lean = sp.kind === 'ride' ? (aim ? 0.06 : 0.16 + 0.1 * run) : aim ? 0.12 : 0.7; // over the tank on the bars; sat up to shoot; in a saddle, upright and a little forward at speed
     if (bike && aim && sp) twist = wrap(ch.face - sp.h); // the rider turns at the waist to shoot any way
     if (sp?.twist) twist += sp.twist;   // shooting from the saddle: the upper body turns, the legs stay on the machine
     if (ch.swim || ch.underwater) lean = 0;

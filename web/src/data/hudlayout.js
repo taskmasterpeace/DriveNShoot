@@ -68,7 +68,7 @@ export const HUD_LAYOUT = [
   { id: 'telltales', name: 'Telltales (needs and ailments)', group: 'vitals', sel: '.tt-rail', anchor: 'tc', x: 0, y: 52, scale: 1, visible: true, situations: PLAY, w: 420, h: 70 },
   { id: 'roles', name: 'Role tapes', group: 'social', sel: '.roles', anchor: 'bl', x: 612, y: 147, scale: 1, visible: true, situations: FOOT, w: 168, h: 90, talkHide: true },
   { id: 'breath', name: 'Breath', group: 'vitals', sel: '.breath-tab', anchor: 'bl', x: 612, y: 147, scale: 1, visible: true, situations: FOOT, w: 186, h: 44, talkHide: true },
-  { id: 'footing', name: 'Footing', group: 'vitals', sel: '.footing', anchor: 'bc', x: 0, y: 310, scale: 1, visible: true, situations: ['deck', 'prone'], w: 320, h: 30, talkHide: true },
+  { id: 'footing', name: 'Footing', group: 'vitals', sel: '.footing', anchor: 'bc', x: 0, y: 310, scale: 1, visible: true, situations: ['deck', 'prone', 'on_foot', 'night'], w: 320, h: 30, talkHide: true },
   // ---- the gun in your hands ----
   { id: 'weapon', name: 'Weapon plate', group: 'combat', sel: '.weapon-panel', anchor: 'br', x: 10, y: 10, scale: 1, visible: true, situations: FOOT, w: 307, h: 252, talkHide: true },
   { id: 'weaponbar', name: 'Weapon bar', group: 'combat', sel: '.wbar', anchor: 'br', x: 330, y: 10, scale: 1, visible: true, situations: FOOT, w: 300, h: 90, talkHide: true },

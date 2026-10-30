@@ -63,6 +63,7 @@ import { Population } from './systems/population.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
+import { Horses } from './systems/horses.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
@@ -261,6 +262,7 @@ class Game {
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
     this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
+    this.horses = new Horses(this); // horses: the fauna quad body with a ledger (feed, water, bond, tack, bags) and a saddle (data/horses.js, WEB_HORSES.md)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
@@ -516,7 +518,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.milbases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); this.sealife?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { if (this.under?.noise(x, z, r, src)) return; this.citygen?.onNoise(x, z, r); if (src === this.player && this.deep) r *= this.deep.fx.noiseMul; this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.milbases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); this.horses?.onNoise(x, z, r, src); this.sealife?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -840,6 +842,21 @@ class Game {
       return;
     }
 
+    // In the saddle (systems/horses.js): the horse is steered by the same keys and stick, E gets down, the gun works with a tax.
+    if (p.mount) {
+      if (this.horses.ride(p, I, dt)) {
+        this.hud.footing(this.horses.chip(p));
+        p.face = angleLerp(p.face, Math.atan2(this.aim.x - p.x, this.aim.z - p.z), Math.min(1, dt * 18));
+        this.arms.slotKeys(I, dt);
+        if (I.hit('KeyR')) this.reload();
+        this.updateThrowAim(dt, I);
+        this.handleShooting(dt, p.face);
+        p.aiming = this.arms.stance === 'raised';
+        this.hud.prompt('<kbd>E</kbd> Get down · <kbd>Space</kbd> hold: gallop, tap: hop · <kbd>Shift</kbd> canter · <kbd>Ctrl</kbd> walk');
+      } else this.hud.footing(null);
+      return;
+    }
+
     // Riding the freight: walk the roofs (W/S), aim and shoot, G jumps off.
     if (p.onTrain) {
       p.face = Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
@@ -1020,7 +1037,8 @@ class Game {
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
     const op = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null; // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
-    const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
+    const horse = !best && !bestV && !op && !ugI && !dog && !dk ? this.horses.nearFor(p) : null; // a horse within reach: mount, buy, halter, offer oats
+    const game = !best && !bestV && !op && !ugI && !dog && !dk && !horse ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
     // ... or the roadside's: a tank's caps (a car beside them is what you siphon into: E stays the caps'), a hulk, a water tank, the dam's wheel.
@@ -1037,6 +1055,7 @@ class Game {
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);
+    else if (horse) this.hud.prompt(horse.verb === 'none' ? horse.text : `<kbd>E</kbd> ${horse.text}`);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
@@ -1045,6 +1064,7 @@ class Game {
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
+    else if (horse && horse.verb !== 'none' && (I.hit('KeyE') || (horse.verb === 'buy' && I.hit('KeyF')))) { const r = this.horses.interact(horse, I.hit('KeyF') && !I.hit('KeyE') ? 'KeyF' : 'KeyE'); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
@@ -1335,6 +1355,7 @@ class Game {
       this.dogs.update(simDt);
       this.crew.update(simDt); // the downed bleed, deeds move trust, jobs on the game clock, dawn
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
+      this.horses.update(simDt); // horses: feed and water on the game clock, the herd, the ridden and the tied (systems/horses.js)
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
@@ -1375,6 +1396,7 @@ class Game {
     this.charR.sync(this.chars, dt);
     this.dogs.draw(dt);
     this.fauna.draw(dt);
+    this.horses.draw(dt); // saddles, bags, rails and graves: one instanced mesh
     const pv = p.inVehicle;
     this.soundscape.update(dt);
     this.radio.update(dt);
