@@ -580,7 +580,7 @@ export class Residents {
   thinkInfected(c, dt) {
     const g = this.g, S = c.res, rec = S.rec, m = S.m, R = rec.R, P = g.player;
     if (c.zkind === 'echo') return false;
-    if (c.ztarget?.alive || S.roused > g.time || c.zs?.state === 'burst' || c.zs?.state === 'overheat') return false;
+    if (c.ztarget?.alive || S.roused > g.time || c.zs?.state === 'windup' || c.zs?.state === 'burst' || c.zs?.state === 'overheat') return false;
     const pd = Math.hypot(P.x - c.x, P.z - c.z);
     if (pd > 150) { c.speed = 0; return true; }
     const h = g.sky.time, day = g.society?.day ?? 0, N = this.nestNow(rec, h, day);

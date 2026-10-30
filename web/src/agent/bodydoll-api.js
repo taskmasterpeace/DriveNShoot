@@ -132,4 +132,77 @@ export async function bodyDollChecks({ api, g, check }) {
     await restore();
     return k === 1 && li && target && after === before + 1 && gone && shown ? true : JSON.stringify({ k, li: !!li, target: !!target, before, after, gone, shown });
   });
+
+  await check('hud editor: every element has a plain-English name and a one-line tip (no internal names: chips, tapes, plates, telltales), shown on its box and its card', async () => {
+    const JARGON = /\b(chip|chips|tape|tapes|plate|telltale|telltales|reticle|pulls|ribbon|slot)\b/i;
+    const bad = HUD_LAYOUT.filter((r) => !r.tip || r.tip.length < 12 || JARGON.test(r.name)).map((r) => `${r.id}: ${r.name}`);
+    const L = g.hud.layout, b = L.byId.doll, onBox = b?.wrap?.title === HUD_LAYOUT.find((r) => r.id === 'doll').tip;
+    return !bad.length && onBox ? true : JSON.stringify({ bad, onBox, title: b?.wrap?.title });
+  });
+
+  await check('creator: every attribute says in one plain line what it changes in play (no "x0.93" formulas), the kit adds up in words, and the body has the bigger half of the screen', async () => {
+    const C = g.creatorUI;
+    if (!C) return 'no creator screen';
+    const was = C.open_;
+    try {
+      if (!was) C.open({});
+      C.goStep(2); await frames(2); // ATTRIBUTES
+      const subs = [...C.el.querySelectorAll('.cr-row .lab small')].map((s) => s.textContent);
+      const plain = subs.length === 6 && subs.every((t) => t.length > 12 && !/\bx\d|\d\.\d\d/.test(t));
+      C.goStep(5); await frames(2); // KIT
+      const nums = [...C.el.querySelectorAll('.cr-nums span')].map((s) => s.textContent);
+      const words = nums.length >= 2 && nums.every((t) => !/\bx\d/.test(t));
+      const card = C.$.model.getBoundingClientRect(), panel = C.el.querySelector('.cr-panel').getBoundingClientRect();
+      const big = card.width >= panel.width * 0.8 && card.height > innerHeight * 0.5;
+      return plain && words && big ? true : JSON.stringify({ subs, nums, card: [card.width, card.height], panel: panel.width });
+    } finally { if (!was) C.close(false); }
+  });
+
+  // ---- the keys stay the game's (Robert's playtest, 2026-10-29: "I clicked off of it, and now I hit I and it won't close") ----
+  const tap = async (code) => { g.input.keyDown(code); await api._step(1); g.input.keyUp(code); await api._step(1); }; // the game's own frames (an agent tab steps the loop: rAF alone never runs update)
+
+  await check('keys: a click on a button gives the keyboard back to the game (focus leaves the button for the canvas); a text field keeps it', async () => {
+    const F = g.focus, host = document.getElementById('ui'), btn = document.createElement('button'), txt = document.createElement('input');
+    btn.textContent = 'TEST'; txt.type = 'text';
+    host.append(btn, txt);
+    try {
+      const n0 = F.reclaims;
+      btn.focus(); btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      await frames(1);
+      const backToGame = document.activeElement === F.canvas && F.reclaims === n0 + 1;
+      txt.focus(); txt.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      await frames(1);
+      const kept = document.activeElement === txt;
+      return backToGame && kept ? true : JSON.stringify({ backToGame, kept, active: document.activeElement?.tagName, reclaims: F.reclaims - n0 });
+    } finally { btn.remove(); txt.remove(); }
+  });
+
+  await check('keys: I, TAB and ESC each shut the PACK, even with the pause menu up over it (the window lost focus) or a talk holding the keys', async () => {
+    await stage();
+    const shut = {};
+    try {
+      for (const code of ['KeyI', 'Tab', 'Escape']) { ui.toggle(true); await frames(2); await tap(code); shut[code] = !ui.open; }
+      ui.toggle(true); await frames(2); g.qol.toggleMenu(true); await frames(2);
+      await tap('KeyI'); shut.paused = !ui.open;
+    } finally { if (g.qol.menuOpen) g.qol.toggleMenu(false); await restore(); }
+    return Object.values(shut).every(Boolean) ? true : JSON.stringify(shut);
+  });
+
+  await check('keys: R with a full gun or no spare ammo says why instead of doing nothing', async () => {
+    await stage();
+    const was = g.inv.current;
+    if (!g.inv.weapons.includes('pistol')) await api.call('give', { weapon: 'pistol' }).catch(() => null); await api.call('equip', { weapon: 'pistol' }).catch(() => null);
+    const k = g.inv.current, w = (await import('../systems/combat.js')).WEAPONS[k];
+    if (!w?.mag) return JSON.stringify({ noGun: k });
+    const said = [], toast = g.hud.toast;
+    g.hud.toast = (t, kind) => { said.push(t); return toast.call(g.hud, t, kind); };
+    const mag = g.inv.mag[k], ammo = g.inv.ammo[g.arms.ammoOf(k)];
+    try {
+      g.inv.mag[k] = w.mag; await tap('KeyR');
+      const full = said.some((t) => /FULL/.test(t));
+      g.inv.mag[k] = 0; g.inv.ammo[g.arms.ammoOf(k)] = 0; await tap('KeyR');
+      const dry = said.some((t) => /NO SPARE AMMO/.test(t));
+      return full && dry ? true : JSON.stringify({ said, gun: k });
+    } finally { g.hud.toast = toast; g.inv.mag[k] = mag; g.inv.ammo[g.arms.ammoOf(k)] = ammo; g.player.reloading = 0; if (was && was !== k) await api.call('equip', { weapon: was }).catch(() => null); await restore(); }
+  });
 }

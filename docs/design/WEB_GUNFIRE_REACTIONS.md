@@ -174,6 +174,12 @@ The same man **asleep**:
 
   Now nothing about a bar is saved; a save mid-bar loads a plain closed door. Others stop at it like any shut door. A
   kick (`interiors.fling` zeroes `jamT`) or the door forced open breaks it (`barBroken`), and the plank comes off.
+- **A sleeper holding a pending reaction** is skipped by `ai.onNoise` only for the shot they are already reacting to
+  (`heardNow`). Any other noise within the half-ear still wakes them; the battery caught Ike sleeping through the shot in
+  his own shop.
+- **Bedtime.** At night (`ai.night`), anyone `ai.sleeper` keeps a reaction up for at most `nightSecs` (10 s), then goes
+  back to bed. Parents running to family finish the run first. Hiding for most of a minute kept Phoenix awake past the
+  hour it sleeps (the battery's "the town sleeps").
 - **Crew candidates** (`c.crewCand`) are crew.js's: they do not take part.
 - **A witness who heard the shot and then becomes a runner** (`witnesses.consider` sets `c.telling`), or someone
   taken on as crew mid-reaction: the reaction ends at once. The runner runs home to tell it, and the battery's witness
@@ -213,7 +219,7 @@ The same man **asleep**:
 |---|---|
 | `web/src/main.js` | import; `this.reactions = new Reactions(this)`; `this.reactions.update(simDt)` after witnesses |
 | `web/src/systems/combat.js` | `g.reactions?.onShot(ch.x, ch.z, 45, wkey, ch)` one line **before** `g.noise` |
-| `web/src/systems/ai.js` | `onNoise`: `\|\| c.rx` in the skip; `update`: `if (c.rx && g.reactions.think(c, dt)) continue;` after the hold line |
+| `web/src/systems/ai.js` | `onNoise`: `\|\| (c.rx && (!c.sleeping \|\| g.reactions.heardNow(c)))` in the skip (asleep, any OTHER noise still wakes them); `update`: `if (c.rx && g.reactions.think(c, dt)) continue;` after the hold line |
 | `web/src/data/pulls.js` | `CHANNELS.heard` row; `FACT_KINDS.gunfire` row |
 | `web/src/agent/api.js` | import; `...reactionsCommands(api, need)`; `await reactionsChecks(api, check, C)` before the draw-call check |
 | `web/src/systems/interiors.js` | none: barring uses its `orient`, `syncLock`, `flush` and the leaves' `jamT` |
@@ -233,6 +239,8 @@ The same man **asleep**:
 | delay / wake | 0.25–0.7 / 2.6–5 s | wake must start after delay ends (validated) | reaction speed |
 | seeR / seeRNight | 40 / 18 m | 15–70 / 8–30 | return fire needs sight inside this |
 | doorR / bedR / kinR | 24 / 20 / 70 m | 10–40 / 8–30 / 30–120 | how far they go for cover |
+| nightSecs | 10 s | 5–30 | at night a townsperson with a bed gives a reaction up after this and goes to bed |
+| hop / shortLeg | 35 / 40 m | 20–60 / 20–80 | a look's longest planned leg; a leg this short is always path-planned (else, outside the nav window, straight) |
 | jump.perShot / halfLife | 0.16 / 90 s | 0.05–0.4 / 30–600 | how fast a town gets jumpy and calms |
 | jump.delayCut / secsAdd / calmCut / scareAdd / earAdd | 0.5 / 0.8 / 0.85 / 1 / 0.25 | 0–0.8 / 0–2 / 0–1 / 0–3 / 0–0.6 | what jumpiness does |
 | maxPerShot | 48 | 16–80 | a cost cap |

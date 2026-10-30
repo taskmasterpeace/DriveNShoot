@@ -65,7 +65,7 @@ export class Radio {
     const ctx = A.ctx, mk = () => { const e = new window.Audio(); e.crossOrigin = 'anonymous'; e.preload = 'auto'; const src = ctx.createMediaElementSource(e); const g = ctx.createGain(); g.gain.value = 0; src.connect(g); return { e, g }; };
     const a = mk(), b = mk(), filter = ctx.createBiquadFilter(), hp = ctx.createBiquadFilter(), gain = ctx.createGain();
     hp.type = 'highpass'; filter.type = 'lowpass';
-    a.g.connect(hp); b.g.connect(hp); hp.connect(filter).connect(gain).connect(A.master);
+    a.g.connect(hp); b.g.connect(hp); hp.connect(filter).connect(gain).connect(A.music ?? A.master); // the music bus (systems/audio.js setVolumes)
     gain.gain.value = this.volume;
     return (this.els = { a, b, cur: a, filter, hp, gain });
   }

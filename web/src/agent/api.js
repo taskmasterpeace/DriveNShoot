@@ -70,6 +70,7 @@ import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
 import { voiceStatsCommands } from './voicestats.js';
 import { voiceStatsChecks } from './voicestats-selftest.js';
+import { soundCommands, soundChecks } from './sound-api.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
@@ -85,6 +86,7 @@ import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW 
 import { qolChecks } from './qol-selftest.js';
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
 import { calibersCommands, calibersChecks } from './calibers-api.js'; // calibres and forensics (WEB_CALIBERS.md)
+import { shotReadCommands, shotReadChecks } from './shotread-api.js'; // a shot at you reads (WEB_SHOT_READ.md)
 import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
@@ -92,6 +94,7 @@ import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
+import { INFECTED } from '../data/infected.js'; // the sprinter's row (its burst clock) for the kinds check
 
 // ============================================================================
 // DSOA AGENT API
@@ -2112,6 +2115,7 @@ function buildCommands(api) {
     ...faunaCommands(api, need),
     // Sound sets, barks, the local model's talk, the deep sheet, the journal (src/agent/voicestats.js, docs/design/WEB_VOICE_STATS.md).
     ...voiceStatsCommands(api, need),
+    ...soundCommands(api, need), // THE SOUND PASS: sound (licence audit, ids, steps, mix, rate caps, volume row), stepTest (docs/design/WEB_SOUND.md)
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
@@ -2127,6 +2131,7 @@ function buildCommands(api) {
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
+    ...shotReadCommands(api), // a shot at you: its streak, the dust, the marker (agent/shotread-api.js; WEB_SHOT_READ.md)
     ...meleeCommands(api), // fight action=view|wield|attack|heavy|finish|grab|release|arm|spawn|person|rows|clear (agent/melee-api.js)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
@@ -2950,6 +2955,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
   await ballisticsChecks({ g, api, C, check, extra }); // bullet speed: flight time, drop, walls at any frame rate, moving shooters, lead, the seed
   await calibersChecks({ g, api, C, check, extra }); // calibres: every gun a row, a .50 through a wall, casings, a body's wounds, shorter tracers
+  await shotReadChecks({ g, api, C, check, extra }); // a shot at you is drawn, cracks, puffs and marks where it came from; more first-stock rounds
   await lookfeelChecks({ g, api, C, check }); // LOOK-FEEL: rows and no purple, the horizon law, the grade's blend, wind, skids and the crash, hit-stop and kick, wear
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
@@ -3523,6 +3529,7 @@ async function runSelfTest(api, only = null, skip = null) {
       // to its record its own way, and the wilds held still for this check.
       if (g.wilds) { for (const pk of g.wilds.grapevine?.packs ?? []) if (pk.live) g.wilds.grapevine.demote(pk); g.wilds.enabled = false; }
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
+      const seq0 = g.eventSeq, t0 = g.time; // Ike's own wakes since 23:00 (ai.wake emits npcWoke with its reason), for the failure detail
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
       let since = 0; // game seconds since 23:00
@@ -3539,14 +3546,16 @@ async function runSelfTest(api, only = null, skip = null) {
       const mine = [...inv.boxes.values()].filter((b) => b.owner === ike.id && !(b.y > 0.5)).sort((a, b) => Math.hypot(a.x - ike.x, a.z - ike.z) - Math.hypot(b.x - ike.x, b.z - ike.z));
       const box2 = mine[0] ?? box;
       g.player.x = box2.x + 0.8; g.player.z = box2.z;
-      const noCounter = g.trade.at(box2) === null && g.trade.at(box) === null;
+      const asleepAtRead = ike.sleeping === true, deal = g.trade.at(box2) ?? g.trade.at(box);
+      const noCounter = deal === null; // the shelf nearest his bed, then his first: no counter at either
       const saw = g.society.deeds.witnessPass(box2.x, box2.z, g.player, null).includes(ike);
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
         .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling,
           dBed: c.bed ? r1(Math.hypot(c.bed.x - c.x, c.bed.z - c.z)) : null, home: r1(Math.hypot(c.home.x - c.x, c.home.z - c.z)), busy: ['occRec', 'pullRec', 'barRole', 'storyM', 'crewRec', 'follower', 'knockT', 'cowerT', 'dragged', 'grabbing', 'res'].filter((k) => c[k]).join(',') }));
-      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
+      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, asleepAtRead, dealWith: deal ? `${deal.c.id === ike.id ? 'ike' : deal.c.id} ${deal.c.sleeping ? 'asleep' : 'awake'}` : null, saw, woke,
+        ikeWakes: g.events.filter((e) => e.seq > seq0 && e.type === 'npcWoke' && e.id === ike.id).map((e) => `${e.why} @${r1(e.t - t0)}s`), ike: { restless: r1(ike.restless ?? 0), flee: r1(ike.flee ?? 0), cower: r1(ike.cowerT ?? 0), target: ike.target ? ike.target.name ?? ike.target.faction ?? ike.target.id : null }, up });
     } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
@@ -5655,12 +5664,13 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   // ---- the infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md) ----
   const zdist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  await check('infected: a sprinter walks like a shambler until you run near it - then 6 s at 9 m/s, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
+  await check('infected: a sprinter looks like a shambler until it perceives you (you run near it) - then it runs at 9 m/s, runs on 6 s once it has lost you, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
     await stage();
     g.godMode = true;
     const p = g.player, c = g.zombies.spawn(p.x + 14, p.z, true);
     try {
-      await C('step', { seconds: 2 }); // you stand still: it comes at a shambler's walk
+      c.face = Math.PI / 2; c.timer = 99; c.wx = c.x; c.wz = c.z; // looking away, standing: it does not know you are there
+      await C('step', { seconds: 2 }); // you stand still behind it
       const walk = +c.speed.toFixed(2), dormant = c.zs.state === 'dormant' && c.name === 'Shambler';
       g.input.down.add('ShiftLeft');
       await holdKey('KeyA', 1.5, () => c.zs.state === 'burst'); // you run (away)
@@ -5668,8 +5678,9 @@ async function runSelfTest(api, only = null, skip = null) {
       const broke = c.zs.state === 'burst';
       let top = 0;
       for (let t = 0; t < 1.5; t += 0.25) { await C('step', { seconds: 0.25 }); top = Math.max(top, c.speed); }
+      c.x += 120; c.wx = c.x; // contact lost (far beyond its senses): it runs on for INFECTED.sprinter.burst s, then it is spent
       let over = false;
-      for (let t = 0; t < 7 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
+      for (let t = 0; t < INFECTED.sprinter.burst + 2.5 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
       await C('step', { seconds: 0.5 });
       const still = over && c.speed < 0.1 && c.crouch;
       let back = false;
@@ -6078,7 +6089,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await journeyChecks(api, check, C); // life insurance and risky journeys (src/agent/journeys-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
-  await voiceStatsChecks(api, check, C); // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
+  await voiceStatsChecks(api, check, C);
+  await soundChecks(api, check); // THE SOUND PASS: every id a real file, footsteps by surface, the rate cap, calibres, the volume row (src/agent/sound-api.js) // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
   g.deep.live = deepLive; g.llmtalk.enabled = llmOn;
   await outdoorsChecks(api, check, C); // THE WILDS: birds out of the sky, tracks, fishing, foraging, traps, the camp (src/agent/outdoors-selftest.js)
   g.fauna.enabled = faunaWas;

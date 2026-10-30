@@ -26,7 +26,9 @@ const barks = (pitch, pain, shout, alert, retreat, death) => ({
 });
 
 export const SETS = {
-  common: {},
+  // step.sand: the desert's footfall is the dirt takes (data STEPS sand pitches them down); shot.heavy: the .50's slam is
+  // the marksman's rifle pitched low (a calibre with its own row in CALIBER_SOUND overrides this).
+  common: { alias: { 'step.sand': ['common', 'step.dirt', { pitch: 0.95 }], 'shot.heavy': ['meridian', 'shot.rifle', { pitch: 0.8, gain: 1.2 }] } },
   // RUST HAVEN: wardens with revolvers and bolt rifles; calm, low, a whistle to call the wall.
   rusthaven: { inherit: 'common', alias: {
     'shot.smg': ['drifter', 'shot.smg', { pitch: 0.96 }], 'shot.mg': ['remnant', 'shot.mg', { pitch: 0.94 }],
@@ -115,6 +117,64 @@ export const SPATIAL = {
   range: { shot: 220, mg: 260, far: 520, step: 22, impact: 45, bark: 60, creature: 70, door: 35, glass: 50, explosion: 600, alarm: 320, engine: 80, default: 60 },
   jitter: 0.06, // pitch: +- this share, every play
 };
+
+// ---- THE MIX (docs/design/WEB_SOUND.md, the 2026-10-29 sound pass) ---------------------------------------------------
+// tools/audio-pick.mjs peak-normalises every take to -1 dBFS, so a footstep FILE is as hot as a gunshot file. Robert's
+// playtest heard exactly that ("step of walking, you got fucked up"). These gains put each kind back in its place:
+// the longest prefix of a kind wins; anything unlisted plays at 0.8 (creatures, barks).
+export const MIX = {
+  'shot.': 1, 'shot.far': 0.8, 'explosion.': 1, 'alarm.': 0.6, 'step.': 0.24, 'impact.': 0.5, 'impact.flesh': 0.6, bodyfall: 0.55,
+  'door.': 0.5, 'door.kick': 0.7, 'glass.': 0.6, 'melee.': 0.45, 'reload.': 0.45, dry: 0.4, shell: 0.28, whiz: 0.55, ricochet: 0.45,
+  'vehicle.horn': 0.42, 'vehicle.skid': 0.3, 'vehicle.door': 0.5, 'vehicle.crash': 0.85, 'radio.': 0.35, 'bark.': 0.7,
+};
+const MIX_KEYS = Object.keys(MIX).sort((a, b) => b.length - a.length);
+const mixCache = new Map();
+export function mixGain(kind) {
+  let g = mixCache.get(kind);
+  if (g === undefined) { const k = MIX_KEYS.find((p) => (p.endsWith('.') ? kind.startsWith(p) : kind === p)); g = k ? MIX[k] : 0.8; mixCache.set(kind, g); }
+  return g;
+}
+// How often one sound may start (plays a second, per set/kind): an MG still rattles, a flood of footsteps or
+// clinks never machine-guns the ear. The longest prefix wins.
+export const RATE_CAP = { default: 14, 'step.': 6, 'shot.': 22, 'impact.': 10, 'vehicle.skid': 3, 'vehicle.horn': 2, shell: 8 };
+const CAP_KEYS = Object.keys(RATE_CAP).filter((k) => k !== 'default').sort((a, b) => b.length - a.length);
+export function rateCap(kind) { const k = CAP_KEYS.find((p) => (p.endsWith('.') ? kind.startsWith(p) : kind === p)); return k ? RATE_CAP[k] : RATE_CAP.default; }
+
+// ---- FOOTSTEPS --------------------------------------------------------------------------------------------------------
+// A surface (systems/audio.js footSurface) -> its takes (4-8 single footfalls each, never a walk loop cut blind) and a
+// level and pitch of its own. A gait scales them: a run lands harder, a crouch is soft, a prone crawl is silent except
+// on gravel. Every step: pitch +- STEP_RULES.jitter, never the same take twice running (systems/audio.js pick()).
+export const STEPS = {
+  dirt: { kind: 'step.dirt', vol: 1 }, sand: { kind: 'step.dirt', vol: 0.8, rate: 0.95 }, gravel: { kind: 'step.gravel', vol: 1.05 },
+  road: { kind: 'step.road', vol: 0.9 }, floor: { kind: 'step.floor', vol: 1 }, metal: { kind: 'step.metal', vol: 0.85 },
+  grass: { kind: 'step.grass', vol: 0.85 }, water: { kind: 'step.water', vol: 1.15 }, mud: { kind: 'step.water', vol: 0.75, rate: 0.85 },
+  snow: { kind: 'step.snow', vol: 0.9 }, carpet: { kind: 'step.carpet', vol: 0.75 },
+};
+export const STEP_SURFACES = ['dirt', 'gravel', 'road', 'floor', 'metal', 'grass', 'water', 'snow']; // carpet (3 Kenney takes) waits for a rug to stand on
+export const GAIT = { walk: { vol: 1, rate: 1 }, run: { vol: 1.3, rate: 1.03 }, crouch: { vol: 0.4, rate: 0.97 }, prone: { vol: 0, rate: 0.95 } };
+export const STEP_RULES = { jitter: 0.04, proneLoud: { gravel: 0.3 }, range: 22, dist: 1.2 };
+
+// ---- CALIBRES (data/ballistics.js ROUNDS) ------------------------------------------------------------------------------
+// A round's own report on top of the shooter's faction set: [kind, { set (the gun that fires it, over the faction's),
+// pitch, vol }]. The weapon's class (pistol/smg/rifle...) still picks the shot kind; the kind here names the round's
+// natural class and is used only when it is not a shot (the crossbow bolt's release). A .22 pops, a .357 barks like
+// Rust Haven's revolvers, a .50 is the marksman's rifle pitched down.
+export const CALIBER_SOUND = {
+  '22lr': ['shot.pistol', { pitch: 1.28, vol: 0.5 }], '9mm': ['shot.smg', {}], '45acp': ['shot.pistol', { pitch: 0.94 }],
+  '357mag': ['shot.pistol', { set: 'rusthaven', vol: 1.1 }], '556': ['shot.rifle', {}], '762x39': ['shot.rifle', { set: 'dustwolves' }],
+  '762x51': ['shot.rifle', { set: 'meridian', pitch: 1.04 }], '50bmg': ['shot.heavy', { vol: 1.15 }],
+  '12ga': ['shot.shotgun', {}], '12ga_bird': ['shot.shotgun', { pitch: 1.06, vol: 0.85 }], '12ga_slug': ['shot.shotgun', { pitch: 0.95, vol: 1.05 }],
+  bolt: ['melee.swing', { set: 'common', pitch: 1.5, vol: 0.7 }],
+};
+
+// Every common kind the code asks for by name (systems/audio.js, interiors.js, melee.js): the selftest proves each one
+// resolves to a shipped file. ('crack', the supersonic snap, is synthesized on purpose: no take was sharp enough.)
+export const COMMON_IDS = ['shot.far', 'shot.heavy', 'explosion.near', 'explosion.far', 'alarm.siren', 'glass.break', 'impact.wood', 'impact.flesh',
+  'impact.metal', 'bodyfall', 'whiz', 'ricochet', 'reload.pistol', 'reload.rifle', 'reload.shotgun', 'dry', 'shell', 'melee.swing',
+  'vehicle.crash', 'vehicle.horn', 'vehicle.skid', 'vehicle.door', 'door.open', 'door.metal', 'step.sand'];
+
+// ---- THE VOLUME ROW (ui/qol.js settings; systems/audio.js setVolumes) ---------------------------------------------------
+export const VOLUME_DEFAULTS = { master: 0.55, music: 0.8, sfx: 1 };
 
 // ---- the resolver ----------------------------------------------------------------------------------------------------
 const own = (set, kind) => MANIFEST.sets?.[set]?.[kind]?.files?.length ? MANIFEST.sets[set][kind].files : null;

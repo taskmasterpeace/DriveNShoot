@@ -62,7 +62,8 @@ export async function voiceStatsChecks(api, check, C) {
     const L = g.audio.listener; L.x = g.player.x; L.z = g.player.z; L.indoor = false;
     const cap0 = g.audio.sampleStats.capped, pitches = new Set();
     let played = 0;
-    for (let i = 0; i < SPATIAL.voiceCap + 10; i++) if (g.audio.sample('common', 'step.road', { dist: 1 + (i % 7), range: 30 })) { played++; pitches.add(g.audio.lastSample.pitch); }
+    g.audio.rateOff = true; // this check floods the VOICE cap; the per-sound rate cap has its own (sound-selftest.js)
+    try { for (let i = 0; i < SPATIAL.voiceCap + 10; i++) if (g.audio.sample('common', 'step.road', { dist: 1 + (i % 7), range: 30 })) { played++; pitches.add(g.audio.lastSample.pitch); } } finally { g.audio.rateOff = false; }
     const live = g.audio.voices.filter((v) => !v.done).length;
     for (const v of g.audio.voices) { try { v.src.stop(); } catch { /* done */ } v.done = true; }
     const bad = [];

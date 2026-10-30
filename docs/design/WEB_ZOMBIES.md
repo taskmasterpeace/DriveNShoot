@@ -84,7 +84,23 @@ cheat". This lane does three things:
 | lunge | 2.8 m at 5.5 m/s | 4 m at 10 m/s | never | — |
 | fire / light | 6 m / 70 m | 6 / 70 | 8 / — | — |
 
-The sprinter's burst, the Echo's watched-freeze and the Choir's aura are unchanged from `WEB_INFECTED.md` §3.
+The Echo's watched-freeze and the Choir's aura are unchanged from `WEB_INFECTED.md` §3. The sprinter's burst changed
+after Robert's playtest on 2026-10-29: "Sprinters never really came at me". There were three causes:
+- **It never broke on sight.** It broke only when someone ran within 20 m (`ear`) or a noise went off inside that ear.
+  A walker at 4.6 m/s stays under the 5 m/s trigger, so a sprinter that saw you came at a shambler's 2–2.7 m/s.
+- **A 6 s fixed burst.** The run ended after 6 s even with you in reach, then gave 7 s of overheat and re-arm.
+- **A slow turn after a dodge.** Past the locked spot it turned at 1.1 rad/s, an 8 m loop at 9 m/s, so any step aside
+  sent it wide.
+
+Now:
+- **It commits on perception.** Its own senses are enough: sight, your steps or smell. So is a noise of `wake` m or
+  more (a shot, an engine) from as far as it hears it.
+- **It runs while it has you.** The 6 s `burst` clock only counts down once contact is lost. It runs on to the
+  last-known spot and searches there. `chase` (30 s) caps the run.
+- **A dodge costs it a skid.** It skids for `skid` s, then charges again along a new line to where it now perceives
+  you.
+
+Check: "a sprinter that SEES you 30 m off…" (on you inside 7 s).
 
 ### 3.3 Doors and windows
 - **Thumping:**

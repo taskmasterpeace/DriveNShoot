@@ -1,4 +1,4 @@
-import { resolve, setFor, SPATIAL, AUDIO_BASE, ENGINES, BEDS, BED_GAIN } from '../data/audiosets.js';
+import { resolve, setFor, SPATIAL, AUDIO_BASE, ENGINES, BEDS, BED_GAIN, mixGain, rateCap, STEPS, STEP_SURFACES, GAIT, STEP_RULES, CALIBER_SOUND, VOLUME_DEFAULTS } from '../data/audiosets.js';
 
 // WebAudio. Two layers (docs/design/WEB_VOICE_STATS.md §2):
 //   the SYNTH (every method below: instant boot, no files) - always there, the fallback for everything;
@@ -34,6 +34,14 @@ export class Audio {
     this.lastSample = null;   // what the last sample() call decided (the audioTest command reads it)
     this.beds = { a: null, b: null };
     this.eng = null;          // the sampled engine: { key, pitch, layers: {idle, rev, strain} }
+    // THE SOUND PASS (docs/design/WEB_SOUND.md): buses, a per-sound rate cap, footsteps by surface and gait.
+    this.sfx = null; this.music = null;                // buses under master (start()); the volume row sets them
+    this.vols = { ...VOLUME_DEFAULTS };
+    this.rate = new Map();                             // 'set/kind' -> { t, n, peak }: plays in the current second
+    this.rateOff = false;
+    this.rateStats = { capped: 0, peak: 0, peakKey: null };
+    this.lastStep = null;                              // what the last footstep decided (the stepTest command reads it)
+    this.stepStats = { played: 0, silent: 0, repeats: 0 };
   }
 
   // ---- the sample layer ------------------------------------------------------------------------------------------
@@ -70,8 +78,9 @@ export class Audio {
     const dist = at.x !== undefined ? Math.hypot(at.x - L.x, at.z - L.z) : (at.dist ?? 0);
     const pan = at.x !== undefined ? Math.max(-1, Math.min(1, (at.x - L.x) / 30)) : (at.pan ?? 0);
     const sp = spatial(dist, range, !!at.indoor !== !!L.indoor);
-    const level = sp.gain * (at.vol ?? 1) * r.gain;
+    const level = sp.gain * (at.vol ?? 1) * r.gain * mixGain(kind);
     if (level < 0.004) return why('out of range');
+    if (!this.allow(`${set}/${kind}`, kind)) return why('rate cap');
     const take = r.files[this.pick(`${r.via}|${kind}`, r.files.length)];
     const buf = this.bank.get(take.f);
     if (!buf || buf === 'failed' || typeof buf.then === 'function') { for (const x of r.files) this.load(x.f); return why(buf === 'failed' ? 'load failed' : 'loading'); }
@@ -86,16 +95,32 @@ export class Audio {
     }
     const ctx = this.ctx, src = ctx.createBufferSource();
     src.buffer = buf;
-    src.playbackRate.value = r.pitch * (at.rate ?? 1) * (1 + (Math.random() * 2 - 1) * SPATIAL.jitter);
+    src.playbackRate.value = r.pitch * (at.rate ?? 1) * (1 + (Math.random() * 2 - 1) * (at.jitter ?? SPATIAL.jitter));
     const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = sp.cutoff; f.Q.value = 0.5;
     const g = ctx.createGain(); g.gain.value = Math.min(1.4, level);
     src.connect(f).connect(g); this.out(g, pan);
-    const v = { src, level, t: ctx.currentTime, done: false };
+    const v = { src, g, level, t: ctx.currentTime, done: false };
     src.onended = () => { v.done = true; };
     src.start();
     this.voices.push(v);
+    // The tail rule (game-gun-audio): one gun's next round cuts its last one's tail short, so an automatic never stacks
+    // full tails into mud; only the final round rings out.
+    if (at.choke) { const o = at.choke._gunVoice; if (o && !o.done) o.g.gain.setTargetAtTime(0, ctx.currentTime, 0.035); at.choke._gunVoice = v; }
     this.sampleStats.played++; this.count(`sample:${set}/${kind}`);
     this.lastSample = { set, kind, played: true, via: r.via, file: take.f, dist: +dist.toFixed(1), gain: +level.toFixed(3), cutoff: Math.round(sp.cutoff), pitch: +src.playbackRate.value.toFixed(3), voices: this.voices.length };
+    return true;
+  }
+  // The rate cap (data/audiosets.js RATE_CAP): may set/kind start once more this second? Counts the plays it lets through.
+  allow(key, kind) {
+    if (this.rateOff) return true; // a selftest flooding the voice cap on purpose
+    const now = this.ctx ? this.ctx.currentTime : 0;
+    let e = this.rate.get(key);
+    if (!e) { e = { t: now, n: 0, peak: 0 }; this.rate.set(key, e); }
+    if (now - e.t >= 1) { e.t = now; e.n = 0; }
+    if (e.n >= rateCap(kind)) { this.rateStats.capped++; return false; }
+    e.n++;
+    if (e.n > e.peak) e.peak = e.n;
+    if (e.n > this.rateStats.peak) { this.rateStats.peak = e.n; this.rateStats.peakKey = key; }
     return true;
   }
   // c's own set (data/audiosets.js setFor): a warden's revolver, a Dustwolf's yelp, a sprinter's scream.
@@ -104,7 +129,7 @@ export class Audio {
   // ---- beds and engines (loops; systems/soundscape.js drives them) ---------------------------------------------------
   loopNode(buf, vol, rate = 1) {
     const ctx = this.ctx, src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.playbackRate.value = rate;
-    const g = ctx.createGain(); g.gain.value = 0; src.connect(g).connect(this.master); src.start(0, Math.random() * Math.max(0.01, buf.duration - 0.1));
+    const g = ctx.createGain(); g.gain.value = 0; src.connect(g).connect(this.sfx); src.start(0, Math.random() * Math.max(0.01, buf.duration - 0.1));
     g.gain.setTargetAtTime(vol, ctx.currentTime, 1.2);
     return { src, g };
   }
@@ -166,7 +191,10 @@ export class Audio {
     const ctx = (this.ctx = new (window.AudioContext || window.webkitAudioContext)());
     ctx.resume?.();
     this.master = ctx.createGain();
-    this.master.gain.value = 0.55;
+    this.master.gain.value = this.vols.master;
+    // Two buses under the master: every effect, bed and engine on sfx; the radio's music on music (systems/radio.js).
+    this.sfx = ctx.createGain(); this.sfx.gain.value = this.vols.sfx; this.sfx.connect(this.master);
+    this.music = ctx.createGain(); this.music.gain.value = this.vols.music; this.music.connect(this.master);
     const comp = ctx.createDynamicsCompressor();
     // Under the water the whole world goes thick (systems/diving.js muffle): a lowpass on everything, wide open above.
     this.muffleF = ctx.createBiquadFilter(); this.muffleF.type = 'lowpass'; this.muffleF.frequency.value = 22000; this.muffleF.Q.value = 0.4;
@@ -180,7 +208,7 @@ export class Audio {
       const src = ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
       const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
       const g = ctx.createGain(); g.gain.value = 0;
-      src.connect(f).connect(g).connect(this.master); src.start();
+      src.connect(f).connect(g).connect(this.sfx); src.start();
       return g;
     };
     this.rainGain = loop(2600, 0.4, 'highpass');
@@ -189,14 +217,23 @@ export class Audio {
     this.engOsc = ctx.createOscillator(); this.engOsc.type = 'sawtooth'; this.engOsc.frequency.value = 40;
     const ef = ctx.createBiquadFilter(); ef.type = 'lowpass'; ef.frequency.value = 420;
     this.engGain = ctx.createGain(); this.engGain.gain.value = 0;
-    this.engOsc.connect(ef).connect(this.engGain).connect(this.master); this.engOsc.start();
+    this.engOsc.connect(ef).connect(this.engGain).connect(this.sfx); this.engOsc.start();
+    // Warm every footstep surface and the small foley, so the first step is a recording, never a synth click.
+    for (const s of STEP_SURFACES) this.preload('common', STEPS[s].kind);
+    for (const k of ['impact.flesh', 'impact.wood', 'impact.metal', 'bodyfall', 'shell', 'dry', 'reload.pistol', 'reload.rifle', 'reload.shotgun', 'whiz', 'melee.swing', 'door.open', 'vehicle.horn']) this.preload('common', k);
+  }
+  // The volume row (ui/qol.js): master, music, sfx, each 0..1. Safe before start() (kept for it).
+  setVolumes(v = {}) {
+    for (const k of ['master', 'music', 'sfx']) if (Number.isFinite(+v[k])) this.vols[k] = Math.max(0, Math.min(1, +v[k]));
+    if (this.ctx) { const t = this.ctx.currentTime; this.master.gain.setTargetAtTime(this.vols.master, t, 0.03); this.sfx.gain.setTargetAtTime(this.vols.sfx, t, 0.03); this.music.gain.setTargetAtTime(this.vols.music, t, 0.03); }
+    return { ...this.vols };
   }
 
   // Route a node through a stereo panner (-1 left .. 1 right) into the master bus.
   out(node, pan = 0) {
-    if (!pan) { node.connect(this.master); return; }
+    if (!pan) { node.connect(this.sfx); return; }
     const p = this.ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan));
-    node.connect(p).connect(this.master);
+    node.connect(p).connect(this.sfx);
   }
 
   burst({ dur = 0.2, freq = 1200, q = 0.7, type = 'lowpass', vol = 0.6, decay = 0.15, pitchDrop = 0, at = 0, pan = 0 }) {
@@ -223,12 +260,17 @@ export class Audio {
   }
 
   // shooter (optional): whose gun - their faction's own recordings (data/audiosets.js); far off, the distant crack.
-  gun(kind, dist = 0, pan = 0, shooter = null) {
+  // cal (optional): the round (data/ballistics.js ROUNDS) - its own report over the faction's (data/audiosets.js
+  // CALIBER_SOUND): a .22 pops, a .357 barks, a .50 slams. Each round chokes the same gun's last tail (sample choke).
+  gun(kind, dist = 0, pan = 0, shooter = null, cal = null) {
     this.count(`gun:${kind}`);
     if (shooter) {
       const indoor = !!shooter.indoor, range = kind === 'mg' ? SPATIAL.range.mg : SPATIAL.range.shot;
-      if (dist > 90 && this.sample('common', 'shot.far', { dist, pan, range: SPATIAL.range.far, indoor, vol: 0.9 })) return;
-      if (this.sample(setFor(shooter), `shot.${kind}${indoor ? '.in' : ''}`, { dist, pan, range, indoor })) return;
+      const C = cal ? CALIBER_SOUND[cal] : null, o = C?.[1] ?? {};
+      if (dist > 90 && this.sample('common', 'shot.far', { dist, pan, range: SPATIAL.range.far, indoor, vol: 0.9 * (o.vol ?? 1), rate: o.pitch, choke: shooter })) return;
+      const k = C && !C[0].startsWith('shot.') ? C[0] : `shot.${kind}`, set = o.set ?? setFor(shooter); // the gun's class picks the kind (a 9mm pistol is a pistol); the round its set, pitch and level
+      if (k.startsWith('shot.') && this.sample(set, `${k}${indoor ? '.in' : ''}`, { dist, pan, range, indoor, vol: o.vol, rate: o.pitch, choke: shooter })) return;
+      if (!k.startsWith('shot.') && this.sample(set, k, { dist, pan, range: SPATIAL.range.impact, vol: o.vol, rate: o.pitch })) return;
     }
     this.sampleStats.synth++;
     const fall = Math.max(0.05, 1 - dist / 90);
@@ -254,7 +296,7 @@ export class Audio {
     this.burst({ dur: 0.35, freq: 5200, type: 'highpass', vol: 0.55, decay: 0.32, pan });
     for (let i = 0; i < 4; i++) setTimeout(() => this.tone(2600 + Math.random() * 2400, 0.12, 0.05, 'sine', 0.8, pan), 40 + i * 55);
   }
-  thud(pan = 0) { this.count('thud'); if (this.sample('common', 'impact.wood', { dist: 4, pan, vol: 0.7 })) return; this.burst({ dur: 0.12, freq: 420, vol: 0.28, decay: 0.1, pan }); }
+  thud(pan = 0) { this.count('thud'); if (this.sample('common', 'impact.wood', { dist: 4, pan, vol: 0.9 })) return; this.burst({ dur: 0.12, freq: 420, vol: 0.2, decay: 0.1, pan }); }
   groan(pan = 0, dist = 0) {
     const v = Math.max(0, 0.16 * (1 - dist / 32));
     if (v < 0.01) return;
@@ -287,8 +329,8 @@ export class Audio {
     if (this.sample('echo', 'idle', { dist, pan, range: 26 })) return;
     for (let i = 0; i < 4; i++) this.burst({ dur: 0.22, freq: 500 + Math.random() * 400, type: 'bandpass', q: 7, vol: v, decay: 0.2, pitchDrop: 0.85, at: i * 0.26, pan });
   }
-  throwWhoosh(pan = 0) { this.count('throw'); this.burst({ dur: 0.22, freq: 900, type: 'bandpass', q: 2, vol: 0.18, decay: 0.2, pitchDrop: 1.8, pan }); }
-  clink(pan = 0) { this.count('clink'); this.tone(1400 + Math.random() * 500, 0.06, 0.06, 'triangle', 0.7, pan); }
+  throwWhoosh(pan = 0) { this.count('throw'); if (this.sample('common', 'melee.swing', { dist: 2, pan })) return; this.burst({ dur: 0.22, freq: 900, type: 'bandpass', q: 2, vol: 0.18, decay: 0.2, pitchDrop: 1.8, pan }); }
+  clink(pan = 0) { this.count('clink'); if (this.sample('common', 'shell', { dist: 2, pan, vol: 0.9 })) return; this.tone(1400 + Math.random() * 500, 0.06, 0.06, 'triangle', 0.7, pan); }
   beep(pan = 0) { this.count('beep'); this.tone(1800, 0.05, 0.08, 'square', 0, pan); }
   whoomp(pan = 0) { this.count('whoomp'); this.burst({ dur: 0.9, freq: 300, vol: 0.7, decay: 0.85, pitchDrop: 0.5, pan }); }
   hiss(pan = 0) { this.count('hiss'); this.burst({ dur: 1.6, freq: 3200, type: 'highpass', vol: 0.25, decay: 1.5, pan }); }
@@ -302,15 +344,27 @@ export class Audio {
     this.count('crack'); if (this.sample('common', 'crack', { dist: 2, pan })) return; this.burst({ dur: 0.05, freq: 4200, type: 'highpass', q: 1.5, vol: 0.42, decay: 0.035, pitchDrop: 0.15, pan }); }
   ricochet(pan = 0, dist = 0) {
     this.count('ricochet'); if (this.sample('common', 'ricochet', { dist, pan, range: SPATIAL.range.impact })) return; const v = Math.max(0, 0.18 * (1 - dist / 60)); if (v > 0.01) this.tone(1800 + Math.random() * 1600, 0.22, v, 'sine', 0.35, pan); }
-  step(surface = 'sand', pan = 0) {
+  // A footfall (main.js, on the stride; data/audiosets.js STEPS + GAIT). surface: a STEPS key (systems/soundscape.js
+  // footSurface); gait: 'walk' | 'run' | 'crouch' | 'prone'. A prone crawl is silent except where STEP_RULES.proneLoud
+  // says (gravel). Before its takes have loaded it stays silent: a quiet step beats the old synth click.
+  step(surface = 'dirt', pan = 0, gait = 'walk') {
+    const S = STEPS[surface] ?? STEPS.dirt, G = GAIT[gait] ?? GAIT.walk;
+    const vol = S.vol * (gait === 'prone' ? STEP_RULES.proneLoud[surface] ?? 0 : G.vol);
     this.count(`step:${surface}`);
-    if (this.sample('common', `step.${surface}`, { dist: 1.5, pan, range: SPATIAL.range.step, vol: surface === 'sand' ? 0.45 : 0.6 })) return;
-    const f = surface === 'road' ? 2400 : surface === 'floor' ? 900 : 600;
-    this.burst({ dur: 0.07, freq: f, type: surface === 'floor' ? 'bandpass' : 'lowpass', q: surface === 'floor' ? 3 : 0.7, vol: surface === 'sand' ? 0.07 : 0.1, decay: 0.06, pan });
+    if (vol <= 0) { this.stepStats.silent++; this.lastStep = { surface, gait, kind: S.kind, played: false, why: 'silent gait', file: null }; return this.lastStep; }
+    if (!this.useSamples && this.ctx) { // samples switched off (audioTest): the old synth tick, softer
+      const f = surface === 'road' ? 2400 : surface === 'floor' ? 900 : 600;
+      this.burst({ dur: 0.07, freq: f, type: surface === 'floor' ? 'bandpass' : 'lowpass', q: surface === 'floor' ? 3 : 0.7, vol: 0.06 * vol, decay: 0.06, pan });
+    }
+    const ok = this.sample('common', S.kind, { dist: STEP_RULES.dist, pan, range: STEP_RULES.range, vol, rate: (S.rate ?? 1) * G.rate, jitter: STEP_RULES.jitter });
+    const file = ok ? this.lastSample.file : null;
+    if (ok) { this.stepStats.played++; if (file === this.lastStep?.file) this.stepStats.repeats++; }
+    this.lastStep = { surface, gait, kind: S.kind, played: ok, why: ok ? null : this.lastSample?.why ?? null, file, pitch: ok ? this.lastSample.pitch : null, gain: ok ? this.lastSample.gain : null };
+    return this.lastStep;
   }
   hit() {
-    this.count('hit'); this.burst({ dur: 0.08, freq: 500, vol: 0.35, decay: 0.07 }); }
-  death() { this.tone(180, 0.35, 0.08, 'sawtooth', 0.4); }
+    this.count('hit'); if (this.sample('common', 'impact.flesh', { dist: 2 })) return; this.burst({ dur: 0.08, freq: 500, vol: 0.3, decay: 0.07 }); }
+  death() { this.count('death'); if (this.sample('common', 'bodyfall', { dist: 3 })) return; this.burst({ dur: 0.3, freq: 260, vol: 0.3, decay: 0.28, pitchDrop: 0.5 }); }
   explosion(dist = 0) {
     this.count('explosion');
     if (this.sample('common', dist > 110 ? 'explosion.far' : 'explosion.near', { dist, range: SPATIAL.range.explosion, vol: 1.2 })) return;
@@ -325,14 +379,16 @@ export class Audio {
   // A vehicle coming down off a jump: the springs bottoming out (a low boom) and the body slapping its stops; k 0..1.
   land(k = 0.5) {
     this.count('land');
+    if (k > 0.45 && this.sample('common', 'impact.metal', { dist: 3, vol: 0.4 + k * 0.6, rate: 0.8 })) k = 0.44; // metal on metal: the recording, not the synth ring
     this.burst({ dur: 0.35, freq: 150 + k * 60, vol: 0.25 + k * 0.55, decay: 0.3, pitchDrop: 0.45 });
     this.tone(48 + k * 20, 0.18, 0.12 + k * 0.2, 'sine', 0.6);
     if (k > 0.45) this.burst({ dur: 0.18, freq: 2600, type: 'bandpass', q: 3, vol: 0.12 + (k - 0.45) * 0.5, decay: 0.16, at: 0.03 }); // metal on metal
   }
   crash(k = 0.5) { if (this.sample('common', 'vehicle.crash', { dist: 3, vol: 0.5 + k * 0.6 })) return; this.burst({ dur: 0.5, freq: 700, vol: Math.min(1, 0.4 + k), decay: 0.45, pitchDrop: 0.4 }); this.burst({ dur: 0.3, freq: 4000, type: 'highpass', vol: 0.3 * k, decay: 0.3 }); }
-  skid(k) { if (Math.random() < 0.15) this.burst({ dur: 0.15, freq: 1500, type: 'bandpass', q: 6, vol: Math.min(0.25, k * 0.2), decay: 0.14 }); }
-  horn(dist = 0) { const v = Math.max(0, 0.15 * (1 - dist / 40)); this.tone(392, 0.35, v, 'square'); this.tone(330, 0.35, v, 'square'); }
-  trainHorn(pan = 0, dist = 0) { this.count('trainHorn'); const v = Math.max(0, 0.32 * (1 - dist / 260)); if (!(v >= 0.01)) return; if (!Number.isFinite(pan)) pan = 0; for (const f of [277, 349, 415]) this.tone(f, 1.6, v, 'sawtooth', 0, pan); }
+  skid(k) { if (k > 0.6 && this.sample('common', 'vehicle.skid', { dist: 2, vol: Math.min(1, k * 0.7) })) return; if (Math.random() < 0.15) this.burst({ dur: 0.15, freq: 1500, type: 'bandpass', q: 6, vol: Math.min(0.25, k * 0.2), decay: 0.14 }); }
+  // Horns are recordings (data/audiosets.js common vehicle.horn); the old square/sawtooth chords were the shrillest thing in the mix.
+  horn(dist = 0) { this.count('horn'); if (this.sample('common', 'vehicle.horn', { dist, range: 120 })) return; const v = Math.max(0, 0.08 * (1 - dist / 40)); this.tone(392, 0.35, v, 'triangle'); this.tone(330, 0.35, v, 'triangle'); }
+  trainHorn(pan = 0, dist = 0) { this.count('trainHorn'); if (!Number.isFinite(pan)) pan = 0; if (this.sample('common', 'vehicle.horn', { dist, pan, range: 400, rate: 0.55, vol: 1.4, jitter: 0.01 })) return; const v = Math.max(0, 0.16 * (1 - dist / 260)); if (!(v >= 0.01)) return; for (const f of [277, 349, 415]) this.tone(f, 1.6, v, 'triangle', 0, pan); }
   // A fevered breath (BITE FEVER, canon: a low breathing loop): in, then out - filtered noise that swells and falls,
   // just under notice. k 0..1: how hard the fever is breathing (treated breathes easier).
   breath(k = 1) {
@@ -355,7 +411,7 @@ export class Audio {
 
   heartbeat(k = 0.5) { this.count('heartbeat'); const v = 0.18 + k * 0.22; this.tone(52, 0.14, v, 'sine', 0.3); setTimeout(() => this.tone(46, 0.16, v * 0.8, 'sine', 0.3), 170); }
   harpoon() { this.burst({ dur: 0.3, freq: 600, vol: 0.8, decay: 0.25, pitchDrop: 0.3 }); this.tone(220, 0.25, 0.2, 'sawtooth', 2.5); }
-  clank() { this.tone(820, 0.15, 0.25, 'square', 0.6); this.burst({ dur: 0.1, freq: 3500, type: 'highpass', vol: 0.4, decay: 0.09 }); }
+  clank() { if (this.sample('common', 'impact.metal', { dist: 2 })) return; this.tone(820, 0.15, 0.12, 'triangle', 0.6); this.burst({ dur: 0.1, freq: 3500, type: 'highpass', vol: 0.4, decay: 0.09 }); }
   yank() { this.tone(90, 0.5, 0.35, 'sawtooth', 0.4); this.burst({ dur: 0.6, freq: 1100, vol: 0.8, decay: 0.55, pitchDrop: 0.2 }); }
   blip() { this.tone(660, 0.05, 0.05, 'square'); }
   pickup() { this.tone(880, 0.08, 0.08, 'square'); this.tone(1320, 0.1, 0.06, 'square'); }
@@ -366,7 +422,7 @@ export class Audio {
     this.count(`dog:${kind}`);
     const f = Math.max(0, 1 - dist / 60), lo = 1 / Math.max(0.5, scale);
     if (f <= 0.01) return;
-    if ((kind === 'bark' || kind === 'growl') && this.sample('fauna.dog', kind === 'bark' ? 'idle' : 'attack', { dist, pan, range: 60, rate: lo })) return;
+    if (this.sample('fauna.dog', kind === 'bark' ? 'idle' : kind === 'growl' ? 'attack' : 'pain', { dist, pan, range: 60, rate: lo * (kind === 'whine' ? 1.15 : 1), vol: kind === 'whine' ? 0.5 : 1 })) return;
     if (kind === 'bark') { this.tone(420 * lo, 0.11, 0.12 * f, 'sawtooth', 0.55, pan); this.burst({ dur: 0.1, freq: 900 * lo, type: 'bandpass', q: 1.5, vol: 0.35 * f, decay: 0.09, pitchDrop: 0.6, pan }); }
     else if (kind === 'growl') this.tone(95 * lo, 0.6, 0.1 * f, 'sawtooth', 0.85, pan);
     else if (kind === 'yelp') this.tone(1150 * lo, 0.18, 0.1 * f, 'triangle', 0.5, pan);
