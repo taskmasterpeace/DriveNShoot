@@ -4,6 +4,7 @@ import * as ART from './hudart.js';
 import { NEEDS } from '../data/survival.js';
 import { HudLayout, HudEditor } from './hudedit.js';
 import { PanelLayout } from './panellayout.js';
+import { BodyDoll } from './bodydoll.js';
 
 const NEED_WORDS = Object.fromEntries(Object.entries(NEEDS).map(([k, v]) => [k, v.words])); // the ailments' words: one source
 
@@ -149,6 +150,7 @@ export class HUD {
       if (this.g.player && this.g.paused) this.update(0); // the plates under the title show the real moment, not placeholders
     });
     // Every element hangs from its row (data/hudlayout.js); F6 or EDIT HUD in the pause menu opens the editor (ui/hudedit.js).
+    this.doll = new BodyDoll(game, root.querySelector('.hud') ?? root); // your body, tinted where it is hurt (ui/bodydoll.js); the PACK lifts it into place
     this.layout = new HudLayout(this);
     this.panels = new PanelLayout(game); // the full screens' regions (data/panellayout.js), edited in the same editor
     this.editor = new HudEditor(this);
@@ -362,6 +364,7 @@ export class HUD {
     if (code !== s.flag) this.paintFlag(code);
     this.updateRespect();
     this.updateRoles();
+    this.doll.update();
     this.layout.tick(); // late elements bind, the situation (on foot, driving, a deck, dead...) picks what shows
   }
 

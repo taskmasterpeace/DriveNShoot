@@ -2,6 +2,7 @@ import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision
 import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
 import { BALLISTICS as BL, ROUNDS, calOf } from '../data/ballistics.js';
+import { woundPart } from '../data/bodydoll.js';
 
 const NOBODY = {}; // a round with no shooter (a test's ghost): nobody's car, nobody's floor
 
@@ -263,8 +264,9 @@ export class Combat {
       return;
     }
     // Worn armor eats its share first (systems/gear.js): the one place a hit is cut, for anyone wearing anything.
-    if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
-    if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
+    let hitPart = part; // where it landed: the caller's, else armor's roll by what made it
+    if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); hitPart = s.part ?? part; if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
+    if (c === g.player) { dmg *= (g.qol?.damageTaken() ?? 1) * (g.deep?.fx.damageMul ?? 1); c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, part: hitPart && hitPart !== 'all' ? woundPart(hitPart) : hitPart, hp: Math.round(c.hp - dmg) }); } // part: where it landed, a side picked for a limb (data/bodydoll.js: the doll, wounds)
     c.hp -= dmg;
     c._hit = part ?? c.hitPart ?? null; c._hitDmg = dmg; c._hitCause = cause; // what the death library reads (systems/deaths.js)
     g.look?.onHit(c, dmg, attacker, cause); // a big hit's hit-stop (systems/lookfeel.js)

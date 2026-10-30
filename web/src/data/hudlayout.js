@@ -62,6 +62,7 @@ export const HUD_LAYOUT = [
   { id: 'radiofeed', name: 'Radio feed', group: 'messages', sel: '.rf-feed', anchor: 'tr', x: 12, y: 592, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 330, h: 96 }, // the world feed's last lines on the air (ui/radiofeed.js)
   { id: 'feed', name: 'Messages', group: 'messages', sel: '.feed', anchor: 'tl', x: 24, y: 268, scale: 1, visible: true, situations: ALL, w: 330, h: 120 },
   // ---- you ----
+  { id: 'doll', name: 'Body doll (where you are hurt)', group: 'vitals', sel: '.bodydoll', anchor: 'bl', x: 8, y: 258, scale: 1, visible: true, situations: PLAY, w: 112, h: 168, talkHide: true },
   { id: 'status', name: 'Health and stamina', group: 'vitals', sel: '.status', anchor: 'bl', x: 244, y: 6, scale: 1, visible: true, situations: PLAY, w: 432, h: 132, talkHide: true },
   { id: 'needs', name: 'Food, water and rest', group: 'vitals', sel: '.needs-plate', anchor: 'bl', x: 682, y: 6, scale: 1, visible: true, situations: PLAY, w: 262, h: 132, talkHide: true },
   { id: 'flag', name: 'Your flag', group: 'vitals', sel: '.flagpatch', anchor: 'bl', x: 950, y: 22, scale: 1, visible: true, situations: [...PLAY, 'menu'], w: 132, h: 86, talkHide: true },
