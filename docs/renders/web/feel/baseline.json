@@ -178,8 +178,10 @@
    "hit30": 0.05
   },
   "enemy": {
-   "firstShot": 0.18,
-   "onScreen": 1
+   "firstShot": null,
+   "onScreen": 0,
+   "told": 0.67,
+   "note": "firstShot BEFORE was measured with acquire skipped (a probe bug); placed share with only the 1.6 m near miss marking"
   }
  }
 }

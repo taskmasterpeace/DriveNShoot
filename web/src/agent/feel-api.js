@@ -6,6 +6,7 @@ import { FEEL_BANDS as FB, validateFeel } from '../data/feel.js';
 import { VEHICLES, DRIVING } from '../systems/vehicles.js';
 import { WEAPONS } from '../systems/combat.js';
 import { SWAY } from '../data/survival.js';
+import { STANCE, GRIP } from '../data/arms.js';
 import { RAY_BULLET } from '../engine/collision.js';
 import * as THREE from 'three';
 
@@ -131,7 +132,9 @@ export async function feelGuns(g, api, C, shots = 40) {
     unpin.push(pin(g.needs, 'sway'), pin(g.skills, 'spreadMul')); // a rested, healthy shooter: the gun's own feel (the live state is reported as `shooter`)
     for (const gun of ['pistol', 'smg']) {
       await C('give', { weapon: gun, [WEAPONS[gun].ammo]: shots * 4 }); await C('equip', { weapon: gun });
-      const row = WEAPONS[gun], res = { rate: row.rate, reload: row.reload, mag: row.mag };
+      const row = WEAPONS[gun], A = g.arms?.row(gun), gp = GRIP[g.arms?.grip ?? 'two'] ?? GRIP.two;
+      // draw: s from the holster to the first round (lowered fires at once); recover: s one round's bloom takes to bleed off
+      const res = { rate: row.rate, reload: row.reload, mag: row.mag, draw: STANCE.draw[gun] ?? STANCE.draw.default, recover: r2(((A?.kick ?? 0.25) * gp.kick) / gp.recover) };
       for (const d of [5, 15, 30]) {
         const c = g.spawnRaider(L.x, L.z + d, Math.random, 'pistol'); let hits = 0;
         hold = { c, x: L.x, z: L.z + d };

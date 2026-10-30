@@ -134,6 +134,9 @@ A first house of three to five containers turns up a box about one time in two. 
 
 ## 6. Dependencies
 
+- **`WEB_FEEL.md`:** the feel harness measures how many of a raider's shots you can place (on screen or marked) and
+  holds it in a band (`data/feel.js` foeTold); it added `markReach` (below), which marks the shooter as a round at you
+  leaves the muzzle.
 - **`WEB_BALLISTICS.md`:**
   - `launch` marks `read`;
   - `streakLen` and `draw` apply minLen, lenT, maxLen and wMul;
@@ -163,6 +166,7 @@ A first house of three to five containers turns up a box about one time in two. 
 | `minLen` | 1.1 m | 0.6–2 | the shortest streak a round at you shows |
 | `lenT` | 0.0045 s | 0.002–0.01 | the streak per unit of speed for a round at you |
 | `maxLen` | 3.2 m | 2–5 | the cap (Robert: "a little too long" lives above about 4) |
+| `markReach` | 5 m | 2.5–8 | a round whose line passes within this of you marks its shooter as it is fired (WEB_FEEL.md; 0 = near misses and hits only) |
 | `wMul` | 1.8 | 1.2–3 | the streak's width |
 | `fade` | 0.1 s | 0.04–0.25 | how long a missed round stays drawn after it lands |
 | `flashMul` | 1.35 | 1–2 | the flash of a shot at you |
