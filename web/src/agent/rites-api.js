@@ -249,7 +249,7 @@ export async function ritesChecks(api, check, C) {
       for (const [x, z] of [[30, -150], [60, -170], [-40, -190], [110, -130], [-90, -120], [150, 60], [-150, 90], [70, 200]]) if (flat(x, z) && clear(x, z)) { spot = { x, z }; break; }
       if (!spot) return 'no flat, clear spot off the street';
       await home(spot.x, spot.z); await api._step(10);
-      const pack = g.inventory.carried, packWas = pack.slots; pack.slots = []; // an empty pack: the shovel and the cross always fit
+      const pack = g.inventory.carried, packWas = pack.slots, capWas = pack.cap; pack.slots = []; pack.cap = Math.max(capWas, 200); // an empty pack with room (no pack worn is only BODY_LITRES): the shovel and the cross always fit
       try {
         const R = dead(P().x + 1.2, P().z, 'Buried Dead'); if (!R) return 'no slot';
         R.test = true;
@@ -268,7 +268,7 @@ export async function ritesChecks(api, check, C) {
         const loud = g.events.some((e) => e.type === 'digStart' && e.seq > seq0 && e.shovel);
         const ok = tools === 2 && d.ok && moved && gr && gr.name === 'Buried Dead' && gr.cause && gr.by && gr.buriedBy === 'player' && gr.marker === 'cross' && items0 === items1 && !g.inventory.boxes.has(R.box) && chron && !R.c && loud;
         return ok ? true : JSON.stringify({ spot, tools, d, moved, b: b?.text, gr: gr && { id: gr.id, name: gr.name, cause: gr.cause, by: gr.by, buriedBy: gr.buriedBy, marker: gr.marker }, items0, items1, boxGone: !g.inventory.boxes.has(R.box), chron, c: !!R.c, loud });
-      } finally { pack.slots = packWas; g.inventory.changed?.(); }
+      } finally { pack.slots = packWas; pack.cap = capWas; g.inventory.changed?.(); }
     });
 
     await check('rites: not everybody gets a funeral - when a family learns of a death they hold one by the FUNERAL.held roll (likelier the more of them are left), the rest are mourned at home: no funeral, the body stays where it fell', async () => {
