@@ -34,6 +34,7 @@ export const REACT = {
   bedR: 20,              // m: the farthest bed a child runs to to get under
   inside: 2.6,           // m past the door's line, inside, where they stand once in
   kinR: 70,              // m: the farthest a parent runs to their family
+  nightSecs: 10,         // s: at night a townsperson with a bed (ai.sleeper) gives a reaction up after this and goes to bed
   shortLeg: 40,          // m (|dx| + |dz|): a leg this short is always path-planned, even if the nav window has to move for it
   hop: 35,               // m: the longest leg one foot path plans when going to look (the nav window holds still)
   callR: 400,            // m: a call it in reaches the radio sets inside this
@@ -128,7 +129,7 @@ const BANDS = ['near', 'mid', 'far', 'any'];
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
 export function validateReactions(rows = REACT_ROWS) {
   const errors = [], R = rows.REACT ?? {}, X = rows.REACTIONS ?? {}, T = rows.TEMPERAMENTS ?? {}, P = rows.PROFILES ?? [];
-  for (const k of ['earMul', 'wallMul', 'sleepEar', 'errBase', 'errPerM', 'errWall', 'errMax', 'distErr', 'seeR', 'seeRNight', 'screamR', 'doorR', 'kinR', 'hop', 'shortLeg', 'maxPerShot']) if (!num(R[k]) || R[k] < 0) errors.push(`REACT.${k} must be a number >= 0`);
+  for (const k of ['earMul', 'wallMul', 'sleepEar', 'errBase', 'errPerM', 'errWall', 'errMax', 'distErr', 'seeR', 'seeRNight', 'screamR', 'doorR', 'kinR', 'hop', 'shortLeg', 'nightSecs', 'maxPerShot']) if (!num(R[k]) || R[k] < 0) errors.push(`REACT.${k} must be a number >= 0`);
   if (!(R.bands?.near > R.bands?.mid && R.bands?.mid > 0 && R.bands?.near < 1)) errors.push('REACT.bands: 0 < mid < near < 1');
   for (const k of ['delay', 'wake']) if (!Array.isArray(R[k]) || !(R[k][0] >= 0 && R[k][1] >= R[k][0])) errors.push(`REACT.${k}: [lo, hi] with 0 <= lo <= hi`);
   if (R.wake && R.delay && !(R.wake[0] > R.delay[1])) errors.push('REACT.wake must start after REACT.delay ends (a sleeper wakes slower)');

@@ -231,6 +231,9 @@ export class Reactions {
     const row = rx.row;
     if (row.calm) { if (now >= rx.t1) this.end(c); return false; } // they carry on: whatever had them before still has them
     if (now >= rx.t1 && !(row.move === 'kin' && rx.phase < 2)) { this.end(c); return false; }
+    // Bedtime: a townsperson with a bed to go to keeps it up only so long, then goes back to bed (inside already, most of
+    // them). Hiding half the night kept the town awake past the hour it sleeps (the battery's "the town sleeps").
+    if (now - rx.t0 > REACT.nightSecs && row.move !== 'kin' && g.ai.sleeper(c) && g.ai.night()) { this.end(c); return false; }
     c.flee = 0; c.work = false;
     switch (row.move) {
       case 'none': c.speed = 0; c.face = angleLerp(c.face, rx.heard.bearing, Math.min(1, dt * 5)); break;
