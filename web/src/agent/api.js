@@ -78,6 +78,7 @@ import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you
 import { casinoCommands, casinoChecks } from './casinos-api.js'; // CASINOS: tables, the house's money, robbery, security drones (WEB_CASINOS.md)
 import { homesCommands, homesChecks } from './homes-api.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
 import { actionsCommands, actionsChecks } from './actions-api.js'; // TIMED ACTIONS: search, look around, break in, climb (WEB_TIMED_ACTIONS.md)
+import { reactionsCommands, reactionsChecks } from './reactions-api.js'; // gunfire reactions: who heard a shot and what they do (WEB_GUNFIRE_REACTIONS.md)
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
@@ -2118,6 +2119,7 @@ function buildCommands(api) {
     ...actionsCommands(api, need), // act (agent/actions-api.js; docs/design/WEB_TIMED_ACTIONS.md)
     ...lswBodiesCommands(api, need), // the bodies command (src/agent/lswbodies-api.js, docs/design/WEB_LSW_BODIES.md)
     ...homesCommands(api, need), // camp, base, home (src/agent/homes-api.js)
+    ...reactionsCommands(api, need), // react: gunfire reactions (src/agent/reactions-api.js)
     ...ritesCommands(api, need), // rites: bodies, graves, cemetery, funeral, the burial verbs, the loot law (src/agent/rites-api.js)
     ...ballisticsCommands(api), // ballistics (agent/ballistics-api.js; docs/design/WEB_BALLISTICS.md)
     ...calibersCommands(api), // calibres and forensics (agent/calibers-api.js; docs/design/WEB_CALIBERS.md)
@@ -6105,6 +6107,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
   await casinoChecks(api, check, C); // CASINOS: blackjack, chess, the house's money, robbery, witnesses, the board, security drones (src/agent/casinos-api.js); loads the battery's save after
   await lswBodiesChecks(api, check, C); // LSW bodies: near set, bones on the solver's joints, hands, feet, flags, draws, classic restore (src/agent/lswbodies-api.js)
+  await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)

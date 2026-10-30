@@ -91,7 +91,7 @@ export class AI {
   onNoise(x, z, r, src) {
     if (src?.weapon) this.g.tactics?.onShot(src); // rounds passing close pin people down (systems/tactics.js suppression)
     for (const c of this.g.chars) {
-      if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug) continue; // below the street: it never reaches them (systems/underground.js)
+      if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug || c.rx) continue; // c.rx: reacting to a shot they heard (systems/reactions.js); below the street: it never reaches them (systems/underground.js)
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r) continue;
       if (c.sleeping) { if (d > r * TOWN_NIGHT.hearAsleep) continue; this.wake(c, 'a noise'); } // asleep: half an ear
@@ -315,6 +315,7 @@ export class AI {
       // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
       // hold = true stays until cleared; a number counts down in seconds.
       if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
+      if (c.rx && g.reactions.think(c, dt)) continue; // reacting to a shot they heard (systems/reactions.js)
       if (c.ugRole && g.under?.think(c, dt)) continue; // below the street: the holdout's posts and its drone (systems/underground.js)
       if (c.fauna) { g.regions?.think(c, dt); continue; } // an animal (systems/regions.js: FAUNA rows)
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first

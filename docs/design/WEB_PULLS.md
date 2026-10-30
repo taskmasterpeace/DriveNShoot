@@ -154,6 +154,7 @@ What other lanes can use:
 - SITE-STORIES (WEB_SITE_STORIES.md) builds on this model: places, boards (`board:<id>`, the same holder the saloon board reads), Tally halls, parties and hunters are holders; travellers carry postings and news with `put`/`tell`; the town grapevine carries sightings; three fact kinds (`story`, `posting`, `sighting`) join `FACT_KINDS` at load. Its bounties are the Tally's own (`stories.post`), hunted from copies, never from your true position.
 - DEATH-RITES: already bridged (`rites.learn` calls `deathNews`).
 - UI-EDITOR: the chip is the `pulls` row.
+- GUNFIRE REACTIONS (WEB_GUNFIRE_REACTIONS.md): someone who calls a shot in becomes a holder `rx:<id>`, records a `gunfire` fact (life 3 h) whose `where` is their HEARD guess of the spot, not the truth, on the new `heard` channel (conf 0.6); it is broadcast to radio sets within 400 m and put into the nearest town's talk.
 
 ## 7. Tuning Knobs (`web/src/data/pulls.js`)
 | knob | default | safe range | effect |

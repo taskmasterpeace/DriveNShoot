@@ -105,6 +105,7 @@ export class Combat {
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     const cal = calOf(w.cal ?? w.round ?? w.ammo); // the round it fires (data/ballistics.js ROUNDS; docs/design/WEB_CALIBERS.md)
     g.audio.gun(w.sound ?? ROUNDS[cal]?.sound ?? 'pistol', Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x), ch); // ch: whose gun (their faction's recordings, data/audiosets.js)
+    g.reactions?.onShot(ch.x, ch.z, 45, wkey, ch); // heard, not known: each ear's own bearing and error (systems/reactions.js); before noise, so ai.onNoise leaves them to it
     g.noise(ch.x, ch.z, 45, ch);
     g.farsound?.shot(ch, w); // heard far off, late, from its bearing (systems/farsound.js)
     g.ambient?.eject(ch, ang, cal); // its casing, of its calibre (systems/forensics.js reads the ground back)

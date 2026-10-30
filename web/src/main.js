@@ -50,6 +50,7 @@ import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { Roles } from './systems/roles.js';
 import { Witnesses } from './systems/witnesses.js';
+import { Reactions } from './systems/reactions.js';
 import { Storeys } from './world/storeys.js';
 import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
@@ -211,6 +212,7 @@ class Game {
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
     this.witnesses = new Witnesses(this);
+    this.reactions = new Reactions(this); // who heard a shot and what they do about it (systems/reactions.js, WEB_GUNFIRE_REACTIONS.md)
     this.talk = new Talk(this); // what a stranger talks about: the news, the road, what their people make of you // the one who saw it runs home to tell it (catch them on the way)
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
@@ -1335,6 +1337,7 @@ class Game {
       this.ai.update(simDt); this.nanGuard('ai');
       this.bases.update(simDt); // sentries watch the wire, searchlights sweep
       this.witnesses.update(simDt);
+      this.reactions.update(simDt);
       this.society.update(simDt);
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
