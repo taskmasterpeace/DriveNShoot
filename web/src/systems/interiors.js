@@ -490,6 +490,8 @@ export class Interiors {
     const t = g.time;
     if ((by.kickAt ?? -9) > t) return { kicked: false, wait: +(by.kickAt - t).toFixed(2) };
     by.kickAt = t + DOOR.kickCool;
+    // A padlock and chain (systems/actions.js): a boot rattles it and is heard; it does not give (bolt cutters, picks, a sledge).
+    if (door.padlock && door.locked) { g.audio.thud?.(g.pan(door.x)); g.noise(door.x, door.z, DOOR.kickNoise * 0.6, by); g.emit('doorKick', { door: door.id, by: by.id, locked: true, padlock: true, kicksLeft: door.kicks }); return { kicked: true, locked: true, padlock: true, kicksLeft: door.kicks, burst: false }; }
     g.audio.thud?.(g.pan(door.x)); g.audio.burst?.({ dur: 0.25, freq: 260, vol: 0.7, decay: 0.22, pitchDrop: 0.5, pan: g.pan(door.x) });
     g.noise(door.x, door.z, DOOR.kickNoise, by);
     g.fx.dust(door.x, door.z, 2);
@@ -599,6 +601,7 @@ export class Interiors {
     const ring = this.ring;
     if (t.leaves) {
       ring.x = t.x; ring.z = t.z; ring.len = 2.4;
+      if (g.actions) { g.actions.doorKey(p, I, dt, t); return ring; } // TIMED ACTIONS: tap kicks, hold works the lock with your best tool (systems/actions.js)
       // Carrying picks or a crowbar (inventory.js): a held E works the lock (picks quietly, a bar loudly);
       // a tap still kicks. Without either, E kicks on the press as before.
       const inv = g.inventory, tool = !t.locked || !inv ? null : inv.carried.slots.some((s) => s.id === 'lockpicks' && s.left > 0) ? 'pick' : inv.hasTag('pry') ? 'pry' : null;
