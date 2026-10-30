@@ -39,6 +39,9 @@ session branch, proven by the selftest battery, then fast-forwarded to `feat/web
 ## 4. When a check fails only in the full battery
 It is almost always STATE an earlier check left, not the newest merge. Find it fast:
 - Run the failing check alone (`only=`). Passes alone → order problem. Then `only="<suspects>|<the check>"`.
+- Read the `[entry …]` tag at the end of its detail first: what was off neutral as it began (dialogue, pack, car, deck,
+  ug, upstairs, crouch, arms, the hour, the weather, free character slots, where you stood). Causes found so far, and how
+  each was proven: `docs/design/WEB_BATTERY_STABILITY.md`.
 - Look at the player's state at the failure point: `dialogue.active` (freezes you AND runs the sim at dt 0),
   `invUI.open` (PACK screen: you stand still), `arms.stance` (a raised gun slows you; a click on a lowered gun only
   raises it), `gunpoint` holds, `onDeck` (a stale deck applies a van's window rules to any gun), current gun + cylinder,

@@ -190,6 +190,7 @@ export class Rites {
     const R = this.bodies.get(c.riteId ?? c.id);
     if (!R || R.c !== c) return;
     R.x = c.x; R.z = c.z; R.y = c.gy ?? R.y; R.face = c.face ?? R.face;
+    R.pose = c.rag?.phase === 'still' && !c.rag.on ? Array.from(c.rag.P) : R.pose ?? null; // how it lay (systems/deaths.js), for when it is a character again
     R.c = null; R.folded = true; this.stats.folded++; this.dirty = true;
     const m = this.memberOf(R); if (m) { m.x = r2(R.x); m.z = r2(R.z); if (R.stage >= 3) m.gone = true; } // the household brings the body back as itself near you (link() finds it); bones are ours
   }
@@ -251,7 +252,7 @@ export class Rites {
     for (const c of this.g.chars) {
       if (c.alive || c.riteId || c === this.g.player) continue;
       const key = c.res?.m?.key;
-      for (const R of this.bodies.values()) if (!R.c && ((key && R.member === key) || R.id === c.id)) { R.c = c; R.folded = false; c.riteId = R.id; c.rot = DECAY.stages[R.stage].k; this.g.charR?.paint(c); break; }
+      for (const R of this.bodies.values()) if (!R.c && ((key && R.member === key) || R.id === c.id)) { R.c = c; R.folded = false; c.riteId = R.id; c.rot = DECAY.stages[R.stage].k; if (R.pose) this.g.deaths?.restore(c, R.pose, R.x, R.z); this.g.charR?.paint(c); break; }
     }
   }
   placeOf(x, z) {

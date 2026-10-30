@@ -291,7 +291,9 @@ rows: `src/data/ring.js` `RESIDENTS`, `RES_RULES`, `RES_NAMES`; who lives where 
   roams the streets 20:30-05:30 toward a point that changes every game hour, then holes up at dawn in a lair picked for that
   day from up to three buildings of its chunk: it moves. Its Echo stays at the boards of the origin house and works them
   while unwatched (the boards' hp is on the record). Paths are planned three a frame across everyone; a walker who gets no
-  closer for 4 s plans again (a progress watchdog).
+  closer for 4 s plans again (a progress watchdog). "Closer" is along the route, not as the crow flies (a door facing away
+  from the stop read as wedged every 4 s round the house), and a door leaf open to its stop turns a walker round its free
+  end (docs/design/WEB_BATTERY_STABILITY.md §3.2).
 - **Their things, their eyes.** While one of them lives, the shelves in their rooms are theirs (`box.owner` = the
   household): taking from one is a `steal` deed (`inventory.stole` finds the nearest of them), witnessed under their
   faction's row (drifters for families and squats - who now mind `steal:self` - Dustwolves for the chop shop; the infected

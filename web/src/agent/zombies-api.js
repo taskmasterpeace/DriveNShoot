@@ -54,7 +54,13 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
   const Z = g.zombies, P = () => g.player;
   const FLATS = { x: 250, z: 430 };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-  const clearRound = (x, z, r) => { for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c); };
+  // A cleared round: no one left in it, and no body records either (an earlier check's dead, bloated by the battery's
+  // clock, SMELL - systems/rites.js smell() turns any of the infected here toward them).
+  const clearRound = (x, z, r) => {
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - x, c.z - z) < r) g.removeChar(c);
+    const B = g.rites?.bodies;
+    if (B) { for (const [k, R] of B) if (!R.c && Math.hypot(R.x - x, R.z - z) < r) B.delete(k); g.rites.dirty = true; }
+  };
   const flats = async () => { await stage(); await C('teleport', FLATS); clearRound(FLATS.x, FLATS.z, 140); g.godMode = true; await C('step', { seconds: 0.2 }); };
   const facing = (c, o) => { c.face = Math.atan2(o.x - c.x, o.z - c.z); };
   const standStill = (c) => { c.timer = 99; c.wx = c.x; c.wz = c.z; };
@@ -157,6 +163,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       const e = Z.spawnKind('echo', door.x + door.nx * 1.4, door.z + door.nz * 1.4); made.push(e);
       let echoT = null;
       for (let t = 0; t < 45 && echoT === null; t += 0.5) { await C('step', { seconds: 0.5 }); if (!door.locked) echoT = t + 0.5; }
+      const mind = Z.minds?.view(e), ed = +Math.hypot(e.x - door.x, e.z - door.z).toFixed(1);
       gone(e);
       const b2 = bar(), th0 = Z.counts.thumps;
       const ux = -door.nz, uz = door.nx;
@@ -166,7 +173,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       for (let t = 0; t < cap && shamT === null; t += 0.5) { await C('step', { seconds: 0.5 }); if (!door.locked) shamT = t + 0.5; }
       const thumped = Z.counts.thumps - th0;
       return b1.ok && b2.ok && echoT !== null && echoT < 35 && thumped > 3 && (shamT === null || shamT > echoT * 1.5) ? true
-        : JSON.stringify({ b1: b1.ok, b2: b2.ok, hp0, echoT, shamT, thumped, lockHp: Math.round(door.lockHp), cap });
+        : JSON.stringify({ b1: b1.ok, b2: b2.ok, hp0, echoT, shamT, thumped, lockHp: Math.round(door.lockHp), cap, mind, ed });
     } finally {
       g.aimOverride = null; gone(...made); g.godMode = false;
       if (g.gadgets.barred.some((b) => b.door === door)) g.gadgets.unbarricade(door); else I.setLocked(door, false);

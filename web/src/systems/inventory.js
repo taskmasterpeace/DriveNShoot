@@ -483,7 +483,7 @@ export class Inventory {
 
   gunView() {
     const inv = this.g.inv;
-    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[WEAPONS[k]?.ammo] ?? 0, inHand: inv.current === k }));
+    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[this.g.arms?.ammoOf(k) ?? WEAPONS[k]?.ammo] ?? 0, loads: this.g.arms?.ammoOf(k), inHand: inv.current === k }));
   }
 
   // ---- the world's containers ------------------------------------------------------------------------------
@@ -549,6 +549,7 @@ export class Inventory {
   open(box) {
     if (!box.rolled) { this.roll(box, this.g.gear?.luckRolls() ?? 0); box.rolled = true; this.g.roles?.onSearch(box); } // first time through: a search (a lucky charm: more turns up)
     this.opened = box;
+    this.g.forensics?.onSearch(box); // going through a body you read its wounds (systems/forensics.js; a timed search ends here too)
     this.g.emit('containerOpened', { id: box.id, kind: box.kind, items: box.slots.length });
     return box;
   }

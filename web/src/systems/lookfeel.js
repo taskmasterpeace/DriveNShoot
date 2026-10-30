@@ -636,7 +636,7 @@ void main() {
       const u = v.mesh.material.userData.wear; if (!u) { if (!v.dead) this.dress(v); continue; }
       if (Math.abs(v.x - L.x) > 220 || Math.abs(v.z - L.z) > 220) continue;
       const w = v.grime;
-      if (step && !v.boat) {
+      if (step && !v.boat && !v.sheltered) { // sheltered: a car in a box trailer's hold (systems/semis.js)
         const sp = Math.hypot(v.vx, v.vz), k = Math.min(2, sp / 20) * 0.25 * this.wearRate; // per-second rows over a 0.25 s step, x speed / 20 m/s
         const s = (w.surface = this.surfaceUnder(v));
         if (sp > 2) { w.dust = clamp01(w.dust + (WEAR.dustBy[s] ?? 0) * k, WEAR.max.dust); w.mud = clamp01(w.mud + (WEAR.mudBy[s] ?? 0) * k, WEAR.max.mud); }

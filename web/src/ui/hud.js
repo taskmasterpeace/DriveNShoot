@@ -472,7 +472,7 @@ export class HUD {
     }
     const mag = inv.mag[cur] ?? 0, reloading = p.reloading > 0;
     this.text('wmag', this.el.wmag, reloading ? '··' : mag);
-    this.text('wres', this.el.wres, inv.ammo[w.ammo] ?? 0, '/ ');
+    this.text('wres', this.el.wres, inv.ammo[this.g.arms?.ammoOf(cur) ?? w.ammo] ?? 0, '/ ');
     const lit = reloading ? 0 : Math.ceil(mag / this.cartPer - 0.001);
     if (lit !== s.cartsLit) {
       const was = s.cartsLit;

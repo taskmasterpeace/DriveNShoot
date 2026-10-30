@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
 import { STEP } from '../engine/depthlayers.js';
 import { MATERIALS, PUNCH, PEN, BLAST, RAM, FIRE, MATERIAL_RULES as R, PIECES } from '../data/materials.js';
+import { roundRow } from '../data/ballistics.js';
 import { DOOR } from '../data/interiors.js';
 import { wallFinish } from '../world/surfaces.js';
 import { Blood, DECAL_TILE as TILE } from './blood.js';
@@ -186,7 +187,7 @@ export class Materials {
     return op.state === 'boarded' ? R.boards : op.state === 'shattered' ? null : 'glass';
   }
 
-  punch(ammo) { return PUNCH[ammo] ?? 1; }
+  punch(ammo) { return PUNCH[ammo] ?? roundRow(ammo)?.punch ?? 1; } // a calibre's own punch (data/ballistics.js ROUNDS)
 
   // ---- rounds ---------------------------------------------------------------------------------------------------------
   // A round from (ox, oz) along (dx, dz) met box b at distance t (face normal nx, nz) with dmg damage and `energy`.

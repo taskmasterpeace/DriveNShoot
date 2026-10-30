@@ -85,7 +85,7 @@ export class Survival {
     const g = this.g, p = g.player, v = p.inVehicle;
     if (v) return v.open || v.bike || v.boat ? 'rough' : 'car';
     const b = g.insideBuilding;
-    if (!b) return 'rough';
+    if (!b) return g.homes?.shelterKind() ?? 'rough'; // your pitched camp (systems/homes.js)
     return this.isHold(b) ? 'hold' : 'house';
   }
   isHold(b) { const H = this.hold; return !!(H && b && Math.abs(b.minX - H.minX) < 0.01 && Math.abs(b.maxX - H.maxX) < 0.01 && Math.abs(b.minZ - H.minZ) < 0.01 && Math.abs(b.maxZ - H.maxZ) < 0.01); }
@@ -445,10 +445,11 @@ export class Survival {
   shelterFor(kind) {
     const sh = SHELTER[kind] ?? SHELTER.rough;
     if (this.prof.shelter === false) return { kind, rest: 1, danger: 0, parts: null };
+    if (kind === 'camp' && this.g.homes?.camp) return this.g.homes.shelterFor(); // its danger read off roads, towns, hordes, the fire, the watch
     if (kind !== 'hold') return { kind, rest: sh.rest, danger: sh.danger, parts: null };
     const parts = this.holdParts();
     const water = parts.water >= HOLD.water.uses;
-    return { kind, rest: sh.rest + (parts.door ? HOLD.door.rest : 0) + (water ? HOLD.water.rest : 0), danger: parts.door ? HOLD.door.danger : sh.danger, parts: { door: parts.door, water: parts.water, stored: water, doors: parts.doors } };
+    return { kind, rest: sh.rest + (parts.door ? HOLD.door.rest : 0) + (water ? HOLD.water.rest : 0) + (this.g.homes?.restBonus() ?? 0), danger: parts.door ? HOLD.door.danger : sh.danger, parts: { door: parts.door, water: parts.water, stored: water, doors: parts.doors } };
   }
 
   // Lie down in a bed (bed = { x, z }), on a bedroll you carry, or on the bare ground. Refused at the wheel, when

@@ -146,3 +146,34 @@ He is upgrading the scan technology himself, so this waits for his go-ahead even
 - **Privacy (settled):** opt-in only. Never your real address or town. In-game textures, never your photos.
 - **Control (Robert):** owners manage home and defense from a mobile app, with engineering of defenses.
 - **Robert also has houses he wants built** in the world. Ask him for them when this opens.
+
+## 10. VERSION 2 ROADMAP: the maker and survival layer (roadmap only, Robert 2026-10-29)
+
+Robert: "this is for the next version. no more adding features just adding to roadmap." Nothing here starts until every lane running now has landed.
+Every row connects to a system that already exists; build ON it, never a second copy. Source and reasons: `docs/research/PZ_GAP_ANALYSIS.md` (study only, no PZ code or assets).
+
+| # | Addition | Effort | Builds on |
+|---|---|---|---|
+| 1 | Crafting recipes and workbenches | L | workshop, gadget recipes, crew jobs, timed actions, inventory rows |
+| 2 | Farming and gardens | L | crew farm job, grower roles, camp rain catcher, camps and bases |
+| 3 | Power: generators, fuel, noise, power as a place state | M/L | fuel cans, the noise model, gadget batteries, base generator props, spoilage |
+| 4 | Clean water: purity, boiling, filters, wells, pumped towers | M | water litres, rain catcher, water and swamp systems, food poisoning |
+| 5 | Skill books, magazines and recorded media | S/M | skills learned by doing, timed actions, loot rows, radio and music media |
+| 6 | Stash maps, notes and shared map pins | S/M | pulls board, who-knows-what (law 6), road atlas, journal |
+| 7 | Cooking recipes and meal quality | M | camp fire pit, drying rack, cooking skill, crew cook, well fed |
+| 8 | Clothing that wears: dirt, holes, patches, laundry, warmth | M | paperdoll gear, wet and climate, scent, body doll |
+| 9 | Tool and gear durability and repair | M | gun wear and care, melee weapon rows, repair skill, scrap |
+| 10 | Bows and silent ranged weapons, recoverable arrows | M | bullet travel and drop, calibers, foraged feathers, noise model |
+| 11 | Vehicle ignition: keys, hotwire, ignition-cut wrecks | M | vehicle damage, seats, wrecks, lockpicking, timed actions, theft deeds |
+| 12 | Seasons as a compressed year | M/L | sky and weather, climate, regions, biomes |
+| 13 | Fire as a system: spread, smoke, burned houses | L | material flammability, throwables, burn injuries, storeys, noise and light |
+| 14 | Field medicine finished: stitches, bullet and glass removal | S/M | injuries, suture kit, medic role, crew tend, timed actions |
+| 15 | Horses | L | animal rig, dog bond, riders on decks, stance, water and forage |
+| 16 | Overflight events that pull hordes | M | world director, military base helipads, radio, zombie noise pull |
+| 17 | Livestock and husbandry | L | farming, wildlife, butchering, trade couriers |
+| 18 | Calories, nutrition and visible body condition | M | survival food, body doll, well fed, item nutrition |
+| 19 | Walkie-talkies and radio frequencies for crews | M | radio, scanner, airwaves, batteries, crew |
+| 20 | Diegetic clock and forecast: no watch, no exact time | S | wristwatch item, HUD clock, radio, sky states |
+
+Order: the recipe engine (#1) first, because cooking, sewing, mending, forging and generators are all recipe rows on it. Then the base needs (farming, power, water),
+then the cheap pulls (books, stash notes), then wear (clothing, tools, keys), then the big arcs (seasons, fire, horses, overflights, livestock). All laws in §0 hold: nothing regenerates, nobody cheats, facts carry a source.

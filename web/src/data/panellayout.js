@@ -88,6 +88,17 @@ export const PANELS = {
       { id: 'foot', name: 'Key hints', sel: '.tp-foot' },
     ],
   },
+  table: {
+    name: 'Card and chess table', root: '.tb',
+    regions: [
+      { id: 'head', name: 'Room, game and cash', sel: '.tb-head' },
+      { id: 'cards', name: 'Dealer and your hands', sel: '.tb-rows' },
+      { id: 'chips', name: 'Bet', sel: '.tb-chips' },
+      { id: 'board', name: 'Chess board and moves', sel: '.tb-chessside', tab: true }, // the chess view (blackjack shows the cards instead)
+      { id: 'say', name: 'Table talk', sel: '.tb-say' },
+      { id: 'foot', name: 'Key hints', sel: '.tb-foot' },
+    ],
+  },
   creator: {
     name: 'Creator', root: '.cr',
     regions: [
