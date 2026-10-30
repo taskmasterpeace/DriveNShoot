@@ -184,6 +184,9 @@ burnt exits, to Jacksonville and Miami. Florida reads as flat, wet and green: bu
   WILDLIFE factions), WEB_TRADE (the TRADERS rows), WEB_LOOK (the ground and roof surfaces).
 - Feeds: the clone and travel agent (`g.regions.clinic()`), the fauna layer (`FAUNA` rows, `think`), the rivers and
   bridges agent (the water authority, `regionWater`), the World Forge (every row here is editable data).
+- **Used by THE WORLD TOOLS** (`WEB_WORLD_TOOLS.md`): a region stamp that shares Florida's edge (Georgia) opens it (no
+  squall line there: `Region.open`), starts its I-95 and I-75 on Florida's own lines, and a look's `from: 'florida'` reuses
+  these biome rows so the ground matches across the seam. Florida's corridors now clip at an open edge, not 400 m in.
 
 ## 7. Tuning knobs
 

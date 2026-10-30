@@ -261,6 +261,7 @@ opens (the observer only feeds while watched). RELOAD, OWN WINDOW, and the doc o
   chunk's hash is the original again.
 
 ## 6. Dependencies
+- **Extended by THE WORLD TOOLS** (`WEB_WORLD_TOOLS.md`): a third forge file (`src/data/stamps.json`, `FILES.stamps`, checked by `validateStamps`), the STAMP and TRAVEL tabs, `forgePush file=stamps`.
 
 - [WEB_WORLD_EDITOR_PLAN.md](WEB_WORLD_EDITOR_PLAN.md): the layer stack and the tab list this builds.
 - [WEB_STREAMING.md](WEB_STREAMING.md): chunks as pure functions of the data, the streamer's evict / ensureHot, WorldIndex.

@@ -217,6 +217,7 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 
 ## 6. Dependencies
 
+- **Used by THE WORLD TOOLS** (`WEB_WORLD_TOOLS.md`): planWorld takes the stamp records (`world/stamps.js stampRecords`: a city's `hood_*` neighbourhoods, outside places on the new RURAL rows, a base moved by its stamp) before the SITE rows, skips its own town and homestead scatter on a stamped region's corridors, and reads a stamped region's `citygen` biome map in `biomeFor`.
 - **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): the `claim` deed hook is called by `g.homes`, which keeps ownership as records and writes `B.owner` back after every rebuild; the claimable kinds are what a base, a rented or a bought house can be.
 | Depends on | For | Back-reference added |
 |---|---|---|

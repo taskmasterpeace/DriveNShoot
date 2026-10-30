@@ -162,6 +162,7 @@ power, the code, whether you read it, the blast door, the last warning, the garr
   the ground back.
 
 ## 6. Dependencies (both ways)
+- **Used by THE WORLD TOOLS** (`WEB_WORLD_TOOLS.md`): a BASE stamp names a state's row and may stand it at a point inside the drivable region (planWorld's milbase pass anchors there; the report marks it `moved`).
 - **Uses:**
   - `data/atlas.js` (ATLAS_BASES, ATLAS_XZ, FOOTPRINT)
   - `world/citygen/layout.js` makeBuilding, `world/citygen/build.js` buildTown

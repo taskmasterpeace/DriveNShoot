@@ -47,6 +47,7 @@ seconds = Δs / cruise. A beat goes every everyS·cruise·(1 ± jitter/2) metres
 - The addChar budget can refuse a person; that beat then simply has fewer people.
 
 ## 6. Dependencies
+- **Used by THE WORLD TOOLS** (`WEB_WORLD_TOOLS.md`): its measured I-10 (54.5 game miles, 49 min at 30 m/s) is the reference the travel math is checked against (`world-tools:` checks, within 10%).
 WorldIndex (`project`, `at`, `signs`, `towns`, `exits`, `holdouts`, `biomeAt`), THE ROADSIDE (`sites`, `billboards`,
 `hazards`), `systems/wrecks.js` (`add`/`remove` by owner key), `addChar`/`removeChar`, inventory, HUD toast, the save.
 
