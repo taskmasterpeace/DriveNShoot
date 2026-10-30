@@ -71,6 +71,9 @@ export const DRIVING = {
   reverseAccel: 0.85, reverseShare: 0.4, reverseCap: [6, 15],
   shootSpread: { perMs: 0.004, max: 0.1, driver: 1.5 },
   aimHold: 1.2,
+  // steerRate / steerReturn (1/s): the player's wheel turns toward the keys at steerRate and back to centre at
+  // steerReturn, so a tapped key is a nudge, never a twitch (docs/design/WEB_FEEL.md); the AI steers its own curves.
+  steerRate: 6, steerReturn: 10,
   parkBrake: 14, // m/s^2: a car its driver got out of brakes to a stop (it no longer rolls off out of reach)
 };
 export const reverseOf = (v) => v.reverse ?? clamp(v.maxSpeed * DRIVING.reverseShare, DRIVING.reverseCap[0], DRIVING.reverseCap[1]);
@@ -318,7 +321,12 @@ export class Vehicles {
       }
       if (fwd < -rev) fwd = -rev;
       // Steering bites with speed, softens at top speed.
-      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
+      let st = v.steer;
+      if (v.driver === this.g.player || v.feelProbe) { // the wheel eases toward the keys (DRIVING.steerRate)
+        const back = Math.abs(v.steer) < Math.abs(v.steerIn ?? 0) || v.steer * (v.steerIn ?? 0) < 0, r = (back ? DRIVING.steerReturn : DRIVING.steerRate) * dt;
+        v.steerIn = st = clamp(v.steer, (v.steerIn ?? 0) - r, (v.steerIn ?? 0) + r);
+      }
+      const steerAmt = (st + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a
       // crash, a shove) settled on the target + 2πk instead and spun at ~28 rad/s for good, in place, at 16 m/s,
       // flattening anyone near it (a traffic LAWMAN spinning by the sheriff's corner ran bounty-run's player down).
