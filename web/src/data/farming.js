@@ -2,7 +2,7 @@
 // hens. systems/farming.js is the one consumer. Adding a crop is adding a row; nothing here makes stock: a harvest is
 // bounded by the seed that went in, the water that was carried and the days that passed (WEB_DEPTH_PLAN law 1 and 2).
 // Our own words; the plants are real ones. No purple (crop colours are validated).
-import { ITEMS, LOOT } from './items.js';
+import { ITEMS } from './items.js';
 
 // ---- 1. the calendar shim ---------------------------------------------------------------------------------------------
 // The SEASONS lane owns the calendar. Until its systems/seasons.js lands this reads g.seasons when present (`month` 1-12
@@ -133,14 +133,17 @@ export const FARM_ITEMS = {
 };
 for (const [id, c] of Object.entries(CROPS)) FARM_ITEMS[c.seed] = SEED(id, c.name.split(' ').pop() === 'tree' ? 'Orange' : c.name, 2, `A twist of paper, a pinch of ${c.name.toLowerCase()} seed. One bed of ${c.name.toLowerCase()}, if you have the water.`);
 for (const [id, r] of Object.entries(FARM_ITEMS)) if (!ITEMS[id]) ITEMS[id] = r;
-// Where the kit turns up: the end of existing loot tables (a few seed packets are the only way a garden starts).
-const LOOT_ADD = [
-  ['garage', ['hoe', 1, 1, 1]], ['garage', ['shovel', 2, 1, 1]], ['garage', ['bucket', 2, 1, 1]], ['garage', ['chicken_feed', 1, 1, 1]], ['garage', ['compost', 1, 1, 2]],
-  ['kitchen', ['cook_pot', 2, 1, 1]], ['kitchen', ['seed_beans', 2, 1, 2]], ['kitchen', ['seed_herbs', 2, 1, 2]], ['kitchen', ['seed_tomato', 1, 1, 2]],
-  ['storefront', ['seed_squash', 1, 1, 2]], ['storefront', ['seed_potato', 1, 1, 3]], ['storefront', ['seed_corn', 1, 1, 2]], ['storefront', ['seed_greens', 1, 1, 2]], ['storefront', ['chicken_feed', 1, 1, 1]],
-  ['person', ['seed_pepper', 1, 1, 1]], ['person', ['seed_melon', 1, 1, 1]], ['person', ['hen', 1, 1, 1]],
-];
-for (const [table, row] of LOOT_ADD) if (LOOT[table] && !LOOT[table].rows.some((r) => r[0] === row[0])) LOOT[table].rows.push(row);
+// Where the kit turns up. NOT in the world's loot tables: those feed every generated chunk, and the P1 chunk hashes are
+// pinned (a row added to LOOT moved chunk -6,0). Seeds and tools come by the two channels that do not touch a chunk:
+//   a trader's counter (Mags, who buys fruit, keeps seed and a hoe, a bucket, a sack of feed and a hen or two), and
+//   the crew's scavenge runs (data/crewjobs.js CREW_RUN_LOOT: seeds in a kitchen drawer, a hoe in a shed).
+// Both are the existing channels; nothing here makes a seed a loot box would not.
+import { TRADERS } from './trade.js';
+import { CREW_RUN_LOOT } from './crewjobs.js';
+export const FARM_KEEPS = [['seed_beans', 4], ['seed_herbs', 4], ['seed_potato', 3], ['seed_greens', 3], ['seed_tomato', 2], ['seed_squash', 2], ['seed_corn', 2], ['hoe', 1], ['bucket', 1], ['chicken_feed', 2], ['hen', 2]];
+export const FARM_RUN_LOOT = [['seed_beans', 2, 1, 2], ['seed_herbs', 2, 1, 2], ['seed_tomato', 1, 1, 2], ['seed_potato', 1, 1, 2], ['seed_pepper', 1, 1, 1], ['hoe', 1, 1, 1], ['bucket', 1, 1, 1], ['compost', 1, 1, 2]];
+if (TRADERS.mags && !TRADERS.mags.keeps?.some((k) => k[0] === 'hoe')) TRADERS.mags.keeps = [...(TRADERS.mags.keeps ?? []), ...FARM_KEEPS];
+for (const r of FARM_RUN_LOOT) if (!CREW_RUN_LOOT.some((q) => q[0] === r[0])) CREW_RUN_LOOT.push(r);
 
 export function validateFarming(crops = CROPS, items = ITEMS) {
   const bad = [];

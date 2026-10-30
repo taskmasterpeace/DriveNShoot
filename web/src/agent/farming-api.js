@@ -353,8 +353,15 @@ export async function farmingChecks(api, check, C) {
     });
 
     // ---- the crew, the market, the book ----
+    await check('farming: seed and tools reach the world only by existing channels - a trader counter and the crew scavenge runs - and NO loot table was touched (the pinned chunk hashes stay put)', async () => {
+      const { LOOT } = await import('../data/items.js'), { TRADERS } = await import('../data/trade.js'), { CREW_RUN_LOOT } = await import('../data/crewjobs.js');
+      const stray = Object.entries(LOOT).filter(([, t]) => t.rows.some((r) => /^seed_|^hoe$|^bucket$|^hen$|^rooster$|^chicken_feed$|^cook_pot$|^compost$/.test(r[0]))).map(([k]) => k);
+      const keeps = TRADERS.mags?.keeps?.some((k) => k[0] === 'seed_beans'), runs = CREW_RUN_LOOT.some((r) => r[0] === 'seed_beans');
+      return !stray.length && keeps && runs ? true : JSON.stringify({ stray, keeps, runs });
+    });
     await check('farming: the crew FARM job works the real stock - it waters from a bucket (or a catcher), picks ripe beds into the pack, and says so when there is no water', async () => {
       await out(); const a = F.plots[0]; Object.assign(a, { crop: 'tomato', state: 'growing', water: 0.1, progress: 0.4, health: 1, fenced: false });
+      g.crew.base = { x: base.x, z: base.z, name: 'FARMTEST', day: 0 };
       for (const p of F.plots) if (p !== a) Object.assign(p, { crop: null, state: 'bare' });
       drop('bucket'); if (g.inventory.boxes.get('crew:stash')) g.inventory.boxes.get('crew:stash').slots.length = 0;
       const none = F.crewTend({ id: 'tester' }, 1);
@@ -366,6 +373,7 @@ export async function farmingChecks(api, check, C) {
     });
     await check('farming: the crew farm job row runs the real crew cycle (data/crewjobs.js farm -> crewTend), not a ration out of nothing', async () => {
       const J = (await import('../data/crewjobs.js')).CREW_JOB_BY_ID.farm; if (!g.crew) return 'no crew';
+      g.crew.base = { x: base.x, z: base.z, name: 'FARMTEST', day: 0 };
       const r0 = cnt('ration'); const a = F.plots[0]; Object.assign(a, { crop: 'tomato', state: 'ripe', progress: 1, health: 1, ripeAt: F.hours() });
       const ok = g.crew.jobCycle({ id: 'tester', row: { skills: { cook: 3 } }, needs: { food: 0.5 } }, J);
       return J.effect === 'farm' && !J.outputs?.ration && ok === true && cnt('ration') === r0 ? true : JSON.stringify({ ok, rations: cnt('ration') - r0, J });
@@ -484,7 +492,7 @@ export async function farmingChecks(api, check, C) {
     for (const id of stamped) { try { await C('citygen', { action: 'release', id }); } catch { /* released with the town */ } }
     if (synthetic && base) { S.bases.delete(base.id); inv.boxes.delete(base.stash); } else if (base) { S.unbase?.(base.id); }
     F.load(was.plots); K.load(was.cook);
-    if (g.crew && !was.crewBase) g.crew.base = null;
+    if (g.crew) g.crew.base = was.crewBase;
     inv.carried.slots.length = 0; for (const s of pack0) inv.carried.slots.push({ ...s }); inv.carried.cap = cap0; inv.changed();
     g.zombies.enabled = was.z; g.raiderTimer = was.r; g.convoy.next = was.conv;
     await C('god', { on: was.god });
