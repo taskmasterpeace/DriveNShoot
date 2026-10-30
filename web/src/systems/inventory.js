@@ -556,8 +556,8 @@ export class Inventory {
   }
 
   // extra: rolls on top (the player's luck, systems/gear.js): drawn after the box's own, so they only ever add.
-  roll(box, extra = 0) {
-    const T = LOOT[box.kind];
+  roll(box, extra = 0, table = box.kind) {
+    const T = LOOT[table];
     if (!T) return;
     const rng = makeRng(box.seed);
     const n = T.rolls[0] + Math.floor(rng() * (T.rolls[1] - T.rolls[0] + 1)) + extra;
@@ -627,7 +627,12 @@ export class Inventory {
 
   trunk(v) {
     let t = this.trunks.get(v.id);
-    if (!t) { t = new Container(`trunk:${v.id}`, `${v.name} · ${v.bike || v.quad ? 'SADDLEBAGS' : v.type === 'pickup' ? 'BED' : 'TRUNK'}`, TRUNK[v.type] ?? 200, 'trunk'); this.trunks.set(v.id, t); }
+    if (!t) {
+      t = new Container(`trunk:${v.id}`, `${v.name} · ${v.bike || v.quad ? 'SADDLEBAGS' : v.type === 'pickup' ? 'BED' : 'TRUNK'}`, TRUNK[v.type] ?? 200, 'trunk'); this.trunks.set(v.id, t);
+      // What a kind of car carries from the start (data/items.js LOOT trunk_<type>: a patrol car's shotgun shells): rolled
+      // once, seeded by the car, never again (a load restores the trunk as it was left).
+      if (LOOT[`trunk_${v.type}`]) { let h = 7; for (const ch of String(v.id)) h = (h * 31 + ch.charCodeAt(0)) | 0; t.seed = h >>> 0; this.roll(t, 0, `trunk_${v.type}`); }
+    }
     return t;
   }
 
