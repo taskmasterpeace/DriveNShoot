@@ -152,15 +152,21 @@ export async function feelGuns(g, api, C, shots = 40) {
     // An angry Dustwolf at 20 m; you stand, topped up (not god: god mode swallows the hurt events this counts).
     await C('god', { on: false });
     const foe = g.spawnRaider(L.x + 6, L.z + 19, Math.random, 'pistol');
-    foe.grudge = g.player; foe.target = g.player; foe.state = 'fight';
-    const t0 = g.time, n0 = log.length, seq = g.eventSeq; let on = 0, n = 0;
+    foe.grudge = g.player; // he has it in for you, and finds you the way he would (the AI's acquire sets its reaction time)
+    const t0 = g.time, n0 = log.length, seq = g.eventSeq, SR = g.shotRead?.stats; let on = 0, told = 0, n = 0;
     for (let t = 0; t < 12; t += 0.25) {
+      const read0 = SR ? SR.marks : 0;
       await api._step(15, DT); g.player.x = L.x; g.player.z = L.z; g.player.hp = g.player.maxHp ?? 100;
-      for (let k = n0 + n; k < log.length; k++) { n++; if (log[k].who === foe && onScreen(g, foe.x, foe.z)) on++; }
+      const marked = SR ? SR.marks - read0 : 0; // shot read raised (or refreshed) an edge marker toward him
+      for (let k = n0 + n; k < log.length; k++) {
+        n++; if (log[k].who !== foe) continue;
+        const seen = onScreen(g, foe.x, foe.z); if (seen) on++;
+        if (seen || marked > 0) told++;
+      }
     }
     const theirs = log.slice(n0).filter((f) => f.who === foe);
     const hurts = g.events.filter((e) => e.seq > seq && e.type === 'hurt' && e.by === foe.id).length;
-    out.enemy = { firstShot: theirs.length ? r2(theirs[0].t - t0) : null, shots: theirs.length, hits: hurts, hitRate: theirs.length ? r2(hurts / theirs.length) : 0, onScreen: theirs.length ? r2(on / theirs.length) : 0 };
+    out.enemy = { firstShot: theirs.length ? r2(theirs[0].t - t0) : null, shots: theirs.length, hits: hurts, hitRate: theirs.length ? r2(hurts / theirs.length) : 0, onScreen: theirs.length ? r2(on / theirs.length) : 0, told: theirs.length ? r2(told / theirs.length) : 0 };
     g.removeChar(foe);
   } finally { g.combat.fire = realFire; for (const u of unpin) u(); await C('god', { on: false }); }
   return out;
@@ -174,7 +180,7 @@ export async function feelStage(g, api, C, scene) {
   await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
   if (scene === 'firefight') {
     await C('god', { on: true }); await C('give', { weapon: 'pistol', pistol: 60 }); await C('equip', { weapon: 'pistol' });
-    const foe = g.spawnRaider(L.x + 7, L.z + 17, Math.random, 'pistol'); foe.grudge = g.player; foe.target = g.player; foe.state = 'fight';
+    const foe = g.spawnRaider(L.x + 7, L.z + 17, Math.random, 'pistol'); foe.grudge = g.player;
     g.player.face = Math.atan2(7, 17);
     return { scene, at: L, foe: foe.id };
   }
@@ -195,7 +201,7 @@ export function feelVerdict(m) {
   }
   if (m.guns) {
     for (const gk of ['pistol', 'smg']) for (const [k, b] of Object.entries(FB.gun[gk])) t(`${gk}.${k}`, m.guns[gk]?.[k], b);
-    t('foe.firstShot', m.guns.enemy?.firstShot, FB.gun.foeFirst); t('foe.onScreen', m.guns.enemy?.onScreen, FB.gun.foeOnScreen);
+    t('foe.firstShot', m.guns.enemy?.firstShot, FB.gun.foeFirst); t('foe.told', m.guns.enemy?.told, FB.gun.foeTold);
   }
   return out;
 }

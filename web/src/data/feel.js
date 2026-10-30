@@ -22,14 +22,15 @@ export const FEEL_BANDS = {
   // Gunplay: a still player at a still target (the cursor is the aim in a top-down game, so close is near-certain).
   //   hit<d>      share of rounds that land at d metres (seeded spread, 40 rounds)
   //   foeFirst    s from an angry raider seeing you at 20 m to its first shot (it answers, not instantly)
-  //   foeOnScreen share of its shots fired from inside your view (you can see who is shooting)
+  //   foeTold     share of its shots you can place: fired from inside your view, or marked at the screen's edge (a near
+  //               miss or a hit raises shot read's chevron toward him; systems/shotread.js). On-screen alone rides as `onScreen`.
   //   (the guns are measured for a rested, healthy shooter; the live sway and skill multipliers ride apart as `shooter`)
   gun: {
     pistol: { hit5: [0.9, 1], hit15: [0.75, 1] },
     smg: { hit5: [0.85, 1], hit15: [0.3, 0.75] },
     swayCap: [1.3, 2], // the shakes' stack cap (data/survival.js SWAY): felt, never a shotgun
-    foeFirst: [0.1, 1.5],
-    foeOnScreen: [0.8, 1],
+    foeFirst: [0.35, 1.3],
+    foeTold: [0.75, 1],
   },
   // Probe settings: the speeds the corner and handbrake runs start from, and the surfaces (data/citygen.js grip rows).
   probe: { corner: 15, handbrake: 20, hbHold: 0.8, surfaces: { blacktop: 1, gravel: 0.8, dirt: 0.72 } },

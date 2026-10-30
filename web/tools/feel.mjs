@@ -88,7 +88,7 @@ function report(m, base, S) {
   L.push('## Gunplay (BEFORE → **AFTER**)', '', `Measured for a rested, healthy shooter (the gun's own feel). The live player at this run: sway ×${G.shooter?.sway}, skill ×${G.shooter?.spreadMul}; BEFORE was the live player after a long session (sway ×${bg.shooter?.sway}, skill ×${bg.shooter?.spreadMul}), which is what Robert felt.`, '',
     '| gun | rate s | reload s | mag | hit 5 m | hit 15 m | hit 30 m |', '|---|---|---|---|---|---|---|');
   for (const k of ['pistol', 'smg']) { const r = G[k], b = bg[k] ?? {}; L.push(`| ${k} | ${r.rate} | ${r.reload} | ${r.mag} | ${ba(b.hit5, r.hit5)} | ${ba(b.hit15, r.hit15)} | ${ba(b.hit30, r.hit30)} |`); }
-  L.push('', `**The enemy** (an angry Dustwolf with a revolver, 20 m, 12 s): first shot ${f(G.enemy.firstShot)} s · ${G.enemy.shots} shots · ${G.enemy.hits} hit you (${f(G.enemy.hitRate)}) · ${f(G.enemy.onScreen)} of them fired from on screen (you can see who is shooting).`, '');
+  L.push('', `**The enemy** (an angry Dustwolf with a revolver, 20 m, 12 s): first shot ${f(G.enemy.firstShot)} s · ${G.enemy.shots} shots · ${G.enemy.hits} hit you (${f(G.enemy.hitRate)}) · ${f(G.enemy.onScreen)} of them fired from on screen, **${f(G.enemy.told)}** you could place (on screen, or an edge marker from a near miss or hit).`, '');
   if (S) {
     L.push('## Frame strips (the game camera)', '');
     for (const [scene, row] of Object.entries(S)) {

@@ -40,8 +40,9 @@ export class ShotRead {
     if (!shooter || shooter === p || !p?.alive || shooter.dog) return false;
     const px = p.x - ox, pz = p.z - oz, along = px * dx + pz * dz;
     if (along <= 0 || along > range + S.reach) return false;
-    if (Math.abs(px * dz - pz * dx) > S.reach) return false;
-    if (count) this.stats.at++;
+    const off = Math.abs(px * dz - pz * dx);
+    if (off > S.reach) return false;
+    if (count) { this.stats.at++; if (off <= S.markReach) this.mark(ox, oz, 'miss', shooter); } // placed as it is fired (S.markReach)
     return true;
   }
 
