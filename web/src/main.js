@@ -1480,7 +1480,7 @@ loadContentPacks(game.api).then(async () => {
   if (new URLSearchParams(location.search).get('terrain') !== 'flat') try { await game.streamer.setTerrain(true); } catch (e) { console.warn('terrain', e); }
   startBridge(game.api);
   const sc = new URLSearchParams(location.search).get('scenario');
-  if (sc) console.log('[scenario]', sc, await game.api.call('scenario', { name: sc }));
+  if (sc) { document.querySelector('.title .play')?.click(); console.log('[scenario]', sc, await game.api.call('scenario', { name: sc })); } // the Test Lab (testlab.html): land straight in it, no title
 });
 if (import.meta.hot) import.meta.hot.on('vite:beforeFullReload', () => { try { if (!document.querySelector('.title')) sessionStorage.setItem('dl.hmr', JSON.stringify(snapshot(game))); } catch {} });
 game.start();
