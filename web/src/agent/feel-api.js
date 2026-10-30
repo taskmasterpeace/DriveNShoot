@@ -7,6 +7,12 @@ import { VEHICLES, DRIVING } from '../systems/vehicles.js';
 import { WEAPONS } from '../systems/combat.js';
 import { SWAY } from '../data/survival.js';
 import { RAY_BULLET } from '../engine/collision.js';
+import * as THREE from 'three';
+
+const _ndc = new THREE.Vector3();
+// On the screen right now: the point through the game camera inside the frame (not a radius: the frame is wider than
+// tall). The matrix is refreshed first: stepped frames leave it as the last render had it.
+const onScreen = (g, x, z, y = 1) => { g.camera.updateMatrixWorld(); _ndc.set(x, y, z).project(g.camera); return Math.abs(_ndc.x) <= 1 && Math.abs(_ndc.y) <= 1 && _ndc.z < 1; };
 
 const DT = 1 / 60, MPH60 = 26.82, LAND = ['interceptor', 'sedan', 'buggy', 'pickup', 'van', 'patrol', 'rv', 'rig', 'apc', 'bike', 'atv'];
 const r2 = (v) => (v === null ? null : +(+v).toFixed(2));
@@ -94,16 +100,19 @@ async function stageClear(g, api, C, L) {
 export async function feelCamera(g, api, C) {
   const L = feelStrip(g, 140); if (!L) return { error: 'no clear strip' };
   await stageClear(g, api, C, L);
+  // On foot, settled: how far the frame reaches from you across (x) and up/down the screen (z), in metres.
+  g.aimOverride = { x: L.x, z: L.z + 0.5 }; await api._step(90); g.aimOverride = null;
+  const reach = (dx, dz) => { let d = 0; while (d < 200 && onScreen(g, g.player.x + dx * d, g.player.z + dz * d, 0.5)) d += 0.5; return d; };
+  const out = { footAcross: reach(1, 0), footUpDown: Math.min(reach(0, 1), reach(0, -1)) };
   const v = g.vehiclesSys.spawn('interceptor', L.x, L.z, 0);
   g.player.x = L.x; g.player.z = L.z; await C('enterVehicle', { id: v.id, force: true });
-  const out = {};
   try {
     let t = 0;
     g.driveOverride = { throttle: 1, steer: 0 };
     for (; t < 3.5; t += 0.5) {
       await api._step(30);
       const sp = Math.hypot(v.vx, v.vz), fx = Math.sin(v.h), fz = Math.cos(v.h);
-      out[`at${Math.round(sp)}`] = r2((g.camLook.x - v.x) * fx + (g.camLook.z - v.z) * fz); // m the view's centre leads the car
+      if (t >= 0.5) out[`at${Math.round(sp)}`] = r2((g.camLook.x - v.x) * fx + (g.camLook.z - v.z) * fz); // m the view's centre leads the car
     }
   } finally { g.driveOverride = null; if (g.player.inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(v); }
   return out;
@@ -147,7 +156,7 @@ export async function feelGuns(g, api, C, shots = 40) {
     const t0 = g.time, n0 = log.length, seq = g.eventSeq; let on = 0, n = 0;
     for (let t = 0; t < 12; t += 0.25) {
       await api._step(15, DT); g.player.x = L.x; g.player.z = L.z; g.player.hp = g.player.maxHp ?? 100;
-      for (let k = n0 + n; k < log.length; k++) { n++; if (log[k].who === foe && Math.hypot(foe.x - g.player.x, foe.z - g.player.z) < (g.viewR ?? 40) * 0.8) on++; }
+      for (let k = n0 + n; k < log.length; k++) { n++; if (log[k].who === foe && onScreen(g, foe.x, foe.z)) on++; }
     }
     const theirs = log.slice(n0).filter((f) => f.who === foe);
     const hurts = g.events.filter((e) => e.seq > seq && e.type === 'hurt' && e.by === foe.id).length;
@@ -155,6 +164,24 @@ export async function feelGuns(g, api, C, shots = 40) {
     g.removeChar(foe);
   } finally { g.combat.fire = realFire; for (const u of unpin) u(); await C('god', { on: false }); }
   return out;
+}
+
+// A strip's opening frame (tools/feel.mjs then drives it with the real `drive` / `step` and shoots between): a LAWMAN on a
+// clear strip of the flats at speed (handbrake, slalom), or an angry Dustwolf 18 m off with you in god mode (firefight).
+export async function feelStage(g, api, C, scene) {
+  const L = feelStrip(g, 140); if (!L) return { error: 'no clear strip' };
+  await stageClear(g, api, C, L);
+  await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
+  if (scene === 'firefight') {
+    await C('god', { on: true }); await C('give', { weapon: 'pistol', pistol: 60 }); await C('equip', { weapon: 'pistol' });
+    const foe = g.spawnRaider(L.x + 7, L.z + 17, Math.random, 'pistol'); foe.grudge = g.player; foe.target = g.player; foe.state = 'fight';
+    g.player.face = Math.atan2(7, 17);
+    return { scene, at: L, foe: foe.id };
+  }
+  const v = g.vehiclesSys.spawn('interceptor', L.x, L.z, 0, '#8a3a1c');
+  await C('enterVehicle', { id: v.id, force: true });
+  await C('drive', { throttle: 1, seconds: scene === 'slalom' ? 1.6 : 2.2 }); // up to speed, straight up the strip
+  return { scene, at: L, vehicle: v.id, speed: r2(Math.hypot(v.vx, v.vz)) };
 }
 
 // Every measured number against its band (data/feel.js): the list of what is outside.
@@ -178,10 +205,11 @@ export function feelCommands(api) {
   return {
     feel: {
       group: 'script', budget: 900,
-      desc: 'FEEL (docs/design/WEB_FEEL.md): measure driving and gunplay the way a player feels them, through the real code. part=drive: every land row on a sandbox car (0-60, top, turn radius, steering delay, corner slip, handbrake slide/swing/catch, reverse, slalom) plus blacktop/gravel/dirt on the LAWMAN; part=camera: how far the view leads a car at speed; part=guns: hit share at 5/15/30 m (revolver, SMG) and an angry raider\'s first shot, hit rate and on-screen share; part=all: everything. Returns the numbers, the bands (data/feel.js) and what is outside them. `node tools/feel.mjs` writes the report with frame strips.',
-      args: { part: { type: 'string', default: 'drive', enum: ['drive', 'camera', 'guns', 'all'] }, rows: { type: 'string' }, shots: { type: 'number', default: 40 } },
-      run: async ({ part, rows, shots }) => {
+      desc: 'FEEL (docs/design/WEB_FEEL.md): measure driving and gunplay the way a player feels them, through the real code. part=drive: every land row on a sandbox car (0-60, top, turn radius, steering delay, corner slip, handbrake slide/swing/catch, reverse, slalom) plus blacktop/gravel/dirt on the LAWMAN; part=camera: how far the view leads a car at speed; part=guns: hit share at 5/15/30 m (revolver, SMG) and an angry raider\'s first shot, hit rate and on-screen share; part=all: everything; part=stage scene=handbrake|slalom|firefight: the opening frame of a report strip (a LAWMAN at speed on a clear strip, or an angry raider 18 m off, god mode). Returns the numbers, the bands (data/feel.js) and what is outside them. `node tools/feel.mjs` writes the report with frame strips.',
+      args: { part: { type: 'string', default: 'drive', enum: ['drive', 'camera', 'guns', 'all', 'stage'] }, rows: { type: 'string' }, shots: { type: 'number', default: 40 }, scene: { type: 'string', default: 'handbrake', enum: ['handbrake', 'slalom', 'firefight'] } },
+      run: async ({ part, rows, shots, scene }) => {
         const C = (cmd, a) => api.call(cmd, a), m = {};
+        if (part === 'stage') return feelStage(g, api, C, scene);
         if (part === 'drive' || part === 'all') m.drive = feelDrive(g, rows ? String(rows).split(',') : LAND);
         if (part === 'camera' || part === 'all') m.camera = await feelCamera(g, api, C);
         if (part === 'guns' || part === 'all') m.guns = await feelGuns(g, api, C, Math.max(4, Math.min(200, shots)));
