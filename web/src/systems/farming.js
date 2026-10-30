@@ -19,7 +19,7 @@ const hashS = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { 
 const rngOf = (s) => { let a = hashS(String(s)) || 1; return () => { a ^= a << 13; a >>>= 0; a ^= a >>> 17; a ^= a << 5; a >>>= 0; return a / 4294967296; }; };
 const MAX_INST = 1500;
 const _o = new THREE.Object3D(), _c = new THREE.Color();
-const PLOT_SEP = 3.4;
+const PLOT_SEP = 3.4, COOP_CLEAR = 6.2; // m between bed centres; a coop's centre and any bed or other coop (the house and its run)
 
 // What a sown seed, a harvest and an egg teach (the deep sheet's farming row was check-only until now).
 DEEP.farming.xp = { cropSown: 1.2, cropHarvested: 5, coopEgg: 0.6 };
@@ -83,7 +83,7 @@ export class Farming {
     if (g.statics?.blocked?.(x, z)) return { ok: false, why: 'something solid is in the way' };
     if ((g.homes?.roadDist?.(x, z) ?? 99) < 3) return { ok: false, why: 'not on the road' };
     for (const p of this.plots) if (p !== ignore && Math.hypot(p.x - x, p.z - z) < PLOT_SEP) return { ok: false, why: 'too close to another bed' };
-    for (const c of this.coops) if (Math.hypot(c.x - x, c.z - z) < 3.4) return { ok: false, why: 'too close to the coop' };
+    for (const c of this.coops) if (c !== ignore && Math.hypot(c.x - x, c.z - z) < COOP_CLEAR) return { ok: false, why: 'too close to the coop (its run needs room)' };
     return { ok: true, base: b };
   }
   plotsOf(b) { return this.plots.filter((p) => p.bk === (b?.id ?? b)); }
@@ -387,6 +387,7 @@ export class Farming {
     const g = this.g, P = g.player;
     x ??= P.x + Math.sin(P.face) * 2.4; z ??= P.z + Math.cos(P.face) * 2.4;
     const ok = this.siteOk(x, z); if (!ok.ok) return ok;
+    if (this.plots.some((p) => Math.hypot(p.x - x, p.z - z) < COOP_CLEAR)) return { ok: false, why: 'too close to a bed (the coop run needs room)' };
     if (this.coops.length >= 2) return { ok: false, why: 'two coops is a farm; you have a yard' };
     for (const [id, n] of COOP.cost) if (this.count(id) < n) return { ok: false, why: `a coop takes ${n} ${ITEMS[id].name.toLowerCase()} (you have ${this.count(id)})` };
     return this.startJob('building a coop', COOP.secs, () => {
@@ -619,14 +620,28 @@ export class Farming {
     return { calendar: this.cal(), plots: this.plots.map((p) => this.plotView(p)), coops: this.coops.map((c) => this.coopView(c)), consign: this.consign.map((m) => ({ ...m })), seeds: this.seedsCarried(), job: this.job ? { label: this.job.label, t: r1(this.job.t), need: this.job.need } : null, log: this.log.slice(-8), stats: { ...this.stats }, farmLevel: r1(this.farmLv()) };
   }
 
+  // A garden goes with its house: a place you lost (rent unpaid, burned, given up) takes its beds and coop with it.
+  orphans() {
+    const B = this.g.homes?.bases; if (!B) return;
+    for (let i = this.plots.length - 1; i >= 0; i--) if (!B.has(this.plots[i].bk)) { this.note('a bed went with the house', { id: this.plots[i].id }); this.g.emit('gardenLost', { id: this.plots[i].id }); this.plots.splice(i, 1); }
+    for (let i = this.coops.length - 1; i >= 0; i--) if (!B.has(this.coops[i].bk)) { this.note('the coop went with the house', { id: this.coops[i].id }); this.g.emit('gardenLost', { id: this.coops[i].id }); this.coops.splice(i, 1); }
+  }
+
+  // A garden goes with its house: a place you lost (rent unpaid, burned, given up) takes its beds and coop with it.
+  orphans() {
+    const B = this.g.homes?.bases; if (!B) return;
+    for (let i = this.plots.length - 1; i >= 0; i--) if (!B.has(this.plots[i].bk)) { this.note('a bed went with the house', { id: this.plots[i].id }); this.g.emit('gardenLost', { id: this.plots[i].id }); this.plots.splice(i, 1); }
+    for (let i = this.coops.length - 1; i >= 0; i--) if (!B.has(this.coops[i].bk)) { this.note('the coop went with the house', { id: this.coops[i].id }); this.g.emit('gardenLost', { id: this.coops[i].id }); this.coops.splice(i, 1); }
+  }
+
   // ---- the loop ---------------------------------------------------------------------------------------------------------------
   update(dt) {
     if (this.job) this.jobStep(dt);
     if (!this.plots.length && !this.coops.length && !this.consign.length) { this.last = null; if (this.mesh?.count) { this.mesh.count = 0; this.mesh.visible = false; } return; }
     this.drawT -= dt;
     if ((this.liveT = (this.liveT ?? 0) - dt) <= 0) { this.liveT = 0.4; this.livePass(); } // thieves and the dead are quick
-    if ((this.slowT -= dt) <= 0) { this.slowT = 1; this.clock(); if (this.consign.length) this.marketPass(); }
-    if (this.drawT <= 0) { this.drawT = 0.12; this.draw(); }
+    if ((this.slowT -= dt) <= 0) { this.slowT = 1; this.orphans(); this.clock(); if (this.consign.length) this.marketPass(); }
+    if (this.drawT <= 0) { this.drawT = this.coops.some((c) => c.hens.length && Math.abs(c.x - this.g.player.x) < 40 && Math.abs(c.z - this.g.player.z) < 40) ? 0.12 : 0.5; this.draw(); } // hens move: quick when you can see them
   }
 
   // ---- drawing: one instanced mesh of boxes (beds, plants by stage, fences, scarecrows, coops, hens) ---------------------------
@@ -648,21 +663,30 @@ export class Farming {
       const [hx, hz] = GARDEN.plotSize;
       _c.set(K.bed).lerp(_c2.set(K.bedWet), clamp(p.water * 1.2, 0, 1));
       n = this.put(n, p.x, y + 0.07, p.z, hx, 0.14, hz, p.face, `#${_c.getHexString()}`);
+      for (const [lx, lz, sx, sz] of [[-hx / 2, 0, 0.1, hz + 0.1], [hx / 2, 0, 0.1, hz + 0.1], [0, -hz / 2, hx + 0.1, 0.1], [0, hz / 2, hx + 0.1, 0.1]]) { const [qx, qz] = at(lx, lz); n = this.put(n, qx, y + 0.11, qz, sx, 0.22, sz, p.face, '#7a5e3e'); } // the raised bed's boards
       for (let r = -1; r <= 1; r++) { const [qx, qz] = at(0, r * 0.6); n = this.put(n, qx, y + 0.16, qz, hx - 0.2, 0.06, 0.2, p.face, '#2c2118'); } // the tilled rows
       const cr = CROPS[p.crop], st = this.stageOf(p);
       if (cr && st !== 'bare') {
         const tree = !!cr.perennial;
         const spots = tree ? [[0, 0]] : [[-0.85, -0.6], [0, -0.6], [0.85, -0.6], [-0.85, 0.6], [0, 0.6], [0.85, 0.6]];
-        for (const [lx, lz] of spots) {
-          const [qx, qz] = at(lx, lz), sick = p.blight, leaf = sick ? K.blight : K.leaf;
-          if (st === 'wilted') { n = this.put(n, qx, y + 0.2, qz, 0.05, 0.3, 0.05, p.face + 0.4, K.wilt); n = this.put(n, qx, y + 0.12, qz, 0.28, 0.03, 0.2, p.face, K.wilt); continue; }
-          if (st === 'seed') { n = this.put(n, qx, y + 0.16, qz, 0.1, 0.05, 0.1, p.face, K.seed); continue; }
-          const f = st === 'sprout' ? 0.28 : st === 'mid' ? 0.65 : 1, h = cr.h * f * (tree ? 1.1 : 1);
-          n = this.put(n, qx, y + 0.14 + h / 2, qz, tree ? 0.12 : 0.05, h, tree ? 0.12 : 0.05, p.face, tree ? '#5a4630' : K.stem);
-          const lw = tree ? 0.4 + 0.9 * f : 0.16 + 0.2 * f;
-          n = this.put(n, qx, y + 0.14 + h * (tree ? 0.95 : 0.7), qz, lw, tree ? 0.55 * f + 0.1 : 0.05, lw, p.face + 0.3, leaf);
-          if (st === 'ripe') { n = this.put(n, qx + (tree ? 0.25 : 0.05), y + 0.14 + h * 0.75, qz, 0.13, 0.13, 0.13, p.face, cr.fruit); if (tree) { n = this.put(n, qx - 0.3, y + 0.14 + h * 0.65, qz + 0.2, 0.13, 0.13, 0.13, p.face, cr.fruit); n = this.put(n, qx + 0.1, y + 0.14 + h * 0.55, qz - 0.3, 0.13, 0.13, 0.13, p.face, cr.fruit); } }
-        }
+        spots.forEach(([lx, lz], k) => {
+          const [qx, qz] = at(lx, lz), sick = p.blight, leaf = sick ? K.blight : cr.leaf ?? K.leaf, shade = k % 2 ? 0.92 : 1;
+          const col = (hex, m = 1) => { _c3.set(hex); _c3.multiplyScalar(m); return `#${_c3.getHexString()}`; };
+          if (st === 'wilted') { n = this.put(n, qx, y + 0.2, qz, 0.05, 0.3, 0.05, p.face + 0.4, K.wilt); for (let b = 0; b < 3; b++) n = this.put(n, qx + 0.06 * b, y + 0.15 - b * 0.01, qz - 0.05 * b, 0.34, 0.025, 0.1, p.face + b * 1.05 + k, K.wilt); return; }
+          if (st === 'seed') { n = this.put(n, qx, y + 0.17, qz, 0.14, 0.06, 0.14, p.face, K.seed); n = this.put(n, qx + 0.02, y + 0.19, qz, 0.05, 0.05, 0.05, p.face, '#c8b48a'); return; }
+          const f = st === 'sprout' ? 0.3 : st === 'mid' ? 0.68 : 1, h = cr.h * f * (tree ? 1.1 : 1), top = y + 0.14 + h;
+          n = this.put(n, qx, y + 0.14 + h / 2, qz, tree ? 0.14 : 0.05, h, tree ? 0.14 : 0.05, p.face, tree ? '#5a4630' : col(K.stem));
+          if (st === 'sprout') { for (let b = 0; b < 2; b++) n = this.put(n, qx, top, qz, 0.24, 0.03, 0.08, p.face + b * 1.57 + k, col(leaf, 1.15)); return; }
+          const blades = tree ? 5 : cr.blade ? 2 : 3, len = (tree ? 0.9 + 0.9 * f : (cr.blade ?? 0.34) * (0.45 + 0.7 * f)), wid = tree ? 0.55 : cr.blade ? 0.07 : 0.15 + 0.1 * f;
+          for (let b = 0; b < blades; b++) n = this.put(n, qx, top - (cr.blade ? 0.18 * (b % 2) : 0.05 * (b % 2)), qz, len, 0.035, wid, p.face + k * 0.5 + (b * Math.PI) / blades, col(leaf, shade * (b % 2 ? 0.88 : 1.05)));
+          if (st === 'ripe') {
+            const fs = cr.fs ?? 0.13, fc = cr.fruit;
+            if (tree) for (let b = 0; b < 5; b++) { const an = b * 1.26 + k; n = this.put(n, qx + Math.sin(an) * 0.45, top - 0.1 - (b % 2) * 0.2, qz + Math.cos(an) * 0.45, fs, fs, fs, 0, fc); }
+            else if (cr.ground) n = this.put(n, qx + 0.2, y + 0.14 + fs / 2, qz + 0.1, fs * 1.4, fs, fs, p.face + k, fc); // squash and melon lie on the ground
+            else if (cr.ear) n = this.put(n, qx + 0.07, y + 0.14 + h * 0.55, qz, 0.09, 0.09, 0.3, p.face + k, fc); // corn: an ear on the stalk
+            else for (let b = 0; b < 3; b++) { const an = b * 2.1 + k; n = this.put(n, qx + Math.sin(an) * 0.17, top - 0.05, qz + Math.cos(an) * 0.17, fs, fs, fs, 0, fc); }
+          }
+        });
       }
       if (p.fenced) {
         const px = hx / 2 + 0.35, pz = hz / 2 + 0.35;
@@ -710,5 +734,5 @@ export class Farming {
     this.log = s.log ?? []; Object.assign(this.stats, s.stats ?? {});
   }
 }
-const _c2 = new THREE.Color();
+const _c2 = new THREE.Color(), _c3 = new THREE.Color();
 export { validateFarming };

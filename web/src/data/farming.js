@@ -77,16 +77,16 @@ export const GARDEN = {
 //   perennial after a harvest it goes back to this share of growth instead of dying (a tree)
 //   fruit     the colour of what ripens (drawn as a small block at the top of the plant); h its height (m)
 export const CROPS = {
-  beans:   { name: 'Pole beans', seed: 'seed_beans', item: 'bean_pods', days: 8, thirst: 0.9, plant: [4, 5, 6, 7, 8], best: [5, 6], hardy: 0.1, yield: [6, 9], seeds: [1, 2], hold: 4, drain: 0.1, fruit: '#5f8a2e', h: 0.7 },
-  squash:  { name: 'Summer squash', seed: 'seed_squash', item: 'squash', days: 10, thirst: 1.1, plant: [4, 5, 6, 7], best: [5, 6], hardy: 0.05, yield: [4, 6], seeds: [1, 2], hold: 6, drain: 0.16, fruit: '#d8b43a', h: 0.5 },
-  corn:    { name: 'Sweet corn', seed: 'seed_corn', item: 'corn_ear', days: 14, thirst: 1.1, plant: [4, 5, 6], best: [4, 5], hardy: 0.1, yield: [5, 8], seeds: [1, 2], hold: 5, drain: 0.2, fruit: '#e0c850', h: 1.4 },
-  tomato:  { name: 'Tomatoes', seed: 'seed_tomato', item: 'tomato', days: 12, thirst: 1.2, plant: [4, 5, 6], best: [5, 6], hardy: 0.0, yield: [7, 10], seeds: [1, 2], hold: 3, drain: 0.18, fruit: '#c0392b', h: 0.9 },
-  pepper:  { name: 'Peppers', seed: 'seed_pepper', item: 'pepper', days: 14, thirst: 0.9, plant: [4, 5, 6, 7], best: [5, 6, 7], hardy: 0.0, yield: [5, 8], seeds: [1, 2], hold: 6, drain: 0.12, fruit: '#c45a22', h: 0.7 },
-  potato:  { name: 'Potatoes', seed: 'seed_potato', item: 'potato', days: 12, thirst: 0.9, plant: [2, 3, 4, 9], best: [3, 4], hardy: 0.5, yield: [6, 10], seeds: [1, 2], hold: 20, drain: 0.16, fruit: '#b09060', h: 0.45 },
-  greens:  { name: 'Collard greens', seed: 'seed_greens', item: 'greens', days: 6, thirst: 1.0, plant: [2, 3, 4, 9, 10, 11], best: [3, 4, 10], hardy: 0.85, yield: [5, 8], seeds: [1, 2], hold: 8, drain: 0.08, fruit: '#3f7a34', h: 0.5 },
-  herbs:   { name: 'Kitchen herbs', seed: 'seed_herbs', item: 'herbs', days: 7, thirst: 0.6, plant: [3, 4, 5, 6, 9], best: [4, 5], hardy: 0.4, yield: [3, 5], seeds: [1, 3], hold: 10, drain: 0.04, fruit: '#6a9a4a', h: 0.35 },
-  melon:   { name: 'Watermelon', seed: 'seed_melon', item: 'melon', days: 14, thirst: 1.3, plant: [4, 5, 6], best: [5, 6], hardy: 0.0, yield: [2, 4], seeds: [2, 4], hold: 6, drain: 0.2, fruit: '#3a7a3a', h: 0.4 },
-  citrus:  { name: 'Orange tree', seed: 'seed_citrus', item: 'orange', days: 30, thirst: 0.8, plant: [2, 3, 4, 9, 10], best: [3, 4, 10], hardy: 0.55, yield: [8, 14], seeds: [0, 1], hold: 12, drain: 0.1, fruit: '#e8892a', h: 1.7, perennial: 0.55, region: 'florida' },
+  beans:   { name: 'Pole beans', seed: 'seed_beans', item: 'bean_pods', days: 8, thirst: 0.9, plant: [4, 5, 6, 7, 8], best: [5, 6], hardy: 0.1, yield: [6, 9], seeds: [1, 2], hold: 4, drain: 0.1, fruit: '#5f8a2e', h: 0.7, leaf: '#6a9a3a', fs: 0.1 },
+  squash:  { name: 'Summer squash', seed: 'seed_squash', item: 'squash', days: 10, thirst: 1.1, plant: [4, 5, 6, 7], best: [5, 6], hardy: 0.05, yield: [4, 6], seeds: [1, 2], hold: 6, drain: 0.16, fruit: '#e0b830', h: 0.5, leaf: '#3f7a34', fs: 0.2, ground: true },
+  corn:    { name: 'Sweet corn', seed: 'seed_corn', item: 'corn_ear', days: 14, thirst: 1.1, plant: [4, 5, 6], best: [4, 5], hardy: 0.1, yield: [5, 8], seeds: [1, 2], hold: 5, drain: 0.2, fruit: '#e0c850', h: 1.4, leaf: '#5f8f2e', blade: 0.9, ear: true },
+  tomato:  { name: 'Tomatoes', seed: 'seed_tomato', item: 'tomato', days: 12, thirst: 1.2, plant: [4, 5, 6], best: [5, 6], hardy: 0.0, yield: [7, 10], seeds: [1, 2], hold: 3, drain: 0.18, fruit: '#d83a26', h: 0.9, leaf: '#4a8a34', fs: 0.14 },
+  pepper:  { name: 'Peppers', seed: 'seed_pepper', item: 'pepper', days: 14, thirst: 0.9, plant: [4, 5, 6, 7], best: [5, 6, 7], hardy: 0.0, yield: [5, 8], seeds: [1, 2], hold: 6, drain: 0.12, fruit: '#d85a1e', h: 0.7, leaf: '#3f7a2e', fs: 0.11 },
+  potato:  { name: 'Potatoes', seed: 'seed_potato', item: 'potato', days: 12, thirst: 0.9, plant: [2, 3, 4, 9], best: [3, 4], hardy: 0.5, yield: [6, 10], seeds: [1, 2], hold: 20, drain: 0.16, fruit: '#efe6d2', h: 0.45, leaf: '#4f8a38', fs: 0.08 },
+  greens:  { name: 'Collard greens', seed: 'seed_greens', item: 'greens', days: 6, thirst: 1.0, plant: [2, 3, 4, 9, 10, 11], best: [3, 4, 10], hardy: 0.85, yield: [5, 8], seeds: [1, 2], hold: 8, drain: 0.08, fruit: '#4f9a3c', h: 0.5, leaf: '#3a8a3a', fs: 0.1 },
+  herbs:   { name: 'Kitchen herbs', seed: 'seed_herbs', item: 'herbs', days: 7, thirst: 0.6, plant: [3, 4, 5, 6, 9], best: [4, 5], hardy: 0.4, yield: [3, 5], seeds: [1, 3], hold: 10, drain: 0.04, fruit: '#a8d06a', h: 0.35, leaf: '#7aa84a', fs: 0.07 },
+  melon:   { name: 'Watermelon', seed: 'seed_melon', item: 'melon', days: 14, thirst: 1.3, plant: [4, 5, 6], best: [5, 6], hardy: 0.0, yield: [2, 4], seeds: [2, 4], hold: 6, drain: 0.2, fruit: '#4a8a44', h: 0.4, leaf: '#3a7a3a', fs: 0.34, ground: true },
+  citrus:  { name: 'Orange tree', seed: 'seed_citrus', item: 'orange', days: 30, thirst: 0.8, plant: [2, 3, 4, 9, 10], best: [3, 4, 10], hardy: 0.55, yield: [8, 14], seeds: [0, 1], hold: 12, drain: 0.1, fruit: '#f0902a', h: 1.7, leaf: '#3a7a32', fs: 0.16, perennial: 0.55, region: 'florida' },
 };
 export const STAGES = ['seed', 'sprout', 'mid', 'ripe', 'wilted'];
 export const STAGE_AT = { seed: 0, sprout: 0.1, mid: 0.4, ripe: 1 }; // growth shares

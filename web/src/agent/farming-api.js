@@ -304,7 +304,7 @@ export async function farmingChecks(api, check, C) {
     await check('farming: the infected trample a growing bed; a fence does not stop a raider but turns back a hungry stranger', async () => {
       const a = F.plots[0]; await near(a);
       Object.assign(a, { crop: 'corn', state: 'growing', progress: 0.5, health: 1 });
-      const t0 = F.stats.trampled; const z = spawn({ x: a.x + 1, z: a.z, faction: 'zombie', hp: 30, name: 'Walker', flag: 'US' });
+      const t0 = F.stats.trampled; const z = spawn({ x: a.x + 1, z: a.z, faction: 'zombie', hp: 30, name: 'Test Shambler', flag: 'US' });
       await api._step(150); const trampled = a.state === 'wilted' && a.why === 'trampled' && F.stats.trampled === t0 + 1; sweep();
       Object.assign(a, { crop: null, state: 'bare', why: null });
       return z && trampled ? true : JSON.stringify({ z: !!z, state: a.state, why: a.why });
@@ -324,7 +324,7 @@ export async function farmingChecks(api, check, C) {
     // ---- the hens ----
     let coop = null;
     await check('farming: a coop takes 6 planks and a timed job in the yard; a hen from your pack goes in and is not minted', async () => {
-      await out(); const s = yardSpot(4); if (!s) return 'no ground for a coop';
+      await out(); let s = null; for (let k = 0; k < 40 && !s; k++) { const q = yardSpot(k); if (q && F.plots.every((p) => Math.hypot(p.x - q.x, p.z - q.z) > 6.6)) s = q; } if (!s) return 'no ground for a coop';
       give('planks', 6); await C('teleport', { x: s.x, z: s.z - 2.4 }); P().face = 0; await api._step(3);
       const p0 = cnt('planks'); const r = await C('garden', { action: 'coop', x: s.x, z: s.z }); coop = F.coops[0];
       give('hen', 1); const st = await C('garden', { action: 'stock', coop_id: coop?.id, sex: 'hen' });
@@ -413,6 +413,14 @@ export async function farmingChecks(api, check, C) {
       const bi = inv.carried.slots.findIndex((s) => s.id === 'bucket'); const w = inv.use(bi);
       const used = l0 - b.left;
       return r.ok && a.crop === 'squash' && cnt('seed_squash') === 0 && w.ok && used === 1 && Math.abs(a.water - 0.3) < 0.02 ? true : JSON.stringify({ r, w, crop: a.crop, left: cnt('seed_squash'), used, water: a.water });
+    });
+
+    await check('farming: a garden goes with its house - lose the place (rent unpaid, burned, given up) and its beds and coop go too, with a line in the garden log', async () => {
+      const n0 = F.plots.length + F.coops.length; if (!n0) return 'nothing to lose';
+      const keep = base; S.bases.delete(base.id); await api._step(130);
+      const gone = F.plots.length === 0 && F.coops.length === 0, noted = F.log.some((l) => /went with the house/.test(l.text));
+      S.bases.set(keep.id, keep); // so the cleanup below finds it (and later checks that want a base)
+      return gone && noted ? true : JSON.stringify({ n0, plots: F.plots.length, coops: F.coops.length, noted });
     });
 
     // ---- cooking ----
