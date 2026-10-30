@@ -8,6 +8,7 @@
 //   skill     the crew skill (data/crew.js CREW_SKILLS) that sets speed and quality: mul = 0.5 + 0.25 x skill (1 → 0.75, 5 → 1.75)
 //   hours     game hours a cycle takes at mul 1
 //   inputs    items taken from the crew pool (your carried pack, then the rig's trunk) at the start of a cycle
+//   recipe    a data/recipes.js row the job runs (systems/crafting.js crewRun): its inputs are eaten, its outputs delivered
 //   outputs   what a cycle makes: items into your pack; or an effect (below) with its size
 //   effect    the system verb: heal | mend | clean | feed | watch | lookout | navigate | drive | gun | guard | scavenge
 //             | repair | ammo | radio | farm
@@ -30,7 +31,7 @@ export const CREW_JOBS = [
   { id: 'guard', name: 'GUARD POST', where: 'base', skill: 'shooting', hours: 0, effect: 'guard', repeat: true, desc: 'holds the door of the base and shoots what comes at it' },
   { id: 'scav_run', name: 'SCAVENGE RUN', where: 'base', skill: 'scavenge', hours: 6, effect: 'scavenge', risk: 0.22, offscreen: true, outputs: { table: 'crew_run', rolls: 3, pin: 0.5 }, repeat: false, desc: 'goes out alone for six hours: comes back with loot and maybe a map pin, or hurt, or not at all' },
   { id: 'repair', name: 'REPAIR VEHICLES', where: 'base', skill: 'mechanic', hours: 2, inputs: { scrap: 1 }, effect: 'repair', outputs: { hp: 0.15 }, repeat: true, desc: 'works on the rig parked at the base' },
-  { id: 'ammo', name: 'CRAFT AMMO', where: 'base', skill: 'gunsmith', hours: 3, inputs: { scrap: 1 }, effect: 'ammo', outputs: { ammo_pistol: 8 }, repeat: true, desc: 'hand-loads rounds from scrap brass' },
+  { id: 'ammo', name: 'CRAFT AMMO', where: 'base', skill: 'gunsmith', hours: 3, recipe: 'load_pistol', effect: 'ammo', repeat: true, desc: 'hand-loads rounds from spent brass, powder, primer and lead (the load_pistol recipe row: it eats what it makes)' },
   { id: 'radio', name: 'RADIO WATCH', where: 'base', skill: 'scout', hours: 4, effect: 'radio', outputs: { pin: 1 }, repeat: true, desc: 'listens to the static: a distress call or a cache becomes a pin' },
   { id: 'farm', name: 'FARM PLOT', where: 'base', skill: 'cook', hours: 12, effect: 'farm', outputs: { ration: 1 }, repeat: true, desc: 'a stub: one plot, one ration a half-day (the base lane grows it)' },
 ];

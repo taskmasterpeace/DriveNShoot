@@ -58,7 +58,7 @@ export class InventoryUI {
             </div>
           </div>
           <div class="inv-say"></div>
-          <div class="inv-keys"><kbd>W</kbd><kbd>S</kbd>pick <kbd>A</kbd><kbd>D</kbd>side <kbd>I</kbd>close</div>
+          <div class="inv-keys"><kbd>W</kbd><kbd>S</kbd>pick <kbd>A</kbd><kbd>D</kbd>side <kbd>I</kbd>close <kbd>Q</kbd>craft</div>
         </div>
       </div>`);
     const q = (s) => root.querySelector(`.invmenu ${s}`);
@@ -95,12 +95,14 @@ export class InventoryUI {
     this.open = on;
     this.el.menu.classList.toggle('hidden', !on);
     if (on) { this.other = this.pickOther(); this.side = 0; this.render(); }
-    else { const inv = this.g.inventory; inv.opened = null; inv.prune?.(); }
+    else { this.g.craftUI?.setTab(false); const inv = this.g.inventory; inv.opened = null; inv.prune?.(); }
     this.g.emit('pack', { open: on, other: this.other?.id ?? null });
   }
 
   // Keyboard, while open (main.js stops the player moving).
   input(I) {
+    if (this.g.craftUI?.input(I)) return; // the CRAFT tab has the keys while it is up
+    if (I.hit('KeyQ')) { this.g.craftUI?.setTab(true); return; }
     if (I.hit('KeyI') || I.hit('Tab') || I.hit('Escape')) { this.toggle(false); return; }
     if (I.hit('KeyW') || I.hit('ArrowUp')) { this.sel[this.side] = Math.max(0, this.sel[this.side] - 1); this.render(); }
     if (I.hit('KeyS') || I.hit('ArrowDown')) { this.sel[this.side] = Math.min(Math.max(0, this.count(this.side) - 1), this.sel[this.side] + 1); this.render(); }
@@ -174,6 +176,7 @@ export class InventoryUI {
 
   update(dt) {
     if (!this.open) return;
+    this.g.craftUI?.update(dt);
     if (this.sayT > 0 && (this.sayT -= dt) <= 0) this.el.say.textContent = '';
     // Walked away from the other side (or it drove off): fall back to what's here now.
     const o = this.other, p = this.g.player;
@@ -197,6 +200,7 @@ export class InventoryUI {
     const tags = [];
     let cls = '';
     if (it.uses) tags.push(`<em class="uses">${s.left}/${it.uses}</em>`);
+    if (s.cond !== undefined && it.kind !== 'gun') tags.push(`<em class="cond c-${s.cond <= 0 ? 'broken' : s.cond < 0.4 ? 'worn' : 'ok'}">${Math.round(s.cond * 100)}%</em>`); // a made or worn tool
     if (f) tags.push(`<em class="f-${f}">${f.toUpperCase()}</em>`);
     if (it.kind === 'gun') { const c = s.cond ?? 1; tags.push(`<em class="cond c-${c <= 0 ? 'broken' : c < 0.65 ? 'worn' : 'ok'}">${Math.round(c * 100)}%</em>`, `<em class="uses">${s.loaded ?? 0} rds</em>`); }
     if (D && side === 1) tags.push(`<em class="price">$${T.buyPrice(s, s.n, D)}</em>`); // the whole stack, as Space buys it

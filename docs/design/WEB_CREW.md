@@ -355,3 +355,6 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
 - camp talk and interjections;
 - the pack screen's CREW column (give and take is on the CREW panel and in the member's talk for now);
 - the crew walking down into the Carousel with you (G6).
+
+
+> **Crafting (2026-10-29):** a crew job row may name a `recipe` (data/recipes.js, systems/crafting.js `crewRun`); CRAFT AMMO runs `load_pistol` and eats brass, powder, primer and lead. See WEB_CRAFTING.md.

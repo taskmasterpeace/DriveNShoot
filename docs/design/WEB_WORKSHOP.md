@@ -158,3 +158,6 @@ face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flar
 `scenario name=arena-night`: the loaner against three built Dustwolf cars at night in the Glass Flats; reports fire, rockets,
 breaches, slicks and kills. Renders: `docs/renders/web/workshop/01-armor.png` ... `06-paint.png` (Playwright, 1920x1080 full
 page), `07-game-camera-builds.jpg` (three builds from the game camera).
+
+
+> **Crafting (2026-10-29):** the keepers' benches (Kenji's yard, Ike's back room) follow this doc's keeper rule; the car bench is the model of a bench. See WEB_CRAFTING.md.

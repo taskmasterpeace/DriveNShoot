@@ -87,6 +87,7 @@ export class Inventory {
       if (it.uses) s.left = state.left ?? it.uses;
       if (it.spoils) s.made = made;
       if (it.kind === 'gun') { s.cond = state.cond ?? 1; s.loaded = state.loaded ?? 0; }
+      else if (it.dur || state.cond !== undefined) s.cond = state.cond ?? 1; // a made or worn tool keeps its condition (systems/crafting.js)
       box.slots.push(s); left -= k;
     }
     return fit;
@@ -186,7 +187,7 @@ export class Inventory {
     if (fresh === 'rotten' && P) { g.combat?.damage(P, 6, null, 0, 0, 'sickness'); texts.push('IT WAS OFF'); }
     if (N?.pips && g.survival) for (const k2 of ['water', 'food']) N.pips[k2] = g.survival.pip(N[k2]);
     if (it.uses) { s.left--; if (s.left <= 0 && it.kgEmpty === undefined) this.take(box, i, 1); } // spent; a refillable keeps its shell
-    else if (!(u.act && it.kind === 'tool')) this.take(box, i, 1); // a crowbar is not used up; a tyre or a tin is
+    else if (!(u.act && (it.kind === 'tool' || it.keep))) this.take(box, i, 1); // a crowbar is not used up; a tyre or a tin is
     this.changed();
     g.emit('itemUsed', { item: s.id, fresh, text: texts.join(' · ') });
     return { ok: true, text: texts.join(' · ') || it.name.toUpperCase() };
@@ -242,6 +243,7 @@ export class Inventory {
       this.forceLock(door, verb, false);
       return { ok: true, text: verb === 'pick' ? 'LOCK PICKED' : 'PRIED OPEN' };
     }
+    if (verb === 'mendgear' || verb === 'learn') return g.crafting.act(verb, s, it); // a repair kit patches what you wear; a manual teaches recipes (systems/crafting.js)
     return g.outdoors?.act(verb, s, it) ?? { ok: false, why: 'not here' }; // a rod, a fish trap, a net, a tarp (systems/outdoors.js)
   }
 

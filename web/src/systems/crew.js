@@ -517,7 +517,7 @@ export class Crew {
       case 'clean': for (const k of g.inv.weapons) { g.inv.cond[k] = Math.min(1, (g.inv.cond[k] ?? 1) + O.cond * mul); g.inv.jam[k] = false; } what = 'guns cleaned'; break;
       case 'mend': { const G = g.gear; let n = 0; if (G?.worn) for (const s of Object.values(G.worn)) if (s && s.cond !== undefined) { s.cond = Math.min(1, s.cond + O.cond * mul); n++; } for (const k of g.inv.weapons) g.inv.cond[k] = Math.min(1, (g.inv.cond[k] ?? 1) + O.cond * 0.4 * mul); what = 'gear mended'; break; }
       case 'repair': { const v = this.vehicleNear(this.base, 30) ?? g.lastVehicle; if (v && !v.dead) { v.hp = Math.min(v.maxHp, v.hp + v.maxHp * O.hp * mul); g.vehDamage?.repair?.(v); what = `${v.name ?? 'the rig'} patched`; } break; }
-      case 'ammo': { const n = Math.round(O.ammo_pistol * mul); this.deliver('ammo_pistol', n); what = `${n} hand-loads`; break; }
+      case 'ammo': { const r = g.crafting.crewRun(J.recipe, (id, n) => this.deliver(id, n)); if (!r.ok) { this.say(m, `${r.why}.`, true); return false; } what = `${r.text}, hand-loaded`; break; } // a recipe row (data/recipes.js): it costs brass, powder, primer and lead
       case 'farm': this.deliver('ration', O.ration); what = 'a ration from the plot'; break;
       case 'navigate': case 'radio': this.pinNear(m, J.effect); what = 'a mark on the map'; break;
     }

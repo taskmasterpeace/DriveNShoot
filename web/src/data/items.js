@@ -1,6 +1,7 @@
 import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
 import { GADGETS, DRONES, DOOR_KIT, KIT, CELLS, KIT_LOOT_ADD } from './gadgets.js';
 import { DOG_GEAR } from './dogs.js';
+import { MAKER_ITEMS, MAKER_LOOT_ADD, MAKER_MANUAL_LOOT } from './makeritems.js';
 
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
@@ -239,3 +240,6 @@ for (const [id, r] of Object.entries(KIT)) ITEMS[id] ??= { name: r.name, kind: '
 for (const [id, r] of Object.entries(CELLS)) ITEMS[id] ??= r;
 for (const [id, r] of Object.entries(DOG_GEAR)) ITEMS[id] ??= { name: r.name, kind: 'gear', tags: ['dog_gear'], ...r.item, use: { act: 'doggear' } };
 for (const [table, rows] of Object.entries(KIT_LOOT_ADD)) if (LOOT[table]) LOOT[table].rows.push(...rows);
+// ---- THE MAKER's goods (data/makeritems.js, docs/design/WEB_CRAFTING.md): raw stock, made things, benches, manuals; found rarely, never regenerated.
+for (const [id, r] of Object.entries(MAKER_ITEMS)) ITEMS[id] ??= r;
+for (const add of [MAKER_LOOT_ADD, MAKER_MANUAL_LOOT]) for (const [table, rows] of Object.entries(add)) if (LOOT[table]) LOOT[table].rows.push(...rows);
