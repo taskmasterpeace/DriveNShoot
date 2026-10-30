@@ -1424,8 +1424,9 @@ class Game {
     // put it last frame (systems/characters.js lightOf), the pool landing on the ground ahead of it - further the higher it
     // is held (LAMPS.torch.poolAhead x height): standing a couple of metres out, prone almost at the muzzle.
     this.charR.lightOf = p; this.charR.lightHead = this.kit.active('beam') === 'headlamp';
-    const LW = this.charR.lightAt === p ? this.charR.lightW : null, floor = p.ug ? p.gy ?? 0 : p.gy ?? 0;
-    const lx = LW ? LW.x : p.x, lz = LW ? LW.z : p.z, lh = Math.max(0, (LW ? LW.y : floor + LAMPS.torch.y) - floor), ahead = LAMPS.torch.poolAhead * lh;
+    const LW = this.charR.lightAt === p ? this.charR.lightW : null; this.charR.lightAt = null; // fresh each frame: only a body the pose pass drew this frame holds a light
+    const floor = p.gy ?? 0;
+    const lx = LW ? LW.x : p.x, lz = LW ? LW.z : p.z, lh = Math.max(LAMPS.torch.minY, (LW ? LW.y : floor + LAMPS.torch.y) - floor), ahead = LAMPS.torch.poolAhead * lh;
     this.flashlight.position.set(lx + Math.sin(p.face) * ahead, p.ug ? p.gy ?? 0 : 0, lz + Math.cos(p.face) * ahead);
     this.flashlight.rotation.y = p.face;
     const O = this.flashlight.userData.origin; O.x = lx; O.y = floor + lh; O.z = lz; O.ahead = ahead; O.ok = !!LW; // the check and lamplight.js read it

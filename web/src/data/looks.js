@@ -188,7 +188,7 @@ export const LAMPS = {
   night: 0.08,       // below this much night the lamps are not worth a body (the beams aren't drawn either)
   head: { I: 7.0, range: 30, cos: 0.76, y: 0.75 },   // a car's pair, one lamp at the middle of the nose; one eye left = 0.55
   bike: { I: 4.8, range: 24, cos: 0.84, y: 1.0 },
-  torch: { I: 5.6, range: 19, cos: 0.84, y: 1.25, poolAhead: 1.5 },  // range follows the torch cone's own reach (kit.beamReach, the dark); y: a fallback height, the light is where the hand or muzzle is (main.js); the pool lands poolAhead x height ahead of it
+  torch: { I: 5.6, range: 19, cos: 0.84, y: 1.25, poolAhead: 0.6, minY: 0.12 },  // range follows the torch cone's own reach (kit.beamReach, the dark); y: a fallback height, the light is where the hand or muzzle is (main.js); the pool lands poolAhead x height ahead of it; never below minY (a prone rig's hand dips into the ground)
 };
 
 // ---- the clock and the night (Robert's Test Lab playtest, 2026-10-30: "time goes by too fast", "very very dark") ----------

@@ -6,7 +6,7 @@ import { lampAt } from '../systems/lamplight.js';
 import { NIGHT_I } from '../systems/sky.js';
 import { CAMERA } from '../data/camera.js';
 import { RAY_BULLET } from '../engine/collision.js';
-import { outfit } from '../systems/characters.js';
+import { outfit, RIG } from '../systems/characters.js';
 import { roadLines } from '../world/city.js';
 import { devtoolsCommands } from './devtools.js'; // `look` is the observer's command: look-feel answers it only when action= is given
 
@@ -332,6 +332,31 @@ export async function lookfeelChecks({ g, api, C, check }) {
     Q.settings.brightness = b0; Q.apply();
     const bright = Math.abs(ex - SKY_FEEL.exposure * 1.3) < 1e-6 && Math.abs(kb - ex) < 1e-6 && Math.abs(g.renderer.toneMappingExposure - SKY_FEEL.exposure * (b0 ?? 1)) < 1e-6;
     return rate && stepped && pinned && night && bright ? true : JSON.stringify({ slow, fast, walk48: r3(walk48), walk12: r3(walk12), mover48: r3(mover48), mover12: r3(mover12), ts48, ts12, adv, pinned: S.timeScale, n1800: r3(n1800), n1830: r3(n1830), n1930: r3(n1930), n23: r3(n23), nightV2: Q.settings.nightV2, ex, kb });
+  });
+
+  await check('look-feel: the torch beam leaves from the light itself - the hand or the muzzle, within 0.2 m of its height standing, crouched and prone - and its pool lands ahead of it, not at the feet', async () => {
+    const p = g.player; if (p.inVehicle) g.exitVehicle(true);
+    const L0 = clearStrip(g, 40); if (!L0) return 'no clear strip';
+    await C('teleport', { x: L0.x, z: L0.z }); await C('setTime', { hour: 23 });
+    const fo = g.flashOverride, mode = g.charR.lsw?.mode; g.flashOverride = true; g.charR.lsw?.setMode('classic'); // the classic hand is the one we can read
+    await C('give', { pistol: 30 }); await C('equip', { weapon: 'pistol' });
+    try { await C('stance', { set: 'raised' }); } catch { /* the default carry */ }
+    const O = g.flashlight.userData.origin, M = g.charR.meshes, hm = new THREE.Matrix4(), hv = new THREE.Vector3();
+    const read = async (name) => {
+      await C('aim', { x: p.x + 10, z: p.z }); await api._step(30); await C('aim', { x: p.x + 10, z: p.z }); await api._step(3);
+      const fh = p.hand === 'L' ? 0 : 1; M.hand.getMatrixAt(p.slot * 2 + fh, hm); hv.set(0, -RIG.FORE, 0).applyMatrix4(hm);
+      const floor = p.gy ?? 0, pool = Math.hypot(g.flashlight.position.x - O.x, g.flashlight.position.z - O.z);
+      const lamp = F.lamps.view().lamps.find((l) => l.kind === 'torch');
+      return { name, ok: O.ok, h: r3(O.y - floor), hand: r3(hv.y - floor), dy: r3(Math.abs(O.y - Math.max(hv.y, floor + LAMPS.torch.minY))), dxz: r3(Math.hypot(O.x - hv.x, O.z - hv.z)), pool: r3(pool), ahead: r3(O.ahead), lampY: lamp ? r3(lamp.at[1] - floor) : null, pose: p._pose };
+    };
+    const stand = await read('standing');
+    await C('crouch', { on: true }); const crouch = await read('crouched'); await C('crouch', { on: false });
+    await C('prone', { on: true, heading: Math.PI / 2 }); const prone = await read('prone'); await C('prone', { on: false }); await api._step(20);
+    g.flashOverride = fo; if (mode) g.charR.lsw.setMode(mode); await C('setTime', { hour: 12 });
+    const R = [stand, crouch, prone];
+    const each = R.every((r) => r.ok && r.dy <= 0.2 && r.dxz <= 0.6 && Math.abs(r.pool - r.ahead) < 0.05 && r.lampY !== null && Math.abs(r.lampY - r.h) < 0.05);
+    const order = stand.h > 1.0 && crouch.h < stand.h - 0.2 && prone.h < 0.6 && prone.h < crouch.h && stand.ahead > 0.8 && prone.ahead < stand.ahead * 0.5;
+    return each && order ? true : JSON.stringify(R);
   });
 
   await check('look-feel: a site the site-story system marks as raided shows it on the ground (scorch, blood, tyre tracks), and a camp has its bonfire ring', async () => {

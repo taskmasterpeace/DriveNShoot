@@ -243,6 +243,25 @@ Renders, game camera, before (grade off) and after: `florida-day`, `arizona-dusk
   - The headlight check measures its on/off pixels at Night 0 ("only your light"), since a 0.35 night already shows the body (luma 78 → 95).
 - **Renders** (Florida, game camera): `night-default-before` (0.12) / `night-default-after` (0.35) at 23:00, and `dusk-1815-after` / `dusk-1845-after` at the new default.
 
+## The beam leaves from the light (2026-10-30, Robert: "the light comes from his feet")
+- **Before**: the torch cone was a ground decal with its tip at the player's feet, so the light seemed to come out of the floor.
+- **Now, where the light is**: the pose pass (`systems/characters.js`, `lightOf` = the player) records where the light is each frame, in world space:
+  - the **muzzle** of an aimed gun (a weapon light);
+  - otherwise the **dominant hand**;
+  - the **brow** for a headlamp.
+  The record is valid only on the frame the body was posed. Without one, the light falls back to the body at `LAMPS.torch.y`.
+- **Now, the pool**: the decal (`main.js`) starts at that point's ground spot, and the pool lands `poolAhead` (0.6) × the light's height ahead of it. Standing puts it about 0.9 m out, crouched about 0.65 m, prone at the muzzle.
+- **Now, body lighting**: the lamp that lights bodies (`systems/lamplight.js`) leaves from the same point and height, so a shambler is lit from the front at gun height.
+- **Floor clamp**: the light never sits below `minY` 0.12 m over the floor, because the classic prone rig's hand dips 0.13 m into the ground.
+- **Light budget**: unchanged (no new lights).
+- **Check** `look-feel: the torch beam leaves from the light itself…`: run on the classic body, whose hand can be read, it passes when all of these hold:
+  - standing, crouched and prone, the beam's origin height is within 0.2 m of the hand (clamped to the floor), and within 0.6 m of it on the ground (the muzzle sits ahead of the grip);
+  - the decal sits exactly `ahead` past it;
+  - the torch lamp leaves at the same height;
+  - standing is over 1.0 m, crouched at least 0.2 m lower, and prone under 0.6 m.
+  Measured: standing 1.52 m (hand 1.51), crouched 1.11 (1.10), prone 0.12 (hand −0.13, clamped).
+- **Renders**, Rust Haven flats at 23:00 with a pistol and a flashlight aimed at two shamblers: `torch-{standing,crouched,prone}-{before,after}`.
+
 ## Not done (listed)
 - **Horizon bands**: never visible (§3.2), so none were generated.
 - **Tarps and awnings** don't sway. In the shared prop pools they share their shape with rugs and floor finishes, and the shader can't tell a tarp from a rug without a per-instance flag.
