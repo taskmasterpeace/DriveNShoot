@@ -105,7 +105,7 @@ export const MAKER_ITEMS = {
   tool_roll: { name: 'Tool roll', kind: 'bench', kg: 3, bulk: 4, stack: 1, value: 35, tags: ['bench'], bench: 'mobile',
     desc: 'A canvas roll of the small tools. Lets you do the simple jobs from a car\'s trunk.' },
   // ---- manuals: read once, know the recipes (the books lane fills more through crafting.knowRecipe) -----------------
-  manual_gunsmith: { name: 'Gunsmith\'s notebook', kind: 'paper', kg: 0.2, bulk: 0.2, stack: 1, value: 25, use: { act: 'learn' }, keep: true, learns: ['load_rifle', 'load_shells', 'cast_shot'],
+  manual_gunsmith: { name: 'Gunsmith\'s notebook', kind: 'paper', kg: 0.2, bulk: 0.2, stack: 1, value: 25, use: { act: 'learn' }, keep: true, learns: ['load_rifle', 'load_shells', 'cast_shot', 'load_357', 'load_slugs'],
     desc: 'A grease-stained notebook of loads and charges. Written by somebody who still had all their fingers.' },
   manual_smith: { name: 'Smith\'s primer', kind: 'paper', kg: 0.3, bulk: 0.3, stack: 1, value: 20, use: { act: 'learn' }, keep: true, learns: ['forge_hatchet', 'forge_blade', 'forge_barricade'],
     desc: 'A water-stained trade pamphlet: heats, quenches and the colour of good steel.' },

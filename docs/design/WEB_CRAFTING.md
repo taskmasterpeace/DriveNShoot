@@ -16,7 +16,7 @@ runs every row for real and weighs the pack before and after.
 
 What a recipe is: `{ id, name, group, inputs:[[item,n]], tools:[[tag|item, wear]], hours, skill, minSkill, bench, outputs,
 byproducts, noise, learnedFrom, xp }`, plus `mobile` (the tool roll may stand in for the bench) and `effect` (a repair row
-that mends or sharpens something you carry instead of making a thing). 67 rows in 10 groups: cloth and rope, medical,
+that mends or sharpens something you carry instead of making a thing). 68 rows in 10 groups: cloth and rope, medical,
 wood, metal, tools, loading, light and fire, traps and bows, repair and edge, meals.
 
 ## 2. Player Fantasy
@@ -139,7 +139,7 @@ body of `update` and `skip`, nothing else. Gear wear (nobody's yet): `mendgear` 
 
 Selftest (`node tools/dl.mjs selftest only=crafting`, 15 checks), each of which proves:
 
-1. rows validate: 67 recipes, benches, manuals; every non-effect row passes the matter rule; all groups used.
+1. rows validate: 68 recipes, benches, manuals; every non-effect row passes the matter rule; all groups used.
 2. the validator catches 11 kinds of bad row (unknown item, no time, matter from nothing, matter gained, bad learning, an untaught book, an unknown tool/bench/skill, nothing made, fractional input) and a duplicate id.
 3. a make eats exactly its inputs, wears the tool by exactly its wear, passes the clock, leaves byproducts, and the pack weighs no more.
 4. a refusal names the exact miss (tool, input, bench, knowledge, skill) and changes nothing.

@@ -23,6 +23,8 @@ export class Crafting {
     this.stats = { made: 0, byRecipe: {}, wornOut: 0, refused: 0, hours: 0, paid: 0 };
     this.meshes = new Map();
     this.sink = []; // last results, for the agent
+    // The camps lane's carried furniture: a workbench or a stove standing within reach (in a house, or set down in a base) is that bench.
+    this.addProvider((g) => (g.homes?.piecesNear?.(g.player.x, g.player.z, 4) ?? []).flatMap((p) => (p.kind === 'workbench' ? [{ bench: 'workbench', x: p.x, z: p.z, reach: 4 }] : p.kind === 'stove' ? [{ bench: 'kitchen', x: p.x, z: p.z, reach: 4 }] : [])));
     this.dirty = true;
   }
 
