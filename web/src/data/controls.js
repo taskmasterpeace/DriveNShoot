@@ -29,6 +29,12 @@ export const BINDINGS = [
   // ---- on foot -----------------------------------------------------------------------------------------------------
   { id: 'fire', label: 'Fire (at the wheel: out of the window, or the hood gun)', group: 'WEAPONS', code: null, keys: ['mouse:left'], pad: { foot: 'rt', ride: 'rt', drive: 'lb' } },
   { id: 'melee', label: 'Melee: tap strike, hold and let go to kick, sprint into it to shove', group: 'WEAPONS', code: null, keys: ['mouse:right'], pad: { foot: 'r3' } },
+  // FISTS UP (holstered, or no gun; docs/design/WEB_MELEE.md): the three hand-to-hand buttons. On the pad LT and X are
+  // the throw and the reload with a gun in hand, the guard and the grab with the fists up.
+  { id: 'punch', label: 'Fists up: PUNCH / swing what is in your hand (hold and let go: a heavy; sprinting: a shove)', group: 'WEAPONS', code: null, keys: ['mouse:left'], pad: { foot: 'rt' } },
+  { id: 'block', label: 'Fists up: BLOCK (hold; raised right as the blow lands it is a PARRY)', group: 'WEAPONS', code: null, keys: ['mouse:right'], pad: { foot: 'lt' } },
+  { id: 'grab', label: 'Fists up: GRAB (behind them, unseen: the neck - walk them, hold to choke, tap to let go; in front: a clinch)', group: 'WEAPONS', code: null, keys: ['KeyG'], pad: { foot: 'x' } },
+  { id: 'meleeNext', label: 'Fists up: what is in your hand - fists, knuckles, knife, machete, bat, crowbar, pipe, sledge (pad: RB tap)', group: 'WEAPONS', code: null, keys: ['Digit0'], pad: {} },
   { id: 'reload', label: 'Reload / clear a jam', group: 'WEAPONS', code: 'KeyR', keys: ['KeyR'], pad: { foot: 'x', drive: 'x', ride: 'x' } },
   { id: 'holster', label: 'Weapon up or down (tap) / holster or draw (hold)', group: 'WEAPONS', code: null, keys: ['KeyH'], pad: { foot: 'up' } },
   { id: 'grip', label: 'One hand / two hands', group: 'WEAPONS', code: null, keys: ['KeyJ'], pad: { foot: 'lb', ride: 'lb' } },
