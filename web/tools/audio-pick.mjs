@@ -380,7 +380,8 @@ function writeLicenses(man) {
   const L = [];
   L.push('# Sound licenses (DIVIDED STATES OF AMERICA, web/)', '');
   L.push('Every recorded sound the game ships, where it came from and under what terms. Written by `tools/audio-pick.mjs build` (do not edit by hand; edit the slots and rebuild). Everything not listed here is synthesized in code (`src/systems/audio.js`) or rendered by the voice forge (`public/voice/manifest.json`).', '');
-  L.push('**The training law:** none of these files (Pro Sound Effects BBC, Gamemaster, Sonniss) may ever be used to train or fine-tune any model. Energetic Forms sounds are NOT shipped until their terms are confirmed.', '');
+  L.push('**The ban (Robert, 2026-10-29):** no BBC sound effects (Pro Sound Effects BBC library) and no Gamemaster sounds, ever; Energetic Forms not until its terms are confirmed. `tools/audio-pick.mjs` refuses all three and the selftest re-checks the manifest behind this file. Every file below is a Sonniss GDC bundle file or Kenney/OpenGameArt CC0, both licensed for use in a commercial game.', '');
+  L.push('**The training law:** none of these files may ever be used to train or fine-tune any model (Sonniss terms).', '');
   L.push('## Sources', '', '| Source | Terms | Files | KB |', '|---|---|---:|---:|');
   for (const [lic, e] of bySrc) L.push(`| ${LICENSE[lic].name} | ${LICENSE[lic].terms} | ${e.n} | ${(e.bytes / 1024).toFixed(0)} |`);
   L.push(`| ${LICENSE.ef.name} | ${LICENSE.ef.terms} | 0 | 0 |`);
@@ -400,4 +401,5 @@ function size() {
 if (cmd === 'plan') plan();
 else if (cmd === 'build') build();
 else if (cmd === 'size') size();
+else if (cmd === 'licenses') writeLicenses(JSON.parse(readFileSync(MANIFEST, 'utf8'))); // rewrite SOUNDS-LICENSES.md from the manifest
 else console.log('usage: audio-pick.mjs plan | build [--only <re>] | size');
