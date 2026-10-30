@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { PALETTE, SNOW, LEAF } from '../data/seasons.js';
-import { variantPatch } from '../world/flora.js';
 
 // SEASON LOOK (docs/design/WEB_SEASONS.md §3.5). What the date and the cover do to the picture, with no new draw call per
 // material and no per-frame allocation:
@@ -71,9 +70,9 @@ export function snowSurface(mat, indoorable = false) {
 // Deciduous leaf loss: vertices coloured green are leaf (flora vertex colours); a leaf fragment is dropped when the hash of its
 // world block is above the cover. The shadow pass drops the same blocks.
 const LEAF_V = '#include <common>\nvarying vec3 vLfW; varying float vLfLeaf;\n';
-function leafPatch(depth) {
-  return (sh) => {
-    variantPatch(sh);
+function leafPatch(depth, prev) {
+  return function (sh, r) {
+    prev?.call(this, sh, r); // what the source material already did (the flora's variant pick, the look layer's wind)
     sh.uniforms.uSnLeaf = U.uSn;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `${LEAF_V}${depth ? 'attribute vec3 color;\n' : ''}`)
@@ -84,7 +83,10 @@ function leafPatch(depth) {
           #endif
           vLfW = (modelMatrix * lw).xyz; vLfLeaf = step(0.03, color.g - max(color.r, color.b)); }`);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec3 vLfW; varying float vLfLeaf; uniform vec4 uSnLeaf;\nfloat lfH(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }\n`)
+      .replace('#include <common>', `#include <common>
+varying vec3 vLfW; varying float vLfLeaf; uniform vec4 uSnLeaf;
+float lfH(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
+`)
       .replace('void main() {', 'void main() {\n  if (vLfLeaf > 0.5 && lfH(floor(vLfW * vec3(1.6, 1.2, 1.6))) > uSnLeaf.w) discard;\n');
   };
 }
@@ -151,8 +153,10 @@ export class SeasonLook {
         o.userData.leafy = true;
         const kind = o.name.slice(6);
         if (DECIDUOUS.includes(kind)) {
-          const m = o.material.clone(); m.onBeforeCompile = leafPatch(false); m.customProgramCacheKey = () => 'flora-variant|leaf1';
-          const d = o.customDepthMaterial.clone(); d.onBeforeCompile = leafPatch(true); d.customProgramCacheKey = () => 'flora-variant-depth|leaf1';
+          // (Material.clone does not carry the patches: chain the source's own, then ours)
+          const src = o.material, sd = o.customDepthMaterial, srcKey = src.customProgramCacheKey, sdKey = sd.customProgramCacheKey;
+          const m = src.clone(); m.onBeforeCompile = leafPatch(false, src.onBeforeCompile); m.customProgramCacheKey = () => `${srcKey.call(src)}|leaf1`; m.userData.noCut = true; // (the source's chain already carries the cutaway: patching the clone again would define it twice)
+          const d = sd.clone(); d.onBeforeCompile = leafPatch(true, sd.onBeforeCompile); d.customProgramCacheKey = () => `${sdKey.call(sd)}|leaf1`;
           o.material = m; o.customDepthMaterial = d;
         }
       }

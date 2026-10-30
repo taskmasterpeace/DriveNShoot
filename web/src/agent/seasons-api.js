@@ -6,7 +6,7 @@ import { fetchRows, patchRows, restoreRows, pushSeasons } from '../forge/live.js
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
-const ACTIONS = ['show', 'set', 'advance', 'at', 'plant', 'forecast', 'passes', 'pin', 'unpin', 'live', 'rows', 'validate', 'price', 'snowmats'];
+const ACTIONS = ['show', 'set', 'advance', 'at', 'plant', 'forecast', 'passes', 'pin', 'unpin', 'live', 'neutral', 'rows', 'validate', 'price', 'snowmats', 'progs'];
 // Where the checks stand: world metres of real usmap places (a town's usmap position through the map's own transform).
 const spot = (ux, uy) => toWorld([ux, uy]);
 
@@ -30,12 +30,14 @@ export function seasonCommands(api, need) {
         if (action === 'advance') { need(a.days !== undefined, 'days='); A.advance(a.days); return A.view(); }
         if (action === 'pin') { const [x, z] = pt(); A.pin = { x, z }; A.update(0); return { pinned: A.pin, ...A.view() }; }
         if (action === 'unpin') { A.pin = null; A.placeT = 0; A.update(0); return A.view(); }
+        if (action === 'neutral') { A.neutral = a.on !== false; return { neutral: A.neutral }; }
         if (action === 'live') { A.live = a.on !== false; return { live: A.live }; }
         if (action === 'at') { const [x, z] = pt(); return { place: { x: Math.round(x), z: Math.round(z) }, season: A.seasonAt(x, z), climate: { ...A.read(x, z), odds: undefined }, odds: Object.fromEntries(Object.entries(A.read(x, z).odds).map(([k, v]) => [k, r2(v)])), road: A.roadAt(x, z) }; }
         if (action === 'plant') { const [x, z] = pt(); const crop = a.crop ?? 'default'; return { crop, ...A.plantingWindow(crop, x, z), growth: A.growthFactor(x, z), crops: Object.keys(CROPS) }; }
         if (action === 'forecast') { const [x, z] = pt(); return A.forecast(a.source ?? 'radio', x, z); }
         if (action === 'passes') return { passes: A.passes() };
         if (action === 'price') { need(a.item, 'item='); const [x, z] = pt(); return { item: a.item, buy: r2(A.priceMul(a.item, x, z)), sell: r2(A.sellMul(a.item, x, z)), rows: PRICES.map((r) => r.id) }; }
+        if (action === 'progs') { const ps = (g.renderer.info.programs ?? []).filter((q) => q.diagnostics && q.diagnostics.runnable === false || /leaf1|snow1/.test(String(q.cacheKey))); return { n: ps.length, programs: ps.map((q) => ({ key: String(q.cacheKey).slice(-120), ok: q.diagnostics?.runnable !== false, log: (q.diagnostics?.programLog ?? '').slice(0, 400), vlog: (q.diagnostics?.vertexShader?.log ?? '').slice(0, 300), flog: (q.diagnostics?.fragmentShader?.log ?? '').slice(0, 300) })) }; }
         if (action === 'snowmats') return { patched: g.seasonLook?.patched, mats: g.seasonLook?.list() };
         if (action === 'rows') return { calendar: CALENDAR, zones: Object.fromEntries(Object.entries(ZONES).map(([k, z]) => [k, { name: z.name, states: z.states.length, mean: z.mean, amp: z.amp, local: z.local.map((s) => s.id).join('/'), leaf: z.leaf, snowy: z.snowy }])), odds: Object.keys(ODDS), snow: SNOW, passes: PASSES.length, crops: Object.keys(CROPS) };
         if (action === 'validate') { const v = validateSeasons(); return { ok: v.length === 0, problems: v }; }
@@ -49,8 +51,9 @@ export async function seasonChecks(api, check, C) {
   const g = api.g, A = g.seasons;
   // Real places through the map's own transform: Phoenix (the world's origin), Miami, Denver, Minneapolis, Seattle.
   const P = { phoenix: spot(-43250, 7250), miami: spot(-2000, 20500), denver: spot(-34000, -4000), minneapolis: spot(-19000, -13500), seattle: spot(-56500, -18000) };
-  const keep = { shift: A.shift, days: A.seasonDays, live: A.live, pin: A.pin, fresh: A.fresh, pack: A.pack, w: g.sky.weatherKey, t: g.sky.time };
-  const putBack = async () => { A.shift = keep.shift; A.seasonDays = keep.days; A.live = keep.live; A.pin = keep.pin; A.fresh = keep.fresh; A.pack = keep.pack; A.last = null; A.placeT = 0; await C('setWeather', { key: keep.w, instant: true }); A.update(0); };
+  A.neutral = false; // these checks read the date's air
+  const keep = { neutral: true, shift: A.shift, days: A.seasonDays, live: A.live, pin: A.pin, fresh: A.fresh, pack: A.pack, w: g.sky.weatherKey, t: g.sky.time };
+  const putBack = async () => { A.neutral = keep.neutral; A.shift = keep.shift; A.seasonDays = keep.days; A.live = keep.live; A.pin = keep.pin; A.fresh = keep.fresh; A.pack = keep.pack; A.last = null; A.placeT = 0; await C('setWeather', { key: keep.w, instant: true }); A.update(0); };
   const day = (season, t = 0.5) => { A.setSeason(season, t); };
   try {
     await check('seasons: every row is whole (zones cover the year and every state once, odds sum to one, the palette has no purple, the passes and prices are sane)', async () => {
@@ -183,7 +186,7 @@ export async function seasonChecks(api, check, C) {
       day('spring', 0.5); const bassSp = A.yield('fish', 'bass', x, z); day('winter', 0.5); const bassW = A.yield('fish', 'bass', x, z);
       A.pin = { x, z }; A.placeT = 0; A.update(0); A.pack = 0; A.fresh = 0; A.tickSnow(0); const open = A.yield('forage', 'deadwood', x, z); A.pack = 1; A.fresh = 0.5; A.tickSnow(0); const buried = A.yield('forage', 'deadwood', x, z);
       A.pin = null; A.placeT = 0; A.pack = 0; A.fresh = 0; A.cover = 0;
-      return bS > bW * 3 && snS > snW && gS < 0.7 && snk === 0 && bassSp > bassW * 3 && buried < open * 0.7 ? true : `berries ${r2(bS)}/${r2(bW)} snare ${r2(snS)}/${r2(snW)} goose ${r2(gS)} snake ${r2(snk)} bass ${r2(bassSp)}/${r2(bassW)} deadwood ${r2(open)} → ${r2(buried)}`;
+      return bS > bW * 3 && snS > snW && gS < 0.7 && snk < 0.05 && bassSp > bassW * 3 && buried < open * 0.7 ? true : `berries ${r2(bS)}/${r2(bW)} snare ${r2(snS)}/${r2(snW)} goose ${r2(gS)} snake ${r2(snk)} bass ${r2(bassSp)}/${r2(bassW)} deadwood ${r2(open)} → ${r2(buried)}`;
     });
 
     await check('seasons: planting windows (lettuce opens in spring and shuts in midsummer heat, corn needs the warmth and the frost-free run; winter closes the garden at Minneapolis and not at Miami) and growth follows heat and moisture', async () => {

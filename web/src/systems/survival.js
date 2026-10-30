@@ -76,7 +76,7 @@ export class Survival {
     const C = CLIMATE, rise = (C.highAt - C.lowAt + 24) % 24;
     const t = ((hour - C.lowAt) % 24 + 24) % 24;
     const k = t <= rise ? 0.5 - 0.5 * Math.cos(Math.PI * t / rise) : 0.5 + 0.5 * Math.cos(Math.PI * (t - rise) / (24 - rise));
-    const SE = this.g.seasons?.here, mid = (C.low + C.high) / 2, v = C.low + (C.high - C.low) * k;
+    const SE = this.g.seasons?.air(), mid = (C.low + C.high) / 2, v = C.low + (C.high - C.low) * k;
     // THE SEASON (systems/seasons.js): the day's mean moves with the date and the place; the daily swing narrows in the cold.
     return (SE ? mid + (v - mid) * SE.range + SE.temp : v) + (C.weather[wx] ?? 0);
   }

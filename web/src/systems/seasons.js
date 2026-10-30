@@ -87,6 +87,7 @@ export class Seasons {
     this.startF = agent ? CALENDAR.start.agent : CALENDAR.start.player;
     this.shift = 0;                 // days added by `season advance` / `season set` (saved): the calendar's own adjustment
     this.clockSource = null;        // the world-clock lane may set a () => day (float) for the shard; until then society.day rules
+    this.neutral = agent;           // the agent harness keeps the old desert air (airAt ignores the date) until a check turns it off
     this.live = true;               // false: the sky keeps its old random weather and the look holds still (selftests, the forge)
     this.listeners = [];
     this.last = null;
@@ -99,6 +100,8 @@ export class Seasons {
     this.grip = 1;                  // the road grip under the player (ROAD_GRIP): vehicles.js multiplies it in
     this.forecastNote = null;
   }
+
+  air() { return this.neutral ? null : this.here; } // survival.airAt reads this
 
   // ---- the clock ----
   dayFloat() {
@@ -195,7 +198,7 @@ export class Seasons {
     this.cover = clamp(this.pack + this.fresh * (1 - this.pack), 0, 1);
   }
   // Added to the colour grade's temp (cool is negative): a snowed-under country reads blue-white, not cream.
-  gradeTemp() { return this.live ? -1.8 * this.cover - (this.here.frost ? 0.2 : 0) : 0; }
+  gradeTemp() { return this.live ? -1.8 * this.cover - (this.here.frost ? 0.2 : 0) + 0.035 * clamp(this.here.temp, -15, 12) : 0; } // and the season's own air: a warm cast in the desert summer, a cool one in its winter
   walkMul() { return 1 - (1 - SNOW.walk) * clamp((this.cover - 0.3) / (SNOW.deep - 0.3), 0, 1); } // a boot in deep snow
   trackHold() { return 1 + (SNOW.trackHold - 1) * this.cover; }
   airNow() { return this.g.needs?.air ?? (REF_MEAN + this.here.temp); }
