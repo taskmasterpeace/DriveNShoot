@@ -3529,6 +3529,7 @@ async function runSelfTest(api, only = null, skip = null) {
       // to its record its own way, and the wilds held still for this check.
       if (g.wilds) { for (const pk of g.wilds.grapevine?.packs ?? []) if (pk.live) g.wilds.grapevine.demote(pk); g.wilds.enabled = false; }
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
+      const seq0 = g.eventSeq, t0 = g.time; // Ike's own wakes since 23:00 (ai.wake emits npcWoke with its reason), for the failure detail
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
       let since = 0; // game seconds since 23:00
@@ -3545,14 +3546,16 @@ async function runSelfTest(api, only = null, skip = null) {
       const mine = [...inv.boxes.values()].filter((b) => b.owner === ike.id && !(b.y > 0.5)).sort((a, b) => Math.hypot(a.x - ike.x, a.z - ike.z) - Math.hypot(b.x - ike.x, b.z - ike.z));
       const box2 = mine[0] ?? box;
       g.player.x = box2.x + 0.8; g.player.z = box2.z;
-      const noCounter = g.trade.at(box2) === null && g.trade.at(box) === null;
+      const asleepAtRead = ike.sleeping === true, deal = g.trade.at(box2) ?? g.trade.at(box);
+      const noCounter = deal === null; // the shelf nearest his bed, then his first: no counter at either
       const saw = g.society.deeds.witnessPass(box2.x, box2.z, g.player, null).includes(ike);
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
         .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling,
           dBed: c.bed ? r1(Math.hypot(c.bed.x - c.x, c.bed.z - c.z)) : null, home: r1(Math.hypot(c.home.x - c.x, c.home.z - c.z)), busy: ['occRec', 'pullRec', 'barRole', 'storyM', 'crewRec', 'follower', 'knockT', 'cowerT', 'dragged', 'grabbing', 'res'].filter((k) => c[k]).join(',') }));
-      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
+      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, asleepAtRead, dealWith: deal ? `${deal.c.id === ike.id ? 'ike' : deal.c.id} ${deal.c.sleeping ? 'asleep' : 'awake'}` : null, saw, woke,
+        ikeWakes: g.events.filter((e) => e.seq > seq0 && e.type === 'npcWoke' && e.id === ike.id).map((e) => `${e.why} @${r1(e.t - t0)}s`), ike: { restless: r1(ike.restless ?? 0), flee: r1(ike.flee ?? 0), cower: r1(ike.cowerT ?? 0), target: ike.target ? ike.target.name ?? ike.target.faction ?? ike.target.id : null }, up });
     } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {

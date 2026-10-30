@@ -83,7 +83,9 @@ export async function roadsideChecks(api, check, C) {
     while (best >= 120 && tries < 3) {
       const W2 = Object.create(W); W2.ribbons = W.ribbons.filter((r) => !R.addedRibbons.includes(r)); W2.pieces = W.pieces.filter((p) => !R.addedPieces.includes(p)); W2.rails = W.rails.filter((r) => !R.addedRails.includes(r));
       const R2 = new Roadside(W2); tries++;
-      if (R2.pylons.length === R.pylons.length && R2.sites.length === R.sites.length) best = Math.min(best, R2.buildMs); // the same layout, or it does not count
+      // The same layout, or it does not count: the same sites, and the pylons within 1% (boot laid out on flat ground; real
+      // terrain, switched on after boot, moves a river's banks, so a rebuild steps a few towers off the water: 311 of 312).
+      if (R2.sites.length === R.sites.length && Math.abs(R2.pylons.length - R.pylons.length) <= Math.max(1, R.pylons.length * 0.01)) best = Math.min(best, R2.buildMs);
     }
     layoutMs.best = best; layoutMs.tries = tries; return best;
   };
