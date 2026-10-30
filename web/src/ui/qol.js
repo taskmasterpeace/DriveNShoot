@@ -22,7 +22,7 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
 // The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
 // killFeed, dmgNumbers.
-const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
+const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'car', nightLight: 0.12,
   autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw',
   grade: 1, hitStop: 1, camKick: 1, crashDirt: 1 }; // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
@@ -41,6 +41,7 @@ export class QOL {
   constructor(game, root) {
     this.g = game;
     this.settings = load(SETTINGS_KEY, DEFAULTS);
+    if (!this.settings.steerV2) { this.settings.steer = 'car'; this.settings.steerV2 = true; this.saveSettings(); } // Robert 10-30: classic steering is the default; old saves had 'screen' stored
     this.waypoint = null;
     this.route = null;
     this.routeT = 0;
