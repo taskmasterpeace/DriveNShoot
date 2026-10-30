@@ -82,6 +82,7 @@ import { Travel } from './systems/travel.js'; // the trundle, the iron, the one 
 import { Pulls } from './systems/pulls.js'; // why go out today: bars, road people, the radio, boards, your needs; what reached you (WEB_PULLS.md)
 import { PullsBoard } from './ui/pullsboard.js';
 import { Homes } from './systems/homes.js'; // camps, bases, houses you rent or buy (WEB_CAMPS_BASES.md)
+import { LAMPS } from './data/looks.js'; // the beam's pool lands ahead of the light (LAMPS.torch.poolAhead)
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
 import { Casinos } from './systems/casinos.js'; // CASINOS: card tables, chess, the house's money, guards, safes, security drones (WEB_CASINOS.md)
 import { TablePanel } from './ui/tablepanel.js'; // the table on green felt (WEB_CASINOS.md)
@@ -511,6 +512,7 @@ class Game {
     this.flashMat = new THREE.MeshBasicMaterial({ map: coneTexture(), color: '#fff3d6', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
     this.flashlight = new THREE.Mesh(g, this.flashMat);
     this.flashlight.renderOrder = 3;
+    this.flashlight.userData.origin = { x: 0, y: 0, z: 0, ahead: 0, ok: false }; // where the beam leaves the light (updated in place each frame)
     this.scene.add(this.flashlight);
   }
 
@@ -1418,8 +1420,15 @@ class Game {
     const dark = p.ug ? 0 : this.sky.night * (1 - this.sky.nightLight);
     this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? (p.ug ? this.under.coneOpacity : 0.55 + 0.35 * dark) : 0;
     this.flashlight.scale.set(1, 1, (1 + 0.45 * dark) * this.kit.beamReach()); // a headlamp throws shorter than a torch
-    this.flashlight.position.set(p.x, p.ug ? p.gy ?? 0 : 0, p.z);
+    // From the light itself (Robert: "the light comes from his feet"): the hand, the gun's muzzle or the brow, as the pose
+    // put it last frame (systems/characters.js lightOf), the pool landing on the ground ahead of it - further the higher it
+    // is held (LAMPS.torch.poolAhead x height): standing a couple of metres out, prone almost at the muzzle.
+    this.charR.lightOf = p; this.charR.lightHead = this.kit.active('beam') === 'headlamp';
+    const LW = this.charR.lightAt === p ? this.charR.lightW : null, floor = p.ug ? p.gy ?? 0 : p.gy ?? 0;
+    const lx = LW ? LW.x : p.x, lz = LW ? LW.z : p.z, lh = Math.max(0, (LW ? LW.y : floor + LAMPS.torch.y) - floor), ahead = LAMPS.torch.poolAhead * lh;
+    this.flashlight.position.set(lx + Math.sin(p.face) * ahead, p.ug ? p.gy ?? 0 : 0, lz + Math.cos(p.face) * ahead);
     this.flashlight.rotation.y = p.face;
+    const O = this.flashlight.userData.origin; O.x = lx; O.y = floor + lh; O.z = lz; O.ahead = ahead; O.ok = !!LW; // the check and lamplight.js read it
     this.kit.frame(dt); // the goggles' and the scope's overlay, body heat, dog and car kit drawn (systems/kit.js)
     this.charR.lsw.heat.value = this.kit.eyes === 'thermal_scope' ? 1 : 0; // veins are not warm: their glow goes dark under the scope
     this.charR.sync(this.chars, dt);

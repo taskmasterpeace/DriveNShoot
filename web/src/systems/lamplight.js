@@ -132,7 +132,9 @@ export class LampLight {
     const fo = g.flashMat?.opacity ?? 0;
     if (this.on && p && fo > 0.05) {
       const row = LAMPS.torch, reach = g.flashlight?.scale.z ?? 1, s = Math.sin(p.face), c = Math.cos(p.face);
-      push('torch', p.x + s * 0.35, (p.gy ?? 0) + row.y, p.z + c * 0.35, p.face, row, Math.min(1.2, fo / 0.75), row.range * reach, 'player');
+      const O = g.flashlight?.userData.origin; // the hand, the muzzle or the brow (main.js): the light leaves from there
+      if (O?.ok) push('torch', O.x, O.y, O.z, p.face, row, Math.min(1.2, fo / 0.75), row.range * reach, 'player');
+      else push('torch', p.x + s * 0.35, (p.gy ?? 0) + row.y, p.z + c * 0.35, p.face, row, Math.min(1.2, fo / 0.75), row.range * reach, 'player');
     }
     // The nearest N to the camera win the uniform slots (insertion sort on a short list: no allocation).
     for (let i = 1; i < n; i++) { const o = L[i]; let j = i - 1; while (j >= 0 && L[j].d2 > o.d2) { L[j + 1] = L[j]; j--; } L[j + 1] = o; }
