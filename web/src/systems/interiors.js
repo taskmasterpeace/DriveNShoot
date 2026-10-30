@@ -159,7 +159,13 @@ export class Interiors {
         L.pusher = veh ? (mover.driver ?? null) : mover; L.pushT = this.g.time;
       }
       const rem = pen - Math.abs(got) * arm * broad;
-      if (rem > 0) { p.x += nx * rem; p.z += nz * rem; }
+      if (rem > 0) {
+        p.x += nx * rem; p.z += nz * rem;
+        // A leaf open to its stop gives no more: someone walking into it goes round its free end, as round a wall's corner.
+        // Pressed square on, the push-out alone held a resident against their own front door's leaf with their next
+        // waypoint just behind it (docs/design/WEB_BATTERY_STABILITY.md §3.2). The people the AI walks only; you and cars as before.
+        if (!veh && got === 0 && mover !== this.g.player) { p.x += L.dx * rem; p.z += L.dz * rem; }
+      }
       return rem > 0 ? rem : 0;
     }
     if (mover && door.locked && mover.faction === 'zombie') this.bang(door, mover);

@@ -306,11 +306,12 @@ export async function crewChecks(api, check, C) {
     await C('crewOrder', { order: 'fallback', who: String(a.id) }); await C('crewOrder', { order: 'mangun', who: String(b.id) });
     await steps(6);
     const aboard = (c) => c.inVehicle === v || c.onDeck?.v === v, boarded = aboard(a.c) && aboard(b.c);
+    const why = [a, b].map((m) => `${m.name}: order ${m.order} ${m.c.inVehicle ? `seat ${m.c.inVehicle.id}` : m.c.onDeck ? `deck ${m.c.onDeck.v?.id}` : 'afoot'} ${(+Math.hypot(m.c.x - v.x, m.c.z - v.z)).toFixed(1)}m sp ${(m.c.speed ?? 0).toFixed(1)} stuck ${(m.c.stuck ?? 0).toFixed(1)} trust ${Math.round(m.trust)}${m.c.alive ? '' : ' DEAD'}`).join('; ');
 
     const r = g.spawnRaider(v.x + 14, v.z + 2, Math.random, 'pistol'); r.hp = r.maxHp = 5000; r.hold = true;
     const hp0 = r.hp; await steps(4);
     g.vehiclesSys.remove?.(v);
-    return boarded && r.hp < hp0 ? true : `boarded ${a.c.inVehicle?.id}/${b.c.inVehicle?.id} (rig ${v.id}) gunner hit ${r.hp < hp0}`;
+    return boarded && r.hp < hp0 ? true : `boarded ${boarded} (rig ${v.id} at ${Math.round(v.x - at.x)},${Math.round(v.z - at.z)}${v.dead ? ' dead' : ''}) gunner hit ${r.hp < hp0} · ${why}`;
   }));
 
   await check('crew order LOOT THIS: a member walks to the box nearest your aim and brings its contents into your pack', () => stage((at) => roomy(async () => {
@@ -473,12 +474,22 @@ export async function crewChecks(api, check, C) {
 
   await check('tactics band: a rifleman holds 25-45 m (he backs off from 12 m, stays in the band)', () => stage(async (at) => {
     await C('teleport', at); g.player.face = 0;
+    // He shoots while he moves: a rifle can kill you inside the 16 s (on a battery's worn-down hp, in a few bursts),
+    // and a dead target ends his fight: he drops you and wanders home to his spawn 12 m off, which read as "pinned"
+    // (docs/design/WEB_BATTERY_STABILITY.md §3.9). The check is where he STANDS, so you can't die here.
+    const god = g.godMode; g.godMode = true;
     const r = raider(at.x, at.z + 12, 'rifle');
-    await steps(12);
     let lo = 1e9, hi = 0;
-    for (let k = 0; k < 8; k++) { await C('step', { seconds: 0.5 }); const d = Math.hypot(r.x - g.player.x, r.z - g.player.z); lo = Math.min(lo, d); hi = Math.max(hi, d); }
-    const U = r.tac;
-    return lo >= 25 && hi <= 45 ? true : `distance ${lo.toFixed(1)}-${hi.toFixed(1)} band ${U?.band0?.toFixed(1)}-${U?.band1?.toFixed(1)} role ${U?.role}`;
+    try {
+      await steps(12);
+      for (let k = 0; k < 8; k++) { await C('step', { seconds: 0.5 }); const d = Math.hypot(r.x - g.player.x, r.z - g.player.z); lo = Math.min(lo, d); hi = Math.max(hi, d); }
+    } finally { g.godMode = god; }
+    const U = r.tac, P = g.player;
+    // On a failure, what held him: the ai.js branch gates (sight, storeys, hold/cower/knock/flee) and the plan's goal.
+    const why = () => `; r ${r.x.toFixed(1)},${r.z.toFixed(1)} p ${P.x.toFixed(1)},${P.z.toFixed(1)} sees ${g.sees(r, P)} los ${g.los(r.x, r.z, P.x, P.z)} storey p${P.storey ?? '-'}/r${r.storey ?? '-'} gy ${P.gy ?? '-'} `
+      + `hold ${r.hold} cower ${r.cowerT ?? '-'} knock ${r.knockT ?? '-'} flee ${r.flee ?? '-'} state ${r.state} tgt ${r.target === P} alive ${r.alive} you ${P.alive ? 'up' : 'DOWN'} hp ${P.hp?.toFixed?.(0)} speed ${r.speed?.toFixed(2)} `
+      + `goal ${U?.goal} ${U?.gx?.toFixed(1)},${U?.gz?.toFixed(1)} cover ${U?.cover} why '${U?.why}' plans ${U?.plans} path ${U?.path?.length ?? '-'} tactics.on ${g.tactics.on}`;
+    return lo >= 25 && hi <= 45 ? true : `distance ${lo.toFixed(1)}-${hi.toFixed(1)} band ${U?.band0?.toFixed(1)}-${U?.band1?.toFixed(1)} role ${U?.role}${why()}`;
   }));
 
   await check('tactics suppression: rounds past a raider raise his suppression (worse aim, hugs cover); it decays', () => stage(async (at) => {

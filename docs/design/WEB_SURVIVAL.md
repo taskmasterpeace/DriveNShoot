@@ -78,6 +78,8 @@ ground 0.5; shelter §3.10; comfort §3.6); water and food drain at half their w
 From 22:00 to 06:00 the town's own people claim a bed within 25 m of home (else a floor spot), lie down and sleep till
 dawn. A noise wakes them only within 45% of its reach; pain, a fight, or someone at the bedside for 1.5 s wakes them
 (a `trespass` deed); woken, they stay up 45 s. Asleep they **witness nothing** and a **trader keeps no counter**.
+Whoever has not reached a bed `giveUp` (25 s) after bedtime lies down where they stand, so the town is down 25 s after
+22:00 (or after `setTime`); the selftest judges it from then (docs/design/WEB_BATTERY_STABILITY.md §3.3).
 
 ### 3.6 Climate: heat, cold and wet clothes (`CLIMATE`, `WARMTH`, `WET`)
 The **air** follows a desert day: 6 °C just before dawn (05:00) to 41 °C mid-afternoon (15:00), shifted by the
@@ -263,6 +265,7 @@ unless a check drives them. `needs profile=` switches.
 
 ## 6. Dependencies
 
+- **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): `shelterKind()` returns `camp` at a pitched camp and `shelterFor('camp')` takes its danger from `g.homes`; a claimed base is `claim()`ed as your hold, and its infirmary adds `g.homes.restBonus()` to the hold's rest.
 - `systems/combat.js` reads `g.needs.sway`; `damage` on the player calls `survival.hurt()` and emits the `hurt` event the
   body reads (cause, amount, attacker) for wounds and fright. No new hook.
 - `systems/zombies.js` calls `survival.bitten()` on a landed bite; it also spawns the night's prowlers (`spawn`).

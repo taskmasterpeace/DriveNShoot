@@ -176,6 +176,8 @@ Rust Haven (fixed row): ceil(120 × 90 × 0.02 × 1.35) = **292**, on a boot hil
 - The funeral spot is chosen when the funeral is planned, so the grave row can land a few slots along.
 
 ## 6. Dependencies (both ways)
+- **WEB_DEATHS.md (2026-10-29)**: every body now dies through a clip and a ragdoll (`systems/deaths.js`). Rites gets the same Character, lying where the ragdoll settled: on stairs, in a truck bed or riding a car, with `c.x`/`c.z` at its pelvis. The rot comes through `paint()` onto the frozen pose; the bone pile replaces it as before. Severed limb pieces are not bodies and rites never sees them.
+
 
 **Rites reads:** `survival.airAt`, `water.depthAt`, `inventory` (boxes, place, roll, add), `citygen.plan/live/recAt`, `streamer.W` (groundAt, project, ring, holdouts), `residents` (recs, walk), `society` (day, chronicle, factions, director.radio), `skillsSys`, `fx`, `noise`.
 

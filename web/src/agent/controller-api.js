@@ -50,7 +50,7 @@ export function controllerCommands(api) {
       },
     },
     firemode: {
-      group: 'player', desc: 'The fire modes and alternate uses on a weapon row (the weapon bar\'s boxes): pistol SINGLE|FAN, SMG and rifle SEMI|BURST|AUTO, sawn-off BUCK|SLUG. weapon= (default the gun in hand) mode=<id> sets one, step=1 cycles. Returns each mode\'s burst count, cyclic rate and spread.',
+      group: 'player', desc: 'The fire modes and alternate uses on a weapon row (the weapon bar\'s boxes): pistol SINGLE|FAN, SMG and rifle SEMI|BURST|AUTO, sawn-off and pump BUCK|BIRD|SLUG (the shell it loads: each draws its own box, data/items.js). weapon= (default the gun in hand) mode=<id> sets one, step=1 cycles. Returns each mode\'s burst count, cyclic rate and spread.',
       args: { weapon: { type: 'string' }, mode: { type: 'string' }, step: { type: 'number' } },
       run: async ({ weapon, mode, step }) => {
         const k = weapon ?? g.inv.current;

@@ -1,6 +1,7 @@
 import { MELEE as LEGACY } from '../data/arms.js';
 import { MELEE_WEAPONS as MW, MELEE_RULES as R, MELEE_AI as MAI, WEAPON_IDS } from '../data/melee.js';
 import { angleLerp } from '../engine/rng.js';
+import { LIMB_BITS } from '../data/deaths.js';
 
 // HAND TO HAND (docs/design/WEB_MELEE.md; the rows are data/melee.js). Fast, readable, lethal, and the same for everyone:
 // the player and every NPC swing, block, parry, grab and struggle through one resolver (law 1: nobody cheats; an NPC only
@@ -463,10 +464,10 @@ export class Melee {
     let side = null;
     if (part === 'head') { T.headless = true; T.neckSpray = 2.5; side = 'head'; }
     else {
-      const L = T.lost ?? (T.lost = { larm: false, rarm: false, lleg: false, rleg: false });
-      const key = part === 'arms' ? (Math.random() < 0.5 ? 'larm' : 'rarm') : (Math.random() < 0.5 ? 'lleg' : 'rleg');
-      if (L[key]) return null;
-      L[key] = true; side = key;
+      const key = (part === 'arms' ? 'arm' : 'leg') + (Math.random() < 0.5 ? 'L' : 'R'), bit = LIMB_BITS[key];
+      if ((T.lost ?? 0) & bit) return null;
+      if (!g.deaths?.sever?.(T, key, ux, uz)) T.lost = (T.lost ?? 0) | bit; // the death library's piece on the ground, its bit on the body
+      side = key;
       if (part === 'arms') { m.armBroken = true; T.lostArm = key; }
       else { m.legBroken = true; T.lostLeg = key; if (T.alive) this.knockDown(T, 4); }
       T.bleed = 1;

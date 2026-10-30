@@ -2,7 +2,7 @@
 // radio in your pack: music composed for the game (tools/radio-compose.mjs -> public/music/, data/music-manifest.json),
 // station IDs between songs, a faction's propaganda, the news read off the world's own memory, and an emergency
 // broadcast that offers shelter - sometimes honestly. Our own words throughout; tools/ip-lint.mjs scans them.
-//   kind    music (a playlist) | propaganda (a playlist + its faction's lines) | news (static + headlines from the
+//   kind    music (a playlist) | feed (a town's set reading its news: systems/feed.js) | propaganda (a playlist + its faction's lines) | news (static + headlines from the
 //           chronicle) | emergency (an alert tone + a shelter at a real place; trap: the share of days it is a lure)
 //   filter  fm (a little top cut) | am (a narrow band: 300-3400 Hz, the voice of a cheap speaker)
 //   ids     lines between songs (a stinger, the line on the subtitle; heard as a voice once the forge renders it)
@@ -38,6 +38,17 @@ export const STATIONS = [
     'Static here. Nothing on the wire but the wind.',
     'Static, sixteen-sixty. If you know something, I want to know it.',
     'This is Static. Keep your water close and your mouth shut.',
+  ] },
+  // WORLD FEEDS (docs/design/WEB_WORLD_VOICE.md §3.3; systems/feed.js): a town's set reads out what that town actually
+  // holds (a witness saw it, the grapevine carried it), with its age. mast: the nearest town inside range. airs: fact kinds.
+  { id: 'wire', freq: '1480 AM', name: 'THE WIRE', kind: 'feed', filter: 'am', range: 9000, airs: ['news', 'story', 'market', 'death', 'funeral', 'caravan', 'work'], idEvery: [80, 140], ids: [
+    'The Wire, fourteen-eighty. What came in off the road today.',
+    'This is The Wire. We say what we were told. We say who told us.',
+    'Fourteen-eighty, The Wire. If you saw something, bring it to the counter.',
+  ] },
+  { id: 'tally', freq: '1590 AM', name: 'TALLY NIGHTLY', kind: 'feed', filter: 'am', range: 12000, airs: ['posting', 'bounty'], idEvery: [90, 160], ids: [
+    'Tally Nightly. Names, prices, and who is paying.',
+    'Fifteen-ninety. The Tally reads the boards so you do not have to.',
   ] },
   { id: 'emergency', freq: '162.5', name: 'EMERGENCY BROADCAST', kind: 'emergency', filter: 'am', idEvery: [20, 30], trap: 0.4, ids: [
     'This is an emergency broadcast. Shelter, water and medicine at {place}. Come alone. Come unarmed.',
