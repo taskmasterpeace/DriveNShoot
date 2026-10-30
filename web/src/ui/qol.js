@@ -1,3 +1,4 @@
+import { SKY_FEEL } from '../data/looks.js';
 import * as THREE from 'three';
 import { HALF, locationName } from '../world/city.js';
 import { layerMesh } from '../engine/depthlayers.js';
@@ -22,7 +23,7 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
 // The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
 // killFeed, dmgNumbers.
-const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12,
+const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: SKY_FEEL.night, dayMin: SKY_FEEL.dayMinutes, brightness: 1,
   autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw',
   grade: 1, hitStop: 1, camKick: 1, crashDirt: 1 }; // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
@@ -41,6 +42,8 @@ export class QOL {
   constructor(game, root) {
     this.g = game;
     this.settings = load(SETTINGS_KEY, DEFAULTS);
+    // Once: a save from before 2026-10-30 carries the old default night (0.12, "very very dark"): move it to the new one.
+    if (!this.settings.nightV2) { this.settings.nightLight = SKY_FEEL.night; this.settings.nightV2 = true; this.saveSettings(); }
     this.waypoint = null;
     this.route = null;
     this.routeT = 0;
@@ -88,7 +91,9 @@ export class QOL {
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
         <label>People <select data-s="bodies"><option value="lsw">LSW bodies (the nearest 24)</option><option value="classic">Classic rig</option></select></label>
-        <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
+        <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="${SKY_FEEL.night}">Dark, readable dusk (default)</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
+        <label>Brightness <input type="range" min="${SKY_FEEL.brightness[0]}" max="${SKY_FEEL.brightness[1]}" step="0.05" data-s="brightness"></label>
+        <label>Day length <select data-s="dayMin">${SKY_FEEL.dayChoices.map((m) => `<option value="${m}">${m} real minutes${m === SKY_FEEL.dayMinutes ? ' (default)' : ''}</option>`).join('')}</select></label>
         <label>Colour grade <select data-s="grade"><option value="0">Off</option><option value="0.5">Soft</option><option value="1">Full (by region and hour)</option></select></label>
         <label>Hit-stop <select data-s="hitStop"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full</option></select></label>
         <label>Camera kick <select data-s="camKick"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full (by calibre)</option></select></label>
@@ -249,7 +254,11 @@ export class QOL {
     g.audio.volume = s.volume;
     g.showStats = !!s.showFps;
     DRIVING.screenSteer = s.steer !== 'car';
-    g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? 0.12)));
+    g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? SKY_FEEL.night)));
+    g.sky.setDayMinutes?.(SKY_FEEL.dayChoices.includes(Number(s.dayMin)) ? Number(s.dayMin) : SKY_FEEL.dayMinutes);
+    // Brightness: the exposure (the kit's goggles scale from the same base, systems/kit.js).
+    const ex = SKY_FEEL.exposure * Math.max(SKY_FEEL.brightness[0], Math.min(SKY_FEEL.brightness[1], Number(s.brightness ?? 1)));
+    g.renderer.toneMappingExposure = ex; if (g.kit) g.kit.baseExposure = ex;
     if (g.look) { const L = g.look.settings, n = (v) => Math.max(0, Math.min(1, Number(v ?? 1))); L.grade = n(s.grade); L.hitStop = n(s.hitStop); L.kick = n(s.camKick); L.dirt = n(s.crashDirt); }
     g.hud.el.stats.classList.toggle('hidden', !g.showStats);
     g.hud.rescale?.(); // the HUD size setting multiplies the screen-fit scale (ui/hud.js)

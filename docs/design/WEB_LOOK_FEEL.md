@@ -221,6 +221,28 @@ Measured (port 3484, a PC loaded by other lanes):
 
 Renders, game camera, before (grade off) and after: `florida-day`, `arizona-dusk`, `cold-night`, `muddy-car` (+ `-side` at tilt 0.9), `skid-into-ditch` (+ `-close`).
 
+## The clock and the night (2026-10-30, Robert in the Test Lab: "time goes by too fast", "very very dark")
+- **Day length** is a row (`SKY_FEEL.dayMinutes`, choices 12 / 24 / 48 / 96 real minutes) and a pause-menu select. The default is **48** (it was 12). `sky.setDayMinutes(m)` sets `timeScale = 24 / (m·60)` game hours a real second: 48 min gives 1/120.
+  - **Off-screen pace**: everything that runs on the world clock divides by `sky.timeScale`, so it keeps its pace in game hours at any length. That covers the pulls' walkers, the site stories' movers, the travellers, upkeep decay, spoilage and hunger.
+  - **The selftest battery** pins `testDayMinutes` (12) through `sky.testPin`, the rate its checks were written against, so a menu apply mid-battery can't move it. A check that needs the clock faster uses `setTime` or `fast`.
+- **The night**: the default Night is **0.35**, a new menu row "Dark, readable dusk" between Dark and scary (0.12) and Readable (0.5).
+  - **Old saves**: they move to it once (the `nightV2` flag in the settings).
+  - **Twilight**: it now spans sun elevation −0.32 → 0.30 (it was −0.12 → 0.22). Dusk runs 16:50–19:15 and dawn 4:45–7:10, which at 48 minutes a day is about 4.8 real minutes each.
+  - **Lamps**: the headlamps and the torch still light bodies on top of the night.
+- **Brightness**: a pause-menu slider from 0.7 to 1.5 that multiplies the exposure (`SKY_FEEL.exposure` 1.2). The goggles scale from the same base (`kit.baseExposure`).
+- **Check** `look-feel: a game day lasts the Day length…` passes when all of these hold:
+  - unpinned, 48 min gives 1/120, and 12 min is 4× that;
+  - the pulls' walk, the stories' drive and the travel rate are 4× more metres per game hour at the slow rate;
+  - one real second steps about 1/120 h;
+  - the pin is back afterwards;
+  - night at 18:00 is between 0.35 and 0.6, under 0.86 at 18:30, and over 0.97 at 19:30 and 23:00;
+  - the default is 0.35 with `nightV2` set;
+  - Brightness 1.3 gives exposure 1.56 (and the goggles' base).
+- **Changed checks**:
+  - The `night is dark` check asks for under half the old night (it was under 0.3; the new default measures 0.39 and 0.42).
+  - The headlight check measures its on/off pixels at Night 0 ("only your light"), since a 0.35 night already shows the body (luma 78 → 95).
+- **Renders** (Florida, game camera): `night-default-before` (0.12) / `night-default-after` (0.35) at 23:00, and `dusk-1815-after` / `dusk-1845-after` at the new default.
+
 ## Not done (listed)
 - **Horizon bands**: never visible (§3.2), so none were generated.
 - **Tarps and awnings** don't sway. In the shared prop pools they share their shape with rugs and floor finishes, and the shader can't tell a tarp from a rug without a per-instance flag.

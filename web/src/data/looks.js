@@ -191,6 +191,21 @@ export const LAMPS = {
   torch: { I: 5.6, range: 19, cos: 0.84, y: 1.25 },  // range follows the torch cone's own reach (kit.beamReach, the dark)
 };
 
+// ---- the clock and the night (Robert's Test Lab playtest, 2026-10-30: "time goes by too fast", "very very dark") ----------
+// A game day lasts dayMinutes real minutes (the pause menu's Day length: one of dayChoices). Everything that runs off screen
+// on the world clock (pulls, site stories, travellers, decay, spoilage) divides by sky.timeScale, so it keeps its pace in
+// game hours at any length. The selftest battery pins testDayMinutes (the rate its checks were written against: a check
+// that wants the clock faster says so with fast= or setTime). night: the default Night (0 pitch .. 1 bright, systems/sky.js
+// NIGHT_I) - between "Dark and scary" (0.12) and "Readable" (0.5); the headlamps and the torch light bodies on top of it
+// (systems/lamplight.js). exposure: the renderer's tone-mapping exposure at Brightness 1 (the pause menu's slider multiplies).
+export const SKY_FEEL = {
+  dayMinutes: 48, dayChoices: [12, 24, 48, 96], testDayMinutes: 12,
+  night: 0.35,
+  twilight: [-0.32, 0.3], // sun elevation (sin) over which day turns to night: dusk 16:50-19:15, dawn 4:45-7:10 (was [-0.12, 0.22]: 17:10-18:30)
+  exposure: 1.2, brightness: [0.7, 1.5],
+};
+export const timeScaleFor = (minutes) => 24 / (Math.max(1, minutes) * 60); // game hours per real second
+
 // ---- validation ------------------------------------------------------------------------------------------------------
 const hueOf = (r, g, b) => {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
@@ -272,6 +287,8 @@ export function validateLooks(regions = LOOK_REGIONS, times = TIME_GRADES, horiz
   }
   for (const [tk, T] of Object.entries(times)) { if (!(T.half > 0 && T.centre >= 0 && T.centre < 24)) errors.push(`time ${tk}: centre/half`); gradeOk(`time ${tk}`, T.grade); }
   for (const [k, c] of Object.entries(IMPACT.calibre)) if (!(c.kick >= 0 && c.kick <= 2 && c.stop >= 0 && c.stop <= 120)) errors.push(`calibre ${k}: kick 0..2, stop 0..120 ms`);
+  if (!SKY_FEEL.dayChoices.includes(SKY_FEEL.dayMinutes)) errors.push('SKY_FEEL.dayMinutes is not one of dayChoices');
+  if (!(SKY_FEEL.night >= 0 && SKY_FEEL.night <= 1)) errors.push('SKY_FEEL.night 0..1');
   for (const k of ['head', 'bike', 'torch']) { const L = LAMPS[k]; if (!(L?.I > 0 && L.I <= 12 && L.range > 4 && L.range <= 60 && L.cos > 0.5 && L.cos < 0.99)) errors.push(`lamp ${k}: I 0..12, range 4..60, cos 0.5..0.99`); }
   { const c = parseInt(LAMPS.color.slice(1), 16), h = hueOf((c >> 16) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255); if (h.s > 0.06 && h.h >= 270 && h.h <= 320) errors.push('lamp colour is purple'); }
   for (const k of ['skid', 'scorch', 'oil', 'bonfire', 'blood']) if (!(DECALS[k]?.cell >= 0 && DECALS[k].cell < 8)) errors.push(`decal ${k}: cell`);

@@ -1,3 +1,4 @@
+import { SKY_FEEL } from '../data/looks.js';
 import { knowing as knowingFor } from '../data/creator.js'; // where you start decides where you are a local
 import { WEAPONS } from '../systems/combat.js';
 import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
@@ -2320,6 +2321,9 @@ async function runSelfTest(api, only = null, skip = null) {
   // The kit (systems/kit.js) holds its cells through the battery, and the beam needs no carried torch: unrelated checks
   // force the flashlight on (flashOverride) with an emptied pack. Its own checks (agent/kit-api.js) clear this.
   const kitWas = g.kit.staged; g.kit.staged = true;
+  // The clock: the battery runs at the day length its checks were written against (data/looks.js SKY_FEEL.testDayMinutes,
+  // 12 real minutes), whatever the player's Day length; a check that needs it faster fast-forwards itself (setTime, fast=).
+  const dayPinWas = g.sky.testPin; g.sky.testPin = SKY_FEEL.testDayMinutes; g.sky.setDayMinutes(g.sky.dayMinutes);
   const storiesWas = g.stories.enabled; g.stories.enabled = false; g.stories.sleep(); // site stories: off too, its own stage below
   // The world's voice (systems/farsound.js, feed.js, marks.js, campfire.js) paints, captions and lights fires on its own:
   // off for the battery; its checks (agent/worldvoice-api.js) turn it on in a stage of their own.
@@ -2349,13 +2353,13 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
   await check('weather cycles', async () => { for (const k of ['RAIN', 'DUST', 'STORM', 'CLEAR']) { const r = await C('setWeather', { key: k, instant: true }); if (!r.ok) return false; } return true; });
   await check('day/night', async () => { await C('setTime', { hour: 23 }); await C('step', { seconds: 0.2 }); const n = g.sky.night; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.2 }); return n > 0.8 && g.sky.night < 0.2 ? true : `night=${n} day=${g.sky.night}`; });
-  await check('night is dark: at 23:00 the default Night setting leaves the moon and sky fill at a fraction of the old night, the Bright setting brings that back, and your light carries further the darker it is', async () => {
+  await check('night is dark: at 23:00 the default Night setting leaves the moon and sky fill under half the old night, the Bright setting brings that back, and your light carries further the darker it is', async () => {
     const S = g.sky, nl0 = S.nightLight, fo = g.flashOverride, w0 = S.weatherKey ?? null;
     try {
       await C('setWeather', { key: 'CLEAR', instant: true }); await C('setTime', { hour: 23 });
       const at = async (nl) => { S.nightLight = nl; g.flashOverride = true; await C('step', { seconds: 0.2 }); return { sun: +S.sun.intensity.toFixed(3), hemi: +S.hemi.intensity.toFixed(3), flash: +g.flashMat.opacity.toFixed(2), reach: +g.flashlight.scale.z.toFixed(2) }; };
       const dflt = await at(NIGHT_I.dflt), bright = await at(1);
-      const ok = dflt.sun < bright.sun * 0.3 && dflt.hemi < bright.hemi * 0.3 && bright.sun > 1.2 && dflt.flash > bright.flash && dflt.reach > bright.reach;
+      const ok = dflt.sun < bright.sun * 0.5 && dflt.hemi < bright.hemi * 0.5 && bright.sun > 1.2 && dflt.flash > bright.flash && dflt.reach > bright.reach;
       return ok ? true : JSON.stringify({ dflt, bright });
     } finally { S.nightLight = nl0; g.flashOverride = fo; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.2 }); }
   });
@@ -6145,6 +6149,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
   g.kit.staged = kitWas;
+  g.sky.testPin = dayPinWas; g.sky.setDayMinutes(g.sky.dayMinutes);
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp, lerp, smoothstep } from '../engine/rng.js';
 import { SICK_SKY } from '../data/fannods.js';
+import { SKY_FEEL, timeScaleFor } from '../data/looks.js';
 
 // Time of day + weather. One directional light plays sun by day and moon by night.
 export const WEATHER = {
@@ -31,7 +32,7 @@ const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82
 // (1.5 / 1.55) is nightLight 1; the default 0.2 needs your light to see past a few metres.
 const SUN_I = [1.5, 4.6], HEMI_I = [1.55, 2.0];
 export const NEW_GAME_HOUR = 8; // a person's first day starts here (agents keep 18.6)
-export const NIGHT_I = { sun: [0.1, 1.5], hemi: [0.16, 1.55], dflt: 0.12 };
+export const NIGHT_I = { sun: [0.1, 1.5], hemi: [0.16, 1.55], dflt: SKY_FEEL.night }; // the default was 0.12 until 2026-10-30 ("very very dark")
 // Golden-hour fill: the camera looks straight down, so nearly everything on screen is flat ground, and a sun a few
 // degrees up lights flat ground at a fifth of noon. Without help the hour either side of sunset read nearly black
 // (Playwright capture, 17:42). The sky fill rises (x1 + GOLDEN_FILL) and warms while the sun is low but up; the long
@@ -50,7 +51,8 @@ export class Sky {
     // start their checks were written against. A loaded save brings its own clock.
     const agentPage = typeof location !== 'undefined' && /[?&](agent|autostart)/.test(location.search);
     this.time = agentPage ? 18.6 : NEW_GAME_HOUR;
-    this.timeScale = 1 / 30;   // in-game hours per real second (= 2 game min / s)
+    this.dayMinutes = SKY_FEEL.dayMinutes; this.testPin = null;
+    this.timeScale = timeScaleFor(SKY_FEEL.dayMinutes); // in-game hours per real second (48 min a day = 0.5 game min / s; setDayMinutes)
     this.fast = false;
     this.weatherKey = 'CLEAR';
     this.target = { ...WEATHER.CLEAR };
@@ -127,6 +129,10 @@ export class Sky {
     return 'NIGHT';
   }
 
+  // The pause menu's Day length (ui/qol.js): real minutes a game day lasts.
+  // The selftest battery pins its own (testPin = SKY_FEEL.testDayMinutes) so a menu apply mid-battery can't change the rate.
+  setDayMinutes(m) { this.dayMinutes = Number(m) || SKY_FEEL.dayMinutes; this.timeScale = timeScaleFor(this.testPin ?? this.dayMinutes); return this.timeScale; }
+
   // viewR: the radius of ground on screen (main.js). The shadow box and the fog follow it, so a wide zoom has shadows
   // to its edges and doesn't wash out under the haze meant for a street-level view.
   update(dt, center, ground, roads, viewR = 30) {
@@ -156,7 +162,7 @@ export class Sky {
     // Sun path: up at 6:00, zenith at 12:00, down at 18:00.
     const ang = ((this.time - 6) / 12) * Math.PI;
     const elev = Math.sin(ang);
-    const day = smoothstep(-0.12, 0.22, elev);
+    const day = smoothstep(SKY_FEEL.twilight[0], SKY_FEEL.twilight[1], elev); // a long, readable dusk and dawn
     this.night = 1 - day;
     const c = this.cur;
     const cloudDim = 1 - 0.65 * c.clouds;
