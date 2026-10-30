@@ -94,6 +94,7 @@ import { Campfire } from './systems/campfire.js';
 import { Airwaves } from './systems/airwaves.js'; // the one broadcast source: key-ups and stations (WEB_WORLD_VOICE.md §3.3)
 import { RadioFeedUI } from './ui/radiofeed.js';
 import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
+import { LongRoadSys } from './systems/longroad.js'; // THE LONG ROAD: wayside beats in dead stretches, travellers, the trip log (WEB_LONG_ROAD.md)
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
@@ -297,6 +298,7 @@ class Game {
     this.stories = new SiteStories(this); // site stories and the bounty guild (systems/sitestories.js)
     this.airwaves = new Airwaves(this); this.farsound = new FarSound(this); this.feed = new Feed(this); this.marks = new Marks(this); this.campfire = new Campfire(this); // the world's voice (WEB_WORLD_VOICE.md)
     this.feedUI = new RadioFeedUI(this, ui); // the radio feed's lines on the HUD (ui/radiofeed.js)
+    this.longroad = new LongRoadSys(this); // the long road: wayside beats, travellers, the trip log (systems/longroad.js)
     this.roadside = new RoadsideSys(this); // the roadside's tanks, hulks, water and keepers (systems/roadside.js; laid out by world/roadside.js)
     this.casinos = new Casinos(this); this.tablePanel = new TablePanel(this, ui); // gaming rooms in the towns near you, and the table you sit at (systems/casinos.js, ui/tablepanel.js)
     this.insideBuilding = null;
@@ -1373,6 +1375,7 @@ class Game {
       this.homes.update(simDt); // the camp's watch and bells, owners at their doors, rent and raids on the clock (systems/homes.js)
       this.stories.update(simDt); // places on the world clock, traders, raids, refugees, hunters (systems/sitestories.js)
       this.feed.update(simDt); this.marks.update(simDt); this.campfire.update(simDt); // news from what was seen, the world's leftovers, the fire (WEB_WORLD_VOICE.md)
+      this.longroad.update(simDt); // beats made real out of view, the trip log
       this.roadside.update(simDt); // a hulk being stripped on the clock, keepers near you, a junkyard's dog, the downed-line warning
       this.casinos.update(simDt); // the rooms near you, their people, the float, runners, security drones (systems/casinos.js)
       this.nanGuard('late');

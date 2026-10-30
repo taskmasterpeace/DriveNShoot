@@ -89,6 +89,7 @@ import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fi
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
+import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -2130,6 +2131,7 @@ function buildCommands(api) {
     ...meleeCommands(api), // fight action=view|wield|attack|heavy|finish|grab|release|arm|spawn|person|rows|clear (agent/melee-api.js)
     ...lookfeelCommands(api), // look action=grade|region|horizon|wind|decals|impact, wear action=show|clean (agent/lookfeel-api.js)
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
+    ...longRoadCommands(api, need), // THE LONG ROAD (src/agent/longroad-api.js)
     ...roadsideCommands(api, need),
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
     ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
@@ -6106,6 +6108,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await actionsChecks(api, check, C); // TIMED ACTIONS: open vs search, a body's pat-down, damage cancels, kick vs pick noise, cutters vs a padlock, ladders, look-around, ducking under (src/agent/actions-api.js)
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
+  await longRoadChecks(api, check); // THE LONG ROAD: no dead stretch, travellers with origins, nothing in view (src/agent/longroad-api.js)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
@@ -6172,6 +6175,7 @@ export function snapshot(g) {
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
     voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
+    longroad: g.longroad?.save(), // wayside dead, caches taken, trip logs (systems/longroad.js)
     roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
   };
 }
@@ -6199,6 +6203,7 @@ export function restore(g, s) {
   g.stories?.load(s.stories ?? null); // the parties' people back onto their records (promoted again near you)
   g.pulls?.load(s.pulls ?? null); // the pulls' people back onto their records (promoted again near you), what everyone knows
   g.feed?.load(s.voice?.feed ?? null); g.marks?.load(s.voice?.marks ?? null); g.campfire?.out?.('loaded'); g.farsound?.clear?.(); g.airwaves?.clear?.(); // the world's voice (WEB_WORLD_VOICE.md)
+  g.longroad?.load(s.longroad ?? null);
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
