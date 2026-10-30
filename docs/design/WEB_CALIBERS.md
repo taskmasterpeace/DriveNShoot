@@ -177,3 +177,5 @@ The `ballistics:` checks keep passing on calibre keys. Renders: `docs/renders/we
 (.45, 9mm, 7.62x39, 5.56, .308 and .50 fired at once across a road, one frame later) and `07-casings.jpg` (three
 casings of each calibre at the shooters' feet: .45, 9mm, steel 7.62x39, .308, .50, then red buck, green bird and
 black slug hulls).
+
+**Read by WEB_FAN_NODS (2026-10-29):** two rounds, `ball44` and `capshot`, both loaded from the `capball` box (ball, powder, caps and shot), for the percussion revolver's BALL and SHOT BARREL modes.

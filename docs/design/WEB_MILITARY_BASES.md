@@ -307,3 +307,5 @@ power, the code, whether you read it, the blast door, the last warning, the garr
 | 54 | FL | NAVAL AIR STATION JACKSONVILLE *(large)* | naval | naval | overrun | infected | 15.8 | 420 x 340 | 204068, 29002 | **drivable (florida)** |
 | 55 | FL | CAMP BLANDING *(large)* | fort | army | held | remnant | 295 | 620 x 480 | 202111, 31445 | **drivable (florida)** |
 | 56 | FL | AVON PARK AIR FORCE RANGE *(large)* | airbase | air | sealed | - | 429 | 720 x 520 | 206606, 52126 | **drivable (florida)** |
+
+**Read by WEB_FAN_NODS (2026-10-29):** six SEALED rows (`navajo_depot`, `avon_park`, `yakima_tc`, `cheyenne_mountain`, `fort_leavenworth`, `pease`) hold the tinted-glass room on their bunker's bottom level. Changing one of them to held or overrun fails the fan-nods rows check.
