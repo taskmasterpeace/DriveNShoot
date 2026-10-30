@@ -219,6 +219,19 @@ speed 0.00 goal <his own spot> why 'pin open band 25-45' plans 46`.
 
 **Second cause: the plan share (found testing ba0bc4b3).** With the path fix in, the tactics group run alone 3 times went 2/3: run 1 read 1.08% of plans over 2 ms (5 of 465, against 1%), with the path clause at 0/56. Stalls land in plans the same way they land in paths. **Fix (`plan`).** A plan over 2 ms runs its `search` again at once. `search` is most of a plan and is repeatable: it reads the world and writes only its scratch (`CAND`, `MATES`, `NEAR`), and `U` has already taken the first result, so the decision is unchanged. The plan's time is `ms − s₁ + min(s₁, s₂)`, where s₁ and s₂ are the two searches' times. The `raycasts` and `boxCover` counts are put back, so the books count one search. `retimed` counts plan and path re-runs together. **Not weakening:** a plan whose search is really slow is slow both times. A stall outside the search (the squad loop, the peek raycasts) still counts in full. The bar (1% over 2 ms) and the average (under 0.3 ms) are unchanged.
 
+### 3.14 the town sleeps: Ike asleep, but his counter open (integrate `85047f32`, open)
+
+**Seen.** One full battery on 85047f32 read `asleep:true, noCounter:false, saw:false, woke:true`. Run alone on 85047f32 it passes 4/4 (port 3492, 23:40).
+
+**Ruled out.**
+- *A bedside wake* (`ai.toBed`: you within 1.6 m of his bed for `TOWN_NIGHT.wakeStand` 1.5 s). Through the wait you stand at his first shelf + 7 m, 19.5 m from his bed. The read spot (the shelf nearest his bed + 0.8 m) is 1.25 m from it, but nothing steps between moving you there and the read.
+- *A second character with his id.* Ids are `c${++nextId}` (`main.js`), never reused.
+- *Asleep at the read.* `trade.at` returns null for a sleeping keeper (`c.sleeping`), and the box's owner is his id. So a counter open at the read means he was awake then.
+
+**What the detail fits.** Something woke him during the ~30 s the check waits for the town. A wake sets `restless` to 45 s, so the shot then reads as `woke:true` (`!sleeping && restless > 0`) without waking him. At 23:00 his eye misses you (`saw:false`). The candidates are an earlier check's leftovers in a full battery: a noise within `hearAsleep` (0.45) of its reach, or "trouble" (`c.target`, or `c.flee > 0` from a honk or a shot nearby, `ai.js`).
+
+**Diagnostic added (failure detail only).** `ikeWakes` lists each `npcWoke` for him since 23:00 with its reason and time, read from the game's event buffer, with no hooks. Also added: `asleepAtRead`; `dealWith` (who kept the counter, asleep or awake); and his `restless`, `flee`, `cower` and `target` at the read. `noCounter` now comes from one `trade.at` call (`deal === null`), the same test as before without restocking twice. The next failure in a combined battery names the wake. The fix then goes where the wake came from: staging if it is an earlier check's leftover, the owning system if it is a real wake.
+
 ## 4. Formulas
 
 - **Town give-up:** asleep-or-floor by `t_bed + TOWN_NIGHT.giveUp` (25 s). The check now waits
