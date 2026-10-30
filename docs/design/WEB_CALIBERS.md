@@ -144,6 +144,7 @@ quarters of its energy left.
 - `systems/rites.js`: the body record (`R.c`) is how a searched box finds its character.
 - `systems/outdoors.js`: `compass()`.
 - SWAT/police and the bounty guild: consumers of `examine` / `examineScene` / `cluesOf` (not wired by this lane).
+- `WEB_SHOT_READ.md`: a round fired AT the player grows its streak from these rows (minLen/lenT/maxLen, width x wMul); the player's own tracers keep this doc's lengths.
 
 Shared-file hooks (each one line or one row): `main.js` (construct `Forensics`), `systems/inventory.js` (`open`),
 `systems/materials.js` (`punch`), `systems/audio.js` (`heavy`), `systems/workshop.js` (mount passes its `cal`),
