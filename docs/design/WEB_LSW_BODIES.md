@@ -110,7 +110,17 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
      `zkind`, `rot`, `blood`, `charred`), so the recipe (face, hair module, frame, muscle) is the one the world drew them
      with. Head and shoulders, over their weathered flag, turning ±0.12 rad and breathing, re-rendered every frame the talk
      is open. The 2D `drawPortrait` face is no longer used by the talk box.
-10. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
+10. **The flag is ON the person** (Robert's playtest, 2026-10-29: "when you're looking down, you shouldn't see the flag
+   covering the person like that"). Every faceted body wears two patches of its real flag (the atlas from `ui/portrait.js
+   FLAGS`, never letters), one on each shoulder top. From the top-down camera, the shoulders either side of the head are
+   what you always see. Each patch is 0.19 × 0.125 m, lifted 2.5 cm clear of a vest and tilted 0.38 rad out over its
+   shoulder. It is one instanced mesh, so it is still one draw call. The floating name tag (`ui/feedback.js`) is now
+   small, sits beside the body and never over it, and fades in and out at 6/s. It shows only for:
+   - the one person under your aim (within 2.2 m of the aim point);
+   - anyone within 4 m (9 m with the Name tags setting on "Everyone close by");
+   - a running witness.
+   At most 4 tags show. Flags stay big on the cards, the talk box and the rosters.
+11. **Switching.** `bodies action=mode value=classic` (or the pause-menu select, saved in `dsoa.settings`) empties the near
    set; the next frame is byte-identical to the classic rig (a check proves it).
 
 ## 4. Formulas, with an example
@@ -154,6 +164,8 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
   a drawn face. **Classic mode:** both screens draw the classic rig, because that is what the world draws.
 - **The creator card's look vs BEGIN:** `applyIdentity` sets name, flag, `lookColors`, build and hand, then
   `gear.dress()` puts the kit's hat and chest piece on. The card sets the same fields through the same functions.
+- **A wide-brimmed hat or a big pack** covers part of the shoulders from straight above: the patches still show at
+  the game camera's slight tilt and when the person turns, and the tag shows the flag when you aim at them.
 - **Photo mode, paused:** `sync(chars, 0)` still runs the pose pass, so photos show faceted bodies.
 - **WebGL's 16-attribute limit:** the kit's per-vertex data is 6 attributes (+4 for the instance matrix). Colours and the
   recipe ride the bone texture row (9 extra texels), and the morph deltas ride a second texture fetched by
@@ -187,7 +199,8 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
 | `palm` | 0.06 | 0.04–0.08 | wrist to grip |
 | `grip` / `relax` | [1.1, 1.35, 1.1] / 0.25 | 0–1.6 / 0–0.5 | finger curl (rad per joint) |
 | `breath` | 0.012 | 0–0.03 | idle chest rise |
-| `flag` | 0.12 × 0.08 m | 0.08–0.16 m wide | the shoulder patch |
+| `flag` | 0.19 × 0.125 m, at [0.16, 0.05, -0.02], tilt 0.38, lift 0.025 | 0.12–0.22 m wide; tilt 0–0.6 rad | the two shoulder-top flag patches (size, where, the tilt out, the lift clear of a vest) |
+| `TAGS` (`ui/feedback.js`) | aim 2.2 m, near 4 m, nearAll 9 m, max 4, fade 6/s, side 0.5 m | aim 1–4; near 2–8; max 1–8 | who gets a floating name tag, how many, how fast it fades, how far beside the body |
 | `FACET_PRESETS.*.muscle` | 0.85–0.89 | 0.8–1.3 (validated) | LSW's muscle morphs |
 | `FACTION_PRESET`, `HAIR_MODULE`, `BUILD_TO_FRAME` | — | must name a preset / module / frame (validated) | who wears what |
 | `VEIN_BY_BREED` | shambler rupture (red), sprinter black, echo neon (green), greyborn hollow, choir none | a `VEIN_STYLES` key or null | which veins a breed wears |
@@ -208,7 +221,8 @@ cheap. In the pause menu (SETTINGS → People) Robert can flip between the facet
    one palm (±3 cm) from its hand point.
 5. **Hands on the gun.** A two-hand SMG aim, a one-hand pistol, a rifle at low ready.
 6. **Feet on the terrain.** The toes sit at the ground the solver stood them on, within 6 cm.
-7. **Flags.** One patch per body, each showing that person's own flag.
+7. **Flags.** Two patches per body, one on each shoulder top, at least 0.2 m apart, facing the sky (normal y ≥ cos(tilt) − 0.15), both showing that person's own flag.
+7b. **Name tags.** With seven people round you, tags show only for the one under your aim and those within 4 m. Each tag's box is clear of its person's body on screen, and it fades in (first-frame alpha between 0 and 0.5). Before/after: `docs/renders/web/lsw-faceted/flags-*.jpg`.
 8. **The infected.** A crawler, a fallen one getting up, an overheated one, a shambler: legs on the solver within 3 cm.
 8b. **The vein infected.** A near shambler's GPU row carries rupture, a sprinter's black, an echo's neon, the
     Choir-Touched's and a living drifter's none; the vein atlas has vein pixels in every cell but hollow, glow pixels in

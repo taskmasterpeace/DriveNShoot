@@ -191,19 +191,48 @@ export async function lswBodiesChecks(api, check, C) {
     return off < 0.06 ? true : `soles ${r2(off)} m off the ground (gy ${r2(gy)}, balls ${r2(b.ball_l[1])}/${r2(b.ball_r[1])})`;
   }));
 
-  await check('lsw-bodies: the REAL flag is on every LSW body - one shoulder patch per body, each showing that person\'s own flag from the atlas (ui/portrait.js FLAGS)', () => stage(async () => {
+  await check('lsw-bodies: the REAL flag is ON every LSW body - a patch on each shoulder top (what the top-down camera always sees, either side of the head), both showing that person\'s own flag from the atlas (ui/portrait.js FLAGS), facing the sky', () => stage(async () => {
     const flags = ['MX', 'JP', 'NG', 'HT', 'IE', 'CU', 'US'];
     for (let k = 0; k < 14; k++) add('drifter', (k % 7) - 3, 1 + Math.floor(k / 7) * 1.5, {}, null, flags[k % flags.length]);
     await api._step(1); frame();
     const drawn = g.chars.filter((c) => L.drawn[c.slot]), fa = L.flagMesh.geometry.attributes.iFlag.array, bad = [];
-    if (L.flagMesh.count !== drawn.length) bad.push(`${L.flagMesh.count} patches for ${drawn.length} bodies`);
+    if (L.flagMesh.count !== 2 * drawn.length) bad.push(`${L.flagMesh.count} patches for ${drawn.length} bodies`);
+    const m = new THREE.Matrix4(), up = new THREE.Vector3(), at = [new THREE.Vector3(), new THREE.Vector3()];
     for (const c of drawn) {
-      const f = L.flagAt[c.slot], want = FLAG_KEYS.indexOf(c.flag ?? 'US');
-      if (f < 0) { bad.push(`${c.name}: no patch`); continue; }
-      const u = Math.round(fa[f * 2] / L.flagCell[0]), v = Math.round(fa[f * 2 + 1] / L.flagCell[1]);
-      if (u + v * L.flagCols !== want) bad.push(`${c.name}: patch shows ${FLAG_KEYS[u + v * L.flagCols]} not ${c.flag}`);
+      const f0 = L.flagAt[c.slot], want = FLAG_KEYS.indexOf(c.flag ?? 'US');
+      if (f0 < 0) { bad.push(`${c.name}: no patch`); continue; }
+      for (let s = 0; s < 2; s++) {
+        const f = f0 + s, u = Math.round(fa[f * 2] / L.flagCell[0]), v = Math.round(fa[f * 2 + 1] / L.flagCell[1]);
+        if (u + v * L.flagCols !== want) bad.push(`${c.name}: patch ${s} shows ${FLAG_KEYS[u + v * L.flagCols]} not ${c.flag}`);
+        L.flagMesh.getMatrixAt(f, m); at[s].setFromMatrixPosition(m); up.set(m.elements[4], m.elements[5], m.elements[6]).normalize(); // the plane's normal (its local y)
+        if (up.y < Math.cos(LSW_RULES.flag.tilt) - 0.15) bad.push(`${c.name}: patch ${s} faces ${up.y.toFixed(2)} up, not the sky`);
+      }
+      const apart = Math.hypot(at[0].x - at[1].x, at[0].z - at[1].z);
+      if (apart < 0.2 || at[0].y < 1.2) bad.push(`${c.name}: patches ${apart.toFixed(2)} m apart at ${at[0].y.toFixed(2)} m (not on the two shoulders)`);
     }
     return bad.length ? bad.slice(0, 5).join('; ') : true;
+  }));
+
+  await check('lsw-bodies: the floating NAME TAG never covers the body (Robert 10-29: "you shouldn\'t see the flag covering the person") - with seven people round you, a tag shows only for the one under your aim and those within 4 m (at most 4), each beside its person\'s body on screen (its box clear of the body\'s), and they fade in', () => stage(async () => {
+    const F = g.feedback, p = g.player;
+    const ppl = [[1.5, 1.5], [-2.5, 2], [3.2, -1.2], [-6, -4], [7, 5], [-9, 7], [3, 11]].map(([dx, dz], k) => add('drifter', dx, dz - 6, { name: `Tag Test ${k}` }, null, FLAG_KEYS[k + 3]));
+    const aimed = ppl[6];
+    g.aim.x = aimed.x; g.aim.z = aimed.z; g.updateCamera(0);
+    const near = ppl.filter((c) => Math.hypot(c.x - p.x, c.z - p.z) < 4).map((c) => c.id);
+    F.updateTags(1 / 60); const a1 = F.tags.find((t) => t.c === aimed)?.a ?? 0;
+    for (let k = 0; k < 30; k++) F.updateTags(1 / 60);
+    const shown = F.lastTags.map((t) => t.id), out = [];
+    const want = [...new Set([...near, aimed.id])].sort();
+    if (JSON.stringify([...shown].sort()) !== JSON.stringify(want)) out.push(`tagged ${shown.join(',')} want ${want.join(',')}`);
+    if (!(a1 > 0 && a1 < 0.5)) out.push(`first frame alpha ${a1.toFixed(2)} (should fade in)`);
+    for (const t of F.tags) {
+      if (!t.want || t.el.style.display === 'none') continue;
+      const c = t.c, r = t.el.getBoundingClientRect(), [hx, hy] = F.screen(c.x, 1.7, c.z), [, fy] = F.screen(c.x, 0, c.z), [ex] = F.screen(c.x + 0.35, 1.0, c.z);
+      const half = Math.abs(ex - hx) + 2, top = Math.min(hy, fy), bot = Math.max(hy, fy);
+      if (r.left < hx + half && r.right > hx - half && r.top < bot && r.bottom > top) out.push(`${c.name}'s tag covers the body (tag ${r.left | 0}..${r.right | 0}, body ${(hx - half) | 0}..${(hx + half) | 0})`);
+    }
+    g.aim.x = p.x; g.aim.z = p.z;
+    return out.length ? out.join('; ') : true;
   }));
 
   await check('lsw-bodies: the infected keep LSW bodies through their own poses (the infected AI) - a crawler (prone), one fallen and getting up (knockT), one overheated (crouch), one shambling: hips, knees and ankles on the solver within 3 cm', () => stage(async () => {

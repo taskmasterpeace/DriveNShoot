@@ -181,7 +181,7 @@ export class LswBodies {
     this.veinTex = veinAtlas();
     this.bodies.push(this.buildBody(meta, buf, maxNear, faceTex, this.veinTex));
     const fg = new THREE.PlaneGeometry(R.flag.w, R.flag.h).rotateX(-Math.PI / 2);
-    const fuv = new THREE.InstancedBufferAttribute(new Float32Array(maxNear * 2), 2); fuv.setUsage(THREE.DynamicDrawUsage);
+    const fuv = new THREE.InstancedBufferAttribute(new Float32Array(maxNear * 2 * 2), 2); // two patches a body fuv.setUsage(THREE.DynamicDrawUsage);
     fg.setAttribute('iFlag', fuv);
     const fm = new THREE.MeshStandardMaterial({ map: atlas, roughness: 0.9 });
     fm.onBeforeCompile = (sh) => {
@@ -190,7 +190,7 @@ export class LswBodies {
     };
     fm.userData.noCut = true;
     atlas.flipY = false;
-    this.flagMesh = new THREE.InstancedMesh(fg, fm, maxNear);
+    this.flagMesh = new THREE.InstancedMesh(fg, fm, maxNear * 2);
     this.flagMesh.frustumCulled = false; this.flagMesh.castShadow = false; this.flagMesh.count = 0; this.flagMesh.visible = false;
     this.flagMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.flagMesh.name = 'lsw-flag-patches';
@@ -247,11 +247,12 @@ export class LswBodies {
       if (inMod(v, 'torso') && y > 1.22 && y < 1.36) { chestHalfX = Math.max(chestHalfX, Math.abs(x)); chestHalfZ = Math.max(chestHalfZ, Math.abs(z - waistO.z)); }
     }
     const headC = vec(0, (J.Head.y + top) / 2, (faceZ + backZ) / 2);
-    // The flag patch sits on top of the left shoulder: the highest torso/deltoid surface near the anchor (bind space).
+    // The flag patches sit on top of the shoulders: the highest torso/deltoid surface near the left anchor (bind space);
+    // the right patch is its mirror.
     const fa = vec(J.clavicle_l.x + R.flag.at[0], 0, J.clavicle_l.z + R.flag.at[2]);
     let fy = -1e9;
-    for (let v = 0; v < nv; v++) if (inMod(v, 'torso', 'deltoids') && Math.abs(pos[v * 3] - fa.x) < 0.04 && Math.abs(pos[v * 3 + 2] - fa.z) < 0.05 && pos[v * 3 + 1] < J.neck_01.y + 0.05) fy = Math.max(fy, pos[v * 3 + 1]);
-    fa.y = (fy > 0 ? fy : J.clavicle_l.y + R.flag.at[1]) + 0.012;
+    for (let v = 0; v < nv; v++) if (inMod(v, 'torso', 'deltoids') && Math.abs(Math.abs(pos[v * 3]) - Math.abs(fa.x)) < 0.04 && Math.abs(pos[v * 3 + 2] - fa.z) < 0.05 && pos[v * 3 + 1] < J.neck_01.y + 0.05) fy = Math.max(fy, pos[v * 3 + 1]);
+    fa.y = (fy > 0 ? fy : J.clavicle_l.y + R.flag.at[1]) + R.flag.lift; // lifted clear of a vest or a pack strap
     // Bone -> group, and the finger curls (bind space), precomputed for the closed and the relaxed hand.
     const group = new Int8Array(NB), curl = [new Float32Array(NB * 16), new Float32Array(NB * 16)];
     const eye = new THREE.Matrix4().elements;
@@ -445,13 +446,16 @@ export class LswBodies {
     // The recipe and the colours (read straight off the classic rig's instance colours: blood, soot, rot and all).
     this.colours(ch, D, base + NB * 16);
     this.instOf[i] = k; this.drawn[i] = 1;
-    // The flag patch on the left shoulder, riding the trunk.
-    if (this.flagMesh && this.flagN < this.flagMesh.instanceMatrix.count) {
-      const f = this.flagN++; this.flagAt[i] = f;
-      _m.copy(Gm[TORSO]).multiply(_n.makeTranslation(B.flagAt.x, B.flagAt.y, B.flagAt.z)).multiply(_r.makeRotationZ(-0.42)); // tilted out over the shoulder, toward the camera
-      this.flagMesh.setMatrixAt(f, _m);
-      const fi = this.flagOf[i], fa = this.flagMesh.geometry.attributes.iFlag;
-      fa.array[f * 2] = (fi % this.flagCols) * this.flagCell[0]; fa.array[f * 2 + 1] = Math.floor(fi / this.flagCols) * this.flagCell[1];
+    // The flag patches on both shoulder tops, riding the trunk, each tilted out over its shoulder.
+    if (this.flagMesh && this.flagN + 2 <= this.flagMesh.instanceMatrix.count) {
+      this.flagAt[i] = this.flagN;
+      const fi = this.flagOf[i], fa = this.flagMesh.geometry.attributes.iFlag, u = (fi % this.flagCols) * this.flagCell[0], v = Math.floor(fi / this.flagCols) * this.flagCell[1];
+      for (let side = 1; side >= -1; side -= 2) {
+        const f = this.flagN++;
+        _m.copy(Gm[TORSO]).multiply(_n.makeTranslation(B.flagAt.x * side, B.flagAt.y, B.flagAt.z)).multiply(_r.makeRotationZ(-R.flag.tilt * side));
+        this.flagMesh.setMatrixAt(f, _m);
+        fa.array[f * 2] = u; fa.array[f * 2 + 1] = v;
+      }
     }
     this.stats.ms += performance.now() - t0;
     return true;
