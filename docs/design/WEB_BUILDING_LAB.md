@@ -220,3 +220,6 @@ day rooms at the far end).
 - **Door leaves, locks and glass** are still island-only (`systems/interiors.js`); authored buildings have gaps like every
   ring building.
 - The lab's own placement of a household (`residents`) in an authored building: none - `hh` is null.
+
+## Room scans (2026-11-05)
+A phone scan of a real room becomes a row of this format with `rooms[].pieces` (its own furniture at fixed spots): see `WEB_ROOM_SCAN.md` and `web/tools/room-scan/`. Selftest fixture `LAB_SAMPLES.scanroom`.

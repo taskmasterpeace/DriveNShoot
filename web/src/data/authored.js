@@ -49,4 +49,8 @@ export const LAB_SAMPLES = {
         ] },
     ],
     flights: [{ from: 0, x0: 5.35, x1: 10.19, z0: -6.78, z1: -5.38, axis: 'x', dir: 1 }] },
+  // scanroom: a phone LiDAR scan of a real living room (Apple ARKitScenes 41069025, a public sample) read by tools/room-scan:
+  // its L-shaped outline, a front door, and its own furniture at the spots the scan found (rooms[].pieces). The selftest
+  // stands it in the ring and proves the pieces stand and the house walks.
+  scanroom: {v: 1,id: 'lab-scanroom',name: 'SAMPLE SCANNED LIVING ROOM',kind: 'house',zone: 'residential',front: 'N',x0: -3.68,z0: -3.52,x1: 3.68,z1: 3.52,h: 2.8,top: 2.8,seed: 2387426975,units: 1,walkway: 0,plan: 'room-scan',floors: [{y: 0,deck: null,rooms: [{type: 'living',x0: -3.48,x1: 3.48,z0: -3.32,z1: 3.32,unit: 0,pieces: [{kind: 'desk',x0: -2.76,z0: 2.68,x1: -1.88,z1: 3.08},{kind: 'couch',x0: -2.44,z0: -0.12,x1: -0.28,z1: 1},{kind: 'shelf',x0: -1.56,z0: 2.68,x1: -1,z1: 3.16},{kind: 'desk',x0: -1,z0: 2.36,x1: -0.12,z1: 3.24},{kind: 'desk',x0: 0.12,z0: 2.52,x1: 0.92,z1: 3.16},{kind: 'shelf',x0: 1.16,z0: 1.88,x1: 3.4,z1: 3.16},{kind: 'nightstand',x0: 1.48,z0: -3.16,x1: 2.12,z1: -2.6},{kind: 'armchair',x0: 1.64,z0: 0.44,x1: 2.28,z1: 1.08},{kind: 'shelf',x0: 2.6,z0: 0.44,x1: 3.48,z1: 1.88},{kind: 'armchair',x0: 3,z0: 1.56,x1: 3.48,z1: 2.12}]}],walls: [],doors: [{side: 'N',at: -0.5,w: 2.4,kind: 'front',unit: 0}]}],flights: []},
 };

@@ -40,6 +40,9 @@ function segDist(px, pz, ax, az, bx, bz) {
   return Math.hypot(px - ax - dx * t, pz - az - dz * t);
 }
 
+// A scanned piece's spot, then the same spot nudged a step at a time (nearest first) when a doorway's clear zone takes it.
+const NUDGE = [[0, 0]];
+for (const d of [0.15, 0.3, 0.45, 0.6]) NUDGE.push([d, 0], [-d, 0], [0, d], [0, -d]);
 export class Ring {
   // H_NAMES / V_NAMES: the island's own street names (world/city.js), index 0 = the line at -320.
   constructor(W, names = { h: H_NAMES, v: V_NAMES }) {
@@ -571,6 +574,8 @@ export class Ring {
     g.rooms = rooms;
     g.stay = rooms.filter((r) => !r.type || ROOMS[r.type]?.stay);
     if (FP) fctx = this.furnish(L, g, rooms, K, Z, rng, placed);
+    // A room with its own pieces (a scanned room): what it asked for and what stood (the `author` command reports it).
+    if (FP && rooms.some((r) => r.pieces?.length)) g.pieces = { want: rooms.reduce((n, r) => n + (r.pieces?.length ?? 0), 0), placed: placed.filter((p) => p.room.pieces?.length).map((p) => ({ type: p.type, x0: p.r.x0, z0: p.r.z0, x1: p.r.x1, z1: p.r.z1 })) };
     const items = [];
     if (!FP) for (const [type, lo, hi] of K.furniture) for (let n = rng.int(lo, hi), q = 0; q < n; q++) items.push(type);
     // Units each get the kind's list; a house puts beds and dressers in the back room.
@@ -717,7 +722,7 @@ export class Ring {
   // what it sold), frontRoom (the entry), back (a bedroom), office }.
   planRooms(L, FP) {
     const pick = rngOf(L.seed ^ 0x2545f491), sold = L.kind === 'mall' ? FP.plans.map(() => UNITS[pick.int(0, UNITS.length - 1)]) : null;
-    return FP.rooms.map((r) => ({ type: r.type, name: r.name, x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, ui: r.unit, unit: sold?.[r.unit] ?? null, frontRoom: r.entry, back: r.type === 'bedroom', office: r.type === 'office' }));
+    return FP.rooms.map((r) => ({ type: r.type, name: r.name, x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, ...(r.pieces ? { pieces: r.pieces } : {}), ui: r.unit, unit: sold?.[r.unit] ?? null, frontRoom: r.entry, back: r.type === 'bedroom', office: r.type === 'office' }));
   }
   // Furniture room by room: each room's list (ROOMS[type].furniture) against its walls (a rug or a dining table in the
   // middle), floor finishes laid, doorways kept clear (a clear zone inside every door and both sides of every inside
@@ -751,8 +756,22 @@ export class Ring {
     // The biggest bedroom of each unit has the double bed.
     const master = new Map();
     for (const r of rooms) if (r.type === 'bedroom') { const a = (r.x1 - r.x0) * (r.z1 - r.z0), m = master.get(r.ui); if (!m || a > (m.x1 - m.x0) * (m.z1 - m.z0)) master.set(r.ui, r); }
+    // A room that carries its own pieces (an authored row's `pieces`: a scanned room, tools/room-scan) gets exactly those, each
+    // at its own spot (or nudged up to 0.6 m: off a doorway's clear zone), proved like any other; nothing from its row's list.
+    const own = (room) => (t) => {
+      const k = room.ownSeen.get(t) ?? 0;
+      room.ownSeen.set(t, k + 1);
+      const q = room.pieces.filter((p) => p.kind === t)[k];
+      const c = [];
+      for (const [ox, oz] of NUDGE) {
+        const r = { x0: Math.max(room.x0, q.x0 + ox), z0: Math.max(room.z0, q.z0 + oz), x1: Math.min(room.x1, q.x1 + ox), z1: Math.min(room.z1, q.z1 + oz) };
+        if (r.x1 - r.x0 > 0.2 && r.z1 - r.z0 > 0.2) c.push({ r });
+      }
+      return c;
+    };
     const lists = rooms.map((room) => {
       const list = [];
+      if (room.pieces?.length) { for (const p of room.pieces) list.push(p.kind); room.ownSeen = new Map(); room.own = own(room); return list; }
       for (const [t0, lo, hi] of ROOMS[room.type]?.furniture ?? []) for (let n = rng.int(lo, hi), q = 0; q < n; q++) list.push(t0 === 'bed' && master.get(room.ui) !== room ? 'sbed' : t0);
       if (!this.noRare) for (const [t0, p] of ROOMS[room.type]?.rare ?? []) if (rareRoll(this.seed, room, t0) < p) list.unshift(t0); // a rare piece (data/fannods.js the glass case): by a hash of the room, first so it finds a wall; the ring's only (the island's furnisher sets noRare: the start town stays as it was)
       return list;
@@ -766,15 +785,17 @@ export class Ring {
       probe.flood(starts);
     };
     const m0 = mark();
-    rooms.forEach((room, i) => { for (const t of lists[i]) this.placeOne(t, room, g, K, Z, rng, ctx, { defer: true }); });
+    rooms.forEach((room, i) => { room.ownSeen?.clear(); for (const t of lists[i]) this.placeOne(t, room, g, K, Z, rng, ctx, { defer: true, cands: room.own?.(t), ...(room.own ? { gap: 0.02, exact: true } : {}) }); });
     if (!ctx.on || ctx.verify()) return ctx;
     undo(m0);
     rooms.forEach((room, i) => {
       const mk = mark();
-      for (const t of lists[i]) this.placeOne(t, room, g, K, Z, rng, ctx, { defer: true });
+      room.ownSeen?.clear();
+      for (const t of lists[i]) this.placeOne(t, room, g, K, Z, rng, ctx, { defer: true, cands: room.own?.(t), ...(room.own ? { gap: 0.02, exact: true } : {}) });
       if (ctx.verify()) return;
       undo(mk);
-      for (const t of lists[i]) this.placeOne(t, room, g, K, Z, rng, ctx);
+      room.ownSeen?.clear();
+      for (const t of lists[i]) this.placeOne(t, room, g, K, Z, rng, ctx, { cands: room.own?.(t), ...(room.own ? { gap: 0.02, exact: true } : {}) });
     });
     return ctx;
   }
@@ -913,7 +934,7 @@ export class Ring {
     const near = F.near ? mine.filter((p) => (p.solid || p.bed) && (F.near === '*' || p.type === F.near || (F.near === 'bed' && p.bed))) : null;
     const far = F.far ? mine.filter((p) => p.type === F.far) : null;
     const doorsIn = F.farDoor ? zones : null;
-    const scored = !!(near?.length || far?.length || doorsIn?.length);
+    const scored = !opt.exact && !!(near?.length || far?.length || doorsIn?.length); // exact: a scanned piece tries its own spot first, then the nudges in order
     if (scored) for (let i = 0; i < m; i++) {
       const x0 = CB[i * 4], z0 = CB[i * 4 + 1], x1 = CB[i * 4 + 2], z1 = CB[i * 4 + 3], cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
       let s = 0;

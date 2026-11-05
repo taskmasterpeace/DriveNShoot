@@ -139,7 +139,10 @@ Port the LSW layout editor (`docs/reference/lsw/touch-layout.js`) to DSOA's HUD:
 4. A **screenshot sheet**: one capture per element with its name, so the standard layout is documented.
 5. The default is **smaller** than today (Robert: "too big on the screen").
 
-## 9. PARKED: the room-scan base (do NOT start without Robert)
+## 9. OPEN (2026-11-05): the room-scan base
+**Machine King, 2026-11-05: "the room scan thing. I need to get that going."** The go. Step one is built: a phone scan becomes an authored building row with its own furniture (`docs/design/WEB_ROOM_SCAN.md`, `web/tools/room-scan/`). He does the scanning himself.
+
+The history: parked on 2026-10-28 ("do NOT start without Robert").
 Robert, 2026-10-28: "save that for wave 3... put that all the way to the backside and don't start on that without permission. Because I want to work on that."
 He is upgrading the scan technology himself, so this waits for his go-ahead even after Waves 1–3 and everything else in this doc are done.
 - **The idea:** your real house becomes your base. Photos, a LiDAR scan or a floor plan become DSOA floor-plan rows: walls, doors and windows you can lock, board and kick in, a working garage, and furniture that serves as beds, cover, storage and benches. It goes on a lot as your homestead. The proven pipeline is in `D:/git/little-big-home` and the `room-to-level` skill.

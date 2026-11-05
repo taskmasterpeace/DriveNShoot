@@ -10,13 +10,15 @@
 //   { v: 1, id, name, kind, zone, front, x0, z0, x1, z1 (the footprint: wall centre lines), h (the street storey's height:
 //     floor 1 stands on it), top (the wall top: the roof), seed, units, walkway (m of covered walk along the front, 0: none),
 //     floors: [{ y, deck (null: the whole floor; a mezzanine's rect), rooms: [{ type, x0, z0, x1, z1 (inner faces), unit }],
+//               (a room may carry pieces: [{ kind (a FURNITURE row), x0, z0, x1, z1 }]: furniture at exactly those spots,
+//                in place of its row's list - a scanned room's own bed and table; tools/room-scan)
 //               walls: [{ horizontal, fixed, a0, a1, gaps: [{ at, w }] }] (partitions, centre lines),
 //               doors: [{ side, at, w, kind: front|bay|back, unit }] (floor 0 only) }],
 //     flights: [{ from (floor), x0, z0, x1, z1 (the run, landings not included), axis: 'x'|'z', dir: +1|-1 (the way up) }],
 //     site: { lot: 'R<k>.<j>.<n>' } | { x, z, front } }
 // Door and doorway centres sit on nav cell centres (whole metres + 0.5), so a building is placed only by whole metres and
 // quarter turns: both keep them there.
-import { RING, KINDS, ZONES } from '../data/ring.js';
+import { RING, KINDS, ZONES, FURNITURE } from '../data/ring.js';
 import { ROOMS, PLANS, PLAN_RULES } from '../data/floorplans.js';
 import { STOREY, FLIGHT, RAIL, WINDOWS } from '../data/storeys.js';
 import { NavProbe, planRng } from './floorplan.js';
@@ -61,7 +63,7 @@ export function place(row, x, z, front = row.front) {
   const fp = turnRect(row, k, tx, tz);
   return {
     ...clone(row), front, x0: fp.x0, z0: fp.z0, x1: fp.x1, z1: fp.z1, turn: k, at: [tx, tz],
-    floors: row.floors.map((f) => ({ y: f.y, deck: f.deck ? turnRect(f.deck, k, tx, tz) : null, rooms: f.rooms.map((r) => turnRect(r, k, tx, tz)),
+    floors: row.floors.map((f) => ({ y: f.y, deck: f.deck ? turnRect(f.deck, k, tx, tz) : null, rooms: f.rooms.map((r) => ({ ...turnRect(r, k, tx, tz), ...(r.pieces ? { pieces: r.pieces.map((q) => turnRect(q, k, tx, tz)) } : {}) })),
       walls: f.walls.map((w) => turnWall(w, k, tx, tz)), doors: (f.doors ?? []).map((d) => turnDoor(d, k, tx, tz)) })),
     flights: (row.flights ?? []).map((f) => turnFlight(f, k, tx, tz)),
   };
@@ -271,7 +273,7 @@ export { topOf };
 // after: the roof lifted to the wall top).
 export function compile(P, opt = {}) {
   const f0 = P.floors[0];
-  const rooms = f0.rooms.map((r) => ({ type: r.type, name: ROOMS[r.type]?.name ?? String(r.type).toUpperCase(), x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, unit: r.unit ?? 0, entry: false }));
+  const rooms = f0.rooms.map((r) => ({ type: r.type, name: ROOMS[r.type]?.name ?? String(r.type).toUpperCase(), x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, unit: r.unit ?? 0, entry: false, ...(r.pieces ? { pieces: r.pieces } : {}) }));
   for (const d of f0.doors) if (d.kind !== 'back') {
     const [x, z] = doorXZ(P, d), r = rooms.find((q) => x > q.x0 - 0.6 && x < q.x1 + 0.6 && z > q.z0 - 0.6 && z < q.z1 + 0.6);
     if (r) r.entry = true;
@@ -576,6 +578,7 @@ export function checkRow(row) {
   if (!(row.x1 > row.x0 && row.z1 > row.z0) || row.x1 - row.x0 > 62 || row.z1 - row.z0 > 62) return 'footprint must be under 62 x 62 m';
   if (!Array.isArray(row.floors) || !row.floors.length) return 'no floors';
   for (const f of row.floors) for (const r of f.rooms) if (!ROOMS[r.type]) return `room type ${r.type}: not a ROOMS row (data/floorplans.js)`;
+  for (const f of row.floors) for (const r of f.rooms) for (const q of r.pieces ?? []) if (!FURNITURE[q.kind] || !(q.x1 > q.x0 && q.z1 > q.z0)) return `piece ${q.kind}: not a FURNITURE row (data/ring.js) with a rect`;
   if (!row.floors[0].doors?.some((d) => d.kind !== 'back')) return 'floor 0 has no front door';
   const s = row.site;
   if (s && !s.lot && !(Number.isFinite(s.x) && Number.isFinite(s.z))) return 'site: { lot } or { x, z }';
