@@ -49,7 +49,7 @@ export const KEYHOLDERS = {
   waterlord: { title: 'WATER BOSS', hall: 'THE VALVE HOUSE', rules: { water_tithe: 6, no_wheels: 2 }, kit: { tin: 1.5 }, wealth: 0.1,
     vices: ['drinks the town\'s best water in front of it', 'counts every cup twice', 'keeps a pool nobody may swim in'],
     laws: ['Water is owed before it is drunk.', 'Whoever holds the valve holds the town.', 'A tithe paid is a life kept.'], scrip: '{TOWN} WATER CHITS' },
-  baron: { title: 'BARON', hall: 'THE BARONY', rules: { scrip_toll: 6, guns_checked: 3 }, kit: { container: 1.6 }, wealth: 0.25,
+  broker: { title: 'BROKER', hall: 'THE COUNTING HOUSE', rules: { scrip_toll: 6, guns_checked: 3 }, kit: { container: 1.6 }, wealth: 0.25,
     vices: ['gambles the treasury on dog fights', 'wears a dead man\'s suit every day', 'buys loyalty and never trusts it'],
     laws: ['Everything inside the wall has a price.', 'House paper or no business.', 'A debt is a leash.'], scrip: '{TOWN} PAPER' },
   judge: { title: 'THE JUDGE', hall: 'THE COURTHOUSE', rules: { guns_checked: 6, curfew: 3 }, kit: { sandbag: 2 }, incorruptible: true, wealth: 0,
@@ -59,13 +59,13 @@ export const KEYHOLDERS = {
     vices: ['marries her enemies to her grandchildren', 'remembers every slight for forty years', 'feeds strays and starves visitors'],
     laws: ['Family first, guests a long way after.', 'Nobody walks the streets at night but blood.', 'A loose dog is a dead dog.'], scrip: '{TOWN} FAMILY NOTES' },
   pitboss: { title: 'PIT BOSS', hall: 'THE BOSS HALL', rules: { no_wheels: 5, no_drawn_steel: 4 }, kit: { husk: 1.6 }, wealth: 0.15,
-    vices: ['bets on his own fighters', 'collects the teeth of champions', 'cannot stand to lose at anything'],
+    vices: ['bets on the house fighters', 'collects the teeth of champions', 'cannot stand to lose at anything'],
     laws: ['Every quarrel goes to the pit.', 'Blood is spent in the ring or not at all.', 'Wheels stay outside: the town is for walking.'], scrip: '{TOWN} PIT MARKERS' },
   preacher: { title: 'THE PREACHER', hall: 'THE MEETING HOUSE', rules: { curfew: 5, guns_checked: 4 }, kit: { sandbag: 1.5 }, incorruptible: true, wealth: -0.05,
     vices: ['takes a tenth of everything and calls it grace', 'hears confessions and sells them', 'fasts the town when the wells run low'],
     laws: ['The gate is a door to a house of peace.', 'No iron under the roof of the faithful.', 'The night belongs to prayer.'], scrip: '{TOWN} OFFERING SLIPS' },
   scrapking: { title: 'SCRAP KING', hall: 'THE THRONE ROOM', rules: { no_wheels: 4, water_tithe: 3, scrip_toll: 2 }, kit: { husk: 2, container: 1.2 }, wealth: 0.1,
-    vices: ['wears a crown cut from a hubcap', 'will strip your car while you buy him a drink', 'hoards engines he will never run'],
+    vices: ['wears a crown cut from a hubcap', 'strips your car while you buy the drinks', 'hoards engines that will never run again'],
     laws: ['Whatever rolls in stays in.', 'Every hulk is the house\'s.', 'Pay the gate or feed the crusher.'], scrip: '{TOWN} SCRAP TICKETS' },
 };
 
@@ -118,7 +118,7 @@ export const NAMES = {
 export const SEEDS = [
   { id: 'sebastian', region: 'florida', exit: 'SEBASTIAN', side: 'W', m: 520, seed: 1401, size: 'medium', wealth: 0.55, keyholder: 'waterlord',
     polish: { name: 'SEBASTIAN', motto: 'THE WELLS RUN DEEP · PAY THE WATER', keyholder: { name: 'Odessa Varga', flag: 'CU' }, rules: ['water_tithe', 'guns_checked'], scrip: 'SEBASTIAN WATER CHITS' } },
-  { id: 'little_river', region: 'florida', exit: 'LITTLE RIVER', side: 'W', m: 700, seed: 1402, size: 'large', wealth: 0.8, keyholder: 'baron',
+  { id: 'little_river', region: 'florida', exit: 'LITTLE RIVER', side: 'W', m: 700, seed: 1402, size: 'large', wealth: 0.8, keyholder: 'broker',
     polish: { name: 'LITTLE RIVER', motto: 'EVERYTHING HAS A PRICE', keyholder: { name: 'Augustin Delacroix', flag: 'HT' }, rules: ['scrip_toll', 'guns_checked'], scrip: 'LITTLE RIVER PAPER' } },
   { id: 'daytona', region: 'florida', exit: 'DAYTONA', side: 'E', m: 380, seed: 1403, size: 'medium', wealth: 0.6, keyholder: 'pitboss',
     polish: { name: 'DAYTONA', motto: 'SETTLE IT IN THE PIT', keyholder: { name: 'Hollis Rourke', flag: 'US' }, rules: ['no_wheels', 'no_drawn_steel'], scrip: 'DAYTONA PIT MARKERS' } },

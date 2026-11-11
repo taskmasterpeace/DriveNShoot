@@ -143,7 +143,7 @@ export class HoldoutLaw {
         },
         wanted: {
           text: `You. ${H.name} wants you for ${self.S(H.id).last?.rule ? HOUSE_RULES[self.S(H.id).last.rule]?.name ?? 'running the gate' : 'what you did'}. Fine is $${WANTED.fine * Math.ceil(self.S(H.id).wanted)}, or the bulls settle it.`,
-          get choices() { const f = WANTED.fine * Math.ceil(self.S(H.id).wanted); return [g0(self.g.cash >= f, { t: `Pay the fine ($${f})`, do: () => self.payFine(H), next: 'gate' }, `you have $${self.g.cash}`), { t: '[Draw on him]', do: () => self.fight(H, gm), end: true }, { t: '[Turn back]', end: true }]; },
+          get choices() { const f = WANTED.fine * Math.ceil(self.S(H.id).wanted); return [g0(self.g.cash >= f, { t: `Pay the fine ($${f})`, do: () => self.payFine(H), next: 'gate' }, `you have $${self.g.cash}`), { t: '[Draw on the gateman]', do: () => self.fight(H, gm), end: true }, { t: '[Turn back]', end: true }]; },
         },
         in: { text: `In you go. Mind the house rules: the bulls are watching.`, choices: [{ t: '[Go in]', end: true }] },
       },
@@ -162,13 +162,13 @@ export class HoldoutLaw {
       }
     } else out.push({ t: 'Understood.', do: () => this.pass(H, 'comply'), next: 'in' });
     // Bribe: dollars for a blind eye (not at an incorruptible Keyholder's gate).
-    if (asks.length) out.push(gate.incorruptible ? { t: `Slip him $${gate.bribe}`, locked: `${G.card.title} hangs gatemen who take money` } : g0(g.cash >= gate.bribe, { t: `Slip him $${gate.bribe} to look the other way`, do: () => this.bribe(H, gm), next: 'in' }, `you have $${g.cash}`));
+    if (asks.length) out.push(gate.incorruptible ? { t: `Slip the gateman $${gate.bribe}`, locked: `${G.card.title} hangs gatemen who take money` } : g0(g.cash >= gate.bribe, { t: `Slip the gateman $${gate.bribe} to look the other way`, do: () => this.bribe(H, gm), next: 'in' }, `you have $${g.cash}`));
     // Lie: a Persuade check (the dialogue gates it; a failure stays on screen, greyed, with the reason).
     if (asks.length) {
       const lie = asks.includes('guns') ? '"I am not carrying."' : asks.includes('toll') ? '"I paid at this gate this morning."' : asks.includes('water') ? '"I tithed on my way out yesterday."' : '"That car is not mine."';
       out.push({ t: lie, req: { skill: { persuade: gate.lie } }, do: () => this.pass(H, 'lie'), next: 'in' });
     }
-    out.push({ t: '[Draw on him]', do: () => this.fight(H, gm), end: true });
+    out.push({ t: '[Draw on the gateman]', do: () => this.fight(H, gm), end: true });
     out.push({ t: '[Turn back]', end: true });
     return out;
   }

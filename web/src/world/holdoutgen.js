@@ -23,7 +23,7 @@ const GEAR = ['none', 'none', 'bandolier', 'goggles', 'eyepatch'];
 
 // One holdout from a spec. Returns { spec, row, people, card, rules, scrip }.
 export function generateHoldout(spec) {
-  const S = SIZES[spec.size] ?? SIZES.medium, K = KEYHOLDERS[spec.keyholder] ?? KEYHOLDERS.baron, Pal = PALETTE[spec.region] ?? PALETTE.florida;
+  const S = SIZES[spec.size] ?? SIZES.medium, K = KEYHOLDERS[spec.keyholder] ?? KEYHOLDERS.broker, Pal = PALETTE[spec.region] ?? PALETTE.florida;
   const pol = spec.polish ?? {}, seed = (spec.seed ?? strSeed(spec.id)) >>> 0, rng = rngOf(hash32(seed, 0x484f4c44));
   const wealth = Math.max(0, Math.min(1, (spec.wealth ?? 0.5) + (K.wealth ?? 0)));
   const id = spec.id, name = pol.name ?? id.replace(/_/g, ' ').toUpperCase();
@@ -79,7 +79,7 @@ export function generateHoldout(spec) {
   const lore = ATLAS_SITES.filter((s) => s.holder === 'keyholder').map((s) => s.what);
   const nm = () => `${rng.pick(NAMES.first)} ${rng.pick(NAMES.last)}`;
   const flag = () => pickW(rng, Pal.flags);
-  const card = { name: pol.keyholder?.name ?? nm(), flag: pol.keyholder?.flag ?? flag(), title: K.title, kind: spec.keyholder ?? 'baron', hall: hall.label,
+  const card = { name: pol.keyholder?.name ?? nm(), flag: pol.keyholder?.flag ?? flag(), title: K.title, kind: spec.keyholder ?? 'broker', hall: hall.label,
     vice: rng.pick(K.vices), law: rng.pick(K.laws), lore: lore.length ? lore[seed % lore.length] : '', motto: row.motto, incorruptible: !!K.incorruptible };
   // The paper: its name, a colour, the house's toll, the bribe and the lie the gatemen weigh.
   const scrip = { id, name: pol.scrip ?? K.scrip.replace('{TOWN}', name), short: name.slice(0, 3), face: SCRIP.face, color: rng.pick(['#7a8a4a', '#8a6a3a', '#3f6f6a', '#9a5a2a', '#5a7a8a']) };
