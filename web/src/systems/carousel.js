@@ -26,6 +26,7 @@ import { CarouselUI } from '../ui/carousel.js';
 // No per-frame allocations: every colour and vector the frame needs is made here once.
 
 const _c = new THREE.Color(), _o = new THREE.Object3D();
+const BOARD_WORDS = { dormant: 'NO POWER', pending: 'STANDBY - CODE', armed: 'ARMED - READY', building: 'SPINNING UP', frantic: 'SPIN CRITICAL', live: 'THROW', catching: 'RECEIVING' };
 const r1 = (v) => Math.round(v * 10) / 10;
 const title = (s) => s.toLowerCase().replace(/(^|\s|-)([a-z])/g, (m, a, b) => a + b.toUpperCase());
 
@@ -184,7 +185,7 @@ export class Carousel {
       _o.updateMatrix(); this.boards.setMatrixAt(i, _o.matrix);
     }
     this.boards.instanceMatrix.needsUpdate = true;
-    this.boardKey = '';
+    this.boardKey = ''; this.board = null;
   }
 
   // ---- the state a ring is in (what the look and the console read) ----------------------------------------------------
@@ -501,8 +502,12 @@ export class Carousel {
     this.halo.rotation.y += spinV * 0.12 * dt;
     const sc = 0.85 + 0.15 * vort + (st === 'frantic' ? 0.04 * Math.sin(t * 40) : 0);
     this.vortex.scale.set(sc, 1, sc);
-    const words = { dormant: 'NO POWER', pending: 'STANDBY - CODE', armed: 'ARMED - READY', building: 'SPINNING UP', frantic: 'SPIN CRITICAL', live: 'THROW', catching: 'RECEIVING' };
-    this.paintBoard([s.name, words[st], this.st.last && this.st.last !== s.id ? `LAST ${this.byId.get(this.st.last).name}` : `RINGS KNOWN ${this.st.known.length}`], st !== 'dormant');
+    // the boards repaint only when what they say changes (no strings made on a quiet frame)
+    const B = this.board ?? (this.board = { s: null, st: null, last: null, known: -1 });
+    if (B.s !== s || B.st !== st || B.last !== this.st.last || B.known !== this.st.known.length) {
+      B.s = s; B.st = st; B.last = this.st.last; B.known = this.st.known.length;
+      this.paintBoard([s.name, BOARD_WORDS[st], this.st.last && this.st.last !== s.id ? `LAST ${this.byId.get(this.st.last).name}` : `RINGS KNOWN ${this.st.known.length}`], st !== 'dormant');
+    }
   }
 
   // ---- Ring-born ------------------------------------------------------------------------------------------------------------
