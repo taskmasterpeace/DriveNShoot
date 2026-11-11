@@ -110,6 +110,7 @@ export const KEY_TRADE = { keeps: { kenji: [['key_blank', 2], ['keycutter', 1]] 
 export const RINGBORN = {
   crew: ['thrownman', 'wall_veteran', 'field_medic'], sick: 3, kit: [['ration', 2], ['bandage', 2], ['flare', 1]],
   hum: { hz: 55, secs: 4.2 }, black: 3.2,
+  fuel: 0.12, // the catching station's generator runs on its last tank share (its fans: good air; ~8 game hours at GENERATOR.burn)
   toast: 'YOU COME TO ON A RING PLATFORM · RING-SICK · THE BLAST DOOR IS OPENING',
   sub: 'Nobody knows where the ring threw you. Find a road. Find water. Then find out.',
 };

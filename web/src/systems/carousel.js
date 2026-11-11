@@ -58,7 +58,7 @@ export class Carousel {
     this.spin = null;         // the live throw: { kind, to, from, t, bad }
     this.catchT = 0;          // the arrival ring's afterglow
     this.cold = null;         // the cold-open after an arrival: { t, door, station, ringborn }
-    this.lastH = null; this.calmT = 0; this.calm = true;
+    this.lastH = null; this.calmT = 0; this.calm = true; this.downed = [];
     this.counts = { throws: 0, bad: 0, aborted: 0, keysCut: 0, arms: 0 };
     this.fx = { spread: 1, vig: 0, micro: false };
     this.ui = new CarouselUI(g, root, this);
@@ -109,13 +109,19 @@ export class Carousel {
     const core = x.createRadialGradient(128, 128, 4, 128, 128, 126);
     core.addColorStop(0, 'rgba(255,241,200,0.95)'); core.addColorStop(0.25, 'rgba(255,154,46,0.55)'); core.addColorStop(0.7, 'rgba(120,60,16,0.25)'); core.addColorStop(1, 'rgba(0,0,0,0)');
     x.fillStyle = core; x.fillRect(0, 0, 256, 256);
-    for (let arm = 0; arm < 4; arm++) {
-      for (let s = 0; s < 120; s++) {
-        const t = s / 120, a = arm * Math.PI / 2 + t * Math.PI * 2.6, r = 6 + t * 116;
-        x.fillStyle = `rgba(${242 + 13 * (1 - t) | 0},${226 - 90 * t | 0},${184 - 150 * t | 0},${0.85 * (1 - t)})`;
-        x.beginPath(); x.arc(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 2 + 9 * (1 - t) * t * 2, 0, Math.PI * 2); x.fill();
+    // seven thin, uneven arms of light, smeared (a storm in a drain, not a target); a fixed seed so every page draws the same
+    let sd = 7103; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+    x.filter = 'blur(3px)'; x.globalCompositeOperation = 'lighter'; x.lineCap = 'round';
+    for (let arm = 0; arm < 7; arm++) {
+      const a0 = (arm / 7) * Math.PI * 2 + rnd() * 0.5, twist = 2.2 + rnd() * 1.2, w = 1.5 + rnd() * 3;
+      for (let s = 0; s < 60; s++) {
+        const t0 = s / 60, t1 = (s + 1) / 60, ra = 8 + t0 * 112, rb = 8 + t1 * 112, aa = a0 + t0 * Math.PI * twist, ab = a0 + t1 * Math.PI * twist;
+        x.strokeStyle = `rgba(${255},${200 - 110 * t0 | 0},${120 - 100 * t0 | 0},${0.75 * (1 - t0) * (0.6 + 0.4 * rnd())})`;
+        x.lineWidth = w * (1.4 - t0);
+        x.beginPath(); x.moveTo(128 + Math.cos(aa) * ra, 128 + Math.sin(aa) * ra); x.lineTo(128 + Math.cos(ab) * rb, 128 + Math.sin(ab) * rb); x.stroke();
       }
     }
+    x.filter = 'none'; x.globalCompositeOperation = 'source-over';
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
     this.vortexMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     this.vortex = new THREE.Mesh(new THREE.CircleGeometry(R - 0.35, 48).rotateX(-Math.PI / 2), this.vortexMat);
@@ -364,7 +370,9 @@ export class Carousel {
     const put = (c, i) => { c.x = slots[i].x; c.z = slots[i].z; c.gy = R.y; c.storey = null; c.path = null; c.vx = 0; c.vz = 0; g.standOn(c); };
     put(p, 0);
     if (R.door) p.face = Math.atan2(R.door.x - p.x, R.door.z - p.z);
-    who.crew.forEach((m, i) => { put(m.c, 1 + i); m.holdAt = null; });
+    // the crew come to on the steel: down (the knockdown state) until a breath after the door opens, then on their feet
+    this.downed.length = 0;
+    who.crew.forEach((m, i) => { put(m.c, 1 + i); m.holdAt = null; if (m.c.alive) { m.c.knockT = Math.max(m.c.knockT ?? 0, (ringborn ? RINGBORN.black : RING.arrivalHold) + 1.2); this.downed.push({ c: m.c, k: m.c.knockT }); } });
     who.dogs.forEach((d, i) => { const s = slots[1 + who.crew.length + i]; d.x = s.x; d.z = s.z; d.y = R.y; d.path = null; });
     if (g.crew?.drag) g.crew.stopDrag?.();
     g.camLook.x = p.x; g.camLook.z = p.z; g.camFloor = p.gy;
@@ -376,16 +384,23 @@ export class Carousel {
     return { at: { x: r1(p.x), z: r1(p.z), gy: r1(p.gy) }, site: dest.site.id, ug: p.ug ?? null };
   }
 
+  // Places on the deck: you between the core and the blast door, facing it; the crew and the dogs ahead of you, fanned out
+  // toward the door - inside your flashlight's cone, the only light down here when the ring dies back.
   slots(R, n) {
-    const out = [], room = R.room, m = 1.5; // clear of the consoles against the walls
-    const a0 = R.door ? Math.atan2(R.door.x - R.cx, R.door.z - R.cz) : 0;
-    for (let i = 0, k = 0; out.length < n && k < 64; k++) {
-      const ring = k < 10 ? 1.7 : k < 26 ? 2.6 : 3.3, a = a0 + (k * 2.399963);
-      const x = R.cx + Math.sin(a) * ring, z = R.cz + Math.cos(a) * ring;
+    const out = [], room = R.room, m = 0.9;
+    const a0 = R.door ? Math.atan2(R.door.x - R.cx, R.door.z - R.cz) : 0, ux = Math.sin(a0), uz = Math.cos(a0), vx = uz, vz = -ux;
+    const fan = [[1.8, 0], [3.0, 1.0], [3.0, -1.0], [2.4, 2.0], [2.4, -2.0], [1.5, 2.6], [1.5, -2.6], [3.3, 0], [0.6, 3.1], [0.6, -3.1]];
+    for (const [a, b] of fan) {
+      if (out.length >= n) break;
+      const x = R.cx + ux * a + vx * b, z = R.cz + uz * a + vz * b;
       if (x < room.x0 + m || x > room.x1 - m || z < room.z0 + m || z > room.z1 - m) continue;
-      out.push({ x, z }); i++;
+      out.push({ x, z });
     }
-    while (out.length < n) out.push({ x: R.cx + 1.7, z: R.cz });
+    for (let k = 0; out.length < n && k < 64; k++) { // round the core, whatever is left
+      const a = a0 + k * 2.399963, r = k < 10 ? 1.7 : 2.6, x = R.cx + Math.sin(a) * r, z = R.cz + Math.cos(a) * r;
+      if (x > room.x0 + m && x < room.x1 - m && z > room.z0 + m && z < room.z1 - m) out.push({ x, z });
+    }
+    while (out.length < n) out.push({ x: R.cx + ux * 1.8, z: R.cz + uz * 1.8 });
     return out;
   }
 
@@ -430,6 +445,13 @@ export class Carousel {
         this.spin = null; this.counts.aborted++;
         g.hud?.toast?.('YOU STEPPED OFF THE DECK · THE RING SPINS DOWN', 'warn'); g.emit('ringAbort', {});
       } else if (this.spin.t >= RING.spin + RING.live) this.throwNow();
+    }
+    // the crew who came to on the steel get up: a member the AI pass does not tick (the crew's own brain) is ticked here
+    for (let i = this.downed.length - 1; i >= 0; i--) {
+      const D = this.downed[i], c = D.c;
+      if (!(c.knockT > 0) || !c.alive) { this.downed.splice(i, 1); continue; }
+      if (c.knockT === D.k && simDt > 0) c.knockT = Math.max(0, c.knockT - simDt);
+      D.k = c.knockT;
     }
     if (this.catchT > 0) this.catchT -= dt;
     if (this.cold && !this.cold.opened && (this.cold.t -= simDt > 0 ? simDt : 0) <= 0) this.openDoor();
@@ -505,6 +527,8 @@ export class Carousel {
       if (r.ok) crew.push(K.members[K.members.length - 1]); else g.removeChar(c);
     }
     for (const [id, n] of RINGBORN.kit) g.inventory.stow(id, n);
+    // the station that caught you is running on its last fuel (its fans on: the air is good for now, the lights low)
+    const rec = g.under.rec(dest.site); rec.power = true; rec.fuel = Math.max(rec.fuel, RINGBORN.fuel);
     const arrived = this.arrive(dest, { crew, dogs: [] }, { ringborn: true });
     this.st.ringborn = true; this.st.last = null;
     this.know(dest.id);
