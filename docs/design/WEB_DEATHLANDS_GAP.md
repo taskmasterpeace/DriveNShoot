@@ -215,7 +215,7 @@ and camp talk (G3.8). (d) Gate interviews for HOUSE RULES (G7). (e) Keep the str
 
 ### G6. THE CAROUSEL — the machine in the ground (D2, the engine of vastness)
 **HAVE.** Built in Godot (`carousel.gd`: 10 stations, occupiers, power/codes/purge ladder, PAIR → ROULETTE → THE DIAL,
-node garages, ring sieges). **In web: atlas rows only** (`data/atlas.js:29, 68`). WEB_ENGINE_PLAN Phase 5 lists it.
+node garages, ring sieges). **In web (2026-11-11, `feat/web-carousel`): built** - three lit stations (Phoenix x2, Florida), PAIR / ROULETTE / BACKSPIN, ring-sick per §4.5, keys, Ring-born, save; see `WEB_CAROUSEL.md`. (Before: atlas rows only, `data/atlas.js:29, 68`.) WEB_ENGINE_PLAN Phase 5 lists it.
 **NEED.** Sealed stations under ruined forts; a ring that throws you (and your crew, never your rig) a thousand miles;
 ring-sickness; the risk of a bad throw; the arrival in an unknown region as the game's signature beat.
 **PLAN.** (1) Station = an underground interior (uses the underground/basement lane) with blast door, dead status boards,

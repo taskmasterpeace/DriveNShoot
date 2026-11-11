@@ -766,6 +766,9 @@ train, air raid, manhunt) to 20 (town siege).
 
 ## 6. Dependencies
 
+**THE CAROUSEL** (`WEB_CAROUSEL.md`) is live in web: `data/carousel.js` STATIONS place dark rows on `ATLAS_XZ.bases` (cheyenne_mountain, fort_hood, fort_benning); lit rows near Phoenix and Meridian.
+
+
 | Doc / system | What it needs from this atlas | What this atlas needs from it |
 |---|---|---|
 | `docs/DIVIDED_STATES.md` | sites and bases for every state ruler | the 50 rulers (`RULERS`, verbatim) and the landmarks it already promises |
