@@ -112,7 +112,7 @@ export async function holdoutsChecks(api, check, C) {
     if (!v.ok) bad.push(...v.errors.slice(0, 6));
     const regions = new Set(Law.towns.map((T) => T.R.id));
     if (!regions.has('arizona') || !regions.has('florida') || Law.towns.length < 6) bad.push(`towns ${Law.towns.map((T) => `${T.id}@${T.R.id}`)}`);
-    for (const T of Law.towns) { if (!T.exit) bad.push(`${T.id}: no exit`); const kinds = new Set(T.lots.map((q) => q.kind)); for (const k of ['townhall', 'sheriff', 'clinic', 'cantina', 'store']) if (!kinds.has(k)) bad.push(`${T.id}: no ${k} laid out`); for (const o of ['market', 'arena', 'tower']) if (!T.blocks.some((b) => b.open === o)) bad.push(`${T.id}: no ${o}`); }
+    for (const T of Law.towns) { if (!T.exit) bad.push(`${T.id}: no exit`); const kinds = new Set(T.lots.map((q) => q.kind)); for (const k of ['townhall', 'sheriff', 'clinic', 'cantina', 'store']) if (!kinds.has(k)) bad.push(`${T.id}: no ${k} laid out`); for (const o of ['market', 'pit', 'tower']) if (!T.blocks.some((b) => b.open === o)) bad.push(`${T.id}: no ${o}`); }
     return bad.length ? JSON.stringify(bad) : true;
   });
 
@@ -127,7 +127,7 @@ export async function holdoutsChecks(api, check, C) {
       const p0 = await C('path', { fx: a0.x, fz: a0.z, x: out.x, z: out.z });
       if (!p0.found) bad.push(`${T.id}: no way from the road to the gate`);
       const goal = (b) => ({ x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2 });
-      for (const o of ['market', 'arena']) { const b = T.blocks.find((q) => q.open === o), q = goal(b); const p = await C('path', { fx: out.x, fz: out.z, x: q.x + (o === 'arena' ? 0 : 0), z: q.z + (o === 'market' ? 9 : 0) }); if (!p.found) bad.push(`${T.id}: no way to ${o}`); }
+      for (const o of ['market', 'pit']) { const b = T.blocks.find((q) => q.open === o), q = goal(b); const p = await C('path', { fx: out.x, fz: out.z, x: q.x, z: q.z + (o === 'market' ? 9 : 0) }); if (!p.found) bad.push(`${T.id}: no way to ${o}`); }
       for (const k of ['townhall', 'sheriff', 'clinic', 'cantina', 'store']) {
         const L = T.lotOf(k), post = Rg.postOf(L);
         if (!post.door) { bad.push(`${T.id}: ${k} has no door`); continue; }

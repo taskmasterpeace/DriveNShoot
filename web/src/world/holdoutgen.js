@@ -28,11 +28,11 @@ export function generateHoldout(spec) {
   const wealth = Math.max(0, Math.min(1, (spec.wealth ?? 0.5) + (K.wealth ?? 0)));
   const id = spec.id, name = pol.name ?? id.replace(/_/g, ' ').toUpperCase();
   const side = spec.side ?? 'W', mainGate = side === 'W' ? 'E' : 'W';
-  const [w, d] = S.size, cols = S.cols, t = 2.6, lane = 6, walk = 3;
+  const [w, d] = S.size, cols = S.cols, t = 3.0, lane = 6, walk = 3;
   // The wall: the kit's weights, leaned by the Keyholder.
   const kit = Pal.kit.map(([k, wt]) => [k, +(wt * (K.kit?.[k] ?? 1)).toFixed(2)]);
-  const wall = { h: +(4.6 + wealth * 0.6).toFixed(2), t, panel: 6.2, colors: WALL_KIT.tin.colors, cap: Pal.cap, post: Pal.post,
-    tower: { size: 5.2, h: 8.6, roof: Pal.roof }, gate: 16, junk: 0.18, kit };
+  const wall = { h: +(5.6 + wealth * 0.6).toFixed(2), t, panel: 6.2, colors: WALL_KIT.tin.colors, cap: Pal.cap, post: Pal.post,
+    tower: { size: 6.2, h: 11.5, roof: Pal.roof }, gate: 16, junk: 0.5, kit };
   // Streets: Main Street gate side to the far wall; N-S avenues evenly between.
   const hw = w / 2, ix0 = -hw + t + lane, ix1 = hw - t - lane, ns = [];
   for (let i = 1; i < cols; i++) ns.push({ at: Math.round(ix0 + ((ix1 - ix0) * i) / cols), w: 10, name: AVENUES[(i - 1 + (seed % 3)) % AVENUES.length] });
@@ -48,10 +48,10 @@ export function generateHoldout(spec) {
   else blocks.push({ at: [colOf(0), 0], front: 'S', name: 'THE KEY ROW', lots: [hall, jail, clinic], back: homes(5) });
   blocks.push({ at: [colOf(0), 1], front: 'N', name: 'MAIN STREET', lots: [saloon, sutler, water], back: homes(5) });
   blocks.push({ at: [colOf(1), 0], open: 'market', name: 'THE SWAP' });
-  blocks.push({ at: [colOf(1), 1], open: 'arena', name: 'THE PIT' });
+  blocks.push({ at: [colOf(1), 1], open: 'pit', name: 'THE PIT' });
   if (cols >= 3) {
     blocks.push({ at: [colOf(2), 0], front: 'S', lots: ['gunsmith', 'boarding', 'house'], open: 'tower' });
-    blocks.push({ at: [colOf(2), 1], front: 'N', name: 'THE GARAGE', lots: ['mechanic', 'diner'], open: 'yard' });
+    blocks.push({ at: [colOf(2), 1], front: 'N', name: 'THE GARAGE', lots: ['mechanic', 'diner'], open: 'junk' });
   }
   if (cols >= 4) {
     blocks.push({ at: [colOf(3), 0], open: 'garden', name: 'THE GARDENS' });
@@ -163,7 +163,7 @@ export function validateHoldouts(rows, opts = {}) {
       if (!(c >= 0 && c <= ns.length && r >= 0 && r <= ew.length)) E(`block ${B.at} outside the ${ns.length + 1}x${ew.length + 1} grid`);
       if (cells.has(`${c},${r}`)) E(`two blocks on ${c},${r}`); cells.add(`${c},${r}`);
       for (const L of [...(B.lots ?? []), ...(B.back ?? [])]) { const k = Array.isArray(L) ? L[0] : typeof L === 'object' ? L.kind : L; if (!KINDS[k]) E(`lot kind ${k}`); }
-      if (B.open && !['market', 'garden', 'arena', 'junk', 'tower', 'yard'].includes(B.open)) E(`open lot ${B.open}`);
+      if (B.open && !['market', 'garden', 'arena', 'pit', 'junk', 'tower', 'yard'].includes(B.open)) E(`open lot ${B.open}`);
       // The front row must fit its block (the layout drops what does not).
       if (B.lots && (B.front === 'N' || B.front === 'S')) {
         const hw = w / 2, t = R.wall.t, lane = R.lane ?? 6, walk = R.walk ?? 3, ix0 = -hw + t + lane, ix1 = hw - t - lane, xs = [ix0, ...ns.map((s) => s.at), ix1];
@@ -180,7 +180,7 @@ export function validateHoldouts(rows, opts = {}) {
       const kinds = new Set(), opens = new Set();
       for (const B of R.blocks) { for (const L of B.lots ?? []) kinds.add(typeof L === 'object' && !Array.isArray(L) ? L.kind : L); if (B.open) opens.add(B.open); }
       for (const k of ['townhall', 'sheriff', 'clinic', 'cantina', 'store']) if (!kinds.has(k)) E(`no ${k}`);
-      for (const o of ['market', 'arena', 'tower']) if (!opens.has(o)) E(`no ${o}`);
+      for (const o of ['market', 'pit', 'tower']) if (!opens.has(o)) E(`no ${o}`);
       if (!(gen.rules?.length >= LIMITS.rules[0] && gen.rules.length <= LIMITS.rules[1])) E(`house rules ${gen.rules?.length}`);
       for (const r of gen.rules ?? []) if (!HOUSE_RULES[r]) E(`house rule ${r}`);
       const C = gen.card;

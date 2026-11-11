@@ -5,14 +5,14 @@ import { drawFlag, FLAGS } from './portrait.js';
 import { HOUSE_RULES } from '../data/holdoutgen.js';
 
 const CSS = `
-.hkc { position: absolute; top: 92px; right: 22px; width: 360px; pointer-events: none; overflow: hidden; color: oklch(0.94 0.02 82);
+.hkc { position: absolute; top: 262px; left: 22px; width: 372px; pointer-events: none; overflow: hidden; color: oklch(0.94 0.02 82);
   background: oklch(0.17 0.012 60); border: 2px solid oklch(0.1 0.01 60); box-shadow: 0 0 0 1px oklch(0.42 0.02 70 / 0.6) inset, 4px 4px 0 rgba(0,0,0,0.55);
   animation: hkc-in 0.35s ease-out; font: 400 13px/1.35 var(--type, Inter, system-ui, sans-serif); }
 .hkc.hidden { display: none; }
-@keyframes hkc-in { from { opacity: 0; transform: translateX(24px); } }
-.hkc-flag { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.34; filter: saturate(0.85) contrast(1.05); }
-.hkc-shade { position: absolute; inset: 0; background: linear-gradient(90deg, oklch(0.14 0.012 60 / 0.92) 0%, oklch(0.14 0.012 60 / 0.55) 62%, oklch(0.14 0.012 60 / 0.2) 100%); }
-.hkc-in { position: relative; padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+@keyframes hkc-in { from { opacity: 0; transform: translateX(-24px); } }
+.hkc-flag { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.72; filter: saturate(0.9) contrast(1.05); }
+.hkc-shade { position: absolute; inset: 0; background: linear-gradient(90deg, oklch(0.14 0.012 60 / 0.9) 0%, oklch(0.14 0.012 60 / 0.74) 60%, oklch(0.14 0.012 60 / 0.3) 100%); }
+.hkc-in { position: relative; padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.85); }
 .hkc-town { font: 700 11px var(--display, Inter, sans-serif); letter-spacing: 0.2em; color: oklch(0.78 0.11 75); text-transform: uppercase; }
 .hkc-name { font: 800 22px var(--display, Inter, sans-serif); letter-spacing: -0.01em; text-shadow: 1px 2px 0 rgba(0,0,0,0.7); }
 .hkc-title { font: 700 11px var(--display, Inter, sans-serif); letter-spacing: 0.16em; color: oklch(0.72 0.03 75); }

@@ -12,8 +12,8 @@
 //   tin        corrugated sheets in two or three colours, patched
 //   sandbag    sandbag courses to chest height, a tin screen above
 export const WALL_KIT = {
-  container: { h: 2.6, len: 6.0, colors: ['#8a3a22', '#2f6f6a', '#3f5f7a', '#c8b89a', '#5f6a3a', '#9a5a2a', '#6e3a2a'], second: 0.45 },
-  husk: { stack: [2, 3], backing: ['#7d827c', '#8a5a3a', '#6e6a62'] },
+  container: { h: 2.6, len: 6.0, colors: ['#8a3a22', '#2f6f6a', '#3f5f7a', '#c8b89a', '#5f6a3a', '#9a5a2a', '#6e3a2a'], second: 0.75 },
+  husk: { stack: [3, 4], backing: ['#7d827c', '#8a5a3a', '#6e6a62'] },
   tin: { colors: ['#7d827c', '#8e938c', '#8a5a3a', '#7a4a2e', '#9a6a44', '#6e6a62', '#3f6f7a', '#a8a49a'] },
   sandbag: { h: 1.5, colors: ['#b0a07a', '#a8966c', '#9c8a62', '#bca97e'], screen: ['#7d827c', '#8a5a3a'] },
 };
