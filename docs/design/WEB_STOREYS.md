@@ -279,8 +279,8 @@ again each second). Loot is the generated builder's: containers on every floor, 
 
 **The facade kit** (`FACADE`; every roll the building's own id). Each upper window bay: glass 34% (a cracked pane left
 in its top 28-54%: sight and rounds pass under it), boarded 26% (three planks outside with a firing slit at sill +
-0.18..0.55 m: eye height is free), blown 14% (soot up the wall over it), else open; a lamp behind 16% of the glass bays
-and 22% of the open ones after dark. A ledge at every floor line (0.14 proud, 0.16 tall), a cornice at the top (0.28
+0.18..0.55 m: eye height is free), blown 14% (soot up the wall over it), else open; a lamp behind 20% of the glass bays
+and 28% of the open ones after dark (amber, not tone-mapped: never bleached white). Roof bridges get rope rails on posts. A ledge at every floor line (0.14 proud, 0.16 tall), a cornice at the top (0.28
 proud, 0.4 tall). The roof: 1-3 HVAC boxes, a water tank on legs on 4+ storeys, a sandbag horseshoe behind the
 street-side parapet (always on 4+ storeys with a walkable roof, else 22%): colliders on a walkable roof (`fk-hvac`,
 `fk-tank`, `sandbags`). A hotel's rooftop sign on its street edge. Damage on 32% (always on a ruin): 1-3
@@ -362,7 +362,7 @@ building, else on the street. Outside the storeyed buildings both keep the old f
 | `DANGER.infected` | base 0.08, perFloor 0.1, max 2 | base 0-0.3, perFloor 0-0.2 | how infested the upper floors are |
 | `DANGER.sniper.share` | 0.45 | 0-1 | rooftop riflemen on 4+ storeys |
 | `DANGER.reserve` | 32 | 16-60 | free slots kept for the street before a tower is peopled |
-| `FACADE.window` | 0.34 / 0.26 / 0.14, lit 0.16 | each 0-0.6 | how dead or lived-in a facade reads |
+| `FACADE.window` | 0.34 / 0.26 / 0.14, lit 0.20 | each 0-0.6 | how dead or lived-in a facade reads |
 
 ### 9.8 Acceptance criteria (selftest `only=storeys v2`)
 1. **Rows:** the cap is 6 everywhere (MAX_ABOVE 5, VERT.maxStoreys 6, no island building over it); zone ranges as §9.3;
