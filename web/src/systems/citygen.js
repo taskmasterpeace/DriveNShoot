@@ -431,7 +431,7 @@ export class CityGen {
     }
   }
   buildingAt(x, z) {
-    if (!this.live.size) return null;
+    if (!this.live.size && !this.extra.size) return null; // (the ring's towers count: world/ringrise.js)
     const L = this.bgrid.get(Math.floor(x / 16) * 65536 + Math.floor(z / 16));
     if (!L) return null;
     for (const R of L) if (x > R.minX && x < R.maxX && z > R.minZ && z < R.maxZ) return R;

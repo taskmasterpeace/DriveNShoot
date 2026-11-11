@@ -80,7 +80,7 @@ export class Facades {
     this.M = {
       kit: mk('kit', box, new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0.03 }), CAP.kit, true),
       glass: mk('glass', box, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.18, metalness: 0.55 }), CAP.glass, false),
-      lit: mk('lit', box, new THREE.MeshBasicMaterial({ color: FACADE.colors.lit, transparent: true, opacity: 0, depthWrite: false }), CAP.lit, false),
+      lit: mk('lit', box, new THREE.MeshBasicMaterial({ color: FACADE.colors.lit, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }), CAP.lit, false), // not tone-mapped: a lamp's amber stays amber, never bleached white
       tank: mk('tank', new THREE.CylinderGeometry(0.5, 0.5, 1, 12), new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0.2 }), CAP.tank, true),
       sign: null,
     };
@@ -279,7 +279,7 @@ export class Facades {
         const x = nx ? (nx < 0 ? D.x0 + 0.5 : D.x1 - 0.5) : cx, z = nz ? (nz < 0 ? D.z0 + 0.5 : D.z1 - 0.5) : cz, y = ry + 1.3 + sh / 2;
         put('sign', n, x + nx * 0.06, y, z + nz * 0.06, sw, sh, 1, 0, Math.atan2(nx, nz), 0, 6);
         for (const s of [-1, 1]) kit(n, x + (nz ? s * sw * 0.4 : 0), ry + (1.3 + sh) / 2, z + (nx ? s * sw * 0.4 : 0), 0.15, 1.3 + sh, 0.15, '#3a3430');
-        kit(n, x - nx * 0.05, y, z - nz * 0.05, nz ? sw + 0.2 : 0.08, sh + 0.2, nz ? 0.08 : sw + 0.2, '#2e2a26');
+        kit(n, x - nx * 0.05, y, z - nz * 0.05, nz ? sw + 0.2 : 0.08, sh + 0.2, nz ? 0.08 : sw + 0.2, '#6a5440'); // its weathered board back (from behind it reads as wood, not a hole)
         this.counts.signs++;
       }
     }

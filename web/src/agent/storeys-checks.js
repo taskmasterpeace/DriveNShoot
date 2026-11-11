@@ -173,6 +173,21 @@ export async function storeysV2Checks({ api, g, check, C }) {
     return out.px > 20 && out.shows >= 0.9 && out.showsWithoutCut < 0.6 && out.camZ > out.towerZ[0] ? true : JSON.stringify(out);
   });
 
+  await check('storeys v2: inside a ring tower on floor 4 you are in a building (the roof and the floors above you are not drawn, its facade kit above your floor neither) and the camera measures from your floor; outside again, all of it shows', async () => {
+    await downtown();
+    const o = RR.view(SPOT.x, SPOT.z, 260).find((q) => q.storeys >= 5 && !q.ruined);
+    if (!o) return 'no tower';
+    const { R } = RR.record(o.id), S = R.S, y4 = S.Y[3];
+    await C('rise', { id: o.id, go: true, floor: 3 });
+    clearNear(40);
+    await api._step(20);
+    const inn = { inside: !!g.insideBuilding, viewS: g.storeys.viewS === S, viewL: g.storeys.viewL, camFloor: r1(g.camFloor ?? 0), camY: r1(g.camera.position.y), gy: r1(p.gy ?? 0), facade: g.facades.viewKey === S && g.facades.viewL === 3 };
+    await stand(SPOT.x, SPOT.z); await api._step(20);
+    const out = { viewS: g.storeys.viewS, facade: g.facades.viewKey };
+    const ok = inn.inside && inn.viewS && inn.viewL === 3 && Math.abs(inn.camFloor - y4) < 1 && inn.camY > inn.gy + 3 && inn.facade && !out.viewS && !out.facade;
+    return ok ? true : JSON.stringify({ inn, out: { viewS: !!out.viewS, facade: !!out.facade }, y4: r1(y4) });
+  });
+
   await check('storeys v2: a roof bridge is walked on held keys - up on one tower\'s roof, across the planks over the gap, onto the next roof (height and building change at the far end)', async () => {
     await downtown();
     let list = RR.bridges();
@@ -262,6 +277,8 @@ export async function storeysV2Checks({ api, g, check, C }) {
 
   await check('storeys v2: upstairs is richer and more dangerous - a tower\'s loot by floor (the gunsmith odds rise floor by floor, a crate on a reached roof), infected on the upper floors and a rifleman perched on a tall roof in the hot chunks', async () => {
     await downtown();
+    // a crowded agent page keeps its slots for the street (DANGER.reserve): let the towers people themselves now
+    const res0 = DANGER.reserve; DANGER.reserve = 0; RR.popT = 0; RR.update(1.1); DANGER.reserve = res0;
     let upper = 0, rich = 0, roofCrates = 0, zs = 0, snipers = 0;
     for (const e of RR.live.values()) {
       for (const q of e.built.loot) { if (q.k >= 1) upper++; if (q.k >= 2 && q.table === 'gunsmith') rich++; if (String(q.id).endsWith(':roof')) roofCrates++; }

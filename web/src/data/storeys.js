@@ -80,14 +80,14 @@ export const DANGER = { infected: { base: 0.08, perFloor: 0.1, max: 2 }, sniper:
 //             street level; laundry: a line strung between two upper windows of a home
 //   signs     a hand-painted sign over a shop's door (no brand names: plain trade words)
 export const FACADE = {
-  window: { glass: 0.34, boarded: 0.26, blown: 0.14, lit: 0.16 },
+  window: { glass: 0.34, boarded: 0.26, blown: 0.14, lit: 0.2 },
   ledge: { proud: 0.14, h: 0.16 }, cornice: { proud: 0.28, h: 0.4 },
   roof: { tankMin: 4, hvac: [1, 3], nest: 0.22 },
   damage: 0.32, lean: 0.3, laundry: 0.45,
   colors: {
     glass: '#3c4d55', board: ['#7a5a3a', '#6a4e32', '#8a6a44'], soot: '#1c1916', ledge: 0.82, cornice: 0.74, hvac: ['#8a8c86', '#6e726e', '#9a9488'],
     tank: ['#6a5a48', '#4e5a5a', '#7a6a58'], sand: ['#a8946a', '#9a8660', '#b4a078'], tin: ['#8a8a84', '#7a7e7a', '#9a8e76'], rebar: '#3a2e26',
-    cloth: ['#c8b89a', '#b24a32', '#3f6a8a', '#d8d0bc', '#6a8a4a', '#c9963a', '#8a4a3a'], lit: '#ffc070',
+    cloth: ['#c8b89a', '#b24a32', '#3f6a8a', '#d8d0bc', '#6a8a4a', '#c9963a', '#8a4a3a'], lit: '#d9822e',
   },
   signs: ['PAWN', 'GUNS', 'WATER', 'EAT', 'TIRES', 'LIQUOR', 'HOTEL', 'ROOMS', 'BAIL', 'PARTS', 'CASH', 'SALVAGE'],
 };
