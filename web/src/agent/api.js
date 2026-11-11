@@ -5242,7 +5242,8 @@ async function runSelfTest(api, only = null, skip = null) {
       str(L.id); str(JSON.stringify([geo.plan, geo.rooms, geo.inner, geo.doors, geo.props, geo.boxes, geo.beds, geo.boxesIn, geo.walls, geo.decor, geo.floor, geo.roof]));
     }
     const hex = (h >>> 0).toString(16).padStart(8, '0');
-    return hex === g.streamer.golden.ringPlans && lots > 2000 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
+    // (STOREYS v2: ~200 of the ring's planned lots now rise and are built by the generated-town builder: 1894 planned lots stay)
+    return hex === g.streamer.golden.ringPlans && lots > 1800 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
   });
   // ---- authored buildings (docs/design/WEB_BUILDING_LAB.md; world/authored.js): the Building Lab's export, loaded -------
   await check('building lab: a building exported by the lab (data/authored.js LAB_SAMPLES.office2: a two-storey office floor, hand-edited upstairs) loads at a world position in the ring (the author command): it stands in place of the lots it covers, a walk (moveTo) from its street through its front door gets inside, every room of its street floor is reached by A* from the street through its doorways, its stairs\' run is solid and their foot reached, the reachability proof passes on both floors, and taken away the block is the generator\'s again', async () => {

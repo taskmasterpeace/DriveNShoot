@@ -182,6 +182,7 @@ flaw, a movement style, cover rule, retreat rule and ammo habit. Robert's decisi
 9. **Save/load, shard-safe:** the crew is player-owned state in the save (and in the shard snapshot).
 
 ### G4. Buildings up to six storeys
+**STATUS 2026-11-11: STOREYS v2 built on `feat/web-storeys` - see `WEB_STOREYS.md` §9 (the ring rises 2-6 storeys, the facade kit, roofs, bridges, escapes, window fights, floors muffle; acceptance #3 and #8 are `storeys v2:` checks).**
 **HAVE.** `data/storeys.js`: storey 3.2 m; town buildings rise by exactly +1 on 30%; ruins rise 1–3 on 45% (≥220 m²) →
 **max 4 storeys**, and only the **18 island buildings** get any (`world/storeys.js:47-50`). The builder has no hard cap.
 Stairs switch back along a wall, railed holes, floors are separate places for sight/bullets/bites/witnesses, `setView`

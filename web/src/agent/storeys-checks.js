@@ -126,6 +126,7 @@ export async function storeysV2Checks({ api, g, check, C }) {
   await check('storeys v2: acceptance #3 - a real six-storey ring tower between the camera and you (ANGLED close, you in front of its north front): >= 90% of your screen circle shows you (pixel test against the tower removed), and with the cutaway off it does not', async () => {
     await downtown();
     const R = g.cam;
+    await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true }); // a pixel test needs daylight (at night every pixel is black alike)
     // a six-storey tower with open street north of it (no other building within 9 m of the spot)
     let pick = null;
     // (its front on the north street: you stand on its open forecourt, not behind its back-yard wall)

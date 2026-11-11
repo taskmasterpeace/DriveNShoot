@@ -220,6 +220,7 @@ marks), `site` (list; id= at=), `overrun town= level=` (hordes=on|off, day=true,
 - **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): the `claim` deed hook is called by `g.homes`, which keeps ownership as records and writes `B.owner` back after every rebuild; the claimable kinds are what a base, a rented or a bought house can be.
 | Depends on | For | Back-reference added |
 |---|---|---|
+| `world/ringrise.js` (`WEB_STOREYS.md` §9, STOREYS v2) | the Phoenix ring's towers are generated buildings: `buildTown` per hot ring chunk, registered by `stampRing`/`releaseRing` (the `extra` map: drawn, walked, collided, looted, never a settlement); `roofBridges(share)`; `out.upWins` feeds the facade kit (`world/facades.js`, also dressing every live town) | `WEB_STOREYS.md` §9.6 |
 | `world/storeys.js` (`WEB_STOREYS.md`) | the vertical law; `addExt`/`removeExt`, `setView` hands generated buildings to `ext`, `steer` approach + on-flight rule, downtown's 6-storey tower (`RISE.ruins.tower`) | this doc |
 | `engine/collision.js` | the `cg` tier (resolveCircle, raycast) | comment in file |
 | `systems/underground.js`, `data/underground.js` (`WEB_UNDERGROUND.md`) | the vault: kind `vault`, room `ringroom` | rows commented |
