@@ -75,6 +75,7 @@ import { soundCommands, soundChecks } from './sound-api.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
+import { carouselCommands, carouselChecks } from './carousel-api.js'; // THE CAROUSEL: stations, the ring, the throw, ring-sick (docs/design/WEB_CAROUSEL.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { policeCommands, policeChecks } from './police-api.js'; // POLICE RESPONSE: stations, beats, the desk, units, sirens (WEB_POLICE_RESPONSE.md)
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
@@ -2123,6 +2124,7 @@ function buildCommands(api) {
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
+    ...carouselCommands(api, need), // THE CAROUSEL: carousel, ringJump (src/agent/carousel-api.js, docs/design/WEB_CAROUSEL.md)
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...policeCommands(api, need), // police: stations, patrols, dispatch, units (src/agent/police-api.js)
@@ -6142,6 +6144,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await carouselChecks(api, check, C); // THE CAROUSEL: the station's ladder, the ring's look, ROULETTE across regions (acceptance 9), PAIR, BACKSPIN, keys, ring-sick, save, Ring-born (src/agent/carousel-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
   g.kit.staged = kitWas;
@@ -6195,6 +6198,7 @@ export function snapshot(g) {
     travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
     homes: g.homes?.save(), // camps, bases (stash, boards, rooms), every moved piece, owners' purses, tenure, the raid log (systems/homes.js)
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
+    carousel: g.carousel?.save(), // THE CAROUSEL: the last ring, rings known, armed rings, ring-sick, where the rig was left (systems/carousel.js)
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
@@ -6287,6 +6291,7 @@ export function restore(g, s) {
   g.homes?.load(s.homes ?? null); // after the boxes: the bases put their stashes back
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
+  if (s.carousel) g.carousel?.load(s.carousel); // after the crew: below in a station, the members stand on your level again (an old save: the ring as it is)
 
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

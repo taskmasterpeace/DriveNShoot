@@ -71,6 +71,7 @@ import { Fauna } from './systems/fauna.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
+import { Carousel } from './systems/carousel.js'; // THE CAROUSEL: the ring in a station's deepest room (docs/design/WEB_CAROUSEL.md)
 import { UnderStreet } from './systems/understreet.js'; // UNDER THE STREET: storm drains under every town (docs/design/WEB_UNDERSTREET.md)
 import { FanNods } from './systems/fannods.js'; // the found things: the glass room's hum, the counter, the meal, the burning rain, the convoy, the bones (docs/design/WEB_FAN_NODS.md)
 import { Milbases } from './systems/milbases.js'; // the military bases' garrisons, hordes and sealed doors (docs/design/WEB_MILITARY_BASES.md)
@@ -263,6 +264,7 @@ class Game {
     this.forensics = new Forensics(this); // wounds keep their calibre, casings lie on the ground (WEB_CALIBERS.md)
     this.shotRead = new ShotRead(this, ui); // a shot at you reads: its streak, the dust, the marker toward it (WEB_SHOT_READ.md)
     this.crewUI = new CrewUI(this, ui);
+    this.carousel = new Carousel(this, ui); // THE CAROUSEL: stations' rings, the throw, ring-sickness, keys, Ring-born (docs/design/WEB_CAROUSEL.md)
 
     this.cash = 120;
     this.wanted = 0;
@@ -836,6 +838,7 @@ class Game {
       return;
     }
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
+    if (this.carousel.ui.open) { p.speed = 0; this.carousel.ui.input(I); return; } // at a ring console (ui/carousel.js)
     if (this.workshopUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.workshopUI.input(I); return; }
     if (I.hit('KeyU') && this.workshop.siteAt(p.x, p.z)) { this.workshopUI.toggle(true); return; } // at a garage U is the workshop; anywhere else it is the crew (ui/crew.js)
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
@@ -1405,6 +1408,7 @@ class Game {
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
     this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
+    this.carousel.update(simDt, dt); // the ring: its look, the spin and the throw, ring-sickness's decay (systems/carousel.js)
     this.understreet.update(simDt, dt); // the drains: the flood and its current, who stands up near you, the rats, the dead following a sound down
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;

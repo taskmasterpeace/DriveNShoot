@@ -694,7 +694,7 @@ function people(c) {
   }
   // The dead who live here: in rooms and chambers away from where you arrive.
   const [lo, hi] = K.infected[Math.min(k - 1, K.infected.length - 1)], n = rng.int(lo, hi);
-  const places = (L.rooms.length ? L.rooms.filter((r) => !r.sealed).map((r) => [r.x0 + 0.8, r.z0 + 0.8, r.x1 - 0.8, r.z1 - 0.8]) : (L.chambers ?? []).filter((o) => Math.hypot(o.x - L.arrival.x, o.z - L.arrival.z) > 8 && !o.pool).map((o) => [o.x - o.r * 0.6, o.z - o.r * 0.6, o.x + o.r * 0.6, o.z + o.r * 0.6]));
+  const places = (L.rooms.length ? L.rooms.filter((r) => !r.sealed && r.type !== 'ringdeck').map( /* a station's ring room is sealed to them: the ring catches you clean (systems/carousel.js) */(r) => [r.x0 + 0.8, r.z0 + 0.8, r.x1 - 0.8, r.z1 - 0.8]) : (L.chambers ?? []).filter((o) => Math.hypot(o.x - L.arrival.x, o.z - L.arrival.z) > 8 && !o.pool).map((o) => [o.x - o.r * 0.6, o.z - o.r * 0.6, o.x + o.r * 0.6, o.z + o.r * 0.6]));
   for (let i = 0; i < n && places.length; i++) {
     const pl = places[rng.int(0, places.length - 1)], p = freeSpot(c, ...pl);
     if (p && Math.hypot(p.x - L.arrival.x, p.z - L.arrival.z) > 7) L.spawns.push({ kind: rng() < K.runners ? 'sprinter' : 'shambler', ...p, post: { ...p } });
@@ -737,7 +737,7 @@ function longestRun(c) {
 export function siteCodes(site) {
   const rng = makeRng(mix(site.seed >>> 0, 0xc0de));
   const out = {};
-  for (const g of ['armory', 'vault', 'ward', 'cold', 'cell', 'deep', 'stores']) out[g] = String(rng.int(1000, 9999));
+  for (const g of ['armory', 'vault', 'ward', 'cold', 'cell', 'deep', 'stores', 'ring']) out[g] = String(rng.int(1000, 9999)); // ring: last, so every older code stays as it was
   if (site.holdout) out.armory = '0704';
   return out;
 }

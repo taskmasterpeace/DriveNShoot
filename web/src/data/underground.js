@@ -133,6 +133,18 @@ export const KINDS = {
     infected: [[1, 2], [1, 3], [2, 4], [2, 4], [1, 3], [2, 3], [2, 5], [3, 6]], runners: 0.25,
     logs: ['bunker_last', 'bunker_fuel', 'bunker_vault'],
   },
+  // A CAROUSEL STATION (docs/design/WEB_CAROUSEL.md; rows in data/carousel.js, the machine in systems/carousel.js): a
+  // short sealed site, two levels - the hatch, a guard post, the generator that wakes it; below, the ring platform behind
+  // its keyed blast door (ringdeck, first so it always fits) and the command room where the ring's code card lies.
+  station: {
+    name: 'Carousel station', built: true, size: [48, 56], levels: [2, 2], corridor: 3,
+    programme: [
+      ['vestibule', 'guard', 'generator', 'stores', 'latrine'],
+      ['ringdeck', 'command', 'stores'],
+    ],
+    infected: [[1, 3], [2, 3]], runners: 0.25,
+    logs: ['ring_power', 'ring_card'],
+  },
   // UNDER THE STREET (docs/design/WEB_UNDERSTREET.md): a town's storm drains and sewers, one level made from its street
   // plan by world/understreet.js (undergen's GEN.drains); its rows are data/understreet.js. size/programme are unused
   // (the town sets the frame) and kept only so every kind reads the same.
@@ -170,6 +182,9 @@ export const ROOMS = {
   pump: { label: 'PUMP ROOM', w: [4, 6], d: [4, 6], floor: '#4c4f4a', props: [['pump', 1, 'mid'], ['drum', 2]], loot: 'ug_gen', door: 'metal', locked: 0.2 },
   // The vault's deepest room: a raised round platform under a ring of pylons, behind a blast door (the Carousel's room).
   ringroom: { label: 'RING PLATFORM', w: [10, 13], d: [9, 12], floor: '#4a4a46', props: [['pylon', 1, 'mid'], ['console', 2]], loot: 'ug_lab', door: 'blast', locked: 0.9, log: true },
+  // The Carousel lane's ring room, keyed (a station's: data/carousel.js): the ringroom row with a keypad on its blast door
+  // that answers to the ring's code. Same deck, same pylons, same consoles; systems/carousel.js hangs the ring over it.
+  ringdeck: { label: 'RING PLATFORM', w: [10, 13], d: [9, 12], floor: '#4a4a46', props: [['pylon', 1, 'mid'], ['console', 2]], loot: 'ring_keys', door: 'blast', locked: 1, keypad: 'ring', log: false }, // no log in here: the code's card lies outside the door it opens
   // A project's own rooms (PROJECTS rows put them in a facility's programme).
   ward: { label: 'WARD', w: [7, 10], d: [6, 8], floor: '#6c6e68', props: [['cot', 6], ['cabinet', 1]], loot: 'ug_med', door: 'metal', locked: 0.2, beds: true },
   cold: { label: 'COLD ROOM', w: [6, 9], d: [5, 7], floor: '#5d6a6c', props: [['shelf', 4], ['crate', 2]], loot: 'ug_seeds', door: 'metal', locked: 0.6, keypad: 'cold' },
@@ -247,6 +262,9 @@ export const PROJECTS = {
 // title, text; code: a keypad group whose code reading this teaches you ({code} in the text is that code). Paper logs lie
 // on a desk or the floor; terminals glow on a console (they need power to read, unless `paper`).
 export const LOGS = {
+  // a Carousel station (data/carousel.js)
+  ring_power: { title: 'STATION CARD', paper: true, text: 'Station power: day tank, choke, crank. Nothing below the stair wakes without her: not the keypad, not the boards, not the ring. Bring fuel. The ring does not run on hope.' },
+  ring_card: { title: 'RING DUTY ROSTER', paper: true, code: 'ring', text: 'Arming code for the platform this rotation: {code}. Everyone on the deck before you arm. Nothing on wheels goes through. Pack light. You will be sick after. Everybody is.' },
   // the Remnant's holdout under Outpost Nine
   hold_watch: { title: 'WATCH BILL', paper: true, code: 'armory', text: 'Two on the stair, one on the set, the bird flies the long corridor on the hour. Nobody goes topside without the Lieutenant\'s word. Armory is the founding day, same as always: {code}.' },
   hold_quarter: { title: 'QUARTERMASTER', paper: true, text: 'Rifles cleaned and counted: thirty-one. Rounds: not enough. Rations: enough if the new ones eat less. If you are reading this and you are not one of ours, put it back.' },
@@ -293,7 +311,7 @@ export const LOGS = {
 // The holdout's own (it is in the bunker under Outpost Nine).
 export const HOLDOUT_LOGS = ['hold_watch', 'hold_quarter', 'hold_radio', 'hold_vault'];
 // The log that teaches a keypad group's code when nothing else on the site does.
-export const CODE_LOGS = { armory: 'armory_card', vault: 'bunker_vault' };
+export const CODE_LOGS = { armory: 'armory_card', vault: 'bunker_vault', ring: 'ring_card' };
 
 // ---- what is in the boxes ----------------------------------------------------------------------------------------------
 // LOOT rows (data/items.js shape: rolls, none, rows of [item, weight, min, max]); systems/underground.js registers them

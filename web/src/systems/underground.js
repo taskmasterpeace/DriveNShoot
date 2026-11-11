@@ -832,6 +832,7 @@ export class Underground {
     const P = A.levels.get(this.levelOf(p.gy));
     if (!P) return null;
     if (A.plan.drains) { const x = this.ext.interact(p, I, dt); if (x) return x; } // lids from below, the outfall's bars
+    if (A.site.station) { const x = g.carousel?.interact(p, I, dt, P); if (x) return x; } // a Carousel station's ring console (systems/carousel.js)
     const down = I.key('KeyE'), hit = I.hit('KeyE'), y = P.L.y;
     const ring = this._ring ?? (this._ring = { x: 0, z: 0, len: 2 });
     // A held E counts for one thing at a time: a new thing in reach starts the count again (a finished hold waits for E up).
