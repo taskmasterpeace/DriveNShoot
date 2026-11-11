@@ -47,6 +47,8 @@ import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
+import { storeysCommands } from './storeys-api.js'; // STOREYS v2: rise, facades, floors (docs/design/WEB_STOREYS.md §9)
+import { storeysV2Checks } from './storeys-checks.js'; // STOREYS v2's checks (acceptance #3 and #8)
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { milbasesCommands, milbasesChecks } from './milbases-api.js'; // the military bases (WEB_MILITARY_BASES.md)
@@ -2079,6 +2081,7 @@ function buildCommands(api) {
     ...fannodsCommands(api, need), // fannods (WEB_FAN_NODS.md)
     ...understreetCommands(api, need), // understreet (WEB_UNDERSTREET.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
+    ...storeysCommands(api, need), // rise, facades, floors (STOREYS v2, WEB_STOREYS.md §9)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
     ...semisCommands(api, need), // semi (WEB_SEMIS.md)
@@ -6112,6 +6115,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
+  await storeysV2Checks({ api, g, check, C }); // STOREYS v2: the ring's towers, roofs, bridges, escapes, window fights, the facade kit (src/agent/storeys-checks.js)
   await milbasesChecks({ api, g, check, C }); // the military bases: rows, the wire, the armory, the gate rule, the blast door, the horde (WEB_MILITARY_BASES.md §8)
   await fannodsChecks({ api, g, check, C }); // the found things: the glass room, the case, the blade, the counter, the convoy, the rain, the calendars, the meal (WEB_FAN_NODS.md §8)
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)

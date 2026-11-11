@@ -22,6 +22,7 @@ import { floorplan, NavProbe } from './floorplan.js';
 import { ROOMS, PLAN_RULES } from '../data/floorplans.js';
 import { AUTHORED } from '../data/authored.js';
 import { placeAuthored } from './authored.js';
+import { riseBlock } from './ringrise.js'; // STOREYS v2: the lots that stand taller (world/ringrise.js)
 
 const G = RING.grid, T = RING.wall, TAU = Math.PI * 2;
 const AE = RING.arterialEvery;
@@ -151,6 +152,7 @@ export class Ring {
     b.Z = ZONES[b.zone];
     this.layLots(b, rng);
     if (this.authored.length) placeAuthored(this, b);
+    if (this.rise !== false) riseBlock(b); // the lots that rise become empty lots carrying their tower's row (world/ringrise.js builds it)
     this.built++;
     return b;
   }
@@ -381,7 +383,10 @@ export class Ring {
     const b = this.block(Math.floor(x / G), Math.floor(z / G));
     if (!b.city) return false;
     if (b.zone !== 'residential' && b.zone !== 'ruins') return true;
-    for (const L of b.lots) if (!L.empty && x > L.x0 - 2 - r && x < L.x1 + 2 + r && z > L.z0 - 2 - r && z < L.z1 + 2 + r) return true;
+    for (const L of b.lots) {
+      const R = L.empty ? L.rise : L; // a lot that rises: its tower's footprint (world/ringrise.js)
+      if (R && x > R.x0 - 2 - r && x < R.x1 + 2 + r && z > R.z0 - 2 - r && z < R.z1 + 2 + r) return true;
+    }
     return false;
   }
 
@@ -1204,14 +1209,19 @@ export class Ring {
   survey() {
     if (this.surveyCache) return this.surveyCache;
     const t0 = performance.now(), byZone = {}, byKind = {}, n = this.kMax;
-    let blocks = 0, buildings = 0, ruined = 0, cut = 0, empty = 0;
+    let blocks = 0, buildings = 0, ruined = 0, cut = 0, empty = 0, risers = 0, tallest = 1;
+    const byStoreys = {};
     for (let cx = -Math.ceil(this.reach / C) - 1; cx <= Math.ceil(this.reach / C); cx++) for (let cz = -Math.ceil(this.reach / C) - 1; cz <= Math.ceil(this.reach / C); cz++) this.owned(cx, cz);
     for (let k = -n; k <= n; k++) for (let j = -n; j <= n; j++) {
       const b = this.block(k, j);
       if (!b.city) continue;
       blocks++; byZone[b.zone] = (byZone[b.zone] ?? 0) + 1;
-      for (const L of b.lots) { if (L.empty) { empty++; continue; } if (L.cut) { cut++; continue; } buildings++; byKind[L.kind] = (byKind[L.kind] ?? 0) + 1; if (L.ruined) ruined++; }
+      for (const L of b.lots) {
+        // a lot that rises (world/ringrise.js) is a building of 2-6 storeys, built by the generated-town builder
+        if (L.rise) { risers++; buildings++; const R = L.rise; byKind[R.kind] = (byKind[R.kind] ?? 0) + 1; byStoreys[R.n] = (byStoreys[R.n] ?? 0) + 1; tallest = Math.max(tallest, R.n); if (R.ruined) ruined++; continue; }
+        if (L.empty) { empty++; continue; } if (L.cut) { cut++; continue; } buildings++; byKind[L.kind] = (byKind[L.kind] ?? 0) + 1; if (L.ruined) ruined++;
+      }
     }
-    return (this.surveyCache = { blocks, buildings, ruined, emptyLots: empty, overBudget: cut, byZone, byKind, ms: +(performance.now() - t0).toFixed(1) });
+    return (this.surveyCache = { blocks, buildings, ruined, emptyLots: empty, overBudget: cut, byZone, byKind, risers, byStoreys, tallest, ms: +(performance.now() - t0).toFixed(1) });
   }
 }

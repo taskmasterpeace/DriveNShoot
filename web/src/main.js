@@ -74,7 +74,9 @@ import { Underground } from './systems/underground.js';
 import { UnderStreet } from './systems/understreet.js'; // UNDER THE STREET: storm drains under every town (docs/design/WEB_UNDERSTREET.md)
 import { FanNods } from './systems/fannods.js'; // the found things: the glass room's hum, the counter, the meal, the burning rain, the convoy, the bones (docs/design/WEB_FAN_NODS.md)
 import { Milbases } from './systems/milbases.js'; // the military bases' garrisons, hordes and sealed doors (docs/design/WEB_MILITARY_BASES.md)
-import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
+import { CityGen } from './systems/citygen.js';
+import { Facades } from './world/facades.js'; // STOREYS v2: the facade kit (docs/design/WEB_STOREYS.md §9.2)
+import { RingRise } from './world/ringrise.js'; // STOREYS v2: the ring's towers (docs/design/WEB_STOREYS.md §9.1) // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
 import { Wrecks } from './systems/wrecks.js';
 import { BackLots } from './systems/backlots.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
@@ -244,6 +246,8 @@ class Game {
     this.population = new Population(this); // the far fold: ambient people left far behind hand their slots back (systems/population.js)
     this.milbases = new Milbases(this); // before citygen: a stamped base hands its garrison here (systems/milbases.js)
     this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
+    this.facades = new Facades(this); this.facades.addIsland(this.storeys); // STOREYS v2: windows, ledges, roofs, signs (world/facades.js)
+    this.ringrise = new RingRise(this); for (const L of this.streamer.hot.values()) this.ringrise.chunkOn(L); // the ring's towers in the chunks already hot (world/ringrise.js)
     this.backlots = new BackLots(this); // their alleys, yard fences and gates, back-door locks, town pathing (docs/design/WEB_BACK_LOTS.md)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -544,7 +548,7 @@ class Game {
   }
 
   sees(a, b) {
-    if (!this.storeys.sameFloor(a, b)) return false;
+    if (!this.storeys.sameFloor(a, b)) { const y = this.storeys.across(a, b); return y >= 0 && this.losAt(a.x, a.z, b.x, b.z, y); } // up at a window or a roof's edge, from the street or another building (world/storeys.js across)
     return this.losAt(a.x, a.z, b.x, b.z, a.ug ? Math.min(a.gy ?? 0, b.gy ?? 0) - (this.under?.y0 ?? 0) : a.storey || b.storey ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0); // below the street: that level's walls (over its street: a town's pad for its drains)
   }
 
@@ -1403,6 +1407,8 @@ class Game {
     this.milbases.update(simDt); // the bases' gate rule, the horde's moans (systems/milbases.js)
     this.fannods.update(simDt); // the found things: the hum, the counter's ticks, the meal, the burning rain, the convoy, the ditch's bones
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
+    this.ringrise.update(simDt); // the ring towers' people, when slots free up (world/ringrise.js)
+    this.facades.update(); // the facade kit: its buffers when a source came or went, the lamps after dark (world/facades.js)
     this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
     this.understreet.update(simDt, dt); // the drains: the flood and its current, who stands up near you, the rats, the dead following a sound down

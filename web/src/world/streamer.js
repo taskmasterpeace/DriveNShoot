@@ -308,11 +308,13 @@ export class Streamer {
     const beds = this.g.world?.spawns?.beds;
     if (beds) for (const b of R.beds) beds.push({ ...b, ring: L.key });
     this.g.residents?.chunkOn(L); // R2: the households' shelves are theirs (systems/residents.js)
+    this.g.ringrise?.chunkOn(L); // STOREYS v2: its lots that rise, built and dressed (world/ringrise.js)
   }
   ringOff(L) {
     const R = L.ring;
     if (!R) return;
     this.g.residents?.chunkOff(L); // R2: its people go back onto their records (their bodies' boxes first)
+    this.g.ringrise?.chunkOff(L); // STOREYS v2: its towers come down (world/ringrise.js)
     this.g.inventory?.unregisterRing(R.boxes);
     const beds = this.g.world?.spawns?.beds;
     if (beds && R.beds.length) for (let i = beds.length - 1; i >= 0; i--) if (beds[i].ring === L.key) beds.splice(i, 1);

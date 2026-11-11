@@ -287,7 +287,7 @@ function clampSt(rng, k, zr, d) {
 
 // Planks between two roofs you can reach, facing across a gap of at most VERT.bridge.maxGap with at least 3 m of shared
 // edge and roofs within 3.2 m of each other: a bridge is a narrow flight from one roof to the other (level or sloped).
-export function roofBridges(rng, buildings, tid = 't') {
+export function roofBridges(rng, buildings, tid = 't', share = VERT.bridge.share) { // share: the ring's rows set their own (world/ringrise.js)
   const out = [], V = VERT.bridge, up = buildings.filter((B) => B.roofAccess && !B.open);
   for (let i = 0; i < up.length; i++) for (let j = i + 1; j < up.length; j++) {
     const a = up[i], b = up[j];
@@ -303,7 +303,7 @@ export function roofBridges(rng, buildings, tid = 't') {
       const [n, s] = a.z1 <= b.z0 ? [a, b] : b.z1 <= a.z0 ? [b, a] : [null, null];
       if (n && s.z0 - n.z1 >= 1.5 && s.z0 - n.z1 <= V.maxGap) { const xc = Math.round((ox0 + ox1) / 2); br = { axis: 'z', z0: n.z1 + VERT.wall / 2, z1: s.z0 - VERT.wall / 2, x0: xc - V.w / 2, x1: xc + V.w / 2, from: n, to: s }; }
     }
-    if (!br || !rng.chance(V.share)) continue;
+    if (!br || !rng.chance(share)) continue;
     // nothing else may stand in the gap under the planks (another building between the two)
     if (buildings.some((B) => B !== br.from && B !== br.to && br.x1 > B.x0 && br.x0 < B.x1 && br.z1 > B.z0 && br.z0 < B.z1)) continue;
     if (out.some((q) => q.from === br.from || q.to === br.to || q.from === br.to || q.to === br.from)) continue; // one bridge a roof keeps the parapet whole

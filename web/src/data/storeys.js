@@ -27,6 +27,70 @@ export const RISE = {
   ruins: { share: 0.45, storeys: [1, 3], minArea: 220, tower: 5 }, // the Glass Flats' blocks: two to four storeys of rooms to clear;
   //                                                                tower: the biggest one rising is downtown's six-storey tower
 };
+// The skyline's cap (docs/design/WEB_DEATHLANDS_GAP.md §7 storeys.maxAbove): floors ABOVE the street storey, anywhere -
+// the island, the ring, a generated town (data/citygen.js VERT.maxStoreys = maxAbove + 1). Safe 3-7: above 5 the tilted
+// camera needs >= 60 m of boom to see the roofs.
+export const MAX_ABOVE = 5;
+
+// STOREYS v2 - THE RING RISES (docs/design/WEB_STOREYS.md §9). Which of the Phoenix ring's lots stand taller than one
+// storey, by zone, rolled from the lot's own seed (world/ringrise.js; the ring's own rng is never read). A lot that rises
+// is built by the generated-town builder (world/citygen/build.js: stairs to every floor, a roof you can stand on, fire
+// escapes, roof bridges, loot per floor) in place of the ring's one-storey shell.
+//   belt      the DOWNTOWN belt: blocks whose centre is within `belt` m of the island's edge (Chebyshev) - the towers
+//             that ring the walled island, the skyline you drive past on the first ring street
+//   share     the chance a lot of that zone rises; storeys [min, max] INCLUDING the street storey (cap MAX_ABOVE + 1)
+//   kinds     ring kind -> generated kind (data/citygen.js KINDS): the street storey's height, roof access, escape odds,
+//             the loot row; a kind not listed never rises (a fuel stop keeps its canopy, a warehouse its one tall bay)
+//   grow      downtown footprints grow inside their lot to [w, d] at most (a tower needs a floor plate), keeping
+//             `side` m clear each side (a fire escape's 2.8 m and a walker) and `back` m to the lot's back line
+//   escape    the chance a building of 3+ storeys gets an outside stair (overrides the kind's odds); bridges: the share of
+//             facing roof pairs (gap 1.5-7 m, within 3.2 m of height) joined by planks
+export const RING_RISE = {
+  belt: 170,
+  downtown: { share: 0.62, storeys: [4, 6], kinds: { mall: 'hotel', diner: 'office', house: 'apartment', bungalow: 'apartment', duplex: 'apartment', shop: 'office' },
+    grow: { w: 24, d: 20, side: 3.1, back: 2.5 }, escape: 0.85, bridges: 0.85 },
+  strip: { share: 0.4, storeys: [2, 3], kinds: { mall: 'shop', diner: 'shop' }, escape: 0.6, bridges: 0.5 },
+  residential: { share: 0.2, storeys: [2, 2], kinds: { house: 'house', bungalow: 'house', duplex: 'rowhouse' }, escape: 0, bridges: 0 },
+  industrial: null, // THE YARDS stay one tall storey (a warehouse's bay is 6-7.4 m: the mezzanine is its office's roof)
+  ruins: { share: 0.12, storeys: [2, 3], kinds: { house: 'adobe', bungalow: 'adobe', shop: 'shop' }, ruined: 0.6, escape: 0.3, bridges: 0 },
+};
+
+// The floors as places to fight (docs/design/WEB_STOREYS.md §9.3): what crosses between floors.
+//   window    an upper-floor person within `reach` m of an outside wall (or `roof` m of a roof's edge) sees and is seen
+//             from the street and the other buildings through the window bays, at their own floor's height; `range`: the
+//             farthest such a line runs (m)
+//   noise     how far a noise carries by floors apart inside a storeyed building: [same, one, two+] x its radius
+//   blast     a blast's share by floors apart (same, one, two+); the street counts as floor 0 of every building
+export const ACROSS = { window: { reach: 2.4, roof: 3.0, range: 70 }, noise: [1, 0.5, 0], blast: [1, 0.5, 0] };
+
+// Upstairs is more dangerous (world/ringrise.js populate): a risen building's floor k (k >= 1) holds infected with chance
+// infected.base + infected.perFloor * k (up to infected.max a floor), and a building of `sniper.minStoreys`+ storeys a
+// rifleman on the roof (perched behind the parapet: he turns and shoots, never steps off) at sniper.share. A chunk wakes
+// at most `cap` of them; free character slots are kept for the street.
+export const DANGER = { infected: { base: 0.08, perFloor: 0.1, max: 2 }, sniper: { minStoreys: 4, share: 0.45, weapon: 'rifle', faction: 'raider', hp: 90 }, cap: 6, reserve: 32 };
+
+// THE FACADE KIT (world/facades.js; docs/design/WEB_STOREYS.md §9.2): what dresses a storeyed building's outside. Every
+// roll is the building's own (its id), so a building looks the same each time it is built.
+//   window    each upper window bay's state: glass (a cracked pane left in the top of it), boarded (planks with a firing
+//             slit at eye height: rounds and sight still pass the slit), blown (soot up the wall over it), open; lit: the
+//             share of glass/open bays with a lamp behind them after dark (warm, never a light: an emissive pane)
+//   ledge     a string course at every floor line (proud m, tall m); cornice: the top band
+//   roof      water tank (towers of tankMin+ storeys), HVAC boxes, a sandbag nest (always on a sniper's roof)
+//   damage    rebar-and-hole patches on a building (share; ruined: always), lean: a tin lean-to against a side wall at
+//             street level; laundry: a line strung between two upper windows of a home
+//   signs     a hand-painted sign over a shop's door (no brand names: plain trade words)
+export const FACADE = {
+  window: { glass: 0.34, boarded: 0.26, blown: 0.14, lit: 0.16 },
+  ledge: { proud: 0.14, h: 0.16 }, cornice: { proud: 0.28, h: 0.4 },
+  roof: { tankMin: 4, hvac: [1, 3], nest: 0.22 },
+  damage: 0.32, lean: 0.3, laundry: 0.45,
+  colors: {
+    glass: '#3c4d55', board: ['#7a5a3a', '#6a4e32', '#8a6a44'], soot: '#1c1916', ledge: 0.82, cornice: 0.74, hvac: ['#8a8c86', '#6e726e', '#9a9488'],
+    tank: ['#6a5a48', '#4e5a5a', '#7a6a58'], sand: ['#a8946a', '#9a8660', '#b4a078'], tin: ['#8a8a84', '#7a7e7a', '#9a8e76'], rebar: '#3a2e26',
+    cloth: ['#c8b89a', '#b24a32', '#3f6a8a', '#d8d0bc', '#6a8a4a', '#c9963a', '#8a4a3a'], lit: '#ffc070',
+  },
+  signs: ['PAWN', 'GUNS', 'WATER', 'EAT', 'TIRES', 'LIQUOR', 'HOTEL', 'ROOMS', 'BAIL', 'PARTS', 'CASH', 'SALVAGE'],
+};
 
 // Upstairs is furnished from its own rows: crates and shelves become containers (inventory.js placeFurniture), a
 // mattress is somewhere to sleep. per = one piece per this many m² of floor.

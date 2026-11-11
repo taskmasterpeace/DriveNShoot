@@ -113,6 +113,7 @@ export const MATERIAL_RULES = {
     'bl-pole': 'timber', 'bl-dock': 'concrete',
     tractor: 'carbody', boatwreck: 'wood', // the roadside's old tractor and the drained lake's boat (not cars: data/wrecks.js)
     'mb-fence': 'chainlink', 'mb-blast': 'steel', // THE MILITARY BASES (world/citygen/milbase.js): the double wire and its gate leaves, the bunker's blast door
+    'fk-hvac': 'sheet_metal', 'fk-tank': 'steel', 'fk-wall': 'block', // STOREYS v2's facade kit (world/facades.js): roof HVAC, a water tank's legs and drum, a riser's yard wall
     'bl-burnt': 'carbody', 'bl-junk': 'sheet_metal', 'bl-tires': 'rubber', 'bl-woodpile': 'wood', // BACK-LOTS 2: alley wrecks, yard junk
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
