@@ -124,7 +124,25 @@ export class Facades {
         wins: built.upWins?.filter((w) => w.b === B.id) ?? [], color: B.color, kind: B.kind, ruined: B.ruined, front: B.front, doors: built.doors.filter((d) => d.b === B.id && d.kind === 'door'),
         area: R.S?.area ?? null, escapeSide: B.escape?.side ?? null, lot: B.ringRow?.area ?? null, B, bridged: built.bridges?.filter((q) => q.br.from === B || q.br.to === B).map((q) => q.br) ?? [] });
     }
-    this.add(id, bl, built);
+    const src = this.add(id, bl, built);
+    // the roof bridges: their rails drawn (rope on posts; the colliders are the builder's), so a plank run reads as a
+    // bridge from above and not as a stair down a wall
+    for (const q of built.bridges ?? []) this.bridgeKit(src, q.br);
+  }
+  bridgeKit(src, br) {
+    const put = (x, y, z, sx, sy, sz, hex) => { const c = rgb(hex); const P = src.parts.kit; P.push(x, y, z, sx, sy, sz, 0, 0, 0, c[0], c[1], c[2]); src.lv.kit.push(0); src.bi.kit.push(-1); };
+    const ax = br.axis === 'x', y0 = br.yFrom, y1 = br.yTo, len = ax ? br.x1 - br.x0 : br.z1 - br.z0, n = Math.max(2, Math.round(len / 1.6));
+    for (const side of [0, 1]) {
+      const c = ax ? (side ? br.z1 : br.z0) : (side ? br.x1 : br.x0);
+      for (let i = 0; i <= n; i++) { // posts
+        const t = i / n, a = (ax ? br.x0 : br.z0) + t * len, y = y0 + (y1 - y0) * t;
+        put(ax ? a : c, y + 0.5, ax ? c : a, 0.08, 1.0, 0.08, '#4a3a2a');
+      }
+      const ym = (y0 + y1) / 2 + 0.95, am = ax ? (br.x0 + br.x1) / 2 : (br.z0 + br.z1) / 2;
+      put(ax ? am : c, ym, ax ? c : am, ax ? len : 0.05, 0.05, ax ? 0.05 : len, '#3a2e22'); // the rope
+    }
+    this.counts.bridges = (this.counts.bridges ?? 0) + 1;
+    this.dirty = true;
   }
   remove(id) { if (this.sources.delete(id)) { this.dirty = true; this.counts.sources = this.sources.size; } }
 
