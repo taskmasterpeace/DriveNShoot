@@ -268,8 +268,7 @@ function gunboat(parts, s, paint, K) {
   for (let k = 0; k < 9; k++) { const a = -Math.PI * 0.85 + k * (Math.PI * 1.7 / 8), r = 0.62; parts.push(K.coloredBox(0.36, 0.18, 0.22, Math.cos(a) * r, top + 0.09, gz + Math.sin(a) * r * 0.9 - 0.1, k % 2 ? '#8a7a58' : '#7d6e4f')); }
   parts.push(cyl(K, 0.07, 0.5, 0, top + 0.25, gz, '#2a2826', K.PART.frame));
   parts.push(K.slab(-0.42, 0.42, top + 0.42, top + 0.9, gz + 0.32, gz + 0.36, '#4a4a42', K.PART.frame));
-  parts.push(K.slab(-0.07, 0.07, top + 0.52, top + 0.66, gz - 0.35, gz + 0.3, '#2b2a28', K.PART.frame));
-  parts.push(K.beam([0, top + 0.6, gz + 0.3], [0, top + 0.62, gz + 1.25], 0.07, '#4f4c47', K.PART.frame));
+  // (the gun itself is the pintle MOUNT now, garage.js draws it where CHASSIS.gunboat.mounts.top.at says, swinging to aim)
   for (const sd of [1, -1]) parts.push(K.slab(sd * 0.18, sd * 0.38, top, top + 0.2, gz - 0.55, gz - 0.35, '#4a5236'));
   // the aft cockpit: drums (data/decks.js drums -0.4..0.4, -3.3..-2.5), the lockbox, the transom's twin outboards
   for (const x of [-0.22, 0.22]) parts.push(cyl(K, 0.21, 0.62, x, 1.0, -2.9, x > 0 ? '#7a3a1c' : '#2f4a3a'));

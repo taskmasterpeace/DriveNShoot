@@ -63,7 +63,17 @@ export const CHASSIS = {
   buggy:       { maxKg: 420,  spaces: 4,  faces: { front: 12, rear: 8, left: 4, right: 4, top: 0, under: 8 },     mounts: mp(2, 1, 1, 1, 2) }, // light pods: an open frame shoots every way
   atv:         { maxKg: 160,  spaces: 2,  faces: { front: 6, rear: 4, left: 0, right: 0, top: 0, under: 4 },      mounts: mp(1, 1, 0, 0, 0) },
   bike:        { maxKg: 110,  spaces: 2,  faces: { front: 4, rear: 0, left: 0, right: 0, top: 0, under: 0 },      mounts: mp(1, 1, 0, 0, 0) },
+  // BOATS (VEHICLES V2 slice 2, Robert 11-12: "we do need guns on boats"). A hull takes plate on its topsides and none
+  // below the waterline (under: 0). A mount may carry `at` [x, y, z] in the body frame (garage.js draws it there, not at
+  // the car spot): the gunboat's foredeck pintle swings its gun right round (a `top` mount) from inside the sandbags.
+  gunboat:     { maxKg: 2400, spaces: 14, faces: { front: 34, rear: 22, left: 28, right: 28, top: 10, under: 0 },    mounts: { ...mp(0, 1, 1, 1, 0), top: { size: 2, arc: ARC.turret, at: [0, 1.96, 2.05] } } },
+  barge:       { maxKg: 2600, spaces: 14, faces: { front: 24, rear: 20, left: 24, right: 24, top: 0, under: 0 },     mounts: mp(2, 2, 2, 2, 2) },
+  airboat:     { maxKg: 520,  spaces: 4,  faces: { front: 10, rear: 0, left: 6, right: 6, top: 0, under: 0 },        mounts: mp(2, 0, 1, 1, 0) }, // the fan cage is the stern: nothing goes back there
+  skiff:       { maxKg: 420,  spaces: 3,  faces: { front: 8, rear: 0, left: 4, right: 4, top: 0, under: 0 },         mounts: mp(1, 0, 1, 1, 0) },
+  jetski:      { maxKg: 90,   spaces: 1,  faces: { front: 2, rear: 0, left: 0, right: 0, top: 0, under: 0 },         mounts: mp(1, 0, 0, 0, 0) },
 };
+// What the raider gunboat carries when it is put on the water (main.js): its own gun on the pintle, a full belt.
+export const BOAT_KIT = { gunboat: { top: 'hmg' } };
 // The old Kenji dialogue (data/parts.js PLATE_MAX) is a floor: every legacy face fits under these.
 
 // ---- PERFORMANCE: what the load does (the formula, docs/design/WEB_WORKSHOP.md §4) -------------------------------------

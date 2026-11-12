@@ -390,9 +390,11 @@ export class Garage {
         const m = v.mounts[f], Wr = MOUNT_WEAPONS[m.kind];
         if (!Wr) continue;
         // Where the mount sits and which way it points, in the body frame.
-        const [mx, my, mz, yaw] = f === 'front' ? [0, hy, L / 2 - 0.62, 0] : f === 'rear' ? [0, 0.86, -L / 2 + 0.05, Math.PI]
+        let [mx, my, mz, yaw] = f === 'front' ? [0, hy, L / 2 - 0.62, 0] : f === 'rear' ? [0, 0.86, -L / 2 + 0.05, Math.PI]
           : f === 'left' ? [W / 2 + 0.12, 0.95, 0.2, Math.PI / 2] : f === 'right' ? [-W / 2 - 0.12, 0.95, 0.2, -Math.PI / 2]
           : [0, roof + 0.12, -0.15, (m.yaw ?? v.h) - v.h];
+        const at = this.chassis(v)?.mounts?.[f]?.at; // a body's own spot for it (a boat's pintle: data/workshop.js CHASSIS)
+        if (at) [mx, my, mz] = at;
         const fx = Math.sin(yaw), fz = Math.cos(yaw);
         if (Wr.kind === 'drop') { put(mx, my, mz, 0.72, 0.32, 0.34, m.kind === 'smoke' || m.kind === 'flares' ? STEEL : m.kind === 'paint' ? TILE : RUST, yaw); continue; }
         if (f === 'top') put(mx, my - 0.06, mz, 0.7, 0.12, 0.7, STEEL, yaw); // the turret ring

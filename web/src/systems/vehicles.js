@@ -553,6 +553,8 @@ export class Vehicles {
       const want = Math.atan2(tx - v.x, tz - v.z);
       v.steer = clamp((angleLerp(v.h, want, 1) - v.h) * 2, -1, 1);
       v.throttle = pd < 12 ? 0.3 : 0.75;
+      if (!v.driver && v.occ?.[0]?.alive) v.driver = v.occ[0]; // a load clears drivers and leaves the crew in their seats: the man at the wheel is the driver
+      if (v.mounts && seen && pd < 70 && v.driver && g.ai.hostile(v.driver, p)) g.workshop?.aiFire(v, px, pz, dt); // its deck gun (data/workshop.js CHASSIS.gunboat)
       for (const o of v.occ ?? []) if (o && o.alive && o.weapon && seen && pd < 35 && g.ai.hostile(o, p)) {
         o.cool -= dt;
         if (o.cool <= 0) { o.cool = 0.4 + Math.random() * 0.6; g.carCombat.fireFromVehicle(o, v, o.weapon, Math.atan2(px - v.x, pz - v.z) + (Math.random() - 0.5) * 0.2); }

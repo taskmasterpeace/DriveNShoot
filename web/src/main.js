@@ -44,6 +44,7 @@ import { CharSheet } from './ui/charsheet.js';
 import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
+import { BOAT_KIT } from './data/workshop.js'; // the raider gunboat's own deck gun (VEHICLES V2 slice 2)
 import { WorkshopUI } from './ui/workshop.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
@@ -436,6 +437,7 @@ class Game {
     this.vehiclesSys.spawn('airboat', DOCK.x + 8, DOCK.z + 5, Math.PI / 2, '#5a6a48');
     this.vehiclesSys.spawn('jetski', DOCK.x + 14, DOCK.z - 5, Math.PI / 2, '#b0301e');
     const gb = this.vehiclesSys.spawn('gunboat', LAKE.x + 20, LAKE.z, 0, '#3a3632', { ai: 'boatPatrol' });
+    for (const [face, kind] of Object.entries(BOAT_KIT.gunboat)) if (!this.garage.canMount(gb, face, kind)) this.garage.setMount(gb, face, kind); // its own .50 on the pintle (data/workshop.js BOAT_KIT)
     for (let k = 0; k < 2; k++) { const r = this.spawnRaider(gb.x, gb.z, rng, 'smg'); if (r) this.seats.board(r, gb, k); }
     // Dustwolf buggies at the camps.
     for (const camp of S.camps) {
