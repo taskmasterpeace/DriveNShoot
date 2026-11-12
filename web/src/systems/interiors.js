@@ -262,7 +262,7 @@ export class Interiors {
   // lock gives the door stays SHUT on its latch for all but an Echo (WEB_DOOR_POUND.md §3.2: then the leaf is beaten).
   bang(door, z) {
     const g = this.g;
-    if (!(g.zombies?.fresh?.(z) ?? true)) return;
+    if (!z.wild && !(g.zombies?.fresh?.(z) ?? true)) return; // (a wild creature has no memory rows: it beats a lock it is pressed at, as it always did)
     z.stuck = 0; // beating on it, not stuck: no detour along the wall
     z._bang = (z._bang ?? 0) + this.dt;
     if (z._bang < 1.1) return;
@@ -326,12 +326,12 @@ export class Interiors {
     return best;
   }
   // The SHUT door within a shoulder's reach that E would lean on (main.js asks when the infected are near): on its
-  // hinges, in your hand's line, within DOOR.kickReach.
+  // hinges, in your hand's line, within the E key's own reach.
   shutDoorNear(p) {
-    let best = null, bd = DOOR.kickReach;
+    let best = null, bd = 1.9; // the E key's own door reach (nearest())
     for (let i = 0; i < this.doors.length; i++) {
       const d = this.doors[i];
-      if (d.broken || (d.ug ?? null) !== (p.ug ?? null)) continue;
+      if (d.broken || (d.ug ?? null) !== (p.ug ?? null) || (d.locked && !this.underAttack(d))) continue; // a locked door that nobody is beating is not leaned on: its lock is yours to work
       const dx = d.x - p.x, dz = d.z - p.z;
       if (dx > bd || dx < -bd || dz > bd || dz < -bd) continue;
       if (Math.abs((d.y ?? 0) - (p.gy ?? 0)) > 1.6 || !this.isShut(d)) continue;
@@ -1206,6 +1206,7 @@ export class Interiors {
   }
 
   load(s) {
+    if (s?.fresh !== false) this.ringPound?.clear?.(); // (kept across a shard patch: net/shard.js passes fresh: false)
     // The ring's: detach every one (the save is the truth), keep the save's entries for when they attach again.
     for (const id of [...this.ringOpen.keys()]) this.detachRing(id);
     this.ringState.clear();
