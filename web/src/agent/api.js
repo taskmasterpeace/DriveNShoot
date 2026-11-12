@@ -3398,6 +3398,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await moveTowChecks(api, check, C, { hush, wvClean, wvReady, hk, tk, WV }); // dive to prone, vault, roll, slide, drop-hang, tow, snap, winch, launch, the boats' budget (src/agent/movetow-api.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
+    const screen0 = DRIVING.screenSteer; DRIVING.screenSteer = true; // the screen-true mode: classic (car's own left) is the default since Robert 10-29
+    try {
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
     const bad = [];
     let runs = 0;
@@ -3428,6 +3430,7 @@ async function runSelfTest(api, only = null, skip = null) {
       tailDx = tail() - t0;
     } finally { wvClean([v]); }
     return runs === ZOOM.levels.length * 4 && !bad.length && tailDx < 0 ? true : JSON.stringify({ runs, bad, tailDx });
+    } finally { DRIVING.screenSteer = screen0; }
   }));
   await check('reverse: held S backs each rig up to its own row speed (reverse), no faster', async () => hush(async () => {
     wvClean([]); wvReady();
