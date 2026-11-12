@@ -1067,9 +1067,11 @@ class Game {
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed ? this.boxRing : null));
+    const towFoot = !best && !dog && !dk && !game && !spot ? this.towing.footKey(p, I, dt, climb ? 'climb aboard' : null) : false; // on foot at a car's tail or nose with a chain: hold E hooks it (VEHICLES V2 slice 4)
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
+    else if (towFoot) { /* the towing system wrote the prompt (systems/towing.js footKey) */ }
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);

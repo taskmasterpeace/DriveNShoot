@@ -33,6 +33,11 @@ export const TOW = {
   reach: 4.5, filter: 6, towedDrag: 0.3, liftedDrag: 0.14, deadDrag: 1.8, reelSpeed: 1.3, stallLoad: 44, inertia: 0.09, snapFling: 0.5,
   gateLoad: 9, wreckLoad: 6, tieSlack: 0.4, segs: 10, maxLinks: 12,
 };
+// ON FOOT (VEHICLES V2 slice 4, Robert 11-12: "drive one vehicle up to another, get out, walk up to the back, if you got a
+// chain you can do it"): E at a car's tail or nose hooks one end of the chain (or rope) from your pack there; you carry the
+// free end, walking no further than the line's length plus `leash`; E at the other car's end hooks it. E at a hooked end
+// unhooks it (the line back in your pack). reach: how close to an end you stand to work it; hookTime: seconds bent over it.
+export const TOW_FOOT = { reach: 1.9, leash: 0.6, hookTime: 1.2 };
 
 // MUD: soft ground holds a car that sits or spins its wheels in it. A pit is a row { x, z, r, depth } (data below, plus
 // any the world or a command stages). bog 0..1: how deep the car is in.
