@@ -1,7 +1,7 @@
 // VEHICLES V2 slice 3, CAR DOORS (Robert 11-12: "cars hold the doors open, and when you get in, give him a second to
 // close the door, I want to be able to leave the door open"; docs/status/vehicles-v2.md on docs/web-veh-status):
 // the `door` command and selftest checks. Rows and rules: data/cardoors.js; the system: systems/cardoors.js.
-import { DOORS } from '../data/cardoors.js';
+import { DOORS, DOOR_TYPES } from '../data/cardoors.js';
 import { PART } from '../systems/vehiclebodies.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -26,9 +26,10 @@ export async function vehDoorsChecks(api, check, C) {
   const g = api.g, D = () => g.carDoors, I = g.input;
   const made = [];
   const spawn = async (type, x, z, h = 0) => { const r = await C('spawnVehicle', { type, x, z, heading: h }); const v = g.vehicles.find((q) => q.id === r.id); made.push(v); return v; };
-  const off = () => { I.down.delete('KeyF'); I.down.delete('KeyW'); if (g.player.inVehicle) g.exitVehicle(true); for (const v of made.splice(0)) if (g.vehicles.includes(v)) g.vehiclesSys.remove(v); };
-  const tapF = async () => { I.down.add('KeyF'); I.pressed.add('KeyF'); await api._step(1); I.down.delete('KeyF'); };
-  const pressF = async () => { I.down.add('KeyF'); I.pressed.add('KeyF'); await api._step(1); }; // and keep holding
+  const off = () => { I.down.delete('KeyF'); I.phys.delete('KeyF'); I.down.delete('KeyW'); if (g.player.inVehicle) g.exitVehicle(true); for (const v of made.splice(0)) if (g.vehicles.includes(v)) g.vehiclesSys.remove(v); };
+  const tapF = async () => { I.down.add('KeyF'); I.pressed.add('KeyF'); I.phys.add('KeyF'); I.physHit.add('KeyF'); await api._step(1); I.down.delete('KeyF'); I.phys.delete('KeyF'); };
+  const upF = () => { I.down.delete('KeyF'); I.phys.delete('KeyF'); };
+  const pressF = async () => { I.down.add('KeyF'); I.pressed.add('KeyF'); I.phys.add('KeyF'); I.physHit.add('KeyF'); await api._step(1); }; // and keep holding (as the controls read it)
   const a = (v, p = 'doorL') => v.doors?.[p]?.a ?? 0;
   // How far the driver's door panel's back edge stands out from the body's side right now (the mesh itself).
   const swingOut = (v, part = 'doorL') => {
@@ -62,7 +63,7 @@ export async function vehDoorsChecks(api, check, C) {
       await beside(v);
       await pressF();
       await api._step(Math.round((DOORS.swing + DOORS.beat) * 60) + 6);
-      I.down.delete('KeyF');
+      upF();
       await api._step(180);
       const held = a(v), left = D().stats.leftOpen;
       await tapF(); await api._step(10);
@@ -81,7 +82,7 @@ export async function vehDoorsChecks(api, check, C) {
       const leftOpen = a(v) > DOORS.open * 0.9 && v.doors.doorL.want > 0;
       // In again holding F (it stays open), then drive.
       await beside(v);
-      await pressF(); await api._step(Math.round((DOORS.swing + DOORS.beat) * 60) + 6); I.down.delete('KeyF');
+      await pressF(); await api._step(Math.round((DOORS.swing + DOORS.beat) * 60) + 6); upF();
       const openDriving = a(v) > DOORS.open * 0.9;
       const s0 = D().stats.slammed;
       I.down.add('KeyW'); let fast = 0;
@@ -132,6 +133,36 @@ export async function vehDoorsChecks(api, check, C) {
       const both = a(ghost, 'doorL') > DOORS.open * 0.9 && a(ghost, 'doorR') > DOORS.open * 0.9;
       D().applyBits(ghost, 0); await api._step(30);
       return bits === 3 && both && a(ghost, 'doorL') === 0 ? true : JSON.stringify({ bits, both, after: r2(a(ghost, 'doorL')) });
+    } finally { off(); }
+  });
+
+  await check('car doors: every body with hinged doors swings each one round its pillar (the front edge stays put within 2 cm, the back edge swings out); the APC skirts and bins and the van sliding door are not doors', async () => {
+    const bad = [];
+    try {
+      await C('teleport', clear);
+      let k = 0;
+      for (const [type, parts] of Object.entries(DOOR_TYPES)) {
+        const v = await spawn(type, clear.x + (k % 3) * 14 - 14, clear.z + Math.floor(k / 3) * 14 + 8, 0); k++;
+        for (const part of parts) {
+          const hg = D().hingeOf(v, part);
+          if (!hg) { bad.push(`${type}.${part}: no hinge`); continue; }
+          const pa = v.mesh.geometry.attributes.part, pos = v.mesh.geometry.attributes.position, base = v.basePos, id = PART[part];
+          D().set(v, part, true); await api._step(Math.round(DOORS.swing * 60) + 4);
+          let pillar = 0, swing = 0;
+          for (let i = 0; i < pa.count; i++) {
+            if (pa.array[i] !== id) continue;
+            const dx = pos.array[i * 3] - base[i * 3], dz = pos.array[i * 3 + 2] - base[i * 3 + 2], m = Math.hypot(dx, dz);
+            if (Math.abs(Math.abs(base[i * 3]) - Math.abs(hg.hx)) < 0.011 && Math.abs(base[i * 3 + 2] - hg.hz) < 0.011) pillar = Math.max(pillar, m);
+            swing = Math.max(swing, m);
+          }
+          if (pillar > 0.02 || swing < 0.4) bad.push(`${type}.${part}: pillar ${r2(pillar)} swing ${r2(swing)}`);
+          D().set(v, part, false); await api._step(Math.round(DOORS.swing * 60) + 4);
+        }
+      }
+      const apc = await spawn('apc', clear.x + 30, clear.z, 0), van = made.find((q) => q.type === 'van');
+      for (const p of ['doorL', 'doorR', 'doorL2', 'doorR2']) if (D().has(apc, p)) bad.push(`apc has ${p}`);
+      if (van && D().has(van, 'doorR2')) bad.push('van doorR2 (sliding) swings');
+      return bad.length ? JSON.stringify(bad) : true;
     } finally { off(); }
   });
 }

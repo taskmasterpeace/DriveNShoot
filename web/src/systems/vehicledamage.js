@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PART } from './vehicles.js';
-import { hingeRotate, DOOR_SIDE } from '../data/cardoors.js'; // CAR DOORS: an open door swings round its front edge (systems/cardoors.js)
+import { DOOR_SIDE } from '../data/cardoors.js'; // CAR DOORS: an open door swings round its front edge (systems/cardoors.js)
 
 // Per-part vehicle damage you can SEE and FEEL.
 //   zones   front/rear/left/right dent 0..1  → the mesh physically crumples there
@@ -172,7 +172,7 @@ export class VehicleDamage {
       }
       // An open door swings out round its front edge (systems/cardoors.js keeps v.doorA and the hinge).
       const da = name && v.doorA ? v.doorA[name] : 0;
-      if (da > 0) { const hg = this.g.carDoors?.hingeOf(v, name); if (hg) { const r = hingeRotate(x, z, hg.hx, hg.hz, da, DOOR_SIDE[name]); x = r[0]; z = r[1]; } }
+      if (da > 0) { const hg = this.g.carDoors?.hingeOf(v, name); if (hg) { const dx = x - hg.hx, dz = z - hg.hz, c = Math.cos(da), s = Math.sin(da) * DOOR_SIDE[name]; x = hg.hx + dx * c - dz * s; z = hg.hz + dz * c + dx * s; } } // data/cardoors.js hingeRotate, inline (no allocation per vertex)
       pos.array[i * 3] = x; pos.array[i * 3 + 1] = y; pos.array[i * 3 + 2] = z;
     }
     pos.needsUpdate = true;

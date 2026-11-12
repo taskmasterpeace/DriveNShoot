@@ -14,6 +14,16 @@ export const DOORS = {
   tearK: 0.08,     // a crash dent this big on the open door's side tears it off its hinges
 };
 
+// Which bodies have HINGED doors, and which (by the body's own part tags, systems/vehiclebodies.js). Anything not listed
+// has none to swing: the APC's doorL/doorR tags are its side skirts and roof bins, a van's doorR2 is a sliding door, an
+// RV's and a bus's coach door is fixed open flat. A row with `base` inherits its base's (bullcar -> interceptor).
+export const DOOR_TYPES = {
+  sedan: ['doorL', 'doorR', 'doorL2', 'doorR2'], interceptor: ['doorL', 'doorR'], pickup: ['doorL', 'doorR'],
+  patrol: ['doorL', 'doorR', 'doorL2', 'doorR2'], van: ['doorL', 'doorR'], rv: ['doorL', 'doorR'],
+  rig: ['doorL', 'doorR'], semi: ['doorL', 'doorR'],
+};
+export const DOOR_HEAR = 32; // m: a door's thunk is heard (and swung at all) only this close to you
+
 // The door a seat uses: the side it sits on (left = the driver's side, +x in the body frame), the row (0 front, 1 back).
 export function doorFor(seat) {
   if (!seat) return 'doorL';
