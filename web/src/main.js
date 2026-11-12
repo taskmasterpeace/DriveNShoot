@@ -44,6 +44,7 @@ import { CharSheet } from './ui/charsheet.js';
 import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
+import { SkyDrones } from './systems/skydrones.js'; // VEHICLES V2 slice 11: the factions' drones (data/skydrones.js)
 import { WorkshopUI } from './ui/workshop.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
@@ -230,6 +231,7 @@ class Game {
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
+    this.skydrones = new SkyDrones(this); // the factions' watcher and gun drones over their nests (systems/skydrones.js)
     this.towing = new Towing(this); // tow lines between vehicles, the winch, bogged cars, the boat trailer (systems/towing.js)
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
@@ -1357,6 +1359,7 @@ class Game {
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
       this.semis.update(simDt); this.nanGuard('semis');
+      this.skydrones.update(simDt); // the factions' drones: patrol, spot, call it in, gun runs, falling, rebuilt
       this.travel.update(simDt); this.nanGuard('travel'); // the trundle on the road, the iron's riders, the boards
       this.clone.update(simDt); // brine money, the pickers on your husks, the husk drawn near you
       this.ambient.update(simDt);

@@ -97,6 +97,7 @@ import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fi
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
+import { vehDronesCommands, vehDronesChecks } from './veh-drones-api.js'; // VEHICLES V2 slice 11: the factions' drones
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
@@ -2148,6 +2149,7 @@ function buildCommands(api) {
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...longRoadCommands(api, need), // THE LONG ROAD (src/agent/longroad-api.js)
     ...roadsideCommands(api, need),
+    ...vehDronesCommands(api, need), // VEHICLES V2 slice 11: skydrones (agent/veh-drones-api.js)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
     ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
   };
@@ -6153,6 +6155,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await longRoadChecks(api, check); // THE LONG ROAD: no dead stretch, travellers with origins, nothing in view (src/agent/longroad-api.js)
+  await vehDronesChecks(api, check, C); // VEHICLES V2 slice 11: the factions' drones (src/agent/veh-drones-api.js)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
@@ -6191,6 +6194,7 @@ export function snapshot(g) {
     vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
+    skydrones: g.skydrones?.save(), // which drones are down and when their nests have them built again (systems/skydrones.js)
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
     needs: g.survival.save(),
@@ -6252,6 +6256,7 @@ export function restore(g, s) {
   g.feed?.load(s.voice?.feed ?? null); g.marks?.load(s.voice?.marks ?? null); g.campfire?.out?.('loaded'); g.farsound?.clear?.(); g.airwaves?.clear?.(); // the world's voice (WEB_WORLD_VOICE.md)
   g.longroad?.load(s.longroad ?? null);
   if (s.atlas) g.qol?.atlas?.load(s.atlas); // the fog as saved (a save without it keeps what this session has seen)
+  g.skydrones?.load(s.skydrones ?? null);
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));

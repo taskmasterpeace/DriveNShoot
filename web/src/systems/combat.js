@@ -190,6 +190,8 @@ export class Combat {
     if (sh) { best = sh.t; target = sh.a; kind = 'sea'; this.seaArm = sh.arm; }
     const cd = !up && g.casinos && shooter === g.player ? g.casinos.raycast(ox, oz, dx, dz, best) : null; // a house's security drone over its property (systems/casinos.js)
     if (cd) { best = cd.t; target = cd.drone; kind = 'cdrone'; }
+    const sk = !up && g.skydrones && shooter === g.player ? g.skydrones.raycast(ox, oz, dx, dz, best) : null; // a faction's drone in the air (systems/skydrones.js)
+    if (sk) { best = sk.t; target = sk.drone; kind = 'skydrone'; }
     if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
       const th = g.train.raycast(ox, oz, dx, dz, best);
       if (th) { best = th.t; target = th.car; kind = 'train'; }
@@ -228,6 +230,9 @@ export class Combat {
     } else if (kind === 'sea') {
       g.sealife.hurt(target, dmg, shooter, dx, dz, 'bullet', this.seaArm);
       if (shooter === g.player) g.qol.hit(!!target.dead);
+    } else if (kind === 'skydrone') {
+      g.skydrones.hurt(target, dmg, shooter === NOBODY ? null : shooter);
+      if (shooter === g.player) g.qol.hit(target.state === 'falling');
     } else if (kind === 'cdrone') {
       g.casinos.hurtDrone(target, dmg, shooter === NOBODY ? null : shooter);
       if (shooter === g.player) g.qol.hit(target.state === 'falling');
