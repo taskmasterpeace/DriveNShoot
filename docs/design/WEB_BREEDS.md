@@ -47,9 +47,13 @@ sentence again and again, and a small creak of a nail: something is at the board
 - **An Echo and a Choir-Touched are left out of the groan pick.** Before, the nearest unseen infected groaned whatever
   it was, so an Echo behind your wall gave itself away as a shambler.
 - A dormant sprinter is voiced as a shambler on purpose (canon: the uncertainty is the point).
-- **An Echo that knows of you goes quiet** (`echomind.js`, WEB_DEATHS.md): it stops its phrase while it stalks, apart from
-  the lure it copies. So the murmur means an Echo at WORK; silence near your walls means nothing good either.
-- Every id and range above is read from `BREED_VOICE` (the Echo's phrase range is its own row's `hear`).
+- **An Echo that knows of you stops its murmur while it stalks** (`echomind.js`, WEB_DEATHS.md), apart from the lure it
+  copies. In ambush at a door the phrase starts again, and calls the herd to that door. So the murmur means an Echo at
+  work or an Echo waiting for you.
+- Every take id above is read from `BREED_VOICE`. Ranges: the shambler's notice, the sprinter's run and slam and the
+  Echo's work creak are its rows; the sprinter's scream carries to the smaller of `BREED_VOICE.sprinter.range` and the
+  warning row `WARNINGS.scream.range` (both 70 m); the Echo's phrase is gated by `INFECTED.echo.hear` (25 m) and its
+  loudness falls to nothing at 26 m (`audio.murmur`).
 
 ### 3.2 Cards (`BREED_CARDS`)
 One card per breed: `name`, `is`, `tell`, `wants`, `do`, `source`. The Echo's card says both halves of it: at its work it
@@ -80,8 +84,11 @@ the `three-breeds` scenario's summary.
 - **Samples off or still loading:** the old takes or the synth play; nothing is silent.
 - **A herd with a hidden sprinter:** it groans like the rest until it screams.
 - **A crawler:** keeps its breed's voice.
-- **Many shamblers notice you at once:** each may moan once; the audio rate cap (`data/audiosets.js`) drops the excess.
-- **An Echo that has gone hunting** (`echomind.js`): silent but for its lure; it never groans.
+- **Many shamblers notice you at once:** the first moans; any other whose sense tick lands inside `noticeGap` (0.35 s)
+  of another's moan does not, and it does not moan later for that sighting (it has already taken you as its target).
+  A herd of thirty gives a handful of moans over a second, not thirty.
+- **An Echo that has gone hunting** (`echomind.js`): no murmur while it stalks (only its lure); the murmur starts again
+  in ambush at a door. It never groans.
 - **Canon ruling 0.12 is not followed yet.** The canon says the herd's voice is a murmur of broken word fragments, not a
   moan. The web engine already groaned before this slice (`WARNINGS.groan`, WEB_DEATHS.md), and this slice keeps that
   with better takes and adds a rising moan on notice. Moving the shambler to the canon's murmur is a sound and writing
@@ -106,7 +113,7 @@ the `three-breeds` scenario's summary.
 |---|---|---|---|
 | `BREED_VOICE.shambler.range` | 50 m | 20–80 | How far a notice carries |
 | `BREED_VOICE.shambler.noticeEvery` / `noticeGap` | 8 s / 0.35 s | 3–30 / 0.1–2 | How often one shambler may announce you; how tightly a herd's moans may come |
-| `BREED_VOICE.sprinter.range` / `chaseRange` / `rageRange` | 70 / 45 / 50 m | 40–120 / 20–70 / 30–80 | How far the scream, the run and the slam carry |
+| `BREED_VOICE.sprinter.range` / `chaseRange` / `rageRange` | 70 / 45 / 50 m | 40–70 (capped by `WARNINGS.scream.range`, 70) / 20–70 / 30–80 | How far the scream, the run and the slam carry |
 | `BREED_VOICE.echo.range` | 26 m | 15–40 | How far the creak of its hands carries (its phrase: `INFECTED.echo.hear`, 25 m) |
 | `WARNINGS.groan.every` | 1.4–3 s | 0.8–6 | How busy a herd sounds |
 | take counts (`tools/audio-make.mjs` ROWS) | 3–5 | 2 or more | Repetition |
