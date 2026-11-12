@@ -88,7 +88,7 @@ export class CarDoors {
             this.stats.leftOpen++; g.hud?.toast('DOOR LEFT OPEN', 'job'); g.emit('doorLeftOpen', { vehicle: v.id, part });
           } else { d.want = 0; this.stats.shut++; }
         }
-        if (fast && d.want > 0) { d.want = 0; d.shutAt = null; this.stats.slammed++; g.audio?.clank?.(); g.emit('doorSlammed', { vehicle: v.id, part }); }
+        if (fast && d.want > 0) { d.want = 0; d.shutAt = null; this.stats.slammed++; if (this.near(v)) g.audio?.clank?.(); g.emit('doorSlammed', { vehicle: v.id, part }); }
         if (d.a !== d.want) {
           const was = d.a; d.a = stepDoor(d.a, d.want, dt);
           if (was > 0 && d.a === 0 && this.near(v)) g.audio?.clank?.(); // the thunk of it shutting
