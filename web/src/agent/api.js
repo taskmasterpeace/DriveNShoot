@@ -25,6 +25,7 @@ import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
 import { AMBIENT_RESERVE } from '../systems/zombies.js';
 import { emptyModel, knows as gvKnows } from '../systems/grapevine.js';
+import { GRAPEVINE } from '../data/grapevine.js'; // the pack's reach and safe radius (the eating check clears round its body)
 import { KINDS as KINDS_RING } from '../data/ring.js';
 import { ROOMS as ROOMS_FP } from '../data/floorplans.js';
 import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/authored.js';
@@ -5979,6 +5980,10 @@ async function runSelfTest(api, only = null, skip = null) {
     unpin(pk);
     let bx = p.x + 125, bz = p.z;
     for (const [dx, dz] of [[125, 0], [-125, 0], [0, 125], [0, -125]]) if (freeNear(p.x + dx, p.z + dz)) { bx = p.x + dx; bz = p.z + dz; break; }
+    // Nobody living near it, and no other body nearer the pack: earlier checks leave people and the dead about (the pack
+    // then waits on a living stranger by the body, or eats another one first). Cleared round the spot, as the title says.
+    const R = Math.max(GRAPEVINE.safeR, GRAPEVINE.feedR) + 10;
+    for (const o of [...g.chars]) if (o !== p && !o.npc && !o.gv && o.faction !== 'zombie' && Math.hypot(o.x - bx, o.z - bz) < R) g.removeChar(o);
     const w = g.addChar({ x: bx, z: bz, faction: 'drifter', colors: outfit('drifter'), name: 'drifter (selftest)', flag: 'US', hp: 50 });
     try {
       g.combat.damage(w, 999, null, 0, 0, 'bullet');
