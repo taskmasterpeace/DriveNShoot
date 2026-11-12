@@ -158,7 +158,7 @@ export class Horses {
         H.hp = a.hp;
         if (a.butchered) H.butchered = true;
         H.x = a.x; H.z = a.z; H.face = a.face;
-        if (H.alive && a.ctl && !mounted && !H.npcRider) this.idle(H, a, dt); // a company rider steers their own (systems/cavalry.js)
+        if (H.alive && a.ctl && !mounted && !H.npcRider && !H.hitched) this.idle(H, a, dt); // a hitched horse walks at its wagon's tongue (systems/wagons.js) // a company rider steers their own (systems/cavalry.js)
       }
       if (H.alive && H.owner !== 'wild' && dh > 0) this.care(H, a, dh);
       if (H.bagBox) { H.bagBox.x = H.x; H.bagBox.z = H.z; }
