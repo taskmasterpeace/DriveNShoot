@@ -159,7 +159,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
   await check('reach: nobody to talk to, no bed and no car through a wall - a stranger, a mattress and a parked car 2 m off behind a wall give no prompt and E does nothing; with a clear line each one does', async () => hush(async () => {
     await stage();
     g.godMode = true;
-    const f = findBox(1.9);
+    const f = findBox(1.7);
     if (!f) return 'no island wall to test against';
     const { b, out, inn } = f;
     const il = Math.hypot(inn.x - b.x, inn.z - b.z), far = { x: b.x + ((inn.x - b.x) / il) * 0.55, z: b.z + ((inn.z - b.z) / il) * 0.55 }; // just in front of the shelf, on its own side
@@ -178,8 +178,9 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     const dlgOut = !!g.dialogue.npc;
     if (dlgOut) g.dialogue.close?.();
     // a bed on the far side: the rule the E chain and N (sleep) both ask
-    const bed = { x: far.x, z: far.z, y: 0 }, beds = g.world.spawns.beds ?? (g.world.spawns.beds = []);
+    const bed = { x: b.x, z: b.z, y: 0 }, beds = g.world.spawns.beds ?? (g.world.spawns.beds = []); // a mattress where the shelf stands: inside 1.8 m of you, the wall between
     beds.push(bed);
+    const dBed = Math.hypot(bed.x - P().x, bed.z - P().z), bedPlain = g.bedNear(P().x, P().z, 0) === bed;
     const bedOut = g.bedNear(P().x, P().z, 0, P());
     // a car against the far side of the wall
     const veh = { x: b.x, z: b.z, wid: 1.9, len: 4.2 };
@@ -192,13 +193,12 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     let talkIn = false, bedIn = null;
     if (c2) { c2.timer = 99; c2.target = null; c2.x = inn.x + (b.x - inn.x) * 0.5; c2.z = inn.z + (b.z - inn.z) * 0.5; c2.wx = c2.x; c2.wz = c2.z; talkIn = R.person(P(), c2); g.removeChar(c2); }
     const dbg = { c2: !!c2, moved: r1(Math.hypot(P().x - inn.x, P().z - inn.z)), why: R.last.why, tag: R.last.tag, il: r1(il), box: b.id };
-    bed.x = inn.x + (b.x - inn.x) * 0.4; bed.z = inn.z + (b.z - inn.z) * 0.4;
     bedIn = g.bedNear(P().x, P().z, 0, P());
     beds.splice(beds.indexOf(bed), 1);
     const carIn = R.vehicle(P(), { x: inn.x + 1.5, z: inn.z, wid: 1.9, len: 4.2 }) || R.vehicle(P(), { x: inn.x - 1.5, z: inn.z, wid: 1.9, len: 4.2 }) || R.vehicle(P(), { x: inn.x, z: inn.z + 1.5, wid: 1.9, len: 4.2 }) || R.vehicle(P(), { x: inn.x, z: inn.z - 1.5, wid: 1.9, len: 4.2 });
     g.godMode = false;
-    const ok = dC < 2.8 && !talkOut && !/Talk to|Wake/.test(promptOut) && !dlgOut && bedOut !== bed && !carOut && talkIn && bedIn === bed && carIn;
-    return ok || { dbg, dC: r1(dC), talkOut, promptOut, dlgOut, bedOut: bedOut === bed, carOut, talkIn, bedIn: bedIn === bed, carIn };
+    const ok = dC < 2.8 && !talkOut && !/Talk to|Wake/.test(promptOut) && !dlgOut && dBed < 1.8 && bedPlain && bedOut !== bed && !carOut && talkIn && bedIn === bed && carIn;
+    return ok || { dbg, dC: r1(dC), dBed: r1(dBed), bedPlain, talkOut, promptOut, dlgOut, bedOut: bedOut === bed, carOut, talkIn, bedIn: bedIn === bed, carIn };
   }));
 
   await check('reach: a door is worked from in front of it, never through a wall - every island door probed reaches from 1.2 m in front on both sides and is what E\'s own search (interiors.nearest) offers there; stand a wall in the hand\'s line and the same search stops offering it; take the wall away and it is offered again', async () => hush(async () => {
@@ -235,9 +235,10 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     return (probed >= 10 && fronts >= 20 && walled >= 20 && wrong.length === 0) || { probed, fronts, walled, wrong: wrong.slice(0, 6), n: wrong.length };
   }));
 
-  await check('reach: the other hands - a body behind a wall is not dragged (hold E) and the same body is from its own side; a pile through the wall is not the ground at your feet; a junkyard hulk and the dam\'s cistern are offered by E from every side you can stand at', async () => hush(async () => {
+  await check('reach: the other hands - a body behind a wall is not dragged (hold E) and the same body is from its own side; a body on the floor above is passed over and of two bodies the nearest one your hand can get to wins; a pile through the wall is not the ground at your feet; a junkyard hulk and the dam\'s cistern are offered by E from every side you can stand at', async () => hush(async () => {
     await stage();
     g.godMode = true;
+    try {
     const S = g.statics, In = g.interiors;
     // a bare stretch of a real island wall: 0.6 m off each face free, a wall in the line, and nothing else E would take
     const bare = () => {
@@ -261,24 +262,26 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
       return null;
     };
     const W = bare();
-    if (!W) { g.godMode = false; return 'no bare island wall with free ground both sides'; }
+    if (!W) return 'no bare island wall with free ground both sides';
     const holdE = async (frames) => { g.input.down.add('KeyE'); g.input.pressed.add('KeyE'); for (let i = 0; i < frames; i++) await api._step(1); g.input.down.delete('KeyE'); await api._step(2); };
-    // nobody and nothing of an earlier check's by this wall: people, body records, their boxes, dropped piles
+    // nobody and nothing by this wall that would take E instead (8 m: people not NPCs, body records, their boxes, piles in sight)
     const sweep = () => {
-      for (const o of [...g.chars]) if (o !== g.player && !o.npc && Math.hypot(o.x - W.A.x, o.z - W.A.z) < 30) g.removeChar(o);
+      const near = (q) => Math.hypot(q.x - W.A.x, q.z - W.A.z) < 8;
+      for (const o of [...g.chars]) if (o !== g.player && !o.npc && near(o)) g.removeChar(o);
       const Bd = g.rites?.bodies;
-      if (Bd) { for (const [k, q] of Bd) if (Math.hypot((q.c ? q.c.x : q.x) - W.A.x, (q.c ? q.c.z : q.z) - W.A.z) < 30) Bd.delete(k); g.rites.dirty = true; }
-      for (const [id, q] of [...inv.boxes]) if ((q.kind === 'body' || q.kind === 'ground') && q.x !== undefined && Math.hypot(q.x - W.A.x, q.z - W.A.z) < 30) inv.boxes.delete(id);
+      if (Bd) { for (const [k, q] of Bd) if (near(q.c ?? q)) Bd.delete(k); g.rites.dirty = true; }
+      for (const [id, q] of [...inv.boxes]) if ((q.kind === 'body' || (q.kind === 'ground' && !q.unseen)) && q.x !== undefined && near(q)) inv.boxes.delete(id);
       inv.opened = null; inv.drawPiles?.();
     };
     await C('teleport', { x: W.A.x, z: W.A.z }); await put(W.A); await shut();
     sweep();
     const sp = await C('spawn', { kind: 'drifter', x: W.B.x, z: W.B.z });
     const c = sp.ids?.[0] ? api.findChar(sp.ids[0]) : null;
-    if (!c) { g.godMode = false; return { spawn: sp }; }
+    if (!c) return { spawn: sp };
     c.x = W.B.x; c.z = W.B.z;
     g.combat.damage(c, 9999, null, 0, 0, 'bullet');
     await api._step(45);
+    for (const [id, q] of [...inv.boxes]) if (q.kind === 'ground' && Math.hypot(q.x - W.A.x, q.z - W.A.z) < 8) inv.boxes.delete(id); // what he dropped: the pile below must be the only one
     const lay = () => { c.x = W.B.x; c.z = W.B.z; c.vx = 0; c.vz = 0; }; // where he fell is staged: a dying man staggers
     lay();
     // from the far side of the wall: 1.7 m off, in bodyNear's plain range, and holding E drags nobody
@@ -300,7 +303,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     await shut();
     // the control: from the body's own side the pile is the ground here and the same hold drags the body
     await put(W.B2);
-    const feetB = inv.groundAt(P().x, P().z), feetIn = Math.hypot(feetB.x - W.B.x, feetB.z - W.B.z) < 1.2; // a pile lying by the body (his own things, or the rag)
+    const feetIn = inv.groundAt(P().x, P().z) === pile; // from here the same pile IS the ground at your feet
     for (const [id, q] of [...inv.boxes]) if (q.kind === 'ground' && Math.hypot(q.x - W.A.x, q.z - W.A.z) < 6) inv.boxes.delete(id);
     inv.prune();
     lay(); await put(W.B2);
@@ -308,6 +311,20 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     const dbg = mineIn ? null : { why: R.last.why, tag: R.last.tag, pl: [r1(P().x - W.B2.x), r1(P().z - W.B2.z)], c: [r1(c.x - W.B.x), r1(c.z - W.B.z)], alive: c.alive, inChars: g.chars.includes(c), gy: [c.gy, P().gy], recs: [...g.rites.bodies.values()].filter((q) => Math.hypot((q.c ? q.c.x : q.x) - W.B.x, (q.c ? q.c.z : q.z) - W.B.z) < 4).map((q) => ({ hasC: !!q.c, x: r1((q.c ? q.c.x : q.x) - W.B.x), z: r1((q.c ? q.c.z : q.z) - W.B.z), y: q.y, buried: q.buried, burned: q.burned })) };
     const draggedIn = await tryDrag(W.B2);
     await shut();
+    // floors, and the nearest REACHABLE one: staged body records (no person, no box) round you at B2
+    const Bd = g.rites.bodies, fake = (id, x, z, y) => { Bd.set(id, { id, x, z, y, box: null, stage: 0 }); return Bd.get(id); };
+    for (const [k, q] of [...Bd]) if (Math.hypot((q.c ?? q).x - W.A.x, (q.c ?? q).z - W.A.z) < 8) Bd.delete(k);
+    await put(W.B2);
+    const above = fake('reach:above', P().x + 0.5, P().z, 3.2);   // 0.5 m off, on the floor above
+    const through = fake('reach:through', W.A.x + (W.B2.x - W.B.x), W.A.z + (W.B2.z - W.B.z), 0); // 1.7 m off, the wall between
+    const beside = fake('reach:beside', W.B.x, W.B.z, 0);        // 1.1 m off, clear...
+    const dT = Math.hypot(through.x - P().x, through.z - P().z), dB = Math.hypot(beside.x - P().x, beside.z - P().z);
+    const anyBody = g.rites.bodyNear(P().x, P().z, 2.2), yours = g.rites.bodyNear(P().x, P().z, 2.2, P());
+    Bd.delete(beside.id);
+    const noneLeft = g.rites.bodyNear(P().x, P().z, 2.2, P());
+    for (const q of [above, through, beside]) Bd.delete(q.id);
+    g.rites.dirty = true;
+    const floors = anyBody === above && yours === beside && noneLeft === null && dT < 2.2;
     sweep();
     // the roadside's big fixtures (a junkyard hulk, the dam's cistern): stand just clear of the thing's own collider on
     // each side you can and ask E's own search (roadside.spotNear) - it must offer that spot
@@ -331,8 +348,51 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
       }
       if (stood) spots++;
     }
-    g.godMode = false;
-    const ok = plain && !mine && !dragged && dPile < 1.6 && !feetIsPile && !listedPile && feetIn && mineIn && draggedIn && picks.length === 2 && spots === 2 && blocked.length === 0;
-    return ok || { dbg, dBody: r1(dBody), plain, mine, dragged, dPile: r1(dPile), feetIsPile, listedPile, feetIn, mineIn, draggedIn, picks: picks.length, spots, blocked: blocked.slice(0, 5), n: blocked.length };
+    const ok = plain && !mine && !dragged && dPile < 1.6 && !feetIsPile && !listedPile && feetIn && mineIn && draggedIn && floors && picks.length === 2 && spots === 2 && blocked.length === 0;
+    return ok || { dbg, floors, dT: r1(dT), dB: r1(dB), dBody: r1(dBody), plain, mine, dragged, dPile: r1(dPile), feetIsPile, listedPile, feetIn, mineIn, draggedIn, picks: picks.length, spots, blocked: blocked.slice(0, 5), n: blocked.length };
+    } finally { g.godMode = false; g.input.down.delete('KeyE'); }
+  }));
+
+  await check('reach: below the street the same hands work - on an underground level a dead man beside you is dragged by holding E, and the PACK screen held open on the ground there keeps the one pile (no new pile, no re-pick) for two seconds', async () => hush(async () => {
+    await stage();
+    g.godMode = true;
+    try {
+      const r = await C('underground', { action: 'enter', id: 'redrock_cave', level: 1 });
+      if (!r.ok && r.error) return { enter: r.error };
+      await api._step(20);
+      const p = P();
+      if (!p.ug) return { ug: null, gy: p.gy };
+      for (const o of [...g.chars]) if (o !== p && !o.npc && Math.hypot(o.x - p.x, o.z - p.z) < 12) g.removeChar(o);
+      await shut();
+      // the ground side held open
+      const pk = await C('pack', { on: true });
+      const g0 = g.invUI.other, n0 = inv.boxes.size, picks0 = inv.piles;
+      await api._step(120);
+      const same = g.invUI.other === g0, grew = inv.boxes.size - n0, minted = inv.piles - picks0, pileY = g0?.kind === 'ground' ? g0.y : 'not ground';
+      await shut();
+      // a dead man 1 m off on this level
+      const free = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([ox, oz]) => ({ x: p.x + ox, z: p.z + oz })).find((q) => !g.statics.under?.pointBlocked?.(q.x, q.z, 0.4));
+      if (!free) return 'no free spot beside you on the level';
+      const sp = await C('spawn', { kind: 'drifter', x: free.x, z: free.z });
+      const c = sp.ids?.[0] ? api.findChar(sp.ids[0]) : null;
+      if (!c) return { spawn: sp };
+      c.x = free.x; c.z = free.z; c.gy = p.gy; c.ug = p.ug; c.storey = p.storey;
+      await api._step(2);
+      const level = c.ug === p.ug;
+      g.combat.damage(c, 9999, null, 0, 0, 'bullet');
+      await api._step(45);
+      c.x = free.x; c.z = free.z;
+      const mine = !!g.rites.bodyNear(p.x, p.z, 1.8, p);
+      let dragged = false;
+      for (let k = 0; k < 3 && !dragged; k++) {
+        c.x = free.x; c.z = free.z; await shut();
+        g.input.down.add('KeyE'); g.input.pressed.add('KeyE'); for (let i = 0; i < 90; i++) await api._step(1); g.input.down.delete('KeyE'); await api._step(2);
+        if (g.rites.drag) { dragged = true; g.rites.stopDrag(); }
+      }
+      await shut();
+      if (g.chars.includes(c)) g.removeChar(c);
+      const ok = same && grew === 0 && minted === 0 && typeof pileY === 'number' && pileY < -0.5 && level && mine && dragged;
+      return ok || { level: p.ug, gy: r1(p.gy ?? 0), other: pk.other?.id ?? null, same, grew, minted, pileY, onLevel: level, mine, dragged, corpseGy: c.gy };
+    } finally { g.godMode = false; g.input.down.delete('KeyE'); if (g.invUI.open) g.invUI.toggle(false); }
   }));
 }
