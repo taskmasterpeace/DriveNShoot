@@ -263,7 +263,13 @@ export function bendInterchange(W, cor, X) {
     bbox(rb, rb.x, rb.z, pad);
     for (const p of W.pieces) if (p.rib === rb) { p.x0 = rb.x0; p.z0 = rb.z0; p.x1 = rb.x1; p.z1 = rb.z1; }
   }
-  for (const r of W.rails) if (r.exit === X.id) for (const q of r.pts) { const [x, z] = map(q.x, q.z); q.x = x; q.z = z; }
+  // rails: only a ramp's (along the road, |a| past the cross road's edge); the cross road's own rails run out along N to
+  // 300 m, where bending them by the road's turn would push them across the cross road
+  const hw = STREAM.crossRoad.halfW + 2;
+  for (const r of W.rails) if (r.exit === X.id) { const along = r.pts.some((q) => Math.abs((q.x - X.x) * X.tx + (q.z - X.z) * X.tz) > hw); if (along) for (const q of r.pts) { const [x, z] = map(q.x, q.z); q.x = x; q.z = z; } }
+  // the abutment's solid top stood 5 cm above the approach fill where it meets the deck: a car driving over the bridge hit
+  // it and stopped dead. Its collision top goes under the deck slab (the slab, H-1.1..H, still covers it to the eye)
+  for (const st of W.structs) if (st.exit === X.id && st.tag === 'abutment') st.y1 = Math.min(st.y1, STREAM.ramp.deckH - 1.15);
   for (const st of W.stops) if (st.exit === X.id) { [st.x, st.z] = map(st.x, st.z); if (st.sign) { const [x, z] = map(st.sign.x, st.sign.z); st.sign.x = x; st.sign.z = z; } }
 }
 

@@ -599,7 +599,9 @@ export class WorldIndex {
     // Abutment faces where the fills end (vertical concrete beside each outer shoulder).
     for (const su of [-1, 1]) {
       const span = hw + 0.6 + 2 * H;
-      box(-span, span, su > 0 ? Wb - 0.5 : -Wb - 0.1, su > 0 ? Wb + 0.1 : -Wb + 0.5, 0, H - 0.05, '#837d72', 'abutment', true);
+      // (its top is under the deck slab, H-1.1: at H-0.05 it stood 5 cm above the approach fill where the fill meets the
+      // deck, and a car driving over the bridge hit it and stopped dead - docs/status/WORLD_CONNECTED.md)
+      box(-span, span, su > 0 ? Wb - 0.5 : -Wb - 0.1, su > 0 ? Wb + 0.1 : -Wb + 0.5, 0, H - 1.15, '#837d72', 'abutment', true);
     }
     // Rails: along both edges of the cross road's fills, and of each ramp, wherever the fill is taller than R.rail.
     const joins = this.ribbons.filter((r) => r.exit === X0.id && r.kind === 'ramp');

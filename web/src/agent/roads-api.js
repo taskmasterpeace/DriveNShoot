@@ -21,8 +21,8 @@ export function roadsCommands(api, need) {
   return {
     roads: {
       group: 'world', desc: 'THE ROAD GRAPH (src/world/roadgraph.js): the streamed world\'s roads as one graph built from the ribbons the chunks pave. action: audit (from each region\'s start - Rust Haven in Arizona, Meridian in Florida - which towns, sites, bases, cities, holdouts and exit communities you reach by road; dead ends; roads through water with no deck; places that reach the interstate only through a city; lanes that break the lane rule) | trip to=<place id or name> (DRIVE there on roads only, the car following the shortest road route at road speeds; reports arrived, km, minutes, metres off the pavement; spawns a car at you if you are on foot; max= km of road to try) | map (a picture: green reached, red not; returns a PNG data URL) | places (the destination list).',
-      args: { action: { type: 'string', default: 'audit', enum: ['audit', 'trip', 'map', 'places'] }, to: { type: 'string' }, max: { type: 'number', default: 80 }, speed: { type: 'number', default: 30 } },
-      run: async ({ action, to, max, speed }) => {
+      args: { action: { type: 'string', default: 'audit', enum: ['audit', 'trip', 'map', 'places'] }, to: { type: 'string' }, max: { type: 'number', default: 80 }, speed: { type: 'number', default: 30 }, quiet: { type: 'boolean', default: true } },
+      run: async ({ action, to, max, speed, quiet }) => {
         const w = W(); need(w, 'no streamed world');
         if (action === 'places') return destinations(w, g.citygen?.plan).map((q) => ({ id: q.id, name: q.name, kind: q.kind, region: q.region, x: Math.round(q.x), z: Math.round(q.z) }));
         if (action === 'audit') {
@@ -35,7 +35,7 @@ export function roadsCommands(api, need) {
             deadEnds: A.deadEnds.filter((d) => d.kind === 'dead end'), stubs: A.deadEnds.filter((d) => d.kind === 'stub').length, wet: A.wet, onlyThroughCity: A.onlyCity, laneBreaks: A.laneBreaks, laneHeld: A.laneHeld,
             list: A.places.map((q) => ({ id: q.id, name: q.name, kind: q.kind, region: q.region, reached: q.reached, km: q.km, toInterstate: q.toInterstate ?? null, exit: q.exit ?? null, x: Math.round(q.cx), z: Math.round(q.cz) })) };
         }
-        if (action === 'trip') return trip(api, need, graph(), to, max, speed);
+        if (action === 'trip') return trip(api, need, graph(), to, max, speed, quiet);
         if (action === 'map') return { png: drawMap(w, auditWorld(w, g.citygen?.plan, starts())) };
         return null;
       },
@@ -44,18 +44,22 @@ export function roadsCommands(api, need) {
 }
 
 // ---- the drive ------------------------------------------------------------------------------------------------------
-async function trip(api, need, G, to, maxKm, top) {
+async function trip(api, need, G, to, maxKm, top, quiet = true) {
   const g = api.g, w = g.streamer.W, P = g.player;
   const D = destinations(w, g.citygen?.plan), q = D.find((d) => d.id === to || d.name === String(to ?? '').toUpperCase());
   need(q, `no place ${to}; roads action=places lists them`);
-  let v = P.inVehicle;
+  let v = P.inVehicle, fresh = false;
   if (!v) {
-    const n0 = G.nodes[nearestNode(G, P.x, P.z, 400)]; need(n0, 'no road within 400 m of you');
+    fresh = true;
+    // this command's own earlier cars (a wreck of one blocks the road for the next): gone first
+    for (const old of g.vehicles.filter((q) => q.roadTrip && q !== P.inVehicle)) g.vehiclesSys.remove(old);
+    const n0 = G.nodes[nearestNode(G, P.x, P.z, 900)]; need(n0, 'no road within 900 m of you');
     const r = await api.call('spawnVehicle', { type: 'interceptor', x: n0.x, z: n0.z, heading: 0, ai: 'none' });
     await api.call('enterVehicle', { id: r.id ?? r.vehicle?.id, force: true });
     v = P.inVehicle; need(v, 'could not get into a car');
+    v.roadTrip = true;
   }
-  const s = nearestNode(G, v.x, v.z, 300), dn = nearestNode(G, q.x, q.z, q.reach);
+  const s = nearestNode(G, v.x, v.z, 900), dn = nearestNode(G, q.x, q.z, q.reach);
   need(s >= 0, 'you are not near a road'); need(dn >= 0, `${q.name} has no road at it`);
   const S = shortest(G, [s]);
   if (!(S.dist[dn] < Infinity)) return { to: q.name, arrived: false, why: 'no road route from here', routeKm: null };
@@ -63,10 +67,22 @@ async function trip(api, need, G, to, maxKm, top) {
   const cum = [0]; for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k].x - pts[k - 1].x, pts[k].z - pts[k - 1].z));
   const L = cum[cum.length - 1];
   if (L / 1000 > maxKm) return { to: q.name, arrived: false, why: `route is ${r1(L / 1000)} km (max ${maxKm})`, routeKm: r1(L / 1000) };
+  if (fresh && pts.length > 3) { v.x = pts[0].x; v.z = pts[0].z; v.h = Math.atan2(pts[3].x - pts[0].x, pts[3].z - pts[0].z); v.vx = 0; v.vz = 0; }
+  // the question is the road, not the car: it is made tough for the trip and the damage it took is reported instead
+  const hp0 = v.hp; v.hp = 1e6;
+  if (fresh || !(v.fuel > 5)) v.fuel = v.fuelCap ?? 60; // a full tank (the road, not the fuel, is the question)
   const wrongWay = path.filter((i, k) => k && G.adj[path[k - 1]].find(([j]) => j === i)?.[1] > 2 * Math.hypot(G.nodes[i].x - G.nodes[path[k - 1]].x, G.nodes[i].z - G.nodes[path[k - 1]].z) + 2).length;
-  let i = 0, t = 0, off = 0, offMax = 0, driven = 0, best = 0, bestT = 0, lx = v.x, lz = v.z, streamAt = -1e9, unstick = 0, stuckT = 0;
+  let engHeat = 0, i = 0, t = 0, off = 0, offMax = 0, driven = 0, best = 0, bestT = 0, lx = v.x, lz = v.z, streamAt = -1e9, unstick = 0, stuckT = 0;
   const budget = L / 9 + 180;
   g.driveOverride = null;
+  // quiet: the road is the question, not a fight. The director's events, the convoy, the road people and the police beats
+  // hold off for the trip (the battery's own switches) and come back after it
+  const was = { dir: g.society?.director?.paused, pulls: g.pulls?.enabled, beats: g.police?.beatsOn, lr: g.longroad?.enabled, conv: g.convoy?.next };
+  // ...and the raider factions hold their fire for the trip (their standing is put back after): a Dustwolves camp at an exit
+  // shoots a car's engine out, which says nothing about the road
+  const RAIDERS = ['dustwolves', 'raiders', 'pirates'], stand0 = {};
+  if (quiet) for (const f of RAIDERS) { const st = await api.call('standing', { faction: f }); if (st?.ok !== false && st?.standing !== undefined) { stand0[f] = st.standing; await api.call('standing', { faction: f, set: 70 }); } }
+  if (quiet) { if (g.society?.director) g.society.director.paused = true; if (g.pulls) g.pulls.enabled = false; if (g.police) g.police.beatsOn = false; if (g.longroad) g.longroad.enabled = false; if (g.convoy) { g.convoy.despawn?.(); g.convoy.next = 1e9; } }
   while (t < budget) {
     // where along the route the car is (search a little ahead of the last index)
     let bi = i, bd = Infinity;
@@ -80,22 +96,30 @@ async function trip(api, need, G, to, maxKm, top) {
     const h = pts[i].h + 1.2, lat = bd;
     if (lat > h) { off += Math.hypot(v.x - lx, v.z - lz); offMax = Math.max(offMax, lat - h); }
     // look ahead along the route, and slow for what bends there
-    const look = 12 + sp * 0.9;
+    // how much the road turns in the next stretch (a junction at a stop line is a right angle: slow, short look-ahead)
+    let bend = 0, near = 0; for (let k = i + 1; k < Math.min(pts.length - 1, i + 14); k++) { const a1 = Math.atan2(pts[k].x - pts[k - 1].x, pts[k].z - pts[k - 1].z), a2 = Math.atan2(pts[k + 1].x - pts[k].x, pts[k + 1].z - pts[k].z), d = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))); bend += d; if (k < i + 5) near += d; }
+    const look = near > 0.6 ? 6 : bend > 0.6 ? 9 : 12 + sp * 0.9;
     let j = i; while (j < pts.length - 1 && cum[j] - cum[i] < look) j++;
-    let bend = 0; for (let k = i + 1; k < Math.min(pts.length - 1, i + 14); k++) { const a1 = Math.atan2(pts[k].x - pts[k - 1].x, pts[k].z - pts[k - 1].z), a2 = Math.atan2(pts[k + 1].x - pts[k].x, pts[k + 1].z - pts[k].z); bend += Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))); }
-    const vWant = Math.min(top, bend > 1.2 ? 9 : bend > 0.6 ? 15 : bend > 0.3 ? 22 : top, (L - cum[i]) * 0.5 + 4);
+    const vWant = Math.min(top, near > 0.6 ? 5 : bend > 1.2 ? 8 : bend > 0.6 ? 14 : bend > 0.3 ? 22 : top, (L - cum[i]) * 0.5 + 4);
     const want = Math.atan2(pts[j].x - v.x, pts[j].z - v.z), diff = Math.atan2(Math.sin(want - v.h), Math.cos(want - v.h));
     if (stuckT > 0) { g.driveOverride = { throttle: -0.8, steer: -Math.sign(diff) }; stuckT -= 0.1; }
     else g.driveOverride = { throttle: sp < vWant - 1 ? 1 : sp > vWant + 1.5 ? -0.7 : 0.15, steer: Math.max(-1, Math.min(1, diff * 2.2)), handbrake: Math.abs(diff) > 1.4 && sp > 10 };
     await api._step(6); t += 0.1;
+    // the driver stays fed, watered and awake on a test trip (a blacked-out driver gives no input)
+    // ...and the car stays whole and cool: desert heat at full throttle cooks an engine and raiders shoot one out, which
+    // the trip reports (worst engine heat) but does not let end the test of the road
+    if (quiet && v.dmg) { engHeat = Math.max(engHeat, v.dmg.temp ?? 0); v.dmg.temp = Math.min(v.dmg.temp ?? 0, 0.5); v.dmg.engine = 1; v.dmg.radiator = Math.max(v.dmg.radiator ?? 1, 0.9); if (v.dmg.tyres) for (const k of Object.keys(v.dmg.tyres)) v.dmg.tyres[k] = 1; }
+    if (quiet && g.needs) { g.needs.water = Math.max(g.needs.water ?? 1, 0.9); g.needs.food = Math.max(g.needs.food ?? 1, 0.9); g.needs.rest = Math.max(g.needs.rest ?? 1, 0.9); g.needs.blackout = 0; }
     driven += Math.hypot(v.x - lx, v.z - lz); lx = v.x; lz = v.z;
     if (v.dead || !P.inVehicle || !P.alive) break;
     if (t - bestT > 12 && unstick < 4) { stuckT = 1.5; unstick++; bestT = t; }
     if (t - bestT > 25) break;
   }
   g.driveOverride = { throttle: -1, steer: 0 }; await api._step(20); g.driveOverride = null;
-  const end = pts[pts.length - 1], left = Math.hypot(end.x - v.x, end.z - v.z);
-  return { to: q.name, kind: q.kind, region: q.region, arrived: left < 25, routeKm: r1(L / 1000), drivenKm: r1(driven / 1000), minutes: r1(t / 60), offRoadM: Math.round(off), worstOffM: r1(offMax), wrongWaySteps: wrongWay, metresLeft: Math.round(left), car: { hp: Math.round(v.hp), dead: !!v.dead }, at: [Math.round(v.x), Math.round(v.z)] };
+  for (const [f, v0] of Object.entries(stand0)) await api.call('standing', { faction: f, set: v0 });
+  if (quiet) { if (g.society?.director) g.society.director.paused = was.dir; if (g.pulls) g.pulls.enabled = was.pulls; if (g.police) g.police.beatsOn = was.beats; if (g.longroad) g.longroad.enabled = was.lr; if (g.convoy) g.convoy.next = was.conv; }
+  const end = pts[pts.length - 1], left = Math.hypot(end.x - v.x, end.z - v.z), took = Math.round(1e6 - v.hp); v.hp = Math.max(1, hp0 - took);
+  return { to: q.name, kind: q.kind, region: q.region, arrived: left < 25, routeKm: r1(L / 1000), drivenKm: r1(driven / 1000), minutes: r1(t / 60), offRoadM: Math.round(off), worstOffM: r1(offMax), wrongWaySteps: wrongWay, metresLeft: Math.round(left), debug: { i, along: Math.round(cum[i]), next: pts.slice(Math.max(0, i - 3), i + 8).map((n) => [n.rib.id, Math.round(n.x), Math.round(n.z), +n.y.toFixed(1)]) }, car: { damageTaken: took, dead: !!v.dead, hottestEngine: +engHeat.toFixed(2) }, at: [Math.round(v.x), Math.round(v.z)] };
 }
 
 // ---- the picture ----------------------------------------------------------------------------------------------------
