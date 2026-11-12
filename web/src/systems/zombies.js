@@ -137,7 +137,7 @@ export class Zombies {
     c.name = 'Sprinter'; // it has shown what it is (the tag says so until it is a walker again)
     this.counts.bursts++; this.counts.screams = (this.counts.screams ?? 0) + 1;
     const g = this.g, P = g.player, d = Math.hypot(c.x - P.x, c.z - P.z);
-    if (d < WARNINGS.scream.range) { const A = g.audio; A?.count?.('scream'); if (!A?.sample?.('sprinter', 'scream', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range }) && !A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
+    if (d < WARNINGS.scream.range) { const A = g.audio, V = BREED_VOICE.sprinter; A?.count?.('scream'); if (!A?.sample?.(V.notice[0], V.notice[1], { dist: d, pan: g.pan(c.x), range: V.range }) && !A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
     g.emit('sprinterBurst', { id: c.id, why });
     g.emit('sprinterScream', { id: c.id, dist: Math.round(d), windup: BS.windup });
     return true;
@@ -174,7 +174,7 @@ export class Zombies {
     }
     if (Z.state === 'burst') { // committed: the clock only runs once it has lost you (its own senses: c.zsee), or when it is spent
       if (c.zsee?.alive) Z.t = SP.burst;
-      if ((Z.snarl = (Z.snarl ?? 0.6) - dt) <= 0) { Z.snarl = 1.3 + Math.random() * 0.9; g.audio.sample?.('sprinter', 'chase', { x: c.x, z: c.z, range: 45 }); }
+      if ((Z.snarl = (Z.snarl ?? 0.6) - dt) <= 0) { Z.snarl = 1.3 + Math.random() * 0.9; g.audio.sample?.(BREED_VOICE.sprinter.chase[0], BREED_VOICE.sprinter.chase[1], { x: c.x, z: c.z, range: BREED_VOICE.sprinter.chaseRange }); }
       if ((Z.run = (Z.run ?? 0) + dt) > SP.chase) Z.t = 0;
     }
     if ((Z.t -= dt) > 0) {
@@ -469,7 +469,7 @@ export class Zombies {
     c.zworkAt = g.time;
     if (F && !win && arrived) {
       c.zslam = B.id; c.zthT = F.every;
-      g.audio.sample?.('sprinter', 'rage', { x: c.x, z: c.z, range: 50 });
+      g.audio.sample?.(BREED_VOICE.sprinter.rage[0], BREED_VOICE.sprinter.rage[1], { x: c.x, z: c.z, range: BREED_VOICE.sprinter.rageRange });
       if (this.thump(B, c, F.slam, 'slam')) { c.zblock = null; c.handsUp = false; }
       return true;
     }
@@ -636,9 +636,9 @@ export class Zombies {
       if (!c.zsee && !this.fresh(c)) { this.forget(c); this.seekLight(c, R); }
       // THE NOTICE: a shambler that has just picked one of the living out (nobody the tick before) lets out a rising moan
       // (a sprinter's notice is its scream: burst()). Heard to its row's range; at most one every noticeEvery s each.
-      if (c.zsee && !c.ztarget && !c.zkind && g.time > (c.znoticeAt ?? 0)) {
+      if (c.zsee && !c.ztarget && !c.zkind && g.time > (c.znoticeAt ?? 0) && g.time > (this.noticeAt ?? 0)) {
         const V = BREED_VOICE.shambler;
-        c.znoticeAt = g.time + V.noticeEvery;
+        c.znoticeAt = g.time + V.noticeEvery; this.noticeAt = g.time + V.noticeGap; // one body, then the herd's own gap
         this.counts.notices = (this.counts.notices ?? 0) + 1;
         g.audio.sample?.(V.notice[0], V.notice[1], { x: c.x, z: c.z, range: V.range });
         g.emit('infectedNotice', { id: c.id, of: c.zsee.id, how: c.zhow ?? null });

@@ -5,7 +5,8 @@
 are played by `web/src/systems/zombies.js` (the groan pick, the notice, the Echo's hands) through
 `web/src/systems/audio.js` (`groan(pan, dist, voice)`, `murmur`); the cards are read by `zombies cards=true`
 (`web/src/agent/zombies-api.js`); two Test Lab scenarios, `web/src/scenarios/three-breeds.js` and `door-siege.js`.
-**Builds on:** the canon `THE_INFECTED.md` (taxonomy §3.1, the counterplay matrix §3.4, rulings 0.8 and 0.12),
+**Builds on:** the canon `THE_INFECTED.md` (taxonomy §3.1, the counterplay matrix §3.4, ruling 0.8; ruling 0.12 is
+NOT followed yet: see §5),
 `WEB_INFECTED.md` and `WEB_ZOMBIES.md` (the three breeds as rows, their minds), `WEB_DOOR_POUND.md` (the made sounds).
 **Source of the ask:** Robert's playtest, 2026-11-12: "Remember, we got three different types of zombie".
 
@@ -32,11 +33,11 @@ sentence again and again, and a small creak of a nail: something is at the board
 ### 3.1 Voices (`BREED_VOICE`)
 | | Shambler | Sprinter | Echo |
 |---|---|---|---|
-| idle (the nearest one you cannot see, every 1.4–3 s) | `shambler/groan` (5 takes) | `shambler/groan`: it hides in the herd | never groans |
-| notice (it first perceives one of the living) | `shambler/notice` (3), at most once every 8 s each | its scream, `sprinter/scream` (5), then `sprinter/chase` (4) as it runs | none: it does not announce itself |
-| at your door or boards | the fist takes (`WEB_DOOR_POUND.md`) | `sprinter/rage` (3) on the slam, then the fist takes | `echo/work` (3) on every strike |
-| its phrase | — | — | `echo/murmur` (4) every 5.5 s to 26 m, with the barked line over its head |
-| heard to | 50 m | 60 m | 26 m |
+| idle (the nearest one you cannot see, every 1.4–3 s, to `WARNINGS.groan.range` 50 m) | `shambler/groan` (5 takes) | `shambler/groan`: it hides in the herd | never groans |
+| notice (it first perceives one of the living) | `shambler/notice` (3), heard to 50 m; the same body at most once every 8 s, any two bodies at least 0.35 s apart | its scream, `sprinter/scream` (5), heard to 70 m | none: it does not announce itself |
+| on the move | — | `sprinter/chase` (4) every 1.3–2.2 s of its run, to 45 m | — |
+| at your door or boards | the fist takes (`WEB_DOOR_POUND.md`) | `sprinter/rage` (3) on the slam, to 50 m, then the fist takes | `echo/work` (3) on every strike, to 26 m |
+| its phrase | — | — | `echo/murmur` (4) every 5.5 s while it works, to its `hear` (25 m), with the barked line over its head |
 
 - Each voice is a `[set, kind]` pair resolved by `data/audiosets.js`. `audio.groan` asks for the breed's own take
   first, then the library's shambler takes, then the synthesized groan. `audio.murmur` asks for `echo/murmur`, then
@@ -46,9 +47,14 @@ sentence again and again, and a small creak of a nail: something is at the board
 - **An Echo and a Choir-Touched are left out of the groan pick.** Before, the nearest unseen infected groaned whatever
   it was, so an Echo behind your wall gave itself away as a shambler.
 - A dormant sprinter is voiced as a shambler on purpose (canon: the uncertainty is the point).
+- **An Echo that knows of you goes quiet** (`echomind.js`, WEB_DEATHS.md): it stops its phrase while it stalks, apart from
+  the lure it copies. So the murmur means an Echo at WORK; silence near your walls means nothing good either.
+- Every id and range above is read from `BREED_VOICE` (the Echo's phrase range is its own row's `hear`).
 
 ### 3.2 Cards (`BREED_CARDS`)
-One card per breed: `name`, `is`, `tell`, `wants`, `do`, `source`. The lines are the game's own words (no real film or
+One card per breed: `name`, `is`, `tell`, `wants`, `do`, `source`. The Echo's card says both halves of it: at its work it
+freezes when watched; once it knows of you it keeps out of your sight and waits at a door (it is not a charger, but it
+does come for you). The lines are the game's own words (no real film or
 game is named), and `source` names the design document and section each line comes from. A card's text may be shown on screen, so it never
 uses the word the canon keeps off screen: the Wave 2 lane doc is cited as "WEB_INFECTED.md Wave 2" (`tools/ip-lint.mjs` denies it otherwise). `validateInfected` refuses a
 breed without a card, a card with an empty line and a source that names no document. Read them with
@@ -57,8 +63,8 @@ the `three-breeds` scenario's summary.
 
 ### 3.3 The Test Lab
 - **The three breeds** (`three-breeds`, LOOK): a herd of five shamblers, a sprinter reared back in its scream and an
-  Echo at work, 9 m apart on open ground, frozen in photo mode, with the three cards in the summary. `photo on=false`
-  lets them loose.
+  Echo standing at its post, 9 m apart on open ground, frozen in photo mode. Each is named on screen by a toast (its
+  name, what it is, its tell); the full cards are in the scenario's summary. `photo on=false` lets them loose.
 - **A sprinter at your door** (`door-siege`, PLAY): you stand in an open doorway in the ruins with a pistol and one set
   of planks; a sprinter 16 m out has seen you and two shamblers will follow the noise. No god mode.
 
@@ -74,7 +80,13 @@ the `three-breeds` scenario's summary.
 - **A herd with a hidden sprinter:** it groans like the rest until it screams.
 - **A crawler:** keeps its breed's voice.
 - **Many shamblers notice you at once:** each may moan once; the audio rate cap (`data/audiosets.js`) drops the excess.
-- **An Echo that has gone hunting** (`echomind.js`): still murmurs, still never groans.
+- **An Echo that has gone hunting** (`echomind.js`): silent but for its lure; it never groans.
+- **Canon ruling 0.12 is not followed yet.** The canon says the herd's voice is a murmur of broken word fragments, not a
+  moan. The web engine already groaned before this slice (`WARNINGS.groan`, WEB_DEATHS.md), and this slice keeps that
+  with better takes and adds a rising moan on notice. Moving the shambler to the canon's murmur is a sound and writing
+  job of its own (phrase rows per state); it is listed here so nobody takes the groan for canon.
+- **A shambler pointed at you by another system** (the director's night, a nest) that already had a target does not
+  moan: the notice is for one that picks you out by its own senses from nothing.
 - **The lineup run before the door scenario:** `door-siege` turns photo mode and god mode off itself.
 - **A fourth breed:** refused by `validateInfected` (D1), as before.
 
@@ -92,21 +104,27 @@ the `three-breeds` scenario's summary.
 | Knob | Default | Safe range | Affects |
 |---|---|---|---|
 | `BREED_VOICE.shambler.range` | 50 m | 20–80 | How far a notice carries |
-| `BREED_VOICE.shambler.noticeEvery` | 8 s | 3–30 | How often one shambler may announce you |
-| `BREED_VOICE.echo.range` | 26 m | 15–40 (under the Echo's 25–32 m call) | How early you hear it at your wall |
+| `BREED_VOICE.shambler.noticeEvery` / `noticeGap` | 8 s / 0.35 s | 3–30 / 0.1–2 | How often one shambler may announce you; how tightly a herd's moans may come |
+| `BREED_VOICE.sprinter.range` / `chaseRange` / `rageRange` | 70 / 45 / 50 m | 40–120 / 20–70 / 30–80 | How far the scream, the run and the slam carry |
+| `BREED_VOICE.echo.range` | 26 m | 15–40 | How far the creak of its hands carries (its phrase: `INFECTED.echo.hear`, 25 m) |
 | `WARNINGS.groan.every` | 1.4–3 s | 0.8–6 | How busy a herd sounds |
 | take counts (`tools/audio-make.mjs` ROWS) | 3–5 | 2 or more | Repetition |
 
 ## 8. Acceptance criteria (selftest, `node tools/dl.mjs selftest only="breeds:"`)
 1. **Voice and card for each:** `validateInfected` is clean; every voice id resolves to two or more shipped takes; the
    three tells and the three voices differ; a card whose source names no document and a breed with no idle voice are
-   each caught.
+   each caught; the Test Lab page's inline script parses and lists both scenarios.
 2. **They sound apart:** a shambler facing you 18 m off emits `infectedNotice` once in 2.5 s and not again in the next
-   5 s; it groans (`groanHeard`, breed `shambler`); `audio.groan` with the shambler's voice asks for `shambler/groan`
+   9 s of unbroken sight (past the 8 s per-body gap: it has not lost you); it groans (`groanHeard`, breed `shambler`); `audio.groan` with the shambler's voice asks for `shambler/groan`
    first and `audio.murmur` for `echo/murmur`; an Echo alone for 7 s produces no `groanHeard`.
-3. **The scenarios:** `three-breeds` stands five shamblers, a sprinter out of its dormant state and an Echo, with three
-   cards whose sources name documents; `door-siege` leaves an open, unlocked, unbroken wooden door within your reach,
+3. **The scenarios:** `three-breeds` stands five shamblers, a sprinter out of its dormant state and an Echo, names all
+   three on screen (three toasts) and returns three cards whose sources name documents; `door-siege` leaves an open, unlocked, unbroken wooden door within your reach,
    a sprinter that is not dormant, two shamblers, the prompt "Shut the door" and god mode off.
 
 Picture: `docs/renders/web/breeds/zed-breeds-after-lineup-cards.jpg` (the lineup from the game camera with each card
 under its lane). Before this slice there was no card and one groan for all three.
+
+Critic review 2026-11-12, first pass FAIL, four items, fixed in the next commit: an unescaped apostrophe in the Test Lab
+page blanked every card; the Echo's card said it does not chase (it stalks and ambushes once it knows of you); this doc
+misstated the sprinter's ranges and a hunting Echo's murmur and cited ruling 0.12 while not following it; the lineup
+claimed an Echo at a boarded window and cards on screen.

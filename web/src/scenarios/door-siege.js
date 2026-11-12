@@ -36,7 +36,7 @@ export default async function (DL, game) {
   const at = (k, side) => ({ x: d.x + d.nx * k + d.ux * side, z: d.z + d.nz * k + d.uz * side });
   const s = Z.spawn(at(16, 0).x, at(16, 0).z, true);
   const herd = [at(22, 3), at(24, -4)].map((q) => Z.spawn(q.x, q.z, false)).filter(Boolean);
-  if (s) { s.face = Math.atan2(g.player.x - s.x, g.player.z - s.z); Z.remember(s, g.player.x, g.player.z, 'sight', g.player); s.ztarget = g.player; Z.burst(s, 'saw you'); }
+  if (s) { s.face = Math.atan2(g.player.x - s.x, g.player.z - s.z); Z.remember(s, g.player.x, g.player.z, 'told', g.player); s.ztarget = g.player; Z.burst(s, 'staged'); } // staged as one that has just seen you in the doorway (a told memory: the scenario says so; its senses take over from here)
   g.hud.toast('ONE OF THEM HAS SEEN YOU · E SHUTS THE DOOR · HOLD E TO LEAN ON IT', 'hot');
   return {
     ok: true, door: d.id, material: d.material, hp: I.doorHp(d), you: { x: +g.player.x.toFixed(1), z: +g.player.z.toFixed(1) },
