@@ -264,4 +264,45 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       return ok || { door: d.id, k0, sh: sh.ok, k1, H, patch, again, tiny, got, healed, shook, off, steelStands, waits, kept };
     } finally { fresh(d, 0); fresh(st, 0); S.sentL = { ...S.leafKeys() }; S.waitL = keep.waitL; S.shuts = keep.shuts; }
   }));
+
+  // ---- THE START TOWN HAS DOORS (docs/design/WEB_START_HOUSE.md): a holdout's buildings carry leaves and glass ---------------
+  await check('interiors: a holdout has doors - at the new-game start (the clinic doorstep in Meridian) the buildings of the town carry real door leaves and glass (40+ doors, 100+ windows, no glass smashed in a lived building), the front door of the clinic is within 6 m, E pulls it shut and a shambler outside it is held and beats on it; walk 400 m off and they are put away', async () => wrap(async () => {
+    await stage();
+    const r = await C('region', { action: 'start' });
+    if (!r.ok && r.error) return { region: r.error };
+    await C('step', { seconds: 4 });
+    const p = P(), near = (o, k) => Math.hypot(o.x - p.x, o.z - p.z) < k, H = g.streamer.W.holdouts.find((h) => near({ x: h.cx, z: h.cz }, 600));
+    if (!H) return 'no holdout at the start';
+    const mine = (o) => String(o.id).startsWith(`${H.id}.`);
+    const doors = I.doors.filter(mine), wins = I.windows.filter(mine);
+    const burnt = new Set(H.lots.filter((L) => L.ruined).map((L) => L.id));
+    const smashedLived = wins.filter((w) => w.state === 'shattered' && !burnt.has(String(w.id).split(':')[0])).length;
+    const front = doors.filter((d) => d.kind === 'front' && near(d, 6)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+    if (!front) return { doors: doors.length, wins: wins.length, why: 'no front door within 6 m of the start' };
+    g.godMode = true;
+    const made = [];
+    try {
+      // inside the clinic, the door standing open as the town keeps it; one of them in the street
+      const open = !I.isShut(front);
+      for (const c of [...g.chars]) if (c !== p && !c.npc && near(c, 9)) g.removeChar(c);
+      await C('teleport', { x: front.x - front.nx * 1.5, z: front.z - front.nz * 1.5 }); p.x = front.x - front.nx * 1.5; p.z = front.z - front.nz * 1.5; await api._step(3);
+      const z = Z.spawn(front.x + front.nx * 7, front.z + front.nz * 7, false); made.push(z); z.x = front.x + front.nx * 7; z.z = front.z + front.nz * 7; z.zSpeed = 2.6; z.timer = 99; z.wx = z.x; z.wz = z.z;
+      for (const c of g.chars) if (c !== p && c !== z && c.alive && c.faction !== 'zombie' && Math.abs((c.x - front.x) * front.ux + (c.z - front.z) * front.uz) < front.width && Math.abs((c.x - front.x) * front.nx + (c.z - front.z) * front.nz) < 1.2) { c.x += front.ux * 3; c.z += front.uz * 3; } // nobody of the town standing in the doorway
+      await api._step(3);
+      const prompt = g.hud.s.prompt ?? '';
+      await tap('KeyE'); await api._step(2);
+      const shut = I.isShut(front);
+      await C('teleport', { x: front.x - front.nx * 2.4, z: front.z - front.nz * 2.4 });
+      const th0 = Z.counts.thumps;
+      let crossed = false;
+      const tBeat = await until(40, () => { told(z); if (out(front, z) < 0.1 && !front.broken) crossed = true; return Z.counts.thumps - th0 >= 2 || front.broken; });
+      gone(z);
+      // far away: put back in the pool
+      await C('teleport', { x: p.x + 420, z: p.z });
+      await C('step', { seconds: 1.5 });
+      const left = I.doors.filter(mine).length;
+      const ok = doors.length >= 40 && wins.length >= 100 && smashedLived === 0 && open && /Shut the door/.test(prompt) && shut && !crossed && tBeat !== null && left === 0;
+      return ok || { doors: doors.length, wins: wins.length, smashedLived, open, prompt, shut, crossed, tBeat, left };
+    } finally { gone(...made); g.godMode = false; }
+  }));
 }

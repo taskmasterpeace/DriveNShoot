@@ -1020,6 +1020,19 @@ export class Interiors {
         this.attachRing(b.id, lot, RG.geo(lot));
       }
     }
+    // A HOLDOUT's buildings (world/holdout.js: Meridian) are lots of the same kind, built by the ring's own geo(): they get
+    // their door leaves and their glass the same way (before this they were gaps: a town with nothing to shut).
+    for (const H of S.W.holdouts ?? []) {
+      if (P.x < H.x0 - near || P.x > H.x1 + near || P.z < H.z0 - near || P.z > H.z1 + near) continue;
+      for (const lot of H.lots) {
+        if (lot.empty) continue;
+        seen.add(lot.id);
+        const dx = Math.max(lot.x0 - P.x, 0, P.x - lot.x1), dz = Math.max(lot.z0 - P.z, 0, P.z - lot.z1);
+        if (dx > near || dz > near || dx * dx + dz * dz > near * near || this.ringOpen.has(lot.id)) continue;
+        if (!lot.geo) { if (builds <= 0) continue; builds--; }
+        this.attachRing(lot.id, lot, H.geo(lot));
+      }
+    }
     for (const [id, rec] of this.ringOpen) {
       if (id.startsWith('cg:')) continue; // a generated settlement's openings: citygen.openings() attaches and detaches those
       const dx = Math.max(rec.x0 - P.x, 0, P.x - rec.x1), dz = Math.max(rec.z0 - P.z, 0, P.z - rec.z1);
@@ -1036,7 +1049,8 @@ export class Interiors {
     const ruined = !!lot.ruined, RG = this.g.streamer.W.ring;
     // A house somebody lives in (systems/residents.js) keeps its doors standing open against the wall: its people come
     // and go all day (you can still shut them). The empty ones are as the dead city left them: shut, or ajar.
-    const lived = !!RG.household?.(lot);
+    const held = typeof lot.zone === 'string' && lot.zone.startsWith('holdout'); // a holdout's building: a town people live and work in
+    const lived = held ? !ruined : !!RG.household?.(lot);
     // Doors: the front and back doors in the outer walls (a bay's roll-up and a barricaded door stay as they are), and
     // the inside doorways between rooms.
     const rows = [];
@@ -1067,7 +1081,7 @@ export class Interiors {
     // Windows: glass, frame, boards.
     geo.windows.forEach((w, k) => {
       if (!this.freeWin.length) return;
-      const mix = WINDOW_MIX[w.ruined ? 'ruined' : 'ruins'], q = h01(w.x, w.z, 9);
+      const mix = WINDOW_MIX[w.ruined ? 'ruined' : held ? 'town' : 'ruins'], q = h01(w.x, w.z, 9); // a held town keeps its glass (the town row: intact or boarded, none smashed)
       const row = { ...w, y: lot.y ?? w.y, id: `${id}:w${k}`, state: q < mix[0] ? 'intact' : q < mix[0] + mix[1] ? 'shattered' : 'boarded', boardSide: h01(w.x, w.z, 10) < 0.75 ? -1 : 1, b: -1 };
       const W = this.makeWindow(row, reg, this.freeWin.pop());
       W.ring = id;
