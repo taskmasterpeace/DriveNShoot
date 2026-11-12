@@ -6,8 +6,8 @@
 //
 // Frames: the sheet works in usmap metres (the rows' own frame, geo.js); the world is (u - PHX) * K. The fog is a grid
 // of 1 km WORLD cells over the usmap box (F13: 390 x 221 = 86,190 cells), uncovered within UNCOVER_M of you, saved
-// as runs. Painting costs once per session (the base) and once per open after you moved (the fog); a closed map costs
-// one cell test every UNCOVER_S seconds.
+// as runs. The sheet is painted once per session, the first time COUNTRY opens; the view is drawn only when something
+// changes (an input, the fog); a closed map costs one distance test every UNCOVER_S seconds.
 import USMAP from '../data/usmap.json';
 import { RULERS, ATLAS_BASES, ATLAS_XZ } from '../data/atlas.js';
 import { STREAM } from '../data/streaming.js';
@@ -84,7 +84,7 @@ export class Atlas {
     this.t = ATLAS.uncoverS;
     const p = this.g.player, x = p.inVehicle?.x ?? p.x, z = p.inVehicle?.z ?? p.z;
     if (this.last && Math.hypot(x - this.last.x, z - this.last.z) < ATLAS.cellW * 0.25) return;
-    this.last = { x, z };
+    if (this.last) { this.last.x = x; this.last.z = z; } else this.last = { x, z };
     this.uncover(x, z);
   }
   // Saved as runs of uncovered cells [start, length, ...] (a few hundred numbers for a long trip).
@@ -201,6 +201,7 @@ export class Atlas {
   // earlier one is left off, so the sheet never prints text over text; zooming in makes room for more.
   draw(c, W, H, me = null) {
     this.me = me ? toUsmap(me[0], me[1]) : null; // you: kept clear of shields
+    this.draws = (this.draws ?? 0) + 1; this.keyDrawn = false; // (read by the checks)
     const base = this.paint(), F = this.frame(W, H), s = F.s;
     const U = (ux, uy) => [(ux - F.x0) * s, (uy - F.y0) * s];
     const T = (x, z) => { const [ux, uy] = toUsmap(x, z); return U(ux, uy); };
@@ -284,7 +285,7 @@ export class Atlas {
     for (const t of M.towns) if (t.shown && t.kind !== 'city') { const [x, y] = U(t.ux, t.uy); if (this.label(c, t.name, x + 6, y + 4, '700 11px Barlow Condensed', '#e8d6b0', 'left', W, H)) this.labels.places++; }
     for (const b of M.bases) if (b.shown) { const [x, y] = U(b.ux, b.uy); if (this.label(c, b.name.toUpperCase(), x + 8, y + 4, '600 11px Barlow Condensed', '#cfd49a', 'left', W, H)) this.labels.places++; }
     if (z >= 3) for (const e of M.exits) if (e.shown) { const [x, y] = U(e.ux, e.uy); if (this.label(c, `EXIT ${e.n} · ${e.name}`, x + 5, y - 4, '600 10px Barlow Condensed', '#bfe0a8', 'left', W, H)) this.labels.places++; }
-    if (key) key();
+    if (key) { key(); this.keyDrawn = true; }
     c.textAlign = 'left';
     return T;
   }

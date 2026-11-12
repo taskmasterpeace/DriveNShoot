@@ -76,12 +76,12 @@ export async function worldmapChecks(api, check, C) {
       const L = { ...A.labels }, boxes = A.texts.slice();
       let overlaps = 0;
       for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], b = boxes[j]; if (a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]) overlaps++; }
-      const wide = Q.el.mapCanvas.width === ATLAS.cw && Q.el.mapCanvas.height === ATLAS.ch;
+      const wide = Q.el.mapCanvas.width === ATLAS.cw && Q.el.mapCanvas.height === ATLAS.ch, key = A.keyDrawn, named = USMAP.interstates.filter((r) => r.nickname).length;
       Q.toggleMap(false);
       // At the whole-country zoom every nickname is in the key (it is drawn when zoom < 1.35); every city and nearly every
       // state prints; the rulers of the smallest states wait for a zoom.
-      const ok = wide && L.states >= 40 && L.rulers >= 20 && L.towns >= 32 && overlaps === 0;
-      return ok ? true : JSON.stringify({ L, overlaps, wide });
+      const ok = wide && key && named === 8 && L.states >= 40 && L.rulers >= 20 && L.towns >= 32 && overlaps === 0;
+      return ok ? true : JSON.stringify({ L, overlaps, wide, key, named });
     });
 
     await check('worldmap: the fog lifts where you go, only there, and comes back from a save', async () => {
@@ -148,14 +148,24 @@ export async function worldmapChecks(api, check, C) {
       const cv = Q.el.mapCanvas, d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
       let bad = 0;
       for (let i = 0; i < d.length; i += 4 * 7) if (purple(d[i], d[i + 1], d[i + 2])) bad++;
+      A.centreOn(0, 0, 5); Q.drawBigMap(); // zoomed in: exits, holdouts, bases, their labels, the travel layer
+      const d2 = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      for (let i = 0; i < d2.length; i += 4 * 3) if (purple(d2[i], d2[i + 1], d2[i + 2])) bad++;
       Q.toggleMap(false);
       return bad === 0 ? true : `${bad} purple samples`;
     });
 
-    await check('worldmap: the fog costs nothing while you stand still and the map is closed (10,000 updates under 5 ms)', async () => {
+    await check('worldmap: the fog costs nothing standing still (10,000 updates under 5 ms); open on COUNTRY, frames redraw nothing until something changes', async () => {
       A.last = { x: P().x, z: P().z }; A.t = 0;
       const t0 = performance.now(); for (let i = 0; i < 10000; i++) A.update(0.016); const ms = performance.now() - t0;
-      return ms < 5 ? true : `${ms.toFixed(2)} ms`;
+      // The map's own frame path (QOL.update while paused under it): closed, and open on COUNTRY with nothing changing.
+      const d0 = A.draws ?? 0; for (let i = 0; i < 60; i++) Q.update(0.016); const closed = (A.draws ?? 0) - d0;
+      Q.toggleMap(true); Q.setMapView('country'); Q.drawBigMap(); A.fogDirty = false;
+      const title = Q.el.mapTitle.firstChild, d1 = A.draws; for (let i = 0; i < 60; i++) Q.update(0.016); const idle = A.draws - d1, sameNode = Q.el.mapTitle.firstChild === title;
+      A.seen.fill(0); A.nSeen = 0; A.uncover(P().x + 9000, P().z, 1200); Q.update(0.016); /* an earlier check lifted all of it */ const onFog = A.draws - d1 - idle;
+      Q.toggleMap(false);
+      const ok = ms < 5 && closed === 0 && idle === 0 && sameNode && onFog === 1;
+      return ok ? true : JSON.stringify({ ms: +ms.toFixed(2), closed, idle, sameNode, onFog });
     });
 
     await check('worldmap: the atlas command reports the sheet, the state you are in and what you have seen', async () => {

@@ -6,7 +6,7 @@ import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
 import { ROLE_TIERS, ROLE_RULES } from '../data/roles.js';
 import { DRIVING, VEHICLES } from '../systems/vehicles.js';
-import { Atlas, ATLAS } from './atlas.js';
+import { Atlas, ATLAS, rulerOf } from './atlas.js';
 import { STREAM } from '../data/streaming.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
@@ -166,7 +166,7 @@ export class QOL {
       const d = this.mapDrag; this.mapDrag = null;
       if (!d || d.moved > 4 || this.mapView !== 'country') return;
       const r = this.el.mapCanvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
-      if (u < 0 || v < 0 || u > 1 || v > 1) return;
+      if (!(u >= 0 && v >= 0 && u <= 1 && v <= 1)) return; // also NaN: the map was closed mid-drag (an empty box)
       const P = this.atlas.pick(u, v);
       this.setWaypoint({ x: Math.round(P.x), z: Math.round(P.z) });
       this.drawBigMap();
@@ -508,8 +508,8 @@ export class QOL {
   }
   // The map's title: the state you stand in and who rules it.
   mapTitle(px, pz) {
-    const st = this.atlas.stateAt(px, pz), R = st && this.atlas.paint() && this.atlas.states.find((s) => s.name === st)?.ruler;
-    this.el.mapTitle.textContent = st ? `${st}${R ? ` · ${R.toUpperCase()}` : ''}` : "NO MAN'S LAND";
+    const st = this.atlas.stateAt(px, pz), R = st && rulerOf(st), t = st ? `${st}${R ? ` · ${R.toUpperCase()}` : ''}` : "NO MAN'S LAND";
+    if (this.el.mapTitle.textContent !== t) this.el.mapTitle.textContent = t;
   }
   drawCountry(px, pz) {
     const c = this.el.mapCanvas.getContext('2d'), W = ATLAS.cw, H = ATLAS.ch;
@@ -766,6 +766,6 @@ export class QOL {
       }
       if (this.waypoint && len !== null && len < 6) this.setWaypoint(null, true);
     }
-    if (this.mapOpen) this.drawBigMap();
+    if (this.mapOpen && (this.mapView !== 'country' || this.atlas.fogDirty)) this.drawBigMap(); // COUNTRY: only on a change (each input redraws itself)
   }
 }
