@@ -1031,7 +1031,7 @@ export class Travel {
     for (const n of Object.values(this.nodes())) {
       if (!n.onMap) continue;
       const q = n.counter ?? n, [x, y] = T(q.x, q.z);
-      if (x < -20 || y < -20 || x > 800 || y > 800) continue;
+      if (x < -20 || y < -20 || x > c.canvas.width + 20 || y > c.canvas.height + 20) continue; // the big map's canvas (760 square, or the wide COUNTRY sheet)
       c.fillStyle = n.knot ? '#f0b43a' : n.air ? '#e8e2d4' : '#c8602c'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
       c.beginPath(); c.rect(x - 4, y - 4, 8, 8); c.fill(); c.stroke();
       if (n.knot || n.rail) { c.font = '700 11px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeText(n.short, x + 7, y + 13); c.fillStyle = '#f2e6d0'; c.fillText(n.short, x + 7, y + 13); }

@@ -518,3 +518,9 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .pm-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 26px; }
 @media (max-width: 700px) { .pm-settings { grid-template-columns: 1fr; } }
 .pm-pane .pm-log { max-height: 60vh; }
+/* The big map's view tabs (ui/qol.js setMapView): AREA | COUNTRY, pill-style, the gold of the HUD. */
+.bigmap-tabs { display: flex; gap: 4px; margin-left: auto; }
+.bigmap-tabs button { font-family: var(--display); font-size: 13px; letter-spacing: 0.1em; padding: 3px 12px; color: var(--muted); background: oklch(0.2 0.008 70); border: 1px solid oklch(0.34 0.012 70); border-radius: 999px; cursor: pointer; transition: background 0.2s, color 0.2s; pointer-events: auto; }
+.bigmap-tabs button:hover { color: oklch(0.9 0.02 80); background: oklch(0.27 0.01 70); }
+.bigmap-tabs button.on { color: oklch(0.16 0.01 70); background: var(--gold); border-color: var(--gold); }
+.bigmap canvas.wide { width: min(94vw, calc(80vh * 1.762)); height: auto; aspect-ratio: 1216 / 690; }
