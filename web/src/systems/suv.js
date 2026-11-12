@@ -1,7 +1,7 @@
 // THE SUV (VEHICLES V2 slice 5, Robert 11-12: "the 18-wheeler. You gotta be able to drive an SUV inside of it").
 // A generic pre-war four-door utility wagon (no make, no model): a square nose, a tall greenhouse that runs back to the
 // tailgate, four doors, a roof rack, a spare on the back door. It fits the LONGHAULER's box hold (data/trailers.js
-// fitsHold: 2.0 m wide, 4.9 m long, 1.98 m tall under the 2.25 m door) and drives up its ramp like any car (systems/semis.js
+// fitsHold: 2.0 m wide, 4.9 m long, 2.24 m tall to the top of its roof load, under the 2.25 m door) and drives up its ramp like any car (systems/semis.js
 // THE HOLD). Placed in the world, never minted: the freight's first box rig carries one in its hold (data/trailers.js
 // FREIGHT), beside its sedan.
 // This module registers everything the SUV needs where the engine looks for it, as systems/towing.js does for its rows:
