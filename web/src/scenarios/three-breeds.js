@@ -5,8 +5,8 @@
 // so the shot holds still. Re-running restages it; `photo on=false` then `god on=false`
 // lets them loose on you.
 //   node tools/dl.mjs scenario name=three-breeds
-//   node tools/dl.mjs screenshot zoom=20 --out breeds.jpg
-//   node tools/dl.mjs photo on=false          (let them loose: the herd walks, the sprinter charges, the Echo goes to work)
+//   node tools/dl.mjs screenshot zoom=17 --out breeds.jpg
+//   node tools/dl.mjs photo on=false          (let them loose: the herd walks, the sprinter charges, the Echo looks for something to work at)
 import { BREED_CARDS, BREEDS, INFECTED } from '../data/infected.js';
 
 export default async function (DL, game) {
@@ -28,7 +28,7 @@ export default async function (DL, game) {
   // lane 2 (middle): the sprinter, reared back in its scream (the wind-up before the charge)
   const s = Z.spawn(AT.x, AT.z, true);
   if (s) { s.x = AT.x; s.z = AT.z; face(s); Z.remember(s, g.player.x, g.player.z, 'sight', g.player); s.ztarget = g.player; Z.burst(s, 'lineup'); }
-  // lane 3 (east): the Echo at its post, hands up at work
+  // lane 3 (east): the Echo, standing at its post
   const e = Z.spawnKind('echo', AT.x + 9, AT.z);
   if (e) { e.x = AT.x + 9; e.z = AT.z; face(e); }
   await DL.step({ seconds: 0.25 });

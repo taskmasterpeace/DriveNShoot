@@ -162,6 +162,7 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       if (how === 'planks') { const r = g.gadgets.barricade(d, 'planks', null, false); if (!r.ok) return { err: r.why }; }
       if (how === 'lock' || how === 'locklean') I.setLocked(d, true);
       const leanRun = how === 'lean' || how === 'locklean', kicks0 = g.events.filter((e) => e.type === 'doorKick').length;
+      if (g.invUI.open) g.invUI.toggle(false); g.inventory.opened = null; // (a run before this one must not leave the PACK screen open: it takes every key)
       await inside(d, leanRun ? 1.1 : 2.4);
       clearRound(d.x, d.z, 60);
       const ev0 = g.eventSeq, fr0 = Z.counts.frenzy ?? 0;
@@ -169,11 +170,12 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       // lean: E goes down (and stays down) once the door is being beaten - a press before that would kick it open
       let leaned = 0, n = 0, beaten = 0, dbg = null;
       const gave = () => d.broken || !I.isShut(d);
-      const t = await until(how === 'bare' ? 30 : 120, () => { if (c.alive && !c.zsee) told(c); if (I.underAttack(d)) { beaten++; if (leanRun) g.input.down.add('KeyE'); n++; if (I.braced(d)) leaned++; else if (leanRun && n > 4 && !dbg) dbg = { d: r1(Math.hypot(P().x - d.x, P().z - d.z)), prompt: g.hud.s.prompt, near: I.nearest(P())?.id ?? null, lean: I.shutDoorNear(P())?.id ?? null, threat: Z.near(P(), 24), locked: d.locked, cur: g.actions.cur?.id ?? null, inv: g.invUI.open, dlg: !!g.dialogue.npc }; } return gave(); });
+      const t = await until(how === 'bare' ? 30 : 120, () => { if (c.alive && !c.zsee) told(c); if (gave()) g.input.down.delete('KeyE'); else if (I.underAttack(d)) { beaten++; if (leanRun) g.input.down.add('KeyE'); n++; if (I.braced(d)) leaned++; else if (leanRun && n > 4 && !dbg) dbg = { d: r1(Math.hypot(P().x - d.x, P().z - d.z)), prompt: g.hud.s.prompt, near: I.nearest(P())?.id ?? null, lean: I.shutDoorNear(P())?.id ?? null, threat: Z.near(P(), 24), locked: d.locked, cur: g.actions.cur?.id ?? null, inv: g.invUI.open, dlg: !!g.dialogue.npc }; } return gave(); });
+      g.input.down.delete('KeyE'); // the door is down: let go (E held on would start searching the crate beside it)
       const through = gave() ? await until(8, () => { if (c.alive && !c.zsee) told(c); return out(d, c) < 0.2; }) : null;
       g.input.down.delete('KeyE');
       const ev = g.events.filter((e) => e.seq > ev0);
-      const res = { t, through, dbg, kicks: g.events.filter((e) => e.type === 'doorKick').length - kicks0, slam: ev.some((e) => e.type === 'doorPound' && e.kind === 'slam' && e.door === d.id) || ev.some((e) => e.type === 'doorThump' && e.door === d.id), frenzy: (Z.counts.frenzy ?? 0) - fr0, scream: ev.some((e) => e.type === 'sprinterScream' && e.id === c.id), broken: !!d.broken, down: ev.some((e) => e.type === 'doorBrokenDown' && e.door === d.id), leaned: n ? r1(leaned / n) : 0, state: c.zs?.state };
+      const res = { t, through, dbg, n, beaten, kicks: g.events.filter((e) => e.type === 'doorKick').length - kicks0, slam: ev.some((e) => e.type === 'doorPound' && e.kind === 'slam' && e.door === d.id) || ev.some((e) => e.type === 'doorThump' && e.door === d.id), frenzy: (Z.counts.frenzy ?? 0) - fr0, scream: ev.some((e) => e.type === 'sprinterScream' && e.id === c.id), broken: !!d.broken, down: ev.some((e) => e.type === 'doorBrokenDown' && e.door === d.id), leaned: n ? r1(leaned / n) : 0, state: c.zs?.state };
       gone(c);
       return res;
     };

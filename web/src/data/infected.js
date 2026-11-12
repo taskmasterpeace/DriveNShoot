@@ -87,7 +87,8 @@ export const BREEDS = ['shambler', 'sprinter', 'echo'];
 //            shamblers' moans (a herd of thirty does not all moan in one second)
 //   chase / rage   (sprinter) its snarl as it runs (chaseRange m) and as it hits a door (rageRange m)
 //   work     its hands on your boards or your door (heard to the Echo's `range`)
-//   range    m its notice (or the Echo's work) is heard to
+//   range    m its notice (or the Echo's work) is heard to. The sprinter's scream is also bounded by the warning row
+//            WARNINGS.scream.range (data/hordes.js): it carries to the smaller of the two
 export const BREED_VOICE = {
   shambler: { idle: ['shambler', 'groan'], notice: ['shambler', 'notice'], range: 50, noticeEvery: 8, noticeGap: 0.35 },
   sprinter: { idle: ['shambler', 'groan'], notice: ['sprinter', 'scream'], chase: ['sprinter', 'chase'], rage: ['sprinter', 'rage'], range: 70, chaseRange: 45, rageRange: 50 },
@@ -117,7 +118,7 @@ export const BREED_CARDS = {
   echo: {
     name: 'Echo', is: 'The one that works. At your boards and your locked door, while you are not looking.',
     tell: 'A murmur: the same half sentence, over and over. At its work it stops moving when you look at it.',
-    wants: 'Your walls first: it undoes what you built, and its phrase calls the others to the hole. Once it knows of you it goes quiet, keeps out of your sight and waits for you at a door.',
+    wants: 'Your walls first: it undoes what you built, and its phrase calls the others to the hole. Once it knows of you it stops its murmur, keeps out of your sight, and waits for you at a door, where the murmur starts again.',
     do: 'Keep your eyes on it while someone else deals with it. Kill it first. A shut door does not stop it: lock it or bar it. Check your boards when you come home.',
     source: 'THE_INFECTED.md ruling 0.8 (a worker that waits; the phrase is the approach tell) and §3.4; WEB_INFECTED.md §3; WEB_INFECTED.md Wave 2 §3.3; WEB_DOOR_POUND.md §3.2 (a latch does not hold it); WEB_DEATHS.md (the Echo that hunts: stalk, hide, ambush)',
   },
@@ -195,7 +196,7 @@ export function validateInfected(rows = INFECTED, breeds = BREEDS, steps = FOOTS
   for (const b of breeds) {
     const V = BREED_VOICE[b], C = BREED_CARDS[b];
     if (!V?.idle || !Array.isArray(V.idle) || V.idle.length !== 2) bad.push(`BREED_VOICE.${b}: no idle [set, kind]`);
-    if (V) { num(`BREED_VOICE.${b}.range`, V.range, 5, 120); for (const k of ['notice', 'work', 'chase', 'rage']) if (V[k] !== undefined && !(Array.isArray(V[k]) && V[k].length === 2)) bad.push(`BREED_VOICE.${b}.${k}: not a [set, kind] pair`); }
+    if (V) { num(`BREED_VOICE.${b}.range`, V.range, 5, 120); for (const k of ['notice', 'work', 'chase', 'rage']) if (V[k] !== undefined && !(Array.isArray(V[k]) && V[k].length === 2)) bad.push(`BREED_VOICE.${b}.${k}: not a [set, kind] pair`); if (V.noticeEvery !== undefined) num(`BREED_VOICE.${b}.noticeEvery`, V.noticeEvery, 1, 60); if (V.noticeGap !== undefined) num(`BREED_VOICE.${b}.noticeGap`, V.noticeGap, 0, 5); if (V.chase) num(`BREED_VOICE.${b}.chaseRange`, V.chaseRange, 5, 120); if (V.rage) num(`BREED_VOICE.${b}.rageRange`, V.rageRange, 5, 120); }
     if (!C) { bad.push(`BREED_CARDS.${b}: no card`); continue; }
     for (const f of ['name', 'is', 'tell', 'wants', 'do', 'source']) if (typeof C[f] !== 'string' || C[f].length < (f === 'name' ? 3 : 8)) bad.push(`BREED_CARDS.${b}.${f} is empty`);
     if (C.source && !/\.md/.test(C.source)) bad.push(`BREED_CARDS.${b}.source names no document`);
