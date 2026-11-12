@@ -16,7 +16,7 @@ const D = await cdp(h);
 const until = async (expr, ms = 120000) => { for (let t = 0; t < ms; t += 250) { if (await D.eval(`(() => { try { return !!(${expr}); } catch { return false; } })()`)) return true; await sleep(250); } return false; };
 const call = async (cmd, args = {}) => JSON.parse(await D.eval(`(async () => JSON.stringify(await game.api.call(${JSON.stringify(cmd)}, ${JSON.stringify(args)})))()`));
 const ev = async (code) => JSON.parse(await D.eval(`(() => JSON.stringify(${code}))()`));
-const shot = async (name) => { await sleep(400); const f = join(OUT, `monster-${tag}-${name}.png`); await D.shot(f); console.log('wrote', f); };
+const shot = async (name, wait = 400) => { await sleep(wait); const f = join(OUT, `monster-${tag}-${name}.png`); await D.shot(f); console.log('wrote', f); };
 const YARD = { x: 250, z: 470 };
 
 try {
@@ -28,11 +28,12 @@ try {
   // A pickup on monster tyres (the old way), and - on a build that has one - the monster truck beside it.
   await ev(`(() => { const p = game.vehiclesSys.spawn('pickup', ${YARD.x - 4}, ${YARD.z}, 0, '#c8a032'); game.workshop.install(p, { part: 'monster', pay: false, time: false });
     window._m = game.monsters ? game.vehiclesSys.spawn('monster_truck', ${YARD.x + 4}, ${YARD.z}, 0, '#c8a032') : null; return true; })()`);
+  await call('camera', { view: 'ANGLED', cut: true }).catch(() => null);
   await call('step', { seconds: 1.5 });
   await shot('1-side-by-side');
   console.log('has monster truck', await ev('!!window._m'));
-  // The Dust Bowl, where the arena's truck is parked.
-  await call('teleport', { x: 400, z: 110 }); await call('step', { seconds: 1 });
+  // Dust Bowl Station, where the show truck is parked.
+  await call('teleport', { x: -340, z: 100 }); await call('step', { seconds: 1 });
   const parked = await ev(`(() => { const v = game.vehicles.find((q) => q.monsterRow); return v ? { x: v.x, z: v.z } : null; })()`);
   console.log('parked', parked);
   if (parked) { await call('teleport', { x: parked.x - 5, z: parked.z - 5 }); }
@@ -45,6 +46,6 @@ try {
   await ev(`(() => { game.driveOverride = { throttle: 1, steer: 0 }; return true; })()`);
   for (let i = 0; i < 40; i++) { await call('step', { seconds: 0.05 }); if (await ev('(game.vehicles.find((q) => q.driver === game.player)?.climbY ?? 0) > 1')) break; }
   await ev(`(() => { game.driveOverride = null; return true; })()`);
-  await shot('3-over-a-car');
+  await shot('3-over-a-car', 0);
 } finally { h.stop?.(); await D.close?.(); }
 process.exit(0);

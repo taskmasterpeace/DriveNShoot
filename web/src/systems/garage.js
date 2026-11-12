@@ -182,6 +182,8 @@ export class Garage {
     if (v.utility?.[id]) return { ok: false, why: `already fitted: ${U.name}` };
     if (U.chassis && !U.chassis.includes(this.chassisKey(v))) return { ok: false, why: `${U.name} won't go on a ${v.name}` };
     if (U.glass && !this.g.carCombat?.layout(v)) return { ok: false, why: `a ${v.name} has no windshield to pull` };
+    const held = U.set ? v.builtIn?.utility?.find((u) => u !== id && UTILITY[u]?.set === U.set) : null; // a monster truck's tyres are part of it (data/monster.js builtIn)
+    if (held) return { ok: false, why: `the ${v.name} runs on its own ${UTILITY[held].name}` };
     const swap = U.set ? Object.keys(v.utility ?? EMPTY).find((u) => UTILITY[u]?.set === U.set) : null; // one tread a car: the old set comes off
     const swapKg = swap ? UTILITY[swap].kg : 0;
     if (U.needs && !v.harpoon && !Object.values(v.mounts ?? EMPTY).some((m) => MOUNT_WEAPONS[m.kind]?.kind === U.needs)) return { ok: false, why: `the ${U.name.toLowerCase()} needs a ${U.needs} gun fitted first` }; // the winch rides a harpoon (WEB_GADGETS2.md)
