@@ -130,11 +130,17 @@ export async function farmingChecks(api, check, C) {
       return v.ok && c.ok && !empty.ok ? true : JSON.stringify({ v: v.bad, c: c.bad, emptyRefused: !empty.ok });
     });
     await check('farming: the calendar shim holds a fixed spring until the seasons lane lands, then reads its month', async () => {
-      g.seasons = undefined; const a = calendar(g);
-      g.seasons = { month: 12 }; const b = calendar(g);
-      g.seasons = { calendar: () => ({ month: 7 }) }; const c = calendar(g);
-      g.seasons = undefined;
-      return a.fixed && a.month === 4 && !b.fixed && b.month === 12 && c.month === 7 ? true : JSON.stringify({ a, b, c });
+      // Stubs stand in for the seasons system, then the real one goes back: every later check runs on the real calendar.
+      const real = g.seasons;
+      let a, b, c, live;
+      try {
+        g.seasons = undefined; a = calendar(g);
+        g.seasons = { month: 12 }; b = calendar(g);
+        g.seasons = { calendar: () => ({ month: 7 }), read: () => ({}) }; c = calendar(g); // the system's month is 0-11: 7 is August
+      } finally { g.seasons = real; }
+      live = calendar(g); // with the seasons lane landed, the real calendar
+      const liveOk = !real || (!live.fixed && live.month === (real.calendar().month + 1));
+      return a.fixed && a.month === 4 && !b.fixed && b.month === 12 && c.month === 8 && liveOk ? true : JSON.stringify({ a, b, c, live });
     });
 
     // ---- a house, then its yard ----
