@@ -1,3 +1,4 @@
+import { SKY_FEEL } from '../data/looks.js';
 import * as THREE from 'three';
 import { HALF, locationName } from '../world/city.js';
 import { layerMesh } from '../engine/depthlayers.js';
@@ -24,7 +25,7 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
 // The 2026-10-27 polish pass added: autosaveMin (0 = off), pauseOnBlur, muteOnBlur, hudScale, nameTags (aim|near|off),
 // killFeed, dmgNumbers.
-const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'car', nightLight: 0.12,
+const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'car', nightLight: SKY_FEEL.night, dayMin: SKY_FEEL.dayMinutes, brightness: 1,
   autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw',
   grade: 1, hitStop: 1, camKick: 1, crashDirt: 1 }; // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
@@ -44,6 +45,8 @@ export class QOL {
     this.g = game;
     this.settings = load(SETTINGS_KEY, DEFAULTS);
     if (!this.settings.steerV2) { this.settings.steer = 'car'; this.settings.steerV2 = true; this.saveSettings(); } // Robert 10-30: classic steering is the default; old saves had 'screen' stored
+    // Once: a save from before 2026-10-30 carries the old default night (0.12, "very very dark"): move it to the new one.
+    if (!this.settings.nightV2) { this.settings.nightLight = SKY_FEEL.night; this.settings.nightV2 = true; this.saveSettings(); }
     this.waypoint = null;
     this.route = null;
     this.routeT = 0;
@@ -91,7 +94,9 @@ export class QOL {
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
         <label>People <select data-s="bodies"><option value="lsw">LSW bodies (the nearest 24)</option><option value="classic">Classic rig</option></select></label>
-        <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
+        <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="${SKY_FEEL.night}">Dark, readable dusk (default)</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
+        <label>Brightness <input type="range" min="${SKY_FEEL.brightness[0]}" max="${SKY_FEEL.brightness[1]}" step="0.05" data-s="brightness"></label>
+        <label>Day length <select data-s="dayMin">${SKY_FEEL.dayChoices.map((m) => `<option value="${m}">${m} real minutes${m === SKY_FEEL.dayMinutes ? ' (default)' : ''}</option>`).join('')}</select></label>
         <label>Colour grade <select data-s="grade"><option value="0">Off</option><option value="0.5">Soft</option><option value="1">Full (by region and hour)</option></select></label>
         <label>Hit-stop <select data-s="hitStop"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full</option></select></label>
         <label>Camera kick <select data-s="camKick"><option value="0">Off</option><option value="0.5">Half</option><option value="1">Full (by calibre)</option></select></label>
@@ -284,7 +289,11 @@ export class QOL {
     g.audio.volume = s.volume;
     g.showStats = !!s.showFps;
     DRIVING.screenSteer = s.steer !== 'car';
-    g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? 0.12)));
+    g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? SKY_FEEL.night)));
+    g.sky.setDayMinutes?.(SKY_FEEL.dayChoices.includes(Number(s.dayMin)) ? Number(s.dayMin) : SKY_FEEL.dayMinutes);
+    // Brightness: the exposure (the kit's goggles scale from the same base, systems/kit.js).
+    const ex = SKY_FEEL.exposure * Math.max(SKY_FEEL.brightness[0], Math.min(SKY_FEEL.brightness[1], Number(s.brightness ?? 1)));
+    g.renderer.toneMappingExposure = ex; if (g.kit) g.kit.baseExposure = ex;
     if (g.look) { const L = g.look.settings, n = (v) => Math.max(0, Math.min(1, Number(v ?? 1))); L.grade = n(s.grade); L.hitStop = n(s.hitStop); L.kick = n(s.camKick); L.dirt = n(s.crashDirt); }
     g.hud.el.stats.classList.toggle('hidden', !g.showStats);
     g.hud.rescale?.(); // the HUD size setting multiplies the screen-fit scale (ui/hud.js)
@@ -705,7 +714,7 @@ export class QOL {
   togglePhoto(on = !this.photo) {
     const g = this.g;
     if (on) this.photo = { x: g.camLook.x, z: g.camLook.z, h: g.camHeight, tilt: 0.14 };
-    else this.photo = null;
+    else { this.photo = null; this.photoCap?.remove(); this.photoCap = null; }
     document.getElementById('ui').classList.toggle('photo', !!on);
     g.paused = !!on || this.menuOpen || this.mapOpen;
     g.emit('photoMode', { on: !!on });
@@ -713,12 +722,32 @@ export class QOL {
   updatePhoto(dt, I) {
     const ph = this.photo, g = this.g;
     if (I.hit('Escape')) { this.togglePhoto(false); return; }
+    if (ph.stops?.length) { const d = I.hit('Period') || I.hit('ArrowRight') ? 1 : I.hit('Comma') || I.hit('ArrowLeft') ? -1 : 0; if (d) this.photoStop((ph.i ?? 0) + d); }
     const sp = (I.key('ShiftLeft') ? 60 : 22) * (ph.h / 33) * dt;
     if (I.key('KeyW')) ph.z -= sp; if (I.key('KeyS')) ph.z += sp;
     if (I.key('KeyA')) ph.x -= sp; if (I.key('KeyD')) ph.x += sp;
     if (I.wheel) ph.h = Math.max(6, Math.min(160, ph.h * (I.wheel > 0 ? 1.12 : 0.89)));
     if (I.key('KeyQ')) ph.tilt = Math.max(0, ph.tilt - dt * 0.6);
     if (I.key('KeyE')) ph.tilt = Math.min(1.6, ph.tilt + dt * 0.6);
+    this.placePhotoCamera();
+  }
+  // A lineup frames itself for a player (scenarios/*-lineup.js): `stops` is a list of { x, z, h, tilt, label } along the row,
+  // `.` / `,` (or the arrow keys) step the camera along it, and a caption says where you are in it. W A S D still pans.
+  lookStops(stops, at = 0) {
+    this.photo.stops = stops;
+    if (!this.photoCap) {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9;padding:.5rem .9rem;border-radius:.625rem;background:oklch(0.2 0.02 60 / .86);color:oklch(0.93 0.015 80);font:600 13px Inter,system-ui,sans-serif;letter-spacing:.02em;border:1px solid oklch(0.45 0.05 70);pointer-events:none;white-space:nowrap';
+      document.body.appendChild(d); this.photoCap = d;
+    }
+    this.photoStop(at);
+  }
+  photoStop(i) {
+    const ph = this.photo, n = ph?.stops?.length; if (!n) return;
+    ph.i = ((i % n) + n) % n;
+    const s = ph.stops[ph.i];
+    ph.x = s.x; ph.z = s.z; ph.h = s.h ?? ph.h; ph.tilt = s.tilt ?? ph.tilt;
+    if (this.photoCap) this.photoCap.textContent = `${s.label ?? ''}   ·   ${ph.i + 1} of ${n}   ·   , and . step along the row   ·   WASD pan   ·   K or Esc to play`;
     this.placePhotoCamera();
   }
   // Also called by the agent's screenshot, so a photo-mode shot keeps its framing.
