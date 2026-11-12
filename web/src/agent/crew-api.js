@@ -8,6 +8,7 @@
 // staged positions are the documented exception.
 import { CREW_ROWS, CREW_RULES, CREW_BY_ID, validateCrew, CREW_SKILLS } from '../data/crew.js';
 import { CREW_JOBS, validateCrewJobs } from '../data/crewjobs.js';
+import { CREW_RUN } from '../data/supply.js';
 import { DOCTRINE, BANDS, validateDoctrine } from '../data/doctrine.js';
 import { ORDERS } from '../systems/crew.js';
 import { WEAPONS } from '../systems/combat.js';
@@ -424,18 +425,22 @@ export async function crewChecks(api, check, C) {
   })));
 
 
-  await check('crew jobs: a SCAVENGE RUN takes the member off the map and brings back loot (or wounds) when the clock is up; base jobs need a base', () => stage(async (at) => {
+  await check('crew jobs: a SCAVENGE RUN takes the member off the map and brings back what was in a real box near the base (or wounds) when the clock is up; base jobs need a base', () => stage(async (at) => {
     const a = await join('drifter_scav');
     const no = await C('crewJob', { id: String(a.id), job: 'scav_run' });
     if (no.ok) return 'a base job ran without a base';
     await C('crewJob', { claimBase: true });
-    const r = await C('crewJob', { id: String(a.id), job: 'scav_run' });
-    if (!r.ok || !a.away || a.c) return `run did not start: ${JSON.stringify(r).slice(0, 200)}`;
+    // The supply law (docs/design/WEB_SUPPLY_LAW.md): a run opens real unopened boxes round the base, so the bare flats get one.
+    const box = g.inventory.place('crewtest:cupboard', 'gunsmith', at.x + 8, at.z + 6, 40, 'TEST CUPBOARD', 4242);
+    const reach = CREW_RUN.reach; CREW_RUN.reach = 30; // that box only: the battery's world round the flats stays as it was
+    let r; try { r = await C('crewJob', { id: String(a.id), job: 'scav_run' }); } finally { CREW_RUN.reach = reach; }
+    if (!r.ok || !a.away || a.c) { g.inventory.boxes.delete(box.id); return `run did not start: ${JSON.stringify(r).slice(0, 200)}`; }
     const seq = g.eventSeq;
     await C('crewJob', { advance: 12 });
     const back = since(seq, 'crewRunBack')[0], died = since(seq, 'crewDied')[0];
+    g.inventory.boxes.delete(box.id);
     if (died) return true; // the wastes kept them: a legal outcome of the risk roll (and a grave)
-    return back && back.loot.length && a.c?.alive && !a.away ? true : `back ${JSON.stringify(back)}`;
+    return back && back.loot.length && box.rolled && a.c?.alive && !a.away ? true : `back ${JSON.stringify(back)}`;
   }));
 
   await check('crew jobs: LOOKOUT on the road calls a hostile before it opens up; NAVIGATOR pins a place each hour on the move', () => stage(async (at) => {

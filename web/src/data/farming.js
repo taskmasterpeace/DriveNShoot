@@ -144,16 +144,13 @@ for (const [id, r] of Object.entries(FARM_ITEMS)) {
   else if (r.kind === 'food' && was.kind !== 'food' && r.tags?.includes('produce')) ITEMS[id] = { ...was, ...r, tags: [...new Set([...(r.tags ?? []), ...(was.tags ?? [])])] };
 }
 // Where the kit turns up. NOT in the world's loot tables: those feed every generated chunk, and the P1 chunk hashes are
-// pinned (a row added to LOOT moved chunk -6,0). Seeds and tools come by the two channels that do not touch a chunk:
-//   a trader's counter (Mags, who buys fruit, keeps seed and a hoe, a bucket, a sack of feed and a hen or two), and
-//   the crew's scavenge runs (data/crewjobs.js CREW_RUN_LOOT: seeds in a kitchen drawer, a hoe in a shed).
-// Both are the existing channels; nothing here makes a seed a loot box would not.
+// pinned (a row added to LOOT moved chunk -6,0). Seeds and tools come by the channel that does not touch a chunk:
+//   a trader's counter (Mags, who buys fruit, keeps seed and a hoe, a bucket, a sack of feed and a hen or two: her
+//   opening stock, then deliveries), and every harvest saves seed back.
+// (The crew's scavenge runs used to roll seeds off a private table; the supply law retired it: docs/design/WEB_SUPPLY_LAW.md.)
 import { TRADERS } from './trade.js';
-import { CREW_RUN_LOOT } from './crewjobs.js';
 export const FARM_KEEPS = [['seed_beans', 4], ['seed_herbs', 4], ['seed_potato', 3], ['seed_greens', 3], ['seed_tomato', 2], ['seed_squash', 2], ['seed_corn', 2], ['hoe', 1], ['bucket', 1], ['chicken_feed', 2], ['hen', 2]];
-export const FARM_RUN_LOOT = [['seed_beans', 2, 1, 2], ['seed_herbs', 2, 1, 2], ['seed_tomato', 1, 1, 2], ['seed_potato', 1, 1, 2], ['seed_pepper', 1, 1, 1], ['hoe', 1, 1, 1], ['bucket', 1, 1, 1], ['compost', 1, 1, 2]];
 if (TRADERS.mags && !TRADERS.mags.keeps?.some((k) => k[0] === 'hoe')) TRADERS.mags.keeps = [...(TRADERS.mags.keeps ?? []), ...FARM_KEEPS];
-for (const r of FARM_RUN_LOOT) if (!CREW_RUN_LOOT.some((q) => q[0] === r[0])) CREW_RUN_LOOT.push(r);
 
 export function validateFarming(crops = CROPS, items = ITEMS) {
   const bad = [];

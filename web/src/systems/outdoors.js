@@ -393,10 +393,10 @@ export class Outdoors {
     const g = this.g, inv = g.inventory, region = this.regionAt(F.x, F.z), got = [];
     if (Math.random() < Math.max(0.02, FISHING.trash + this.per('trash', 'fishing'))) {
       const [id] = pick(FISH_TRASH, (r) => r[1]);
-      inv.stow(id, 1); got.push({ item: id, n: 1, trash: true }); this.stats.trash++; this.gain('fishing', OUTDOOR_XP.fishing.trash);
+      inv.stow(id, 1); this.g.ledger?.stamp(id, 1, 'forage', 'fishing'); got.push({ item: id, n: 1, trash: true }); this.stats.trash++; this.gain('fishing', OUTDOOR_XP.fishing.trash);
     } else {
       const n = Math.random() < this.fx.doubleCatch ? 2 : 1;
-      for (let i = 0; i < n; i++) { const f = this.catchRow(F.kind, region); if (!f) continue; inv.stow(f.item, 1, { made: this.hours() }); got.push({ item: f.item, n: 1, fish: f.id }); }
+      for (let i = 0; i < n; i++) { const f = this.catchRow(F.kind, region); if (!f) continue; inv.stow(f.item, 1, { made: this.hours() }); this.g.ledger?.stamp(f.item, 1, 'forage', 'fishing'); got.push({ item: f.item, n: 1, fish: f.id }); }
       this.stats.fish += got.length; this.gain('fishing', OUTDOOR_XP.fishing.catch * got.length);
     }
     g.emit('fishCaught', { water: F.kind, region, items: got });
@@ -470,9 +470,9 @@ export class Outdoors {
       for (const name of t.held) {
         if (t.kind === 'snare') {
           const c = TRAPPING.catch.find((r) => r.name === name);
-          for (const [id, lo, hi] of [...c.items, ...(this.fx.snareDressed ? c.dressed : [])]) { const n = roll(lo, hi); inv.stow(id, n, { made: this.hours() }); got.push({ trap: t.id, item: id, n }); }
+          for (const [id, lo, hi] of [...c.items, ...(this.fx.snareDressed ? c.dressed : [])]) { const n = roll(lo, hi); inv.stow(id, n, { made: this.hours() }); this.g.ledger?.stamp(id, n, 'forage', `trap:${t.id}`); got.push({ trap: t.id, item: id, n }); }
           this.stats.snared++;
-        } else { const f = FISH.find((r) => r.id === name); inv.stow(f.item, 1, { made: this.hours() }); got.push({ trap: t.id, item: f.item, n: 1 }); this.stats.fishTrapped++; }
+        } else { const f = FISH.find((r) => r.id === name); inv.stow(f.item, 1, { made: this.hours() }); this.g.ledger?.stamp(f.item, 1, 'forage', `trap:${t.id}`); got.push({ trap: t.id, item: f.item, n: 1 }); this.stats.fishTrapped++; }
         this.gain('trapping', OUTDOOR_XP.trapping.catch);
       }
       t.held.length = 0;
@@ -514,7 +514,7 @@ export class Outdoors {
       if (Math.random() >= Math.min(0.95, r.p * mul * 1.6 * (g.seasons?.yield('forage', r.item, x, z) ?? 1))) continue;
       if (r.poison && this.fx.knowPoison) { left.push(r.item); continue; }
       const n = roll(r.n[0], r.n[1]);
-      inv.stow(r.item, n, { made: this.hours() }); got.push({ item: r.item, n, med: !!r.med || undefined });
+      inv.stow(r.item, n, { made: this.hours() }); this.g.ledger?.stamp(r.item, n, 'forage', 'forage'); got.push({ item: r.item, n, med: !!r.med || undefined });
       this.gain('foraging', r.med ? OUTDOOR_XP.foraging.med : OUTDOOR_XP.foraging.find);
     }
     P.r = Math.max(0, P.r - FORAGING.take);
@@ -568,7 +568,7 @@ export class Outdoors {
   }
   rackTake(o) {
     const g = this.g, inv = g.inventory, now = this.hours(), got = [];
-    for (let i = o.slots.length - 1; i >= 0; i--) { const s = o.slots[i]; if (s.doneAt > now) continue; inv.stow(CAMP.rack.makes, s.n, { made: now }); got.push({ from: s.item, n: s.n }); o.slots.splice(i, 1); }
+    for (let i = o.slots.length - 1; i >= 0; i--) { const s = o.slots[i]; if (s.doneAt > now) continue; inv.stow(CAMP.rack.makes, s.n, { made: now }); this.g.ledger?.stamp(CAMP.rack.makes, s.n, 'recipe', 'rack'); got.push({ from: s.item, n: s.n }); o.slots.splice(i, 1); }
     if (!got.length) return { ok: false, why: o.slots.length ? `not dry yet: ${r1(Math.min(...o.slots.map((s) => s.doneAt)) - now)} h more` : 'nothing on the rack' };
     const n = got.reduce((k, s) => k + s.n, 0);
     this.stats.dried += n; this.gain('cooking', OUTDOOR_XP.cooking.rack * n);

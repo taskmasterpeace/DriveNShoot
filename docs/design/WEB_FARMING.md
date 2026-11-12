@@ -140,6 +140,7 @@ One `InstancedMesh` (1,500 boxes), redrawn every 0.5 s (0.12 s while a hen is in
 - **Multiplayer**: every bed records its `owner`; a second player's bed in the same yard is that player's, and picking someone else's is a theft. Nothing here is client-authoritative about stock: all of it is plain records on the shard side.
 
 ## 6. Dependencies (both ways)
+- **THE SUPPLY LAW** (`WEB_SUPPLY_LAW.md`, 2026-11-12): every harvest, saved seed, egg, slaughter and compost is stamped in the stock ledger (`harvest` / `recipe`); the crew scavenge runs no longer carry seed (they open real boxes), so seed comes from Mags's opening stock and saved seed.
 **Uses**
 - `WEB_CAMPS_BASES`: `homes.baseAt` (the yard), `homes.gives(b).cook` (a kitchen), `homes.roadDist`, `homes.bases` (lose the house, lose the garden).
 - `WEB_WILDS`: the fire pit and fire (`throwables.fires`, `fauna.heatNear`), the rain catcher (`outdoors.camp`), the biome and region (`fauna.biomeAt/regionAt`), the cooking skill (`outdoors.lv('cooking')`), `raw_fowl` and feathers.

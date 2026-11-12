@@ -374,11 +374,11 @@ export async function farmingChecks(api, check, C) {
     });
 
     // ---- the crew, the market, the book ----
-    await check('farming: seed and tools reach the world only by existing channels - a trader counter and the crew scavenge runs - and NO loot table was touched (the pinned chunk hashes stay put)', async () => {
-      const { LOOT } = await import('../data/items.js'), { TRADERS } = await import('../data/trade.js'), { CREW_RUN_LOOT } = await import('../data/crewjobs.js');
+    await check('farming: seed and tools reach the world only by an existing channel - a trader counter (the crew runs open real boxes now, WEB_SUPPLY_LAW) - and NO loot table was touched (the pinned chunk hashes stay put)', async () => {
+      const { LOOT } = await import('../data/items.js'), { TRADERS } = await import('../data/trade.js'), CJ = await import('../data/crewjobs.js');
       const stray = Object.entries(LOOT).filter(([, t]) => t.rows.some((r) => /^seed_|^hoe$|^bucket$|^hen$|^rooster$|^chicken_feed$|^cook_pot$|^compost$/.test(r[0]))).map(([k]) => k);
-      const keeps = TRADERS.mags?.keeps?.some((k) => k[0] === 'seed_beans'), runs = CREW_RUN_LOOT.some((r) => r[0] === 'seed_beans');
-      return !stray.length && keeps && runs ? true : JSON.stringify({ stray, keeps, runs });
+      const keeps = TRADERS.mags?.keeps?.some((k) => k[0] === 'seed_beans'), noRunTable = !('CREW_RUN_LOOT' in CJ);
+      return !stray.length && keeps && noRunTable ? true : JSON.stringify({ stray, keeps, noRunTable });
     });
     await check('farming: the crew FARM job works the real stock - it waters from a bucket (or a catcher), picks ripe beds into the pack, and says so when there is no water', async () => {
       await out(); const a = F.plots[0]; Object.assign(a, { crop: 'tomato', state: 'growing', water: 0.1, progress: 0.4, health: 1, fenced: false });

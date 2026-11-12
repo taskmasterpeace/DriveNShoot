@@ -1341,7 +1341,7 @@ export class Fauna {
       else if (id === 'bone') n += X?.boneBonus ?? 0;
       let item = id;
       if (S.butcher.hide === id && !hideOk) item = 'torn_hide';
-      if (n > 0) { inv.stow(item, n, { made: inv.hours() }); got.push({ item, n }); }
+      if (n > 0) { inv.stow(item, n, { made: inv.hours() }); this.g.ledger?.stamp(item, n, 'harvest', 'butcher'); got.push({ item, n }); }
     }
     a.butchered = true; a.rec.butchered = true;
     g.skillsSys?.gain?.('dexterity', B.xp);
@@ -1363,6 +1363,7 @@ export class Fauna {
       const t = inv.take(C, i, s.n);
       if (!t) continue;
       inv.add(C, it.cooks, t.n, { made: inv.hours() + (g.outdoors ? g.outdoors.per('cookKeepH', 'cooking') : 0) }); // a good cook's food keeps longer
+      g.ledger?.stamp(it.cooks, t.n, 'recipe', 'cook');
       g.outdoors?.gain('cooking', t.n);
       out.push({ from: t.id, to: it.cooks, n: t.n });
     }

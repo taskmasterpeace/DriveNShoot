@@ -138,7 +138,8 @@ The roster card (the rest of this section is the card):
 ### 3.5 Jobs (`data/crewjobs.js`)
 A job = **skill + inputs + outputs + duration + risk**, run on the game clock:
 - progress per tick is `hours / job.hours × (0.5 + 0.25 × skill)`;
-- a cycle with no inputs waits;
+- a cycle with no inputs waits (the pool is your pack, then the crew stash; all the inputs or none);
+- **the supply law** (`WEB_SUPPLY_LAW.md`, 2026-11-12): SCAVENGE RUN opens real unopened boxes near the base (no table rolled off-screen); CRAFT AMMO and TEND THE GARDEN run the crafting and farming lanes' real rows; every output is stamped in the stock ledger;
 - every job is assigned from the panel or with `crewJob`.
 
 | Where | Job | Effect |
@@ -273,6 +274,7 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
   old hood gun, then their own gun.
 
 ## 6. Dependencies
+- **Used by THE SUPPLY LAW** (`WEB_SUPPLY_LAW.md`): `systems/supply.js` (the pool, the run's targets and haul) and the stock ledger's stamps on every job output; the cheat audit runs the base jobs.
 
 - **Used by THE CAROUSEL** (`WEB_CAROUSEL.md`): members on a ring's level within 14 m are thrown with you (never one in a vehicle; a downed one only while dragged); they arrive knocked down on the deck; Ring-born joins a starter crew (`RINGBORN.crew`) through `joinChar`; after `crew.load`, `carousel.load` stands members on your level when you load below.
 - **Used by CAMPS AND BASES** (`WEB_CAMPS_BASES.md`): a claimed base sets `crew.base` (the base jobs and the stash); crew within 30 m of a camp stand its watch in 2-hour turns.

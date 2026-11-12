@@ -82,6 +82,7 @@ import { soundCommands, soundChecks } from './sound-api.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
+import { supplyCommands, supplyChecks } from './supply-api.js'; // THE SUPPLY LAW and THE STOCK LEDGER (docs/design/WEB_SUPPLY_LAW.md)
 import { holdoutsCommands, holdoutsChecks } from './holdouts-api.js'; // THE HOLDOUTS: the generator, Keyholders, HOUSE RULES, the gate, house paper (docs/design/WEB_HOLDOUTS.md)
 import { carouselCommands, carouselChecks } from './carousel-api.js'; // THE CAROUSEL: stations, the ring, the throw, ring-sick (docs/design/WEB_CAROUSEL.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
@@ -2142,6 +2143,7 @@ function buildCommands(api) {
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
+    ...supplyCommands(api, need), // the stock ledger (src/agent/supply-api.js)
     ...holdoutsCommands(api, need), // THE HOLDOUTS (src/agent/holdouts-api.js, docs/design/WEB_HOLDOUTS.md): holdouts
     ...carouselCommands(api, need), // THE CAROUSEL: carousel, ringJump (src/agent/carousel-api.js, docs/design/WEB_CAROUSEL.md)
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
@@ -4546,14 +4548,14 @@ async function runSelfTest(api, only = null, skip = null) {
     if (!ike || !boxes.length) return `ike: ${!!ike}, shelves of his: ${boxes.length}`;
     if (g.player.inVehicle) g.exitVehicle(true);
     const F = g.society.factions, fi = ike.fi, day = g.society?.day ?? 0, box = boxes[0];
-    const keep = { s: F.standing[fi], l: F.lifetime[fi], cash: g.cash, ike: { x: ike.x, z: ike.z, sleeping: ike.sleeping }, p: { x: g.player.x, z: g.player.z }, pistol: g.inv.ammo.pistol, kept: ike.keptDay,
+    const keep = { s: F.standing[fi], l: F.lifetime[fi], cash: g.cash, ike: { x: ike.x, z: ike.z, sleeping: ike.sleeping }, p: { x: g.player.x, z: g.player.z }, pistol: g.inv.ammo.pistol, kept: ike.keptDay, opened: !!T.opened?.has(ike.npc.id),
       boxes: boxes.map((b) => ({ b, slots: b.slots.map((x) => ({ ...x })), rolled: b.rolled, stockDay: b.stockDay })) };
     try {
       F.set(ike.fid, 0); ike.sleeping = false;
       g.player.x = box.x + 0.8; g.player.z = box.z; ike.x = box.x + 3; ike.z = box.z; // Ike behind his counter, you at it
       // Today's counter: one worn Rust-9 and nothing else; his keeps (rounds, a kit) top it up on the first look.
       for (const b of boxes) { b.slots = []; b.rolled = true; b.stockDay = day; }
-      inv.add(box, 'gun_smg', 1, { cond: 0.6 }); ike.keptDay = undefined;
+      inv.add(box, 'gun_smg', 1, { cond: 0.6 }); ike.keptDay = undefined; T.opened?.delete(ike.npc.id); // a fresh opening stock (the supply law remembers it per world)
       g.cash = 500;
       const t = await C('talk', { id: ike.id });
       const D = T.at(box), stock = T.stock(ike);
@@ -4579,7 +4581,7 @@ async function runSelfTest(api, only = null, skip = null) {
       if (g.dialogue.active) g.dialogue.close();
       if (g.invUI?.open) g.invUI.toggle(false);
       for (const k of keep.boxes) { k.b.slots = k.slots; k.b.rolled = k.rolled; k.b.stockDay = k.stockDay; }
-      ike.keptDay = keep.kept; g.cash = keep.cash; g.inv.ammo.pistol = keep.pistol;
+      ike.keptDay = keep.kept; g.cash = keep.cash; g.inv.ammo.pistol = keep.pistol; if (keep.opened) T.opened?.add(ike.npc.id); else T.opened?.delete(ike.npc.id);
       ike.x = keep.ike.x; ike.z = keep.ike.z; ike.sleeping = keep.ike.sleeping; g.player.x = keep.p.x; g.player.z = keep.p.z;
       F.standing[fi] = keep.s; F.lifetime[fi] = keep.l; F.retier(fi, false);
       inv.opened = null; inv.changed();
@@ -6187,6 +6189,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await supplyChecks(api, check, C); // THE CHEAT AUDIT: crew jobs make nothing from nothing, the ledger traces every gain (src/agent/supply-api.js)
   await holdoutsChecks(api, check, C); // THE HOLDOUTS: the generator, the walkability audit, the gate check, HOUSE RULES by the witness pass, the bulls' rounds, paper, save, Meridian (src/agent/holdouts-api.js)
   await carouselChecks(api, check, C); // THE CAROUSEL: the station's ladder, the ring's look, ROULETTE across regions (acceptance 9), PAIR, BACKSPIN, keys, ring-sick, save, Ring-born (src/agent/carousel-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
@@ -6252,6 +6255,7 @@ export function snapshot(g) {
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     carousel: g.carousel?.save(), // THE CAROUSEL: the last ring, rings known, armed rings, ring-sick, where the rig was left (systems/carousel.js)
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
+    trade: g.trade?.save?.(), // the traders whose opening stock is already out (systems/trade.js: a load never restocks a shelf)
     holdouts: g.holdoutLaw?.save(), // each holdout's standing (local wanted, the gate locker, passes) and the house paper you carry (systems/holdouts.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
@@ -6353,6 +6357,8 @@ export function restore(g, s) {
   g.cooking?.load(s.cooking ?? null);
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
+  if (s.trade) g.trade?.load?.(s.trade);
+  g.ledger?.rebase(); // a loaded world is counted afresh, nothing judged across the load (systems/stockLedger.js)
   g.holdoutLaw?.load(s.holdouts ?? null); // the holdouts' law: local wanted, the gate lockers, house paper (an old save: a clean slate)
   if (s.carousel) g.carousel?.load(s.carousel); // after the crew: below in a station, the members stand on your level again (an old save: the ring as it is)
 

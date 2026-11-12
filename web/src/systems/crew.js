@@ -15,7 +15,9 @@
 //   save       per-player state: in the save and in the shard snapshot (net/shard.js)
 // Allocation: nothing per frame but the scans' loops; records and plans are made when things happen.
 import { CREW_RULES as R, CREW_BY_ID, CREW_ROWS, CREW_SEEDS, CREW_EVENTS, JOIN_TRUST } from '../data/crew.js';
-import { CREW_JOBS, CREW_JOB_BY_ID, CREW_RUN_LOOT } from '../data/crewjobs.js';
+import { CREW_JOBS, CREW_JOB_BY_ID } from '../data/crewjobs.js';
+import { CREW_RUN } from '../data/supply.js';
+import { poolShort, poolTake, runTargets, haul } from './supply.js';
 import { VERBS } from '../data/society.js';
 import { BARKS, CAMP_DEED, CAMP_PAIR, CAMP_FLAW, INTERJECT, BOND_RULES as BR, FLAW_CLASH } from '../data/crewtalk.js';
 import { WEAPONS } from './combat.js';
@@ -212,6 +214,7 @@ export class Crew {
     this.attach(rec, c);
     c.mag = row.weapon ? WEAPONS[row.weapon].mag : 0;
     rec.rounds = row.rounds ?? 0;
+    if (rec.rounds > 0) g.ledger?.stamp(AMMO_ITEM[WEAPONS[row.weapon]?.ammo], rec.rounds, 'crew_kit', `crew:${rec.id}`); // their own belt (the stock ledger)
     this.stats.joined++;
     g.emit('crewJoined', { id: c.id, rec: rec.id, name: rec.name, card: row.name, archetype: row.archetype, how, trust: rec.trust, size: this.size() });
     g.hud.toast(`${rec.name.toUpperCase()} (${row.name.toUpperCase()}) RIDES WITH YOU · CREW ${this.size()}/${R.cap}`, 'job');
@@ -519,7 +522,12 @@ export class Crew {
         return true;
       }
     }
-    if (J.inputs) for (const [id, n] of Object.entries(J.inputs)) if (!this.takeItem(id, n)) { this.say(m, `Out of ${id === 'any_food' ? 'food' : ITEMS[id]?.name.toLowerCase() ?? id}.`, true); return false; }
+    // The pool: your pack, then the crew stash at the base. All the inputs or none (the supply law: a short pool waits).
+    if (J.inputs) {
+      const pool = this.pool(), short = poolShort(pool, J.inputs), miss = Object.keys(short);
+      if (miss.length) { this.say(m, `Out of ${miss.map((id) => (id === 'any_food' ? 'food' : ITEMS[id]?.name.toLowerCase() ?? id)).join(', ')}.`, true); g.emit('crewJobShort', { rec: m.id, job: J.id, short }); return false; }
+      poolTake(inv, pool, J.inputs);
+    }
     const O = J.outputs ?? {};
     let what = '';
     switch (J.effect) {
@@ -528,7 +536,7 @@ export class Crew {
       case 'clean': for (const k of g.inv.weapons) { g.inv.cond[k] = Math.min(1, (g.inv.cond[k] ?? 1) + O.cond * mul); g.inv.jam[k] = false; } what = 'guns cleaned'; break;
       case 'mend': { const G = g.gear; let n = 0; if (G?.worn) for (const s of Object.values(G.worn)) if (s && s.cond !== undefined) { s.cond = Math.min(1, s.cond + O.cond * mul); n++; } for (const k of g.inv.weapons) g.inv.cond[k] = Math.min(1, (g.inv.cond[k] ?? 1) + O.cond * 0.4 * mul); what = 'gear mended'; break; }
       case 'repair': { const v = this.vehicleNear(this.base, 30) ?? g.lastVehicle; if (v && !v.dead) { v.hp = Math.min(v.maxHp, v.hp + v.maxHp * O.hp * mul); g.vehDamage?.repair?.(v); what = `${v.name ?? 'the rig'} patched`; } break; }
-      case 'ammo': { const r = g.crafting.crewRun(J.recipe, (id, n) => this.deliver(id, n)); if (!r.ok) { this.say(m, `${r.why}.`, true); return false; } what = `${r.text}, hand-loaded`; break; } // a recipe row (data/recipes.js): it costs brass, powder, primer and lead
+      case 'ammo': { const r = g.crafting.crewRun(J.recipe, (id, n) => { const k = this.deliver(id, n); g.ledger?.stamp(id, k, 'recipe', `crew:${J.recipe}`); return k; }); if (!r.ok) { this.say(m, `${r.why}.`, true); g.emit('crewJobShort', { rec: m.id, job: J.id, why: r.why }); return false; } what = `${r.text}, hand-loaded`; break; } // a recipe row (data/recipes.js): it costs brass, powder, primer and lead
       case 'farm': { const r = g.farming?.crewTend(m, mul); if (!r?.ok) { this.say(m, r?.why ?? 'There is no garden to tend.', true); return false; } what = r.what; break; }
       case 'navigate': case 'radio': this.pinNear(m, J.effect); what = 'a mark on the map'; break;
     }
@@ -549,12 +557,16 @@ export class Crew {
     return false;
   }
 
+  // What a job draws on: your pack, then the crew stash at the base (when there is one).
+  pool() { const inv = this.g.inventory, P = [inv.carried]; if (this.base) P.push(this.stash()); return P; }
+
   // Into the base's stash when there is a base and you are away from it; else into your pack.
-  deliver(id, n) {
+  deliver(id, n, state = {}) {
     const g = this.g, inv = g.inventory;
     if (!inv || !ITEMS[id] || n <= 0) return 0;
-    if (this.base && Math.hypot(g.player.x - this.base.x, g.player.z - this.base.z) > 30) { const box = this.stash(); return inv.add(box, id, n); }
-    return inv.add(inv.carried, id, n);
+    if (this.base && Math.hypot(g.player.x - this.base.x, g.player.z - this.base.z) > 30) { const box = this.stash(); return inv.add(box, id, n, state); }
+    const k = inv.add(inv.carried, id, n, state);
+    return k < n && this.base ? k + inv.add(this.stash(), id, n - k, state) : k; // a full pack: the rest to the stash
   }
   stash() {
     const inv = this.g.inventory, B = this.base;
@@ -580,6 +592,11 @@ export class Crew {
   startRun(m, J) {
     const g = this.g, c = m.c;
     m.away = { job: J.id, until: this.hours() + J.hours / this.skillMul(m, J) * 1.0, seed: hash(`${m.id}:${Math.floor(this.hours())}`), left: this.hours() };
+    // The houses they will go through: real unopened boxes round the base, nearest first (data/supply.js CREW_RUN).
+    // Opened now, rolled once from their own seed (systems/inventory.js roll: the stock ledger's 'roll'): from here on
+    // they are opened boxes, and what the runner does not carry home stays in them.
+    const inv = g.inventory, at = this.base ?? { x: g.player.x, z: g.player.z };
+    m.away.boxes = inv ? runTargets(inv.boxes.values(), at, { reach: CREW_RUN.reach * this.skillMul(m, J), n: CREW_RUN.boxes }).map((b) => { inv.roll(b, 0); b.rolled = true; g.emit('containerOpened', { id: b.id, kind: b.kind, items: b.slots.length, by: 'crew' }); return b.id; }) : [];
     m.hp = c?.hp ?? m.hp;
     if (c) { if (c.inVehicle) g.seats.leave(c, true); c.crewRec = null; g.removeChar(c); }
     m.c = null; m.cid = null;
@@ -594,22 +611,28 @@ export class Crew {
       const J = CREW_JOB_BY_ID[m.away.job], seed = m.away.seed;
       let s = seed; const rnd = () => { s = (Math.imul(s ^ (s >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0; return s / 4294967296; };
       const risk = J.risk * (1.25 - 0.1 * m.row.skills.scavenge), trouble = rnd() < risk, lost = trouble && rnd() < risk;
+      const away = m.away;
       m.away = null; m.job = null;
       if (lost) { this.members.splice(this.members.indexOf(m), 1); this.bury(m, null, 'did not come back from a run', false); continue; }
-      const loot = [];
-      for (let k = 0; k < (J.outputs.rolls ?? 3); k++) {
-        let tot = 0; for (const r of CREW_RUN_LOOT) tot += r[1];
-        let pick = rnd() * tot; const r = CREW_RUN_LOOT.find((x) => (pick -= x[1]) < 0) ?? CREW_RUN_LOOT[0];
-        const n = r[2] + Math.floor(rnd() * (r[3] - r[2] + 1));
-        loot.push({ id: r[0], n }); this.deliver(r[0], n);
+      // What they carry home out of the boxes they opened (a box gone from the world while its chunk is away: its kept
+      // contents, the same array). Nothing in reach, nothing in the boxes: they come back empty-handed and say so.
+      const loot = [], inv = g.inventory;
+      let room = CREW_RUN.carry;
+      for (const id of away?.boxes ?? []) {
+        const box = inv?.boxes.get(id) ?? (inv?.ringKept?.has(id) ? { id, slots: inv.ringKept.get(id) } : null);
+        if (!box || room <= 0) continue;
+        const got = haul(inv, box, room, (iid, n, st) => this.deliver(iid, n, st));
+        for (const x of got) { room -= (ITEMS[x.id]?.bulk ?? 0) * x.n; const l = loot.find((q) => q.id === x.id); if (l) l.n += x.n; else loot.push({ ...x }); }
       }
+      const searched = away?.boxes?.length ?? 0;
       if (rnd() < (J.outputs.pin ?? 0)) this.pinNear(m, 'run');
       m.hp = trouble ? Math.max(15, m.hp * 0.45) : m.hp;
       const at = this.base ?? { x: g.player.x + 4, z: g.player.z + 4 };
       const c = this.respawn(m, at.x + 2, at.z + 2);
       if (c) c.hp = m.hp;
-      g.emit('crewRunBack', { rec: m.id, name: m.name, hurt: trouble, loot });
-      g.hud.toast(`${m.name.toUpperCase()} IS BACK FROM THE RUN${trouble ? ' · HURT' : ''} · ${loot.map((l) => `${l.n} ${(ITEMS[l.id]?.name ?? l.id).toLowerCase()}`).join(', ')}`, trouble ? 'warn' : 'job');
+      g.emit('crewRunBack', { rec: m.id, name: m.name, hurt: trouble, loot, searched, empty: !loot.length });
+      if (!loot.length) this.say(m, searched ? 'Went through every house I could reach. Nothing worth the walk.' : 'Nothing left out there. Every house in reach is picked clean.', true);
+      g.hud.toast(`${m.name.toUpperCase()} IS BACK FROM THE RUN${trouble ? ' · HURT' : ''} · ${loot.length ? loot.map((l) => `${l.n} ${(ITEMS[l.id]?.name ?? l.id).toLowerCase()}`).join(', ') : searched ? `${searched} HOUSE${searched > 1 ? 'S' : ''} SEARCHED, NOTHING WORTH CARRYING` : 'EMPTY-HANDED · NOTHING LEFT IN REACH'}`, trouble ? 'warn' : 'job');
     }
   }
 
@@ -638,6 +661,7 @@ export class Crew {
     const k = c.weapon, inv = g.inventory;
     const fit = inv.add(inv.carried, GUN_ITEM[k], 1, { cond: 0.9 });
     if (!fit) return { ok: false, why: 'your pack is full' };
+    g.ledger?.stamp(GUN_ITEM[k], 1, 'crew_kit', `crew:${m.id}`); // their gun becomes a thing (their rounds were counted on them)
     if (m.rounds > 0) { inv.add(inv.carried, AMMO_ITEM[WEAPONS[k].ammo], m.rounds); m.rounds = 0; }
     c.weapon = null; c.mag = 0;
     if (m.row.flaw.id === 'hoarder') this.trustEvent('unpaid', m, true);

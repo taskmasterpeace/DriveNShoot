@@ -90,6 +90,7 @@ export class Cooking {
     if (!done) return { ok: false, why: 'the ingredients went missing' };
     const pot = r.tools.includes('pot'), q = this.quality({ fresh: fresh / done, herbs }, this.lv(), b.kind, pot), tier = this.tierOf(q, rotten), item = `${r.id}__${tier}`;
     const n = r.output.n * done, got = inv.add(inv.carried, item, n, { made: this.hours() });
+    this.g.ledger?.stamp(item, got, 'recipe', r.id); // cooked from eaten ingredients (the stock ledger)
     inv.changed();
     this.stats.batches += done; this.stats.meals += got; if (tier === 'off') this.stats.off += got;
     g.outdoors?.gain?.('cooking', 1.5 * done);

@@ -172,7 +172,7 @@ export class Farming {
     const bins = Math.floor(have / 3); if (!bins) return { ok: false, why: 'you have no rotten food to rot down (three portions make one compost)' };
     let need = bins * 3;
     for (let i = C.slots.length - 1; i >= 0 && need > 0; i--) { const s = C.slots[i]; if (ITEMS[s.id]?.kind === 'food' && inv.freshness(s) === 'rotten') { const t = Math.min(need, s.n); inv.take(C, i, t); need -= t; } }
-    const got = inv.add(C, 'compost', bins); inv.changed();
+    const got = inv.add(C, 'compost', bins); inv.changed(); this.g.ledger?.stamp('compost', got, 'recipe', 'compost'); // rotten food went in (the stock ledger)
     return { ok: true, compost: got, text: `${got} COMPOST` };
   }
   // Pull a dead, blighted or spent crop (blight: burn it; the bed rests).
@@ -336,6 +336,7 @@ export class Farming {
       const got = inv.add(inv.carried, c.item, n, { made: this.worldHours() });
       const rng = rngOf(`${p.id}:${p.sownAt}:seeds`), sd = c.seeds[0] + Math.floor(rng() * (c.seeds[1] - c.seeds[0] + 1)) + (this.farmLv() >= 5 ? 1 : 0);
       const saved = sd > 0 ? inv.add(inv.carried, c.seed, sd) : 0; inv.changed();
+      this.g.ledger?.stamp(c.item, got, 'harvest', p.id); this.g.ledger?.stamp(c.seed, saved, 'harvest', p.id); // grown from sown seed and water (the stock ledger)
       this.stats.harvested++; this.stats.produce += got; this.stats.seedsSaved += saved;
       const owned = p.owner === 'player';
       if (!owned) g.society?.deeds?.record?.('steal', { x: p.x, z: p.z, m: 2, label: `${p.owner}'s garden`, tf: p.ownerFaction ?? '', stars: 0 });
@@ -444,6 +445,7 @@ export class Farming {
     if (!co.eggs.length) return { ok: false, why: 'no eggs today' };
     const inv = this.inv(); let n = 0;
     while (co.eggs.length) { const e = co.eggs[0]; if (!inv.add(inv.carried, 'egg', 1, { made: e.at })) break; co.eggs.shift(); n++; }
+    this.g.ledger?.stamp('egg', n, 'harvest', co.id); // a fed hen's eggs (the stock ledger)
     inv.changed(); this.g.emit('eggsCollected', { coop: co.id, n });
     return n ? { ok: true, n, text: `${n} EGGS` } : { ok: false, why: 'no room in your pack' };
   }
@@ -452,7 +454,7 @@ export class Farming {
     const i = co.hens.findIndex((h) => (sex ? h.sex === sex : h.sex === 'hen' && h.age >= 20)) >= 0 ? co.hens.findIndex((h) => (sex ? h.sex === sex : h.sex === 'hen' && h.age >= 20)) : co.hens.findIndex((h) => !sex || h.sex === sex);
     if (i < 0) return { ok: false, why: 'nothing to kill' };
     const h = co.hens.splice(i, 1)[0], inv = this.inv(), out = [];
-    for (const [id, a, b] of COOP.meat[h.sex]) { const n = a + Math.floor(Math.random() * (b - a + 1)); inv.add(inv.carried, id, n, { made: this.worldHours() }); out.push({ id, n }); }
+    for (const [id, a, b] of COOP.meat[h.sex]) { const n = a + Math.floor(Math.random() * (b - a + 1)); const k = inv.add(inv.carried, id, n, { made: this.worldHours() }); this.g.ledger?.stamp(id, k, 'harvest', co.id); out.push({ id, n }); }
     inv.changed(); this.g.emit('henSlaughtered', { coop: co.id, sex: h.sex });
     return { ok: true, items: out, text: 'THE HEN IS DEAD · DRESSED' };
   }
@@ -498,7 +500,8 @@ export class Farming {
     if (ripe) {
       const c = CROPS[ripe.crop], n = this.expected(ripe), seeds = c.seeds[0] + (mul > 1.2 ? 1 : 0);
       const dst = inv.boxes.get('crew:stash') && base && Math.hypot(g.player.x - base.x, g.player.z - base.z) > 30 ? inv.boxes.get('crew:stash') : inv.carried;
-      const got = inv.add(dst, c.item, n, { made: this.worldHours() }); if (seeds > 0) inv.add(dst, c.seed, seeds);
+      const got = inv.add(dst, c.item, n, { made: this.worldHours() }); const sv = seeds > 0 ? inv.add(dst, c.seed, seeds) : 0;
+      this.g.ledger?.stamp(c.item, got, 'harvest', ripe.id); this.g.ledger?.stamp(c.seed, sv, 'harvest', ripe.id); // the crew's pick: grown from seed and water (the stock ledger)
       ripe.fert = Math.max(0, ripe.fert - c.drain); ripe.last = ripe.crop;
       if (c.perennial) { ripe.state = 'growing'; ripe.progress = c.perennial; } else { ripe.crop = null; ripe.state = 'bare'; ripe.progress = 0; }
       Object.assign(ripe, { loss: 0, ripeAt: null }); this.stats.harvested++; this.stats.produce += got; inv.changed();
@@ -519,7 +522,7 @@ export class Farming {
     const co = this.coops.find((q) => q.hens.length);
     if (co) {
       let did = '';
-      if (co.eggs.length) { const n = co.eggs.length; const dst = inv.carried; for (const e of co.eggs.splice(0)) inv.add(dst, 'egg', 1, { made: e.at }); did = `${n} eggs`; }
+      if (co.eggs.length) { const n = co.eggs.length; const dst = inv.carried; let k = 0; for (const e of co.eggs.splice(0)) k += inv.add(dst, 'egg', 1, { made: e.at }); this.g.ledger?.stamp('egg', k, 'harvest', co.id); did = `${n} eggs`; }
       if (co.feed < co.hens.length * COOP.feedPerHen) { const C = inv.carried; for (const [id, u] of Object.entries(COOP.feedItems)) if (C.count(id) && co.feed + u <= 6.01) { inv.take(C, C.slots.findIndex((s) => s.id === id), 1); co.feed += u; did += did ? ' and fed the hens' : 'fed the hens'; break; } }
       if (did) { inv.changed(); return { ok: true, what: did }; }
     }

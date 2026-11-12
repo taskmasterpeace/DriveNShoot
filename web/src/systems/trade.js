@@ -6,7 +6,9 @@ import { TRADERS, PRICE_TIER, TRADE } from '../data/trade.js';
 // of those boxes is a counter: taking is buying, putting is selling (only what they deal in). With them gone, taking
 // is stealing, as it always was.
 export class Trade {
-  constructor(game) { this.g = game; }
+  constructor(game) { this.g = game; this.opened = new Set(); } // opened: traders whose opening stock went on the shelves (saved: a load never restocks them)
+  save() { return { opened: [...this.opened] }; }
+  load(s) { this.opened = new Set(s?.opened ?? []); }
 
   // The deal at a box: null when there is none (not a trader's box, or the trader is not there), else
   // { c, id, name, deals, tier, refuse, buy, sell }. refuse: they are there but will not deal with you.
@@ -50,12 +52,15 @@ export class Trade {
     const row = TRADERS[c.npc?.id], day = this.g.society?.day ?? 0;
     if (!row?.keeps || c.keptDay === day || !boxes.length) return;
     // The loot law (data/rites.js LOOT_LAW): the opening stock once; after that only what a delivery brought.
-    if (c.keptDay !== undefined && TRADE.law !== 'mint') { c.keptDay = day; this.delivered(c.npc.id, boxes); return; }
+    const was = c.keptDay !== undefined || this.opened.has(c.npc.id); // this page saw it, or the world did before a load
+    if (was && TRADE.law !== 'mint') { c.keptDay = day; this.delivered(c.npc.id, boxes); return; }
     c.keptDay = day;
+    const mint = was && TRADE.law === 'mint'; // the old daily top-up (TRADE.law 'mint'): stamped as what it is
+    this.opened.add(c.npc.id);
     for (const [id, n] of row.keeps) {
       let have = 0;
       for (const b of boxes) have += b.count(id);
-      for (const b of boxes) { if (have >= n) break; have += this.g.inventory.add(b, id, n - have); }
+      for (const b of boxes) { if (have >= n) break; const k = this.g.inventory.add(b, id, n - have); have += k; this.g.ledger?.stamp(id, k, mint ? 'minted' : 'opening', `trader:${c.npc.id}`); }
     }
   }
 
@@ -172,7 +177,7 @@ export class Trade {
   delivered(trader, boxes) {
     const R = this.g.rites;
     for (let d = R?.takeDelivery(trader); d; d = R.takeDelivery(trader)) {
-      for (const s of d.items) for (const b of boxes) { const n = this.g.inventory.add(b, s.id, s.n, s); if (n >= s.n) break; s.n -= n; }
+      for (const s of d.items) for (const b of boxes) { const n = this.g.inventory.add(b, s.id, s.n, s); this.g.ledger?.stamp(s.id, n, 'delivery', `${d.source.kind}:${trader}`); if (n >= s.n) break; s.n -= n; }
       this.g.emit('restocked', { trader, from: d.source.kind, items: d.items.length });
     }
   }
@@ -188,7 +193,7 @@ export class Trade {
     if (TRADE.law !== 'mint') return; // no regeneration: goods come in by delivery (keep -> delivered), never from the table again
     const seed = box.seed;
     box.seed = (seed ^ Math.imul(day + 1, 0x9e3779b1)) >>> 0;
-    this.g.inventory.roll(box);
+    this.g.inventory.roll(box, 0, box.kind, 'minted'); // the old law: a new roll of the table (the stock ledger flags it)
     box.seed = seed;
     this.g.emit('restocked', { box: box.id, day });
   }
