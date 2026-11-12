@@ -28,10 +28,10 @@ export class Tanks {
   place(P) {
     const g = this.g, row = TANK_ROWS[P.type], at = this.clearSpot(P.near, P.r, row);
     if (!at) { g.emit?.('tankNotPlaced', { id: P.id, why: 'no clear ground' }); return null; } // tried again next time you come near
-    this.placed.add(P.id);
     const v = g.vehiclesSys.spawn(P.type, at.x, at.z, P.h, P.paint);
     if (!v) return null;
-    v.tankRow = P.id;
+    this.placed.add(P.id);
+    v.id = `seed:${P.id}`; g.shard?.seedVehicles?.add(v.id); v.tankRow = P.id;
     for (const face of ['top', 'front']) { const kind = P.kit[face]; if (kind && !g.garage.canMount(v, face, kind)) g.garage.setMount(v, face, kind); }
     if (v.mounts?.top) v.mounts.top.ammo = P.kit.rounds; // what is in the gun (the old one's is empty: find shells)
     if (v.mounts?.front) v.mounts.front.ammo = P.kit.frontRounds ?? 0; // and in the hull gun (nothing comes free)
@@ -42,9 +42,11 @@ export class Tanks {
   }
   update() {
     const p = this.g.player;
-    for (const P of TANKS_PLACED) if (!this.placed.has(P.id) && Math.hypot(p.x - P.near.x, p.z - P.near.z) < 260) {
-      if (this.g.vehicles.some((q) => q.tankRow === P.id)) { this.placed.add(P.id); continue; } // already standing (a load brought it back)
-      this.place(P);
+    for (const P of TANKS_PLACED) if (!this.placed.has(P.id) && Math.hypot(p.x - P.near.x, p.z - P.near.z) < 160) { // near enough that the ground has streamed in
+      const id = `seed:${P.id}`; // the same on every page and load: the shard's takeVehicle claims it once for everyone (net/shard.js)
+      if (this.g.shard?.taken?.[id] || this.g.vehicles.some((q) => q.tankRow === P.id || q.id === id || q.shardSeed === id)) { this.placed.add(P.id); continue; } // driven off on the shard, or a load brought it back
+      if (this.g.time < (this.nextTry ?? 0)) continue; // the ground search is not cheap: once a second while it finds none
+      if (!this.place(P)) this.nextTry = this.g.time + 1;
     }
   }
   view() { return this.g.vehicles.filter((v) => TANK_ROWS[v.type]).map((v) => ({ id: v.id, type: v.type, row: v.tankRow ?? null, x: Math.round(v.x), z: Math.round(v.z), gun: v.mounts?.top?.kind ?? null, rounds: v.mounts?.top?.ammo ?? 0, fuel: Math.round(v.fuel ?? 0), hp: Math.round(v.hp) })); }

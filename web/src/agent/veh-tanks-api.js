@@ -46,7 +46,7 @@ export async function vehTanksChecks(api, check, C) {
       await api._step(30); I.mouse.physRight = false; I.mouse.right = false;
       const fired = (g.events ?? []).some((e) => e.seq > ev0 && /rocketLaunch|mountFire|launch/i.test(e.type) && e.vehicle === v.id);
       g.exitVehicle(true);
-      return n === 1 && v.mounts?.top?.kind === 'cannon75' && r0 === 0 && fr0 === 0 && f0 === 0 && moved < 0.3 && !fired ? true : JSON.stringify({ n, gun: v.mounts?.top?.kind, r0, fr0, f0, moved: r1(moved), fired });
+      return n === 1 && v.id === `seed:${P.id}` && v.mounts?.top?.kind === 'cannon75' && r0 === 0 && fr0 === 0 && f0 === 0 && moved < 0.3 && !fired ? true : JSON.stringify({ n, id: v.id, gun: v.mounts?.top?.kind, r0, fr0, f0, moved: r1(moved), fired });
     } finally { off(); }
   });
 
