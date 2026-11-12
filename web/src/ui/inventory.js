@@ -351,7 +351,7 @@ export class InventoryUI {
     // Walked away from the other side (or it drove off): fall back to what's here now.
     const o = this.other, p = this.g.player;
     if (o && o.kind !== 'person' && (o.kind === 'trunk' ? !this.g.vehicles.some((v) => o === this.g.inventory.trunks.get(v.id) && (p.inVehicle === v || Math.hypot(v.x - p.x, v.z - p.z) < Math.max(3.6, v.len * 0.7))) : Math.hypot(o.x - p.x, o.z - p.z) > 3.2 && !this.g.trade?.keeperAt(o))) { this.other = this.pickOther(); this.render(); }
-    else if (o && o.x !== undefined && o.kind !== 'person' && o.kind !== 'trunk' && !(o.kind === 'ground' && Math.abs(o.x - p.x) < 0.6 && Math.abs(o.z - p.z) < 0.6) && !this.g.trade?.keeperAt(o) && (this.reachT = (this.reachT ?? 0) - dt) <= 0) { this.reachT = 0.25; if (!this.g.reach.box(p, o)) { this.g.inventory.opened = null; this.other = this.pickOther(); this.render(); } } // walked round the wall with it open: it is not at your hand any more (systems/reach.js; asked four times a second)
+    else if (o && o.x !== undefined && (o.kind !== 'person' || String(o.id).startsWith('body:')) && o.kind !== 'trunk' && !(o.kind === 'ground' && Math.abs(o.x - p.x) < 0.6 && Math.abs(o.z - p.z) < 0.6) && !this.g.trade?.keeperAt(o) && (this.reachT = (this.reachT ?? 0) - dt) <= 0) { this.reachT = 0.25; if (!this.g.reach.box(p, o)) { this.g.inventory.opened = null; this.other = this.pickOther(); this.render(); } } // walked round the wall with it open: it is not at your hand any more (systems/reach.js; asked four times a second)
     else if (this.g.inventory.dirty) this.render();
     if (!p.alive) this.toggle(false);
   }

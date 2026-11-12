@@ -21,7 +21,7 @@ export function reachCommands(api, need) {
         if (find) { // a place to see the rule: the nearest container with a wall beside it you can stand behind
           let best = null, bd = Infinity;
           for (const b of g.inventory.boxes.values()) {
-            if (b.x === undefined || b.kind === 'ground' || b.kind === 'body' || b.kind === 'trunk' || (b.y ?? 0) > 0.5) continue;
+            if (b.x === undefined || b.kind === 'ground' || b.kind === 'person' || b.kind === 'trunk' || (b.y ?? 0) > 0.5) continue;
             const d = Math.hypot(b.x - p.x, b.z - p.z);
             if (d >= bd || d > 400) continue;
             const pair = wallPair(g, b.x, b.z);
@@ -71,7 +71,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
   // A street-floor shelf or crate of a real building with a wall beside it that you can stand behind.
   const findBox = (max = 2.3) => {
     for (const b of inv.boxes.values()) {
-      if (b.x === undefined || b.kind === 'ground' || b.kind === 'body' || b.kind === 'trunk' || b.unseen || (b.y ?? 0) > 0.5 || b.owner) continue;
+      if (b.x === undefined || b.kind === 'ground' || b.kind === 'person' || b.kind === 'trunk' || b.unseen || (b.y ?? 0) > 0.5 || b.owner) continue;
       if (Math.max(Math.abs(b.x), Math.abs(b.z)) > 440) continue; // the island: always there
       const pair = wallPair(g, b.x, b.z, max);
       if (pair) return { b, ...pair };
@@ -270,7 +270,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
       for (const o of [...g.chars]) if (o !== g.player && !o.npc && near(o)) g.removeChar(o);
       const Bd = g.rites?.bodies;
       if (Bd) { for (const [k, q] of Bd) if (near(q.c ?? q)) Bd.delete(k); g.rites.dirty = true; }
-      for (const [id, q] of [...inv.boxes]) if ((q.kind === 'body' || (q.kind === 'ground' && !q.unseen)) && q.x !== undefined && near(q)) inv.boxes.delete(id);
+      for (const [id, q] of [...inv.boxes]) if ((String(id).startsWith('body:') || (q.kind === 'ground' && !q.unseen)) && q.x !== undefined && near(q)) inv.boxes.delete(id); // (a body's box is kind 'person', id body:<who>)
       inv.opened = null; inv.drawPiles?.();
     };
     await C('teleport', { x: W.A.x, z: W.A.z }); await put(W.A); await shut();
@@ -362,8 +362,17 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
       await api._step(20);
       const p = P();
       if (!p.ug) return { ug: null, gy: p.gy };
-      for (const o of [...g.chars]) if (o !== p && !o.npc && Math.hypot(o.x - p.x, o.z - p.z) < 12) g.removeChar(o);
-      await shut();
+      // nobody and no body of an earlier run here (a second body's box beside this one would take E's search)
+      const tidy = () => {
+        const near = (q) => Math.hypot(q.x - p.x, q.z - p.z) < 12;
+        for (const o of [...g.chars]) if (o !== p && !o.npc && near(o)) g.removeChar(o);
+        const Bd = g.rites.bodies;
+        for (const [k, q] of [...Bd]) if (near(q.c ?? q)) Bd.delete(k);
+        g.rites.dirty = true;
+        for (const [id, q] of [...inv.boxes]) if (String(id).startsWith('body:') && q.x !== undefined && near(q)) inv.boxes.delete(id);
+        inv.opened = null;
+      };
+      tidy(); await shut();
       // the ground side held open
       const pk = await C('pack', { on: true });
       const g0 = g.invUI.other, n0 = inv.boxes.size, picks0 = inv.piles;
@@ -390,9 +399,9 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
         if (g.rites.drag) { dragged = true; g.rites.stopDrag(); }
       }
       await shut();
-      if (g.chars.includes(c)) g.removeChar(c);
+      tidy();
       const ok = same && grew === 0 && minted === 0 && typeof pileY === 'number' && pileY < -0.5 && level && mine && dragged;
-      return ok || { level: p.ug, gy: r1(p.gy ?? 0), other: pk.other?.id ?? null, same, grew, minted, pileY, onLevel: level, mine, dragged, corpseGy: c.gy };
+      return ok || { o: g0 ? { kind: g0.kind, x: g0.x, z: g0.z, y: g0.y, d: r1(Math.hypot((g0.x ?? 0) - p.x, (g0.z ?? 0) - p.z)) } : null, bodies: g.rites.bodies.size, level: p.ug, gy: r1(p.gy ?? 0), other: pk.other?.id ?? null, same, grew, minted, pileY, onLevel: level, mine, dragged, corpseGy: c.gy };
     } finally { g.godMode = false; g.input.down.delete('KeyE'); if (g.invUI.open) g.invUI.toggle(false); }
   }));
 }
