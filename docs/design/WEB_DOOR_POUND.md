@@ -166,7 +166,7 @@ The shard's model is that each page simulates its own surroundings and reports w
 | `systems/actions.js` (WEB_TIMED_ACTIONS.md) | `underAttack`, `brace`, `doorHp` for the door prompt | `press` (tap or hold), `kickOnce` |
 | `main.js` E chain | `openDoorNear`, `shutDoor`; `zombies.near` | the chain's order |
 | `systems/reach.js` (WEB_REACH.md) | a shut door stops a hand and a word | `reach.opening` for the door you shut |
-| `net/shard.js`, `server/shard.mjs` (WEB_SHARD.md) | `leafKeys`, `mergeLeaves`, `heardPounds` | the world patch (`leaves`, `pound`) |
+| `net/shard.js`, `server/shard.mjs` (WEB_SHARD.md) | `leafKeys`, `mergeLeaves`, `heardPounds`; `tools/shard-door-test.mjs` | the world patch (`leaves`, `pound`) |
 | `data/audiosets.js`, `tools/audio-make.mjs` (WEB_SOUND.md) | — | the made manifest merged over the library's |
 | `systems/ai.js` | — | `stuck` reset so a pressed body does not detour |
 
@@ -203,8 +203,10 @@ The shard's model is that each page simulates its own surroundings and reports w
    it and sets its hp; `heardPounds` makes it shudder and read as under attack; `p: 0` takes it off its hinges; a
    materials save and load keep the hurt leaf's hp.
 
-Two players: `npm run shard:test` section 9 (two pages and a real shard): a door B pulls shut and something beats on is
-shut, as hurt and heard on A; beaten off its hinges on B it is off them on A, and the shard keeps `p: 0`.
+Two players: `node tools/shard-door-test.mjs` (a real shard and two game pages; 9/9 on 2026-11-12): a door B pulls shut
+and something beats on is shut, as hurt (149 of 189) and heard on A; beaten off its hinges on B it is off them on A; the
+shard keeps `p: 0`, and a later patch cannot put it back. The same steps are section 9 of the long two-client proof
+(`tools/shard-test.mjs`), which on this base stops earlier at its house-claim step (its page A now starts in Florida).
 
 Before / after: `docs/renders/web/door-pound/zed-pound-before.jpg` (the infected walk through a closed door in 2 s),
 `zed-pound-after-1-pounding.jpg` (a sprinter and a shambler beating the shut door, 83 of 189 left) and
