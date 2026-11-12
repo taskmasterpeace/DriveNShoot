@@ -1,4 +1,5 @@
 // What you wear (docs/design/WEB_INVENTORY.md §Gear): the original game's 19-slot paperdoll, carried over as rows.
+import { WINTER_GEAR } from './seasons.js';
 // One engine, everything a row: a piece is a row in GEAR, worn one per slot, and each slot starts bare. Armor is a
 // relative SOAK (0..1) over the body parts a piece covers, summed per part and capped (SOAK_CAP) so nobody is ever
 // bulletproof. The clothing and accessory slots earn their keep through MODS, each read by one consumer:
@@ -114,6 +115,9 @@ export const GEAR = {
   scav_compass: { name: 'Scavver\'s compass', slot: 'talisman', tier: 3, luck: 2,
     desc: 'A brass compass with a needle that never points north. It points at things worth taking.' },
 };
+
+// The winter pieces (coats, caps, boots, gloves) are rows of data/seasons.js WARM / WINTER_GEAR: they join the catalog here.
+for (const [id, r] of Object.entries(WINTER_GEAR)) GEAR[id] ??= r;
 
 // What a piece weighs, takes and is worth when the row does not say: armor by its tier, the rest light.
 // A chest plate is the heavy one; a helmet, leg plates and the small pieces less (the original's 0.8 + 0.7 x tier, for the

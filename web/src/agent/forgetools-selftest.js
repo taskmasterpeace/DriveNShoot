@@ -22,7 +22,7 @@ export async function forgeChecks(api, check, C) {
     try {
       const F = await until(() => f.contentWindow?.FORGE?.ready && f.contentWindow.FORGE, 30000);
       if (!F) return `the forge page never set FORGE.ready (${f.contentWindow?.FORGE?.error ?? 'no error recorded'})`;
-      const want = ['map', 'terrain', 'brush', 'town', 'building', 'site', 'life', 'voice', 'observe'];
+      const want = ['map', 'terrain', 'brush', 'town', 'building', 'site', 'life', 'voice', 'seasons', 'observe'];
       const have = F.tabs();
       const missing = want.filter((t) => !have.includes(t));
       if (missing.length) return `tabs missing: ${missing.join(', ')}`;

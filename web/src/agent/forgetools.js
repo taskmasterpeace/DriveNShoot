@@ -14,7 +14,7 @@ import { brushField } from '../world/brush.js';
 import { toUsmap, toWorld, chunkOf, chunkKey } from '../world/geo.js';
 import { FILES, fnv, findRow, BRUSH_LAYERS, BRUSH_OPS } from '../forge/rows.js';
 import { checkMap } from '../forge/validate.js';
-import { fetchRows, patchRows, pushUsmap, pushBrush } from '../forge/live.js';
+import { fetchRows, patchRows, pushUsmap, pushBrush, pushSeasons } from '../forge/live.js';
 import { rowToWorld, worldToRow } from '../forge/frame.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -66,12 +66,13 @@ export function forgetoolsCommands(api, need) {
     },
     forgePush: {
       group: 'forge', desc: 'Read a World Forge file back from disk into this running game, without a reload: usmap rows go into the module the engine holds and WorldIndex rebuilds the corridor, exits, towns and signs from them; brush rows reload the brush field. Only the chunks the changed rows reach are laid out again (rows=coll/id,... for usmap; none = all). I-10 moved inside the Phoenix ring needs a page reload (the ring buckets it at boot): it says so.',
-      args: { file: { type: 'string', enum: ['usmap', 'brush', 'all'], default: 'all' }, rows: { type: 'string' } },
+      args: { file: { type: 'string', enum: ['usmap', 'brush', 'seasons', 'all'], default: 'all' }, rows: { type: 'string' } },
       run: async ({ file, rows }) => {
         dev();
         const out = {};
         if (file === 'usmap' || file === 'all') out.usmap = await pushUsmap(g, rows ? list(rows) : null);
         if (file === 'brush' || file === 'all') out.brush = await pushBrush(g);
+        if (file === 'seasons' || file === 'all') out.seasons = await pushSeasons(g);
         return out;
       },
     },
