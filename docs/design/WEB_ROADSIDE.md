@@ -298,3 +298,5 @@ on a fill across live water must read dry); and whether the `dry` farm canals sh
 3. **The fallen tower is thin from above** (two chords and a few girts): a car sees it late. Next: a crumpled mass at its
    foot, sparks and a torn-up shoulder at its tip, and its conductors as a hazard for a motorcycle rider (a clothesline).
 Also: billboard faces do not light at night yet; the hoist house wears the roof patchwork texture; substations are scenery.
+
+> **SEASONS (WEB_SEASONS.md):** the road's grip is multiplied by `seasons.grip` (wet, slush, packed snow, ice, a closed pass); a trader's worth by `seasons.priceMul`.

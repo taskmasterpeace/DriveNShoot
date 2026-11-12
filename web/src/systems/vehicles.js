@@ -351,7 +351,7 @@ export class Vehicles {
     if (pivot) { v.x += pivot * (Math.sin(v.h + dh) - Math.sin(v.h)); v.z += pivot * (Math.cos(v.h + dh) - Math.cos(v.h)); }
     v.h += dh;
     // Rolling drag and lateral grip (handbrake = drift).
-    const grip = (v.handbrake ? v.grip * DRIVING.slide.hbGrip : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1) * (v.treadGrip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js); treadGrip: the tyres on this ground (workshop.js)
+    const grip = (v.handbrake ? v.grip * DRIVING.slide.hbGrip : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1) * (v.gripMul ?? 1) * (v.roadGrip ?? 1) * (v.treadGrip ?? 1) * (this.g.seasons?.grip ?? 1); // gripMul: an oil slick (garage.js); roadGrip: the street's surface row (systems/citygen.js); treadGrip: the tyres on this ground (workshop.js)
     if (v.bike) {
       // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
       const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);

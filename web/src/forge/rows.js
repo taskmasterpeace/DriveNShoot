@@ -34,6 +34,10 @@ export const FILES = {
     path: 'src/data/brush.json', style: 'rows', kind: 'dsoa-brush', top: ['knobs', 'palettes'],
     colls: { strokes: { geom: 'line', label: 'Brush stroke', engine: 'world/brush.js -> world/chunkgen.js' } },
   },
+  seasons: {
+    path: 'src/data/seasons.json', style: 'rows', kind: 'dsoa-seasons', top: ['calendar'],
+    colls: { zones: { geom: null, label: 'Climate zone', engine: 'systems/seasons.js (climate, snow, light, odds)' } },
+  },
 };
 export const fileOf = (name) => FILES[name] ?? null;
 
@@ -219,6 +223,7 @@ export function checkFile(name, doc) {
       seen.add(r.id);
       if (c.geom === 'line' && !(Array.isArray(r.pts) && r.pts.length >= (coll === 'strokes' ? 1 : 2) && r.pts.every(isPt))) errors.push(`${coll}/${r.id}: pts`);
       if (c.geom === 'point' && !isPt(r.pos)) errors.push(`${coll}/${r.id}: pos`);
+      if (name === 'seasons') for (const [k, lo, hi] of [['mean', -25, 35], ['amp', 0, 30], ['lat0', 20, 55], ['snowy', 0, 1], ['warmest', 0, 1]]) if (r[k] !== undefined && !(r[k] >= lo && r[k] <= hi)) errors.push(`zones/${r.id}: ${k} ${r[k]} (${lo}..${hi})`);
       if (name === 'brush') for (const b of checkStroke(r)) errors.push(`strokes/${r.id}: ${b}`);
     }
   }

@@ -132,7 +132,7 @@ export class Outdoors {
   maxAge(i, L, extraH = 0) {
     const K = TRACK_KINDS[KINDS[this.tk[i]]], blood = !!K.blood;
     const skill = (TRACKS.ageH + TRACKS.perLevelH * L + extraH) * K.base * (blood ? TRACKS.bleedFresh + 1 : 1) * (blood ? this.fx.bloodAgeMul : 1);
-    return Math.min(K.lifeH, skill) * this.th[i] * (this.raining() ? TRACKS.rainMul : 1);
+    return Math.min(K.lifeH, skill) * this.th[i] * (this.raining() ? TRACKS.rainMul : 1) * (this.g.seasons?.trackHold() ?? 1); // snow holds a print
   }
   visible(i, L, now, extraH = 0) { return now - this.tt[i] <= this.maxAge(i, L, extraH); }
   whatOf(sp) { return SPECIES[sp]?.name ?? (sp === 'person' ? 'people' : sp === 'infected' ? 'the infected' : sp === 'dog' ? 'a dog' : sp); }
@@ -387,7 +387,7 @@ export class Outdoors {
   }
   catchRow(kind, region) {
     const rows = FISH.filter((f) => f.waters.includes(kind) && f.regions.includes(region));
-    return pick(rows.length ? rows : FISH.filter((f) => f.waters.includes(kind)), (f) => f.w * (f.rare ? this.fx.rareMul : 1));
+    return pick(rows.length ? rows : FISH.filter((f) => f.waters.includes(kind)), (f) => f.w * (f.rare ? this.fx.rareMul : 1) * (this.g.seasons?.yield('fish', f.id) ?? 1));
   }
   landCatch(F) {
     const g = this.g, inv = g.inventory, region = this.regionAt(F.x, F.z), got = [];
@@ -452,7 +452,7 @@ export class Outdoors {
     t.lastAt = now;
     if (t.kind === 'snare') {
       if (t.held.length) return;
-      t.acc += dH * TRAPPING.perHour * (TRAPPING.biomeGame[t.biome] ?? 0.8) * (1 + this.per('snareRate', 'trapping')) * this.fx.snareRateMul;
+      t.acc += dH * TRAPPING.perHour * (TRAPPING.biomeGame[t.biome] ?? 0.8) * (1 + this.per('snareRate', 'trapping')) * this.fx.snareRateMul * (this.g.seasons?.yield('snare', 'snare', t.x, t.z) ?? 1);
       if (t.acc >= 1 || Math.random() < t.acc * 0.15) { t.acc = 0; const c = pick(TRAPPING.catch, (r) => r.w); t.held.push(c.name); }
       return;
     }
@@ -511,7 +511,7 @@ export class Outdoors {
     const P = this.patch(x, z), got = [], left = [], tries = FORAGING.rolls + this.fx.forageRolls, mul = (1 + this.per('forageP', 'foraging')) * P.r;
     for (let i = 0; i < tries && rows.length; i++) {
       const r = pick(rows, (o) => o.p);
-      if (Math.random() >= Math.min(0.95, r.p * mul * 1.6)) continue;
+      if (Math.random() >= Math.min(0.95, r.p * mul * 1.6 * (g.seasons?.yield('forage', r.item, x, z) ?? 1))) continue;
       if (r.poison && this.fx.knowPoison) { left.push(r.item); continue; }
       const n = roll(r.n[0], r.n[1]);
       inv.stow(r.item, n, { made: this.hours() }); got.push({ item: r.item, n, med: !!r.med || undefined });

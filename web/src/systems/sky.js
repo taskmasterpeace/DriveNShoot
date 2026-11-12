@@ -5,23 +5,25 @@ import { SKY_FEEL, timeScaleFor } from '../data/looks.js';
 
 // Time of day + weather. One directional light plays sun by day and moon by night.
 export const WEATHER = {
-  CLEAR:    { label: 'CLEAR',      fog: 0.0028, clouds: 0.0, rain: 0, dust: 0, ash: 0, storm: 0, tint: '#c8b08a' },
-  OVERCAST: { label: 'OVERCAST',   fog: 0.0045, clouds: 0.6, rain: 0, dust: 0, ash: 0, storm: 0, tint: '#9a978e' },
-  RAIN:     { label: 'RAIN',       fog: 0.0065, clouds: 0.85, rain: 1, dust: 0, ash: 0, storm: 0, tint: '#7d817f' },
-  STORM:    { label: 'ACID STORM', fog: 0.0085, clouds: 1.0, rain: 1.6, dust: 0, ash: 0, storm: 1, tint: '#6b706a' },
-  DUST:     { label: 'DUST STORM', fog: 0.022, clouds: 0.35, rain: 0, dust: 1, ash: 0, storm: 0, tint: '#b47a46' },
-  FOG:      { label: 'FOG',        fog: 0.026, clouds: 0.5, rain: 0, dust: 0, ash: 0, storm: 0, tint: '#a8a59c' },
-  ASHFALL:  { label: 'ASHFALL',    fog: 0.012, clouds: 0.7, rain: 0, dust: 0, ash: 1, storm: 0, tint: '#7c7872' },
+  CLEAR:    { label: 'CLEAR',      fog: 0.0028, clouds: 0.0, rain: 0, dust: 0, ash: 0, storm: 0, snow: 0, tint: '#c8b08a' },
+  OVERCAST: { label: 'OVERCAST',   fog: 0.0045, clouds: 0.6, rain: 0, dust: 0, ash: 0, storm: 0, snow: 0, tint: '#9a978e' },
+  RAIN:     { label: 'RAIN',       fog: 0.0065, clouds: 0.85, rain: 1, dust: 0, ash: 0, storm: 0, snow: 0, tint: '#7d817f' },
+  STORM:    { label: 'ACID STORM', fog: 0.0085, clouds: 1.0, rain: 1.6, dust: 0, ash: 0, storm: 1, snow: 0, tint: '#6b706a' },
+  DUST:     { label: 'DUST STORM', fog: 0.022, clouds: 0.35, rain: 0, dust: 1, ash: 0, storm: 0, snow: 0, tint: '#b47a46' },
+  FOG:      { label: 'FOG',        fog: 0.026, clouds: 0.5, rain: 0, dust: 0, ash: 0, storm: 0, snow: 0, tint: '#a8a59c' },
+  SNOW:     { label: 'SNOW',       fog: 0.012, clouds: 0.9, rain: 0, dust: 0, ash: 0, storm: 0, snow: 1, tint: '#aeb7bf' },
+  BLIZZARD: { label: 'BLIZZARD',   fog: 0.026, clouds: 1.0, rain: 0, dust: 0, ash: 0, storm: 0, snow: 2.2, tint: '#c3cbd1' },
+  ASHFALL:  { label: 'ASHFALL',    fog: 0.012, clouds: 0.7, rain: 0, dust: 0, ash: 1, storm: 0, snow: 0, tint: '#7c7872' },
   // THE FOUND THINGS (data/fannods.js SICK_SKY): rare, never in ORDER's roll. The sky goes a sick orange-green, the rain
   // comes down yellow and burns bare skin (systems/fannods.js); anyone with sense gets under a roof.
-  SICKSKY:  { label: 'BURNING RAIN', fog: 0.0105, clouds: 1.0, rain: 1.35, dust: 0, ash: 0, storm: 0.55, tint: '#9c8f2c', burn: 1 },
+  SICKSKY:  { label: 'BURNING RAIN', fog: 0.0105, clouds: 1.0, rain: 1.35, dust: 0, ash: 0, storm: 0.55, snow: 0, tint: '#9c8f2c', burn: 1 },
 };
 const ORDER = ['CLEAR', 'OVERCAST', 'RAIN', 'STORM', 'DUST', 'FOG', 'ASHFALL'];
 
 const RAIN_N = 2600, MOTE_N = 2400, BOX = 110, BOX_H = 50;
 // update() runs every frame, so its colour blends use these constants and scratch objects instead
 // of allocating ~10 THREE.Colors (and regex-parsing hex strings) per frame.
-const BLENDED = ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm'];
+const BLENDED = ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm', 'snow'];
 const RAIN_COL = new THREE.Color('#b9c4c8'), RAIN_BURN = new THREE.Color(SICK_SKY.rain), LIGHT_BURN = new THREE.Color(SICK_SKY.light); // the burning rain comes down yellow, under an orange-green light
 const SUN_DAY = new THREE.Color('#fff4e0'), SUN_LOW = new THREE.Color('#ff9a52'), MOON = new THREE.Color('#a3b6cc');
 const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82a0'), HEMI_LOW = new THREE.Color('#f0b884');
@@ -60,6 +62,8 @@ export class Sky {
     this.curTint = new THREE.Color(WEATHER.CLEAR.tint);
     this.targetTint = new THREE.Color(WEATHER.CLEAR.tint); this.tintKey = WEATHER.CLEAR.tint;
     this.nextWeatherIn = 60 * 4;
+    this.weatherPicker = null;  // systems/seasons.js: () => a WEATHER key by place and season (null: the old random roll)
+    this.sunRise = 6; this.dayLen = 12; // the sun's path: seasons.js sets them by latitude and date
     this.flash = 0;
     this.thunderQueue = [];
     this.night = 0;
@@ -147,8 +151,11 @@ export class Sky {
     this.time = (this.time + gameHours) % 24;
     this.nextWeatherIn -= dt * (this.fast ? 40 : 1);
     if (this.nextWeatherIn <= 0) {
-      const roll = Math.random();
-      this.setWeather(Math.random() < SICK_SKY.chance ? 'SICKSKY' : roll < 0.35 ? 'CLEAR' : ORDER[1 + Math.floor(Math.random() * (ORDER.length - 1))]); // the burning rain: rare (data/fannods.js)
+      // The burning rain first (rare, never in ORDER's roll: data/fannods.js), then the season's own roll (systems/seasons.js),
+      // else the old one.
+      const picked = Math.random() < SICK_SKY.chance ? 'SICKSKY' : this.weatherPicker?.();
+      if (picked && WEATHER[picked]) this.setWeather(picked);
+      else { const roll = Math.random(); this.setWeather(roll < 0.35 ? 'CLEAR' : ORDER[1 + Math.floor(Math.random() * (ORDER.length - 1))]); }
     }
 
     // Ease weather parameters (~6s blend).
@@ -160,7 +167,7 @@ export class Sky {
     this.curTint.lerp(this.targetTint, k);
 
     // Sun path: up at 6:00, zenith at 12:00, down at 18:00.
-    const ang = ((this.time - 6) / 12) * Math.PI;
+    const ang = ((this.time - this.sunRise) / this.dayLen) * Math.PI;
     const elev = Math.sin(ang);
     const day = smoothstep(SKY_FEEL.twilight[0], SKY_FEEL.twilight[1], elev); // a long, readable dusk and dawn
     this.night = 1 - day;

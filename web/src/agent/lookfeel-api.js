@@ -328,7 +328,14 @@ export async function lookfeelChecks({ g, api, C, check }) {
     const pinned = S.timeScale === 1 / 30 || Math.abs(S.timeScale - 24 / (SKY_FEEL.testDayMinutes * 60)) < 1e-12;
     // The night: the default and the once-only migration flag; dusk is a long band (about half light at 18:00, still some at 18:30, full night by 19:30).
     const nightAt = async (h) => { await C('setTime', { hour: h }); await C('step', { seconds: 0.05 }); return S.night; };
-    const n1800 = await nightAt(18), n1830 = await nightAt(18.5), n1930 = await nightAt(19.5), n23 = await nightAt(23);
+    // The dusk band is measured on the equinox's sun (up at 6, a 12-hour day): the seasons (systems/seasons.js) move sunrise and
+    // day length by date and latitude, which would put a winter 18:30 in full night. Their light is held for the reading, then let go.
+    const SE = g.seasons, sun0 = { rise: S.sunRise, len: S.dayLen };
+    if (SE) SE.tickLight = () => {}; // an own property over the class method; deleted after
+    S.sunRise = 6; S.dayLen = 12;
+    let n1800, n1830, n1930, n23;
+    try { n1800 = await nightAt(18); n1830 = await nightAt(18.5); n1930 = await nightAt(19.5); n23 = await nightAt(23); }
+    finally { if (SE) delete SE.tickLight; S.sunRise = sun0.rise; S.dayLen = sun0.len; }
     await C('setTime', { hour: 12 });
     const night = NIGHT_I.dflt === SKY_FEEL.night && Q.settings.nightV2 === true && n1800 > 0.35 && n1800 < 0.6 && n1830 < 0.86 && n1930 > 0.97 && n23 > 0.97;
     // Brightness: the menu's slider sets the exposure (and the goggles' base).
