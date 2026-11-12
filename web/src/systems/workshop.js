@@ -75,6 +75,7 @@ export class Workshop {
     const v = this.carFor();
     if (!v) return { ok: false, why: 'bring your car round: park it within 40 m' };
     if (!g.garage.chassis(v)) return { ok: false, why: `a ${v.name} can't be worked on here` };
+    if (site.boats && !g.garage.chassis(v).boat) return { ok: false, why: 'the dock bench works on boats: take a car to a garage' }; // data/workshop.js WORKSHOPS.dock
     this.site = site; this.car = v;
     return { ok: true, site, vehicle: v };
   }

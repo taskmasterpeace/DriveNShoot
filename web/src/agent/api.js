@@ -93,9 +93,8 @@ import { shotReadCommands, shotReadChecks } from './shotread-api.js'; // a shot 
 import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
-import { MOUNT_WEAPONS } from '../data/workshop.js';
+import { MOUNT_WEAPONS, BOAT_KIT } from '../data/workshop.js'; // BOAT_KIT: the lake gunboat's own gun, put back on an old save's
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
-import { BOAT_KIT } from '../data/workshop.js'; // the lake gunboat's own gun, put back on an old save's
 import { vehBoatGunsChecks } from './veh-boatguns-api.js'; // VEHICLES V2 slice 2: guns on boats
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)

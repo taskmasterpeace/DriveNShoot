@@ -82,16 +82,19 @@ export async function vehBoatGunsChecks(api, check, C) {
     } finally { off(); }
   });
 
-  await check('boat guns: at the dock bench a skiff takes a machine gun and smoke but no tyres, no ram plate and no mines; the gun fires from where it is drawn', async () => {
+  await check('boat guns: at the dock bench a car is turned away; a skiff takes a machine gun but no tyres, no ram plate and no mines; the gun fires from where it is drawn', async () => {
     try {
       const v = await spawn('skiff', DOCK.x + 6, DOCK.z + 4, Math.PI / 2);
       const site = g.workshop.siteAt(v.x, v.z);
       const mg = g.workshop.install(v, { part: 'mg1', face: 'front', pay: false, time: false });
       const tyres = G.addUtility(v, 'tread_offroad'), ram = G.plate(v, 'front', 4, 'ram'), mines = G.canMount(v, 'left', 'minedrop') ?? 'ok';
+      // A car at the dock bench is turned away (the bench works on boats).
+      const car = await spawn('sedan', DOCK.x - 8, DOCK.z - 6, 0); await C('teleport', { x: DOCK.x - 4, z: DOCK.z - 6 }); g.lastVehicle = car;
+      const carOpen = g.workshop.open(); g.workshop.site = null; g.workshop.car = null;
       const gb = await spawn('gunboat', DOCK.x + 14, DOCK.z + 18, 0); G.setMount(gb, 'top', 'hmg');
       const at = CHASSIS.gunboat.mounts.top.at, mz = g.workshop.muzzle(gb, 'top', gb.mounts.top, gb.h), wantZ = gb.z + at[2];
       const fromGun = Math.hypot(mz.x - gb.x, mz.z - wantZ) < 1.6 && Math.abs(mz.y - at[1]) < 0.2;
-      return site?.id === 'dock' && WORKSHOPS.dock.boats && mg.ok && !tyres.ok && !ram.ok && mines !== 'ok' && fromGun ? true : JSON.stringify({ site: site?.id, mg, tyres, ram, mines, mz, wantZ: r1(wantZ) });
+      return site?.id === 'dock' && WORKSHOPS.dock.boats && !carOpen.ok && /boats/.test(carOpen.why ?? '') && mg.ok && !tyres.ok && !ram.ok && mines !== 'ok' && fromGun ? true : JSON.stringify({ site: site?.id, carOpen, mg, tyres, ram, mines, mz, wantZ: r1(wantZ) });
     } finally { off(); }
   });
 
