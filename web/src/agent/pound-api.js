@@ -293,7 +293,7 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
   }));
 
   // ---- THE START TOWN HAS DOORS (docs/design/WEB_START_HOUSE.md): a holdout's buildings carry leaves and glass ---------------
-  await check('interiors: a holdout has doors - at the new-game start (the clinic doorstep in Meridian) the buildings of the town carry real door leaves and glass (40+ doors, 100+ windows, no glass smashed in a lived building), the front door of the clinic is within 6 m, E pulls it shut and a shambler outside it is held and beats on it; walk 400 m off and they are put away', async () => wrap(async () => {
+  await check('interiors: a holdout has doors - at the new-game start (the clinic doorstep in Meridian) the buildings of the town carry real door leaves and glass (40+ doors, 100+ windows, no glass smashed in a lived building), the front door of the clinic is within 6 m, E pulls it shut and a shambler outside does not get in for 12 s; walk 400 m off and they are put away', async () => wrap(async () => {
     await stage();
     const r = await C('region', { action: 'start' });
     if (!r.ok && r.error) return { region: r.error };
@@ -309,8 +309,11 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     g.godMode = true;
     const made = [];
     try {
-      // inside the clinic, the door standing open as the town keeps it; one of them in the street
-      const open = !I.isShut(front);
+      // inside the clinic, the door standing open as the town keeps it (staged back open: an earlier run shut it, and a
+      // door keeps where it was left); one of them in the street
+      const builtOpen = front.leaves.some((L) => Math.abs(L.th0) > 0.3);
+      for (const L of front.leaves) { L.th = L.th0 || 1.3; L.w = 0; I.orient(L); } I.flush();
+      const open = builtOpen && !I.isShut(front);
       for (const c of [...g.chars]) if (c !== p && !c.npc && near(c, 9)) g.removeChar(c);
       await C('teleport', { x: front.x - front.nx * 1.5, z: front.z - front.nz * 1.5 }); p.x = front.x - front.nx * 1.5; p.z = front.z - front.nz * 1.5; await api._step(3);
       const z = Z.spawn(front.x + front.nx * 7, front.z + front.nz * 7, false); made.push(z); z.x = front.x + front.nx * 7; z.z = front.z + front.nz * 7; z.zSpeed = 2.6; z.timer = 99; z.wx = z.x; z.wz = z.z;
@@ -320,16 +323,19 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       await tap('KeyE'); await api._step(2);
       const shut = I.isShut(front);
       await C('teleport', { x: front.x - front.nx * 2.4, z: front.z - front.nz * 2.4 });
-      const th0 = Z.counts.thumps;
+      // (a held town has deputies and people in the street: it may go for them or be shot; what is asked here is that the
+      // door you shut keeps it out)
       let crossed = false;
-      const tBeat = await until(40, () => { told(z); if (out(front, z) < 0.1 && !front.broken) crossed = true; return Z.counts.thumps - th0 >= 2 || front.broken; });
+      await until(12, () => { if (z.alive) told(z); if (z.alive && out(front, z) < 0.1 && !front.broken) crossed = true; return false; });
+      const held = !crossed && I.isShut(front) && !front.broken;
       gone(z);
+      for (const L of front.leaves) { L.th = L.th0; L.w = 0; I.orient(L); } I.flush(); // as the town keeps it
       // far away: put back in the pool
       await C('teleport', { x: p.x + 420, z: p.z });
       await C('step', { seconds: 1.5 });
       const left = I.doors.filter(mine).length;
-      const ok = doors.length >= 40 && wins.length >= 100 && smashedLived === 0 && open && /Shut the door/.test(prompt) && shut && !crossed && tBeat !== null && left === 0;
-      return ok || { doors: doors.length, wins: wins.length, smashedLived, open, prompt, shut, crossed, tBeat, left };
+      const ok = doors.length >= 40 && wins.length >= 100 && smashedLived === 0 && open && /Shut the door/.test(prompt) && shut && held && left === 0;
+      return ok || { doors: doors.length, wins: wins.length, smashedLived, open, prompt, shut, crossed, held, left };
     } finally { gone(...made); g.godMode = false; }
   }));
 }
