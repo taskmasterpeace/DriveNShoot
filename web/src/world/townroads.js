@@ -21,6 +21,9 @@ import { ribbon, fillet, resample, laneExtra } from './worldindex.js';
 import { regionAt, regionWater, WK } from './regions.js';
 import { layoutTown } from './citygen/layout.js';
 import { layoutSite } from './citygen/site.js';
+import { layoutBase } from './citygen/layout.js';
+import { layoutMilbase } from './citygen/milbase.js';
+import { MILBASES_BY_ID } from '../data/milbases.js';
 
 const PIN = new Set(Object.keys(GOLDEN.p1Chunks ?? {}));
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -38,7 +41,8 @@ export const TOWNROADS = {
   reuseR: 2600,      // m: (kept for the report) a town with no room for an exit of its own takes the nearest working one
   reuseMax: 30000,   // m: ...along the road, at most this far
   detours: [700, -700, 1400, -1400, 2400, -2400, 3600, -3600], // m: sideways tries round water, a pinned chunk or another town
-  causewayMax: 1500, // m: open water a town's road may cross on a causeway (a lagoon to a barrier island), at most
+  causewayMax: 1500,
+  straight: 1e9,     // m: (off) the ramps are bent onto the road's curve (bendInterchange), so a town's exit may stand on a curve // m: open water a town's road may cross on a causeway (a lagoon to a barrier island), at most
   edgePad: 900,      // m: no new exit this near a corridor's trimmed ends
   pinPad: 320,       // m: no new feature this near a pinned P1 chunk
   laneWhy: true,
@@ -122,10 +126,15 @@ function laneRibbons(W, cor, runs, label) {
 // ---- a town's way in --------------------------------------------------------------------------------------------------
 // The layout's main street ends (and gates): where an access road should arrive. Pure (the same layout citygen stamps).
 function layoutOf(rec) {
+  if (rec.usmap) return rec.usmap; // a usmap town: its own streets (the pass above)
+  // a military base: its main road runs out through both gates along the approaches (world/citygen/milbase.js)
+  if (rec.kind === 'base' && rec.milbase) return layoutMilbase({ row: MILBASES_BY_ID.get(rec.milbase), seed: rec.seed, x: rec.x, z: rec.z, biome: rec.biome, id: rec.id, name: rec.name });
+  if (rec.kind === 'base') return layoutBase({ seed: rec.seed, x: rec.x, z: rec.z, biome: rec.biome, id: rec.id, name: rec.name });
   if (rec.kind === 'site') return layoutSite(SITES_BY_ID.get(rec.site), { x: rec.x, z: rec.z, seed: rec.seed });
   return layoutTown({ arch: rec.arch, biome: rec.biome, seed: rec.seed, x: rec.x, z: rec.z, id: rec.id, name: rec.name, size: rec.size, walls: rec.wallsOverride });
 }
 function entriesOf(T) {
+  if (T.entries?.length) return T.entries.map((e) => ({ ...e }));
   const out = [];
   const mains = (T.roads ?? []).filter((r) => r.main);
   for (const r of mains.length ? mains : T.roads ?? []) {
@@ -239,12 +248,42 @@ function routeAccess(W, pts, avoid) {
   return { rs, bad: causeway ? 0 : bad, detours, causeway: causeway ? wet * 6 : 0, wet, other };
 }
 
+// addExit lays an interchange on a straight frame at the exit (L(a, u) = C + a T + u N). The boot's own exits have the
+// meander flattened round them; a town's exit comes later and may stand on a curve, where a straight ramp 500 m long
+// leaves the road by tens of metres. Every point of its ramps, their fills, rails and stop lines is moved from the
+// straight frame onto the curved one: (a, u) -> cor.at(s + a) + u N(s + a). The cross road (a = 0) and the bridge stay.
+export function bendInterchange(W, cor, X) {
+  const map = (x, z) => { const dx = x - X.x, dz = z - X.z, a = dx * X.tx + dz * X.tz, u = dx * X.nx + dz * X.nz, F = cor.at(Math.max(0, Math.min(cor.L, X.s + a))); return [F.x + F.nx * u, F.z + F.nz * u]; };
+  const bbox = (o, xs, zs, pad) => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0; i < xs.length; i++) { x0 = Math.min(x0, xs[i]); x1 = Math.max(x1, xs[i]); z0 = Math.min(z0, zs[i]); z1 = Math.max(z1, zs[i]); } o.x0 = x0 - pad; o.z0 = z0 - pad; o.x1 = x1 + pad; o.z1 = z1 + pad; };
+  for (const rb of W.ribbons) {
+    if (rb.exit !== X.id || rb.kind !== 'ramp') continue;
+    for (let i = 0; i < rb.n; i++) { const [x, z] = map(rb.x[i], rb.z[i]); rb.x[i] = x; rb.z[i] = z; if (i) rb.s[i] = rb.s[i - 1] + Math.hypot(rb.x[i] - rb.x[i - 1], rb.z[i] - rb.z[i - 1]); }
+    rb.L = rb.s[rb.n - 1];
+    let pad = 0; for (let i = 0; i < rb.n; i++) pad = Math.max(pad, Math.max(rb.wl[i], rb.wr[i]) + 2 * rb.y[i] + 2);
+    bbox(rb, rb.x, rb.z, pad);
+    for (const p of W.pieces) if (p.rib === rb) { p.x0 = rb.x0; p.z0 = rb.z0; p.x1 = rb.x1; p.z1 = rb.z1; }
+  }
+  for (const r of W.rails) if (r.exit === X.id) for (const q of r.pts) { const [x, z] = map(q.x, q.z); q.x = x; q.z = z; }
+  for (const st of W.stops) if (st.exit === X.id) { [st.x, st.z] = map(st.x, st.z); if (st.sign) { const [x, z] = map(st.sign.x, st.sign.z); st.sign.x = x; st.sign.z = z; } }
+}
+
 // ---- the whole pass ------------------------------------------------------------------------------------------------------
 export function layTownRoads(W, plan) {
   const t0 = performance.now();
   const rep = { towns: [], exits: 0, reused: 0, unserved: [], lanes: {}, signs: 0, structs: 0, ribbons: 0, skipped: [] };
   const cors = [W.i10, ...Object.values(W.regions ?? {}).flatMap((R) => R.corridors ?? [])].filter(Boolean);
-  const recs = (plan ?? []).filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site') && W.inWorld(r.x, r.z, -50));
+  const recs = (plan ?? []).filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site' || r.kind === 'base') && W.inWorld(r.x, r.z, -50));
+  // a usmap town with streets (WorldIndex.buildTowns) that no interstate or exit reaches (San Diego and Albuquerque sit
+  // 12 and 29 km off I-10, on roads that are not built): it gets an exit and a road like any other town
+  for (const t of W.towns ?? []) {
+    if (!t.built || !W.inWorld(t.x, t.z, -50)) continue;
+    const streets = W.ribbons.filter((r) => r.id.startsWith(`ST-${t.id}-`)); if (!streets.length) continue;
+    const near = cors.some((c) => c.project(t.x, t.z, 2500).d < 2000) || (W.exits ?? []).some((X) => X.town === t.id || (X.dest && Math.hypot(X.dest.x - t.x, X.dest.z - t.z) < 1500));
+    if (near) continue;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; const entries = [];
+    for (const r of streets) { x0 = Math.min(x0, r.x0); z0 = Math.min(z0, r.z0); x1 = Math.max(x1, r.x1); z1 = Math.max(z1, r.z1); if (/main|ew0/.test(r.id)) for (const i of [0, r.n - 1]) entries.push({ x: r.x[i], z: r.z[i], dx: 0, dz: 0 }); }
+    recs.push({ kind: 'town', id: `us-${t.id}`, name: t.name, x: t.x, z: t.z, half: Math.max(x1 - x0, z1 - z0) / 2, seed: 1, usmap: { x0: x0 + 4, z0: z0 + 4, x1: x1 - 4, z1: z1 - 4, roads: [], gates: [], entries } });
+  }
   const added = { ribbons: [], structs: [], signs: [] };
   const signId = (cor, id) => (cor === W.i10 ? id : `${cor.id}:${id}`);
   const pushSign = (cor, sg) => { if (nearPinned(sg.x, sg.z, sg.x, sg.z, 30) || inIsland(sg.x, sg.z, 30)) return false; added.signs.push({ y: 0, ...sg, region: cor === W.i10 ? undefined : cor.region?.id }); return true; };
@@ -286,7 +325,10 @@ export function layTownRoads(W, plan) {
       if ((W.roadside?.billboards ?? []).some((b) => b.road === cor.id && Math.abs(b.s - s) < 700)) return 'a roadside billboard';
       if (W.roadside?.nearSite?.(f.x, f.z, REACH + 120)) return 'a roadside site';
       for (let u = -REACH; u <= REACH; u += 25) { const x = f.x + f.nx * u, z = f.z + f.nz * u, q = blocked(x, z, rec); if (q) return `the cross road runs into ${q.name}`; if (x > T.x0 - 40 && x < T.x1 + 40 && z > T.z0 - 40 && z < T.z1 + 40) return 'the cross road runs into the town itself'; }
-      if (W.depthAt?.(f.x + f.nx * REACH, f.z + f.nz * REACH, 0) > 0.05 || W.depthAt?.(f.x - f.nx * REACH, f.z - f.nz * REACH, 0) > 0.05) return 'the cross road ends in water';
+      for (let u = -REACH; u <= REACH; u += 20) if (Math.abs(u) > 30 && W.depthAt?.(f.x + f.nx * u, f.z + f.nz * u, 0, true) > 0.05) return 'the cross road crosses water';
+      // an interchange is laid on a straight frame (addExit): the road must run straight under all of it, or the ramps leave
+      // the road on its curve (the boot's own exits have the meander flattened round them; a town's exit comes later)
+      for (let a = -EXIT_SPAN; a <= EXIT_SPAN; a += 40) { const P = cor.at(Math.max(0, Math.min(cor.L, s + a))), lat = (P.x - f.x) * f.nx + (P.z - f.z) * f.nz; if (Math.abs(lat) > TOWNROADS.straight) return `the road curves ${Math.abs(lat).toFixed(1)} m off its line under the ramps`; }
       return null;
     };
     const own = (x, z) => x > T.x0 - 10 && x < T.x1 + 10 && z > T.z0 - 10 && z < T.z1 + 10;
@@ -319,10 +361,11 @@ export function layTownRoads(W, plan) {
       let num = Math.max(1, Math.round(sEx / MI)), tag = '';
       for (const L of ['', 'A', 'B', 'C', 'D']) if (!usedNumbers.has(`${cor.id}:${num}${L}`)) { tag = L; break; }
       usedNumbers.add(`${cor.id}:${num}${tag}`);
-      const row = { id: `TX-${rec.id}`, exit_number: `${num}${tag}`, name: rec.name, archetype: 'town', community_tier: 'T2', service_tags: ['fuel', 'food', 'ammo'], risk_rating: 2 };
+      const row = { id: `TX-${rec.id}`, exit_number: `${num}${tag}`, name: rec.name, archetype: rec.kind === 'base' ? 'military' : 'town', community_tier: 'T2', service_tags: rec.kind === 'base' ? ['military'] : ['fuel', 'food', 'ammo'], risk_rating: rec.kind === 'base' ? 4 : 2 };
       const nb = W.ribbons.length;
       X = W.addExit(cor, row, f.x, f.z, e.x, e.z, { town: rec.id });
       X.townRec = rec.id;
+      bendInterchange(W, cor, X);
       if (cor.region) { X.region = cor.region; cor.region.exits?.push(X); } // a region's exit list (systems/travel.js reads it), as WorldIndex's own region exits
       for (let k = nb; k < W.ribbons.length; k++) added.ribbons.push(W.ribbons[k]);
       W.ribbons.length = nb; // re-added below with the rest (one bucket pass)
@@ -333,7 +376,7 @@ export function layTownRoads(W, plan) {
         const g = X.s - dir * RAMP.gore, dn = dir > 0 ? D[0] : D[1];
         corSign(cor, g - dir * MI, dir, 3.2, 'guide', [`EXIT ${X.number}`, rec.name, '1 MILE'], `${X.id}-${dn}-1`);
         corSign(cor, g - dir * MI / 2, dir, 3.2, 'guide', [`EXIT ${X.number}`, rec.name, '1/2 MILE'], `${X.id}-${dn}-half`);
-        corSign(cor, g + dir * 18, dir, 6.5, 'guide', [`EXIT ${X.number}`, rec.name, 'FUEL · FOOD · AMMO'], `${X.id}-${dn}-gore`, 6.4, 3.4);
+        corSign(cor, g + dir * 18, dir, 6.5, 'guide', [`EXIT ${X.number}`, rec.name, rec.kind === 'base' ? 'MILITARY · NO SERVICES' : 'FUEL · FOOD · AMMO'], `${X.id}-${dn}-gore`, 6.4, 3.4);
       }
     } else {
       // no room for an exit of its own: the nearest working exit along the road serves it
@@ -376,6 +419,7 @@ export function layTownRoads(W, plan) {
     if (acc && acc.n > 8) {
       const fuel = true; // every town keeps a fuel counter (data/towns.js COUNTERS)
       for (const d of ACCESS_DETAIL) {
+        if (rec.kind === 'base' && d.kit !== 'town_sign') continue; // a base's approach has its own checkpoints (milbase.js)
         if (d.when === 'gated' && !facts.gated) continue;
         if (d.when === 'walled' && !facts.walled) continue;
         if (d.when === 'big' && size !== 'city' && size !== 'metro') continue;
@@ -388,7 +432,7 @@ export function layTownRoads(W, plan) {
         if (nearPinned(F.x, F.z, F.x, F.z, 60)) continue;
         const R = facts, E = REGION_ECON[R.region];
         const lines = {
-          town_sign: [rec.name, `POP ${R.pop}`, 'FUEL · FOOD · AMMO'],
+          town_sign: rec.kind === 'base' ? [rec.name, 'MILITARY RESERVATION', 'NO ENTRY WITHOUT LEAVE'] : [rec.name, `POP ${R.pop}`, 'FUEL · FOOD · AMMO'],
           billboard: [rec.name, 'FUEL · FOOD · AMMO', `EXIT ${X.number} · ${R.walled ? 'WALLED' : 'OPEN'} TOWN`],
           canopy: ['FUEL', rec.name],
           notice_board: [`${rec.name} · NOTICES`, `FUEL ${hh(COUNTERS.fuel.hours[0])}-${hh(COUNTERS.fuel.hours[1])} · FOOD · AMMO`, R.rules[0], `CURFEW ${curfewText(R.curfew)}`, E?.note ?? ''],
@@ -478,7 +522,7 @@ export function relayLanes(W, cors, places, rep = null) {
 // interstate away from any city (a road that only meets the interstate inside a city is "through a city": Robert's case).
 export function auditTownRoads(W, plan, usmap) {
   const errors = [], rows = [];
-  for (const rec of (plan ?? []).filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site') && W.inWorld(r.x, r.z, -50))) {
+  for (const rec of (plan ?? []).filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site' || r.kind === 'base') && W.inWorld(r.x, r.z, -50))) {
     const a = rec.access, rb = a?.ribbon && W.ribbons.find((r) => r.id === a.ribbon);
     const X = a && [...(W.exits ?? []), ...Object.values(W.regions ?? {}).flatMap((R) => R.corridors.flatMap((c) => c.exits))].find((q) => q.id === a.exit);
     let why = null;

@@ -64,7 +64,7 @@ export function townsCommands(api, need) {
 export async function townsChecks(api, check, C) {
   const g = api.g, W = g.streamer?.W, CG = g.citygen;
   if (!W || !CG) { await check('towns: the streamed world and the city generator are built', async () => 'no W / citygen'); return; }
-  const recs = CG.plan.filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site') && W.inWorld(r.x, r.z, -50));
+  const recs = CG.plan.filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site' || r.kind === 'base') && W.inWorld(r.x, r.z, -50));
   // the game as these checks found it (they stand you in towns, buy, save and load): put back at the end
   const S0 = (await C('save')).save;
   await check('towns: the rows pass their validators (names, counters, regions, rules, roadside, the lane rule)', async () => {
