@@ -105,16 +105,36 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       await tap('KeyE'); await api._step(2);
       const shut = I.isShut(d), by = d.shutBy, talked = !!g.dialogue.npc;
       if (g.dialogue.npc) g.dialogue.close();
-      gone(pal);
-      // E again at the door you just shut, before any blow: it leans, it never kicks the door open
+      // E again at the door you just shut, before any blow, the stranger still at your back: it leans (nobody takes
+      // the key), it never kicks the door open, and it never opens a talk
       const kicks0 = g.events.filter((e) => e.type === 'doorKick').length;
-      await tap('KeyE'); await api._step(2); // from where you shut it (1.5 m: a boot's reach, not a shoulder's)
+      await inside(d, 1.75);
+      await tap('KeyE'); await api._step(2); // from 1.75 m: a boot's reach, not a shoulder's
       const farPrompt = g.hud.s.prompt ?? '';
       await inside(d, 1.1);
       g.input.down.add('KeyE'); await api._step(6);
       const leanedEarly = I.braced(d), lean = g.hud.s.prompt ?? '';
       g.input.down.delete('KeyE'); await api._step(2);
-      const stillShut = I.isShut(d) && g.events.filter((e) => e.type === 'doorKick').length === kicks0;
+      const talked2 = !!g.dialogue.npc;
+      if (g.dialogue.npc) g.dialogue.close();
+      gone(pal);
+      const stillShut = I.isShut(d) && !talked2 && g.events.filter((e) => e.type === 'doorKick').length === kicks0;
+      // the doorway: a car parked ALONG the wall 1.7 m clear of the door does not block it; one across it does; nor does
+      // somebody on the floor above
+      for (const L of d.leaves) { L.th = 1.3; L.w = 0; I.orient(L); } I.flush();
+      await inside(d, 3.2);
+      const fakeV = { x: d.x + d.nx * 2.9, z: d.z + d.nz * 2.9, h: Math.atan2(d.ux, d.uz), len: 4.4, wid: 1.9, type: 'sedan' };
+      g.vehicles.push(fakeV);
+      let carAlong = null, carAcross = null;
+      try {
+        carAlong = I.inDoorway(d) === fakeV;
+        fakeV.x = d.x + d.nx * 0.4; fakeV.z = d.z + d.nz * 0.4; fakeV.h = Math.atan2(d.nx, d.nz);
+        carAcross = I.inDoorway(d) === fakeV;
+      } finally { g.vehicles.splice(g.vehicles.indexOf(fakeV), 1); }
+      const up = g.addChar({ x: d.x, z: d.z, faction: 'drifter', weapon: null, hp: 100, name: 'Upstairs (selftest)', flag: 'US' }); made.push(up);
+      up.x = d.x; up.z = d.z; up.gy = (d.y ?? 0) + 3.2;
+      const upstairs = I.inDoorway(d) === up;
+      gone(up);
       // standing IN the doorway you cannot shut it on yourself
       for (const L of d.leaves) { L.th = 1.3; L.w = 0; I.orient(L); } I.flush();
       const self = I.shutDoor(d, Object.assign(P(), { x: d.x, z: d.z }));
@@ -126,9 +146,9 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       const tBeat = await until(40, () => { told(b); if (out(d, b) < 0.1 && !d.broken) crossed = true; shook = Math.max(shook, d.shakeT); minOut = Math.min(minOut, out(d, b)); return Z.counts.thumps - th0 >= 4 || d.broken; });
       const hp1 = I.doorHp(d).hp, thumps = Z.counts.thumps - th0;
       const pounds = g.events.filter((e) => e.seq > ev0 && e.type === 'doorPound' && e.door === d.id).length;
-      const ok = tIn !== null && /class="warn">Shut the door/.test(prompt) && shut && by === P().id && !talked && /Step up to the door/.test(farPrompt) && leanedEarly && /LEANING/.test(lean) && stillShut && !self.ok && /doorway/.test(self.why)
+      const ok = tIn !== null && /class="warn">Shut the door/.test(prompt) && shut && by === P().id && !talked && /Step up to the door/.test(farPrompt) && leanedEarly && /LEANING/.test(lean) && stillShut && !self.ok && /doorway/.test(self.why) && carAlong === false && carAcross === true && upstairs === false
         && !crossed && tBeat !== null && thumps >= 4 && shook > 0 && hp1 < hp0 && pounds >= 3;
-      return ok || { door: d.id, tIn, prompt, shut, by, talked, farPrompt, leanedEarly, lean, stillShut, self, crossed, minOut: r1(minOut), tBeat, thumps, shook: r1(shook), hp0, hp1, pounds };
+      return ok || { door: d.id, tIn, prompt, shut, by, talked, carAlong, carAcross, upstairs, farPrompt, leanedEarly, lean, stillShut, self, crossed, minOut: r1(minOut), tBeat, thumps, shook: r1(shook), hp0, hp1, pounds };
     } finally { gone(...made); fresh(d, 0); }
   }));
 
@@ -215,11 +235,18 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       await inside(d, 2.4); await C('teleport', { x: d.x - d.nx * 150, z: d.z - d.nz * 150 });
       const w = Z.spawn(d.x + d.nx * 3, d.z + d.nz * 3, false); made.push(w); w.x = d.x + d.nx * 3; w.z = d.z + d.nz * 3; w.zSpeed = 2.4;
       w.wx = d.x - d.nx * 4; w.wz = d.z - d.nz * 4; w.timer = 12;
-      let pressed = 0, n = 0, blows0 = Z.counts.thumps;
-      await until(8, () => { n++; if (w.zblock || w.zdoor) pressed++; return false; });
-      const idle = pressed === 0 && Z.counts.thumps === blows0 && out(d, w) > 0;
+      let pressed = 0, n = 0, blows0 = Z.counts.thumps, nearest = 99;
+      await until(8, () => { n++; if (w.zblock || w.zdoor) pressed++; nearest = Math.min(nearest, Math.hypot(w.x - d.x, w.z - d.z)); if (out(d, w) > 2) { w.wx = d.x - d.nx * 4; w.wz = d.z - d.nz * 4; w.timer = 12; } return false; });
+      // the same door LOCKED: pressed against it with nothing remembered, it takes nothing off the lock
+      I.setLocked(d, true);
+      const lock0 = d.lockHp;
+      w.x = d.x + d.nx * 1.0; w.z = d.z + d.nz * 1.0; w.wx = d.x - d.nx * 4; w.wz = d.z - d.nz * 4; w.timer = 12;
+      await until(5, () => { if (out(d, w) > 2) { w.wx = d.x - d.nx * 4; w.wz = d.z - d.nz * 4; w.timer = 12; } return false; });
+      const lockKept = d.lockHp === lock0 && d.locked;
+      I.setLocked(d, false);
+      const idle = pressed === 0 && Z.counts.thumps === blows0 && out(d, w) > 0 && nearest < 1.6 && lockKept;
       const ok = tBeat !== null && !H1.breaks && H2.hp === H2.max && tQuit !== null && stayedQuit && I.isShut(d) && !d.broken && idle;
-      return ok || { door: d.id, tBeat, tQuit, stayedQuit, H1, H2, shut: I.isShut(d), a: { st: a.zs?.state, fresh: Z.fresh(a), block: !!a.zblock }, b: { st: b.zs?.state, fresh: Z.fresh(b), block: !!b.zblock }, idle, pressed, wOut: r1(out(d, w)) };
+      return ok || { door: d.id, tBeat, tQuit, stayedQuit, H1, H2, shut: I.isShut(d), a: { st: a.zs?.state, fresh: Z.fresh(a), block: !!a.zblock }, b: { st: b.zs?.state, fresh: Z.fresh(b), block: !!b.zblock }, idle, pressed, nearest: r1(nearest), lockKept, wOut: r1(out(d, w)) };
     } finally { gone(...made); fresh(d, 0); await C('teleport', { x: d.x - d.nx * 3, z: d.z - d.nz * 3 }); }
   }));
 
