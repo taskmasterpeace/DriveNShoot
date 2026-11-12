@@ -1067,7 +1067,7 @@ class Game {
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed ? this.boxRing : null));
-    const towFoot = !best && !dog && !dk && !game && !spot ? this.towing.footKey(p, I, dt, climb ? 'climb aboard' : null) : false; // on foot at a car's tail or nose with a chain: hold E hooks it (VEHICLES V2 slice 4)
+    const towFoot = !best && !dog && !dk && !game && !spot && !box && !bed && !op && !ugI && !p.ug ? this.towing.footKey(p, I, dt, climb ? 'climb aboard' : null) : false; // on foot at a car's tail or nose with a chain: hold E hooks it (VEHICLES V2 slice 4)
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
@@ -1087,7 +1087,7 @@ class Game {
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
-    else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
+    else if (bestV && climb && (towFoot ? this.towing.tapped : I.hit('KeyE'))) { this.decks.climb(p, bestV); this.hud.prompt(null); } // with a line to hook here, the climb is a tap let go (holding hooks)
     else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }

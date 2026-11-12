@@ -6185,7 +6185,7 @@ export function snapshot(g) {
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
-    inventory: g.inventory.save(), // what you carry, and every container anyone has been through
+    inventory: g.towing?.saveCarry ? g.towing.saveCarry(() => g.inventory.save()) : g.inventory.save(), // what you carry (a tow line in your hands counts), and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
     actions: g.actions?.save(), // TIMED ACTIONS: break-in marks, half-done searches, what a search turned up, ladders you set (systems/actions.js)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
@@ -6224,6 +6224,7 @@ export function restore(g, s) {
   g.vehiclesSys.releaseHarpoon();
   // Vehicles: update existing by id, spawn missing ones.
   const vmap = new Map(g.vehicles.map((v) => [v.id, v]));
+  g.towing?.loadCarry?.(); // a tow line in your hands: the loaded pack already has it
   for (const sv of s.vehicles) {
     let v = vmap.get(sv.id);
     if (!v) { v = g.vehiclesSys.spawn(sv.type, sv.x, sv.z, sv.h, sv.paint, { ai: sv.ai }); v.id = sv.id; }

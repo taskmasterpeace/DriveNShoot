@@ -215,48 +215,62 @@ export class Towing {
 
   // ---- on foot: a chain from your pack, end to end (data/towing.js TOW_FOOT) --------------------------------------------
   // this.carry = { v, end, kind } while one end is hooked to v and the other is in your hands.
-  // The end of a vehicle you stand at (outside the body, within reach of its hook point), or null.
+  // The end of a vehicle you stand at (outside the body, within reach of its hook point), or null. Not a car someone
+  // else is driving or one rolling, not a boat, a semi's trailer, a car in a hold or on a boat trailer; a wreck is fine
+  // (fetching one is the point).
   endNear(p) {
     let best = null, bd = TOW_FOOT.reach;
     for (const v of this.g.vehicles) {
-      if (v.dead || v.sunk || v.boat || v.carriedBy || v.onTrailer || Math.abs(v.x - p.x) > 12 || Math.abs(v.z - p.z) > 12) continue;
-      for (const end of [-1, 1]) { const A = this.anchor(v, end, _A), d = Math.hypot(A.x - p.x, A.z - p.z); if (d < bd) { bd = d; best = { v, end }; } }
+      if (v.sunk || v.boat || v.trailer || v.carriedBy || v.onTrailer || (v.driver && v.driver !== p) || Math.abs(v.x - p.x) > 12 || Math.abs(v.z - p.z) > 12) continue;
+      if (Math.hypot(v.vx ?? 0, v.vz ?? 0) > 1.5) continue;
+      for (const end of [-1, 1]) { const A = this.anchor(v, end, _A), d = Math.hypot(A.x - p.x, A.z - p.z); if (d < bd) { bd = d; best = (this._end ??= { v: null, end: 0 }); best.v = v; best.end = end; } }
     }
     return best;
   }
-  // What E does here, on foot: { verb: 'hook' | 'join' | 'unhook' | 'none', v, end, kind, text } or null (nothing to do).
+  // What E does here, on foot: { verb: 'hook' | 'join' | 'unhook' | 'drop' | 'none', v, end, kind, text } or null.
+  // Cached: rebuilt only when the car, the end, the verb or what you hold changes (it is asked every frame you stand there).
   footSpot(p) {
-    if (p.inVehicle || !p.alive) return null;
-    const at = this.endNear(p);
-    if (!at) return this.carry ? { verb: 'none', text: `Carrying the ${this.carry.L.name} · <kbd>E</kbd> at another car's tail or nose to hook it` } : null;
-    const { v, end } = at, side = end > 0 ? 'nose' : 'tail', on = this.linkOf(v, end);
-    if (on) return { verb: 'unhook', v, end, link: on, text: `<kbd>E</kbd> Unhook the ${on.L.name} from the ${v.name}'s ${side}` };
-    if (this.carry) {
-      if (this.carry.v === v) return { verb: 'drop', v, end, text: `<kbd>E</kbd> Take the ${this.carry.L.name} back off the ${v.name}` };
-      if (this.towing(v)) return { verb: 'none', text: `The ${v.name} is already on a line` };
-      return { verb: 'join', v, end, text: `<kbd>E</kbd> Hook the ${this.carry.L.name} to the ${v.name}'s ${side}` };
-    }
+    if (p.inVehicle || !p.alive || p.ug) return null;
+    const at = this.endNear(p), C = this.carry;
+    if (!at) return C ? this.spot('carry', null, 0, null, null) : null;
+    const { v, end } = at, on = this.linkOf(v, end);
+    if (on) return this.spot('unhook', v, end, null, on);
+    if (C) return C.v === v ? this.spot('drop', v, end) : this.towing(v) ? this.spot('busy', v, end) : this.spot('join', v, end);
     const kind = this.footLine();
-    if (!kind) return { verb: 'none', v, end, text: `The ${v.name}'s ${side} · a tow chain or rope in your pack would hook here` };
-    return { verb: 'hook', v, end, kind, text: `<kbd>E</kbd> Hook a ${LINES[kind].name} to the ${v.name}'s ${side}` };
+    return this.spot(kind ? 'hook' : 'none', v, end, kind);
+  }
+  spot(verb, v, end, kind = null, link = null) {
+    const c = this._spot, C = this.carry, ck = C?.kind ?? null;
+    if (c && c.key === verb && c.v === v && c.end === end && c.kind === kind && c.link === link && c.ck === ck) return c;
+    const side = end > 0 ? 'nose' : 'tail', n = v?.name ?? '';
+    const text = verb === 'carry' ? `Carrying the ${C.L.name} · hold <kbd>E</kbd> at another car's tail or nose to hook it`
+      : verb === 'unhook' ? `hold <kbd>E</kbd> Unhook the ${link.L.name} from the ${n}'s ${side}`
+      : verb === 'drop' ? `hold <kbd>E</kbd> Take the ${C.L.name} back off the ${n}`
+      : verb === 'busy' ? `The ${n} is already on a line`
+      : verb === 'join' ? `hold <kbd>E</kbd> Hook the ${C.L.name} to the ${n}'s ${side}`
+      : verb === 'hook' ? `hold <kbd>E</kbd> Hook a ${LINES[kind].name} to the ${n}'s ${side}` : null;
+    return (this._spot = { key: verb, verb: verb === 'carry' || verb === 'busy' ? 'none' : verb, v, end, kind, link, ck, text, tapText: null, tapFor: null });
   }
   footLine() { const I = this.g.inventory; return I?.carried.count('tow_chain') ? 'chain' : I?.carried.count('tow_rope') ? 'rope' : null; }
-  // E, held for TOW_FOOT.hookTime (bent over the hook), on foot at a car's end. Returns true when it owns the prompt.
-  // tap: what a tap of E does here anyway (a pickup's bed: 'climb aboard'): the prompt names both, the hook wants E held.
+  // E, held for TOW_FOOT.hookTime (bent over the hook), on foot at a car's end. Returns true when it owns the prompt and E.
+  // tap: what a short press of E does here anyway (a pickup's bed: 'climb aboard'): the prompt names both, and a press let
+  // go before the hook takes hold sets this.tapped for that frame (main.js climbs on it instead of on the press).
   footKey(p, I, dt, tap = null) {
+    this.tapped = false;
     const s = p.onDeck ? null : this.footSpot(p);
-    if (!s) { this.footT = 0; return false; }
+    if (!s || (s.verb === 'none' && !this.carry)) { this.footT = 0; return false; } // nothing to hook (no line on you): the car's own prompt stands
     const H = this.g.hud;
-    const also = tap ? ` · tap <kbd>E</kbd> ${tap}` : '';
-    if (s.verb === 'none') { this.footT = 0; if (tap) return false; H?.prompt(s.text); return true; } // nothing to hook: the car's own prompt (a bed to climb) stands
+    if (s.verb === 'none') { this.footT = 0; H?.prompt(s.text); return true; }
     if (I.key('KeyE')) {
-      this.footT = (this.footT ?? 0) + dt;
-      H?.prompt(`${s.verb === 'unhook' || s.verb === 'drop' ? 'Unhooking' : 'Hooking the line'}… ${Math.round(Math.min(1, this.footT / TOW_FOOT.hookTime) * 100)}%`);
-      if (this.footT >= TOW_FOOT.hookTime) { this.footT = -1e9; const r = this.footDo(s); H?.toast((r.ok ? r.text : r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
+      if (this.footT >= 0) this.footT = (this.footT ?? 0) + dt;
+      if (this.footT >= 0) H?.prompt(`${s.verb === 'unhook' || s.verb === 'drop' ? 'Unhooking' : 'Hooking the line'}… ${Math.round(Math.min(1, this.footT / TOW_FOOT.hookTime) * 100)}%`);
+      if (this.footT >= TOW_FOOT.hookTime) { this.footT = -1; const r = this.footDo(s); H?.toast((r.ok ? r.text : r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
       return true;
     }
+    if (this.footT > 0 && this.footT < TOW_FOOT.hookTime * 0.5) this.tapped = true; // a tap, let go early: E's other job here
     this.footT = 0;
-    H?.prompt(s.text.replace('<kbd>E</kbd>', 'hold <kbd>E</kbd>') + also);
+    if (s.tapFor !== tap) { s.tapFor = tap; s.tapText = tap ? `${s.text} · tap <kbd>E</kbd> ${tap}` : s.text; }
+    H?.prompt(s.tapText);
     return true;
   }
   footDo(s) {
@@ -271,17 +285,27 @@ export class Towing {
     }
     if (s.verb === 'join') {
       const C = this.carry; if (!C) return { ok: false, why: 'you are not carrying a line' };
-      const r = this.hitch(C.v, s.v, C.kind, { aEnd: C.end, bEnd: s.end, free: true });
+      // The puller is the line's 'a' (the towed body takes the swing and the drag): the one that can drive - not a wreck,
+      // not a dry or engineless one, the car you came in when both can.
+      const can = (v) => !v.dead && !v.noEngine && v.fuelCap > 0 && (v.dmg?.engine ?? 1) > 0;
+      const swap = !can(C.v) && can(s.v) || (can(C.v) && can(s.v) && s.v === g.lastVehicle && C.v !== g.lastVehicle);
+      const [A, aEnd, B, bEnd] = swap ? [s.v, s.end, C.v, C.end] : [C.v, C.end, s.v, s.end];
+      if (this.linkOf(A, aEnd) || this.towing(B)) return { ok: false, why: 'one of them is already on a line' };
+      const r = this.hitch(A, B, C.kind, { aEnd, bEnd, free: true });
       if (!r.ok) return r;
       r.link.item = C.L.item; // a line from your pack: unhooked (released), it goes back in it
       this.carry = null;
-      g.emit('towFootJoin', { id: r.link.id, from: C.v.id, to: s.v.id, kind: C.kind });
-      return { ok: true, link: r.link, text: `HOOKED · ${C.L.name.toUpperCase()} · THE ${C.v.name} TO THE ${s.v.name}` };
+      g.emit('towFootJoin', { id: r.link.id, from: A.id, to: B.id, kind: C.kind });
+      return { ok: true, link: r.link, text: `HOOKED · ${C.L.name.toUpperCase()} · THE ${B.name} BEHIND THE ${A.name}` };
     }
     if (s.verb === 'drop') return this.dropCarry('back in your pack');
     if (s.verb === 'unhook') { this.release(s.link); return { ok: true, text: `${s.link.L.name.toUpperCase()} UNHOOKED · BACK IN YOUR PACK` }; }
     return { ok: false, why: 'nothing to do' };
   }
+  // A save while you hold a line: it goes in the save as in your pack (put back, saved, taken again). A load clears it
+  // (the pack as saved already has it).
+  saveCarry(fn) { const C = this.carry, I = this.g.inventory; if (!C || !I) return fn(); I.add(I.carried, C.L.item, 1); try { return JSON.parse(JSON.stringify(fn())); } finally { I.spend(C.L.item, 1); } } // a copy: the inventory's save holds live slots
+  loadCarry() { this.carry = null; this._spot = null; }
   dropCarry(why = 'dropped') {
     const C = this.carry; if (!C) return { ok: false, why: 'not carrying a line' };
     this.carry = null; this.g.inventory?.stow(C.L.item, 1);
@@ -294,7 +318,8 @@ export class Towing {
     const p = this.g.player;
     if (!p.alive || p.inVehicle || C.v.dead || C.v.sunk || !this.g.vehicles.includes(C.v)) { this.dropCarry('back in your pack'); return; }
     const A = this.anchor(C.v, C.end, _A), dx = p.x - A.x, dz = p.z - A.z, d = Math.hypot(dx, dz), max = C.L.len + TOW_FOOT.leash;
-    if (d > max) { p.x = A.x + dx / d * max; p.z = A.z + dz / d * max; } // the line is only so long
+    if (d > max + 0.5) { this.dropCarry('pulled out of your hands'); return; } // the car moved off (or you were thrown): you let go
+    if (d > max) { const t = (this._lt ??= { x: 0, z: 0 }); t.x = A.x + dx / d * max; t.z = A.z + dz / d * max; this.g.statics?.resolveCircle?.(t, 0.35); p.x = t.x; p.z = t.z; } // the line is only so long (and the walls still hold you)
   }
 
   // ---- the winch ------------------------------------------------------------------------------------------------------
