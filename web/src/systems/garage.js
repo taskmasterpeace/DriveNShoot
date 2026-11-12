@@ -397,7 +397,7 @@ export class Garage {
         if (at) [mx, my, mz] = at;
         const fx = Math.sin(yaw), fz = Math.cos(yaw);
         if (Wr.kind === 'drop') { put(mx, my, mz, 0.72, 0.32, 0.34, m.kind === 'smoke' || m.kind === 'flares' ? STEEL : m.kind === 'paint' ? TILE : RUST, yaw); continue; }
-        if (f === 'top') put(mx, my - 0.06, mz, 0.7, 0.12, 0.7, STEEL, yaw); // the turret ring
+        if (f === 'top' && !at) put(mx, my - 0.06, mz, 0.7, 0.12, 0.7, STEEL, yaw); // the turret ring (a pintle at its own spot has none: the post is the body's)
         const body = Wr.kind === 'rocket' ? [0.5, 0.34, 0.7, RUST] : Wr.kind === 'flame' ? [0.42, 0.36, 0.6, TANK] : Wr.kind === 'rail' ? [0.36, 0.3, 0.9, COIL] : Wr.kind === 'beam' || Wr.kind === 'emp' ? [0.44, 0.34, 0.6, BRASS] : [0.62, 0.22, 0.42, GUN];
         put(mx, my, mz, body[0], body[1], body[2], body[3], yaw);
         const bl = Wr.kind === 'rail' ? 1.9 : Wr.kind === 'hitscan' ? (Wr.size > 1 ? 1.3 : 0.95) : Wr.kind === 'rocket' ? 0.2 : 0.7;

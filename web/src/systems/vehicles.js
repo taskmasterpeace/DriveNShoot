@@ -553,7 +553,6 @@ export class Vehicles {
       const want = Math.atan2(tx - v.x, tz - v.z);
       v.steer = clamp((angleLerp(v.h, want, 1) - v.h) * 2, -1, 1);
       v.throttle = pd < 12 ? 0.3 : 0.75;
-      if (!v.driver && v.occ?.[0]?.alive) v.driver = v.occ[0]; // a load clears drivers and leaves the crew in their seats: the man at the wheel is the driver
       if (v.mounts && seen && pd < 70 && v.driver && g.ai.hostile(v.driver, p)) g.workshop?.aiFire(v, px, pz, dt); // its deck gun (data/workshop.js CHASSIS.gunboat)
       for (const o of v.occ ?? []) if (o && o.alive && o.weapon && seen && pd < 35 && g.ai.hostile(o, p)) {
         o.cool -= dt;
@@ -769,6 +768,7 @@ export class Vehicles {
     g.towing?.pre(dt); // tow lines pull before anything drives (systems/towing.js)
     for (const v of this.list) {
       this.decks.capture(v); // its deck's riders back into its frame before it moves (systems/decks.js)
+      if (!v.driver && v.ai === 'boatPatrol' && v.occ?.[0]?.alive && v.occ[0].inVehicle === v) v.driver = v.occ[0]; // a load can leave the lake gunboat's crew seated with no driver: the man at the wheel drives (and works the deck gun)
       if (v.driver && v.driver !== g.player && !v.dead) this.aiDrive(v, dt);
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
       if (!g.semis?.tick(v, dt)) { // a trailer moves through its tractor, a car in a hold through its trailer (systems/semis.js)

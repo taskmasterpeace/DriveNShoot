@@ -29,8 +29,9 @@ try {
   // The player in an airboat 22 m off its bow.
   const ab = await call('spawnVehicle', { type: 'airboat', x: gb.x + Math.sin(gb.h) * 22, z: gb.z + Math.cos(gb.h) * 22, heading: gb.h + Math.PI });
   await call('enterVehicle', { id: ab.id, force: true });
+  await call('zoom', { level: 'CLOSE' }); await call('step', { seconds: 0.6 });
   let hit = 0;
-  for (let i = 0; i < 24 && !hit; i++) { await call('step', { seconds: 0.1 }); hit = await ev(`(() => { const v = game.vehicles.find((q) => q.id === '${gb.id}'); return v?.mounts?.top ? ${'100'} - v.mounts.top.ammo : 0; })()`); }
+  for (let i = 0; i < 60 && !hit; i++) { await call('step', { seconds: 0.05 }); hit = await ev(`(() => { const v = game.vehicles.find((q) => q.id === '${gb.id}'); return v?.mounts?.top ? ${'100'} - v.mounts.top.ammo : 0; })()`); }
   await call('step', { seconds: 0.08 });
   await shot('1-under-fire');
   console.log('after', await ev(`(() => { const v = game.vehicles.find((q) => q.id === '${gb.id}'); const a = game.vehicles.find((q) => q.id === '${ab.id}'); return { mount: v?.mounts?.top ?? null, airboatHp: Math.round(a.hp), d: Math.round(Math.hypot(a.x - v.x, a.z - v.z)) }; })()`));
@@ -40,7 +41,8 @@ try {
   const mine = await call('spawnVehicle', { type: 'gunboat', x: gb.x - 30, z: gb.z + 25, heading: 0 });
   console.log('mount', await ev(`(() => { const v = game.vehicles.find((q) => q.id === '${mine.id}'); const why = game.garage.canMount(v, 'top', 'hmg'); if (!why) game.garage.setMount(v, 'top', 'hmg'); return why ?? 'hmg on the pintle'; })()`));
   await call('enterVehicle', { id: mine.id, force: true });
-  await ev(`(() => { const v = game.player.inVehicle; game.aimOverride = { x: v.x - Math.sin(v.h) * 20 + 6, z: v.z - Math.cos(v.h) * 20 }; game.input.mouse.physRight = true; game.input.mouse.right = true; return true; })()`);
+  await call('zoom', { level: 'CLOSE' });
+  await ev(`(() => { const v = game.player.inVehicle; game.aimOverride = { x: v.x + Math.cos(v.h) * 25, z: v.z - Math.sin(v.h) * 25 + 4 }; game.input.mouse.physRight = true; game.input.mouse.right = true; return true; })()`);
   await call('step', { seconds: 0.6 });
   await shot('2-at-the-wheel');
   await ev(`(() => { game.input.mouse.physRight = false; game.input.mouse.right = false; game.aimOverride = null; return true; })()`);
