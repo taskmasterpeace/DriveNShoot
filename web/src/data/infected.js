@@ -113,8 +113,8 @@ export const BREED_CARDS = {
     name: 'Echo', is: 'The one that works. At your boards, your door, your glass, while you are not looking.',
     tell: 'A murmur: the same half sentence, over and over. It stops moving when you look at it.',
     wants: 'Your walls. It does not chase; it undoes what you built, and its phrase calls the others to the hole.',
-    do: 'Keep your eyes on it while someone else deals with it. Kill it first. Check your boards when you come home.',
-    source: 'THE_INFECTED.md ruling 0.8 (a worker that waits; the phrase is the approach tell) and §3.4; WEB_INFECTED.md §3; WEB_INFECTED.md Wave 2 §3.3',
+    do: 'Keep your eyes on it while someone else deals with it. Kill it first. A shut door does not stop it: lock it or bar it. Check your boards when you come home.',
+    source: 'THE_INFECTED.md ruling 0.8 (a worker that waits; the phrase is the approach tell) and §3.4; WEB_INFECTED.md §3; WEB_INFECTED.md Wave 2 §3.3; WEB_DOOR_POUND.md §3.2 (a latch does not hold it)',
   },
 };
 

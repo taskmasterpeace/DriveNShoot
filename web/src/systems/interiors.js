@@ -38,6 +38,7 @@ export class Interiors {
     this.nx = 0; this.nz = 0;          // normal of the last ray hit (StaticWorld reads it)
     this.doors = []; this.leaves = []; this.windows = [];
     this.shaking = []; // doors shuddering under a blow (THE SHUT DOOR)
+    this.ringPound = new Map(); // streamed door id -> its pound state while its building is re-made or away (poundAt, braceAt, cracked, shutBy)
     this.byId = new Map();
     this.active = [];                  // leaves in motion near the player
     this.dirty = [];                   // leaves whose instance matrix needs writing
@@ -257,15 +258,22 @@ export class Interiors {
   }
 
   // The infected beat on a locked door until the lock gives.
+  // Only one that remembers something (law 6: no beating a door it has no reason to; it detours instead), and when the
+  // lock gives the door stays SHUT on its latch for all but an Echo (WEB_DOOR_POUND.md §3.2: then the leaf is beaten).
   bang(door, z) {
     const g = this.g;
+    if (!(g.zombies?.fresh?.(z) ?? true)) return;
     z.stuck = 0; // beating on it, not stuck: no detour along the wall
     z._bang = (z._bang ?? 0) + this.dt;
     if (z._bang < 1.1) return;
     z._bang = 0;
-    door.lockHp -= 6;
+    door.lockHp -= 6 * (this.braced(door) ? DOOR.braceMul : 1);
+    door.poundAt = g.time; this.shudder(door);
     g.audio.thud?.(g.pan(door.x));
-    if (door.lockHp <= 0) this.unlock(door, 'battered', z, true);
+    if (door.lockHp <= 0) {
+      if (door.barricade) { door.barricade = null; if (g.gadgets) g.gadgets.barred = g.gadgets.barred.filter((b) => b.door !== door); }
+      this.unlock(door, 'battered', z, z.zkind === 'echo');
+    }
   }
 
   // ---- THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md) -------------------------------------------------
@@ -286,12 +294,16 @@ export class Interiors {
   inDoorway(door) {
     const g = this.g, half = door.width / 2;
     for (let i = 0; i < g.vehicles.length; i++) {
-      const v = g.vehicles[i], r = Math.max(v.len ?? 4, v.wid ?? 2) * 0.5 + DOOR.shutClear;
-      if (Math.abs(v.x - door.x) < r && Math.abs(v.z - door.z) < r && Math.hypot(v.x - door.x, v.z - door.z) < r) return v;
+      const v = g.vehicles[i];
+      if (Math.abs(v.x - door.x) > 12 || Math.abs(v.z - door.z) > 12) continue;
+      for (const q of g.vehiclesSys.discs(v)) { // its body, disc by disc, against the closed leaf's line
+        const ex = q.x - door.x, ez = q.z - door.z, along = ex * door.ux + ez * door.uz, across = ex * door.nx + ez * door.nz;
+        if (along < half + q.r && along > -half - q.r && across < q.r + 0.15 && across > -q.r - 0.15) return v;
+      }
     }
     for (let i = 0; i < g.chars.length; i++) {
       const c = g.chars[i];
-      if (c.inVehicle || c.hidden || (c.ug ?? null) !== (door.ug ?? null)) continue;
+      if (c.inVehicle || c.hidden || (c.ug ?? null) !== (door.ug ?? null) || Math.abs((c.gy ?? 0) - (door.y ?? 0)) > 1.6) continue; // (someone on the floor above the door is not in it)
       const ex = c.x - door.x, ez = c.z - door.z;
       if (ex > 3 || ex < -3 || ez > 3 || ez < -3) continue;
       const along = ex * door.ux + ez * door.uz, across = ex * door.nx + ez * door.nz;
@@ -308,6 +320,21 @@ export class Interiors {
       const dx = d.x - p.x, dz = d.z - p.z;
       if (dx > bd || dx < -bd || dz > bd || dz < -bd) continue;
       if (Math.abs((d.y ?? 0) - (p.gy ?? 0)) > 1.6 || this.isShut(d)) continue;
+      const k = Math.hypot(dx, dz);
+      if (k < bd && (this.g.reach?.opening(p, d) ?? true)) { bd = k; best = d; }
+    }
+    return best;
+  }
+  // The SHUT door within a shoulder's reach that E would lean on (main.js asks when the infected are near): on its
+  // hinges, in your hand's line, within DOOR.kickReach.
+  shutDoorNear(p) {
+    let best = null, bd = DOOR.kickReach;
+    for (let i = 0; i < this.doors.length; i++) {
+      const d = this.doors[i];
+      if (d.broken || (d.ug ?? null) !== (p.ug ?? null)) continue;
+      const dx = d.x - p.x, dz = d.z - p.z;
+      if (dx > bd || dx < -bd || dz > bd || dz < -bd) continue;
+      if (Math.abs((d.y ?? 0) - (p.gy ?? 0)) > 1.6 || !this.isShut(d)) continue;
       const k = Math.hypot(dx, dz);
       if (k < bd && (this.g.reach?.opening(p, d) ?? true)) { bd = k; best = d; }
     }
@@ -1076,6 +1103,8 @@ export class Interiors {
       for (const L of door.leaves) this.leafMesh.setColorAt(L.slot, _c.set(door.color));
       const v = this.ringState.get(r.id);
       if (v) door.leaves.forEach((L, k) => { L.th = v.a[k] ?? L.th; this.orient(L); });
+      const pk = this.ringPound.get(r.id);
+      if (pk) { Object.assign(door, pk); if (pk.cracked) for (const L of door.leaves) this.leafMesh.setColorAt(L.slot, _c.set(door.color).multiplyScalar(0.62)); }
       rec.doors.push(door);
     }
     // Windows: glass, frame, boards.
@@ -1107,6 +1136,7 @@ export class Interiors {
       const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01);
       if (moved) this.ringState.set(door.id, { a: door.leaves.map((L) => +L.th.toFixed(3)) }); else this.ringState.delete(door.id);
       if (door.shakeT > 0) { door.shakeT = 0; drop(this.shaking, door); }
+      if (door.shutBy || door.cracked || this.g.time - door.poundAt < DOOR.underAttack || this.g.time - door.braceAt < 1) this.ringPound.set(door.id, { poundAt: door.poundAt, braceAt: door.braceAt, braceBy: door.braceBy ?? null, cracked: door.cracked, shutBy: door.shutBy }); else this.ringPound.delete(door.id);
       for (const L of door.leaves) {
         this.leafMesh.setMatrixAt(L.slot, ZERO); this.freeLeaf.push(L.slot);
         L.active = false; L.isDirty = false;

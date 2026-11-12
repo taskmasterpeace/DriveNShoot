@@ -1084,11 +1084,14 @@ class Game {
     }
     // THE DOOR FIRST (WEB_DOOR_POUND.md): with one of the infected within DOOR.threat m, an open door in your reach is
     // what E does - before the friend beside you, the car, your dog, a crate.
-    const shutNow = !p.onDeck && !p.ug && this.zombies.near(p, DOOR.threat) ? this.interiors.openDoorNear(p) : null;
-    if (shutNow) best = null;
+    // The same goes for the shut door being held: with them near, E at it leans (nobody beside you takes the key).
+    const threat = !p.onDeck && !p.ug && this.zombies.near(p, DOOR.threat);
+    const shutNow = threat ? this.interiors.openDoorNear(p) : null;
+    const leanNow = threat && !shutNow ? this.interiors.shutDoorNear(p) : null;
+    const doorNow = shutNow ?? leanNow;
+    if (doorNow) best = null;
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (shutNow) break;
       if (veh.dead || veh.boatTrailer || veh.onTrailer || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
@@ -1098,15 +1101,23 @@ class Game {
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
     const rsSpot = !best ? this.roadside.spotNear(p) : null;
-    const dog = !best && !bestV && !rsSpot && !shutNow ? this.dogs.nearFor(p) : null;
+    // The car beside the door keeps its own keys (F, C, G); only E is the door's. From here on the door-first frame has no car.
+    const carV = bestV;
+    if (doorNow) {
+      bestV = null;
+      if (carV && I.hit('KeyF')) { this.enterVehicle(carV); this.hud.prompt(null); }
+      else if (carV && I.hit('KeyC')) { this.enterVehicle(carV, 'passenger'); this.hud.prompt(null); }
+      else if (carV && I.hit('KeyG')) { this.carCombat.grab(p, carV, this.carCombat.sideToward(carV, p.x, p.z)); this.hud.prompt(null); }
+    }
+    const dog = !best && !bestV && !rsSpot && !doorNow ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
-    const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
+    const dk = !best && !bestV && !doorNow ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     const foot = this.footingText(p); // riding an open deck: how near the floor is to throwing you (systems/decks.js feel)
     this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
+    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !doorNow ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
     const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
     // An open door within reach: E pulls it shut (the infected cannot work a latch: WEB_DOOR_POUND.md). With the infected
     // near it is E's before anything else you could go through; otherwise it waits behind every other thing in reach.
