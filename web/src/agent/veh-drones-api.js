@@ -65,9 +65,10 @@ export async function vehDronesChecks(api, check, C) {
       const dmg0 = g.combat.damage; let hits = 0; g.combat.damage = function (t, d, by, ...a) { if (t === g.player && !by) hits++; return dmg0.call(this, t, d, by, ...a); };
       const hp0 = g.player.hp;
       let launched = false, minHp = hp0, closest = 1e9;
-      for (let f = 0; f < 1500; f++) {
+      for (let f = 0; f < 3600; f++) { // up to a minute: a raider's car between you and it takes rounds too
         await api._step(1);
         if (s.state === 'hunt') launched = true;
+        if (s.state === 'home' && launched && f % 600 === 0) { s.state = 'hunt'; R.alert = { x: g.player.x, z: g.player.z, t: g.time }; } // staged: back on you if a long wait sent it home
         if (launched) closest = Math.min(closest, Math.hypot(s.x - g.player.x, s.z - g.player.z));
         minHp = Math.min(minHp, g.player.hp);
         if (S().counts.shots - shots0 >= 6 && hits > 0) break;
