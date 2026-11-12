@@ -116,11 +116,14 @@ export class Travel {
   // The trundle: hours from each end's departure to each stop (the road at cruise, plus a dwell at every pole before).
   table(L) {
     let t = this.tables.get(L.id);
-    if (t) return t;
+    // Hours on the timetable are road seconds x the clock's rate: a Day length change (the pause menu, the battery's pin)
+    // must redraw it, or a ride keeps the hours of whatever rate it was first drawn at.
+    if (t && t.ts === this.ts) return t;
     const ts = this.ts, st = L.stops.map((id) => this.node(id));
     if (st.some((n) => !n?.road)) return null;
     const s0 = st[0].s, sN = st[st.length - 1].s, dw = L.dwell * ts, n = st.length;
     t = st.map((nd, i) => ({ id: nd.id, s: nd.s, offE: (nd.s - s0) / L.speed * ts + i * dw, offW: (sN - nd.s) / L.speed * ts + (n - 1 - i) * dw }));
+    t.ts = ts;
     this.tables.set(L.id, t);
     return t;
   }

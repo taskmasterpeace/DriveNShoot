@@ -373,6 +373,9 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
     await flats(); await C('setTime', { hour: 1 });
     const p = P(), K = g.kit, staged = K?.staged;
     if (K) K.staged = true; // the battery's torch: a charged light in hand
+    // A dark night (the Night setting at its darkest): the beam's reach grows with the dark (main.js), and the lighter default
+    // night (look-feel) left the stalking Echo 20.2 m out against a 20.0 m beam - never lit when you swing onto it.
+    const nl0 = g.sky.nightLight; g.sky.nightLight = 0;
     g.flashOverride = true; g.aimOverride = { x: p.x + 20, z: p.z }; p.face = Math.PI / 2;
     const e = Z.spawnKind('echo', p.x + 8, p.z + 44);
     const M = Z.minds, seq0 = g.eventSeq;
@@ -390,7 +393,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       for (let t = 0; t < 3 && !(hid && out); t += 0.1) { await C('step', { seconds: 0.1 }); p.face = Math.atan2(g.aimOverride.x - p.x, g.aimOverride.z - p.z); hid = hid || g.events.some((v) => v.seq > seq1 && v.type === 'echoMind' && v.id === e.id && v.state === 'hide'); out = hid && !lit(); }
       const ok = sawBeam && knew.src === 'light' && !knew.sawYou && Math.abs(knew.face - Math.PI / 2) < 0.2 && litT === 0 && dMin < d0 - 5 && hid && out;
       return ok ? true : JSON.stringify({ sawBeam, knew, litT: r1(litT), d0: r1(d0), dMin: r1(dMin), hid, out, mind: mindOf(e) });
-    } finally { g.flashOverride = null; g.aimOverride = null; if (K) K.staged = staged; g.zombies.enabled = false; gone(e); g.godMode = false; }
+    } finally { g.sky.nightLight = nl0; g.flashOverride = null; g.aimOverride = null; if (K) K.staged = staged; g.zombies.enabled = false; gone(e); g.godMode = false; }
   }));
 
   await check('infected fun: under the heat scope the infected read COLD - a shambler, a sprinter, an Echo, a crawler and one the death library dropped all show within 4 C of the night air, while a man shot dead beside them still shows warm', async () => hush(async () => {

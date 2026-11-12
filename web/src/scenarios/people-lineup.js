@@ -66,8 +66,11 @@ export default async (DL, game) => {
   }
   // Freeze the world (AI would walk them off their marks) and frame both rows.
   if (!game.qol.photo) game.qol.togglePhoto(true);
+  // For a player: the camera sits on the lineup (not where you stand); `.` and `,` step it person to person, fronts then backs.
+  const stops = [{ x: X0 + 17, z: 346, h: 16, tilt: 0.14, label: 'PEOPLE LINEUP: faces in the front row, backs in the one behind' }];
+  for (const [row, side] of [[ROW_A, 'front'], [ROW_B, 'back']]) CAST.forEach(([faction, , pose], k) => stops.push({ x: X0 + k * 3.4, z: row, h: 7, tilt: 0.14, label: `${faction} · ${pose} · ${side}` }));
   Object.assign(game.qol.photo, { x: X0 + 17, z: 346, h: 16, tilt: 0.14 });
-  game.qol.placePhotoCamera();
+  game.qol.lookStops(stops, 0);
   return { cast: cast.length, rows: { faceCamera: ROW_A, backs: ROW_B }, look: { x: X0 + 17, z: 346, zoom: 16 } };
 };
 

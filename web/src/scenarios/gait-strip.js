@@ -34,8 +34,11 @@ export default async (DL, game) => {
     }
   });
   if (!game.qol.photo) game.qol.togglePhoto(true);
-  Object.assign(game.qol.photo, { x: X0 + 3.5 * DX, z: Z0 + 2 * DZ, h: 9, tilt: 1.45 });
-  game.qol.placePhotoCamera();
+  // For a player: the camera sits on the strip; `.` and `,` step it from the whole strip to one gait at a time.
+  const stops = [{ x: X0 + 3.5 * DX, z: Z0 + 2 * DZ, h: 9, tilt: 1.45, label: 'WALK CYCLES: five gaits, one stride in eight phases, left to right' }];
+  ROWS.forEach((row, r) => stops.push({ x: X0 + 3.5 * DX, z: Z0 + r * DZ, h: 5.5, tilt: 1.2, label: `${row.label} · ${row.speed} m/s` }));
+  Object.assign(game.qol.photo, { x: stops[0].x, z: stops[0].z, h: 9, tilt: 1.45 });
+  game.qol.lookStops(stops, 0);
   return { people: n, rows: ROWS.map((r) => r.label), note: 'each row is one stride, left to right' };
 };
 
