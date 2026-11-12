@@ -229,3 +229,5 @@ Measured on this machine (RTX 4090, headless Chrome, shared with other agents' h
 
 
 **Used by WEB_WATER_LIFE (2026-10-28):** the Atlantic and the lagoon carry the swell, sharks, bait and gulls; THE DEEP WATER, THE DROWNED BLOCKS and GULL KEY are placed off Meridian's coast through `shoreAt()`; the ocean's region colour is now teal (data/water.js).
+
+**Used by WEB_START_DOORS (2026-11-12):** Meridian's lots now get their door leaves and glass from `systems/interiors.js` (`ringScan` walks each holdout's lots as it walks the ring's); a held town's doors stand open and its glass is whole. **Used by WEB_FIRST_MINUTE (2026-11-12):** a new Florida game opens with three tracker beats at the clinic (`data/firstminute.js`) before the sheriff's job.
