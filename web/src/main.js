@@ -69,6 +69,7 @@ import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
 import { Horses } from './systems/horses.js';
+import { Cavalry } from './systems/cavalry.js'; // VEHICLES V2 slice 6: the Cavalry Company (data/cavalry.js)
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
@@ -297,6 +298,7 @@ class Game {
     this.sealife = new Sealife(this); this.waterplace = new WaterPlace(this); this.diving = new Diving(this); this.swamp = new Swamp(this); // what lives in the water, places in it, how deep a breath goes (WEB_WATER_LIFE.md)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.horses = new Horses(this); // horses: the fauna quad body with a ledger (feed, water, bond, tack, bags) and a saddle (data/horses.js, WEB_HORSES.md)
+    this.cavalry = new Cavalry(this); // the mounted mercenary company: its post, garrison and patrols on real horses (systems/cavalry.js)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.migrations = new Migrations(this); // hordes that walk the highways, seen before they are reported (WEB_DEATHS.md)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
@@ -1401,6 +1403,7 @@ class Game {
       this.crew.update(simDt); // the downed bleed, deeds move trust, jobs on the game clock, dawn
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.horses.update(simDt); // horses: feed and water on the game clock, the herd, the ridden and the tied (systems/horses.js)
+      this.cavalry.update(simDt); // the company's riders (after the horses: a ridden company horse is theirs to steer)
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected

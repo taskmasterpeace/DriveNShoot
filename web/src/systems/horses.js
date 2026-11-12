@@ -158,7 +158,7 @@ export class Horses {
         H.hp = a.hp;
         if (a.butchered) H.butchered = true;
         H.x = a.x; H.z = a.z; H.face = a.face;
-        if (H.alive && a.ctl && !mounted) this.idle(H, a, dt);
+        if (H.alive && a.ctl && !mounted && !H.npcRider) this.idle(H, a, dt); // a company rider steers their own (systems/cavalry.js)
       }
       if (H.alive && H.owner !== 'wild' && dh > 0) this.care(H, a, dh);
       if (H.bagBox) { H.bagBox.x = H.x; H.bagBox.z = H.z; }
@@ -347,6 +347,10 @@ export class Horses {
       if (hand && Math.hypot(hand.x - H.x, hand.z - H.z) < 40) return { h: H, verb: 'buy', text: `Buy ${nm} · $${Math.round(H.price)} · <kbd>F</kbd> take her (theft)` };
       return { h: H, verb: 'take', text: `Take ${nm} (nobody is minding the stable)` };
     }
+    if (H.owner.startsWith('company:') && !H.stolen) { // the Cavalry Company's (systems/cavalry.js)
+      if (H.npcRider) return { h: H, verb: 'none', text: `${nm}: a Cavalry Company horse, its trooper in the saddle` };
+      return { h: H, verb: 'take', text: `Take ${nm} (a Cavalry Company horse: theft)` };
+    }
     return { h: H, verb: 'mount', text: `Mount ${nm}${H.tied ? ' (untie)' : ''} · bond ${tierOf(H.bond)}` };
   }
   interact(o, key = 'KeyE') {
@@ -367,7 +371,9 @@ export class Horses {
   steal(H, seen) {
     const g = this.g, S = this.stableOf(H);
     const hand = S ? this.handOf(S.id) : null;
-    g.society?.deeds?.record('steal', { target: hand ?? null, x: H.x, z: H.z, m: 3, label: `${H.name}, a ${BREEDS[H.breed].name.toLowerCase()} from ${S?.name ?? 'a ranch'}`, tf: hand?.fid, stars: 1, owner: true });
+    const company = H.owner.startsWith('company:'); // a Cavalry Company horse: the company's book, not a ranch's
+    g.society?.deeds?.record('steal', { target: hand ?? null, x: H.x, z: H.z, m: 3, label: `${H.name}, a ${BREEDS[H.breed].name.toLowerCase()} from ${company ? 'the Cavalry Company' : S?.name ?? 'a ranch'}`, tf: company ? 'company' : hand?.fid, stars: 1, owner: true });
+    if (company) g.cavalry && g.cavalry.counts.horsesTaken++;
     H.stolen = { from: S?.name ?? '?', day: g.society?.day ?? 0 }; H.owner = 'player'; this.stats.stolen++;
     g.emit('horseStolen', { id: H.id, name: H.name, from: S?.name, witnessed: !!hand });
     return { ...this.mount(g.player, H), stolen: true };
