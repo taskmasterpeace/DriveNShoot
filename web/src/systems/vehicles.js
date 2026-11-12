@@ -356,7 +356,7 @@ export class Vehicles {
       // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
       const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);
       v.lean += (targetLean - v.lean) * Math.min(1, dt * (v.fallen ? 3 : 8));
-      const wantWheelie = !v.fallen && v.boost && v.throttle > 0 && sp > 3 && sp < 24;
+      const wantWheelie = !v.fallen && !v.pedal && v.boost && v.throttle > 0 && sp > 3 && sp < 24; // a bicycle's SHIFT stands on the pedals instead (systems/bicycle.js)
       v.wheelie += ((wantWheelie ? 0.42 : 0) - v.wheelie) * Math.min(1, dt * (wantWheelie ? 2.5 : 6));
     }
     if (dh && (v.driver === this.g.player || v.feelProbe) && !v.boat) { // the weight lags the nose (DRIVING.slide)

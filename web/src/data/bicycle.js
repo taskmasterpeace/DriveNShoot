@@ -12,7 +12,8 @@ export const BICYCLE_ROW = {
 
 // The legs. drain/stand: stamina a second at full pedal (seated / standing on the pedals with SHIFT); stand: the push it
 // gives; winded: the push left when you are out of breath (below `low`); regen: a second, coasting (a little under on foot).
-export const PEDAL = { drain: 0.045, standDrain: 0.13, stand: 1.4, winded: 0.3, low: 0.05, regen: 0.16 };
+// basket: litres it carries (a wire basket on the rack; a motorcycle's saddlebags are 22).
+export const PEDAL = { drain: 0.045, standDrain: 0.13, stand: 1.4, winded: 0.3, low: 0.05, regen: 0.16, basket: 12 };
 
 // Where bicycles lean: near a town spot, on the nearest clear dry ground within r m. Placed once each, the first time you
 // come near. paint: the frame colour (no purple).

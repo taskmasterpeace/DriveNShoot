@@ -879,7 +879,7 @@ class Game {
       this.towing.driveInput(p, v, I, dt); // G at the wheel: hitch / drop a tow line, launch or haul a boat; hold G: the winch (systems/towing.js)
       if (I.hit('KeyF') || I.hit('Enter')) { if (!this.travel.cord()) this.exitVehicle(); return; } // aboard a moving coach (or a lift): pull the cord (systems/travel.js)
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
-      if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
+      if (I.hit('KeyE') && !v.harpoon) { if (v.pedal) this.audio.clink?.(0); else { this.audio.horn(0); this.ambient.honk(v); } } // a bicycle has a bell, not a horn
       if (I.hit('KeyB') && driving) this.garage.drop(v); // the tail: oil, caltrops, smoke, mines, flares, paint (group 2)
       if (v.mounts && this.controls.held('fireTurret') && this.seats.turretFor(p, v)) this.workshop.fireMount(v, 3, Math.atan2(this.aim.x - v.x, this.aim.z - v.z), p); // the roof turret (group 3): the driver's, or a passenger's who mans it (seats.turretFor)
       else if (!driving && v.mounts?.top && !this.seats.turretOwner(v)) this.hud.prompt('<kbd>RMB</kbd> Man the roof turret');

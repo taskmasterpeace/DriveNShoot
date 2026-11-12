@@ -183,7 +183,8 @@ export class VehicleDamage {
     // Engine: power falls off, misfires, smoke; 0 = dead.
     let power = d.engine <= 0 ? 0 : 0.35 + 0.65 * d.engine;
     if ((v.empUntil ?? 0) > g.time) power = 0; // an EMP stalled it (systems/workshop.js)
-    if (d.engine < 0.45 && v.throttle > 0) {
+    if (v.noEngine) power = 1; // a bicycle, a raft: no engine to wreck, no radiator, no tank (its push is its rider's: systems/bicycle.js)
+    if (!v.noEngine && d.engine < 0.45 && v.throttle > 0) {
       d.misfire -= dt;
       if (d.misfire <= 0) { d.misfire = 0.4 + Math.random() * (d.engine * 3); power *= 0.1; g.audio.backfire?.(g.pan(v.x)); g.fx.smoke(v.x + Math.sin(v.h) * v.len * 0.4, 1.2, v.z + Math.cos(v.h) * v.len * 0.4, true); }
     }
@@ -192,13 +193,13 @@ export class VehicleDamage {
     // to climb 0.02 a second whatever the radiator, and every car died about a minute into a highway run). A holed one
     // can't keep up: half gone, it boils in about 20 s of throttle.
     const leakRate = 1 - d.radiator, cool = 0.05 * (1 - leakRate * 0.8);
-    d.temp = Math.max(0, d.temp + dt * (v.throttle > 0 ? 0.02 + leakRate * 0.09 - cool * d.temp : -cool));
+    if (!v.noEngine) d.temp = Math.max(0, d.temp + dt * (v.throttle > 0 ? 0.02 + leakRate * 0.09 - cool * d.temp : -cool));
     if (d.temp > 1) { d.engine = Math.max(0, d.engine - dt * 0.05); if (Math.random() < dt * 8) g.fx.spawn(2, v.x + Math.sin(v.h) * v.len * 0.45, 1.4, v.z + Math.cos(v.h) * v.len * 0.45, 0, 2.5, 0, 1.2, 0.5, '#e8e4dc', -0.8); }
     if (d.temp > 1 && !d.warnedHot && v.driver === g.player) { d.warnedHot = true; g.hud.toast('ENGINE OVERHEATING', 'warn'); }
     if (d.temp < 0.8) d.warnedHot = false;
     // Fuel: burn by throttle, leak from a holed tank (leaving a dark trail).
     const burn = (0.012 + Math.max(0, v.throttle) * 0.05) * dt * (v.driver ? 1 : 0);
-    const leak = d.tank < 0.65 ? (0.65 - d.tank) * 1.2 * dt : 0;
+    const leak = !v.noEngine && d.tank < 0.65 ? (0.65 - d.tank) * 1.2 * dt : 0;
     v.fuel = Math.max(0, v.fuel - burn - leak);
     if (leak > 0) { d.trailT = (d.trailT ?? 0) - dt; if (d.trailT <= 0) { d.trailT = 0.18; g.fx.decal(v.x - Math.sin(v.h) * v.len * 0.45, v.z - Math.cos(v.h) * v.len * 0.45, 0.35 + Math.random() * 0.2, '#1c1a14'); g.fuelTrail?.push({ x: v.x, z: v.z, t: g.time }); } }
     if (v.fuel <= 0 && !v.noEngine) power = 0; // a raft or a ferry is poled or hauled, not fuelled (data/sealife.js)
