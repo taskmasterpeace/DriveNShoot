@@ -81,12 +81,18 @@ export async function vehFuelChecks(api, check, C) {
       const dr = hose();
       useCan('fuel_can'); useCan('fuel_can');
       const fixed = view(v), clean2 = hose(); // good fuel: the hose will not empty it
-      // A light mix (5%): it runs, weak, and the engine wears while you hold the throttle.
-      v.fuel = 38; v.bad = 2; v.dmg.engine = 1; v.dmg.coughs = 0; const e0 = v.dmg.engine;
-      const hp0 = v.hp; g.enterVehicle(v); const x1 = v.x, z1 = v.z; await holdW(1.5);
-      const moved2 = Math.hypot(v.x - x1, v.z - z1), worn = e0 - v.dmg.engine, hit = hp0 - v.hp, coughs = v.dmg.coughs; // hit: a crash would wear it too
+      // A light mix: it runs, weak, and the engine coughs and wears while you hold the throttle.
+      v.fuel = 36; v.bad = 4; v.dmg.engine = 1; v.dmg.coughs = 0; const e0 = v.dmg.engine; // an 11% mix
+      g.enterVehicle(v); const x1 = v.x, z1 = v.z; await holdW(0.6);
+      const moved2 = Math.hypot(v.x - x1, v.z - z1); // it runs: a short roll
+      // Then the throttle against the handbrake (held SPACE): the engine labours on the mix without going anywhere, so
+      // nothing it could hit wears it (a crash would).
+      for (let f = 0; f < 60 && Math.hypot(v.vx, v.vz) > 0.3; f++) { g.input.down.add('Space'); await api._step(1); }
+      v.dmg.engine = 1; v.dmg.coughs = 0; const hp0 = v.hp;
+      g.input.down.add('Space'); try { await holdW(3.5); } finally { g.input.down.delete('Space'); }
+      const worn = e0 - v.dmg.engine, hit = hp0 - v.hp, coughs = v.dmg.coughs;
       const ok = gas.ok && clean.bad === 0 && d1.ok && /WRONG FUEL/.test(d1.text) && after.share >= FUEL_RULES.stall && moved < 0.5
-        && !seated.ok && dr.ok && fixed.fuel === 20 && fixed.bad === 0 && !clean2.ok && /good/.test(clean2.why) && moved2 > 4 && worn > 0 && worn < 0.05 && hit === 0 && coughs > 0;
+        && !seated.ok && dr.ok && fixed.fuel === 20 && fixed.bad === 0 && !clean2.ok && /good/.test(clean2.why) && moved2 > 1 && worn > 0 && worn < 0.05 && hit === 0 && coughs > 0;
       return ok ? true : JSON.stringify({ gas, clean, d1, after, moved: r1(moved), seated, dr, fixed, clean2, moved2: r1(moved2), worn, hit, coughs });
     } finally { off(); }
   });
