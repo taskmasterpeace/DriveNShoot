@@ -69,7 +69,8 @@ import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
 import { Horses } from './systems/horses.js';
-import { Cavalry } from './systems/cavalry.js'; // VEHICLES V2 slice 6: the Cavalry Company (data/cavalry.js)
+import { Cavalry } from './systems/cavalry.js';
+import { Wagons } from './systems/wagons.js'; // VEHICLES V2 slice 7: covered wagons (data/wagons.js) // VEHICLES V2 slice 6: the Cavalry Company (data/cavalry.js)
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
@@ -299,6 +300,7 @@ class Game {
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.horses = new Horses(this); // horses: the fauna quad body with a ledger (feed, water, bond, tack, bags) and a saddle (data/horses.js, WEB_HORSES.md)
     this.cavalry = new Cavalry(this); // the mounted mercenary company: its post, garrison and patrols on real horses (systems/cavalry.js)
+    this.wagons = new Wagons(this); // covered wagons: a team at the tongue, the box to drive from, a bed to walk into (systems/wagons.js)
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.migrations = new Migrations(this); // hordes that walk the highways, seen before they are reported (WEB_DEATHS.md)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
@@ -1075,6 +1077,7 @@ class Game {
     const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
     const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
+    const wag = !best && !op && !ugI && !dog && !dk ? this.wagons.footSpot(p) : null; // at a wagon's tongue: hitch your horse, or unhitch (systems/wagons.js)
     const horse = !best && !bestV && !op && !ugI && !dog && !dk ? this.horses.nearFor(p) : null; // a horse within reach: mount, buy, halter, offer oats
     const game = !best && !bestV && !op && !ugI && !dog && !dk && !horse ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
@@ -1090,6 +1093,7 @@ class Game {
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
+    else if (wag) this.hud.prompt(wag.verb === 'none' ? wag.text : `${wag.text} · <kbd>F</kbd> drive it`); // at the tongue: the team first
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);
@@ -1102,6 +1106,7 @@ class Game {
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
+    else if (wag && wag.verb !== 'none' && I.hit('KeyE')) { const r = this.wagons.use(wag); this.hud.toast((r.ok ? r.text : r.why).toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
     else if (horse && horse.verb !== 'none' && (I.hit('KeyE') || (horse.verb === 'buy' && I.hit('KeyF')))) { const r = this.horses.interact(horse, I.hit('KeyF') && !I.hit('KeyE') ? 'KeyF' : 'KeyE'); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
@@ -1404,6 +1409,7 @@ class Game {
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.horses.update(simDt); // horses: feed and water on the game clock, the herd, the ridden and the tied (systems/horses.js)
       this.cavalry.update(simDt); // the company's riders (after the horses: a ridden company horse is theirs to steer)
+      this.wagons.update(simDt); // the teams walk at their tongues; a wagon's pace is its team's
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
