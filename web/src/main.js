@@ -56,6 +56,8 @@ import { Reactions } from './systems/reactions.js';
 import { Storeys } from './world/storeys.js';
 import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
+import { Reach } from './systems/reach.js';
+import { DOOR } from './data/interiors.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
@@ -239,6 +241,7 @@ class Game {
     this.seasonLook = new SeasonLook(this);
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
+    this.reach = new Reach(this); // can a hand get there: walls, shut doors and floors stop every E, the PACK list and the agent the same way (systems/reach.js)
     this.stance = new Stance(this); // stand / crouch / prone: bodies, speed, being seen, footing (systems/stance.js)
     this.moves = new Moves(this); // SPACE reads the ground ahead: vault, climb, jump, roll, dive to prone, drop-hang (systems/moves.js)
     this.throwables = new Throwables(this);
@@ -591,7 +594,7 @@ class Game {
     let r;
     if (p.inVehicle) r = S.sleepAt('car');
     else {
-      const bed = this.bedNear(p.x, p.z);
+      const bed = this.bedNear(p.x, p.z, p.gy ?? 0, p);
       r = bed ? S.sleepAt('bed', bed) : this.homes?.campBed(p) || this.inventory.carried.count('bedroll') ? S.sleepAt('bedroll') : { ok: false, why: 'nowhere to sleep: a bed, a bedroll or a parked car' };
     }
     if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn');
@@ -608,9 +611,10 @@ class Game {
   }
 
   // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
-  bedNear(x, z, y = 0) {
+  // who: the person reaching (systems/reach.js): a bed through a wall is not one you can lie on.
+  bedNear(x, z, y = 0, who = null) {
     let best = null, bd = 1.8;
-    for (const b of this.world.spawns.beds ?? NO_BEDS) { if (Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.world.spawns.beds ?? NO_BEDS) { if (Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd && (who === null || this.reach.to(who, b.x, b.z))) { bd = d; best = b; } }
     return best ?? this.decks.bedNear(x, z, y); // or the bunk in a van or an RV you stand in (systems/decks.js)
   }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
@@ -1076,20 +1080,25 @@ class Game {
       if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.faction === 'zombie' || c.target === p) continue; // nobody talks to the dead
       if (!this.storeys.sameFloor(p, c)) continue; // the floor between you
       const d = Math.hypot(c.x - p.x, c.z - p.z);
-      if (d < bd) { bd = d; best = c; }
+      if (d < bd && this.reach.person(p, c)) { bd = d; best = c; } // a wall or a shut door between you: nobody to talk to
     }
+    // THE DOOR FIRST (WEB_DOOR_POUND.md): with one of the infected within DOOR.threat m, an open door in your reach is
+    // what E does - before the friend beside you, the car, your dog, a crate.
+    const shutNow = !p.onDeck && !p.ug && this.zombies.near(p, DOOR.threat) ? this.interiors.openDoorNear(p) : null;
+    if (shutNow) best = null;
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
+      if (shutNow) break;
       if (veh.dead || veh.boatTrailer || veh.onTrailer || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
-      if (d < bv) { bv = d; bestV = veh; }
+      if (d < bv && this.reach.vehicle(p, veh)) { bv = d; bestV = veh; } // the car parked against the other side of the wall is not yours to open
     }
     // A dog at your feet (systems/dogs.js): E feeds it, bandages it, or tells yours to stay or follow. C whistles (taps and a
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
     const rsSpot = !best ? this.roadside.spotNear(p) : null;
-    const dog = !best && !bestV && !rsSpot ? this.dogs.nearFor(p) : null;
+    const dog = !best && !bestV && !rsSpot && !shutNow ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
@@ -1097,21 +1106,26 @@ class Game {
     this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
-    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
+    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
+    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
+    // An open door within reach: E pulls it shut (the infected cannot work a latch: WEB_DOOR_POUND.md). With the infected
+    // near it is E's before anything else you could go through; otherwise it waits behind every other thing in reach.
+    const shutD = shutNow ?? (!best && !bestV && !op && !ugI && !dog && !dk && !p.onDeck ? this.interiors.openDoorNear(p) : null);
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
-    const horse = !best && !bestV && !op && !ugI && !dog && !dk ? this.horses.nearFor(p) : null; // a horse within reach: mount, buy, halter, offer oats
-    const game = !best && !bestV && !op && !ugI && !dog && !dk && !horse ? this.fauna.nearFor(p) : null;
+    const horse = !best && !bestV && !op && !ugI && !dog && !dk && !shutNow ? this.horses.nearFor(p) : null; // a horse within reach: mount, buy, halter, offer oats
+    const game = !best && !bestV && !op && !ugI && !dog && !dk && !horse && !shutNow ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
     // ... or the roadside's: a tank's caps (a car beside them is what you siphon into: E stays the caps'), a hulk, a water tank, the dam's wheel.
-    const spot = !best && !op && !ugI && !dog && !dk && !game ? (!bestV ? this.travel.spotNear(p) : null) ?? rsSpot : null;
-    const box = !best && !bestV && !op && !ugI && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    const spot = !best && !op && !ugI && !dog && !dk && !game && !shutNow ? (!bestV ? this.travel.spotNear(p) : null) ?? rsSpot : null;
+    const box = !best && !bestV && !op && !ugI && !dog && !dk && !spot && !game && !shutNow ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0, p) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !ugI && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !ugI && !dk && !box && !spot && !game && !shutNow ? this.bedNear(p.x, p.z, p.gy ?? 0, p) : null;
+    const shut = shutNow ?? (!game && !horse && !spot && !box && !bed ? shutD : null);
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
-    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed ? this.boxRing : null));
+    if (shut && !box && !bed) { this.boxRing.x = shut.x; this.boxRing.z = shut.z; this.boxRing.len = 2.2; }
+    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed || shut ? this.boxRing : null));
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
@@ -1123,7 +1137,8 @@ class Game {
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.actions.boxKey(box, I, dt); // tap E opens it (what's on top), hold E searches it properly (systems/actions.js)
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op && !ugI) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
+    else if (shut) this.hud.prompt(shutNow ? '<kbd>E</kbd> <b class="warn">Shut the door</b>' : '<kbd>E</kbd> Shut the door');
+    else if (!op && !ugI && !shut) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
@@ -1131,6 +1146,7 @@ class Game {
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
+    else if (shut && !game && !spot && !box && I.hit('KeyE')) { const r = this.interiors.shutDoor(shut, p); this.hud.toast(r.ok ? (shutNow ? 'DOOR SHUT · THEY CANNOT WORK A LATCH · STAND AT IT AND HOLD E TO LEAN ON IT' : r.text) : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
     else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }

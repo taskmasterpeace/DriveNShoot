@@ -6,7 +6,14 @@
 // A set row:  { inherit: '<set>', alias: { <kind>: ['<set>', '<kind>', { pitch, sub: [variant indices], gain }] } }
 // resolve(set, kind): the set's own files -> its alias -> its inherit chain -> FALLBACK for the kind. Never throws; a
 // kind nothing provides resolves to null and the caller plays its synthesized sound (systems/audio.js), as before.
-import MANIFEST from './audio-manifest.json';
+import LIBRARY from './audio-manifest.json';
+import MADE from './audio-made.json';
+
+// One manifest: the studio library's picks (tools/audio-pick.mjs) plus the sounds made for this game
+// (tools/audio-make.mjs: SOUNDS-MADE.md; lic 'made'). A made kind never replaces a library kind of the same name.
+const MANIFEST = { ...LIBRARY, sets: { ...LIBRARY.sets } };
+for (const [set, kinds] of Object.entries(MADE.sets ?? {})) MANIFEST.sets[set] = { ...kinds, ...(LIBRARY.sets?.[set] ?? {}) };
+MANIFEST.bytes = (LIBRARY.bytes ?? 0) + (MADE.bytes ?? 0);
 
 export const AUDIO_MANIFEST = MANIFEST;
 export const AUDIO_BASE = 'audio/';
@@ -171,7 +178,8 @@ export const CALIBER_SOUND = {
 // resolves to a shipped file. ('crack', the supersonic snap, is synthesized on purpose: no take was sharp enough.)
 export const COMMON_IDS = ['shot.far', 'shot.heavy', 'explosion.near', 'explosion.far', 'alarm.siren', 'glass.break', 'impact.wood', 'impact.flesh',
   'impact.metal', 'bodyfall', 'whiz', 'ricochet', 'reload.pistol', 'reload.rifle', 'reload.shotgun', 'dry', 'shell', 'melee.swing',
-  'vehicle.crash', 'vehicle.horn', 'vehicle.skid', 'vehicle.door', 'door.open', 'door.metal', 'step.sand'];
+  'vehicle.crash', 'vehicle.horn', 'vehicle.skid', 'vehicle.door', 'door.open', 'door.metal', 'step.sand',
+  'door.pound.wood', 'door.pound.metal', 'door.frenzy.wood', 'door.frenzy.metal', 'door.crack', 'door.break', 'door.shut']; // the last row: made sounds (tools/audio-make.mjs)
 
 // ---- THE VOLUME ROW (ui/qol.js settings; systems/audio.js setVolumes) ---------------------------------------------------
 export const VOLUME_DEFAULTS = { master: 0.55, music: 0.8, sfx: 1 };

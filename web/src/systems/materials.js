@@ -447,6 +447,7 @@ export class Materials {
     return rec;
   }
 
+  breaksDoor(rec) { return !rec.broken && !!MATERIALS[rec.mat]?.breaks; } // can blows take this door down (wood yes, steel no)
   hitDoor(door, dmg, cause, by, x = door.x, z = door.z) {
     const rec = this.doorRec(door), M = MATERIALS[rec.mat];
     if (rec.broken || !M.breaks || !(dmg > 0)) return null;

@@ -161,6 +161,7 @@ bookkeeping), `world/city.js` (`world.walls`, `world.props`, `world.buildings`),
 Used by: `combat.segment` (every wall a round meets, instantly from `combat.hitscan` or in flight from `systems/ballistics.js`, `WEB_BALLISTICS.md`), `combat.damage` (blood on walls), `interiors.blast` (every blast),
 `interiors.makeDoor` / `leafCircle` / `ray` / `nearest` / `writeLeaf` (broken doors), `throwables.startFire` (soft scorch),
 `main.js` (update), `agent/api.js` (save/load, the commands, the checks).
+- **WEB_DOOR_POUND.md (2026-11-12):** the infected's fists on a SHUT door are `hitDoor(door, dmg, 'pound')`; `breaksDoor(rec)` says whether blows can take a door down (wood yes, steel no); a door's hp record is what the shard shares as a leaf (`p`).
 
 ## 7. Tuning Knobs (data/materials.js)
 

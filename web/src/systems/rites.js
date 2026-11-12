@@ -1,3 +1,4 @@
+import { LEVEL } from '../data/storeys.js';
 import * as THREE from 'three';
 import { DECAY, BODY_FOLD, GRAVE_SICKNESS, FORMULA, YEARS, DANGER, POP, BATTLE_WORDS, CEMETERY_KINDS, CEM_LAYOUT, ARCH_BOOT_HILL, FIXED_CEMETERIES, RING_YARD,
   CALENDAR, CAUSES, EPITAPHS, BURIAL, RITES_ITEMS, SEXTON_LOOT, FUNERAL, DELIVERY } from '../data/rites.js';
@@ -832,14 +833,30 @@ export class Rites {
   }
 
   // ---- burial: drag, dig, bury, burn, mark --------------------------------------------------------------------------
-  bodyNear(x, z, reach = 2.2) {
+  // who: the person reaching (systems/reach.js). Given, a body on another floor or with a wall between is passed over,
+  // so the nearest one their hand can get to wins.
+  bodyNear(x, z, reach = 2.2, who = null) {
     let best = null, bd = reach;
+    const Rc = who ? this.g.reach : null;
     for (const R of this.bodies.values()) {
       if (R.buried || R.burned) continue;
       const bx = R.c ? R.c.x : R.x, bz = R.c ? R.c.z : R.z, d = Math.hypot(bx - x, bz - z);
-      if (d < bd) { bd = d; best = R; }
+      if (d >= bd) continue;
+      if (Rc && !this.inReach(R, who)) continue;
+      bd = d; best = R;
     }
     return best;
+  }
+  // Can `who` put a hand on this body: on their floor (the body's box keeps the height it died at, as E's own search and
+  // the PACK screen read it; a record with no box has its own y) and nothing in the hand's line (systems/reach.js).
+  inReach(R, who) {
+    const g = this.g, box = R.box ? g.inventory?.boxes.get(R.box) : null;
+    // The floor it lies on: the corpse's own height (the ground, a hill, an upper floor or its level below the street
+     // under it); a folded record's y; a box's when that is all there is.
+    let by = R.c ? R.c.gy : R.y ?? box?.y;
+    if (who.ug && box && box.y !== undefined && box.y < -0.5) by = box.y; // (a body that died before the ragdoll kept levels)
+    if (by !== undefined && Math.abs(by - (who.gy ?? 0)) > LEVEL.same) return false; // the floor between you
+    return g.reach ? g.reach.to(who, R.c ? R.c.x : R.x, R.c ? R.c.z : R.z) : true;
   }
   startDrag(R, who = this.g.player) {
     if (!R || R.buried || R.burned) return { ok: false, why: 'nobody there to drag' };
@@ -995,11 +1012,11 @@ export class Rites {
     }
     const F = this.funeralHere(p.x, p.z);
     if (F && !F.stone && I.hit('KeyG')) { I.pressed.delete('KeyG'); const r = this.payStone(F); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); return; }
-    const R = this.bodyNear(p.x, p.z, 1.8);
+    const R = this.bodyNear(p.x, p.z, 1.8, p); // on your floor, in your hand's reach (a body through a wall or a ceiling is not one to drag)
     if (!R) { this.ePress = -1; return; }
     // E is the body's only when nothing else claims it: no door or window in reach (their hold boards or picks), no
     // downed crew member (theirs is a drag too), and the nearest box is this body's own
-    const box = g.inventory?.nearest(p.x, p.z, 2.2, true, p.gy ?? 0);
+    const box = g.inventory?.nearest(p.x, p.z, 2.2, true, p.gy ?? 0, p);
     if (g.interiors?.nearest?.(p) || g.interiors?.hold > 0 || g.crew?.drag || g.crew?.downedNear?.() || (box && box.id !== R.box)) { this.ePress = -1; return; }
     if (I.hit('KeyE')) { this.ePress = g.time; return; } // the tap still reaches main.js's box search
     if (this.ePress >= 0 && I.key('KeyE') && g.time - this.ePress > BURIAL.holdE) { this.ePress = -1; g.invUI?.toggle?.(false); const r = this.startDrag(R, p); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }

@@ -225,13 +225,13 @@ export class Milbases {
     for (const s of this.live.values()) {
       if (!this.inside(s, p.x, p.z, 4)) continue;
       const R = this.rec(s.id), G = s.mb.generator, L = s.mb.log, B = s.mb.blast;
-      if (!R.power && Math.hypot(p.x - G.x, p.z - G.z) < 3.2) {
+      if (!R.power && Math.hypot(p.x - G.x, p.z - G.z) < 3.2 && (g.reach?.fixture(p, G.x, G.z) ?? true)) {
         const has = (g.inventory?.carried.count('fuel_can') ?? 0) >= MB_RULES.sealed.fuel;
         hud?.prompt?.(has ? '<kbd>E</kbd> Pour a fuel can in and start the generator' : 'Generator · dry (it wants a fuel can)');
         if (hit && has) this.power(s, p);
         return { x: G.x, z: G.z, len: 2 };
       }
-      if (Math.hypot(p.x - L.x, p.z - L.z) < 2.6 && (p.gy ?? 0) - s.y < 1.5) {
+      if (Math.hypot(p.x - L.x, p.z - L.z) < 2.6 && (p.gy ?? 0) - s.y < 1.5 && (g.reach?.to(p, L.x, L.z) ?? true)) {
         hud?.prompt?.('<kbd>E</kbd> Read the duty log');
         if (hit) this.read(s, p);
         return { x: L.x, z: L.z, len: 1.2 };

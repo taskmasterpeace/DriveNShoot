@@ -297,10 +297,12 @@ export class Audio {
     for (let i = 0; i < 4; i++) setTimeout(() => this.tone(2600 + Math.random() * 2400, 0.12, 0.05, 'sine', 0.8, pan), 40 + i * 55);
   }
   thud(pan = 0) { this.count('thud'); if (this.sample('common', 'impact.wood', { dist: 4, pan, vol: 0.9 })) return; this.burst({ dur: 0.12, freq: 420, vol: 0.2, decay: 0.1, pan }); }
-  groan(pan = 0, dist = 0) {
+  // voice: the breed's own [set, kind] (data/infected.js BREED_VOICE); the library's shambler takes and the synth follow.
+  groan(pan = 0, dist = 0, voice = null) {
     const v = Math.max(0, 0.16 * (1 - dist / 32));
     if (v < 0.01) return;
     this.count('groan');
+    if (voice && this.sample(voice[0], voice[1], { dist, pan, range: 34 })) return;
     if (this.sample('shambler', Math.random() < 0.8 ? 'idle' : 'attack', { dist, pan, range: 34 })) return;
     this.tone(70 + Math.random() * 40, 0.9, v, 'sawtooth', 0.7, pan);
     this.burst({ dur: 0.8, freq: 380, type: 'bandpass', q: 4, vol: v * 1.4, decay: 0.75, pan });
@@ -326,6 +328,7 @@ export class Audio {
     const v = Math.max(0, 0.1 * (1 - dist / 26));
     if (v < 0.005) return;
     this.count('murmur');
+    if (this.sample('echo', 'murmur', { dist, pan, range: 26 })) return; // the made takes: a half sentence under its breath
     if (this.sample('echo', 'idle', { dist, pan, range: 26 })) return;
     for (let i = 0; i < 4; i++) this.burst({ dur: 0.22, freq: 500 + Math.random() * 400, type: 'bandpass', q: 7, vol: v, decay: 0.2, pitchDrop: 0.85, at: i * 0.26, pan });
   }

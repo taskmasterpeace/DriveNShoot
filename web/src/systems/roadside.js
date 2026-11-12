@@ -62,6 +62,7 @@ export class RoadsideSys {
       const d = Math.hypot(sp.x - p.x, sp.z - p.z);
       // sp.y is measured from the ground (real terrain is the default: the ground under the spot, not 0)
       if (d > sp.r || d >= bd || Math.abs((p.gy ?? 0) - (sp.y ?? 0) - (W?.groundAt?.(sp.x, sp.z) ?? 0)) > 2) continue;
+      if (this.g.reach && !this.g.reach.fixture(p, sp.x, sp.z)) continue; // the caps, the wheel, the hulk, the cistern: a hand has to get to it (its own collider is its body: systems/reach.js)
       best = sp; bd = d;
     }
     if (!best) return null;

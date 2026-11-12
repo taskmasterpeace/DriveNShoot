@@ -92,6 +92,26 @@ function applyPatch(S, patch) {
       W.interiors.w[id] = out.interiors.w[id] = { s: v.s, hp: Math.round(v.hp), b: Math.round(v.b), sd: v.sd > 0 ? 1 : -1 };
     }
   }
+  // THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md §3.6). KEPT: what a door's leaf has left (leaves[id] = { p }; p 0 = off
+  // its hinges). It only ever goes DOWN: no patch raises it, removes it or puts a door back on its hinges. RELAYED, not
+  // kept: the doors pulled shut this second (shut) and the blows struck (pound).
+  const Lv = patch?.leaves;
+  if (Lv && typeof Lv === 'object') {
+    out.leaves = {};
+    W.leaves ??= {};
+    for (const [id, v] of Object.entries(Lv).slice(0, 64)) {
+      if (!id40(id) || !v || !num(v.p, 1e5)) continue;
+      const p = Math.max(0, Math.round(v.p)), was = W.leaves[id];
+      if (was && was.p <= p) { out.leaves[id] = was; continue; } // never back up
+      if (!was && Object.keys(W.leaves).length >= 20000) continue; // a bound on what one shard keeps
+      W.leaves[id] = out.leaves[id] = { p };
+    }
+  }
+  if (Array.isArray(patch?.shut)) { out.shut = []; for (const id of patch.shut.slice(0, 16)) if (id40(id)) out.shut.push(id); }
+  if (Array.isArray(patch?.pound)) {
+    out.pound = [];
+    for (const b of patch.pound.slice(0, 16)) if (b && id40(b.d)) out.pound.push({ d: b.d, k: b.k === 'slam' || b.k === 'frenzy' ? b.k : 'thump', n: Math.max(1, Math.min(20, Math.round(Number(b.n) || 1))) });
+  }
   const D = patch?.deadNpc;
   if (D && id40(D.id) && !W.deadNpcs[D.id]) {
     W.deadNpcs[D.id] = out.deadNpc = { id: D.id, name: String(D.name ?? D.id).slice(0, 40), by: S.char.name, at: new Date().toISOString() };
@@ -119,7 +139,7 @@ function worldView() {
   // Every character's parked car (the page shows the others' as locked; its own as its own).
   const cars = Object.values(store.chars.byId).filter((c) => c.data?.car && num(c.data.car.x) && num(c.data.car.z))
     .map((c) => ({ char: c.id, name: c.name, flag: c.flag, car: { t: c.data.car.type, x: c.data.car.x, z: c.data.car.z, h: c.data.car.h ?? 0, c: c.data.car.paint ?? '#6a2a1a', hp: c.data.car.hp ?? null, seed: c.data.car.seed ?? null } }));
-  return { interiors: W.interiors, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, cars, chronicle: W.chronicle.slice(-30), created: W.created };
+  return { interiors: W.interiors, leaves: W.leaves ?? {}, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, cars, chronicle: W.chronicle.slice(-30), created: W.created };
 }
 
 // ---- messages -------------------------------------------------------------------------------------------------------
@@ -284,7 +304,7 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/who') return json(200, { ok: true, shard: NAME, online: inWorld().map((S) => ({ user: S.user, id: S.char.id, name: S.char.name, flag: S.char.flag, x: S.pres?.x ?? null, z: S.pres?.z ?? null, weapon: S.pres?.w ?? null, vehicle: S.pres?.v?.t ?? null, hp: S.pres?.hp ?? null, since: new Date(S.enteredAt).toISOString(), warps: S.warps ?? 0 })),
       connections: sessions.size, accounts: Object.keys(store.accounts.users).length, characters: Object.keys(store.chars.byId).length });
     const W = store.world;
-    return json(200, { ok: true, shard: NAME, data: DATA, doors: Object.keys(W.interiors.d).length, windows: Object.keys(W.interiors.w).length, interiors: W.interiors, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, standings: W.standings, chronicle: W.chronicle.slice(-20), stats: W.stats });
+    return json(200, { ok: true, shard: NAME, data: DATA, doors: Object.keys(W.interiors.d).length, windows: Object.keys(W.interiors.w).length, interiors: W.interiors, leaves: W.leaves ?? {}, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, standings: W.standings, chronicle: W.chronicle.slice(-20), stats: W.stats });
   }
   json(404, { ok: false, error: 'not here', hint: `the shard speaks WebSocket at ${SHARD_PATH}; GET /health, /who, /world` });
 });

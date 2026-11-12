@@ -115,6 +115,7 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `data/workshop.js` | the `UTILITY.dronebay` row (with a `bodies` list) |
 | `systems/garage.js` | `addUtility`: one line refusing a row whose `bodies` list leaves the car's chassis out |
 | `data/controls.js` | the `dronebay` row (Backslash; pad VIEW+LEFT driving and riding) |
+- **WEB_DOOR_POUND.md (2026-11-12):** a barricade's hp is beaten before the door's leaf; a lean (hold E) takes 0.45 of each blow on the lock as well.
 
 ## 7. Tuning knobs
 | Knob (data/gadgets.js) | Default | Safe range | Affects |

@@ -31,7 +31,11 @@
 //              scatter         m a HEARD spot is off by (a sound gives a direction and a rough distance, never a point)
 //   door     { every, dmg }   one thump every `every` s takes `dmg` off a locked door's lock (planks and furniture add
 //                             theirs: data/gadgets.js BARRICADES). Only with something remembered behind it (an Echo
-//                             works one regardless: that is what it is)
+//                             works one regardless: that is what it is). A SHUT door (on its latch, not locked) is
+//                             beaten the same way, off the leaf's own hp (data/interiors.js DOOR_MATERIALS.hp)
+//   frenzy   (sprinter only) { every, dmg, slam, slamCool }: while it is in its burst a sprinter POUNDS: a blow every
+//            `every` s for `dmg` each, and as it reaches the door at a run it throws itself at it once for `slam`
+//            (again only if it left that door for slamCool s). Out of its burst it thumps like a shambler (`door`). WEB_DOOR_POUND.md
 //   legs     hp of legs: rolled leg hits (data/gear.js HIT_ODDS) past it and it is a CRAWLER (`crawl` m/s, low, bites ankles)
 //   lunge    { at, speed, t, cool }  a target it can see this close and it throws itself the last metres
 //   fall     { dmg, chance, getUp }  a hit this hard knocks it down `chance` of the time; it gets up after getUp s
@@ -51,7 +55,7 @@ export const INFECTED = {
   sprinter: {
     name: 'Shambler', hp: 55, trigger: 5.0, ear: 20, wake: 25, burst: 6, chase: 30, burstSpeed: 9, claw: 1.4, overheat: 3, rearm: 4,
     sense: { sight: 34, night: 14, lit: 40, cone: 70, near: 5, steps: 1.3, hear: 1.2, smell: 4.5, memory: 30, search: 14, searchR: 9, scatter: 4 },
-    door: { every: 2.0, dmg: 6 }, legs: 26, crawl: 0.7,
+    door: { every: 2.0, dmg: 6 }, frenzy: { every: 0.42, dmg: 7, slam: 30, slamCool: 4 }, legs: 26, crawl: 0.7,
     lunge: { at: 4.0, speed: 10, t: 0.4, cool: 2.5 },
     fall: { dmg: 24, chance: 0.6, getUp: 1.6, grab: 2.0 },
     fire: 6, light: 70,
@@ -72,6 +76,47 @@ export const INFECTED = {
 
 // The three breeds, in the order a horde is made of them.
 export const BREEDS = ['shambler', 'sprinter', 'echo'];
+
+// HOW EACH BREED SOUNDS (docs/design/WEB_BREEDS.md §3.1). [set, kind] pairs in data/audiosets.js (made takes first, the
+// library's as a fallback inside systems/audio.js); `range` m each is heard to. A dormant sprinter sounds like the
+// shambler it looks like (the uncertainty is the point): only its scream, its run and its rage give it away.
+//   idle     what the nearest one you cannot see does every few seconds (WARNINGS.groan: you hear them before you see them)
+//   notice   the moment it first perceives one of the living (a shambler's rising moan; the sprinter's is its scream)
+//   work     its hands on your boards or your door
+export const BREED_VOICE = {
+  shambler: { idle: ['shambler', 'groan'], notice: ['shambler', 'notice'], range: 50, noticeEvery: 8 },
+  sprinter: { idle: ['shambler', 'groan'], notice: ['sprinter', 'scream'], chase: ['sprinter', 'chase'], rage: ['sprinter', 'rage'], range: 60 },
+  echo: { idle: ['echo', 'murmur'], work: ['echo', 'work'], range: 26 },
+};
+
+// THE CARD for each breed: what a survivor would tell you, in the game's own words (the K sheet, the Test Lab's lineup,
+// the `zombies cards=true` command). Every line carries its source (law 6 for people too: facts have a source).
+//   is      what it is, one line          tell   how you know it before it has you
+//   wants   what brings it                do     what to do about it
+//   source  where the canon says so (docs/design/THE_INFECTED.md unless another doc is named)
+export const BREED_CARDS = {
+  shambler: {
+    name: 'Shambler', is: 'The herd. Slow, many, and only dangerous together.',
+    tell: 'A low groan before you see it. It walks, and it turns to noise.',
+    wants: 'Noise: a shot, an engine, a horn, a door being beaten. Your smell inside a few metres.',
+    do: 'Walk, do not run. Go round. Throw a noise somewhere else. Never let three reach the same door.',
+    source: 'THE_INFECTED.md §3.1 and §3.4 (noise is THE lever; walk away); WEB_INFECTED.md Wave 2 §3.1-3.3',
+  },
+  sprinter: {
+    name: 'Sprinter', is: 'A shambler until it breaks. Then it runs faster than you.',
+    tell: 'Nothing, until the scream. One stands wrong in the herd; you find out which when you run.',
+    wants: 'You, moving fast or seen. A shot nearby. It screams, then charges where you stood.',
+    do: 'Step aside from the charge. Get a door between you and shut it; it will beat on it. It wears out: bent double, wheezing, three seconds.',
+    source: 'THE_INFECTED.md §3.1 and §3.4 (walk is safe, run wakes it; the overheat window); WEB_INFECTED.md Wave 2 §3.2; WEB_DOOR_POUND.md §3.2',
+  },
+  echo: {
+    name: 'Echo', is: 'The one that works. At your boards, your door, your glass, while you are not looking.',
+    tell: 'A murmur: the same half sentence, over and over. It stops moving when you look at it.',
+    wants: 'Your walls. It does not chase; it undoes what you built, and its phrase calls the others to the hole.',
+    do: 'Keep your eyes on it while someone else deals with it. Kill it first. Check your boards when you come home.',
+    source: 'THE_INFECTED.md ruling 0.8 (a worker that waits; the phrase is the approach tell) and §3.4; WEB_INFECTED.md §3; WEB_INFECTED.md Wave 2 §3.3',
+  },
+};
 
 // How far the living's own feet carry (m), by what they are doing: the infected hear it (x their `sense.steps`).
 // A car's engine is its own noise (main.js / zombies.update), not this.
@@ -135,7 +180,21 @@ export function validateInfected(rows = INFECTED, breeds = BREEDS, steps = FOOTS
   const sp = rows.sprinter, ec = rows.echo, sh = rows.shambler;
   if (sp) { num('sprinter.trigger', sp.trigger, 4.7, 7.5); num('sprinter.ear', sp.ear, 5, 40); num('sprinter.burstSpeed', sp.burstSpeed, 7.7, 14); num('sprinter.burst', sp.burst, 1, 30); num('sprinter.chase', sp.chase, sp.burst, 120); num('sprinter.wake', sp.wake, 10, 80); } // faster than you sprint (7.6 m/s, main.js), or it never runs you down
   if (ec && sh && !(ec.door.dmg / ec.door.every > (sh.door.dmg / sh.door.every) * 2)) bad.push('an Echo must work a door more than twice as hard as a shambler');
+  if (sp) {
+    const f = sp.frenzy;
+    num('sprinter.frenzy.every', f?.every, 0.2, 1.5); num('sprinter.frenzy.dmg', f?.dmg, 1, 40); num('sprinter.frenzy.slam', f?.slam, 0, 120); num('sprinter.frenzy.slamCool', f?.slamCool, 1, 30);
+    if (f && sh && !(f.dmg / f.every > (sh.door.dmg / sh.door.every) * 3)) bad.push('a sprinter in its frenzy must pound a door more than three times as hard as a shambler thumps it');
+  }
   if (ec) { num('echo.call', ec.call, 0, 80); num('echo.watch', ec.watch, 10, 80); }
+  // every breed has a voice and a card, and every card line has a source
+  for (const b of breeds) {
+    const V = BREED_VOICE[b], C = BREED_CARDS[b];
+    if (!V?.idle || !Array.isArray(V.idle) || V.idle.length !== 2) bad.push(`BREED_VOICE.${b}: no idle [set, kind]`);
+    if (V) num(`BREED_VOICE.${b}.range`, V.range, 5, 120);
+    if (!C) { bad.push(`BREED_CARDS.${b}: no card`); continue; }
+    for (const f of ['name', 'is', 'tell', 'wants', 'do', 'source']) if (typeof C[f] !== 'string' || C[f].length < (f === 'name' ? 3 : 8)) bad.push(`BREED_CARDS.${b}.${f} is empty`);
+    if (C.source && !/\.md/.test(C.source)) bad.push(`BREED_CARDS.${b}.source names no document`);
+  }
   for (const k of ['walk', 'run', 'crouch', 'swim', 'runAt']) num(`FOOTSTEPS.${k}`, steps[k], 0, 40);
   if (steps.prone !== 0) bad.push('a prone body makes no footsteps');
   if (!(steps.crouch < steps.walk && steps.walk < steps.run)) bad.push('footsteps must go crouch < walk < run');

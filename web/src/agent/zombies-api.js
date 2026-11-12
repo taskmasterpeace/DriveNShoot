@@ -3,7 +3,8 @@
 // learned it - the hordes on the move) and the lane's named selftest checks (each returns true or a JSON diagnostic).
 // The player acts through the real body (stance, the flashlight, the shot's noise); the infected, doors and fires are staged.
 import * as THREE from 'three';
-import { INFECTED, BREEDS, FOOTSTEPS, DRIFT, INSIDE, validateInfected } from '../data/infected.js';
+import { INFECTED, BREEDS, FOOTSTEPS, DRIFT, INSIDE, BREED_VOICE, BREED_CARDS, validateInfected } from '../data/infected.js';
+import { resolve } from '../data/audiosets.js';
 import { TRACK_KINDS } from '../data/outdoors.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -22,11 +23,12 @@ export function zombiesCommands(api, need) {
   };
   return {
     zombies: {
-      group: 'world', desc: "THE INFECTED's minds (docs/design/WEB_INFECTED.md and its Wave 2 lane doc; rows data/infected.js): three breeds (shambler, sprinter, echo; the Choir-Touched is a site special) and what each one KNOWS (law 6: only what it saw, heard or smelled; a last-known spot it walks to, searches round and forgets; never your true position). No args: the breeds' rows in short, validateInfected, the counters (remembered, forgot, thumps, doors broken, crawlers, lunges, falls, lights, fire), every mind within radius= m (sees, how, memory src/age/spot/searching, what door or window it is working, a fire it keeps from) and the hordes on the move (a drift toward a noise they heard). id=<id>: that one mind. spawn=shambler|sprinter|echo at x,z (default 14 m east of you). crawl=<id> takes its legs (a crawler). leg=<id> dmg= puts a leg hit on it as a shot would. occupy=<kind> fills a w x d box at x,z with who is inside that kind of building (INSIDE rows). rows=true: the full rows.",
-      args: { radius: { type: 'number', default: 60 }, id: { type: 'string' }, spawn: { type: 'string', enum: BREEDS }, x: { type: 'number' }, z: { type: 'number' }, crawl: { type: 'string' }, leg: { type: 'string' }, dmg: { type: 'number', default: 40 }, occupy: { type: 'string' }, w: { type: 'number', default: 10 }, d: { type: 'number', default: 10 }, rows: { type: 'boolean' } },
-      run: async ({ radius, id, spawn, x, z, crawl, leg, dmg, occupy, w, d, rows }) => {
+      group: 'world', desc: "THE INFECTED's minds (docs/design/WEB_INFECTED.md and its Wave 2 lane doc; rows data/infected.js): three breeds (shambler, sprinter, echo; the Choir-Touched is a site special) and what each one KNOWS (law 6: only what it saw, heard or smelled; a last-known spot it walks to, searches round and forgets; never your true position). No args: the breeds' rows in short, validateInfected, the counters (remembered, forgot, thumps, doors broken, crawlers, lunges, falls, lights, fire), every mind within radius= m (sees, how, memory src/age/spot/searching, what door or window it is working, a fire it keeps from) and the hordes on the move (a drift toward a noise they heard). id=<id>: that one mind. spawn=shambler|sprinter|echo at x,z (default 14 m east of you). crawl=<id> takes its legs (a crawler). leg=<id> dmg= puts a leg hit on it as a shot would. occupy=<kind> fills a w x d box at x,z with who is inside that kind of building (INSIDE rows). rows=true: the full rows. cards=true: THE THREE BREEDS as a survivor would tell them (what it is, how you know it, what brings it, what to do), each line's source, each breed's voice (how many shipped takes) and its numbers (docs/design/WEB_BREEDS.md).",
+      args: { radius: { type: 'number', default: 60 }, id: { type: 'string' }, spawn: { type: 'string', enum: BREEDS }, x: { type: 'number' }, z: { type: 'number' }, crawl: { type: 'string' }, leg: { type: 'string' }, dmg: { type: 'number', default: 40 }, occupy: { type: 'string' }, w: { type: 'number', default: 10 }, d: { type: 'number', default: 10 }, rows: { type: 'boolean' }, cards: { type: 'boolean' } },
+      run: async ({ radius, id, spawn, x, z, crawl, leg, dmg, occupy, w, d, rows, cards }) => {
         const Z = g.zombies;
         if (rows) return { INFECTED, BREEDS, FOOTSTEPS, DRIFT, INSIDE, problems: validateInfected() };
+        if (cards) return { cards: BREEDS.map((k) => ({ breed: k, ...BREED_CARDS[k], voice: Object.fromEntries(Object.entries(BREED_VOICE[k]).filter(([, v]) => Array.isArray(v)).map(([n, v]) => [n, { id: v.join('/'), takes: resolve(v[0], v[1])?.files.length ?? 0 }])), pace: (INFECTED[k].speed ?? INFECTED.shambler.speed).join('-') + ' m/s', runs: INFECTED[k].burstSpeed ?? null, door: k === 'sprinter' ? `${INFECTED[k].frenzy?.dmg}/${INFECTED[k].frenzy?.every}s in its burst` : `${INFECTED[k].door.dmg}/${INFECTED[k].door.every}s`, comesAtYou: k !== 'echo' })), problems: validateInfected() };
         if (spawn) {
           const at = { x: x ?? P().x + 14, z: z ?? P().z };
           const c = spawn === 'echo' ? Z.spawnKind('echo', at.x, at.z) : Z.spawn(at.x, at.z, spawn === 'sprinter');
@@ -303,5 +305,70 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       const shirts = new Set(made.map((c) => c.colors.shirt)), skins = new Set(made.map((c) => c.colors.skin)), blood = Math.max(...made.map((c) => c.blood));
       return made.length === 12 && shirts.size >= 6 && skins.size >= 4 && blood <= 0.6 ? true : JSON.stringify({ n: made.length, shirts: shirts.size, skins: skins.size, blood: r1(blood) });
     } finally { gone(...made); g.godMode = false; }
+  }));
+
+  // ---- THE THREE BREEDS read apart (docs/design/WEB_BREEDS.md §8) --------------------------------------------------------
+  await check('breeds: every breed has a voice and a card - each voice id resolves to shipped takes (two or more), each card line names its source document, and a card with no source or a breed with no voice is caught', async () => {
+    const bad = validateInfected();
+    const thin = [];
+    for (const b of BREEDS) for (const [k, v] of Object.entries(BREED_VOICE[b])) if (Array.isArray(v)) { const r = resolve(v[0], v[1]); if (!r || r.files.length < 2) thin.push(`${b}.${k} ${v.join('/')}: ${r?.files.length ?? 0}`); }
+    const keepC = BREED_CARDS.echo.source, keepV = BREED_VOICE.shambler.idle;
+    BREED_CARDS.echo.source = 'somebody said'; BREED_VOICE.shambler.idle = null;
+    const caught = validateInfected();
+    BREED_CARDS.echo.source = keepC; BREED_VOICE.shambler.idle = keepV;
+    const differ = new Set(BREEDS.map((b) => BREED_CARDS[b].tell)).size === 3 && new Set(BREEDS.map((b) => BREED_VOICE[b].idle.join('/') + '|' + (BREED_VOICE[b].notice ?? BREED_VOICE[b].work).join('/'))).size === 3;
+    return (bad.length === 0 && thin.length === 0 && caught.some((x) => /source/.test(x)) && caught.some((x) => /BREED_VOICE.shambler/.test(x)) && differ) || { bad, thin, caught, differ };
+  });
+
+  await check('breeds: they sound apart - a shambler that picks you out lets out its notice once (not again while it still has you), the nearest unseen one groans in the shambler voice, and an Echo alone never groans (it murmurs: its own takes)', async () => hush(async () => {
+    await flats();
+    const made = [];
+    try {
+      upright();
+      const p = P(), ev0 = g.eventSeq, n0 = Z.counts.notices ?? 0;
+      const s = Z.spawn(p.x + 18, p.z, false); made.push(s); s.x = p.x + 18; s.z = p.z; s.zSpeed = 0; standStill(s); facing(s, p);
+      await C('step', { seconds: 2.5 });
+      const first = g.events.filter((e) => e.seq > ev0 && e.type === 'infectedNotice' && e.id === s.id).length, saw = s.zsee === p;
+      Z.enabled = true; // the groan clock is the herd's own update (hush had it off)
+      await C('step', { seconds: 5 });
+      const again = g.events.filter((e) => e.seq > ev0 && e.type === 'infectedNotice' && e.id === s.id).length;
+      const groans = g.events.filter((e) => e.seq > ev0 && e.type === 'groanHeard' && e.id === s.id);
+      // which take is asked for FIRST (headless has no audio: the fallbacks are asked after it)
+      const asked = [], real = g.audio.sample;
+      g.audio.sample = function (set, kind, at) { asked.push(`${set}/${kind}`); return real.call(this, set, kind, at); };
+      let gs = null, ms = null;
+      try { g.audio.groan(0, 5, BREED_VOICE.shambler.idle); gs = asked[0] ?? null; asked.length = 0; g.audio.murmur(0, 5); ms = asked[0] ?? null; } finally { g.audio.sample = real; }
+      gone(s);
+      // an Echo alone: no groan is ever its
+      clearRound(p.x, p.z, 80);
+      const e = Z.spawnKind('echo', p.x + 16, p.z); made.push(e);
+      const ev1 = g.eventSeq;
+      await C('step', { seconds: 7 });
+      const echoGroans = g.events.filter((x) => x.seq > ev1 && x.type === 'groanHeard').length;
+      Z.enabled = false;
+      const ok = saw && first === 1 && again === 1 && (Z.counts.notices ?? 0) - n0 >= 1 && groans.length >= 1 && groans.every((x) => x.breed === 'shambler') && gs === 'shambler/groan' && echoGroans === 0 && ms === 'echo/murmur';
+      return ok || { saw, first, again, groans: groans.length, gs, echoGroans, ms };
+    } finally { gone(...made); g.godMode = false; }
+  }));
+
+  await check('breeds: the lineup and the door scenario stage what their cards say - three-breeds stands a herd of five, a sprinter breaking and an Echo with a card each; door-siege puts you in an open doorway with a sprinter that has seen you and a wooden door E can shut', async () => hush(async () => {
+    try {
+      const a = await C('scenario', { name: 'three-breeds' });
+      const L = a.summary?.lanes, find = (id) => g.chars.find((c) => c.id === id);
+      const sp = L?.sprinter ? find(L.sprinter) : null, ec = L?.echo ? find(L.echo) : null;
+      const lineup = L?.shambler?.length === 5 && L.shambler.every((id) => !find(id)?.zkind) && sp?.zkind === 'sprinter' && sp.zs.state !== 'dormant' && ec?.zkind === 'echo' && a.summary.cards.length === 3 && a.summary.cards.every((c) => /\.md/.test(c.source));
+      if (g.qol.photo) g.qol.togglePhoto(false);
+      for (const id of [...(L?.shambler ?? []), L?.sprinter, L?.echo]) { const c = id ? find(id) : null; if (c) g.removeChar(c); }
+      const b = await C('scenario', { name: 'door-siege' });
+      const d = b.summary?.door ? g.interiors.byId.get(b.summary.door) : null, s2 = b.summary?.sprinter ? find(b.summary.sprinter) : null;
+      const open = !!d && !g.interiors.isShut(d) && !d.locked && !d.broken;
+      const near = d ? g.interiors.openDoorNear(P()) === d : false;
+      await C('step', { seconds: 0.2 });
+      const prompt = g.hud.s.prompt ?? '';
+      const siege = b.summary?.ok === true && open && near && s2?.zkind === 'sprinter' && s2.zs.state !== 'dormant' && b.summary.shamblers.length === 2 && /Shut the door/.test(prompt) && !g.godMode;
+      for (const id of [b.summary?.sprinter, ...(b.summary?.shamblers ?? [])]) { const c = id ? find(id) : null; if (c) g.removeChar(c); }
+      if (d) { for (const Lf of d.leaves) { Lf.th = 0; Lf.w = 0; g.interiors.orient(Lf); } g.interiors.flush(); }
+      return (lineup && siege) || { lineup, lanes: L, spState: sp?.zs?.state, siege, open, near, prompt, sum: b.summary?.ok, why: b.summary?.why };
+    } finally { if (g.qol.photo) g.qol.togglePhoto(false); g.godMode = false; g.zombies.enabled = true; }
   }));
 }

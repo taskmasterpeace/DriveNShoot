@@ -1,0 +1,485 @@
+{
+ "v": 1,
+ "note": "tools/audio-make.mjs writes this (generated sound effects); data/audiosets.js merges it over audio-manifest.json. Files under public/audio/.",
+ "sets": {
+  "common": {
+   "door.pound.wood": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.pound.wood.0.ogg",
+      "src": "made/common/door.pound.wood.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6465
+     },
+     {
+      "f": "common/door.pound.wood.1.ogg",
+      "src": "made/common/door.pound.wood.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6230
+     },
+     {
+      "f": "common/door.pound.wood.2.ogg",
+      "src": "made/common/door.pound.wood.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6352
+     },
+     {
+      "f": "common/door.pound.wood.3.ogg",
+      "src": "made/common/door.pound.wood.3.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6328
+     },
+     {
+      "f": "common/door.pound.wood.4.ogg",
+      "src": "made/common/door.pound.wood.4.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6236
+     }
+    ]
+   },
+   "door.pound.metal": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.pound.metal.0.ogg",
+      "src": "made/common/door.pound.metal.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6147
+     },
+     {
+      "f": "common/door.pound.metal.1.ogg",
+      "src": "made/common/door.pound.metal.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6037
+     },
+     {
+      "f": "common/door.pound.metal.2.ogg",
+      "src": "made/common/door.pound.metal.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6304
+     },
+     {
+      "f": "common/door.pound.metal.3.ogg",
+      "src": "made/common/door.pound.metal.3.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.6,
+      "bytes": 6168
+     }
+    ]
+   },
+   "door.frenzy.wood": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.frenzy.wood.0.ogg",
+      "src": "made/common/door.frenzy.wood.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2,
+      "bytes": 14215
+     },
+     {
+      "f": "common/door.frenzy.wood.1.ogg",
+      "src": "made/common/door.frenzy.wood.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2,
+      "bytes": 14023
+     },
+     {
+      "f": "common/door.frenzy.wood.2.ogg",
+      "src": "made/common/door.frenzy.wood.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2,
+      "bytes": 13678
+     }
+    ]
+   },
+   "door.frenzy.metal": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.frenzy.metal.0.ogg",
+      "src": "made/common/door.frenzy.metal.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2,
+      "bytes": 13654
+     },
+     {
+      "f": "common/door.frenzy.metal.1.ogg",
+      "src": "made/common/door.frenzy.metal.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2,
+      "bytes": 13144
+     }
+    ]
+   },
+   "door.crack": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.crack.0.ogg",
+      "src": "made/common/door.crack.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.9,
+      "bytes": 7896
+     },
+     {
+      "f": "common/door.crack.1.ogg",
+      "src": "made/common/door.crack.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.9,
+      "bytes": 8482
+     },
+     {
+      "f": "common/door.crack.2.ogg",
+      "src": "made/common/door.crack.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.9,
+      "bytes": 8768
+     }
+    ]
+   },
+   "door.break": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.break.0.ogg",
+      "src": "made/common/door.break.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 8878
+     },
+     {
+      "f": "common/door.break.1.ogg",
+      "src": "made/common/door.break.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 10433
+     },
+     {
+      "f": "common/door.break.2.ogg",
+      "src": "made/common/door.break.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 11508
+     }
+    ]
+   },
+   "door.shut": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "common/door.shut.0.ogg",
+      "src": "made/common/door.shut.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.8,
+      "bytes": 7657
+     },
+     {
+      "f": "common/door.shut.1.ogg",
+      "src": "made/common/door.shut.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.8,
+      "bytes": 7522
+     },
+     {
+      "f": "common/door.shut.2.ogg",
+      "src": "made/common/door.shut.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 0.8,
+      "bytes": 7056
+     }
+    ]
+   }
+  },
+  "sprinter": {
+   "scream": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "sprinter/scream.0.ogg",
+      "src": "made/sprinter/scream.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 11885
+     },
+     {
+      "f": "sprinter/scream.1.ogg",
+      "src": "made/sprinter/scream.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 11539
+     },
+     {
+      "f": "sprinter/scream.2.ogg",
+      "src": "made/sprinter/scream.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 11386
+     },
+     {
+      "f": "sprinter/scream.3.ogg",
+      "src": "made/sprinter/scream.3.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 11112
+     },
+     {
+      "f": "sprinter/scream.4.ogg",
+      "src": "made/sprinter/scream.4.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.6,
+      "bytes": 10341
+     }
+    ]
+   },
+   "chase": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "sprinter/chase.0.ogg",
+      "src": "made/sprinter/chase.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.4,
+      "bytes": 10798
+     },
+     {
+      "f": "sprinter/chase.1.ogg",
+      "src": "made/sprinter/chase.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.4,
+      "bytes": 10861
+     },
+     {
+      "f": "sprinter/chase.2.ogg",
+      "src": "made/sprinter/chase.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.4,
+      "bytes": 11220
+     },
+     {
+      "f": "sprinter/chase.3.ogg",
+      "src": "made/sprinter/chase.3.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.4,
+      "bytes": 11086
+     }
+    ]
+   },
+   "rage": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "sprinter/rage.0.ogg",
+      "src": "made/sprinter/rage.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 8273
+     },
+     {
+      "f": "sprinter/rage.1.ogg",
+      "src": "made/sprinter/rage.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 8741
+     },
+     {
+      "f": "sprinter/rage.2.ogg",
+      "src": "made/sprinter/rage.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 9114
+     }
+    ]
+   }
+  },
+  "shambler": {
+   "groan": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "shambler/groan.0.ogg",
+      "src": "made/shambler/groan.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.8,
+      "bytes": 12233
+     },
+     {
+      "f": "shambler/groan.1.ogg",
+      "src": "made/shambler/groan.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.8,
+      "bytes": 12612
+     },
+     {
+      "f": "shambler/groan.2.ogg",
+      "src": "made/shambler/groan.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.8,
+      "bytes": 12275
+     },
+     {
+      "f": "shambler/groan.3.ogg",
+      "src": "made/shambler/groan.3.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.8,
+      "bytes": 12137
+     },
+     {
+      "f": "shambler/groan.4.ogg",
+      "src": "made/shambler/groan.4.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.8,
+      "bytes": 12386
+     }
+    ]
+   },
+   "notice": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "shambler/notice.0.ogg",
+      "src": "made/shambler/notice.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 8509
+     },
+     {
+      "f": "shambler/notice.1.ogg",
+      "src": "made/shambler/notice.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 8640
+     },
+     {
+      "f": "shambler/notice.2.ogg",
+      "src": "made/shambler/notice.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 9052
+     }
+    ]
+   }
+  },
+  "echo": {
+   "murmur": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "echo/murmur.0.ogg",
+      "src": "made/echo/murmur.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2.4,
+      "bytes": 14883
+     },
+     {
+      "f": "echo/murmur.1.ogg",
+      "src": "made/echo/murmur.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2.4,
+      "bytes": 14408
+     },
+     {
+      "f": "echo/murmur.2.ogg",
+      "src": "made/echo/murmur.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2.4,
+      "bytes": 14922
+     },
+     {
+      "f": "echo/murmur.3.ogg",
+      "src": "made/echo/murmur.3.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 2.4,
+      "bytes": 11541
+     }
+    ]
+   },
+   "work": {
+    "mode": "shot",
+    "files": [
+     {
+      "f": "echo/work.0.ogg",
+      "src": "made/echo/work.0.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1,
+      "bytes": 10124
+     },
+     {
+      "f": "echo/work.1.ogg",
+      "src": "made/echo/work.1.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1,
+      "bytes": 3420
+     },
+     {
+      "f": "echo/work.2.ogg",
+      "src": "made/echo/work.2.mp3",
+      "lic": "made",
+      "at": 0,
+      "dur": 1,
+      "bytes": 10352
+     }
+    ]
+   }
+  }
+ },
+ "bytes": 497031
+}
