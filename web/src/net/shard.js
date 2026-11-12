@@ -363,6 +363,7 @@ export class Shard {
       n++;
     }
     if (!n && !whole) return;
+    cur.fresh = false; // a patch, not a new game: the blows in flight on streamed doors are kept (interiors.ringPound)
     g.interiors.load(cur);
     // What the world just told us is not news to send back.
     const k = this.interiorKeys(g.interiors.save());

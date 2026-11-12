@@ -102,13 +102,16 @@ street are turning their heads. Either you find planks, or a back window, or you
   Fists on a door bring a sprinter at a walk; they never set it screaming (only you, or a loud noise, do that).
 
 ### 3.3 Holding it
-- With the infected within `DOOR.threat` (24 m), a shut door within a boot's reach (`DOOR.kickReach`, 2.2 m) is what E
-  does, before the person beside you or your dog (`interiors.shutDoorNear`), the same as shutting. E at it
-  never kicks it (a boot would throw open the door that is keeping them out). Within `DOOR.braceReach` (1.5 m), holding
-  E **leans** on it from the first frame (`interiors.brace`); further off the prompt says to step up to it. You still
-  open a door by walking into it.
+- **When E leans.** At an UNLOCKED shut door: as soon as the infected are within `DOOR.threat` (24 m), or the door was
+  beaten within `DOOR.underAttack` (4 s). At a LOCKED or barred shut door: while it is being beaten (within 4 s of a
+  blow); otherwise its lock is yours to work as before (kick, pick, pry). In those cases E at the door never kicks it (a
+  boot would throw open the door that is keeping them out, or kick your own lock and planks off under their fists).
+- **E's order:** such a door within the E key's own door reach (1.9 m, `interiors.shutDoorNear`) is what E does, before
+  the person beside you or your dog, the same as shutting. A car beside it keeps its own keys (F, C, G).
+- Within `DOOR.braceReach` (1.5 m), holding E **leans** on it from the first frame (`interiors.brace`); further off the
+  prompt says to step up to it. You still open an unlocked door by walking into it.
 - While leaned on, each blow does `DOOR.braceMul` (0.45) of its damage, to the leaf or to the lock.
-- The prompt reads `LEANING ON THE DOOR · 62% left`, or `steel: it will hold`.
+- The prompt reads `LEANING ON THE DOOR · 62% left`, `steel: it will hold`, or for a locked or barred door `the lock holds · 240 left` / `the bar holds · 240 left`.
 - **Barricades** (WEB_GADGETS, unchanged): a wedge (+25), planks (+300) or furniture (+420) lock the door and add to the
   lock's hp. That is beaten first, and then the leaf.
 
@@ -173,8 +176,9 @@ The shard's model is that each page simulates its own surroundings and reports w
 - **Something in the doorway** (you, anyone, a body, a car): the door will not shut. Clear it first.
 - **A double door:** shut when both leaves are; one blow shudders both.
 - **A door ajar** (more than 8° open): not shut. The infected push it open, and E pulls it shut.
-- **A wild creature** (the Greyborn, the hot ground's): not held by a latch (they have their own minds and do not beat
-  doors); they push a door open as before.
+- **A wild creature** (the Greyborn, the hot ground's): not held by a latch; it pushes a shut door open as before, and
+  pressed against a LOCKED door it still wears the lock down by contact (the old rule, kept for them: they have no
+  memory rows to ask).
 - **The infected inside a shut house:** they stay in until they sense something past a door. A house with its doors
   shut can hold a surprise.
 - **A herd, a migration or a lure walking with no memory of anyone:** it meets a shut door as it meets a wall and goes
@@ -237,7 +241,8 @@ The shard's model is that each page simulates its own surroundings and reports w
    fallen and at least 3 `doorPound` events fired.
 3. **A sprinter at the door:** it screams, slams, strikes at least 4 frenzy blows and has a wooden door off its hinges
    and is through in under 15 s. Leaned on, the door takes at least 1.5× as long. Locked, at least 1.2× as long, and it
-   ends broken (the lock, then the leaf). Barred with planks, at least 2× as long and longer than the lock alone.
+   ends broken (the lock, then the leaf); locked AND leaned on, at least 1.3× the locked time with no kick recorded.
+   Barred with planks, at least 2× as long and longer than the lock alone.
 4. **The noise draws more:** a shambler resting 24 m off that remembers nothing after 4 s of quiet gets a `sound`
    memory within 12 s of the pounding starting and closes at least 6 m on the door.
 5. **It gives up:** a steel door loses no hp and does not break. With TWO sprinters at it and you 150 m away, within
@@ -260,7 +265,9 @@ Before / after: `docs/renders/web/door-pound/zed-pound-before.jpg` (the infected
 `zed-pound-after-1-pounding.jpg` (a sprinter and a shambler beating the shut door, 83 of 189 left) and
 `zed-pound-after-2-door-down.jpg` (off its hinges, all three inside).
 
-Critic review 2026-11-12. Second pass FAIL, six items, fixed in the commit after: the old contact rule still flung a
+Critic review 2026-11-12. Third pass FAIL, two items, fixed in the commit after: a locked or barred door being beaten
+could not be leaned on and E kicked your own lock off; a car key beside the door also whistled the dog (and G could
+board a train). Second pass FAIL, six items, fixed in the commit after: the old contact rule still flung a
 locked door open and needed no memory; a car anywhere near counted as in the doorway; a streamed door lost its pound
 state (and gave a sprinter a fresh slam) on every remote patch; a dog, a friend or a car could take the lean key; a
 hunting Echo dithered at shut doors; the car's own keys were dead beside an open door. First pass FAIL, twelve items,
