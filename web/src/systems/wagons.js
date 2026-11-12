@@ -33,9 +33,10 @@ export class Wagons {
     const P = this.g.player;
     for (const w of WAGONS) {
       if (this.placed.has(w.id) || Math.hypot(P.x - w.x, P.z - w.z) > 300) continue; // put down when you first come near
-      if (this.g.vehicles.some((q) => q.wagonRow === w.id)) { this.placed.add(w.id); continue; } // already standing (a load brought it back)
+      const id = `seed:${w.id}`; // the same on every page and load: the shard's takeVehicle claims it once for everyone (net/shard.js)
+      if (this.g.shard?.taken?.[id] || this.g.vehicles.some((q) => q.wagonRow === w.id || q.id === id || q.shardSeed === id)) { this.placed.add(w.id); continue; } // driven off on the shard, or a load brought it back
       const v = this.g.vehiclesSys.spawn('wagon', w.x, w.z, w.h, w.paint);
-      if (v) { v.wagonRow = w.id; this.counts.placed++; }
+      if (v) { v.id = id; this.g.shard?.seedVehicles?.add(id); v.wagonRow = w.id; this.counts.placed++; }
       this.placed.add(w.id);
     }
   }
