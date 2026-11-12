@@ -108,7 +108,7 @@ export const FREIGHT = {
   every: [240, 420], cruise: 13, wideCruise: 10, goneR: 3200,
   rigs: {
     boxes: [
-      { role: 'rig', tractor: 'semi', trailer: 'box', gap: 0, paint: '#7a4a24', cargo: ['sedan'] },
+      { role: 'rig', tractor: 'semi', trailer: 'box', gap: 0, paint: '#7a4a24', cargo: ['sedan', 'suv'] }, // the SUV: VEHICLES V2 slice 5 (systems/suv.js)
       { role: 'rig', tractor: 'semi', trailer: 'box', gap: 26, paint: '#4a5a3a', cargo: [] },
     ],
     wideload: [

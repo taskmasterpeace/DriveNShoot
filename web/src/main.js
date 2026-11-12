@@ -44,6 +44,7 @@ import { CharSheet } from './ui/charsheet.js';
 import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
+import './systems/suv.js'; // VEHICLES V2 slice 5: the SUV (its row, body, glass and chassis)
 import { WorkshopUI } from './ui/workshop.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
