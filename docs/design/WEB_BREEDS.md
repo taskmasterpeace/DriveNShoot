@@ -63,8 +63,9 @@ the `three-breeds` scenario's summary.
 
 ### 3.3 The Test Lab
 - **The three breeds** (`three-breeds`, LOOK): a herd of five shamblers, a sprinter reared back in its scream and an
-  Echo standing at its post, 9 m apart on open ground, frozen in photo mode. Each is named on screen by a toast (its
-  name, what it is, its tell); the full cards are in the scenario's summary. `photo on=false` lets them loose.
+  Echo standing at its post, 9 m apart on open ground, west to east, frozen in photo mode. Photo mode hides the HUD,
+  so nothing is written over them: the Test Lab card itself says which is which in one line each, and the full cards
+  are in the scenario's summary and in `cards=true`. `photo on=false` lets them loose.
 - **A sprinter at your door** (`door-siege`, PLAY): you stand in an open doorway in the ruins with a pistol and one set
   of planks; a sprinter 16 m out has seen you and two shamblers will follow the noise. No god mode.
 
@@ -117,8 +118,8 @@ the `three-breeds` scenario's summary.
 2. **They sound apart:** a shambler facing you 18 m off emits `infectedNotice` once in 2.5 s and not again in the next
    9 s of unbroken sight (past the 8 s per-body gap: it has not lost you); it groans (`groanHeard`, breed `shambler`); `audio.groan` with the shambler's voice asks for `shambler/groan`
    first and `audio.murmur` for `echo/murmur`; an Echo alone for 7 s produces no `groanHeard`.
-3. **The scenarios:** `three-breeds` stands five shamblers, a sprinter out of its dormant state and an Echo, names all
-   three on screen (three toasts) and returns three cards whose sources name documents; `door-siege` leaves an open, unlocked, unbroken wooden door within your reach,
+3. **The scenarios:** `three-breeds` stands five shamblers, a sprinter out of its dormant state and an Echo, and returns three
+   cards whose sources name documents; `door-siege` leaves an open, unlocked, unbroken wooden door within your reach,
    a sprinter that is not dormant, two shamblers, the prompt "Shut the door" and god mode off.
 
 Picture: `docs/renders/web/breeds/zed-breeds-after-lineup-cards.jpg` (the lineup from the game camera with each card
@@ -127,4 +128,5 @@ under its lane). Before this slice there was no card and one groan for all three
 Critic review 2026-11-12, first pass FAIL, four items, fixed in the next commit: an unescaped apostrophe in the Test Lab
 page blanked every card; the Echo's card said it does not chase (it stalks and ambushes once it knows of you); this doc
 misstated the sprinter's ranges and a hunting Echo's murmur and cited ruling 0.12 while not following it; the lineup
-claimed an Echo at a boarded window and cards on screen.
+claimed an Echo at a boarded window and cards on screen (now: an Echo at its post, and the one-line tells on the Test Lab
+card, since photo mode hides the HUD).

@@ -364,7 +364,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       const a = await C('scenario', { name: 'three-breeds' });
       const L = a.summary?.lanes, find = (id) => g.chars.find((c) => c.id === id);
       const sp = L?.sprinter ? find(L.sprinter) : null, ec = L?.echo ? find(L.echo) : null;
-      const lineup = L?.shambler?.length === 5 && L.shambler.every((id) => !find(id)?.zkind) && sp?.zkind === 'sprinter' && sp.zs.state !== 'dormant' && ec?.zkind === 'echo' && a.summary.cards.length === 3 && a.summary.cards.every((c) => /\.md/.test(c.source)) && g.events.filter((e) => e.type === 'toast' && /SHAMBLER ·|SPRINTER ·|ECHO ·/.test(e.text ?? '')).length >= 3;
+      const lineup = L?.shambler?.length === 5 && L.shambler.every((id) => !find(id)?.zkind) && sp?.zkind === 'sprinter' && sp.zs.state !== 'dormant' && ec?.zkind === 'echo' && a.summary.cards.length === 3 && a.summary.cards.every((c) => /\.md/.test(c.source));
       if (g.qol.photo) g.qol.togglePhoto(false);
       for (const id of [...(L?.shambler ?? []), L?.sprinter, L?.echo]) { const c = id ? find(id) : null; if (c) g.removeChar(c); }
       const b = await C('scenario', { name: 'door-siege' });

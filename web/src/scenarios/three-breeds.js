@@ -1,7 +1,8 @@
 // THE THREE BREEDS, side by side (docs/design/WEB_BREEDS.md): a Shambler herd, a Sprinter (shown as it breaks), and an
-// Echo standing at its post, each in its own lane 9 m apart on open ground with you 14 m in front of them. Each is named
-// on screen (a toast: its name and what it is); the summary carries the full cards (how you know it, what to do, the
-// source). Frozen in photo mode so the shot holds still. Re-running restages it; `photo on=false` then `god on=false`
+// Echo standing at its post, each in its own lane 9 m apart on open ground with you 14 m in front of them. West to east:
+// herd, sprinter, Echo (the Test Lab card says which is which; photo mode hides the HUD, so nothing is written over
+// them). The summary carries the full cards (what it is, how you know it, what to do, the source). Frozen in photo mode
+// so the shot holds still. Re-running restages it; `photo on=false` then `god on=false`
 // lets them loose on you.
 //   node tools/dl.mjs scenario name=three-breeds
 //   node tools/dl.mjs screenshot zoom=20 --out breeds.jpg
@@ -31,7 +32,6 @@ export default async function (DL, game) {
   const e = Z.spawnKind('echo', AT.x + 9, AT.z);
   if (e) { e.x = AT.x + 9; e.z = AT.z; face(e); }
   await DL.step({ seconds: 0.25 });
-  for (const k of BREEDS) g.hud.toast(`${BREED_CARDS[k].name.toUpperCase()} · ${BREED_CARDS[k].is} ${BREED_CARDS[k].tell}`, 'job'); // named on screen, west to east
   if (!g.qol.photo) g.qol.togglePhoto(true);
   const row = (k) => ({ breed: k, ...BREED_CARDS[k], pace: `${(INFECTED[k].speed ?? INFECTED.shambler.speed).join('-')} m/s${INFECTED[k].burstSpeed ? `, ${INFECTED[k].burstSpeed} m/s in its burst` : ''}` });
   return {
