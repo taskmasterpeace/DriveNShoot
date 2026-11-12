@@ -429,7 +429,7 @@ export class Zombies {
     let best = null, bd = 2.4;
     for (const d of I?.doors ?? []) {
       const k = Math.abs(d.x - c.x) + Math.abs(d.z - c.z);
-      if (k >= bd || (d.ug ?? null) !== (c.ug ?? null) || (!d.locked && !I.isShut(d))) continue;
+      if (k >= bd || (d.ug ?? null) !== (c.ug ?? null) || (!d.locked && (c.zkind === 'echo' || !I.isShut(d)))) continue;
       if (!this.through(c, d)) continue; // it lies toward what it wants, with nothing between it and the door
       bd = k; best = d;
     }
@@ -456,16 +456,16 @@ export class Zombies {
     // It has to be AT the thing to beat it (a door seen from across the room is walked to first); the thing has to be
     // the one that is there now (a streamed door is re-made when its building comes back); and with a clear line to
     // who it is after it stops beating and goes for them.
-    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6 || (!win && this.g.interiors.byId.get(B.id) !== B) || (c.zsee?.alive && !c.zsee.inVehicle && this.g.sees(c, c.zsee))) { c.zblock = null; c.handsUp = false; return false; }
+    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6 || (!win && this.g.interiors.byId.get(B.id) !== B && !(c.zblock = this.g.interiors.byId.get(B.id) ?? null)) || (c.zsee?.alive && !c.zsee.inVehicle && this.g.sees(c, c.zsee))) { c.zblock = null; c.handsUp = false; return false; }
     c.speed = 0; c.handsUp = true; c.face = Math.atan2(B.x - c.x, B.z - c.z);
     // A sprinter in its burst POUNDS (its frenzy row); out of it, it thumps like the shambler it looks like.
     const F = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl ? SP.frenzy : null, D = F ?? (c.zkind === 'sprinter' ? SH.door : R.door);
     const g = this.g;
     // It hits the door at a run, the whole body: once as it ARRIVES at this door (again only if it left it for slamCool s).
-    const arrived = c.zslam !== B || g.time - (c.zworkAt ?? -99) > F?.slamCool;
+    const arrived = c.zslam !== B.id || g.time - (c.zworkAt ?? -99) > F?.slamCool;
     c.zworkAt = g.time;
     if (F && !win && arrived) {
-      c.zslam = B; c.zthT = F.every;
+      c.zslam = B.id; c.zthT = F.every;
       g.audio.sample?.('sprinter', 'rage', { x: c.x, z: c.z, range: 50 });
       if (this.thump(B, c, F.slam, 'slam')) { c.zblock = null; c.handsUp = false; }
       return true;

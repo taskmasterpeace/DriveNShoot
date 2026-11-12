@@ -50,7 +50,11 @@ street are turning their heads. Either you find planks, or a back window, or you
     doorway", "someone is in the doorway", "one of them is in the doorway", "a body lies in the doorway", "a vehicle is
     in the doorway".
   - **E's order:** with one of the infected within `DOOR.threat` (24 m, `zombies.near`), an open door in reach is what
-    E does, before the person beside you, the car, your dog, a crate or a bed. Otherwise it comes after all of them.
+    E does, before the person beside you, your dog, a crate or a bed. Otherwise it comes after all of them. A car beside
+    the door keeps its own keys (F, C, G) either way.
+  - **What counts as in the doorway:** a person or a body on that floor within 0.5 m of the leaf's line; a vehicle by its
+    real footprint (its body's discs against the leaf's line), so a car parked along the wall beside the door does not
+    block it and one across it does.
 - A door ajar (past 8°) is E's to shut; it is no longer offered for a kick.
 
 ### 3.2 Beating on it
@@ -80,12 +84,14 @@ street are turning their heads. Either you find planks, or a back window, or you
 
 - **The slam:** as a bursting sprinter reaches the door it throws its whole body at it once for `frenzy.slam` (30), with
   a snarl. It slams again only if it left that door for `frenzy.slamCool` (4 s).
-- **The Echo** is the one that still works doors (canon ruling 0.8). A latch does not hold it: it lets itself in and
-  leaves the door open behind it, for the others. A LOCKED or barricaded door it works as before (26 every 1.4 s, only
-  unobserved), and when the lock gives it swings the door open.
+- **The Echo** is the one that still works doors (canon ruling 0.8). A latch does not hold it: walking, it pushes a shut
+  door open like the living and leaves it open behind it, for the others; a shut door is never its "blocker". A LOCKED or
+  barricaded door it works as before (26 every 1.4 s, only unobserved), and when the lock gives it swings the door open.
 - **A locked door** (and a wedged, planked or furniture-barred one): the lock's hp is beaten first, with the same
   shudder, sound and lean. When it gives, the door is still SHUT, and now the leaf is beaten. So a locked wooden door is
-  its lock (70) and then its leaf (135); it is never the weaker of the two.
+  its lock (70) and then its leaf (135); it is never the weaker of the two. The old contact rule (`interiors.bang`: 6 off
+  the lock per 1.1 s pressed against it) follows the same law now: only one that remembers something past the door does
+  it, the lean and the shudder apply, and the lock giving leaves the door shut for all but an Echo.
 - **Cracked:** at `DOOR.crackAt` (half) of its hp a breakable leaf splits: a crack sound, and the leaf is drawn darker.
 - **Down:** at 0 the materials system takes it off its hinges for good (debris, a 30 m noise, the break sound).
   `doorBrokenDown` is emitted. A broken door can never be shut again.
@@ -96,7 +102,8 @@ street are turning their heads. Either you find planks, or a back window, or you
   Fists on a door bring a sprinter at a walk; they never set it screaming (only you, or a loud noise, do that).
 
 ### 3.3 Holding it
-- With the infected within `DOOR.threat` (24 m), or the door beaten within `DOOR.underAttack` (4 s): E at a shut door
+- With the infected within `DOOR.threat` (24 m), a shut door within a boot's reach (`DOOR.kickReach`, 2.2 m) is what E
+  does, before the person beside you or your dog (`interiors.shutDoorNear`), the same as shutting. E at it
   never kicks it (a boot would throw open the door that is keeping them out). Within `DOOR.braceReach` (1.5 m), holding
   E **leans** on it from the first frame (`interiors.brace`); further off the prompt says to step up to it. You still
   open a door by walking into it.
@@ -106,7 +113,8 @@ street are turning their heads. Either you find planks, or a back window, or you
   lock's hp. That is beaten first, and then the leaf.
 
 ### 3.4 Giving up
-- A sprinter's burst lasts while it perceives you. Behind a door that is smell (4.5 m) or your footsteps.
+- A sprinter's burst lasts while it perceives you. Behind a door that is smell (4.5 m; 5.6 m for the player, who
+  smells ×1.25) or your footsteps.
 - Out of its senses: the burst runs out in `burst` (6 s), it overheats for 3 s, and then it thumps at a shambler's pace
   for as long as its memory of you is fresh (`memory + search`, 44 s). Then it forgets, gives the door up and wanders
   off; that door being beaten by another is not news to it for 90 s.
@@ -174,8 +182,11 @@ The shard's model is that each page simulates its own surroundings and reports w
 - **Residents and other people:** walk through a shut door as ever (it swings and stays where it stops).
 - **A door you shut, then a living person or an Echo opens:** it is open. The infected can walk in.
 - **Leaning while the door breaks:** you are standing at the leaf when it goes; nothing extra happens to you.
-- **The old contact rule** (`interiors.bang`: one of the infected pressed against a LOCKED door takes 6 off its lock
-  every 1.1 s, with no memory needed) is unchanged, and has no shudder or lean.
+- **Distances in the code** for "at the door" (2.6 m), the screen shake (9 m) and the first-blow toast (26 m) are
+  taxicab distances (|dx| + |dz|), so they are a little shorter along a diagonal.
+- **A streamed door re-made while it is being beaten** (another player's patch reloads the openings): it keeps who shut
+  it, its crack and the blows in flight (`interiors.ringPound`), and a sprinter does not get a second slam (the slam is
+  remembered by the door's id).
 - **Old saves:** a door's hp is in the materials save already.
 - **Samples off or still loading:** the old synthesized thud plays.
 - **A streamed (ring) door:** shut and beaten like any other. Its hp record waits in the materials system while its
@@ -218,8 +229,10 @@ The shard's model is that each page simulates its own surroundings and reports w
 1. **Rows:** `validateInfected` is clean, and a frenzy no harder than a shambler is caught.
 2. **The latch:** through an open door a shambler told of you walks in. With one of them 12 m out and a stranger at
    your back, E at the open door reads "Shut the door" (the urgent prompt), shuts it (`shutBy` is you) and opens no
-   talk. E again from 1.5 m reads "Step up to the door"; at 1.1 m holding E leans on it at once; the door stays shut and
-   no kick is recorded. Standing in the doorway, `shutDoor` refuses ("you are standing in the doorway"). The shambler
+   talk. E again from 1.75 m reads "Step up to the door"; at 1.1 m holding E leans on it at once; the door stays shut and
+   no kick is recorded and no talk opens, with the stranger still at your back. Standing in the doorway, `shutDoor`
+   refuses ("you are standing in the doorway"); a car parked along the wall 2.9 m out does not block the doorway, one
+   across it does, and someone on the floor above does not. The shambler
    then never crosses the door line; within 40 s it has struck at least 4 blows, the leaf has shuddered, its hp has
    fallen and at least 3 `doorPound` events fired.
 3. **A sprinter at the door:** it screams, slams, strikes at least 4 frenzy blows and has a wooden door off its hinges
@@ -229,8 +242,9 @@ The shard's model is that each page simulates its own surroundings and reports w
    memory within 12 s of the pounding starting and closes at least 6 m on the door.
 5. **It gives up:** a steel door loses no hp and does not break. With TWO sprinters at it and you 150 m away, within
    `burst + overheat + memory + search + 30` s neither is at the door or remembers anything, and 6 s later neither has
-   gone back; the door is still shut. A shambler with no memory whose wander leads at the shut door never presses at
-   it or strikes it in 8 s.
+   gone back; the door is still shut. A shambler with no memory whose wander leads at the shut door comes within 1.6 m
+   of it and never presses at it or strikes it in 8 s; with the same door LOCKED, 5 s against it takes nothing off the
+   lock.
 6. **Shared:** a hurt leaf is in `leafKeys` as its hp and is sent once; a leaf at 0.3 hp is sent as 1; `mergeLeaves`
    on the door as built sets its hp and `heardShuts` shuts it; a row that would heal it does not; `heardPounds` makes it
    shudder and read as under attack; `p: 0` takes it off its hinges; a steel door is not broken by a row; a row for a
@@ -246,7 +260,11 @@ Before / after: `docs/renders/web/door-pound/zed-pound-before.jpg` (the infected
 `zed-pound-after-1-pounding.jpg` (a sprinter and a shambler beating the shut door, 83 of 189 left) and
 `zed-pound-after-2-door-down.jpg` (off its hinges, all three inside).
 
-Critic review 2026-11-12, first pass FAIL, twelve items, fixed in the next commit: a body that brushed a door stopping to
+Critic review 2026-11-12. Second pass FAIL, six items, fixed in the commit after: the old contact rule still flung a
+locked door open and needed no memory; a car anywhere near counted as in the doorway; a streamed door lost its pound
+state (and gave a sprinter a fresh slam) on every remote patch; a dog, a friend or a car could take the lean key; a
+hunting Echo dithered at shut doors; the car's own keys were dead beside an open door. First pass FAIL, twelve items,
+fixed in the next commit: a body that brushed a door stopping to
 beat it with its prey in plain sight; herds with no memory pinned at doors; two at a steel door calling each other back
 for ever; a locked or wedged door weaker than a shut one; the Echo stuck at a latch; E kicking open the door you had just
 shut; shutting unavailable with a friend, a car or a dog beside you; a door shut on yourself; a door off its hinges
