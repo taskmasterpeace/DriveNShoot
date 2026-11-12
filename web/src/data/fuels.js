@@ -61,6 +61,7 @@ export function badShare(v) { return v.bad > 0 && v.fuel > 0 ? Math.min(1, v.bad
 
 // What the mix does to the engine this tick: { power multiplier, runs, wear (engine health a second at full throttle) }.
 // Called every frame for a car with bad fuel in it: it writes into `out` (a scratch object) rather than allocating.
+// The default `out` is SHARED: read its fields now, don't keep the object across calls (the next call rewrites it).
 const _mix = { power: 1, runs: true, wear: 0, share: 0 };
 export function mixEffect(v, out = _mix) {
   const s = badShare(v);
