@@ -42,6 +42,7 @@ export const DOOR = {
   poundNoise: 16,      // m a fist on a door carries (the others hear it and come)
   frenzyNoise: 26,     // m: a sprinter's frenzy carries further
   underAttack: 4,      // s after the last blow a door still reads as being pounded (the prompt, the HUD line)
+  threat: 24,          // m: one of the infected this near and E at a door means the door (shut it first; lean, never kick)
 };
 
 // Window kinds. hp: glass that takes a few rounds (cracks, then shatters). boardHp: boards that stop

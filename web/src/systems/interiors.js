@@ -147,8 +147,12 @@ export class Interiors {
     if (d > 1e-6) { nx /= d; nz /= d; } else { nx = L.px * side; nz = L.pz * side; }
     const pen = R - d, door = L.door;
     // The infected cannot work a latch: a SHUT door is a wall to them until they have beaten it down (zombies.js pounds it).
-    const held = mover !== null && mover.faction === 'zombie' && !mover.wild && !door.locked && this.isShut(door);
-    if (held) { mover.stuck = 0; mover.zdoor = door; } // pressed at it, not lost: no detour along the wall
+    // An Echo is the exception: it is the one that still works doors (THE_INFECTED ruling 0.8), so it lets itself in
+    // and leaves the door open behind it.
+    const held = mover !== null && mover.faction === 'zombie' && !mover.wild && mover.zkind !== 'echo' && !door.locked && this.isShut(door);
+    // Pressed at it with something remembered past it: not lost, so no detour along the wall, and the brain may take the
+    // door as its work (zombies.think checks it really is in the way). One that remembers nothing goes round, as round a wall.
+    if (held && this.g.zombies?.fresh?.(mover)) { mover.stuck = 0; mover.zdoor = door; }
     if (mover && !door.locked && !held && L.jamT <= 0 && mover.alive !== false && !mover.dead) {
       // The leaf gives way: it turns away from the mover, who keeps most of their stride.
       const veh = mover.len !== undefined;
@@ -277,12 +281,17 @@ export class Interiors {
   braced(door) { return this.g.time - door.braceAt < DOOR.braceFresh; }
   // Is it being beaten right now (a blow within DOOR.underAttack s)?
   underAttack(door) { return this.g.time - door.poundAt < DOOR.underAttack; }
-  // A body in the doorway: whoever stands within DOOR.shutClear of the closed leaf's line (the door will not shut on them).
-  inDoorway(door, but = null) {
+  // What is in the doorway: whoever stands or lies within DOOR.shutClear of the closed leaf's line - the living, the
+  // dead, you - or a vehicle parked across it. The door will not shut on any of them.
+  inDoorway(door) {
     const g = this.g, half = door.width / 2;
+    for (let i = 0; i < g.vehicles.length; i++) {
+      const v = g.vehicles[i], r = Math.max(v.len ?? 4, v.wid ?? 2) * 0.5 + DOOR.shutClear;
+      if (Math.abs(v.x - door.x) < r && Math.abs(v.z - door.z) < r && Math.hypot(v.x - door.x, v.z - door.z) < r) return v;
+    }
     for (let i = 0; i < g.chars.length; i++) {
       const c = g.chars[i];
-      if (c === but || !c.alive || c.inVehicle || (c.ug ?? null) !== (door.ug ?? null)) continue;
+      if (c.inVehicle || c.hidden || (c.ug ?? null) !== (door.ug ?? null)) continue;
       const ex = c.x - door.x, ez = c.z - door.z;
       if (ex > 3 || ex < -3 || ez > 3 || ez < -3) continue;
       const along = ex * door.ux + ez * door.uz, across = ex * door.nx + ez * door.nz;
@@ -309,8 +318,8 @@ export class Interiors {
     const g = this.g;
     if (door.broken) return { ok: false, why: 'that door is off its hinges' };
     if (this.isShut(door)) return { ok: false, why: 'it is shut already' };
-    const c = this.inDoorway(door, by);
-    if (c) return { ok: false, why: c.faction === 'zombie' ? 'one of them is in the doorway' : 'someone is in the doorway', blocker: c.id };
+    const c = this.inDoorway(door);
+    if (c) return { ok: false, why: c === by ? 'you are standing in the doorway' : c.len !== undefined ? 'a vehicle is in the doorway' : c.alive === false ? 'a body lies in the doorway' : c.faction === 'zombie' ? 'one of them is in the doorway' : 'someone is in the doorway', blocker: c.id };
     for (const L of door.leaves) { L.th = 0; L.w = 0; L.jamT = 0; this.orient(L); }
     door.shutBy = by?.id ?? null;
     if (!g.audio?.sample?.('common', 'door.shut', { x: door.x, z: door.z, range: 30 })) g.audio?.thud?.(g.pan(door.x));
@@ -707,7 +716,7 @@ export class Interiors {
           if (door._seen === stamp) continue;
           door._seen = stamp;
           let shut = true;
-          for (const L of door.leaves) if (L.th > 0.3 || L.th < -0.3) shut = false;
+          for (const L of door.leaves) if (L.th > DOOR.shutAngle || L.th < -DOOR.shutAngle) shut = false; // off its latch: E pulls it shut (openDoorNear), it is not there to kick
           if (door.broken || (!shut && !door.locked)) continue;
           const d = Math.hypot(p.x - door.x, p.z - door.z);
           if (d < 1.9) cand.push(d, door);
@@ -1180,9 +1189,7 @@ export class Interiors {
       door.locked = locked; door.lockHp = locked ? v?.h ?? door.mat.lockHp : 0; door.kicks = locked ? v?.k ?? door.mat.kicks : 0;
       this.navBlock(door, false); if (locked) this.navBlock(door, true);
       this.syncLock(door);
-      door.shakeT = 0; door.poundAt = -99; door.braceAt = -99;
     }
-    this.shaking.length = 0;
     for (const W of this.windows) {
       const v = s?.w?.[W.id];
       W.state = v ? v.s : W.row.state;

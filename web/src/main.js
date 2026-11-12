@@ -55,7 +55,7 @@ import { Storeys } from './world/storeys.js';
 import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
 import { Reach } from './systems/reach.js';
-const SHUT_URGENT = 24; // m: one of the infected this near and an open door in reach is E's first (WEB_DOOR_POUND.md)
+import { DOOR } from './data/interiors.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
@@ -1038,8 +1038,13 @@ class Game {
       const d = Math.hypot(c.x - p.x, c.z - p.z);
       if (d < bd && this.reach.person(p, c)) { bd = d; best = c; } // a wall or a shut door between you: nobody to talk to
     }
+    // THE DOOR FIRST (WEB_DOOR_POUND.md): with one of the infected within DOOR.threat m, an open door in your reach is
+    // what E does - before the friend beside you, the car, your dog, a crate.
+    const shutNow = !p.onDeck && !p.ug && this.zombies.near(p, DOOR.threat) ? this.interiors.openDoorNear(p) : null;
+    if (shutNow) best = null;
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
+      if (shutNow) break;
       if (veh.dead || veh.boatTrailer || veh.onTrailer || (p.storey && (p.gy ?? 0) > LEVEL.same) || p.ug) continue; // the street's cars, from upstairs (or below): no
       if (veh === p.onDeck?.v || veh.trailer) continue; // a trailer has no wheel (systems/semis.js); the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
@@ -1049,7 +1054,7 @@ class Game {
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
     const rsSpot = !best ? this.roadside.spotNear(p) : null;
-    const dog = !best && !bestV && !rsSpot ? this.dogs.nearFor(p) : null;
+    const dog = !best && !bestV && !rsSpot && !shutNow ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
@@ -1057,12 +1062,11 @@ class Game {
     this.hud.footing(foot); // its own HUD chip (data/hudlayout.js 'footing'), so the prompt stays the verb
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
-    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
-    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
+    const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
+    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
     // An open door within reach: E pulls it shut (the infected cannot work a latch: WEB_DOOR_POUND.md). With the infected
     // near it is E's before anything else you could go through; otherwise it waits behind every other thing in reach.
-    const shutD = !best && !bestV && !op && !ugI && !dog && !dk && !p.onDeck ? this.interiors.openDoorNear(p) : null;
-    const shutNow = shutD && this.zombies.near(p, SHUT_URGENT) ? shutD : null;
+    const shutD = shutNow ?? (!best && !bestV && !op && !ugI && !dog && !dk && !p.onDeck ? this.interiors.openDoorNear(p) : null);
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
     const game = !best && !bestV && !op && !ugI && !dog && !dk && !shutNow ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
@@ -1095,7 +1099,7 @@ class Game {
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
-    else if (shut && !game && !spot && !box && I.hit('KeyE')) { const r = this.interiors.shutDoor(shut, p); this.hud.toast(r.ok ? (shutNow ? 'DOOR SHUT · THEY CANNOT WORK A LATCH · HOLD E TO LEAN ON IT' : r.text) : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
+    else if (shut && !game && !spot && !box && I.hit('KeyE')) { const r = this.interiors.shutDoor(shut, p); this.hud.toast(r.ok ? (shutNow ? 'DOOR SHUT · THEY CANNOT WORK A LATCH · STAND AT IT AND HOLD E TO LEAN ON IT' : r.text) : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
     else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }

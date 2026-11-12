@@ -332,13 +332,15 @@ export class Actions {
     const g = this.g;
     this.touch();
     if (!door.locked) {
-      // A shut door being beaten (WEB_DOOR_POUND.md): hold E leans on it (each blow does less), a tap still kicks it open.
+      // A shut door with the infected about (WEB_DOOR_POUND.md): E leans on it (each blow does less) from the first frame
+      // of the press. There is no kick here: a boot would throw open the door that is keeping them out (walk into it to
+      // open it, as ever).
       const In = g.interiors;
-      if (In.underAttack?.(door) && In.isShut(door) && Math.hypot(door.x - p.x, door.z - p.z) < DOOR.braceReach) {
-        const k = this.press(door, I, dt), H = In.doorHp(door);
-        if (k === 'hold') In.brace(door, p);
-        else if (k === 'tap') { this.kickOnce(door, p); return; }
-        g.hud.prompt(`${k === 'hold' ? '<b>LEANING ON THE DOOR</b>' : 'hold <kbd>E</kbd> Lean on the door'} · ${H.breaks ? `<b class="warn">${Math.round(H.share * 100)}% left</b>` : 'steel: it will hold'} · tap <kbd>E</kbd> kick it open`);
+      if (In.isShut(door) && (In.underAttack?.(door) || g.zombies?.near(p, DOOR.threat))) {
+        const down = I.key('KeyE'), H = In.doorHp(door), beaten = In.underAttack(door), close = Math.hypot(door.x - p.x, door.z - p.z) < DOOR.braceReach;
+        this.hold = 0; this.holdOn = door;
+        if (down && close) In.brace(door, p);
+        g.hud.prompt(`${down && close ? '<b>LEANING ON THE DOOR</b>' : close ? 'hold <kbd>E</kbd> Lean on the door' : 'Step up to the door and hold <kbd>E</kbd> to lean on it'}${beaten ? ` · ${H.breaks ? `<b class="warn">${Math.round(H.share * 100)}% left</b>` : 'steel: it will hold'}` : ''} · walk into it to open it`);
         return;
       }
       if (I.hit('KeyE')) { this.hold = -1; this.holdOn = door; this.kickOnce(door, p); }

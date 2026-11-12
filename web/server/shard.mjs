@@ -92,21 +92,22 @@ function applyPatch(S, patch) {
       W.interiors.w[id] = out.interiors.w[id] = { s: v.s, hp: Math.round(v.hp), b: Math.round(v.b), sd: v.sd > 0 ? 1 : -1 };
     }
   }
-  // THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md): a door somebody pulled shut (s), what its leaf has left (p; 0 = off
-  // its hinges), kept; and the blows on it this second (pound), only relayed.
+  // THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md §3.6). KEPT: what a door's leaf has left (leaves[id] = { p }; p 0 = off
+  // its hinges). It only ever goes DOWN: no patch raises it, removes it or puts a door back on its hinges. RELAYED, not
+  // kept: the doors pulled shut this second (shut) and the blows struck (pound).
   const Lv = patch?.leaves;
   if (Lv && typeof Lv === 'object') {
     out.leaves = {};
     W.leaves ??= {};
     for (const [id, v] of Object.entries(Lv).slice(0, 64)) {
-      if (!id40(id)) continue;
-      if (v === null) { delete W.leaves[id]; out.leaves[id] = null; continue; }
-      if (!v || !num(v.p, 1e5)) continue;
-      const was = W.leaves[id];
-      if (was && was.p === 0) { out.leaves[id] = was; continue; } // a door off its hinges stays off them
-      W.leaves[id] = out.leaves[id] = { p: Math.max(0, Math.round(v.p)), s: v.s ? 1 : 0 };
+      if (!id40(id) || !v || !num(v.p, 1e5)) continue;
+      const p = Math.max(0, Math.round(v.p)), was = W.leaves[id];
+      if (was && was.p <= p) { out.leaves[id] = was; continue; } // never back up
+      if (!was && Object.keys(W.leaves).length >= 20000) continue; // a bound on what one shard keeps
+      W.leaves[id] = out.leaves[id] = { p };
     }
   }
+  if (Array.isArray(patch?.shut)) { out.shut = []; for (const id of patch.shut.slice(0, 16)) if (id40(id)) out.shut.push(id); }
   if (Array.isArray(patch?.pound)) {
     out.pound = [];
     for (const b of patch.pound.slice(0, 16)) if (b && id40(b.d)) out.pound.push({ d: b.d, k: b.k === 'slam' || b.k === 'frenzy' ? b.k : 'thump', n: Math.max(1, Math.min(20, Math.round(Number(b.n) || 1))) });

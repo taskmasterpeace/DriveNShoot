@@ -37,9 +37,16 @@ async function main() {
   check('B pulls it shut and it takes a blow', hit?.ok && hit.hp < hit.max, hit);
   await B.call('step', { seconds: 1.6 }); await sleep(700); await A.call('step', { seconds: 0.6 });
   const onA = (await A.call('exec', { code: `const I = game.interiors, d = I.byId.get(${Q}); return { shut: I.isShut(d), hp: I.doorHp(d).hp, under: I.underAttack(d) };` })).value;
-  const heard = (await A.call('events', { since: evA })).events.filter((e) => e.type === 'shardPound' || e.type === 'shardLeaf').map((e) => e.type);
+  const heard = (await A.call('events', { since: evA })).events.filter((e) => e.type === 'shardPound' || e.type === 'shardLeaf' || e.type === 'shardShut').map((e) => e.type);
   check('A sees it shut and as hurt', onA?.shut && onA.hp === hit.hp, { onA, want: hit.hp });
-  check('A heard the blow (the door shuddered there)', heard.includes('shardPound') && heard.includes('shardLeaf'), heard);
+  check('A was told of the shut, the hurt leaf and the blow', heard.includes('shardShut') && heard.includes('shardPound') && heard.includes('shardLeaf'), heard);
+  // B walks back through it (the door swings open on B): nothing re-shuts it and nothing is told again
+  await B.call('exec', { code: `const I = game.interiors, d = I.byId.get(${Q}); for (const L of d.leaves) { L.th = 1.2; L.w = 0; I.orient(L); } I.flush(); return true;` });
+  const evB = (await B.call('events', {})).last;
+  await B.call('step', { seconds: 2.5 }); await sleep(700); await A.call('step', { seconds: 1.2 }); await sleep(500); await B.call('step', { seconds: 1.5 });
+  const reshut = (await B.call('exec', { code: `return game.interiors.isShut(game.interiors.byId.get(${Q}));` })).value;
+  const echoes = (await B.call('events', { since: evB })).events.filter((e) => e.type === 'shardShut' || e.type === 'shardLeaf').length;
+  check('an opened door stays open: no shut ping-pong between the pages', reshut === false && echoes === 0, { reshut, echoes });
   const offB = (await B.call('exec', { code: `const I = game.interiors, d = I.byId.get(${Q}); I.pound(d, null, 9999, 'slam'); return !!d.broken;` })).value;
   await B.call('step', { seconds: 1.6 }); await sleep(700); await A.call('step', { seconds: 0.6 });
   const offA = (await A.call('exec', { code: `return !!game.interiors.byId.get(${Q}).broken;` })).value;
@@ -47,10 +54,10 @@ async function main() {
   const kept = (await shardGet('/world')).leaves ?? {};
   check('the shard keeps the door as off its hinges', kept[id]?.p === 0, kept[id]);
   // a hostile or stale page cannot put it back on its hinges
-  await A.call('exec', { code: `game.shard.sendWorld({ leaves: { ${Q}: { p: 150, s: 1 } } }); return true;` });
+  await A.call('exec', { code: `game.shard.sendWorld({ leaves: { [${Q}]: { p: 150 }, 'bogus:id': null } }); return true;` });
   await sleep(600);
   const still = (await shardGet('/world')).leaves ?? {};
-  check('a later patch cannot put it back', still[id]?.p === 0, still[id]);
+  check('a later patch cannot put it back or remove it', still[id]?.p === 0, still[id]);
 }
 
 main().catch((e) => { check('the test ran to the end', false, String(e?.stack ?? e)); }).finally(async () => {

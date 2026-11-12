@@ -1,6 +1,6 @@
 # Made sounds (DIVIDED STATES OF AMERICA, web/)
 
-Sound effects generated for this game with the ElevenLabs sound-effects API on the studio's paid account (commercial use under its terms). Written by `tools/audio-make.mjs build`; do not edit by hand. Raw takes: the NAS, `N:\assets\audio\made\dsoa\`. No recording of a real person, film or game was used or named.
+Sound effects generated for this game on 2026-11-12 with the ElevenLabs sound-effects API (text prompts only, listed below; no recording was uploaded) on the studio's account. Before a commercial release, confirm that account's plan grants commercial use of generated sound effects and note the plan here. Written by `tools/audio-make.mjs build`; do not edit by hand. Raw takes: the NAS, `N:ssetsudio\made\dsoa\`.
 
 50 files, 485 KB.
 
