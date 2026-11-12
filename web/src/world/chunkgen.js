@@ -1033,7 +1033,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const along = Math.abs(Math.sin(rot)) > 0.7, hx = along ? 2.1 : 0.95, hz = along ? 0.95 : 2.1;
     // Lateral reach of the axis-aligned footprint toward the lanes.
     const reach = Math.abs(f.nx) * hx + Math.abs(f.nz) * hz;
-    const u = median ? 0 : side * (sec.lane2 + 0.5 + reach);
+    const u = median ? 0 : side * (sec.lane2 + (sec.extra ?? 0) + 0.5 + reach); // + an added lane (world/townroads.js): the shoulder is past it
     if (median && reach > sec.med - 0.2) continue;
     wreck(f.x + f.nx * u, f.z + f.nz * u, rot, WRECK[h % WRECK.length]);
   }

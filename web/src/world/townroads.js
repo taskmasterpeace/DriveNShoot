@@ -37,7 +37,8 @@ export const TOWNROADS = {
   exitGap: 1300,     // m: a new exit keeps this far (along the road) from every other
   reuseR: 2600,      // m: (kept for the report) a town with no room for an exit of its own takes the nearest working one
   reuseMax: 30000,   // m: ...along the road, at most this far
-  detours: [700, -700, 1400, -1400, 2400, -2400], // m: sideways tries round water, a pinned chunk or another town
+  detours: [700, -700, 1400, -1400, 2400, -2400, 3600, -3600], // m: sideways tries round water, a pinned chunk or another town
+  causewayMax: 1500, // m: open water a town's road may cross on a causeway (a lagoon to a barrier island), at most
   edgePad: 900,      // m: no new exit this near a corridor's trimmed ends
   pinPad: 320,       // m: no new feature this near a pinned P1 chunk
   laneWhy: true,
@@ -216,7 +217,7 @@ function routeAccess(W, pts, avoid) {
   const firstBad = (P, from = 0) => { const rs = resample(fillet(P, STREAM.access.cornerR), 20); for (let i = 3; i < rs.n - 3; i++) if (badAt(rs.x[i], rs.z[i])) return { i, rs }; return { i: -1, rs }; };
   const clear = (a, b) => { const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 25); for (let k = 1; k < n; k++) { const t = k / n; if (badAt(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return false; } return true; };
   let P = pts.map((q) => ({ x: q.x, z: q.z })), detours = 0;
-  for (let it = 0; it < 6; it++) {
+  for (let it = 0; it < 10; it++) {
     const { i, rs } = firstBad(P);
     if (i < 0) break;
     // which leg of the control line holds the bad sample: the nearest leg to it
@@ -231,8 +232,11 @@ function routeAccess(W, pts, avoid) {
     P.splice(j + 1, 0, put); detours++;
   }
   const rs = resample(fillet(P, STREAM.access.cornerR), 6);
-  let bad = 0; for (let i = 4; i < rs.n - 4; i++) if (badAt(rs.x[i], rs.z[i])) bad++;
-  return { rs, bad, detours };
+  let bad = 0, wet = 0, other = 0;
+  for (let i = 4; i < rs.n - 4; i++) if (badAt(rs.x[i], rs.z[i])) { bad++; const x = rs.x[i], z = rs.z[i]; if (nearPinned(x, z, x, z, 40) || inIsland(x, z, 300) || W.ring?.inCity?.(x, z, 150) || avoid(x, z)) other++; else wet++; }
+  // only open water left, and not too much of it: a causeway across it (regions.js keeps the water off a causeway)
+  const causeway = !other && wet > 0 && wet * 6 <= TOWNROADS.causewayMax;
+  return { rs, bad: causeway ? 0 : bad, detours, causeway: causeway ? wet * 6 : 0, wet, other };
 }
 
 // ---- the whole pass ------------------------------------------------------------------------------------------------------
@@ -279,6 +283,8 @@ export function layTownRoads(W, plan) {
       const x0 = Math.min(a.x, b.x, f.x - REACH), x1 = Math.max(a.x, b.x, f.x + REACH), z0 = Math.min(a.z, b.z, f.z - REACH), z1 = Math.max(a.z, b.z, f.z + REACH);
       if (nearPinned(x0, z0, x1, z1, TOWNROADS.pinPad)) return 'a pinned P1 chunk';
       if (inIsland(f.x, f.z, 1200) || W.ring?.inCity?.(f.x, f.z, 400)) return 'the island and ring';
+      if ((W.roadside?.billboards ?? []).some((b) => b.road === cor.id && Math.abs(b.s - s) < 700)) return 'a roadside billboard';
+      if (W.roadside?.nearSite?.(f.x, f.z, REACH + 120)) return 'a roadside site';
       for (let u = -REACH; u <= REACH; u += 25) { const x = f.x + f.nx * u, z = f.z + f.nz * u, q = blocked(x, z, rec); if (q) return `the cross road runs into ${q.name}`; if (x > T.x0 - 40 && x < T.x1 + 40 && z > T.z0 - 40 && z < T.z1 + 40) return 'the cross road runs into the town itself'; }
       if (W.depthAt?.(f.x + f.nx * REACH, f.z + f.nz * REACH, 0) > 0.05 || W.depthAt?.(f.x - f.nx * REACH, f.z - f.nz * REACH, 0) > 0.05) return 'the cross road ends in water';
       return null;
@@ -295,6 +301,7 @@ export function layTownRoads(W, plan) {
       const nb = W.ribbons.length;
       X = W.addExit(cor, row, f.x, f.z, e.x, e.z, { town: rec.id });
       X.townRec = rec.id;
+      if (cor.region) { X.region = cor.region; cor.region.exits?.push(X); } // a region's exit list (systems/travel.js reads it), as WorldIndex's own region exits
       for (let k = nb; k < W.ribbons.length; k++) added.ribbons.push(W.ribbons[k]);
       W.ribbons.length = nb; // re-added below with the rest (one bucket pass)
       rep.exits++;
@@ -320,7 +327,8 @@ export function layTownRoads(W, plan) {
     const side = (tc.x - X.x) * X.nx + (tc.z - X.z) * X.nz >= 0 ? 1 : -1;
     const pA = { x: X.x + X.nx * side * REACH, z: X.z + X.nz * side * REACH };
     // the way in nearest the end of the cross road (a main street's end or a gate): the town is reached on its near side
-    const e2 = ents.slice().sort((a, b) => Math.hypot(a.x - pA.x, a.z - pA.z) - Math.hypot(b.x - pA.x, b.z - pA.z))[0];
+    const byNear = ents.slice().sort((a, b) => Math.hypot(a.x - pA.x, a.z - pA.z) - Math.hypot(b.x - pA.x, b.z - pA.z));
+    const e2 = byNear[0];
     e.x = e2.x; e.z = e2.z; e.gate = e2.gate;
     const dl = Math.hypot(e.x - pA.x, e.z - pA.z);
     let acc = null;
@@ -328,11 +336,20 @@ export function layTownRoads(W, plan) {
       const pB = { x: X.x + X.nx * side * (REACH + Math.min(160, dl * 0.3)), z: X.z + X.nz * side * (REACH + Math.min(160, dl * 0.3)) };
       // ...and off its own town too: it arrives at the entry, it does not cut a corner of the town to get there
       const own = (x, z) => x > T.x0 - 10 && x < T.x1 + 10 && z > T.z0 - 10 && z < T.z1 + 10;
-      const R = routeAccess(W, [pA, pB, { x: e.x, z: e.z }], (x, z) => blocked(x, z, rec) || own(x, z));
+      // the nearest entry first; if something stands in the way that no detour clears (a base between the exit and the
+      // town), the next entry round the town, up to four
+      let R = null;
+      for (const en of byNear.slice(0, 4)) {
+        const Rt = routeAccess(W, [pA, pB, { x: en.x, z: en.z }], (x, z) => blocked(x, z, rec) || own(x, z));
+        if (!R || Rt.bad < R.bad) { R = Rt; e.x = en.x; e.z = en.z; e.gate = en.gate; }
+        if (!R.bad) break;
+      }
+      if (R.bad) { rep.unserved.push({ id: rec.id, name: rec.name, why: `its road could not be routed clear of water, a pinned chunk or a settlement (${R.bad} points: ${R.wet} in water, ${R.other} on land it must keep off)` }); continue; }
       const ap = [];
       for (let i = 0; i < R.rs.n; i++) ap.push({ x: R.rs.x[i], z: R.rs.z[i], y: 0.032, wl: STREAM.access.halfW, wr: STREAM.access.halfW });
       acc = ribbon(`${rec.id} access`, 'county', 'county', ap, { exit: X.id, town: rec.id });
       acc.wet = R.bad; acc.detours = R.detours;
+      if (R.causeway) { acc.causeway = R.causeway; acc.causewayHalf = STREAM.access.halfW + 2.5; (W.causeways ??= []).push(acc); rep.causeways = (rep.causeways ?? 0) + 1; }
       added.ribbons.push(acc);
       if (!reused) X.access = acc;
       (W.townAccess ??= []).push(acc);
@@ -374,7 +391,11 @@ export function layTownRoads(W, plan) {
     rep.towns.push({ id: rec.id, name: rec.name, kind: rec.kind, cor: cor.id, exit: X.id, number: X.number, reused, s: Math.round(X.s), access: acc ? { id: acc.id, m: Math.round(acc.L), lanes: acc.lanes, band: acc.band } : null, entry: { x: Math.round(e.x), z: Math.round(e.z), gate: !!e.gate }, detail, facts: { pop: facts.pop, cls: facts.cls, gated: facts.gated, region: facts.region, rules: facts.rules, curfew: facts.curfew } });
     rec.access = { exit: X.id, number: X.number, cor: cor.id, ribbon: acc?.id ?? null, entry: { x: e.x, z: e.z } };
   }
-  for (const cor of cors) { const L = cor === W.i10 ? W.exits : cor.exits; L.sort((a, b) => a.s - b.s); if (cor === W.i10) W.i10.exits.sort((a, b) => a.s - b.s); }
+  // the exit lists keep their shape (code reads W.exits[0] as I-10's first): I-10's own, sorted, then every region's in
+  // the order they were laid (a town's exit after them); each corridor's own list sorted along it
+  for (const cor of cors) (cor === W.i10 ? W.i10.exits : cor.exits).sort((a, b) => a.s - b.s);
+  W.exits = [...W.i10.exits, ...W.exits.filter((X) => X.cor && X.cor !== W.i10)];
+  relabelBillboards(W, cors);
   // 2. in, then the lane rule on every interstate (after the new exits: an added lane never runs through an interchange).
   // relayLanes runs again whenever the water re-plans its decks (WorldIndex.applyWater: real terrain on), so an added lane
   // never stands on a bridge it did not know about; signs and mileposts are set out from where they stood (their base).
@@ -389,6 +410,25 @@ export function layTownRoads(W, plan) {
   rep.ms = +(performance.now() - t0).toFixed(1);
   W.townRoads = rep;
   return rep;
+}
+
+export function relabelBillboards(W, cors) {
+  const R = W.roadside; if (!R) return 0;
+  let n = 0;
+  for (const b of R.billboards) {
+    if (b.kind !== 'exit') continue;
+    const cor = cors.find((c) => c.id === b.road); if (!cor) continue;
+    const dir = b.dir === cor.dirs[0][0] ? 1 : -1, list = cor === W.i10 ? W.i10.exits : cor.exits;
+    const X = list.filter((o) => (o.s - b.s) * dir > 0).sort((p, q) => Math.abs(p.s - b.s) - Math.abs(q.s - b.s))[0];
+    if (!X || X.id === b.next?.id) continue;
+    const miles = Math.max(1, Math.round(Math.abs(X.s - b.s) / MI));
+    b.next = { id: X.id, number: X.number, name: X.name, miles, metres: Math.round(Math.abs(X.s - b.s)), dead: !!X.dead };
+    const face = R.faces.find((f) => f.id === b.id) ?? R.pendingBills?.find((q) => q.id === b.id)?.face;
+    if (face) face.lines = [`EXIT ${X.number}`, X.name, `${miles} ${miles === 1 ? 'MILE' : 'MILES'}`, X.dead ? 'NO SERVICES' : X.townRec ? 'FUEL · FOOD · AMMO' : face.lines[3] ?? ''];
+    b.lines = face ? face.lines.filter(Boolean) : b.lines;
+    n++;
+  }
+  return n;
 }
 
 export function relayLanes(W, cors, places, rep = null) {
@@ -435,6 +475,7 @@ export function auditTownRoads(W, plan, usmap) {
     else if (!rb) why = 'no access road';
     else { const end = Math.hypot(rb.x[rb.n - 1] - a.entry.x, rb.z[rb.n - 1] - a.entry.z); if (end > 30) why = `the road ends ${Math.round(end)} m short of the town`; }
     if (!why) { let bad = 0; for (let i = 4; i < rb.n - 4; i += 2) if (hardWater(W, rb.x[i], rb.z[i]) || nearPinned(rb.x[i], rb.z[i], rb.x[i], rb.z[i], 0)) bad++; if (bad) why = `${bad} points of its road are in the sea, a lagoon, a canal or a pinned chunk`; }
+    if (!why) { const other = (plan ?? []).find((r) => r !== rec && !r.beyond && (() => { for (let i = 4; i < rb.n - 4; i += 3) if (Math.abs(rb.x[i] - r.x) < r.half - 5 && Math.abs(rb.z[i] - r.z) < r.half - 5) return true; return false; })()); if (other) why = `its road runs through ${other.name}`; }
     rows.push({ id: rec.id, name: rec.name, ok: !why, why, exit: a?.number ?? null });
     if (why) errors.push(`${rec.name} (${rec.id}): ${why}`);
   }

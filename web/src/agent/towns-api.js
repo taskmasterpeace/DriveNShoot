@@ -2,7 +2,7 @@
 // src/data/lanes.js, laid by src/world/townroads.js, run by src/systems/townlife.js). buildCommands() in api.js spreads
 // townsCommands into COMMANDS; runSelfTest() calls townsChecks (only=towns runs them alone).
 import USMAP from '../data/usmap.json';
-import { validateTowns, COUNTERS, COUNTER_KINDS, TOWN_NAMES } from '../data/towns.js';
+import { validateTowns, COUNTERS, COUNTER_KINDS, TOWN_NAMES, REGION_ECON } from '../data/towns.js';
 import { validateLanes, lanesFor } from '../data/lanes.js';
 import { ARCHETYPES, KINDS } from '../data/citygen.js';
 import { ITEMS } from '../data/items.js';
@@ -129,7 +129,7 @@ export async function townsChecks(api, check, C) {
     const stock = g.trade.stock(k.c), e = stock.find((q) => q.s.id === 'fuel_can');
     if (!e) return `no fuel can on the shelf: ${stock.map((q) => q.s.id).join(',')}`;
     const before = k.box.count('fuel_can'), cash0 = (g.cash = Math.max(g.cash, 2000));
-    const kept = g.inventory.carried.slots; g.inventory.carried.slots = []; // room on you for an 8 kg can (put back after)
+    const kept = g.inventory.carried.slots, cap0 = g.inventory.carried.cap; g.inventory.carried.slots = []; g.inventory.carried.cap = Math.max(cap0, 24); // room on you for an 11 L can, as a big pack gives (put back after)
     const r = g.trade.buyEntry(k.c, e);
     const after = k.box.count('fuel_can'), paid = cash0 - g.cash, carried = g.inventory.carried.count('fuel_can');
     // a new day: nothing rolls again (the loot law)
@@ -137,13 +137,19 @@ export async function townsChecks(api, check, C) {
     g.trade.stock(k.c);
     const next = k.box.count('fuel_can');
     g.society.day -= 1;
-    g.inventory.carried.slots = kept; g.inventory.changed();
+    g.inventory.carried.slots = kept; g.inventory.carried.cap = cap0; g.inventory.changed();
     return r.ok && after === before - 1 && paid > 0 && carried >= 1 && next === after ? true : `ok ${r.ok} ${r.why ?? ''} shelf ${before}->${after}->${next}, paid ${paid}, carried ${carried}`;
   });
   await check('towns: prices carry the region (the same can costs more in Florida than in the desert)', async () => {
-    const tr = Object.values(TRADERS).filter((t) => t.counter === 'fuel');
-    const fl = 1.35, de = 1.0; // data/towns.js REGION_ECON
-    return tr.length && tr.every((t) => t.priceMul > 0) && fl > de ? true : `fuel traders ${tr.length}`;
+    // the same fuel can at the same standing, priced through Trade.buyPrice with a desert and then a Florida keeper's row
+    const s = town; if (!s) return 'no town';
+    const k = s.counters.find((q) => q.kind === 'fuel'), row = TRADERS[k.keeper.id], mul0 = row.priceMul;
+    await C('towns', { action: 'counter', id: s.rec.id, kind: 'fuel' });
+    const slot = { id: 'fuel_can', n: 1, left: 1 };
+    row.priceMul = REGION_ECON.desert.price.fuel; const pd = g.trade.buyPrice(slot, 1, g.trade.at(k.box));
+    row.priceMul = REGION_ECON.florida.price.fuel; const pf = g.trade.buyPrice(slot, 1, g.trade.at(k.box));
+    row.priceMul = mul0;
+    return pf > pd ? true : `desert $${pd}, Florida $${pf}`;
   });
   await check('towns: what a town worker makes goes onto its counter (a delivery), never a roll', async () => {
     const s = town; if (!s) return 'no town';
@@ -155,6 +161,26 @@ export async function townsChecks(api, check, C) {
     const n1 = k.box.count('flatbread');
     delete B.stock['test|flatbread'];
     return n1 === n0 + 2 ? true : `${n0} -> ${n1}`;
+  });
+  await check('towns: a save and a load keep a counter as it was left (no stock grows back) and stand its keeper at it again', async () => {
+    const s = town; if (!s) return 'no town';
+    const k = s.counters.find((q) => q.kind === 'fuel');
+    g.trade.stock(k.c); // rolled
+    const before = k.box.slots.map((q) => `${q.id}x${q.n}`).join(',');
+    const S = (await C('save')).save;
+    // away and back: the town released (its counter box goes to ringKept), the save loaded, the town built again
+    CG.release(s.rec.id);
+    await C('load', { save: S });
+    const t2 = CG.stamp(s.rec);
+    const L = g.townlife.live.get(s.rec.id), k2 = L?.counters.find((q) => q.kind === 'fuel');
+    g.townlife.sync(L);
+    const after = k2?.box?.slots.map((q) => `${q.id}x${q.n}`).join(',');
+    // the same with the town still built through the load: its keepers stand again
+    await C('load', { save: S });
+    const L3 = g.townlife.live.get(s.rec.id); g.townlife.sync(L3);
+    const kept = L3?.counters.every((q) => q.dead || (q.c && g.chars.includes(q.c)));
+    town = L3;
+    return t2 && after === before && k2.box.rolled && kept ? true : `before ${before} | after ${after} | keepers back ${kept}`;
   });
   await check('towns: a SITE row that names a ruler has them on the ground (named, flagged, titled) with the row\'s house rules', async () => {
     const site = recs.find((q) => q.kind === 'site' && q.site === 'tombstone-allen-st') ?? null;

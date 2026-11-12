@@ -94,8 +94,8 @@ import { Marks } from './systems/marks.js';
 import { Campfire } from './systems/campfire.js';
 import { Airwaves } from './systems/airwaves.js'; // the one broadcast source: key-ups and stations (WEB_WORLD_VOICE.md §3.3)
 import { RadioFeedUI } from './ui/radiofeed.js';
-import { Workforce } from './systems/workforce.js';
-import { TownLife } from './systems/townlife.js'; // the towns' counters and rulers (WEB_TOWNS_ROADS.md) // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
+import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
+import { TownLife } from './systems/townlife.js'; // the towns' counters and rulers (WEB_TOWNS_ROADS.md)
 import { LongRoadSys } from './systems/longroad.js'; // THE LONG ROAD: wayside beats in dead stretches, travellers, the trip log (WEB_LONG_ROAD.md)
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player

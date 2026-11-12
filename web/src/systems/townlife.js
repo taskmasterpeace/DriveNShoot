@@ -60,7 +60,7 @@ export class TownLife {
     const s = this.live.get(t.rec.id);
     if (!s) return;
     const g = this.g, R = this.rec(s.rec.id);
-    for (const k of s.counters) { this.dismiss(k, R); if (k.box) g.inventory?.unregisterRing([k.q]); if (k.keeper.w) k.keeper.w.counter = null; }
+    for (const k of s.counters) { if (k.c && !k.c.alive) this.died(s, k); this.dismiss(k); if (k.box) g.inventory?.unregisterRing([k.q]); if (k.keeper.w) k.keeper.w.counter = null; }
     for (const c of [s.ruler, ...s.guards]) if (c) { if (!c.alive && !R.dead.includes(c.tlKey)) R.dead.push(c.tlKey); if (g.chars.includes(c)) g.removeChar(c); }
     this.live.delete(t.rec.id);
   }
@@ -121,7 +121,7 @@ export class TownLife {
     const gun = o?.carry?.find((i) => i.startsWith('gun_'));
     const weapon = k.kind === 'ammo' ? 'shotgun' : gun ? { gun_pistol: 'pistol', gun_smg: 'smg', gun_shotgun: 'shotgun', gun_rifle: 'rifle' }[gun] ?? null : null;
     const title = `${k.C.title} · ${s.rec.name}`;
-    const c = g.addChar({ x: k.spot.x, z: k.spot.z, faction: 'drifter', weapon, hp: k.keeper.w?.hp ?? 100, colors: outfit('drifter', rng), name: k.keeper.name, flag: k.keeper.flag,
+    const c = g.addChar({ x: k.spot.x, z: k.spot.z, faction: 'drifter', weapon, hp: k.keeper.hp ?? k.keeper.w?.hp ?? 100, colors: outfit('drifter', rng), name: k.keeper.name, flag: k.keeper.flag,
       npc: { id: k.keeper.id, name: k.keeper.name, title, flag: k.keeper.flag, faction: 'drifter', portrait: { seed: hashS(k.keeper.id) % 997, skin: rng.pick(SKIN), hair: '#2a1e18', hat: 'none', mood: 'neutral', shirt: '#6a5a44', gear: 'none' }, ...this.keeperTalk(s, k) } });
     if (!c) return null;
     c.townlife = s.rec.id; c.title = title; c.face = k.spot.face; c.hold = true; c.post = { x: k.spot.x, z: k.spot.z, face: k.spot.face, role: 'counter' };
@@ -132,7 +132,8 @@ export class TownLife {
   dismiss(k) {
     const g = this.g, c = k.c;
     if (!c) return;
-    if (k.keeper.w) { k.keeper.w.hp = c.alive ? c.hp : 0; if (!c.alive) k.keeper.w.alive = false; }
+    k.keeper.hp = c.alive ? c.hp : 0; // their wounds go home with them (a worker's onto their record)
+    if (k.keeper.w) { k.keeper.w.hp = k.keeper.hp; if (!c.alive) k.keeper.w.alive = false; }
     if (g.chars.includes(c)) g.removeChar(c);
     k.c = null;
   }
@@ -215,10 +216,21 @@ export class TownLife {
     if ((this.t -= dt) > 0 || !this.live.size) return;
     this.t = TOWNLIFE.tick;
     for (const s of this.live.values()) {
+      this.alarm(s);
       this.sync(s);
       this.deliver(s);
       for (const c of [s.ruler, ...s.guards]) if (c && !c.alive && c.tlKey) { const R = this.rec(s.rec.id); if (!R.dead.includes(c.tlKey)) R.dead.push(c.tlKey); }
     }
+  }
+
+  // Anyone of this town's keepers, ruler or guards hurt or down: they all stop holding their spot (hold = true skips the
+  // whole mind, systems/ai.js) and act as anyone would - the guards fight, a keeper runs or fights.
+  alarm(s) {
+    const all = [s.ruler, ...s.guards, ...s.counters.map((k) => k.c)].filter(Boolean);
+    if (s.alarmed || !all.some((c) => !c.alive || c.hp < (c.tlHp ?? c.hp) || c.downedT > 0)) { for (const c of all) c.tlHp ??= c.hp; return; }
+    s.alarmed = true;
+    for (const c of all) if (c.alive) { c.hold = 0; c.post = null; }
+    this.g.emit?.('townAlarm', { town: s.rec.id, name: s.rec.name });
   }
 
   // ---- views ---------------------------------------------------------------------------------------------------------
@@ -233,5 +245,16 @@ export class TownLife {
   }
   list() { return [...this.live.keys()].map((id) => this.view(id)); }
   save() { const out = {}; for (const [id, r] of this.recs) if (r.dead.length) out[id] = { dead: [...r.dead] }; return out; }
-  load(S) { this.recs.clear(); for (const [id, r] of Object.entries(S ?? {})) this.recs.set(id, { dead: [...(r.dead ?? [])] }); }
+  load(S) {
+    this.recs.clear(); for (const [id, r] of Object.entries(S ?? {})) this.recs.set(id, { dead: [...(r.dead ?? [])] });
+    // the save does not carry these people (agent/api.js leaves c.townlife out): whoever is still standing goes, and every
+    // live town is stood up again from the records just loaded (a keeper the save says is dead stays dead)
+    const g = this.g;
+    for (const s of [...this.live.values()]) {
+      for (const c of [s.ruler, ...s.guards, ...s.counters.map((k) => k.c)]) if (c && g.chars.includes(c)) g.removeChar(c);
+      for (const k of s.counters) if (k.keeper.w) k.keeper.w.counter = null;
+      this.live.delete(s.rec.id);
+      this.onBuilt(s.t);
+    }
+  }
 }
