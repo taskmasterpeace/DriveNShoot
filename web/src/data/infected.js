@@ -34,8 +34,8 @@
 //                             works one regardless: that is what it is). A SHUT door (on its latch, not locked) is
 //                             beaten the same way, off the leaf's own hp (data/interiors.js DOOR_MATERIALS.hp)
 //   frenzy   (sprinter only) { every, dmg, slam, slamCool }: while it is in its burst a sprinter POUNDS: a blow every
-//            `every` s for `dmg` each, and the first time it reaches the door at a run it throws itself at it for `slam`
-//            (again after slamCool s). Out of its burst it thumps like a shambler (`door`). WEB_DOOR_POUND.md
+//            `every` s for `dmg` each, and as it reaches the door at a run it throws itself at it once for `slam`
+//            (again only if it left that door for slamCool s). Out of its burst it thumps like a shambler (`door`). WEB_DOOR_POUND.md
 //   legs     hp of legs: rolled leg hits (data/gear.js HIT_ODDS) past it and it is a CRAWLER (`crawl` m/s, low, bites ankles)
 //   lunge    { at, speed, t, cool }  a target it can see this close and it throws itself the last metres
 //   fall     { dmg, chance, getUp }  a hit this hard knocks it down `chance` of the time; it gets up after getUp s

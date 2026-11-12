@@ -398,7 +398,10 @@ export class Zombies {
     const g = this.g, I = g.interiors;
     this.counts.thumps++;
     if (kind !== 'thump') this.counts.frenzy = (this.counts.frenzy ?? 0) + 1;
-    g.noise(door.x, door.z, kind === 'thump' ? DOOR.poundNoise : DOOR.frenzyNoise, c); // the others hear it (and come)
+    // The others hear it (and come). The ones already beating this door do not hear it as news: their own fists never
+    // renew their memory or set a sprinter off again, or nobody would ever give a door up.
+    this._pounding = door;
+    try { g.noise(door.x, door.z, kind === 'thump' ? DOOR.poundNoise : DOOR.frenzyNoise, c); } finally { this._pounding = null; }
     if (!door.locked) {
       if (!I.pound(door, c, dmg, kind)) return false;
       this.counts.doorsBroken++;
@@ -433,8 +436,11 @@ export class Zombies {
     // A sprinter in its burst POUNDS (its frenzy row); out of it, it thumps like the shambler it looks like.
     const F = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl ? SP.frenzy : null, D = F ?? (c.zkind === 'sprinter' ? SH.door : R.door);
     const g = this.g;
-    if (F && !win && g.time > (c.zslamAt ?? 0)) { // it hits the door at a run: the whole body
-      c.zslamAt = g.time + F.slamCool; c.zthT = F.every;
+    // It hits the door at a run, the whole body: once as it ARRIVES at this door (again only if it left it for slamCool s).
+    const arrived = c.zslam !== B || g.time - (c.zworkAt ?? -99) > F?.slamCool;
+    c.zworkAt = g.time;
+    if (F && !win && arrived) {
+      c.zslam = B; c.zthT = F.every;
       g.audio.sample?.('sprinter', 'rage', { x: c.x, z: c.z, range: 50 });
       if (this.thump(B, c, F.slam, 'slam')) { c.zblock = null; c.handsUp = false; }
       return true;
@@ -487,6 +493,7 @@ export class Zombies {
     const g = this.g;
     for (const c of g.chars) {
       if (c.faction !== 'zombie' || !c.alive || c.ug) continue; // below the street a noise travels its own corridors (systems/underground.js)
+      if (this._pounding && c.zblock === this._pounding) continue; // its own door's pounding (thump)
       // An Echo hears it and will give it back (never its own copy, nor another Echo's: one echo, not a chain).
       if (c.zkind === 'echo' && !this._echoing && !c.ecopy && r >= BE.minR && g.time >= (c.ecopyAt ?? 0) && Math.abs(c.x - x) < BE.hear && Math.abs(c.z - z) < BE.hear && Math.hypot(c.x - x, c.z - z) < BE.hear) { c.ecopy = { t: BE.delay, r: r * BE.gain }; c.ecopyAt = g.time + BE.every; c.ecopyWhat = r >= 60 ? 'BANG' : r >= 25 ? 'CRACK' : 'TAP'; }
       // A sprinter breaks at a noise inside its ear, or at a loud one (a shot, an engine) from as far as it hears it.

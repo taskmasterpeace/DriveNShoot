@@ -154,6 +154,25 @@ async function main() {
   const deeds = (await B.call('shardWorld')).chronicle.filter((d) => d.verb === 'kill' && d.name === 'Alder');
   check('the deed is on the shard\'s chronicle', deeds.length > 0, deeds.slice(-1));
 
+  // ---- 9. THE SHUT DOOR (WEB_DOOR_POUND.md): a door B pulls shut and something beats on is shut, hurt and shuddering on A --
+  const doorId = (await B.call('exec', { code: 'const I = game.interiors, p = game.player; const d = I.doors.filter((d) => !d.locked && !d.broken && !d.ug && d.material === "wood" && d.leaves.length === 1).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0]; return d.id;' })).value;
+  const openIt = `const I = game.interiors, d = I.byId.get(${JSON.stringify(doorId)}); for (const L of d.leaves) { L.th = 1.3; L.w = 0; I.orient(L); } I.flush(); return I.isShut(d);`;
+  const [oa, ob] = await Promise.all([A.call('exec', { code: openIt }), B.call('exec', { code: openIt })]);
+  check('the door stands open on both pages', oa.value === false && ob.value === false, { a: oa.value, b: ob.value });
+  const evA = (await A.call('events', {})).last;
+  const hit = (await B.call('exec', { code: `const I = game.interiors, d = I.byId.get(${JSON.stringify(doorId)}); const r = I.shutDoor(d, game.player); I.pound(d, null, 40, 'frenzy'); return { ok: r.ok, hp: I.doorHp(d).hp, max: I.doorHp(d).max };` })).value;
+  check('B pulls it shut and it takes a blow', hit?.ok && hit.hp < hit.max, hit);
+  await B.call('step', { seconds: 1.5 }); await sleep(600); await A.call('step', { seconds: 0.5 });
+  const onA2 = (await A.call('exec', { code: `const I = game.interiors, d = I.byId.get(${JSON.stringify(doorId)}); return { shut: I.isShut(d), hp: I.doorHp(d).hp, under: I.underAttack(d) };` })).value;
+  const heardA = (await A.call('events', { since: evA })).events.filter((e) => e.type === 'shardPound' || e.type === 'shardLeaf').map((e) => e.type);
+  check('A sees it shut, as hurt, and heard the blow', onA2?.shut && onA2.hp === hit.hp && heardA.includes('shardPound') && heardA.includes('shardLeaf'), { onA2, heardA });
+  const offB = (await B.call('exec', { code: `const I = game.interiors, d = I.byId.get(${JSON.stringify(doorId)}); I.pound(d, null, 9999, 'slam'); return !!d.broken;` })).value;
+  await B.call('step', { seconds: 1.5 }); await sleep(600); await A.call('step', { seconds: 0.5 });
+  const offA = (await A.call('exec', { code: `return !!game.interiors.byId.get(${JSON.stringify(doorId)}).broken;` })).value;
+  check('beaten off its hinges on B, it is off them on A', offB === true && offA === true, { offB, offA });
+  const leafSaved = (await shardGet('/world')).leaves ?? {};
+  check('the shard keeps the door as off its hinges', leafSaved[doorId]?.p === 0, leafSaved[doorId]);
+
   // ---- 5. a boarded window outlives the shard -----------------------------------------------------------------------
   const wins = await B.call('windows', { radius: 60, state: 'intact', limit: 5 });
   const win = wins.items?.[0];

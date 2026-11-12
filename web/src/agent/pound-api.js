@@ -122,22 +122,24 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     const run = async (how) => {
       fresh(d, 0);
       if (how === 'planks') { const r = g.gadgets.barricade(d, 'planks', null, false); if (!r.ok) return { err: r.why }; }
-      await inside(d, how === 'lean' ? 1.0 : 2.4);
+      await inside(d, how === 'lean' ? 1.1 : 2.4);
       clearRound(d.x, d.z, 60);
       const ev0 = g.eventSeq, fr0 = Z.counts.frenzy ?? 0;
       const c = sprinterAt(d, 9); made.push(c);
-      if (how === 'lean') { g.input.down.add('KeyE'); g.input.pressed.add('KeyE'); }
-      let leaned = 0, n = 0;
-      const t = await until(how === 'bare' ? 30 : 90, () => { if (c.alive && !c.zsee) told(c); n++; if (I.braced(d)) leaned++; return out(d, c) < -0.4; });
+      // lean: E goes down (and stays down) once the door is being beaten - a press before that would kick it open
+      let leaned = 0, n = 0, beaten = 0;
+      const gave = () => d.broken || !I.isShut(d);
+      const t = await until(how === 'bare' ? 30 : 90, () => { if (c.alive && !c.zsee) told(c); if (I.underAttack(d)) { beaten++; if (how === 'lean') g.input.down.add('KeyE'); n++; if (I.braced(d)) leaned++; } return gave(); });
+      const through = gave() ? await until(8, () => { if (c.alive && !c.zsee) told(c); return out(d, c) < 0.2; }) : null;
       g.input.down.delete('KeyE');
       const ev = g.events.filter((e) => e.seq > ev0);
-      const res = { t, slam: ev.some((e) => e.type === 'doorPound' && e.kind === 'slam' && e.door === d.id) || ev.some((e) => e.type === 'doorThump' && e.door === d.id), frenzy: (Z.counts.frenzy ?? 0) - fr0, scream: ev.some((e) => e.type === 'sprinterScream' && e.id === c.id), broken: !!d.broken, down: ev.some((e) => e.type === 'doorBrokenDown' && e.door === d.id), leaned: n ? r1(leaned / n) : 0, state: c.zs?.state };
+      const res = { t, through, slam: ev.some((e) => e.type === 'doorPound' && e.kind === 'slam' && e.door === d.id) || ev.some((e) => e.type === 'doorThump' && e.door === d.id), frenzy: (Z.counts.frenzy ?? 0) - fr0, scream: ev.some((e) => e.type === 'sprinterScream' && e.id === c.id), broken: !!d.broken, down: ev.some((e) => e.type === 'doorBrokenDown' && e.door === d.id), leaned: n ? r1(leaned / n) : 0, state: c.zs?.state };
       gone(c);
       return res;
     };
     try {
       const bare = await run('bare'), lean = await run('lean'), planks = await run('planks');
-      const ok = bare.t !== null && bare.t < 15 && bare.slam && bare.frenzy >= 4 && bare.scream && bare.broken && bare.down
+      const ok = bare.t !== null && bare.t < 15 && bare.through !== null && bare.slam && bare.frenzy >= 4 && bare.scream && bare.broken && bare.down
         && (lean.t === null || lean.t >= bare.t * 1.5) && lean.leaned > 0.4
         && !planks.err && (planks.t === null || planks.t >= bare.t * 2);
       return ok || { door: d.id, bare, lean, planks };

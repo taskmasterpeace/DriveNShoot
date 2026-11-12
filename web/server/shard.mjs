@@ -303,7 +303,7 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/who') return json(200, { ok: true, shard: NAME, online: inWorld().map((S) => ({ user: S.user, id: S.char.id, name: S.char.name, flag: S.char.flag, x: S.pres?.x ?? null, z: S.pres?.z ?? null, weapon: S.pres?.w ?? null, vehicle: S.pres?.v?.t ?? null, hp: S.pres?.hp ?? null, since: new Date(S.enteredAt).toISOString(), warps: S.warps ?? 0 })),
       connections: sessions.size, accounts: Object.keys(store.accounts.users).length, characters: Object.keys(store.chars.byId).length });
     const W = store.world;
-    return json(200, { ok: true, shard: NAME, data: DATA, doors: Object.keys(W.interiors.d).length, windows: Object.keys(W.interiors.w).length, interiors: W.interiors, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, standings: W.standings, chronicle: W.chronicle.slice(-20), stats: W.stats });
+    return json(200, { ok: true, shard: NAME, data: DATA, doors: Object.keys(W.interiors.d).length, windows: Object.keys(W.interiors.w).length, interiors: W.interiors, leaves: W.leaves ?? {}, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, standings: W.standings, chronicle: W.chronicle.slice(-20), stats: W.stats });
   }
   json(404, { ok: false, error: 'not here', hint: `the shard speaks WebSocket at ${SHARD_PATH}; GET /health, /who, /world` });
 });
