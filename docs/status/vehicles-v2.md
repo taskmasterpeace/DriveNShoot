@@ -15,7 +15,7 @@ etc.) and node unit tests `web/tools/*.test.mjs`.
 
 | # | Slice | Branch | State | Proof |
 |---|---|---|---|---|
-| 1 | Fuel types: gasoline and diesel per engine; red and yellow cans; a station's two tanks; the wrong fuel chokes the engine, a hose drains it | `feat/web-veh-fuel` | tested (critic re-review pending) | selftest `only=fuel types` 5/5; node `tools/fuels.test.mjs` 14/14; roadside 12/12, milbases 7/7, underground 13/13, inventory 3/3; shots `docs/renders/web/vehicles-v2/fuel-{before,after}-*.png` |
+| 1 | Fuel types: gasoline and diesel per engine; red and yellow cans; a station's two tanks; the wrong fuel chokes the engine, a hose drains it | `feat/web-veh-fuel` | **pushed** (critic PASS; bus #31217) | selftest `only=fuel types` 5/5; node `tools/fuels.test.mjs` 14/14; roadside 12/12, milbases 7/7, underground 13/13, inventory 3/3; shots `docs/renders/web/vehicles-v2/fuel-{before,after}-*.png` |
 | 2 | Guns on boats: CHASSIS rows for the boats; the raider gunboat gets its gun | `feat/web-veh-boatguns` | building | selftest `only=boat guns` 4/4 alone; node `tools/boatguns.test.mjs` 7/7; workshop 18/18, water 37/37, garage 3/3 |
 | 3 | Doors: held or left open; closing takes a beat after you get in | `feat/web-veh-doors` | not started | |
 | 4 | Chain towing: a chain or tow strap; hook the back of one vehicle to another and drive | `feat/web-veh-chain` | not started | |
