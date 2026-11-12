@@ -177,6 +177,21 @@ export class SkyDrones {
     }
     return best;
   }
+  // The cursor on a drone in the air (main.js, after the birds): the camera ray passing within reach of its body puts the aim
+  // on the drone's own spot at its height - the shot goes there, and raycast() above meets it.
+  skyAim(ray, out) {
+    let best = null, bd = Infinity;
+    const o = ray.origin, v = ray.direction;
+    for (const d of this.drones) {
+      if (d.state === 'pad' || d.state === 'gone' || d.state === 'falling' || !d.nest.awake || d.y < 2.2) continue;
+      const y = this.ground(d.x, d.z) + d.y, vx = d.x - o.x, vy = y - o.y, vz = d.z - o.z, t = vx * v.x + vy * v.y + vz * v.z;
+      if (t <= 0) continue;
+      const k = Math.sqrt(Math.max(0, vx * vx + vy * vy + vz * vz - t * t));
+      if (k < 1.3 && k < bd) { bd = k; best = d; }
+    }
+    if (best) { out.x = best.x; out.z = best.z; out.y = best.y; }
+    return best;
+  }
   hurt(d, dmg, by) {
     if (d.state === 'gone' || d.state === 'falling') return;
     const g = this.g;

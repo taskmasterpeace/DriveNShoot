@@ -80,13 +80,16 @@ export async function vehDronesChecks(api, check, C) {
     } finally { off(); }
   });
 
-  await check('sky drones: you can shoot a gun drone down - it falls, breaks and leaves its parts on the ground; the nest builds another after a day', async () => {
+  await check('sky drones: you can shoot a gun drone down - the cursor on it aims at it; it falls, breaks and leaves its parts on the ground; the nest builds another after a day', async () => {
     try {
       reset();
       const R = nest(ROOST.id), s = drone(`${ROOST.id}:striker`);
       await C('teleport', { x: ROOST.at.x + 30, z: ROOST.at.z + 30 }); await api._step(2);
       s.bat = s.D.battery; R.alert = { x: g.player.x, z: g.player.z, t: g.time }; // staged: the roost already wants you
       for (let f = 0; f < 600 && !(s.state === 'hunt' && s.y > s.D.alt * 0.8 && Math.hypot(s.x - g.player.x, s.z - g.player.z) < 25); f++) await api._step(1);
+      // The cursor on it: a ray from the camera through the drone puts the aim on the drone at its height (main.js skyAim).
+      const cam = g.camera.position, ty = S().ground(s.x, s.z) + s.y, L = Math.hypot(s.x - cam.x, ty - cam.y, s.z - cam.z);
+      const aim = { x: 0, z: 0, y: 0 }, onIt = S().skyAim({ origin: cam, direction: { x: (s.x - cam.x) / L, y: (ty - cam.y) / L, z: (s.z - cam.z) / L } }, aim) === s && Math.hypot(aim.x - s.x, aim.z - s.z) < 0.01 && aim.y === s.y;
       const seq0 = g.eventSeq; let fired = 0; const ammo0 = { ...g.inv.ammo }, mag0 = { ...g.inv.mag }; // put back after (a full pack fails later checks)
       for (let k = 0; k < 40 && s.state !== 'falling' && s.state !== 'gone'; k++) {
         if (g.player.hp < 40) g.player.hp = 80;
@@ -101,7 +104,7 @@ export async function vehDronesChecks(api, check, C) {
       const gone = s.state === 'gone', at = s.rebuildAt;
       g.society.day = (g.society.day ?? 0) + 1; await api._step(2); // staged: a day goes by
       const back = s.state === 'pad';
-      return down && gone && parts > 0 && back ? true : JSON.stringify({ fired, down, state: s.state, gone, parts, at: r1(at), back });
+      return onIt && down && gone && parts > 0 && back ? true : JSON.stringify({ onIt, fired, down, state: s.state, gone, parts, at: r1(at), back });
     } finally { off(); }
   });
 
