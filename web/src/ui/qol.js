@@ -6,6 +6,8 @@ import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
 import { ROLE_TIERS, ROLE_RULES } from '../data/roles.js';
 import { DRIVING, VEHICLES } from '../systems/vehicles.js';
+import { Atlas, ATLAS, rulerOf } from './atlas.js';
+import { STREAM } from '../data/streaming.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
@@ -59,7 +61,7 @@ export class QOL {
     (game.hud?.el?.objSlot ?? root).insertAdjacentHTML('beforeend', `
       <div class="objective hidden"><canvas class="obj-paper"></canvas><canvas class="obj-pin"></canvas><div class="obj-label">ORDERS</div><div class="obj-text"></div><div class="obj-dist"></div></div>`);
     root.insertAdjacentHTML('beforeend', `
-      <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
+      <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><div class="bigmap-tabs" role="tablist"><button data-view="area" class="on">AREA</button><button data-view="country">COUNTRY</button></div><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
       <div class="pausemenu hidden"><div class="pm-card">
         <div class="pm-title">PAUSED</div>
         <div class="pm-tabs" role="tablist"><button data-tab="game" class="on">GAME</button><button data-tab="you">YOU</button><button data-tab="log">LOG</button><button data-tab="settings">SETTINGS</button><button data-tab="controls">CONTROLS</button></div>
@@ -110,7 +112,7 @@ export class QOL {
         <div class="pm-keys">F1 hide HUD · click the ORDERS tag for the map (right-click clears the waypoint) · WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · N sleep (a bed, a bedroll, a parked car) · B drop oil/caltrops · M map · Z zoom out (Shift+Z or = in, - out) · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
       </div></div></div>`);
     const q = (s) => root.querySelector(s);
-    this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu'), roles: q('.pm-roles'), run: q('.pm-run'), log: q('.pm-log'), mapHead: q('.bigmap-head span') };
+    this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu'), roles: q('.pm-roles'), run: q('.pm-run'), log: q('.pm-log'), mapHead: q('.bigmap-head span'), mapTitle: q('.bigmap-head b'), mapTabs: q('.bigmap-tabs') };
     this.ui = root;
     for (const [sel, art] of [['.obj-paper', paintPaper(316, 252)], ['.obj-pin', paintPin()]]) {
       const c = q(sel); c.width = art.width; c.height = art.height; c.getContext('2d').drawImage(art, 0, 0);
@@ -141,7 +143,39 @@ export class QOL {
         this.apply();
       });
     }
+    // THE ATLAS (ui/atlas.js): the COUNTRY view, and the fog of where you have been. AREA is the island, the metro or the
+    // 24 km round you, picked by where you stand; COUNTRY is the whole Divided States. Tab or the tabs switch.
+    this.atlas = new Atlas(game);
+    this.mapView = 'area';
+    this.el.mapTabs.addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.view; if (v) { this.setMapView(v); this.drawBigMap(); } });
+    // In the COUNTRY view the wheel zooms about the cursor and a drag pans; a click (no drag) sets the waypoint.
+    this.el.mapCanvas.addEventListener('wheel', (e) => {
+      if (this.mapView !== 'country') return;
+      e.preventDefault();
+      const r = this.el.mapCanvas.getBoundingClientRect();
+      this.atlas.zoomAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, Math.exp(-e.deltaY * 0.0018));
+      this.drawBigMap();
+    }, { passive: false });
+    this.el.mapCanvas.addEventListener('mousemove', (e) => {
+      const d = this.mapDrag; if (!d || this.mapView !== 'country') return;
+      const r = this.el.mapCanvas.getBoundingClientRect(), k = ATLAS.cw / r.width, dx = e.clientX - d.x, dy = e.clientY - d.y;
+      d.moved = Math.max(d.moved, Math.hypot(dx, dy));
+      if (d.moved > 4) { this.atlas.pan(dx * k, dy * k); d.x = e.clientX; d.y = e.clientY; this.drawBigMap(); }
+    });
+    addEventListener('mouseup', (e) => {
+      const d = this.mapDrag; this.mapDrag = null;
+      if (!d || d.moved > 4 || this.mapView !== 'country') return;
+      const r = this.el.mapCanvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+      if (!(u >= 0 && v >= 0 && u <= 1 && v <= 1)) return; // also NaN: the map was closed mid-drag (an empty box)
+      const P = this.atlas.pick(u, v);
+      this.setWaypoint({ x: Math.round(P.x), z: Math.round(P.z) });
+      this.drawBigMap();
+    });
     this.el.mapCanvas.addEventListener('mousedown', (e) => {
+      if (this.mapView === 'country') {
+        if (e.button === 2) { this.setWaypoint(null); this.drawBigMap(); } else if (e.button === 0) this.mapDrag = { x: e.clientX, y: e.clientY, moved: 0 };
+        return;
+      }
       const r = this.el.mapCanvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
       // In Phoenix the map is the island; out on the corridor it is a regional map around you (drawRegion).
       const R = this.region;
@@ -151,7 +185,7 @@ export class QOL {
       this.drawBigMap();
     });
     this.el.mapCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    this.el.mapHead.textContent = 'Click: waypoint · right-click: clear · M closes  —  ◆ waypoint  ✕ raider camp  ★ base  ● people  ▪ empty car';
+    this.setMapView('area'); // the legend line under the title
     // The ORDERS tag is a button: click opens the map, right-click clears a waypoint you set.
     this.el.obj.addEventListener('mousedown', (e) => { if (e.button === 2) { if (this.waypoint) this.setWaypoint(null); } else this.toggleMap(true); });
     this.el.obj.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -459,9 +493,46 @@ export class QOL {
   }
   // Systems that mark the big map draw themselves with its world->canvas transform (the travel network, your husk).
   drawLayers(c, T) { for (const L of [this.g.travel, this.g.clone]) L?.drawMap?.(c, T); }
+  // AREA or COUNTRY (the tabs on the big map, Tab while it is open).
+  setMapView(v) {
+    this.mapView = v === 'country' ? 'country' : 'area';
+    // COUNTRY is wide (the country's own shape); AREA stays the 760 px square its views were drawn for.
+    const cv = this.el.mapCanvas, wide = this.mapView === 'country', w = wide ? ATLAS.cw : 760, h = wide ? ATLAS.ch : 760;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    cv.classList.toggle('wide', wide);
+    for (const b of this.el.mapTabs.querySelectorAll('button')) b.classList.toggle('on', b.dataset.view === this.mapView);
+    this.el.mapHead.textContent = this.mapView === 'country'
+      ? 'Click: waypoint · right-click: clear · wheel: zoom · drag: pan · Tab: area  —  ● city  ▪ holdout  ★ base  ▪ exit (where you have been)'
+      : 'Click: waypoint · right-click: clear · Tab: country · M closes  —  ◆ waypoint  ✕ raider camp  ★ base  ● people  ▪ empty car';
+    if (this.g.time !== undefined) this.g.emit('mapView', { view: this.mapView }); // (the constructor calls this before the clock exists)
+  }
+  // The map's title: the state you stand in and who rules it.
+  mapTitle(px, pz) {
+    const st = this.atlas.stateAt(px, pz), R = st && rulerOf(st), t = st ? `${st}${R ? ` · ${R.toUpperCase()}` : ''}` : "NO MAN'S LAND";
+    if (this.el.mapTitle.textContent !== t) this.el.mapTitle.textContent = t;
+  }
+  drawCountry(px, pz) {
+    const c = this.el.mapCanvas.getContext('2d'), W = ATLAS.cw, H = ATLAS.ch;
+    this.region = null;
+    const T = this.atlas.draw(c, W, H, [px, pz]);
+    // Your husk and car always; the travel network's poles and knots only zoomed in (at the whole country they would
+    // print every city twice).
+    this.g.clone?.drawMap?.(c, T);
+    if (this.atlas.view.z >= 3) this.g.travel?.drawMap?.(c, T);
+    this.drawWaypoint(c, T, px, pz);
+    const p = this.g.player, [ax, ay] = T(px, pz);
+    c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
+    c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 4); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore();
+    c.font = '700 13px Barlow Condensed'; c.fillStyle = '#f2e6d0'; c.textAlign = 'right'; c.lineWidth = 3; c.strokeStyle = '#1b1410';
+    const A = this.atlas, t = `${A.nSeen.toLocaleString('en-US')} OF ${A.seen.length.toLocaleString('en-US')} KM² SEEN · ${Math.round((W / A.frame(W, H).s) * STREAM.K / 1000)} KM ACROSS`;
+    c.strokeText(t, W - 10, H - 12); c.fillText(t, W - 10, H - 12); c.textAlign = 'left';
+  }
   drawBigMap() {
     const g = this.g, pp = g.player, px = pp.inVehicle ? pp.inVehicle.x : pp.x, pz = pp.inVehicle ? pp.inVehicle.z : pp.z;
     this.region = null;
+    this.mapTitle(px, pz);
+    if (this.mapView === 'country') { this.drawCountry(px, pz); return; }
     if (g.streamer && (Math.abs(px) > 464 || Math.abs(pz) > 464)) {
       // In the Phoenix ring (and a little past its edge) the metro map; farther out, the regional one.
       if (g.streamer.W.ring?.inCity(px, pz, 300)) this.drawMetro(px, pz); else this.drawRegion(px, pz);
@@ -587,6 +658,7 @@ export class QOL {
     if (I.hit('KeyP')) this.toggleMenu();
     if (this.menuOpen && (I.hit('KeyQ') || I.hit('KeyE'))) { const i = this.tabs.indexOf(this.tab ?? 'game'), n = this.tabs.length; this.showTab(this.tabs[(i + (I.hit('KeyE') ? 1 : n - 1)) % n]); }
     if (I.hit('KeyM')) this.toggleMap();
+    if (this.mapOpen && I.hit('Tab')) { this.setMapView(this.mapView === 'country' ? 'area' : 'country'); this.drawBigMap(); }
     if (I.hit('F5')) this.quickSave();
     if (I.hit('F9')) this.quickLoad();
     if (I.hit('F1') && !this.photo) this.toggleHud();
@@ -658,6 +730,7 @@ export class QOL {
 
   update(dt) {
     if (this.photo) { this.updatePhoto(dt, this.g.input); return; }
+    if (!this.g.paused) this.atlas.update(dt); // the fog lifts where you go (ui/atlas.js)
     this.g.hud?.layout?.situate(); // a panel opening pauses the world: the HUD still steps out of its way (data/hudlayout.js 'panel')
     // Autosave on a timer, never mid-fight, in a car crash or while dead.
     const g = this.g;
@@ -693,6 +766,6 @@ export class QOL {
       }
       if (this.waypoint && len !== null && len < 6) this.setWaypoint(null, true);
     }
-    if (this.mapOpen) this.drawBigMap();
+    if (this.mapOpen && (this.mapView !== 'country' || this.atlas.fogDirty)) this.drawBigMap(); // COUNTRY: only on a change (each input redraws itself)
   }
 }

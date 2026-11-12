@@ -766,6 +766,8 @@ train, air raid, manhunt) to 20 (town siege).
 
 ## 6. Dependencies
 
+- **Read by WEB_WORLD_MAP** (the big map's COUNTRY view, `web/src/ui/atlas.js`): `RULERS` prints under each state's name; `ATLAS_BASES` with `ATLAS_XZ.bases` are the stars it shows once you have been near one (law 6). This is the first place these rows reach the screen.
+
 | Doc / system | What it needs from this atlas | What this atlas needs from it |
 |---|---|---|
 | `docs/DIVIDED_STATES.md` | sites and bases for every state ruler | the 50 rulers (`RULERS`, verbatim) and the landmarks it already promises |

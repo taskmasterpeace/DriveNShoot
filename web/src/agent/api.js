@@ -85,6 +85,7 @@ import { reactionsCommands, reactionsChecks } from './reactions-api.js'; // gunf
 import { ritesCommands, ritesChecks } from './rites-api.js'; // the dead: decay, cemeteries, burial, funerals (WEB_DEATH_RITES.md) // gadgets, drones, town security, door verbs (WEB_GADGETS.md)
 import { lswBodiesCommands, lswBodiesChecks } from './lswbodies-api.js'; // LSW bodies on the nearest people (WEB_LSW_BODIES.md)
 import { qolChecks } from './qol-selftest.js';
+import { worldmapCommands, worldmapChecks } from './worldmap-api.js'; // THE WORLD MAP: the big map's COUNTRY view, the fog (WEB_WORLD_MAP.md)
 import { ballisticsCommands, ballisticsChecks } from './ballistics-api.js'; // bullet speed (WEB_BALLISTICS.md)
 import { calibersCommands, calibersChecks } from './calibers-api.js'; // calibres and forensics (WEB_CALIBERS.md)
 import { feelCommands, feelChecks } from './feel-api.js'; // driving and gunplay measured and held in bands (WEB_FEEL.md)
@@ -2077,6 +2078,7 @@ function buildCommands(api) {
     ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     ...milbasesCommands(api, need), // milbase (WEB_MILITARY_BASES.md)
     ...fannodsCommands(api, need), // fannods (WEB_FAN_NODS.md)
+    ...worldmapCommands(api, need), // atlas (WEB_WORLD_MAP.md)
     ...understreetCommands(api, need), // understreet (WEB_UNDERSTREET.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
@@ -6130,6 +6132,7 @@ async function runSelfTest(api, only = null, skip = null) {
   g.police.enabled = polWas.on; g.police.beatsOn = polWas.beats;
   await kitChecks(api, check, C); // GADGETS-2: goggles, torch, glass, scanner, heat scope, mask, nitrous, winch, hub spikes, dog gear (src/agent/kit-api.js)
   await actionsChecks(api, check, C); // TIMED ACTIONS: open vs search, a body's pat-down, damage cancels, kick vs pick noise, cutters vs a padlock, ladders, look-around, ducking under (src/agent/actions-api.js)
+  await worldmapChecks(api, check, C); // THE WORLD MAP: the country sheet, rulers, labels, the fog and its save, law 6, views, click-to-waypoint, no purple (src/agent/worldmap-api.js)
   await qolChecks(api, check, C); // the 2026-10-27 polish pass: 20 small QoL items (src/agent/qol-selftest.js)
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await longRoadChecks(api, check); // THE LONG ROAD: no dead stretch, travellers with origins, nothing in view (src/agent/longroad-api.js)
@@ -6200,6 +6203,7 @@ export function snapshot(g) {
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
     voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
     longroad: g.longroad?.save(), // wayside dead, caches taken, trip logs (systems/longroad.js)
+    atlas: g.qol?.atlas?.save(), // the big map's fog: every 1 km cell of the country you have been near (ui/atlas.js)
     roadside: g.roadside?.save(), // litres drawn from station tanks, hulks stripped, the dam's gates, keepers dead, junkyard dogs (systems/roadside.js)
   };
 }
@@ -6228,6 +6232,7 @@ export function restore(g, s) {
   g.pulls?.load(s.pulls ?? null); // the pulls' people back onto their records (promoted again near you), what everyone knows
   g.feed?.load(s.voice?.feed ?? null); g.marks?.load(s.voice?.marks ?? null); g.campfire?.out?.('loaded'); g.farsound?.clear?.(); g.airwaves?.clear?.(); // the world's voice (WEB_WORLD_VOICE.md)
   g.longroad?.load(s.longroad ?? null);
+  if (s.atlas) g.qol?.atlas?.load(s.atlas); // the fog as saved (a save without it keeps what this session has seen)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
