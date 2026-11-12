@@ -153,11 +153,16 @@ export async function farmingChecks(api, check, C) {
     }
     await check('farming: with the seasons lane system present the garden reads its month (0-11 +1), its local frost and its growth factor - a freezing day kills tender crops and a cold place grows slowly', async () => {
       const mk = (month, mean, gf) => ({ calendar: () => ({ month }), read: () => ({ frost: mean < 3, mean }), growthFactor: () => gf });
-      g.seasons = mk(0, -5, 0.2); const cal = calendar(g);
-      const p = { id: 'Gs', x: 0, z: 0, crop: 'tomato', state: 'growing', water: 0.9, fert: 0.6, health: 1, progress: 0 };
-      const cold = F.rate(p), frost = F.frostOdds(p), hardy = F.frostOdds({ ...p, crop: 'greens' });
-      g.seasons = mk(6, 28, 1.2); const warm = F.rate(p), none = F.frostOdds(p);
-      g.seasons = undefined;
+      // Stubs for the reading only: the real system goes back (left undefined, every later frame threw at seasons.update and
+      // nothing after it in the frame ran - the garden's work clock among them).
+      const real = g.seasons;
+      let cal, cold, frost, hardy, warm, none;
+      try {
+        g.seasons = mk(0, -5, 0.2); cal = calendar(g);
+        const p = { id: 'Gs', x: 0, z: 0, crop: 'tomato', state: 'growing', water: 0.9, fert: 0.6, health: 1, progress: 0 };
+        cold = F.rate(p); frost = F.frostOdds(p); hardy = F.frostOdds({ ...p, crop: 'greens' });
+        g.seasons = mk(6, 28, 1.2); warm = F.rate(p); none = F.frostOdds(p);
+      } finally { g.seasons = real; }
       return cal.month === 1 && !cal.fixed && warm > cold * 3 && frost > 0.3 && hardy < frost * 0.2 && none === 0 ? true : JSON.stringify({ cal, cold, warm, frost, hardy, none });
     });
     await check('farming: a garden starts at a house you hold - claim a ranch house, and its yard counts (baseAt); a house you do not hold has no yard to dig', async () => {

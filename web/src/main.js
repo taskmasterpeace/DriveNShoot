@@ -228,7 +228,7 @@ class Game {
     this.talk = new Talk(this); // what a stranger talks about: the news, the road, what their people make of you // the one who saw it runs home to tell it (catch them on the way)
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.seasons = new Seasons(this); // the date, the climate of the place you stand in, snow and the day's length
-    this.sky.weatherPicker = () => this.seasons.pickWeather();
+    this.sky.weatherPicker = () => this.seasons?.pickWeather(); // none: the old roll (a check may run on a fixed calendar)
     this.seasonLook = new SeasonLook(this);
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
@@ -1358,7 +1358,7 @@ class Game {
       this.witnesses.update(simDt);
       this.reactions.update(simDt);
       this.society.update(simDt);
-      this.seasons.update(simDt); // the date moves, the season turns, snow builds and melts
+      this.seasons?.update(simDt); // (a check may lift the system out for a fixed calendar) the date moves, the season turns, snow builds and melts
       this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
