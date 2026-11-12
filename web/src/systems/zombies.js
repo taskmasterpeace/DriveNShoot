@@ -21,6 +21,7 @@ const wrapA = (a) => a - Math.PI * 2 * Math.round(a / (Math.PI * 2));
 const D2R = Math.PI / 180;
 const rowOf = (c) => INFECTED[c.zkind] ?? SH; // a plain shambler has no zkind
 const BITE = SH.claw;
+const GAVE_UP = 90; // s a door it gave up on stays not-news to it (WEB_DOOR_POUND.md §3.4)
 const CAP_NIGHT = 30;
 // Ambient spawns (night hordes here, Dustwolf top-ups in main.js) stop this many slots short of the 160-character cap,
 // so the director's events (hunters, raids, a herd drawn to the dead) are never starved by the background war.
@@ -412,7 +413,12 @@ export class Zombies {
     if (!g.audio.sample?.('common', door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood', { x: door.x, z: door.z, range: 60 })) g.audio.thud?.(g.pan(door.x));
     if (door.lockHp > 0) { g.emit('doorThump', { door: door.id, by: c.id, kind: c.zkind ?? 'shambler', lockHp: Math.round(door.lockHp) }); return false; }
     if (door.barricade) { door.barricade = null; if (g.gadgets) g.gadgets.barred = g.gadgets.barred.filter((b) => b.door !== door); }
-    I.unlock(door, 'thumped', c, true);
+    // The lock (and whatever barred it) has given. An Echo swings the door open: it works doors. For the rest the door is
+    // still SHUT on its latch, and now it is the leaf they beat (a locked door is a shut door with more to get through).
+    const echo = c.zkind === 'echo';
+    I.unlock(door, 'thumped', c, echo);
+    g.emit('doorLockBeaten', { door: door.id, by: c.id, kind: c.zkind ?? 'shambler', opened: echo });
+    if (!echo) return false;
     this.counts.doorsBroken++;
     g.emit('doorBroken', { door: door.id, by: c.id, kind: c.zkind ?? 'shambler' });
     return true;
@@ -421,17 +427,36 @@ export class Zombies {
   blocker(c) {
     const I = this.g.interiors;
     let best = null, bd = 2.4;
-    for (const d of I?.doors ?? []) { if ((!d.locked && !I.isShut(d)) || (d.ug ?? null) !== (c.ug ?? null)) continue; const k = Math.abs(d.x - c.x) + Math.abs(d.z - c.z); if (k < bd) { bd = k; best = d; } }
+    for (const d of I?.doors ?? []) {
+      const k = Math.abs(d.x - c.x) + Math.abs(d.z - c.z);
+      if (k >= bd || (d.ug ?? null) !== (c.ug ?? null) || (!d.locked && !I.isShut(d))) continue;
+      if (!this.through(c, d)) continue; // it lies toward what it wants, with nothing between it and the door
+      bd = k; best = d;
+    }
     for (const W of I?.windows ?? []) { if (W.state !== 'boarded') continue; const k = Math.abs(W.x - c.x) + Math.abs(W.z - c.z); if (k < bd) { bd = k; best = W; } }
     return best;
+  }
+  // Is this door in the way of what c wants (who it perceives, else its remembered spot)? It lies toward that, c has no
+  // clear line to who it perceives (with one, it goes round and chases), and nothing stands between c and the door
+  // itself (never a door behind the wall it is pressed against).
+  through(c, door) {
+    const g = this.g, t = c.zsee?.alive ? c.zsee : null, m = !t && this.fresh(c) ? c.zm : null;
+    if (!t && !m) return false;
+    const tx = t ? (t.inVehicle?.x ?? t.x) : m.x, tz = t ? (t.inVehicle?.z ?? t.z) : m.z;
+    if (t && g.sees(c, t)) return false;
+    const ax = door.x - c.x, az = door.z - c.z, bx = tx - c.x, bz = tz - c.z, al = Math.hypot(ax, az), bl = Math.hypot(bx, bz);
+    if (al > 0.3 && bl > 0.3 && (ax * bx + az * bz) / (al * bl) < 0.2) return false; // not that way
+    return g.reach ? g.reach.opening(c, door) : true;
   }
   // Work the thing it is stuck at while it still wants past it: a thump every door.every s.
   work(c, R, dt) {
     const B = c.zblock;
     const win = B?.kind === 'window';
     if (!B || (win ? B.state !== 'boarded' : !B.locked && !this.g.interiors.isShut(B))) { c.zblock = null; c.handsUp = false; return false; }
-    // It has to be AT the thing to beat it (a door seen from across the room is walked to first).
-    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6) { c.zblock = null; c.handsUp = false; return false; }
+    // It has to be AT the thing to beat it (a door seen from across the room is walked to first); the thing has to be
+    // the one that is there now (a streamed door is re-made when its building comes back); and with a clear line to
+    // who it is after it stops beating and goes for them.
+    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6 || (!win && this.g.interiors.byId.get(B.id) !== B) || (c.zsee?.alive && !c.zsee.inVehicle && this.g.sees(c, c.zsee))) { c.zblock = null; c.handsUp = false; return false; }
     c.speed = 0; c.handsUp = true; c.face = Math.atan2(B.x - c.x, B.z - c.z);
     // A sprinter in its burst POUNDS (its frenzy row); out of it, it thumps like the shambler it looks like.
     const F = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl ? SP.frenzy : null, D = F ?? (c.zkind === 'sprinter' ? SH.door : R.door);
@@ -493,11 +518,11 @@ export class Zombies {
     const g = this.g;
     for (const c of g.chars) {
       if (c.faction !== 'zombie' || !c.alive || c.ug) continue; // below the street a noise travels its own corridors (systems/underground.js)
-      if (this._pounding && c.zblock === this._pounding) continue; // its own door's pounding (thump)
+      if (this._pounding && (c.zblock === this._pounding || (c.zgave === this._pounding && g.time < (c.zgaveT ?? 0)))) continue; // its own door's pounding, or a door it has given up on
       // An Echo hears it and will give it back (never its own copy, nor another Echo's: one echo, not a chain).
       if (c.zkind === 'echo' && !this._echoing && !c.ecopy && r >= BE.minR && g.time >= (c.ecopyAt ?? 0) && Math.abs(c.x - x) < BE.hear && Math.abs(c.z - z) < BE.hear && Math.hypot(c.x - x, c.z - z) < BE.hear) { c.ecopy = { t: BE.delay, r: r * BE.gain }; c.ecopyAt = g.time + BE.every; c.ecopyWhat = r >= 60 ? 'BANG' : r >= 25 ? 'CRACK' : 'TAP'; }
       // A sprinter breaks at a noise inside its ear, or at a loud one (a shot, an engine) from as far as it hears it.
-      if (c.zkind === 'sprinter' && !c.crawl) { const hr = r >= SP.wake ? r * SP.sense.hear : Math.min(r, SP.ear); if (Math.abs(c.x - x) <= hr && Math.abs(c.z - z) <= hr && Math.hypot(c.x - x, c.z - z) <= hr) this.burst(c, 'noise'); }
+      if (c.zkind === 'sprinter' && !c.crawl && !this._pounding) { /* fists on a door bring it at a walk; they never set it screaming */ const hr = r >= SP.wake ? r * SP.sense.hear : Math.min(r, SP.ear); if (Math.abs(c.x - x) <= hr && Math.abs(c.z - z) <= hr && Math.hypot(c.x - x, c.z - z) <= hr) this.burst(c, 'noise'); }
       if (c.zsee || c.zkind === 'echo' || c.zkind === 'choir' || c.wild) continue;
       const S = rowOf(c).sense, rr = r * S.hear;
       if (Math.abs(c.x - x) > rr || Math.abs(c.z - z) > rr || Math.hypot(c.x - x, c.z - z) > rr) continue;
@@ -612,10 +637,10 @@ export class Zombies {
       // Stuck pressing at a locked door or a boarded window on its way: it works that.
       const moved = Math.abs(c.x - (c._zpx ?? 0)) + Math.abs(c.z - (c._zpz ?? 0));
       c._zpx = c.x; c._zpz = c.z;
-      if (!c.zblock && c.zdoor && this.fresh(c) && g.interiors.isShut(c.zdoor)) c.zblock = c.zdoor; // pressed at a shut door with something remembered past it
+      if (!c.zblock && c.zdoor && moved < 0.25 && g.interiors.isShut(c.zdoor) && this.through(c, c.zdoor)) c.zblock = c.zdoor; // held up at a shut door that lies between it and what it wants
       c.zdoor = null;
       if (!c.zblock && this.fresh(c) && moved < 0.25 && (c.zwant ?? 0) > 1.2) c.zblock = this.blocker(c);
-      else if (c.zblock && !this.fresh(c)) { c.zblock = null; c.handsUp = false; }
+      else if (c.zblock && !this.fresh(c)) { c.zgave = c.zblock; c.zgaveT = g.time + GAVE_UP; c.zblock = null; c.handsUp = false; } // it gives the door up, and for a while that door being beaten is not news to it
     }
     if (c.crawl) pace = R.crawl;
     if (c.zlungeT > 0) { c.zlungeT -= dt; pace = R.lunge.speed; }

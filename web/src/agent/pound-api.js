@@ -16,7 +16,7 @@ export function poundCommands(api, need) {
   };
   return {
     pound: {
-      group: 'world', desc: 'THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md): the infected cannot work a latch, so a door pulled shut holds them until they beat it off its hinges. No args: every door within radius= m (default 12) - shut or not, locked, barricade, the leaf\'s hp and share left, whether it breaks at all (steel does not), cracked, under attack now, leaned on - who is beating which door, the counters and the rows. shut=<door id | nearest>: pull that door shut the way E does at an open door (you must be within reach with a clear line; refused while a body stands in the doorway). open=<id>: swing it open (testing). The player\'s keys: E at an open door shuts it (first in line when the infected are within 24 m), hold E at a shut door being beaten leans on it (each blow does 0.45 of its damage), tap E kicks it open.',
+      group: 'world', desc: 'THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md): the infected cannot work a latch, so a door pulled shut holds them until they beat it off its hinges. No args: every door within radius= m (default 12) - shut or not, locked, barricade, the leaf\'s hp and share left, whether it breaks at all (steel does not), cracked, under attack now, leaned on - who is beating which door, the counters and the rows. shut=<door id | nearest>: pull that door shut the way E does at an open door (you must be within reach with a clear line; refused while a body stands in the doorway). open=<id>: swing it open (testing). The player\'s keys: E at an open door shuts it (before anything else when the infected are within 24 m; never with a body in the doorway); with the infected about, E at a shut door leans on it (each blow does 0.45 of its damage) and never kicks it; walk into a door to open it. An Echo is not held by a latch.',
       args: { radius: { type: 'number', default: 12 }, shut: { type: 'string' }, open: { type: 'string' } },
       run: async ({ radius, shut, open }) => {
         const I = g.interiors, p = P();
@@ -81,7 +81,7 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     return (a.length === 0 && b.some((s) => /frenzy/.test(s)) && DOOR.braceMul > 0 && DOOR.braceMul < 1 && DOOR.shutAngle < 0.45) || { a, b };
   });
 
-  await check('door pound: THE LATCH - an open door lets a shambler that knows of you walk in; pulled shut with your own E (it is E\'s first with the infected near) the same door stops it: it never crosses, it beats on it, the leaf shudders and loses hp, and each blow is a noise', async () => wrap(async () => {
+  await check('door pound: THE LATCH - an open door lets a shambler that knows of you walk in; pulled shut with your own E (E\'s first with the infected near, even with someone beside you to talk to) the same door stops it: it never crosses, it beats on it, the leaf shudders and loses hp; E at the door you just shut leans on it and never kicks it open; and you cannot shut it standing in the doorway', async () => wrap(async () => {
     const d = pick('wood');
     if (!d) return 'no wooden island door with clear ground both sides';
     await setup(d);
@@ -97,10 +97,28 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       fresh(d, 1.3);
       await inside(d, 1.5);
       const b = Z.spawn(d.x + d.nx * 12, d.z + d.nz * 12, false); made.push(b); b.x = d.x + d.nx * 12; b.z = d.z + d.nz * 12; b.zSpeed = 2.6; b.timer = 99; b.wx = b.x; b.wz = b.z;
+      // a stranger at your back (E would talk to them) - with one of the infected 12 m out, the door still comes first
+      const pal = g.addChar({ x: P().x - d.nx * 1.2, z: P().z - d.nz * 1.2, faction: 'drifter', weapon: null, hp: 100, name: 'Bystander (selftest)', flag: 'US' }); made.push(pal);
+      pal.timer = 99; pal.wx = pal.x; pal.wz = pal.z; // behind you, deeper in the room (clear floor: never shoved into the doorway)
       await api._step(3);
       const prompt = g.hud.s.prompt ?? '';
       await tap('KeyE'); await api._step(2);
-      const shut = I.isShut(d), by = d.shutBy;
+      const shut = I.isShut(d), by = d.shutBy, talked = !!g.dialogue.npc;
+      if (g.dialogue.npc) g.dialogue.close();
+      gone(pal);
+      // E again at the door you just shut, before any blow: it leans, it never kicks the door open
+      const kicks0 = g.events.filter((e) => e.type === 'doorKick').length;
+      await tap('KeyE'); await api._step(2); // from where you shut it (1.5 m: a boot's reach, not a shoulder's)
+      const farPrompt = g.hud.s.prompt ?? '';
+      await inside(d, 1.1);
+      g.input.down.add('KeyE'); await api._step(6);
+      const leanedEarly = I.braced(d), lean = g.hud.s.prompt ?? '';
+      g.input.down.delete('KeyE'); await api._step(2);
+      const stillShut = I.isShut(d) && g.events.filter((e) => e.type === 'doorKick').length === kicks0;
+      // standing IN the doorway you cannot shut it on yourself
+      for (const L of d.leaves) { L.th = 1.3; L.w = 0; I.orient(L); } I.flush();
+      const self = I.shutDoor(d, Object.assign(P(), { x: d.x, z: d.z }));
+      for (const L of d.leaves) { L.th = 0; L.w = 0; I.orient(L); } I.flush();
       await inside(d, 2.2);
       const hp0 = I.doorHp(d).hp, th0 = Z.counts.thumps, ev0 = g.eventSeq;
       told(b);
@@ -108,13 +126,13 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       const tBeat = await until(40, () => { told(b); if (out(d, b) < 0.1 && !d.broken) crossed = true; shook = Math.max(shook, d.shakeT); minOut = Math.min(minOut, out(d, b)); return Z.counts.thumps - th0 >= 4 || d.broken; });
       const hp1 = I.doorHp(d).hp, thumps = Z.counts.thumps - th0;
       const pounds = g.events.filter((e) => e.seq > ev0 && e.type === 'doorPound' && e.door === d.id).length;
-      const heard = g.events.filter((e) => e.seq > ev0 && e.type === 'doorPound').length > 0 && DOOR.poundNoise >= 10;
-      const ok = tIn !== null && /Shut the door/.test(prompt) && shut && by === P().id && !crossed && tBeat !== null && thumps >= 4 && shook > 0 && hp1 < hp0 && pounds >= 3 && heard;
-      return ok || { door: d.id, tIn, prompt, shut, by, crossed, minOut: r1(minOut), tBeat, thumps, shook: r1(shook), hp0, hp1, pounds };
+      const ok = tIn !== null && /class="warn">Shut the door/.test(prompt) && shut && by === P().id && !talked && /Step up to the door/.test(farPrompt) && leanedEarly && /LEANING/.test(lean) && stillShut && !self.ok && /doorway/.test(self.why)
+        && !crossed && tBeat !== null && thumps >= 4 && shook > 0 && hp1 < hp0 && pounds >= 3;
+      return ok || { door: d.id, tIn, prompt, shut, by, talked, farPrompt, leanedEarly, lean, stillShut, self, crossed, minOut: r1(minOut), tBeat, thumps, shook: r1(shook), hp0, hp1, pounds };
     } finally { gone(...made); fresh(d, 0); }
   }));
 
-  await check('door pound: A SPRINTER AT THE DOOR - it screams, hits the shut door at a run (a slam), pounds it in a frenzy and has a wooden door off its hinges in under 15 s, then comes through; leaning on the door (hold E) makes it hold at least 1.5x as long, and a door barred with planks at least twice as long', async () => wrap(async () => {
+  await check('door pound: A SPRINTER AT THE DOOR - it screams, hits the shut door at a run (a slam), pounds it in a frenzy and has a wooden door off its hinges in under 15 s, then comes through; leaning on the door (hold E) makes it hold at least 1.5x as long, a locked door longer than a shut one (the lock is beaten, then the leaf), and a door barred with planks at least twice as long and longer than the lock alone', async () => wrap(async () => {
     const d = pick('wood');
     if (!d) return 'no wooden island door with clear ground both sides';
     await setup(d);
@@ -122,6 +140,7 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     const run = async (how) => {
       fresh(d, 0);
       if (how === 'planks') { const r = g.gadgets.barricade(d, 'planks', null, false); if (!r.ok) return { err: r.why }; }
+      if (how === 'lock') I.setLocked(d, true);
       await inside(d, how === 'lean' ? 1.1 : 2.4);
       clearRound(d.x, d.z, 60);
       const ev0 = g.eventSeq, fr0 = Z.counts.frenzy ?? 0;
@@ -129,7 +148,7 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       // lean: E goes down (and stays down) once the door is being beaten - a press before that would kick it open
       let leaned = 0, n = 0, beaten = 0;
       const gave = () => d.broken || !I.isShut(d);
-      const t = await until(how === 'bare' ? 30 : 90, () => { if (c.alive && !c.zsee) told(c); if (I.underAttack(d)) { beaten++; if (how === 'lean') g.input.down.add('KeyE'); n++; if (I.braced(d)) leaned++; } return gave(); });
+      const t = await until(how === 'bare' ? 30 : 120, () => { if (c.alive && !c.zsee) told(c); if (I.underAttack(d)) { beaten++; if (how === 'lean') g.input.down.add('KeyE'); n++; if (I.braced(d)) leaned++; } return gave(); });
       const through = gave() ? await until(8, () => { if (c.alive && !c.zsee) told(c); return out(d, c) < 0.2; }) : null;
       g.input.down.delete('KeyE');
       const ev = g.events.filter((e) => e.seq > ev0);
@@ -138,11 +157,12 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       return res;
     };
     try {
-      const bare = await run('bare'), lean = await run('lean'), planks = await run('planks');
+      const bare = await run('bare'), lean = await run('lean'), lock = await run('lock'), planks = await run('planks');
       const ok = bare.t !== null && bare.t < 15 && bare.through !== null && bare.slam && bare.frenzy >= 4 && bare.scream && bare.broken && bare.down
-        && (lean.t === null || lean.t >= bare.t * 1.5) && lean.leaned > 0.4
-        && !planks.err && (planks.t === null || planks.t >= bare.t * 2);
-      return ok || { door: d.id, bare, lean, planks };
+        && lean.t !== null && lean.t >= bare.t * 1.5 && lean.leaned > 0.4
+        && lock.t !== null && lock.t >= bare.t * 1.2 && lock.broken // the lock first, then the leaf: a locked door is never the weaker one
+        && !planks.err && planks.t !== null && planks.t >= bare.t * 2 && planks.t > lock.t && planks.broken;
+      return ok || { door: d.id, bare, lean, lock, planks };
     } finally { gone(...made); fresh(d, 0); }
   }));
 
@@ -171,59 +191,77 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(...made); fresh(d, 0); }
   }));
 
-  await check('door pound: it gives up - a steel door never breaks to fists (it only shudders); once you are gone beyond its senses the sprinter spends its burst, stops beating the door, searches and forgets, and the door still stands shut', async () => wrap(async () => {
-    const d = pick('metal') ?? pick('wood');
-    if (!d) return 'no island door with clear ground both sides';
+  await check('door pound: it gives up - a steel door never breaks to fists (it only shudders); with TWO sprinters at it and you gone beyond their senses, both spend their bursts, stop beating it, search and forget (neither one\'s fists bring the other back), and the door still stands shut; a shambler that knows of nothing walks round a shut door instead of pressing at it', async () => wrap(async () => {
+    const d = pick('metal');
+    if (!d) return 'no steel island door with clear ground both sides';
     await setup(d);
     const made = [];
     try {
       fresh(d, 0);
-      const steel = d.material === 'metal', rec = M.doorRec(d);
-      if (!steel) rec.hp = rec.hpMax = 1e6; // no steel door on clear ground: a wooden one that cannot be finished in time
       await inside(d, 2.4);
-      const c = sprinterAt(d, 8); made.push(c);
-      const tBeat = await until(20, () => { if (c.alive && !c.zsee) told(c); return c.zblock === d && (Z.counts.frenzy ?? 0) > 0 && I.underAttack(d); });
+      const a = sprinterAt(d, 8), b = sprinterAt(d, 10); made.push(a, b);
+      const both = () => [a, b].every((c) => c.zblock === d);
+      const tBeat = await until(25, () => { for (const c of [a, b]) if (c.alive && !c.zsee) told(c); return both() && (Z.counts.frenzy ?? 0) > 0 && I.underAttack(d); });
       const H1 = I.doorHp(d);
-      c.ztarget = null;
-      await C('teleport', { x: P().x - d.nx * 150, z: P().z - d.nz * 150 }); // out of all its senses (a position staged, as the memory check does)
+      a.ztarget = null; b.ztarget = null;
+      await C('teleport', { x: P().x - d.nx * 150, z: P().z - d.nz * 150 }); // out of all their senses (a position staged, as the memory check does)
       const S = INFECTED.sprinter;
-      const tQuit = await until(S.burst + S.overheat + S.sense.memory + S.sense.search + 25, () => !c.zblock && !Z.fresh(c), 0.5);
+      const tQuit = await until(S.burst + S.overheat + S.sense.memory + S.sense.search + 30, () => [a, b].every((c) => !c.zblock && !Z.fresh(c)), 0.5);
       const H2 = I.doorHp(d);
-      const ok = tBeat !== null && (!steel || (!H1.breaks && H2.hp === H2.max)) && tQuit !== null && I.isShut(d) && !d.broken && c.zs.state !== 'burst';
-      return ok || { door: d.id, steel, tBeat, tQuit, H1, H2, shut: I.isShut(d), state: c.zs?.state, fresh: Z.fresh(c), block: !!c.zblock };
-    } finally { gone(...made); fresh(d, 0); }
+      await until(6, () => false, 0.5);
+      const stayedQuit = [a, b].every((c) => !c.zblock);
+      gone(a, b);
+      // one that knows of nothing: its wander leads it at the shut door; it never presses there (no zdoor, it detours)
+      await inside(d, 2.4); await C('teleport', { x: d.x - d.nx * 150, z: d.z - d.nz * 150 });
+      const w = Z.spawn(d.x + d.nx * 3, d.z + d.nz * 3, false); made.push(w); w.x = d.x + d.nx * 3; w.z = d.z + d.nz * 3; w.zSpeed = 2.4;
+      w.wx = d.x - d.nx * 4; w.wz = d.z - d.nz * 4; w.timer = 12;
+      let pressed = 0, n = 0, blows0 = Z.counts.thumps;
+      await until(8, () => { n++; if (w.zblock || w.zdoor) pressed++; return false; });
+      const idle = pressed === 0 && Z.counts.thumps === blows0 && out(d, w) > 0;
+      const ok = tBeat !== null && !H1.breaks && H2.hp === H2.max && tQuit !== null && stayedQuit && I.isShut(d) && !d.broken && idle;
+      return ok || { door: d.id, tBeat, tQuit, stayedQuit, H1, H2, shut: I.isShut(d), a: { st: a.zs?.state, fresh: Z.fresh(a), block: !!a.zblock }, b: { st: b.zs?.state, fresh: Z.fresh(b), block: !!b.zblock }, idle, pressed, wOut: r1(out(d, w)) };
+    } finally { gone(...made); fresh(d, 0); await C('teleport', { x: d.x - d.nx * 3, z: d.z - d.nz * 3 }); }
   }));
 
-  await check('door pound: shared - what a second player needs travels as plain rows: a door shut by a hand and a hurt leaf are in the leaf keys; applied on a door as built they shut it, hurt it and (at 0) take it off its hinges; a blow struck elsewhere makes this page\'s door shudder; a save and a load keep a hurt leaf', async () => wrap(async () => {
-    const d = pick('wood');
-    if (!d || !g.shard) return 'no door or no shard client';
+  await check('door pound: shared - what a second player needs travels as plain rows: a hurt leaf is in the leaf keys (a standing door never as 0) and a shut door is told once; applied on a door as built they hurt it, shut it and (at 0) take it off its hinges; a row never heals a door or breaks a steel one; a row for a door not loaded here waits; a blow struck elsewhere makes this page\'s door shudder; a save and a load keep a hurt leaf', async () => wrap(async () => {
+    const d = pick('wood'), st = pick('metal');
+    if (!d || !st || !g.shard) return 'no wooden and steel door, or no shard client';
     await setup(d);
+    const S = g.shard, keep = { sentL: S.sentL, waitL: S.waitL, shuts: S.shuts };
     try {
-      const S = g.shard;
+      S.sentL = {}; S.waitL = {}; S.shuts = [];
       fresh(d, 1.3);
       await inside(d, 1.5);
-      const k0 = S.leafKeys()[d.id] ?? null;
+      const k0 = S.leafKeys()[d.id];
       const sh = I.shutDoor(d, P());
       M.hitDoor(d, 40, 'pound', null);
-      const H = I.doorHp(d), k1 = S.leafKeys()[d.id] ?? null;
+      const H = I.doorHp(d), k1 = S.leafKeys()[d.id], patch = S.diffLeaves(), again = S.diffLeaves();
+      const rec = M.doorRec(d); const hpKeep = rec.hp; rec.hp = 0.3; const tiny = S.leafHp(d); rec.hp = hpKeep; // nearly gone is still standing
       const saved = M.save();
       // the same rows applied to the door as built (what the other page does)
       fresh(d, 1.3);
       await inside(d, 4);
-      S.mergeLeaves({ [d.id]: { p: H.hp, s: 1 } });
+      S.sentL = {};
+      S.mergeLeaves({ [d.id]: { p: H.hp } });
+      S.heardShuts([d.id]);
       const got = { shut: I.isShut(d), hp: I.doorHp(d).hp };
+      S.mergeLeaves({ [d.id]: { p: H.max } }); // a row that would heal it
+      const healed = I.doorHp(d).hp > H.hp;
       d.shakeT = 0; I.shaking.length = 0;
       S.heardPounds([{ d: d.id, k: 'frenzy', n: 5 }]);
       const shook = d.shakeT > 0 && I.underAttack(d);
-      S.mergeLeaves({ [d.id]: { p: 0, s: 0 } });
+      S.mergeLeaves({ [d.id]: { p: 0 } });
       const off = !!d.broken;
+      // steel is never taken off its hinges by a row; a door that is not here waits for its row
+      fresh(st, 0);
+      S.mergeLeaves({ [st.id]: { p: 0 }, 'not:here:d9': { p: 12 } });
+      const steelStands = !st.broken && I.isShut(st), waits = S.waitL['not:here:d9'] === 12;
       // a save and a load
       fresh(d, 0);
       M.load(saved);
       const kept = I.doorHp(d).hp;
-      S.sentL = S.leafKeys();
-      const ok = k0 === null && sh.ok && k1 === `${H.hp}|1` && got.shut && got.hp === H.hp && shook && off && kept === H.hp;
-      return ok || { door: d.id, k0, sh: sh.ok, k1, H, got, shook, off, kept };
-    } finally { fresh(d, 0); if (g.shard) g.shard.sentL = g.shard.leafKeys(); }
+      const ok = k0 === undefined && sh.ok && k1 === H.hp && patch?.[d.id]?.p === H.hp && again === null && tiny === 1 && got.shut && got.hp === H.hp && !healed && shook && off && steelStands && waits && kept === H.hp;
+      return ok || { door: d.id, k0, sh: sh.ok, k1, H, patch, again, tiny, got, healed, shook, off, steelStands, waits, kept };
+    } finally { fresh(d, 0); fresh(st, 0); S.sentL = { ...S.leafKeys() }; S.waitL = keep.waitL; S.shuts = keep.shuts; }
   }));
 }
