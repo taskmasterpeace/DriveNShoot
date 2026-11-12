@@ -1,7 +1,7 @@
 # WORLD MAP STATUS (DSOA web)
 
 **Branch:** `feat/web-world-map` (off `integrate/deathlands` 2b93cc0f) · **Worktree:** `.claude/worktrees/web-world-map`
-**Last pass:** 2026-11-12, pass 1 (built and hand-tested; full battery running) · **Bus:** `alpine-swift-dsoa`
+**Last pass:** 2026-11-12, pass 2 — **ALL DONE** (PR taskmasterpeace/DriveNShoot#13, review PASS, batteries green against the base) · **Bus:** `alpine-swift-dsoa`
 
 ## What "the world map" means here
 
@@ -39,8 +39,8 @@ else (`../renders/web/worldmap/11-fog-after-drive.png`).
 | 10 | Speed: paint once (47 ms), nothing per frame when closed | selftest: 10,000 fog updates standing still under 5 ms | **done** |
 | 11 | No purple; IP lint 0 deny | selftest pixel scan 0 purple samples; `ip-lint: 0 deny, 15 review` (the 15 are old, not in map code) | **done** |
 | 12 | Design doc `WEB_WORLD_MAP.md` (8 sections) + back-references in WEB_STREAMING §3.9 and INDEX | files | **done** |
-| 13 | The game's batteries green in a foreground window: worldmap 10/10, qol 15/15, then the full selftest | full run started 2026-11-12 | **running** |
-| 14 | PR into `integrate/deathlands` with an independent review PASS | | left |
+| 13 | The game's batteries green in a foreground window: worldmap 10/10, qol 15/15, then the full selftest | side by side on fresh windows: **this branch 782/796, base 770/786**. 13 of the branch's 14 misses fail on the base too (the handoff's known flakes); the 14th (a carried ladder) passes alone twice: an order flake. The branch's extra 10 checks are the map's own | **done** |
+| 14 | PR into `integrate/deathlands` with an independent review PASS | https://github.com/taskmasterpeace/DriveNShoot/pull/13 ; reviewer pass 1 FAIL (map redrawn every frame while open; doc back-references missing), both fixed, pass 2 **PASS** | **done** |
 
 ## Not done / known limits
 
@@ -57,3 +57,12 @@ else (`../renders/web/worldmap/11-fog-after-drive.png`).
   `atlas` command, 10 checks, the doc. Fixed what the pictures showed: labels printing over each other (now placed by
   importance, none overlap), the I-10 shield on Phoenix, a garbled dash in Chicago's name, the card squeezing the map in a
   small window, Miami cut off at the sheet's edge. Commits 04e4dc82, 6a27e114 (pushed).
+- **Pass 2 (2026-11-12):** independent review FAIL → fixed (COUNTRY now redraws only when something changes; the title no
+  longer repaints; back-references in WEB_ATLAS, WEB_CLONE_TRAVEL, WEB_MILITARY_BASES) → PASS. Full batteries side by side
+  on fresh windows: branch 782/796, base 770/786, no failure that is the map's. PR #13 opened. Commits 52372514, 1da9526b.
+
+## Open question for Robert
+
+Several canon ruler names use "Baron" / "Barony" (docs/DIVIDED_STATES.md, data/atlas.js RULERS). The country map is the
+first screen that prints a dozen together, and the reviewer flagged the word as close to the old novels' signature term.
+Not changed here: keep, or rename?
