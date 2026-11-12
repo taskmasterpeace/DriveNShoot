@@ -25,7 +25,7 @@ etc.) and node unit tests `web/tools/*.test.mjs`.
 | 8 | Tanks: an old tank and a modern tank | `feat/web-veh-tanks` (lands after boatguns) | **pushed** (critic PASS on second review; bus #31353) | `tanks:` 3/3 on a fresh harness; workshop 18/18, boat guns 6/6, vehicle damage 2/2, draw calls 21/21, milbases 7/7, drive 40/40; node `tools/tanks.test.mjs` 6/6 |
 | 9 | A real monster truck body | `feat/web-veh-monster` | **pushed** (critic PASS on third review; bus #31384) | `monster truck:` 4/4 (body, tyres can't be sold or swapped, placed by Dust Bowl Station on fumes, save/load); workshop 18/18, draw calls 21/21, drive 40/40, vehicle damage 2/2; node `tools/monster.test.mjs` 6/6 |
 | 10 | A bicycle | `feat/web-veh-bicycle` | **pushed** (critic PASS on second review; bus #31395) | `bicycle:` 4/4 (pedal on stamina, standing/winded/coasting, placed with a shard-claimable id, save/load); vehicle damage 2/2, drive 39/39, stunt 1/1, workshop 18/18, raft 2/2, hud 11/11; node `tools/bicycle.test.mjs` 6/6 |
-| 11 | Drones: a recon drone, then an armed one (a real flying actor) | `feat/web-veh-drones` | not started | |
+| 11 | Drones: a recon drone, then an armed one (a real flying actor) | `feat/web-veh-drones` | **pushed** (critic PASS on third review; bus #31441) | `sky drones:` 6/6; all drone checks 16/16 three runs running; bird 3/3, combat 3/3, draw calls 21/21, deed 6/6; node `tools/skydrones.test.mjs` 6/6 |
 
 States: not started · building · tested · pushed.
 
@@ -33,3 +33,5 @@ States: not started · building · tested · pushed.
 **2026-11-12, shared fix:** world-placed vehicles (tanks, monster truck, wagons, bicycles) get a stable id `seed:<row>` registered with the shard's seed list, so in multiplayer taking one claims it for everyone and a fresh page never leans another (critic finding on the bicycle). Pushed on each of those branches.
 
 **2026-11-12, rebase:** the landing session asked for horses/cavalry and wagons on `origin/prep/g0-wave2` (which already carries the horses port). Replayed only this lane's commits there as `feat/web-veh-horses-w2` and `feat/web-veh-wagons-w2`; slice files byte-identical to the reviewed ones; cavalry 5/5, wagons 5/5, horses 14/14 on a fresh page.
+
+**Open nits on drones (not blocking):** drone rounds have no shooter, so no hit-direction marker; the round's streak starts at ground height under the drone; nests run per page (co-op will need one authority).
