@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { PART } from './vehicles.js';
+import { PART, VEHICLES } from './vehicles.js';
+import { engineFuel, mixEffect, burnOff, FUELS, FUEL_RULES } from '../data/fuels.js'; // FUEL TYPES: gas vs diesel, the wrong one chokes
 
 // Per-part vehicle damage you can SEE and FEEL.
 //   zones   front/rear/left/right dent 0..1  → the mesh physically crumples there
@@ -35,6 +36,7 @@ export class VehicleDamage {
       temp: 0, misfire: 0, dirty: false, deformT: 0,
     };
     v.fuel = v.fuelCap ?? 60;
+    v.fuelType = engineFuel(v.type, VEHICLES); v.bad = 0; // FUEL TYPES (data/fuels.js): what it burns; litres of the wrong one in the tank
     const pos = v.mesh.geometry.attributes.position;
     v.basePos = new Float32Array(pos.array);
     v.baseCol = new Float32Array(v.mesh.geometry.attributes.color.array);
@@ -199,9 +201,21 @@ export class VehicleDamage {
     // Fuel: burn by throttle, leak from a holed tank (leaving a dark trail).
     const burn = (0.012 + Math.max(0, v.throttle) * 0.05) * dt * (v.driver ? 1 : 0);
     const leak = d.tank < 0.65 ? (0.65 - d.tank) * 1.2 * dt : 0;
-    v.fuel = Math.max(0, v.fuel - burn - leak);
+    burnOff(v, burn + leak); // the mix burns in proportion (data/fuels.js)
     if (leak > 0) { d.trailT = (d.trailT ?? 0) - dt; if (d.trailT <= 0) { d.trailT = 0.18; g.fx.decal(v.x - Math.sin(v.h) * v.len * 0.45, v.z - Math.cos(v.h) * v.len * 0.45, 0.35 + Math.random() * 0.2, '#1c1a14'); g.fuelTrail?.push({ x: v.x, z: v.z, t: g.time }); } }
     if (v.fuel <= 0 && !v.noEngine) power = 0; // a raft or a ferry is poled or hauled, not fuelled (data/sealife.js)
+    // Wrong fuel in the tank (data/fuels.js): it coughs, loses power and wears while it runs on the mix; past the stall
+    // share it won't fire at all. A siphon hose drains it.
+    if (v.bad > 0 && !v.noEngine) {
+      const m = mixEffect(v);
+      power *= m.power;
+      if (!m.runs && v.driver === g.player && !d.warnedBad) { d.warnedBad = true; g.hud?.toast(`IT WON'T FIRE: ${FUELS[v.fuelType === 'diesel' ? 'gasoline' : 'diesel'].short} IN A ${FUELS[v.fuelType]?.short ?? ''} ENGINE · DRAIN THE TANK`, 'warn'); }
+      if (m.runs && v.throttle > 0) {
+        d.engine = Math.max(0, d.engine - dt * m.wear * v.throttle);
+        d.badCough = (d.badCough ?? 0) - dt;
+        if (d.badCough <= 0) { d.badCough = FUEL_RULES.misfire / Math.max(0.2, m.share * 4) * (0.6 + Math.random() * 0.8); power *= 0.15; g.audio?.backfire?.(g.pan(v.x)); g.fx.smoke(v.x - Math.sin(v.h) * v.len * 0.5, 0.8, v.z - Math.cos(v.h) * v.len * 0.5, true); }
+      }
+    } else if (d.warnedBad) d.warnedBad = false;
     // Tyres: flats cost grip, pull the steering, cap speed, throw sparks off the rim.
     let grip = 1, pull = 0, top = 1;
     const flat = v.utility?.runflat ? 0.4 : 1; // run-flat inserts: a blown tyre still rolls (data/workshop.js UTILITY)

@@ -95,6 +95,7 @@ import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the gra
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
+import { vehiclesV2Commands, vehiclesV2Checks } from './vehicles2-api.js'; // VEHICLES V2: Robert's 11-12 wishlist (docs/status/vehicles-v2.md)
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -1604,7 +1605,7 @@ function buildCommands(api) {
         if (oil !== undefined) v.oil = Math.max(0, Math.min(1, oil));
         for (const [k, x] of [['tyres', tyres], ['brakes', brakes], ['engine', engine]]) if (x !== undefined) v.wear[k] = Math.max(0, Math.min(1, x));
         if (temp !== undefined && v.dmg) v.dmg.temp = temp;
-        const out = { id: v.id, name: v.name, ...U.view(v), fuel: Math.round(v.fuel), fuelCap: v.fuelCap, parts: g.vehDamage.view(v).parts };
+        const out = { id: v.id, name: v.name, ...U.view(v), fuel: Math.round(v.fuel), fuelCap: v.fuelCap, fuelType: v.fuelType ?? null, badFuel: v.bad > 0 ? Math.round(v.bad * 10) / 10 : 0, parts: g.vehDamage.view(v).parts };
         if (bays) out.bays = GARAGE_BAYS.places.map((P2) => ({ id: P2.id, name: P2.name, at: U.post(P2), yard: P2.yard }));
         return out;
       },
@@ -2144,6 +2145,7 @@ function buildCommands(api) {
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...longRoadCommands(api, need), // THE LONG ROAD (src/agent/longroad-api.js)
     ...roadsideCommands(api, need),
+    ...vehiclesV2Commands(api, need), // VEHICLES V2: fuel types, ... (agent/vehicles2-api.js)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
     ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
   };
@@ -6143,6 +6145,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await longRoadChecks(api, check); // THE LONG ROAD: no dead stretch, travellers with origins, nothing in view (src/agent/longroad-api.js)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
+  await vehiclesV2Checks(api, check, C); // VEHICLES V2: fuel types (src/agent/vehicles2-api.js, docs/status/vehicles-v2.md)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
   await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
@@ -6176,7 +6179,8 @@ export function snapshot(g) {
     // (c.pol, v.pol: a town desk's officers and motor pool are not saved: systems/police.js stands them up again with the town)
     chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
-      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
+      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v), // build: plate kinds, gadgets, paint (systems/garage.js)
+      fuel: v.fuel != null ? Math.round(v.fuel * 10) / 10 : undefined, bad: v.bad > 0 ? Math.round(v.bad * 10) / 10 : undefined })), // FUEL TYPES: the tank and the wrong fuel in it (data/fuels.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
@@ -6225,10 +6229,12 @@ export function restore(g, s) {
   for (const sv of s.vehicles) {
     let v = vmap.get(sv.id);
     if (!v) { v = g.vehiclesSys.spawn(sv.type, sv.x, sv.z, sv.h, sv.paint, { ai: sv.ai }); v.id = sv.id; }
+    { const n = +String(sv.id).replace(/^v/, ''); const VS = g.vehiclesSys; if (n >= (VS.nextVid ?? 0)) VS.nextVid = n; } // the counter past every restored id: a later spawn must not reuse one (two cars, one id)
     Object.assign(v, { x: sv.x, z: sv.z, h: sv.h, hp: sv.hp, vx: 0, vz: 0, av: 0, ai: sv.ai, driver: null });
     v.plates = sv.plates ? { ...sv.plates } : undefined; v.mounts = sv.mounts ? JSON.parse(JSON.stringify(sv.mounts)) : undefined;
     g.garage.loadBuild(v, sv.build); // an old save: plain boiler plate, no gadgets
     g.garage.retune(v);
+    if (sv.fuel != null) { v.fuel = Math.min(v.fuelCap ?? sv.fuel, sv.fuel); v.bad = Math.min(v.fuel, sv.bad ?? 0); } // an old save: a full tank, as before
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }
   }
   // The ring's residents first: their characters go, their records start again from the save (promoted again near you).

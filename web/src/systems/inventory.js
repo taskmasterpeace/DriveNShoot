@@ -4,6 +4,7 @@ import { makeRng } from '../engine/rng.js';
 import { WEAPONS } from './combat.js';
 import { LEVEL } from '../data/storeys.js';
 import { PROGRAMMES } from '../data/floorplans.js';
+import { FUELS, canFuel, pour, drain as drainTank } from '../data/fuels.js'; // FUEL TYPES: gas vs diesel
 
 // What you carry and what the world holds (docs/design/WEB_INVENTORY.md). Everything is an item in a container,
 // rounds included. The guns you carry are your loadout (g.inv.weapons: holster and sling, outside the list, quick
@@ -200,13 +201,26 @@ export class Inventory {
   act(verb, s, it) {
     const g = this.g, P = g.player;
     if (verb === 'place_ladder') return g.actions?.beginPlace() ?? { ok: false, why: 'not here' }; // TIMED ACTIONS: set a carried ladder against the wall in front of you
-    const v = P.inVehicle ?? g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - P.x, c.z - P.z) < Math.max(3.4, c.len * 0.65));
+    // The car you're in, else the NEAREST one within reach (it used to be the first in the list: a can poured into a
+    // parked car behind you while yours stood beside you).
+    let v = P.inVehicle, vd = Infinity;
+    if (!v) for (const c of g.vehicles) { if (c.dead || c.sunk) continue; const dd = Math.hypot(c.x - P.x, c.z - P.z); if (dd < Math.max(3.4, c.len * 0.65) && dd < vd) { v = c; vd = dd; } }
     const d = v?.dmg;
     if (verb === 'refuel') {
       if (!v) return { ok: false, why: 'no vehicle close enough to pour it into' };
       if (v.fuel >= v.fuelCap - 0.5) return { ok: false, why: 'the tank is already full' };
-      v.fuel = Math.min(v.fuelCap, v.fuel + it.use.litres);
-      return { ok: true, text: `+${it.use.litres} L FUEL` };
+      // FUEL TYPES (data/fuels.js): anything pours into anything; the wrong one sits in the tank as v.bad.
+      const kind = canFuel(it), r = pour(v, kind, it.use.litres), L = Math.round(r.poured * 10) / 10;
+      if (r.wrong) { g.emit?.('wrongFuel', { id: v.id, poured: kind, burns: v.fuelType, litres: L, bad: Math.round(v.bad * 10) / 10 }); return { ok: true, wrong: true, text: `+${L} L ${FUELS[kind].short} · WRONG FUEL: THE ${(v.fuelType ? FUELS[v.fuelType].short : 'ENGINE')} ENGINE WILL CHOKE ON IT` }; }
+      return { ok: true, text: `+${L} L ${kind ? FUELS[kind].short : 'FUEL'}` };
+    }
+    if (verb === 'drain') {
+      if (!v) return { ok: false, why: 'no vehicle close enough to drain' };
+      if (!(v.fuel > 0.05)) return { ok: false, why: 'its tank is already dry' };
+      const l = drainTank(v);
+      g.fx?.decal?.(v.x - Math.sin(v.h) * v.len * 0.45, v.z - Math.cos(v.h) * v.len * 0.45, 1.1, '#1c1a14'); // a dark stain under the tank
+      g.emit?.('drained', { id: v.id, litres: Math.round(l * 10) / 10 });
+      return { ok: true, text: `TANK DRAINED · ${Math.round(l)} L INTO THE DIRT` };
     }
     if (verb === 'tyre') {
       const t = d && Object.keys(d.tyres).find((k) => d.tyres[k] <= 0);

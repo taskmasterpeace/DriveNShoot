@@ -252,12 +252,17 @@ export class Roadside {
     // in the concrete (a patched slab).
     const tx = cpx + ux * 9.5, tz = cpz + uz * 9.5;
     this.P('floors', tx, 0.045, tz, along ? 4.2 : 9.5, 0.02, along ? 9.5 : 4.2, '#8e877a');
-    for (let k = -1; k <= 1; k++) this.P('barrels', tx + uz * k * 2.2, 0.06, tz + ux * k * 2.2, 0.7, 0.1, 0.7, k === 0 ? '#9a8a2a' : '#5a5650');
+    // FUEL TYPES (data/fuels.js): the centre caps are the gasoline tank (red rim), the end caps the diesel tank (yellow).
+    for (let k = -1; k <= 1; k++) this.P('barrels', tx + uz * k * 2.2, 0.06, tz + ux * k * 2.2, 0.7, 0.1, 0.7, k === 0 ? '#9a3a2a' : k === 1 ? '#c9a227' : '#5a5650');
     const vpx = tx + ux * 4 + vx * -1, vpz = tz + uz * 4 + vz * -1;
     this.P('trunks', vpx, 2.2, vpz, 0.5, 4.4, 0.5, '#6a6a62'); this.B(vpx - 0.2, vpz - 0.2, vpx + 0.2, vpz + 0.2, 4.4, 'post');
     const looted = S.state !== 'holdout', lit = rng.range(RR.station.tank[0], RR.station.tank[1]);
-    const tank = this.spot(S, 'tank', tx, tz, { id: `${S.id}:tank`, r: 3.4, litres: Math.round(looted ? lit : rng.range(RR.station.holdoutTank[0], RR.station.holdoutTank[1])), guarded: !looted });
+    const tank = this.spot(S, 'tank', tx, tz, { id: `${S.id}:tank`, r: 3.4, litres: Math.round(looted ? lit : rng.range(RR.station.holdoutTank[0], RR.station.holdoutTank[1])), guarded: !looted, fuel: 'gasoline' });
     this.tanks.push(tank);
+    // The diesel tank's caps (the yellow one at the end of the row): smaller, for the trucks that stopped here. No new
+    // draw from rng (every later pick at this site stays where it was): its litres are a share of the gas tank's.
+    const dz = this.spot(S, 'tank', tx + uz * 2.2, tz + ux * 2.2, { id: `${S.id}:diesel`, r: 1.4, litres: Math.round(tank.litres * RR.station.dieselShare), guarded: !looted, fuel: 'diesel' });
+    this.tanks.push(dz);
     // The price pole: a tall post with the brand's board (the bills atlas) at the road end of the apron.
     const ppx = cpx - ux * 10 - vx * ((a.set ?? 26) - F.halfW - 9), ppz = cpz - uz * 10 - vz * ((a.set ?? 26) - F.halfW - 9);
     this.P('props', ppx, 4, ppz, 0.4, 8, 0.4, '#4a4642'); this.B(ppx - 0.25, ppz - 0.25, ppx + 0.25, ppz + 0.25, 8, 'post');

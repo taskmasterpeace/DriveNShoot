@@ -101,11 +101,14 @@ export const ITEMS = {
     desc: 'A red flare in a paper tube. Strike it and put it down: a minute of fire nothing with sense walks into.' },
   duct_tape: { name: 'Duct tape', kind: 'tool', kg: 0.3, bulk: 0.3, stack: 1, value: 10, uses: 4, use: { act: 'repair' },
     desc: 'Half a roll. Holds a radiator, a tank, a cracked hose until it doesn\'t.' },
-  fuel_can: { name: 'Fuel can', kind: 'part', kg: 8.4, kgEmpty: 1.2, bulk: 11, stack: 1, value: 40, uses: 1, refill: 'fuel', use: { act: 'refuel', litres: 10 },
-    desc: 'Ten litres of gasoline that smells like it has been through a few cans. Pour it into anything that runs.' },
+  // FUEL TYPES (data/fuels.js): the red can is gasoline, the yellow can diesel. Pour the wrong one in and the engine pays.
+  fuel_can: { name: 'Gas can', kind: 'part', kg: 8.4, kgEmpty: 1.2, bulk: 11, stack: 1, value: 40, uses: 1, refill: 'fuel', fuel: 'gasoline', use: { act: 'refuel', litres: 10 },
+    desc: 'A red can: ten litres of gasoline that smells like it has been through a few cans. Cars, bikes, pickups. Not a diesel.' },
+  diesel_can: { name: 'Diesel can', kind: 'part', kg: 8.7, kgEmpty: 1.2, bulk: 11, stack: 1, value: 44, uses: 1, refill: 'fuel', fuel: 'diesel', use: { act: 'refuel', litres: 10 },
+    desc: 'A yellow can: ten litres of diesel, oily and slow to burn. Big rigs, buses, the military trucks, work boats. Never in a gas engine.' },
   // The roadside (systems/roadside.js): E at a dead station's fill caps draws what is left in its underground tank.
-  siphon_hose: { name: 'Siphon hose', kind: 'tool', kg: 0.7, bulk: 0.8, stack: 1, value: 15, tags: ['hose'],
-    desc: 'Three metres of fuel line and a hand bulb. Down a station\'s fill pipe, the dregs come up into your car or your cans.' },
+  siphon_hose: { name: 'Siphon hose', kind: 'tool', kg: 0.7, bulk: 0.8, stack: 1, value: 15, tags: ['hose'], use: { act: 'drain' },
+    desc: 'Three metres of fuel line and a hand bulb. Down a station\'s fill pipe, the dregs come up into your car or your cans. Used at a car, it drains a tank of the wrong fuel into the dirt (good and bad together).' },
   spare_tyre: { name: 'Spare tyre', kind: 'part', kg: 9, bulk: 40, stack: 1, value: 35, use: { act: 'tyre' },
     desc: 'A spare on a rim, more patches than tread. Swaps for a flat.' },
   scrap: { name: 'Scrap steel', kind: 'part', kg: 1.5, bulk: 1, stack: 10, value: 3, tags: ['steel'],
@@ -225,7 +228,7 @@ export const LOOT = {
   desert: { rolls: [1, 1], none: 1, rows: [['cactus_fruit', 6, 1, 3], ['water_bottle', 1, 1, 1], ['jerky', 1, 1, 2]] },
   // The Phoenix ring's shops (data/ring.js): a corner store's shelves, a fuel stop's counter and back room.
   storefront: { rolls: [1, 3], none: 4, rows: [['beans_tin', 4, 1, 3], ['peaches_tin', 3, 1, 2], ['water_bottle', 4, 1, 2], ['jerky', 3, 1, 2], ['painkillers', 1, 1, 1], ['duct_tape', 1, 1, 1], ['can_opener', 1, 1, 1], ['road_atlas', 1, 1, 1]] },
-  pumps: { rolls: [1, 3], none: 3, rows: [['fuel_can', 3, 1, 1], ['spare_tyre', 1, 1, 1], ['spark_plugs', 2, 1, 1], ['jerky', 2, 1, 2], ['water_bottle', 2, 1, 1], ['road_atlas', 2, 1, 1], ['duct_tape', 1, 1, 1]] },
+  pumps: { rolls: [1, 3], none: 3, rows: [['fuel_can', 3, 1, 1], ['diesel_can', 2, 1, 1], ['spare_tyre', 1, 1, 1], ['spark_plugs', 2, 1, 1], ['jerky', 2, 1, 2], ['water_bottle', 2, 1, 1], ['road_atlas', 2, 1, 1], ['duct_tape', 1, 1, 1]] },
   person: { rolls: [0, 2], none: 3, rows: [['ammo_pistol', 2, 3, 10], ['ammo_smg', 1, 5, 15], ['water_bottle', 4, 1, 1], ['jerky', 3, 1, 2], ['rag', 3, 1, 2], ['photograph', 3, 1, 1], ['flatbread', 2, 1, 1], ['wristwatch', 1, 1, 1], ['gold_ring', 1, 1, 1], ['painkillers', 1, 1, 1], ['knife', 1, 1, 1]] },
   raider: { rolls: [1, 3], none: 1, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1], ['ammo_smg', 4, 12, 36], ['ammo_pistol', 3, 6, 18], ['ammo_shells', 2, 3, 8]] },
   // A Federal Remnant soldier's pockets and webbing (bases.js): issue kit, nothing personal left.

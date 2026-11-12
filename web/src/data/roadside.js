@@ -27,7 +27,7 @@ export const ROADSIDE_RULES = {
   billboard: { w: 12, h: 4.2, lift: 4.6, off: 42, keepExit: 640 },
   // Gas stations. tank: litres left in a looted station's underground tank (the dregs below the old pump intake); a
   // holdout's is kept full and sold. sell: scrip a litre at a holdout's counter by the standing tier (data/trade.js tiers).
-  station: { tank: [14, 34], holdoutTank: [360, 520], forecourt: 15, sell: { litres: 20, price: 1.6 }, water: { litres: 2, price: 3 }, hose: 15 },
+  station: { tank: [14, 34], holdoutTank: [360, 520], dieselShare: 0.6, forecourt: 15, sell: { litres: 20, price: 1.6 }, water: { litres: 2, price: 3 }, hose: 15 },
   // A hulk in a junkyard: how many pieces of scrap it strips into, the game hours a piece takes with a wrench or a pry
   // bar (by hand, never), and how close you must stand. noise: metres a piece of work is heard (the infected come to it).
   hulk: { scrap: [3, 6], hoursPer: 0.25, reach: 3.4, noise: 18 },

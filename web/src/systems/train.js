@@ -10,7 +10,7 @@ import { radialGlow } from '../world/textures.js';
 const CARS = [
   { kind: 'loco', len: 14, color: '#5a2a1a' },
   { kind: 'box', len: 12, color: '#6a4a2e' },
-  { kind: 'tanker', len: 12, color: '#2e2c2a' },
+  { kind: 'tanker', len: 12, color: '#2e2c2a', fuel: 'diesel' }, // FUEL TYPES (data/fuels.js): a diesel tanker
   { kind: 'flat', len: 12, color: '#4a4440' },
   { kind: 'box', len: 12, color: '#3e4a46' },
   { kind: 'caboose', len: 9, color: '#7a2a1c' },

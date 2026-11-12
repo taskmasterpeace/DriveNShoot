@@ -16,6 +16,7 @@
 // the save. The layout itself never changes (a chunk stays a pure function of the data).
 import { ROADSIDE_RULES as RR, KEEPERS } from '../data/roadside.js';
 import { ITEMS } from '../data/items.js';
+import { FUELS, tankFuel, pour } from '../data/fuels.js'; // FUEL TYPES: a station has a gasoline tank and a diesel tank
 import { PRICE_TIER } from '../data/trade.js';
 
 const WATER_L = { water_bottle: 0.5, canteen: 1, water_can: 10 }; // litres each water container holds when full
@@ -68,7 +69,7 @@ export class RoadsideSys {
     return { roadside: true, kind: best.kind, id: best.id, sp: best, label: this.label(best) };
   }
   label(sp) {
-    if (sp.kind === 'tank') { const l = this.litres(sp); return l <= 0.05 ? 'The tank is dry' : `<kbd>E</kbd> Siphon the tank${this.g.inventory?.hasTag('hose') ? '' : ' · <b class="warn">needs a hose</b>'}`; }
+    if (sp.kind === 'tank') { const l = this.litres(sp), f = FUELS[tankFuel(sp)].name; return l <= 0.05 ? `The ${f} tank is dry` : `<kbd>E</kbd> Siphon the ${f} tank${this.g.inventory?.hasTag('hose') ? '' : ' · <b class="warn">needs a hose</b>'}`; }
     if (sp.kind === 'hulk') { const l = this.scrapLeft(sp); if (this.job?.id === sp.id) return `Stripping · ${l} left · <kbd>E</kbd> stop`; return l <= 0 ? 'Stripped bare' : `<kbd>E</kbd> Strip it for scrap · ${l} left${this.tool() ? '' : ' · <b class="warn">needs a wrench or a pry bar</b>'}`; }
     if (sp.kind === 'water') { const l = this.waterNow(sp); return l < 0.2 ? (sp.source === 'cistern' ? 'The cistern is dry · the gates are shut' : 'The stock tank is dry') : `<kbd>E</kbd> Fill up · ${Math.round(l)} L in the ${sp.source === 'cistern' ? 'cistern' : 'tank'}`; }
     if (sp.kind === 'wheel') return `<kbd>E</kbd> ${this.gates(sp.site) === 'open' ? 'Shut' : 'Open'} the gates`;
@@ -100,22 +101,27 @@ export class RoadsideSys {
     let left = this.litres(sp);
     if (left <= 0.05) return { ok: false, why: 'the tank is dry' };
     const before = left, into = [];
-    const v = g.vehicles.find((c) => !c.dead && !c.sunk && c.fuelCap && Math.hypot(c.x - sp.x, c.z - sp.z) < 9);
-    if (v) { const k = Math.min(left, Math.max(0, v.fuelCap - v.fuel)); if (k > 0.05) { v.fuel += k; left -= k; into.push({ to: v.name, id: v.id, litres: r1(k) }); } }
+    // FUEL TYPES: the hose goes only into a car that burns what this tank holds, and only into empty cans of its colour
+    // (a red can takes gasoline, a yellow can diesel). Pouring the wrong fuel is something you do by hand, from a can.
+    const kind = tankFuel(sp), F = FUELS[kind];
+    let v = null, vd = 9; // the nearest car to the caps that has a tank
+    for (const c of g.vehicles) { if (c.dead || c.sunk || !c.fuelCap) continue; const dd = Math.hypot(c.x - sp.x, c.z - sp.z); if (dd < vd) { v = c; vd = dd; } }
+    const vOk = v && (!v.fuelType || v.fuelType === kind);
+    if (vOk) { const r = pour(v, kind, left); if (r.poured > 0.05) { left -= r.poured; into.push({ to: v.name, id: v.id, litres: r1(r.poured) }); } }
     const C = g.inventory.carried;
     for (const s of C.slots) {
       if (left < 0.5) break;
-      if (s.id !== 'fuel_can' || (s.left ?? 0) > 0) continue;
-      const cap = ITEMS.fuel_can.use.litres;
+      if (s.id !== F.can || (s.left ?? 0) > 0) continue;
+      const cap = ITEMS[F.can].use.litres;
       if (left + 1e-6 < cap) break; // a can is filled whole or not at all (its use pours ten litres)
-      s.left = 1; left -= cap; into.push({ to: 'fuel can', litres: cap });
+      s.left = 1; left -= cap; into.push({ to: ITEMS[F.can].name.toLowerCase(), litres: cap });
     }
-    if (!into.length) return { ok: false, why: v ? `the ${v.name.toLowerCase()} is full and you carry no empty can` : 'nothing to siphon into: bring the car alongside, or an empty can' };
+    if (!into.length) return { ok: false, why: v && !vOk ? `this is the ${F.name} tank: the ${v.name.toLowerCase()} burns ${v.fuelType}${C.slots.some((q) => q.id === F.can && !(q.left > 0)) ? '' : `, and you carry no empty ${F.name} can`}` : v ? `the ${v.name.toLowerCase()} is full and you carry no empty ${F.name} can` : `nothing to siphon into: bring the car alongside, or an empty ${F.name} can` };
     this.tank[sp.id] = Math.max(0, r1(left));
     g.inventory.changed();
     this.stats.siphoned += before - left;
-    g.emit?.('siphon', { tank: sp.id, site: sp.site, litres: r1(before - left), left: this.tank[sp.id], into });
-    return { ok: true, text: `+${r1(before - left)} L SIPHONED${this.tank[sp.id] <= 0.05 ? ' · TANK DRY' : ` · ${Math.round(this.tank[sp.id])} L LEFT`}`, litres: r1(before - left), left: this.tank[sp.id], into };
+    g.emit?.('siphon', { tank: sp.id, site: sp.site, fuel: kind, litres: r1(before - left), left: this.tank[sp.id], into });
+    return { ok: true, fuel: kind, text: `+${r1(before - left)} L ${F.short} SIPHONED${this.tank[sp.id] <= 0.05 ? ' · TANK DRY' : ` · ${Math.round(this.tank[sp.id])} L LEFT`}`, litres: r1(before - left), left: this.tank[sp.id], into };
   }
 
   // ---- stripping a hulk ------------------------------------------------------------------------------------------------
@@ -256,9 +262,9 @@ export class RoadsideSys {
       done: { text: 'Done. Mind the edge.', choices: [{ t: '[Leave]', end: true }] },
     } };
     return { start: 'hi', nodes: {
-      hi: { text: () => `${site.name}. Gas is ${S.sell.price * (mul() ?? 1)} a litre, ${S.sell.litres} at a time. Water too. No guns drawn on my apron.`, choices: [
-        { t: () => `Twenty litres into the car ($${fuelCost()})`, req: (g) => !!fuelCost() && g.cash >= fuelCost() && !!sys.nearCar(site), do: (g) => { if (g.spend(fuelCost())) { const r = sys.buyFuel(site); if (!r.ok) g.cash += fuelCost(); } }, next: 'done' },
-        { t: () => `Fill my empty cans ($${fuelCost()} each)`, req: (g) => !!fuelCost() && g.cash >= fuelCost() && g.inventory.carried.slots.some((s) => s.id === 'fuel_can' && !(s.left > 0)), do: (g) => { if (g.spend(fuelCost())) { const r = sys.fillCan(); if (!r.ok) g.cash += fuelCost(); } }, next: 'done' },
+      hi: { text: () => `${site.name}. Gas or diesel, ${S.sell.price * (mul() ?? 1)} a litre, ${S.sell.litres} at a time. Water too. No guns drawn on my apron.`, choices: [
+        { t: () => `Twenty litres of ${sys.nearCar(site)?.fuelType ?? 'gas'} into the ${sys.nearCar(site)?.name?.toLowerCase() ?? 'car'} ($${fuelCost()})`, req: (g) => !!fuelCost() && g.cash >= fuelCost() && !!sys.nearCar(site), do: (g) => { if (g.spend(fuelCost())) { const r = sys.buyFuel(site); if (!r.ok) g.cash += fuelCost(); } }, next: 'done' },
+        { t: () => `Fill my empty cans ($${fuelCost()} each)`, req: (g) => !!fuelCost() && g.cash >= fuelCost() && g.inventory.carried.slots.some((s) => (s.id === 'fuel_can' || s.id === 'diesel_can') && !(s.left > 0)), do: (g) => { if (g.spend(fuelCost())) { const r = sys.fillCan(); if (!r.ok) g.cash += fuelCost(); } }, next: 'done' },
         { t: () => `Fill my water ($${waterCost()})`, req: (g) => !!waterCost() && g.cash >= waterCost(), do: (g) => { if (g.spend(waterCost())) { const r = sys.buyWater(); if (!r.ok) g.cash += waterCost(); } }, next: 'done' },
         { t: () => `A siphon hose ($${hoseCost()})`, req: (g) => !!hoseCost() && g.cash >= hoseCost() && !g.inventory.hasTag('hose'), do: (g) => { if (g.spend(hoseCost())) g.inventory.add(g.inventory.carried, 'siphon_hose', 1); g.inventory.changed(); }, next: 'done' },
         { t: '[Leave]', end: true },
@@ -270,13 +276,17 @@ export class RoadsideSys {
   buyFuel(site) {
     const v = this.nearCar(site);
     if (!v) return { ok: false, why: 'no car of yours at the pumps' };
-    const sp = this.R.tanks.find((t) => t.site === site.id && t.kind === 'tank'), have = this.litres(sp), k = Math.min(RR.station.sell.litres, Math.max(0, v.fuelCap - v.fuel), have);
-    if (k <= 0.05) return { ok: false, why: 'nothing to pour' };
-    v.fuel += k; this.tank[sp.id] = r1(have - k);
-    return { ok: true, text: `+${r1(k)} L FUEL` };
+    // The keeper pours from the tank that matches what the car burns (they know a diesel when they see one).
+    const want = v.fuelType ?? 'gasoline';
+    const sp = this.R.tanks.find((t) => t.site === site.id && t.kind === 'tank' && tankFuel(t) === want);
+    if (!sp) return { ok: false, why: `no ${want} here` };
+    const have = this.litres(sp), k = Math.min(RR.station.sell.litres, Math.max(0, v.fuelCap - v.fuel), have);
+    if (k <= 0.05) return { ok: false, why: have <= 0.05 ? `the ${want} tank is dry` : 'nothing to pour' };
+    pour(v, want, k); this.tank[sp.id] = r1(have - k);
+    return { ok: true, fuel: want, text: `+${r1(k)} L ${FUELS[want].short}` };
   }
   fillCan() {
-    const s = this.g.inventory.carried.slots.find((q) => q.id === 'fuel_can' && !(q.left > 0));
+    const s = this.g.inventory.carried.slots.find((q) => (q.id === 'fuel_can' || q.id === 'diesel_can') && !(q.left > 0)); // a red can or a yellow one, each with its own
     if (!s) return { ok: false, why: 'no empty can' };
     s.left = 1; this.g.inventory.changed();
     return { ok: true, text: 'CAN FILLED' };
