@@ -1,11 +1,12 @@
 // LOOK-FEEL's commands and checks (systems/lookfeel.js, data/looks.js, docs/design/WEB_LOOK_FEEL.md).
 import * as THREE from 'three';
-import { LOOK_REGIONS, TIME_GRADES, HORIZONS, WIND, DECALS, IMPACT, LAMPS, validateLooks, applyGrade, composeGrade, hueOf } from '../data/looks.js';
+import { LOOK_REGIONS, TIME_GRADES, HORIZONS, WIND, DECALS, IMPACT, LAMPS, SKY_FEEL, validateLooks, applyGrade, composeGrade, hueOf } from '../data/looks.js';
 import { regionOfState, timeWeights, windOffset, WIND_UNIFORMS } from '../systems/lookfeel.js';
 import { lampAt } from '../systems/lamplight.js';
+import { NIGHT_I } from '../systems/sky.js';
 import { CAMERA } from '../data/camera.js';
 import { RAY_BULLET } from '../engine/collision.js';
-import { outfit } from '../systems/characters.js';
+import { outfit, RIG } from '../systems/characters.js';
 import { roadLines } from '../world/city.js';
 import { devtoolsCommands } from './devtools.js'; // `look` is the observer's command: look-feel answers it only when action= is given
 
@@ -294,7 +295,10 @@ export async function lookfeelChecks({ g, api, C, check }) {
       let s = 0; for (let i = 0; i < px.length; i += 4) s += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
       return s / (w * w);
     };
+    // Measured at the Night setting "Pitch dark (only your light)": what the lamps add, with no moon to hide it.
+    const nl0 = g.sky.nightLight; g.sky.nightLight = 0; await api._step(2);
     const off = at(near, 0), on = at(near, 1);
+    g.sky.nightLight = nl0;
     const compiled = !!g.charR.meshes.torso.material.userData.lampCompiled && F.lamps.patched >= 6;
     // The torch: on foot, facing the man, the cone reaches him.
     g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); await api._step(6);
@@ -304,6 +308,55 @@ export async function lookfeelChecks({ g, api, C, check }) {
     dropMine(g); await C('setTime', { hour: 12 });
     const ok = head && lNear > 0.6 && lFar > 0 && lFar < lNear * 0.6 && lBack === 0 && on > off + 6 && on > off * 1.4 && compiled && torch && lTorch > 0.3;
     return ok ? true : JSON.stringify({ head, lNear: r3(lNear), lFar: r3(lFar), lBack: r3(lBack), off: r3(off), on: r3(on), compiled, patched: F.lamps.patched, torch, lTorch: r3(lTorch), tAt, lamps: F.lamps.view().lamps });
+  });
+
+  await check('look-feel: a game day lasts the Day length (48 real minutes by default); everything off screen keeps its pace in game hours; the night defaults to a readable dark with a long dusk; Brightness sets the exposure', async () => {
+    const S = g.sky, Q = g.qol, pin = S.testPin, dm = S.dayMinutes;
+    // The default rate, unpinned: 48 min a day is 1/120 game hours a real second; 12 min is 4x that. The off-screen paces
+    // (pulls' walkers, the site stories' movers, the travellers) are metres per GAME hour: 4x as many at the slow rate.
+    S.testPin = null;
+    const slow = S.setDayMinutes(SKY_FEEL.dayMinutes), walk48 = g.pulls.walkPerHour(), mover48 = g.stories.pace('drive'), ts48 = g.travel.ts;
+    const fast = S.setDayMinutes(12), walk12 = g.pulls.walkPerHour(), mover12 = g.stories.pace('drive'), ts12 = g.travel.ts;
+    S.setDayMinutes(SKY_FEEL.dayMinutes); const t0 = S.time; await C('step', { seconds: 1 }); const adv = ((S.time - t0 + 24) % 24);
+    S.testPin = pin; S.setDayMinutes(dm);
+    const rate = Math.abs(slow - 1 / 120) < 1e-9 && Math.abs(fast / slow - 4) < 1e-6 && Math.abs(walk48 / walk12 - 4) < 1e-6 && Math.abs(mover48 / mover12 - 4) < 1e-6 && Math.abs(ts48 - slow) < 1e-12 && Math.abs(ts12 - fast) < 1e-12;
+    const stepped = adv > 0.5 / 120 && adv < 2 / 120; // one real second ~ 1/120 game hour (the step's frames round it)
+    const pinned = S.timeScale === 1 / 30 || Math.abs(S.timeScale - 24 / (SKY_FEEL.testDayMinutes * 60)) < 1e-12;
+    // The night: the default and the once-only migration flag; dusk is a long band (about half light at 18:00, still some at 18:30, full night by 19:30).
+    const nightAt = async (h) => { await C('setTime', { hour: h }); await C('step', { seconds: 0.05 }); return S.night; };
+    const n1800 = await nightAt(18), n1830 = await nightAt(18.5), n1930 = await nightAt(19.5), n23 = await nightAt(23);
+    await C('setTime', { hour: 12 });
+    const night = NIGHT_I.dflt === SKY_FEEL.night && Q.settings.nightV2 === true && n1800 > 0.35 && n1800 < 0.6 && n1830 < 0.86 && n1930 > 0.97 && n23 > 0.97;
+    // Brightness: the menu's slider sets the exposure (and the goggles' base).
+    const b0 = Q.settings.brightness; Q.settings.brightness = 1.3; Q.apply(); const ex = g.renderer.toneMappingExposure, kb = g.kit.baseExposure;
+    Q.settings.brightness = b0; Q.apply();
+    const bright = Math.abs(ex - SKY_FEEL.exposure * 1.3) < 1e-6 && Math.abs(kb - ex) < 1e-6 && Math.abs(g.renderer.toneMappingExposure - SKY_FEEL.exposure * (b0 ?? 1)) < 1e-6;
+    return rate && stepped && pinned && night && bright ? true : JSON.stringify({ slow, fast, walk48: r3(walk48), walk12: r3(walk12), mover48: r3(mover48), mover12: r3(mover12), ts48, ts12, adv, pinned: S.timeScale, n1800: r3(n1800), n1830: r3(n1830), n1930: r3(n1930), n23: r3(n23), nightV2: Q.settings.nightV2, ex, kb });
+  });
+
+  await check('look-feel: the torch beam leaves from the light itself - the hand or the muzzle, within 0.2 m of its height standing, crouched and prone - and its pool lands ahead of it, not at the feet', async () => {
+    const p = g.player; if (p.inVehicle) g.exitVehicle(true);
+    const L0 = clearStrip(g, 40); if (!L0) return 'no clear strip';
+    await C('teleport', { x: L0.x, z: L0.z }); await C('setTime', { hour: 23 });
+    const fo = g.flashOverride, mode = g.charR.lsw?.mode; g.flashOverride = true; g.charR.lsw?.setMode('classic'); // the classic hand is the one we can read
+    await C('give', { pistol: 30 }); await C('equip', { weapon: 'pistol' });
+    try { await C('stance', { set: 'raised' }); } catch { /* the default carry */ }
+    const O = g.flashlight.userData.origin, M = g.charR.meshes, hm = new THREE.Matrix4(), hv = new THREE.Vector3();
+    const read = async (name) => {
+      await C('aim', { x: p.x + 10, z: p.z }); await api._step(30); await C('aim', { x: p.x + 10, z: p.z }); await api._step(3);
+      const fh = p.hand === 'L' ? 0 : 1; M.hand.getMatrixAt(p.slot * 2 + fh, hm); hv.set(0, -RIG.FORE, 0).applyMatrix4(hm);
+      const floor = p.gy ?? 0, pool = Math.hypot(g.flashlight.position.x - O.x, g.flashlight.position.z - O.z);
+      const lamp = F.lamps.view().lamps.find((l) => l.kind === 'torch');
+      return { name, ok: O.ok, h: r3(O.y - floor), hand: r3(hv.y - floor), dy: r3(Math.abs(O.y - Math.max(hv.y, floor + LAMPS.torch.minY))), dxz: r3(Math.hypot(O.x - hv.x, O.z - hv.z)), pool: r3(pool), ahead: r3(O.ahead), lampY: lamp ? r3(lamp.at[1] - floor) : null, pose: p._pose };
+    };
+    const stand = await read('standing');
+    await C('crouch', { on: true }); const crouch = await read('crouched'); await C('crouch', { on: false });
+    await C('prone', { on: true, heading: Math.PI / 2 }); const prone = await read('prone'); await C('prone', { on: false }); await api._step(20);
+    g.flashOverride = fo; if (mode) g.charR.lsw.setMode(mode); await C('setTime', { hour: 12 });
+    const R = [stand, crouch, prone];
+    const each = R.every((r) => r.ok && r.dy <= 0.2 && r.dxz <= 0.6 && Math.abs(r.pool - r.ahead) < 0.05 && r.lampY !== null && Math.abs(r.lampY - r.h) < 0.05);
+    const order = stand.h > 1.0 && crouch.h < stand.h - 0.2 && prone.h < 0.6 && prone.h < crouch.h && stand.ahead > 0.8 && prone.ahead < stand.ahead * 0.5;
+    return each && order ? true : JSON.stringify(R);
   });
 
   await check('look-feel: a site the site-story system marks as raided shows it on the ground (scorch, blood, tyre tracks), and a camp has its bonfire ring', async () => {
