@@ -37,7 +37,7 @@ export async function vehTanksChecks(api, check, C) {
       await C('teleport', { x: P.near.x - 20, z: P.near.z - 20 }); for (let f = 0; f < 10; f++) await api._step(1);
       const v = g.vehicles.find((q) => q.tankRow === P.id), n = g.vehicles.filter((q) => q.tankRow === P.id).length;
       if (!v) return JSON.stringify({ placed: g.tanks.placed.has(P.id), n });
-      const r0 = v.mounts?.top?.ammo, f0 = v.fuel;
+      const r0 = v.mounts?.top?.ammo, f0 = v.fuel, fr0 = v.mounts?.front?.ammo ?? 0; // the hull gun is empty too
       g.enterVehicle(v); await api._step(3);
       const x0 = v.x, z0 = v.z; I.down.add('KeyW'); await api._step(120); I.down.delete('KeyW');
       const moved = Math.hypot(v.x - x0, v.z - z0);
@@ -46,7 +46,7 @@ export async function vehTanksChecks(api, check, C) {
       await api._step(30); I.mouse.physRight = false; I.mouse.right = false;
       const fired = (g.events ?? []).some((e) => e.seq > ev0 && /rocketLaunch|mountFire|launch/i.test(e.type) && e.vehicle === v.id);
       g.exitVehicle(true);
-      return n === 1 && v.mounts?.top?.kind === 'cannon75' && r0 === 0 && f0 === 0 && moved < 0.3 && !fired ? true : JSON.stringify({ n, gun: v.mounts?.top?.kind, r0, f0, moved: r1(moved), fired });
+      return n === 1 && v.mounts?.top?.kind === 'cannon75' && r0 === 0 && fr0 === 0 && f0 === 0 && moved < 0.3 && !fired ? true : JSON.stringify({ n, gun: v.mounts?.top?.kind, r0, fr0, f0, moved: r1(moved), fired });
     } finally { off(); }
   });
 
@@ -61,12 +61,15 @@ export async function vehTanksChecks(api, check, C) {
       const moved = Math.hypot(v.x - x0, v.z - z0);
       const hp0 = car.hp, a0 = v.mounts.top.ammo;
       g.aimOverride = { x: car.x, z: car.z }; I.mouse.physRight = true; I.mouse.right = true;
-      for (let f = 0; f < 90 && v.mounts.top.ammo === a0; f++) await api._step(1);
+      const ws = g.workshop, launch0 = ws.launch; let mz0 = null; ws.launch = function (vv, mz, ...rest) { if (vv === v && !mz0) mz0 = { x: mz.x, y: mz.y, z: mz.z, vx: vv.x, vz: vv.z }; return launch0.call(this, vv, mz, ...rest); };
+      let lag = 0; try { for (let f = 0; f < 120 && v.mounts.top.ammo === a0; f++) { await api._step(1); lag = f; } } finally { ws.launch = launch0; }
       I.mouse.physRight = false; I.mouse.right = false;
       for (let f = 0; f < 90; f++) await api._step(1);
       const want = Math.atan2(car.x - v.x, car.z - v.z), yaw = v.mounts.top.yaw ?? 0, off_ = Math.abs(Math.atan2(Math.sin(yaw - want), Math.cos(yaw - want)));
       const spent = a0 - v.mounts.top.ammo, hurt = hp0 - car.hp;
-      return moved > 5 && spent === 1 && off_ < 0.35 && (hurt > 150 || car.dead) ? true : JSON.stringify({ moved: r1(moved), spent, aimOff: r1(off_), hurt: Math.round(hurt), dead: car.dead });
+      const at = g.garage.chassis(v).mounts.top.at, W = MOUNT_WEAPONS.cannon120, reach = W.turret[2] / 2 + 0.2 + W.barrel; // the barrel tip, from the turret's spot on the deck
+      const tip = mz0 ? Math.hypot(mz0.x - mz0.vx, mz0.z - mz0.vz) : 0, tipOk = mz0 && tip > reach - 1.2 && tip < reach + 1.5 && mz0.y > at[1] && mz0.y < at[1] + W.turret[1];
+      return moved > 5 && spent === 1 && off_ < 0.35 && lag > 15 && tipOk && (hurt > 150 || car.dead) ? true : JSON.stringify({ moved: r1(moved), spent, aimOff: r1(off_), lag, tip: r1(tip), reach: r1(reach), y: mz0 && r1(mz0.y), hurt: Math.round(hurt), dead: car.dead });
     } finally { off(); }
   });
 }

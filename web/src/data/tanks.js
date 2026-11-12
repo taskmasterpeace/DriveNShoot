@@ -17,10 +17,10 @@ export const TANK_ROWS = {
 // The guns: a shell flies like a heavy rocket and bursts; `turret` [w, h, d] and `barrel` (m) are what garage.js draws.
 export const TANK_GUNS = {
   cannon75: { name: '75 MM GUN', kind: 'rocket', size: 3, kg: 1100, price: 4200, labour: 4, faces: ['top'], type: 'blast', rare: 'prewar',
-    dmg: 260, blast: 4.5, speed: 110, rate: 3.2, spread: 0.008, range: 190, mag: 12, ammo: 'shell_75', perItem: 1, turret: [1.9, 0.75, 2.2], barrel: 2.6, bore: 0.17,
+    dmg: 260, blast: 4.5, speed: 110, rate: 3.2, spread: 0.008, range: 190, mag: 12, ammo: 'shell_75', perItem: 1, turret: [1.9, 0.75, 2.2], barrel: 2.6, bore: 0.17, slew: 0.9,
     desc: 'A short gun in a riveted turret, older than anyone who could tell you about it. Every round shakes the dust out of the hull.' },
   cannon120: { name: '120 MM GUN', kind: 'rocket', size: 3, kg: 1600, price: 9000, labour: 6, faces: ['top'], type: 'blast', rare: 'prewar',
-    dmg: 420, blast: 6, speed: 160, rate: 4.0, spread: 0.005, range: 240, mag: 16, ammo: 'shell_120', perItem: 1, turret: [2.5, 0.7, 2.9], barrel: 4.4, bore: 0.15,
+    dmg: 420, blast: 6, speed: 160, rate: 4.0, spread: 0.005, range: 240, mag: 16, ammo: 'shell_120', perItem: 1, turret: [2.5, 0.7, 2.9], barrel: 4.4, bore: 0.15, slew: 1.6, // slew: rad/s the turret turns
     desc: 'A long smoothbore in a flat turret. It does not miss so much as arrive.' },
 };
 export const TANK_AMMO = {
@@ -31,16 +31,16 @@ export const TANK_AMMO = {
 // The workshop (data/workshop.js CHASSIS shape; `at` = the turret's spot in the body frame).
 export const TANK_CHASSIS = {
   tank_old: { maxKg: 6000, spaces: 22, faces: { front: 80, rear: 50, left: 64, right: 64, top: 40, under: 30 },
-    mounts: { front: { size: 1, arc: 0.3 }, top: { size: 3, arc: Math.PI, at: [0, 2.0, -0.25] } } },
+    mounts: { front: { size: 1, arc: 0.3 }, top: { size: 3, arc: Math.PI, at: [0, 1.57, -0.25] } } }, // at: on the deck (systems/tanks.js yTop 1.55)
   tank_new: { maxKg: 9000, spaces: 28, faces: { front: 110, rear: 60, left: 80, right: 80, top: 50, under: 40 },
-    mounts: { front: { size: 1, arc: 0.3 }, top: { size: 3, arc: Math.PI, at: [0, 2.02, -0.55] } } },
+    mounts: { front: { size: 1, arc: 0.3 }, top: { size: 3, arc: Math.PI, at: [0, 1.47, -0.55] } } }, // at: on the deck (yTop 1.45)
 };
 
 // Where the world has them. near: the spot asked for; the system puts it on the nearest clear ground within `r` m.
 // kit: the gun it carries and how many rounds are in it (the old one's is empty), its fuel (the old one's is dry).
 export const TANKS_PLACED = [
-  { id: 'memorial_tank', type: 'tank_old', near: { x: 46, z: -46 }, r: 40, h: 0.6, paint: '#4e5a3a', kit: { top: 'cannon75', rounds: 0, front: 'mg1' }, fuel: 0, plinth: true },
-  { id: 'outpost_tank', type: 'tank_new', near: { x: -250, z: -350 }, r: 60, h: -2.2, paint: '#6a6448', kit: { top: 'cannon120', rounds: 4, front: 'mg' }, fuel: 0.35 },
+  { id: 'memorial_tank', type: 'tank_old', near: { x: -2440, z: -70 }, r: 50, h: 0.6, paint: '#4e5a3a', kit: { top: 'cannon75', rounds: 0, front: 'mg1', frontRounds: 0 }, fuel: 0 }, // out on the old highway past Cottonwood, a relic: nothing in its guns
+  { id: 'outpost_tank', type: 'tank_new', near: { x: -250, z: -350 }, r: 60, h: -2.2, paint: '#6a6448', kit: { top: 'cannon120', rounds: 4, front: 'mg', frontRounds: 60 }, fuel: 0.35 },
 ];
 
 export function validateTanks(MW = {}, CHASSIS_ = {}) {

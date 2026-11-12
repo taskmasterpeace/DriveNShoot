@@ -24,10 +24,10 @@ try {
   await sleep(1500);
   await call('start'); await call('god', { on: true });
   await call('setTime', { hour: 11 }); await call('setWeather', { key: 'CLEAR', instant: true });
-  // The old tank where it stands near Rust Haven (if this build has one).
+  // The old tank where it stands out past Cottonwood (if this build has one).
   const old = await ev(`(() => { const v = game.vehicles.find((q) => q.type === 'tank_old'); return v ? { x: v.x, z: v.z } : null; })()`);
   console.log('old tank', old);
-  await call('teleport', old ? { x: old.x - 6, z: old.z - 6 } : { x: 46, z: -50 }); await call('zoom', { level: 'STREET' });
+  await call('teleport', old ? { x: old.x - 6, z: old.z - 6 } : { x: -2446, z: -76 }); await call('zoom', { level: 'STREET' });
   await call('step', { seconds: 1.5 });
   await shot('1-the-old-tank');
   // The main battle tank in the yard, its gun on a car.

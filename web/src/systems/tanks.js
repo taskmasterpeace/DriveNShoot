@@ -27,13 +27,14 @@ export class Tanks {
   }
   place(P) {
     const g = this.g, row = TANK_ROWS[P.type], at = this.clearSpot(P.near, P.r, row);
+    if (!at) { g.emit?.('tankNotPlaced', { id: P.id, why: 'no clear ground' }); return null; } // tried again next time you come near
     this.placed.add(P.id);
-    if (!at) { g.emit?.('tankNotPlaced', { id: P.id, why: 'no clear ground' }); return null; }
     const v = g.vehiclesSys.spawn(P.type, at.x, at.z, P.h, P.paint);
     if (!v) return null;
     v.tankRow = P.id;
     for (const face of ['top', 'front']) { const kind = P.kit[face]; if (kind && !g.garage.canMount(v, face, kind)) g.garage.setMount(v, face, kind); }
     if (v.mounts?.top) v.mounts.top.ammo = P.kit.rounds; // what is in the gun (the old one's is empty: find shells)
+    if (v.mounts?.front) v.mounts.front.ammo = P.kit.frontRounds ?? 0; // and in the hull gun (nothing comes free)
     v.fuel = (v.fuelCap ?? 0) * P.fuel; // the old one's tank is dry
     this.counts.placed++;
     g.emit?.('tankPlaced', { id: P.id, vehicle: v.id, type: P.type, x: Math.round(at.x), z: Math.round(at.z) });

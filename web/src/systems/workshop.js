@@ -292,8 +292,13 @@ export class Workshop {
       if (face !== 'top' && Math.abs(off) > arc) { if (group !== 2) continue; off = 0; } // a tail gun on B fires straight back
       out.inArc++;
       // Bolted to the frame: a few degrees of give toward the aim (the old hood gun's 0.07), the turret slews to it.
-      const aim = face === 'top' ? ang : bearing + Math.max(-0.07, Math.min(0.07, off));
-      if (face === 'top') m.yaw = ang;
+      let aim = face === 'top' ? ang : bearing + Math.max(-0.07, Math.min(0.07, off));
+      if (face === 'top' && W.slew) { // a heavy turret turns at its rate (data/tanks.js slew): the gun fires once it is laid
+        const t = this.g.time, dt = Math.min(0.1, Math.max(0, t - (m.slewAt ?? t))); m.slewAt = t;
+        const y0 = m.yaw ?? v.h, d = wrap(ang - y0), stepA = W.slew * dt;
+        m.yaw = Math.abs(d) <= stepA ? ang : y0 + Math.sign(d) * stepA; aim = m.yaw;
+        if (Math.abs(wrap(ang - m.yaw)) > 0.05) { m.aimAng = ang; continue; } // still swinging round (counted in arc above)
+      } else if (face === 'top') m.yaw = ang;
       m.aimAng = ang;
       const r = this.shoot(v, face, m, W, aim, shooter);
       if (r === 'charging') out.charging = true; else if (r) out.fired++;
@@ -307,8 +312,9 @@ export class Workshop {
     const [lx, lz] = face === 'front' ? [(m.alt = !m.alt) ? 0.32 : -0.32, L / 2 + 0.55] : face === 'rear' ? [0, -L / 2 - 0.6] : face === 'left' ? [W / 2 + 0.5, 0.2] : face === 'right' ? [-W / 2 - 0.5, 0.2] : [0, 0];
     const at = this.g.garage.chassis(v)?.mounts?.[face]?.at; // a body's own spot for the gun (a boat's pintle): fire from it
     let x = at ? v.x + at[0] * c + at[2] * s : v.x + lx * c + lz * s, z = at ? v.z - at[0] * s + at[2] * c : v.z - lx * s + lz * c;
-    if (face === 'top') { const r = at ? 1.4 : v.wid * 0.5 + 0.9; x += Math.sin(ang) * r; z += Math.cos(ang) * r; }
-    const y = at ? at[1] + 0.05 : face === 'top' ? (v.tall ?? 1.8) + 0.2 : 1.15;
+    const Wm = MOUNT_WEAPONS[m.kind]; // a tank's gun leaves from the muzzle: half the turret, the mantlet, the barrel
+    if (face === 'top') { const r = at ? (Wm?.turret ? Wm.turret[2] / 2 + 0.2 + (Wm.barrel ?? 0) : 1.4) : v.wid * 0.5 + 0.9; x += Math.sin(ang) * r; z += Math.cos(ang) * r; }
+    const y = at ? at[1] + (Wm?.turret ? Wm.turret[1] * 0.45 : 0.05) : face === 'top' ? (v.tall ?? 1.8) + 0.2 : 1.15;
     const o = (this._mz ??= { x: 0, z: 0, y: 0 });
     o.x = x; o.z = z; o.y = y;
     return o;

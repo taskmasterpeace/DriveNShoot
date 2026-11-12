@@ -80,7 +80,7 @@ export class VehicleDamage {
 
   popTyre(v, t) {
     if (!v.dmg || v.dmg.tyres[t] <= 0) return;
-    if (v.utility?.solidtyres) return; // puncture-proof: no air to lose (data/workshop.js UTILITY)
+    if (v.utility?.solidtyres || v.tracked) return; // puncture-proof: no air to lose (data/workshop.js UTILITY); a tank's tracks have none either (data/tanks.js)
     v.dmg.tyres[t] = 0;
     v.dmg.dirty = true;
     this.g.audio.tyrePop?.(this.g.pan(v.x));

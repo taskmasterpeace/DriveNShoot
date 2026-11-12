@@ -315,6 +315,7 @@ export class Vehicles {
       fwd *= Math.exp(-dt * depth * 2.2); side *= Math.exp(-dt * depth * 1.4); fxm.power *= 1 - depth * 0.6;
       if (this.speed(v) > 3 && Math.random() < dt * (10 + this.speed(v))) this.g.fx.spawn(2, v.x + (Math.random() - 0.5) * v.wid, v.y + 0.3, v.z + (Math.random() - 0.5) * v.len, (Math.random() - 0.5) * 3.5, 2.6, (Math.random() - 0.5) * 3.5, 0.6, 0.35, '#d6dccc', 3);
     }
+    if (v.tracked && !(v.throttle && fxm.power > 0.05)) { const k = Math.abs(fwd) < 2 ? 14 : 3; fwd *= Math.exp(-dt * k); side *= Math.exp(-dt * k); } // tracks never freewheel: off the power a tank grinds to a stop and holds (data/tanks.js)
     if (!v.dead && v.driver && !v.fallen) {
       // Backing up: the row's own reverse speed (reverseOf), pulling at DRIVING.reverseAccel of its accel and tapering
       // near the top as the forward gears do. It was a flat 0.6 x accel to 35% of top speed for every rig.
@@ -331,7 +332,7 @@ export class Vehicles {
         const back = Math.abs(v.steer) < Math.abs(v.steerIn ?? 0) || v.steer * (v.steerIn ?? 0) < 0, r = (back ? DRIVING.steerReturn : DRIVING.steerRate) * dt;
         v.steerIn = st = clamp(v.steer, (v.steerIn ?? 0) - r, (v.steerIn ?? 0) + r);
       }
-      const steerAmt = (st + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
+      const steerAmt = (st + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * (v.driver === this.g.player ? this.g.deep?.fx.handling ?? 1 : 1) * (v.tracked ? Math.max(0.6, clamp(sp / 7, 0, 1)) : clamp(sp / 7, 0, 1)) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a
       // crash, a shove) settled on the target + 2πk instead and spun at ~28 rad/s for good, in place, at 16 m/s,
       // flattening anyone near it (a traffic LAWMAN spinning by the sheriff's corner ran bounty-run's player down).
