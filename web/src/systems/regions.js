@@ -16,7 +16,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { REGIONS, START, FAUNA } from '../data/regions.js';
 import { HOLDOUTS, PEOPLE } from '../data/holdouts.js';
 import { MERIDIAN_TALK } from '../data/meridian-talk.js';
-import { FIRST_MINUTE } from '../data/firstminute.js';
+import { FIRST_MINUTE, FIRST_MINUTE_AWAY } from '../data/firstminute.js';
 import { TRADERS } from '../data/trade.js';
 import { outfit } from './characters.js';
 import { randomName } from '../data/npcs.js';
@@ -251,14 +251,16 @@ export class Regions {
     if (typeof i !== 'number' || i >= FIRST_MINUTE.length) return null;
     const C = this.firstClinic();
     if (!C) return null;
-    const B = FIRST_MINUTE[i], fill = (t) => t.replace('{town}', C.town).replace('{clinic}', C.doctor);
-    return { text: fill(B.text), target: B.pin === 'clinicInside' ? C.cl.inside : B.pin === 'clinicDoor' ? C.cl.door : null, beat: B.id, say: B.say ? fill(B.say) : null };
+    const B = FIRST_MINUTE[i], fill = (t) => t.replace('{town}', C.town).replace('{clinic}', C.doctor), p = this.g.player;
+    const away = Math.hypot(p.x - C.cl.door.x, p.z - C.cl.door.z) > FIRST_MINUTE_AWAY.dist; // "the door behind you" is a lie two kilometres off
+    return { text: fill(away ? FIRST_MINUTE_AWAY.text : B.text), away, target: B.pin === 'clinicInside' ? C.cl.inside : B.pin === 'clinicDoor' ? C.cl.door : null, beat: B.id, say: B.say ? fill(B.say) : null };
   }
   // The door the current beat asks you to shut (main.js gives it E before the doctor standing beside it), or null.
   firstMinuteDoor() {
     const i = this.g.quests.firstminute;
     if (typeof i !== 'number' || i >= FIRST_MINUTE.length || FIRST_MINUTE[i].done !== 'shutClinicDoor') return null;
-    return this.firstClinic()?.door ?? null;
+    const d = this.firstClinic()?.door ?? null;
+    return d && !d.broken ? d : null;
   }
   // Each frame while it runs: has the beat's real condition come true?
   stepFirstMinute() {
@@ -270,7 +272,7 @@ export class Regions {
     if (this._fmSaid !== i) { this._fmSaid = i; const F = this.firstMinute(); if (F?.say) g.hud?.toast?.(F.say, 'job'); g.emit('firstMinute', { beat: B.id, i }); }
     const inside = p.x > L.x0 + 0.3 && p.x < L.x1 - 0.3 && p.z > L.z0 + 0.3 && p.z < L.z1 - 0.3 && !p.inVehicle;
     const done = B.done === 'insideClinic' ? inside
-      : B.done === 'shutClinicDoor' ? !!C.door && g.interiors.isShut(C.door) && C.door.shutBy === p.id
+      : B.done === 'shutClinicDoor' ? !!C.door && (C.door.broken || (inside && g.interiors.isShut(C.door) && C.door.shutBy === p.id)) // off its hinges: nothing to shut, move on
       : B.done === 'leftClinic' ? !inside && Math.hypot(p.x - C.cl.door.x, p.z - C.cl.door.z) < 12 : false;
     if (!done) return;
     g.quests.firstminute = i + 1;
@@ -280,7 +282,8 @@ export class Regions {
   // The title's line and the first toasts for where the game starts.
   intro() {
     if (this.start !== 'florida') return null;
-    return { tag: 'OF AMERICA · MERIDIAN, FLORIDA · THE UNION IS GONE. THE ROADS REMAIN.', toast: 'You wake up in Meridian, Florida. Sheriff Duarte keeps the peace from the office on Main Street.', sub: 'The garage has a pickup in its yard. Lucien says bring it back with gas in it.' };
+    const q = this.g.quests.firstminute, fm = typeof q === 'number' && q < FIRST_MINUTE.length; // the first minute says where you are; the sheriff's line comes when it ends
+    return { tag: 'OF AMERICA · MERIDIAN, FLORIDA · THE UNION IS GONE. THE ROADS REMAIN.', toast: fm ? 'You wake up in Meridian, Florida.' : 'You wake up in Meridian, Florida. Sheriff Duarte keeps the peace from the office on Main Street.', sub: 'The garage has a pickup in its yard. Lucien says bring it back with gas in it.' };
   }
 
   // ---- per frame ------------------------------------------------------------------------------------------------------

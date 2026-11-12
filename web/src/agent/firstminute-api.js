@@ -62,6 +62,21 @@ export async function firstMinuteChecks({ g, api, C, check, stage, hush }) {
       for (const c of [...g.chars]) if (c !== P() && !c.npc && Math.hypot(c.x - d.x, c.z - d.z) < 8) g.removeChar(c);
       await C('step', { seconds: 0.3 });
       const o0 = g.qol.objective(), i0 = g.quests.firstminute;
+      // far from the clinic the line says so (same pin); the title's own toast is the short one while this runs
+      const here = { x: P().x, z: P().z };
+      P().x = d.x + 300; const oFar = g.qol.objective(); P().x = here.x;
+      R.start = 'florida'; const introShort = R.intro()?.toast ?? ''; R.start = wasStart;
+      // the shard: a character with no saved data is a new game (armed after the baseline wiped the quests); a returning one is not
+      const S = g.shard, sh = { has: typeof S?.newCharacter === 'function' };
+      if (sh.has) {
+        delete g.quests.firstminute; R.start = 'florida';
+        sh.old = S.newCharacter({ name: 'x', data: { quests: {} } }); sh.oldQ = g.quests.firstminute;
+        sh.fresh = S.newCharacter({ name: 'x', data: null }); sh.freshQ = g.quests.firstminute;
+        R.start = wasStart; g.quests.firstminute = i0;
+      }
+      // a clinic door off its hinges does not strand the tracker: the door beat is skipped
+      g.quests.firstminute = 1; d.broken = true; R.stepFirstMinute(); const skipped = g.quests.firstminute, noDoor = R.firstMinuteDoor();
+      d.broken = false; g.quests.firstminute = i0; R._fmSaid = i0;
       // a minute of standing in the street changes nothing (no timer)
       await C('step', { seconds: 20 });
       const waited = g.quests.firstminute;
@@ -83,11 +98,13 @@ export async function firstMinuteChecks({ g, api, C, check, stage, hush }) {
       // 3. out in the street again
       await C('teleport', { x: d.x + d.nx * 3, z: d.z + d.nz * 3 }); await api._step(4);
       const i3 = g.quests.firstminute, o3 = g.qol.objective();
-      const ev = g.events.filter((e) => e.seq > ev0), beats = ev.filter((e) => e.type === 'firstMinute').map((e) => e.beat), over = ev.some((e) => e.type === 'firstMinuteDone');
+      const ev = g.events.filter((e) => e.seq > ev0), beats = ev.filter((e) => e.type === 'firstMinute').map((e) => e.beat).filter((b, k, a) => b !== a[k - 1]), over = ev.some((e) => e.type === 'firstMinuteDone');
       const ok = /Sheriff Duarte/.test(plain) && armed === true && i0 === 0 && /Meridian/i.test(o0.text) && /inside/.test(o0.text) && o0.target && Math.hypot(o0.target.x - Cn.cl.door.x, o0.target.z - Cn.cl.door.z) < 1
         && waited === 0 && i1 === 1 && /door shut/.test(o1.text) && /Shut the door/.test(prompt) && shut && by && i2 === 2 && /step back out/.test(o2.text) && loaded === 1
+        && oFar.text !== o0.text && /go back/i.test(oFar.text) && oFar.target && !/Sheriff/.test(introShort) && /Meridian/.test(introShort)
+        && sh.has && sh.old === false && sh.oldQ === undefined && sh.fresh === true && sh.freshQ === 0 && skipped === 2 && noDoor === null
         && i3 === FIRST_MINUTE.length && /Sheriff Duarte/.test(o3.text) && over && beats.join(',') === FIRST_MINUTE.map((b) => b.id).join(',');
-      return ok || { plain, armed, i0, o0: o0.text, waited, i1, o1: o1.text, prompt, shut, by, i2, o2: o2.text, loaded, i3, o3: o3.text, beats, over };
+      return ok || { oFar: oFar.text, introShort, sh, skipped, noDoor: noDoor === null, plain, armed, i0, o0: o0.text, waited, i1, o1: o1.text, prompt, shut, by, i2, o2: o2.text, loaded, i3, o3: o3.text, beats, over };
     } finally { g.godMode = false; R.start = wasStart; if (keep === undefined) delete g.quests.firstminute; else g.quests.firstminute = keep; }
   }));
 }

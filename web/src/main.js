@@ -1381,8 +1381,8 @@ class Game {
       t.remove();
       this.audio.start();
       this.paused = false;
-      const intro = this.regions?.intro(); // a Florida start (WEB_FLORIDA.md): Meridian's own first words
-      this.regions?.armFirstMinute?.(); // and its first minute (WEB_FIRST_MINUTE.md): where you are, a house, a door (never for the harness or a load)
+      this.regions?.armFirstMinute?.(); // a Florida start's first minute (WEB_FIRST_MINUTE.md): where you are, a house, a door (never for the harness or a load)
+      const intro = this.regions?.intro(); // a Florida start (WEB_FLORIDA.md): Meridian's own first words (shorter while the first minute runs)
       this.hud.toast(intro?.toast ?? 'You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
       this.hud.subtitle(intro?.sub ?? 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };

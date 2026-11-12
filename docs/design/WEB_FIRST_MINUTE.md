@@ -70,6 +70,21 @@ has rooms. You shut a door for the first time and are told what a door is worth.
 - **A save and a load:** `g.quests` is in the save; the beat comes back.
 - **The harness, the battery, an old save:** `g.quests.firstminute` is undefined, and everything reads as before.
 - **You die in the first minute:** the clinic wakes you at its door as always; the beat is unchanged.
+- **The shard (playing online):** logging in presses PLAY and then lays the character's saved data over the game. A
+  character the shard has never saved gets the boot baseline, which has no quests, so the first minute is armed again
+  after that (`shard.newCharacter`). A returning character keeps whatever beat its save holds.
+- **The clinic door is off its hinges** (blows or fire): there is nothing to shut. The door beat is skipped and E goes
+  back to the doctor.
+- **You shut the door from the street:** the beat wants you inside with the door shut behind you. Walk into the door
+  (it opens), step in, shut it.
+- **You are far away** (past `FIRST_MINUTE_AWAY.dist`, 60 m from the clinic door): the tracker says "Unfinished in
+  Meridian: go back to the clinic door, where you woke." with the same pin, not "the door behind you".
+- **The title's own toast** is the short one ("You wake up in Meridian, Florida.") while the first minute runs; the
+  sheriff is named when it ends.
+- **Known and left:** waking at the clinic door after a death on beat 3 completes beat 3 (you are in the street). A door
+  keeps its `shutBy` after it is pushed open again, so a door you shut earlier still counts as yours if it settles
+  back onto its latch. The first tracker line is 144 characters filled, about twice the usual; it wraps to four lines
+  on the card (see the render). No check presses the title's PLAY itself (the harness has no title).
 
 **PROPOSAL (not built): a threat inside the first minute.** Three options, cheapest first. Each needs a yes, because
 each changes what the first town is.
@@ -110,3 +125,7 @@ each changes what the first town is.
    Inside the clinic: beat 1, the line asks for the door, the prompt reads "Shut the door" (with the doctor beside you),
    E shuts it and `shutBy` is you: beat 2. A save taken on beat 1 and loaded puts you on beat 1. Out in the street: the
    chain is over, `firstMinuteDone` fired, the three beats fired in order, and the tracker reads the sheriff's line.
+
+Critic review 2026-11-12, first pass FAIL, two items, fixed in the next commit: a brand-new shard character lost the
+first minute (the baseline laid over it has no quests); a broken clinic door stranded the tracker on the door beat.
+Also taken from that review: the far-away line, the door beat wants you inside, the shorter title toast.

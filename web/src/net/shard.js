@@ -199,6 +199,7 @@ export class Shard {
     p.colors = outfit('player', makeRng(m.char.look)); g.charR.paint(p);
     g.hud.paintFlag?.(m.char.flag);
     if (apply) this.applyPersonal(m.char.data ?? this.baseline, m.char.id);
+    if (apply) this.newCharacter(m.char);
     // A brand-new character (the shard has a name and a flag, nothing else): THE CREATOR opens on it and BEGIN saves it,
     // once data/creator.js CREATOR.shardNew is on (off until the shard's two-client proof walks through the creator too).
     if (apply && (!m.char.data || m.char.data.sheetPending) && g.creator?.opensForShard()) g.creator.forShard(m.char, () => this.save().catch(() => {}));
@@ -275,6 +276,12 @@ export class Shard {
     };
   }
 
+  // A character the shard has never saved (a name and a flag, no data) is a new game: THE FIRST MINUTE is armed for it
+  // here, after the baseline (which carries no quests) has been applied (docs/design/WEB_FIRST_MINUTE.md).
+  newCharacter(char) {
+    if (char?.data) return false;
+    return !!this.g.regions?.armFirstMinute?.();
+  }
   applyPersonal(d, charId) {
     const g = this.g, p = g.player;
     if (p.inVehicle) g.exitVehicle(true);

@@ -5,8 +5,8 @@
 //   id      the beat's name (events: firstMinute { beat })
 //   text    the tracker line. {town} and {clinic} are filled from the holdout's rows
 //   pin     what the tracker points at: 'clinicDoor' | 'clinicInside' | null
-//   done    what completes it: 'insideClinic' (you stand in the clinic) | 'shutClinicDoor' (its front door is shut and
-//           it was your hand: door.shutBy) | 'leftClinic' (you are out in the street again)
+//   done    what completes it: 'insideClinic' (you stand in the clinic) | 'shutClinicDoor' (you stand inside, its front door is shut and
+//           it was your hand: door.shutBy; a door off its hinges skips the beat) | 'leftClinic' (you are out in the street again)
 //   say     a toast when the beat begins (once)
 export const FIRST_MINUTE = [
   { id: 'where', text: 'You are in {town}, a walled town on the Florida coast that still stands. {clinic} patched you up. Go back inside: the door behind you.', pin: 'clinicDoor', done: 'insideClinic',
@@ -17,9 +17,14 @@ export const FIRST_MINUTE = [
     say: 'HOLD E AT A SHUT DOOR TO LEAN ON IT WHEN THEY COME.' },
 ];
 
+// Far from the clinic (past `dist` m of its door) the tracker says this instead of the beat's own line: the pin is the same.
+export const FIRST_MINUTE_AWAY = { dist: 60, text: 'Unfinished in {town}: go back to the clinic door, where you woke.' };
+
 export function validateFirstMinute(rows = FIRST_MINUTE) {
   const bad = [], dones = ['insideClinic', 'shutClinicDoor', 'leftClinic'], pins = ['clinicDoor', 'clinicInside', null];
   if (!rows.length || rows.length > 6) bad.push(`${rows.length} beats: 1-6 (it is a minute, not a tutorial)`);
+  if (!(FIRST_MINUTE_AWAY.dist >= 20 && FIRST_MINUTE_AWAY.dist <= 400)) bad.push('FIRST_MINUTE_AWAY.dist: 20-400 m');
+  if (typeof FIRST_MINUTE_AWAY.text !== 'string' || FIRST_MINUTE_AWAY.text.length < 20 || FIRST_MINUTE_AWAY.text.length > 170) bad.push('FIRST_MINUTE_AWAY.text: 20-170 characters');
   const ids = new Set();
   for (const r of rows) {
     if (!r.id || ids.has(r.id)) bad.push(`beat id "${r.id}" missing or repeated`);
