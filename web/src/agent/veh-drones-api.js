@@ -32,7 +32,13 @@ export async function vehDronesChecks(api, check, C) {
     } finally { I.mouse.left = false; g.aimOverride = null; Object.assign(g.inv.ammo, ammo0); Object.assign(g.inv.mag, mag0); }
     return pulls;
   };
-  const ahead = (d, N) => { const a = d.loopA + 0.6; return { x: N.at.x + Math.cos(a) * N.loop, z: N.at.z + Math.sin(a) * N.loop }; };
+  // Staging: a spot on the watcher's loop out in the open (nothing solid within 16 m, so neither side's rounds meet cover),
+  // the first such a little ahead of where it flies now. Its loop is turned to come over that spot.
+  const ahead = (d, N) => {
+    const open = (x, z) => { for (let dx = -16; dx <= 16; dx += 4) for (let dz = -16; dz <= 16; dz += 4) if (g.statics.pointBlocked(x + dx, z + dz, 0.4)) return false; return true; };
+    for (let k = 0; k < 40; k++) { const a = d.loopA + 0.6 + k * 0.16, x = N.at.x + Math.cos(a) * N.loop, z = N.at.z + Math.sin(a) * N.loop; if (open(x, z)) { d.loopA = a - 0.6; return { x, z }; } }
+    const a = d.loopA + 0.6; return { x: N.at.x + Math.cos(a) * N.loop, z: N.at.z + Math.sin(a) * N.loop };
+  };
 
   await check('sky drones: the rows validate; come near a nest and its watcher lifts off and flies its loop at height, banking into the turn, while the gun drone stays on the pad', async () => {
     try {
@@ -137,17 +143,20 @@ export async function vehDronesChecks(api, check, C) {
     const F = g.society.factions, st0 = F.standing[F.index.remnant];
     try {
       reset(); F.set('remnant', 10); // staged: on fine terms with them
+      await C('setTime', { hour: 12 }); // staged: daylight (an earlier check moves the clock)
       await C('teleport', { x: OUT.at.x + 40, z: OUT.at.z + 60 }); await api._step(2);
       const w = drone(`${OUT.id}:watcher`); w.bat = w.D.battery;
       for (let f = 0; f < 600 && !(w.state === 'patrol' && w.y > w.D.alt * 0.9); f++) await api._step(1);
       // Flat under it first: a ground-level round along a line under the drone does not touch it.
       const under = S().raycast(w.x - 10, w.z, 1, 0, 30, 0);
-      await C('teleport', { x: w.x - 9, z: w.z - 9 }); await api._step(1);
+      await C('teleport', ahead(w, nest(OUT.id))); // staged: in the open where its loop comes over
+      for (let f = 0; f < 900 && Math.hypot(w.x - g.player.x, w.z - g.player.z) > 14; f++) await api._step(1);
       const s1 = F.standing[F.index.remnant];
       await shootAt(w, 1); const s2 = F.standing[F.index.remnant]; // one round: winged
       await shootAt(w, 30); for (let f = 0; f < 400 && w.state !== 'gone'; f++) await api._step(1);
       const s3 = F.standing[F.index.remnant];
-      return !under && w.state === 'gone' && s2 <= s1 && s3 < s1 && s3 < s2 ? true : JSON.stringify({ under: !!under, state: w.state, standing: [r1(s1), r1(s2), r1(s3)] });
+      const hurtCost = -F.value('remnant', 'hurt', 'remnant'); // what a hit alone costs (data/society.js values)
+      return !under && w.state === 'gone' && s2 <= s1 && s3 <= s2 && s1 - s3 > hurtCost + 0.5 ? true : JSON.stringify({ under: !!under, state: w.state, standing: [r1(s1), r1(s2), r1(s3)], hurtCost });
     } finally { F.set('remnant', st0); S().drones.forEach((d) => { if (d.state === 'gone') Object.assign(d, S().fresh(d.nest, d.kind)); }); off(); }
   });
 }

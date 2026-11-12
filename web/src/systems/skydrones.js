@@ -13,6 +13,7 @@
 // (NEST_RULES.wake); further off a nest's drones are on their pad.
 import * as THREE from 'three';
 import { SKY_DRONES, NEST_RULES, DRONE_NESTS } from '../data/skydrones.js';
+import { VERBS } from '../data/society.js';
 
 const CAP = 160, _o = new THREE.Object3D();
 const ARMS = [[0.62, 0.62], [-0.62, 0.62], [0.62, -0.62], [-0.62, -0.62]];
@@ -35,7 +36,7 @@ export class SkyDrones {
   fresh(N, kind) {
     const D = SKY_DRONES[kind];
     return { id: `${N.id}:${kind}`, kind, D, nest: N, x: N.at.x + (kind === 'striker' ? 2.2 : -2.2), z: N.at.z, y: 0.25, h: 0, vx: 0, vz: 0, bank: 0,
-      hp: D.hp, bat: D.battery, state: 'pad', seen: null, callT: 0, loopA: Math.random() * Math.PI * 2, gunT: 0, left: D.gun?.burst ?? 0, fall: 0, rebuildAt: 0, spokeAt: -99 };
+      hp: D.hp, bat: D.battery, state: 'pad', wronged: false, seen: null, callT: 0, loopA: Math.random() * Math.PI * 2, gunT: 0, left: D.gun?.burst ?? 0, fall: 0, rebuildAt: 0, spokeAt: -99 };
   }
   hours() { return (this.g.society?.day ?? 0) * 24 + (this.g.sky?.time ?? 0); }
   ground(x, z) { return this.g.fx?.ground?.(x, z) ?? 0; }
@@ -79,7 +80,7 @@ export class SkyDrones {
     }
     this.draw();
   }
-  dock(d) { d.state = 'pad'; d.x = d.nest.at.x + (d.kind === 'striker' ? 2.2 : -2.2); d.z = d.nest.at.z; d.y = 0.25; d.vx = d.vz = 0; if (d.seen) d.seen.t = -1e9; }
+  dock(d) { d.state = 'pad'; d.x = d.nest.at.x + (d.kind === 'striker' ? 2.2 : -2.2); d.z = d.nest.at.z; d.y = 0.25; d.vx = d.vz = 0; d.wronged = false; if (d.seen) d.seen.t = -1e9; } // (a new flight: a new first hit)
   onPad(d, dt) {
     const N = d.nest, full = d.bat >= d.D.battery * 0.95;
     d.bat = Math.min(d.D.battery, d.bat + dt * d.D.battery / d.D.recharge);
@@ -145,7 +146,7 @@ export class SkyDrones {
     d.gunT -= dt;
     if (!sees || d.gunT > 0 || !this.hostile(N)) return;
     const dist = Math.hypot(P.x - d.x, P.z - d.z);
-    if (dist > G.range) return;
+    if (dist > G.range || !g.los(d.x, d.z, P.x, P.z)) return; // out of reach, or cover between: it holds fire and circles on for an angle
     const a = Math.atan2(P.x - d.x, P.z - d.z) + (Math.random() - 0.5) * 2 * G.spread, dx = Math.sin(a), dz = Math.cos(a);
     const y = this.ground(d.x, d.z) + d.y;
     g.fx?.flash?.(d.x, y - 0.2, d.z, 0.7, 0.04);
@@ -203,7 +204,7 @@ export class SkyDrones {
   wrong(d, verb) {
     const g = this.g, N = d.nest;
     g.society?.deeds?.record?.(verb, { x: d.x, z: d.z, tf: N.fid, witness: false, label: d.D.name.toLowerCase() });
-    g.society?.factions?.learn?.(N.fid, verb, N.fid, 1, 1);
+    g.society?.factions?.learn?.(N.fid, verb, N.fid, VERBS[verb] ?? 1, 1); // the deed's own weight (destroy 2, hurt 1)
   }
   hurt(d, dmg, by) {
     if (d.state === 'gone' || d.state === 'falling') return;
@@ -273,12 +274,11 @@ export class SkyDrones {
   view() {
     return this.drones.map((d) => ({ id: d.id, kind: d.kind, nest: d.nest.id, state: d.state, x: r1(d.x), z: r1(d.z), y: r1(d.y), hp: Math.round(d.hp), bat: Math.round(d.bat), rebuildAt: d.state === 'gone' ? r1(d.rebuildAt) : null }));
   }
-  save() { return { fell: this.drones.filter((d) => d.state === 'falling').map((d) => [d.id, r1(d.x), r1(d.z)]), lost: this.drones.filter((d) => d.state === 'gone' || d.state === 'falling').map((d) => [d.id, r1(d.state === 'gone' ? d.rebuildAt : this.hours() + NEST_RULES.rebuild)]), hurt: this.drones.filter((d) => d.hp < d.D.hp && d.state !== 'gone').map((d) => [d.id, Math.round(d.hp)]) }; }
+  save() { return { lost: this.drones.filter((d) => d.state === 'gone' || d.state === 'falling').map((d) => [d.id, r1(d.state === 'gone' ? d.rebuildAt : this.hours() + NEST_RULES.rebuild)]), hurt: this.drones.filter((d) => d.hp < d.D.hp && d.state !== 'gone').map((d) => [d.id, Math.round(d.hp)]) }; }
   load(s) {
     for (const N of this.nests) N.alert = null; // the loaded clock may be earlier: no stale hunt
     for (const d of this.drones) Object.assign(d, this.fresh(d.nest, d.kind));
-    const g = this.g;
-    for (const [id, x, z] of s?.fell ?? []) { const d = this.drones.find((q) => q.id === id), pile = d && g.inventory?.groundAt?.(x, z, this.ground(x, z)); if (pile) for (const [it, n] of d.D.salvage) g.inventory.add(pile, it, n); } // saved mid-fall: it lands now
+    // (a drone saved mid-fall loads gone with nothing: the fall is a few seconds, and the save is the only record of the ground)
     for (const [id, at] of s?.lost ?? []) { const d = this.drones.find((q) => q.id === id); if (d) { d.state = 'gone'; d.rebuildAt = at; } }
     for (const [id, hp] of s?.hurt ?? []) { const d = this.drones.find((q) => q.id === id); if (d && d.state !== 'gone') d.hp = hp; }
   }
