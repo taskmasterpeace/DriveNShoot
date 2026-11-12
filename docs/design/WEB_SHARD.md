@@ -251,6 +251,7 @@ bounded); one character in one place at a time; the admin views (`/who`, `/world
 - Engine systems read, never edited: `inventory`, `survival`, `skills`, `roles`, `society` (factions, memory, chronicle),
   `interiors`, `vehicles`, `seats`, `garage`, `characters` (`outfit`, `stridePhase`), `hud` (`toast`, `paintFlag`),
   `ui/hudart` (`paintClothFlag`), `ui/portrait` (`FLAGS`, `drawFlag`).
+- **WEB_DOOR_POUND.md (2026-11-12):** the world patch carries `leaves` ({ p: the leaf's hp, 0 = off its hinges; s: shut by a hand }, kept in `world.leaves`) and `pound` (blows this second, relayed only). The infected themselves are still each page's own.
 
 ## 7. Tuning Knobs
 

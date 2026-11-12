@@ -101,6 +101,7 @@ Variables: `d` distance (m) from the gadget to the thing, `r` the effect radius 
 | `data/controls.js` | the `detonate` row (` backquote; pad VIEW+RT). The workshop's row holds U |
 | `ui/hud.js` | `g.gadgets?.drawMinimap(...)` before it draws you |
 | `agent/api.js` | import, spread the commands, the checks before the perf gate, security off for the battery |
+- **WEB_DOOR_POUND.md (2026-11-12):** a barricade's hp is beaten before the door's leaf; a lean (hold E) takes 0.45 of each blow on the lock as well.
 
 ## 7. Tuning knobs
 | Knob (data/gadgets.js) | Default | Safe range | Affects |

@@ -59,7 +59,8 @@ are turning their heads. Either you find planks, or a back window, or you are st
 - **A blow** (`zombies.thump` → `interiors.pound` for a shut door; a locked door's lock is beaten as before):
   - takes `dmg` off the leaf's hp, which is the materials system's door record (`materials.hitDoor`, cause `pound`);
   - the leaf **shudders** for `DOOR.shake` s (drawn only: the leaf jumps up to `DOOR.shakeAngle` in its frame);
-  - plays a fist-on-wood or fist-on-steel take, throws splinters, and shakes the screen a little if you are within 9 m;
+  - plays a fist-on-wood or fist-on-steel take, throws splinters and a puff of dust off the frame, and shakes the screen a
+    little if you are within 9 m;
   - is a noise of `DOOR.poundNoise` (16 m), or `DOOR.frenzyNoise` (26 m) for a frenzy blow or a slam;
   - the first blow on a door within 26 m of you toasts "SOMETHING IS BEATING ON THE DOOR", or "A SPRINTER IS POUNDING
     ON THE DOOR".
@@ -72,8 +73,10 @@ are turning their heads. Either you find planks, or a back window, or you are st
 | Sprinter in its burst (`frenzy`) | 0.42 s ±20% | 7 | 16.7 | a 30 slam, then 6.3 s |
 | Echo (`door`) | 1.4 s | 26 | 18.6 | 7.3 s (it only works unobserved) |
 
-- **The slam:** the first time a bursting sprinter reaches the door it throws its whole body at it for
-  `frenzy.slam` (30), with a snarl; again after `frenzy.slamCool` (4 s).
+- **The slam:** as a bursting sprinter reaches the door it throws its whole body at it once for `frenzy.slam` (30), with
+  a snarl. It slams again only if it left that door for `frenzy.slamCool` (4 s).
+- **Its own noise is not news to it.** The infected already beating a door do not hear that door's pounding as a new
+  sound: it never renews their memory or sets a sprinter off again. Everyone else in earshot does hear it.
 - **Cracked:** at `DOOR.crackAt` (half) of its hp a breakable leaf splits: a crack sound, and the leaf is drawn darker.
 - **Down:** at 0 the materials system takes it off its hinges for good (debris, a 30 m noise, the break sound).
   `doorBrokenDown` is emitted. A broken door can never be shut again.
@@ -200,4 +203,9 @@ The shard's model is that each page simulates its own surroundings and reports w
    it and sets its hp; `heardPounds` makes it shudder and read as under attack; `p: 0` takes it off its hinges; a
    materials save and load keep the hurt leaf's hp.
 
-Server: `npm run shard:test` (two pages and a shard) covers the relay of `leaves` and `pound`.
+Two players: `npm run shard:test` section 9 (two pages and a real shard): a door B pulls shut and something beats on is
+shut, as hurt and heard on A; beaten off its hinges on B it is off them on A, and the shard keeps `p: 0`.
+
+Before / after: `docs/renders/web/door-pound/zed-pound-before.jpg` (the infected walk through a closed door in 2 s),
+`zed-pound-after-1-pounding.jpg` (a sprinter and a shambler beating the shut door, 83 of 189 left) and
+`zed-pound-after-2-door-down.jpg` (off its hinges, all three inside).

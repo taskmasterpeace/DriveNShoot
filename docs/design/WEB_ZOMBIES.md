@@ -103,6 +103,9 @@ Now:
 Check: "a sprinter that SEES you 30 m off…" (on you inside 7 s).
 
 ### 3.3 Doors and windows
+**Changed 2026-11-12 (WEB_DOOR_POUND.md):** a door no longer has to be locked to stop them. The infected cannot work a
+latch, so any SHUT door holds them and is beaten off its hinges (`materials.hitDoor`); a sprinter in its burst pounds it
+in a frenzy. The rules below still describe a locked or barricaded door, whose lock is beaten first.
 - **Thumping:**
   - Stuck (it moved < 0.25 m in a sense tick while it wants to go > 1.2 m) while it still remembers something, it looks
     for a locked door or boarded window within 2.4 m (`blocker`).
@@ -231,6 +234,7 @@ v1 exposes it as `zombies occupy=<kind>`. Nothing calls it on its own yet (§5).
 | `systems/throwables.js` | — | `fires` |
 | `data/gear.js` | — | `HIT_ODDS` |
 | BALLISTICS (`combat.js`) | set `c.hitPart` when a round knows its hit zone | none (file not touched) |
+| `systems/interiors.js` THE SHUT DOOR (WEB_DOOR_POUND.md, 2026-11-12) | `near(p, r)`; `work` beats a SHUT door (not only a locked one) through `interiors.pound`; the sprinter's `frenzy` row and its slam; pounding is not news to those already at that door | `isShut`, `pound`, `braced`, `shudder`; the `zdoor` hint from the leaf's own collision |
 | `systems/reach.js` (WEB_REACH.md) | — | a shut door stops a hand and a word as it stops a body: nobody loots or talks through the door the infected are thumping |
 | residents, director, survival, gadgets lure | `ztarget` still works: it becomes a "told" fix | — |
 
