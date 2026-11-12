@@ -16,6 +16,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { REGIONS, START, FAUNA } from '../data/regions.js';
 import { HOLDOUTS, PEOPLE } from '../data/holdouts.js';
 import { MERIDIAN_TALK } from '../data/meridian-talk.js';
+import { FIRST_MINUTE } from '../data/firstminute.js';
 import { TRADERS } from '../data/trade.js';
 import { outfit } from './characters.js';
 import { randomName } from '../data/npcs.js';
@@ -226,6 +227,56 @@ export class Regions {
     const doc = PEOPLE[T.H.id]?.named.find((n) => n.id === cl.doctor);
     return { x: cl.door.x, z: cl.door.z, fee: cl.fee, who: doc?.name ?? 'The clinic', holdout: T.H.id };
   }
+  // ---- THE FIRST MINUTE (docs/design/WEB_FIRST_MINUTE.md; rows data/firstminute.js) ---------------------------------------
+  // Armed by a brand-new Florida game (main.js: the title's PLAY), never by the agent harness or a load. The beat is
+  // g.quests.firstminute (0..n-1; n = finished), so it rides the save like every quest.
+  armFirstMinute() {
+    if (this.start !== 'florida' || this.g.quests.firstminute !== undefined) return false;
+    this.g.quests.firstminute = 0; this._fmSaid = -1;
+    return true;
+  }
+  // The clinic's lot and its front door (interiors' record, once the town's doors are attached).
+  firstClinic() {
+    const cl = this.clinic('meridian');
+    if (!cl) return null;
+    const H = this.towns.find((t) => t.H.id === cl.holdout)?.H, L = H?.lotOf(H.row.clinic.lot);
+    if (!L) return null;
+    let door = null, bd = 1e9;
+    for (const d of this.g.interiors.doors) if (d.kind === 'front' && String(d.id).startsWith(`${L.id}:`)) { const k = Math.hypot(d.x - cl.door.x, d.z - cl.door.z); if (k < bd) { bd = k; door = d; } }
+    return { cl, L, door, town: H.name, doctor: PEOPLE[H.id]?.named.find((n) => n.id === cl.doctor)?.name ?? 'The clinic' };
+  }
+  // The tracker's line for the beat you are on ({ text, target }), or null when the first minute is over or was never armed.
+  firstMinute() {
+    const i = this.g.quests.firstminute;
+    if (typeof i !== 'number' || i >= FIRST_MINUTE.length) return null;
+    const C = this.firstClinic();
+    if (!C) return null;
+    const B = FIRST_MINUTE[i], fill = (t) => t.replace('{town}', C.town).replace('{clinic}', C.doctor);
+    return { text: fill(B.text), target: B.pin === 'clinicInside' ? C.cl.inside : B.pin === 'clinicDoor' ? C.cl.door : null, beat: B.id, say: B.say ? fill(B.say) : null };
+  }
+  // The door the current beat asks you to shut (main.js gives it E before the doctor standing beside it), or null.
+  firstMinuteDoor() {
+    const i = this.g.quests.firstminute;
+    if (typeof i !== 'number' || i >= FIRST_MINUTE.length || FIRST_MINUTE[i].done !== 'shutClinicDoor') return null;
+    return this.firstClinic()?.door ?? null;
+  }
+  // Each frame while it runs: has the beat's real condition come true?
+  stepFirstMinute() {
+    const g = this.g, i = g.quests.firstminute;
+    if (typeof i !== 'number' || i >= FIRST_MINUTE.length) return;
+    const C = this.firstClinic();
+    if (!C) return;
+    const B = FIRST_MINUTE[i], p = g.player, L = C.L;
+    if (this._fmSaid !== i) { this._fmSaid = i; const F = this.firstMinute(); if (F?.say) g.hud?.toast?.(F.say, 'job'); g.emit('firstMinute', { beat: B.id, i }); }
+    const inside = p.x > L.x0 + 0.3 && p.x < L.x1 - 0.3 && p.z > L.z0 + 0.3 && p.z < L.z1 - 0.3 && !p.inVehicle;
+    const done = B.done === 'insideClinic' ? inside
+      : B.done === 'shutClinicDoor' ? !!C.door && g.interiors.isShut(C.door) && C.door.shutBy === p.id
+      : B.done === 'leftClinic' ? !inside && Math.hypot(p.x - C.cl.door.x, p.z - C.cl.door.z) < 12 : false;
+    if (!done) return;
+    g.quests.firstminute = i + 1;
+    if (i + 1 >= FIRST_MINUTE.length) { g.emit('firstMinuteDone', {}); g.hud?.toast?.('Sheriff Duarte has work for anyone who can walk: the office on Main Street.', 'job'); }
+  }
+
   // The title's line and the first toasts for where the game starts.
   intro() {
     if (this.start !== 'florida') return null;
@@ -235,6 +286,7 @@ export class Regions {
   // ---- per frame ------------------------------------------------------------------------------------------------------
   update(dt) {
     const g = this.g, P = g.player, S = g.streamer;
+    if (typeof g.quests.firstminute === 'number') this.stepFirstMinute(); // THE FIRST MINUTE, while it runs
     // Holdouts' people: in when you come near, back on their records when you leave.
     for (const T of this.towns) {
       if (!T.P) continue;

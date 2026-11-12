@@ -308,6 +308,8 @@ export class QOL {
     // Haven's. The sheriff is a person only while the town is promoted; otherwise the clinic door stands in for the town.
     const P = g.player, R = g.streamer?.W?.regionOf?.(P.x, P.z, 3000);
     if (R && g.regions) {
+      const fm = g.regions.firstMinute?.(); // THE FIRST MINUTE of a new Florida game (data/firstminute.js) comes before the sheriff's job
+      if (fm) return fm;
       const duarte = g.chars.find((c) => c.npc?.id === 'mer_sheriff' && c.alive), door = g.regions.clinic('meridian')?.door ?? null, at = duarte ?? door;
       const gators = (g.stats.gators ?? 0) - (q.canalStart ?? 0);
       if (!q.canal) return { text: `Talk to Sheriff Duarte: the office on Meridian's Main Street`, target: at };

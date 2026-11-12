@@ -1086,7 +1086,8 @@ class Game {
     // what E does - before the friend beside you, the car, your dog, a crate.
     // The same goes for the shut door being held: with them near, E at it leans (nobody beside you takes the key).
     const threat = !p.onDeck && !p.ug && this.zombies.near(p, DOOR.threat);
-    const shutNow = threat ? this.interiors.openDoorNear(p) : null;
+    const taught = !threat && typeof this.quests.firstminute === 'number' ? this.regions?.firstMinuteDoor?.() ?? null : null; // THE FIRST MINUTE asks for this door: E is its, not the doctor's beside it
+    const shutNow = threat ? this.interiors.openDoorNear(p) : taught && this.interiors.openDoorNear(p) === taught ? taught : null;
     const leanNow = threat && !shutNow ? this.interiors.shutDoorNear(p) : null;
     const doorNow = shutNow ?? leanNow;
     if (doorNow) best = null;
@@ -1381,6 +1382,7 @@ class Game {
       this.audio.start();
       this.paused = false;
       const intro = this.regions?.intro(); // a Florida start (WEB_FLORIDA.md): Meridian's own first words
+      this.regions?.armFirstMinute?.(); // and its first minute (WEB_FIRST_MINUTE.md): where you are, a house, a door (never for the harness or a load)
       this.hud.toast(intro?.toast ?? 'You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
       this.hud.subtitle(intro?.sub ?? 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };
