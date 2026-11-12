@@ -41,7 +41,7 @@ export async function vehWagonsChecks(api, check, C) {
     const w = g.vehicles.find((v) => v.type === 'wagon' && v.wagonRow === WAGONS[0].id);
     const n = g.vehicles.filter((v) => v.type === 'wagon' && v.wagonRow === WAGONS[0].id).length;
     const tris = w ? w.mesh.geometry.attributes.position.count / 3 : 0;
-    return !bad.length && w && n === 1 && tris > 300 ? true : JSON.stringify({ bad, found: !!w, n, tris });
+    return !bad.length && w && n === 1 && w.id === `seed:${WAGONS[0].id}` && tris > 300 ? true : JSON.stringify({ bad, found: !!w, id: w?.id, n, tris }); // a stable id the shard can claim
   });
 
   await check('wagons: nothing hitched, holding W on the box moves it nowhere; walk your draft horse to the tongue, E hitches it, and on the box W rolls the wagon along with the horse walking at the tongue', async () => {
