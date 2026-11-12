@@ -71,7 +71,7 @@ export class Reach {
   // A person (to talk to, to wake, to pay): on your floor and a clear line for a voice.
   person(p, c) { return this.g.storeys.sameFloor(p, c) && this.to(p, c.x, c.z, TALK); }
   // A container, a body, a pile (on your floor).
-  box(p, b) { BOX.y = b.y ?? 0; return this.to(p, b.x, b.z, b.kind === 'trunk' ? undefined : BOX); }
+  box(p, b) { if (b.x === undefined) return true; BOX.y = b.y ?? 0; return this.to(p, b.x, b.z, BOX); } // (a trunk has no place of its own: the car is asked, reach.vehicle)
   // A big fixture standing on its own collider (a roadside spot, a generator).
   fixture(p, x, z) { return this.to(p, x, z, BIG); }
   // A vehicle: the line stops at its flank.

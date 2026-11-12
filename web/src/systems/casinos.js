@@ -437,7 +437,7 @@ export class Casinos {
     if (!S) return { ok: false, why: `how: ${Object.keys(SAFE).join(' | ')}` };
     if (!v.safePos) return { ok: false, why: 'no safe in a back room' };
     if (v.safe.state !== 'locked') return { ok: false, why: `the safe is ${v.safe.state}` };
-    if (Math.hypot(P.x - v.safePos.x, P.z - v.safePos.z) > 2.2) return { ok: false, why: 'get to the safe' };
+    if (Math.hypot(P.x - v.safePos.x, P.z - v.safePos.z) > 2.2 || !(g.reach?.fixture(P, v.safePos.x, v.safePos.z) ?? true)) return { ok: false, why: 'get to the safe' };
     if (!(g.inventory.carried.count(S.needs) > 0)) return { ok: false, why: `you carry no ${ITEMS[S.needs]?.name ?? S.needs}` };
     v.safe.work += dt; v.safe.how = how;
     if (v.safe.work < S.time) return { ok: true, working: r1(v.safe.work / S.time) };

@@ -38,8 +38,8 @@ still a counter: you lean over it to trade.
   standing (radius 0.4), 0.66 m prone (radius 0.26).
 - **A big fixture** (a junkyard hulk, the dam's cistern, a base's generator, a casino's office safe) is reached on its
   own collider whatever its size (`reach.fixture`): you work it from beside it.
-- **Floors.** A container, a body, a pile, a bed, a person or a dog more than `LEVEL.same` (1.6 m) above or below your
-  feet is out of reach. Doors, windows, cars, carcasses and fixtures have no floor test of their own (they are on the
+- **Floors.** A container, a body (to search it or to drag it), a pile, a bed, a person or a dog more than `LEVEL.same`
+  (1.6 m) above or below your feet is out of reach. Doors, windows, cars, carcasses and fixtures have no floor test of their own (they are on the
   floor you stand on, or the line at your height meets that floor's walls).
 - **Cars.** A car is not on the collision grid, so the line stops at its flank (`pad` = half its width). For the same
   reason a parked car never blocks a hand: you reach over a bonnet.
@@ -60,8 +60,10 @@ still a counter: you lean over it to trade.
 | E: a roadside spot (fill caps, a hulk, a tank, the cistern, the dam's wheel) | `roadside.js spotNear` | hand (fixture) |
 | E: a base's generator (fixture) and duty log | `milbases.js interact` | hand |
 | E: a casino's charger pad and its office safe (fixture) | `casinos.js interact` | hand |
-| Hold E: drag, bury or burn a body | `rites.js` (the body itself is tested, and the nearest box must be its own) | hand |
-| The PACK screen left open | `ui/inventory.js update` (four times a second) | hand |
+| Hold E: drag, bury or burn a body | `rites.js bodyNear(…, who)`: on your floor, a clear line, the nearest one you can reach | hand |
+| The ground at your feet (a drop, the PACK's ground side) | `inventory.js groundAt`: a pile within 1.6 m that your hand can get to, else a fresh one where you stand | hand |
+| The PACK screen left open (a box, a body, a pile) | `ui/inventory.js update` (four times a second) | hand |
+| The agent's `rites action=drag` and the safe's own rule (`casinos.workSafe`) | the same `g.reach` | hand |
 
 - **Not changed** (already line-of-sight or contact rules of their own): shooting (`fire` refuses through walls),
   gunpoint (it is aimed), melee (`combat.js` wall law), fences (the fence is the thing), seats at a table (1.1 m),
@@ -89,7 +91,9 @@ still a counter: you lean over it to trade.
 - **A door ajar:** SIGHT passes it past `DOOR.nearClosed`; a hand line meets the leaf wherever it stands, so reach round
   an open door from the doorway.
 - **The PACK screen left open while you walk round the wall:** within a quarter second of the line being blocked the
-  opened box stops being "the other side" (it falls back to the car you stand at, then the ground). A trader's counter opened from a talk stays (the
+  opened box, body or pile stops being "the other side". It falls back to the nearest container you can reach, then the
+  car you stand at, then the ground at your feet.
+- **A pile just through a thin wall:** it is not "the ground here". Dropping something makes a fresh pile where you stand. A trader's counter opened from a talk stays (the
   keeper hands things across).
 - **Riding a vehicle's deck:** the line starts at the street's hand height; the deck's own spots have their own rule.
 - **Below the street:** the line is cast on that level's own grid (`statics.under`).
@@ -126,7 +130,8 @@ still a counter: you lean over it to trade.
 2. **The rule on a bare grid:** a wall stops a hand and a word; a 1.0 m counter does not; a shelf's own body does not; the
    same shelf from behind its wall does, pressed to the wall standing and prone against a 0.2 m wall; a floor between
    does (`why: floor`); 0.7 m in the open passes; a 7.8 m cistern is reached as a fixture from 4.3 m and refused as a plain
-   point; a car against the far side of a thin wall is refused and one beside you is not.
+   point; a car against the far side of a thin wall is refused and one beside you is not; upstairs in a town lifted 6 m
+   a partition on the building's own ground stops the hand; 1.2 m up a flight the street floor's wall still does.
 3. **No loot through a wall:** at a real island building, 2.3 m or less from a container on the far side of its wall: E
    does not open it, `pack on=true` does not make it the other side, `findNear()` does not list it, and it is neither
    rolled nor changed. From a spot with a clear line the same container opens and is listed (the control). Left open,
@@ -136,13 +141,17 @@ still a counter: you lean over it to trade.
 5. **Doors:** up to 40 island doors: each reaches from 1.2 m in front on both sides and is what `interiors.nearest`
    offers there; with a wall slab stood 0.55 m in front of it the same search stops offering it (`why: wall`); with the
    slab taken away it is offered again. At least 20 walled cases.
-6. **The other hands:** a dead man just inside a wall is found by `rites.bodyNear` from outside and holding E for 1.5 s
-   does not start a drag; at a junkyard hulk and at the dam's cistern, `roadside.spotNear` offers the spot from every
-   side you can stand at.
+6. **The other hands:** at a bare stretch of a real wall with a dead man 1.7 m off on its far side: `rites.bodyNear`
+   finds him by distance and not for your hand, and three 1.5 s holds of E start no drag; a pile against the wall's far
+   face is not the ground at your feet and the PACK screen does not list it. From his own side the pile is the ground
+   there and the same hold drags him (the control). At a junkyard hulk and at the dam's cistern (both required),
+   `roadside.spotNear` offers the spot from every side you can stand at.
 
 Before / after: `docs/renders/web/reach/zed-wallreach-before.jpg` (the PACK screen opens the cantina's crate from the
 street) and `zed-wallreach-after.jpg` (the same spot opens the ground).
 
-Critic review 2026-11-12 (first pass FAIL, seven items, all fixed in the second commit): the cistern and hulks refused
+Critic review 2026-11-12. Second pass FAIL, three items, fixed in the third commit: a ground pile taken through a
+wall, a body dragged through a floor (and a nearer unreachable body hiding a reachable one), a drag check with no
+control. First pass FAIL, seven items, fixed in the second commit: the cistern and hulks refused
 (`ownMax` on fixtures), the upstairs height ignoring `storey.y0`, a body dragged through a wall, the casino safe, the
 PACK screen left open, the prone body's shorter arm's length, a doors check that passed with the rule removed.
