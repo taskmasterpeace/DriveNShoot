@@ -84,7 +84,7 @@ export class HUD {
               <canvas class="win-diagram" width="64" height="96" title="Windows: blue intact · white cracked · red broken · dots = people hanging on"></canvas>
               <div class="sp-bars">
                 <div class="st-row"><span class="st-label veh-label">HULL</span></div>${segs('seg-hull', SEG_SMALL)}
-                <div class="st-row"><span class="st-label">FUEL</span></div>${segs('seg-fuel', SEG_SMALL)}
+                <div class="st-row fuel-row"><span class="st-label">FUEL</span></div>${segs('seg-fuel', SEG_SMALL)}
               </div>
             </div>
           </div>
@@ -119,7 +119,7 @@ export class HUD {
       wpanel: q('.weapon-panel'), wTex: q('.weapon-panel canvas'), wname: q('.w-name'), wmag: q('.w-mag'), wres: q('.w-res'), wcarts: q('.w-carts'), wslots: q('.w-slots'), wcond: q('.w-cond'), wcondFill: q('.w-cond em'), wcondT: q('.w-cond b'), wstamp: q('.w-stamp'),
       wthrow: q('.w-throw'), tIcon: q('.w-ticon'), tCount: q('.w-tcount'), tName: q('.w-tname'),
       speedo: q('.speedo'), spTex: q('.speedo canvas'), spDial: q('.sp-dial canvas'), spNeedle: q('.sp-needle'), sNum: q('.speedo-num'), sName: q('.speedo-name'), spHint: q('.sp-hint'),
-      winDiagram: q('.win-diagram'), vehLabel: q('.veh-label'), hullSegs: qa('.seg-hull i'), fuelSegs: qa('.seg-fuel i'),
+      winDiagram: q('.win-diagram'), vehLabel: q('.veh-label'), hullSegs: qa('.seg-hull i'), fuelSegs: qa('.seg-fuel i'), fuelRow: q('.fuel-row'), fuelBar: q('.seg-fuel'),
       prompt: q('.prompt'), footing: q('.footing'), subtitle: q('.subtitle'), hurt: q('.hurt'), vignette: q('.vignette'), dead: q('.dead-screen'), flash: q('.flashbang'), under: q('.underwater'),
       stats: q('.stats'), reticle: q('.reticle'),
     };
@@ -528,7 +528,9 @@ export class HUD {
     this.flag('spHint', this.el.spHint, 'hidden', !v.harpoon);
     this.meter('hull', this.el.hullSegs, Math.ceil(Math.max(0, v.hp / v.maxHp) * SEG_SMALL - 0.001));
     this.flag('hullLow', this.el.speedo, 'hull-low', v.hp < v.maxHp * 0.3);
-    this.meter('fuel', this.el.fuelSegs, Math.ceil(Math.max(0, (v.fuel ?? 1) / (v.fuelCap ?? 1)) * SEG_SMALL - 0.001));
+    const dry = !!v.noEngine; // a bicycle, a raft, a wagon: no tank to show (data/bicycle.js)
+    if (this._noFuel !== dry) { this._noFuel = dry; for (const e of [this.el.fuelRow, this.el.fuelBar]) if (e) e.style.display = dry ? 'none' : ''; }
+    if (!dry) this.meter('fuel', this.el.fuelSegs, Math.ceil(Math.max(0, (v.fuel ?? 1) / (v.fuelCap ?? 1)) * SEG_SMALL - 0.001));
     this.winT += dt;
     if (this.winT >= 0.1) { this.winT = 0; g.carCombat.drawHud(this.winCtx, v); }
   }
