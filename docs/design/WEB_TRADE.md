@@ -125,3 +125,7 @@ you could have walked off with the whole crate, and the town would have known.
    `buyPrice`; the Rust-9 shows 60%; no Sawn-off is offered; his keeps put 24 pistol rounds out. Buying the rounds there
    takes the price and leaves none on the shelf; "Let me see the counter." closes the talk and opens the PACK screen
    on his box.
+
+
+## Dependents added by WEB_FARMING (2026-10-29)
+- WEB_FARMING.md: garden food reaches a shelf only as a `producer` delivery sent by `garden action=consign`.

@@ -1292,13 +1292,14 @@ export class Fauna {
     }
     const n = this.rawCount();
     if (n) { const h = this.heatNear(p.x, p.z); if (h) return { verb: 'cook', heat: h, text: `Cook ${n} raw meat on the ${h.kind}` }; }
-    return this.g.outdoors?.nearFor(p) ?? null; // a line to cast, a trap, the camp, the ground to search (systems/outdoors.js)
+    return this.g.farming?.nearFor(p) ?? this.g.outdoors?.nearFor(p) ?? null; // a bed to work or a coop (systems/farming.js), then a line to cast, a trap, the camp, the ground to search (systems/outdoors.js)
   }
   interact(o) {
     if (!o) return { ok: false, why: 'nothing here' };
     if (o.verb === 'butcher') return this.startButcher(o.a);
     if (o.verb === 'cook') return this.cook();
     if (o.verb === 'busy' && o.a) return { ok: true, text: 'STILL CUTTING' };
+    if (o.farm && this.g.farming) return this.g.farming.interact(o);
     if (!o.a && o.verb !== 'cook' && this.g.outdoors) return this.g.outdoors.interact(o);
     return { ok: false, why: o.text };
   }
