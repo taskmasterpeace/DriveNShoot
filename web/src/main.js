@@ -71,8 +71,8 @@ import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
 import { Horses } from './systems/horses.js';
-import { Cavalry } from './systems/cavalry.js';
-import { Wagons } from './systems/wagons.js'; // VEHICLES V2 slice 7: covered wagons (data/wagons.js) // VEHICLES V2 slice 6: the Cavalry Company (data/cavalry.js)
+import { Cavalry } from './systems/cavalry.js'; // VEHICLES V2 slice 6: the Cavalry Company (data/cavalry.js)
+import { Wagons } from './systems/wagons.js'; // VEHICLES V2 slice 7: covered wagons (data/wagons.js)
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';

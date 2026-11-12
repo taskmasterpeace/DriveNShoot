@@ -15,6 +15,7 @@ VEHICLES.wagon ??= WAGON_ROW;
 DECKS.wagonBed ??= WAGON_DECK;
 HULLS.wagon ??= wagonBody;
 
+const STILL = 0.01; // a wagon with no team: a top speed of (almost) nothing, never 0
 const WOOD = '#6b4a2e', WOOD_DARK = '#4a3220', CANVAS = '#d8cfb4', CANVAS_SHADE = '#b9ae92', IRON = '#2a2826', SPOKE = '#5a3e26';
 
 export class Wagons {
@@ -23,6 +24,7 @@ export class Wagons {
     game.wagons = this;
     this.placed = new Set();
     this.teams = new Map(); // wagon id -> [horse id, ...]
+    this.vref = new Map();  // wagon id -> its vehicle (a cache: the vehicles list is not searched every frame)
     this.counts = { placed: 0, hitched: 0, unhitched: 0 };
     this._spot = null;
   }
@@ -31,6 +33,7 @@ export class Wagons {
     const P = this.g.player;
     for (const w of WAGONS) {
       if (this.placed.has(w.id) || Math.hypot(P.x - w.x, P.z - w.z) > 300) continue; // put down when you first come near
+      if (this.g.vehicles.some((q) => q.wagonRow === w.id)) { this.placed.add(w.id); continue; } // already standing (a load brought it back)
       const v = this.g.vehiclesSys.spawn('wagon', w.x, w.z, w.h, w.paint);
       if (v) { v.wagonRow = w.id; this.counts.placed++; }
       this.placed.add(w.id);
@@ -44,7 +47,9 @@ export class Wagons {
     out.x = v.x + s * o + c * side; out.z = v.z + c * o - s * side; return out;
   }
   // Re-set the wagon's pace from what is hitched (data/wagons.js teamPace).
-  pace(v) { const t = teamPace(this.teamOf(v).map((H) => H.breed), BREEDS); v.maxSpeed = t.maxSpeed; v.accel = t.accel; return t; }
+  // The team's pace, worked out when the team changes and kept on the wagon (re-applied every frame without allocating: the
+  // garage's retune and a net ghost reset the row's numbers). Never a top speed of 0: vehicles.drive divides by it.
+  pace(v) { const t = teamPace(this.teamOf(v).map((H) => H.breed), BREEDS); v.wagonPace = { maxSpeed: Math.max(STILL, t.maxSpeed), accel: t.accel }; v.maxSpeed = v.wagonPace.maxSpeed; v.accel = v.wagonPace.accel; return t; }
 
   hitch(v, H) {
     const team = this.teams.get(v.id) ?? [];
@@ -77,7 +82,7 @@ export class Wagons {
   }
   // E on foot at a wagon's tongue: hitch your horse that stands near, or unhitch. { verb, v, h, text } or null.
   footSpot(p) {
-    if (p.inVehicle || p.mount || !p.alive) return null;
+    if (p.inVehicle || p.mount || p.onDeck || !p.alive) return null; // in the bed: E is the bed's (the chest)
     const t = this._p ??= { x: 0, z: 0 };
     for (const v of this.g.vehicles) {
       if (v.type !== 'wagon' || v.dead || Math.abs(v.x - p.x) > 10 || Math.abs(v.z - p.z) > 10) continue;
@@ -97,9 +102,9 @@ export class Wagons {
   update(dt) {
     if (!this.g.horses?.enabled) return;
     if (this.placed.size < WAGONS.length) this.place();
-    const Hs = this.g.horses, o = this._o ??= { x: 0, z: 0 };
+    const Hs = this.g.horses, o = this._o ??= { x: 0, z: 0 }, vs = this.g.vehicles;
     for (const [id, team] of this.teams) {
-      const v = this.g.vehicles.find((q) => q.id === id);
+      let v = this.vref.get(id); if (!v || v.id !== id || !vs.includes(v)) { v = null; for (const q of vs) if (q.id === id) { v = q; break; } if (v) this.vref.set(id, v); }
       if (!v || v.dead) { for (const hid of team) { const H = Hs.get(hid); if (H) H.hitched = null; } this.teams.delete(id); continue; }
       let lost = false;
       for (let i = 0; i < team.length; i++) {
@@ -111,20 +116,24 @@ export class Wagons {
         if (a) { a.x = o.x; a.z = o.z; a.face = v.h; a.vx = v.vx; a.vz = v.vz; a.speed = H.v; a.y = this.g.stunts?.heightAt?.(a.x, a.z, a.y) ?? a.y; a.state = H.v > 0.3 ? 'roam' : 'idle'; }
         H.gait = H.v > 6 ? 'canter' : H.v > 2.2 ? 'trot' : H.v > 0.2 ? 'walk' : 'stand';
       }
-      if (lost) { this.teams.set(id, team.filter((hid) => Hs.get(hid)?.alive)); for (const hid of team) { const H = Hs.get(hid); if (H && !H.alive) H.hitched = null; } }
-      this.pace(v);
+      if (lost) { this.teams.set(id, team.filter((hid) => Hs.get(hid)?.alive)); for (const hid of team) { const H = Hs.get(hid); if (H && !H.alive) H.hitched = null; } this.pace(v); }
+      if (v.wagonPace) { v.maxSpeed = v.wagonPace.maxSpeed; v.accel = v.wagonPace.accel; }
     }
-    // A wagon with no team: it does not move under its own power.
-    for (const v of this.g.vehicles) if (v.type === 'wagon' && !this.teams.has(v.id)) { v.maxSpeed = 0; v.accel = 0; }
+    // A wagon with no team: it does not move under its own power, and rolling it slows to a stop (the wheel brake).
+    for (const v of vs) if (v.type === 'wagon' && !this.teams.has(v.id)) {
+      v.maxSpeed = STILL; v.accel = 0;
+      const k = Math.max(0, 1 - dt * 1.6); v.vx *= k; v.vz *= k;
+    }
   }
 
   view() { return this.g.vehicles.filter((v) => v.type === 'wagon').map((v) => ({ id: v.id, x: Math.round(v.x), z: Math.round(v.z), team: (this.teams.get(v.id) ?? []).slice(), maxSpeed: +(v.maxSpeed ?? 0).toFixed(2), accel: +(v.accel ?? 0).toFixed(2), driver: v.driver?.id ?? null })); }
-  save() { return { placed: [...this.placed], teams: [...this.teams].map(([id, t]) => [id, t.slice()]) }; }
+  save() { return { placed: [...this.placed], teams: [...this.teams].map(([id, t]) => [id, t.slice()]), rows: this.g.vehicles.filter((v) => v.wagonRow).map((v) => [v.id, v.wagonRow]) }; }
   load(s) {
     for (const [, team] of this.teams) for (const hid of team) { const H = this.g.horses.get(hid); if (H) H.hitched = null; }
-    this.teams.clear();
+    this.teams.clear(); this.vref.clear();
     this.placed = new Set(s?.placed ?? []);
     if (!s) { this.placed = new Set(WAGONS.map((w) => w.id)); return; } // an old save: the wagons are whatever the save's vehicles hold (none placed again)
+    for (const [id, row] of s.rows ?? []) { const v = this.g.vehicles.find((q) => q.id === id); if (v) v.wagonRow = row; } // which row each wagon is
     for (const [id, team] of s.teams ?? []) { this.teams.set(id, team.slice()); for (const hid of team) { const H = this.g.horses.get(hid); if (H) H.hitched = id; } }
     for (const v of this.g.vehicles) if (v.type === 'wagon') this.pace(v);
   }

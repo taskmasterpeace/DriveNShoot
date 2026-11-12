@@ -80,7 +80,7 @@ export async function vehWagonsChecks(api, check, C) {
       for (let f = 0; f < 180; f++) { v.throttle = 0.8; v.steer = 0; d.throttleHeld = true; await api._step(1); }
       const moved = Math.hypot(v.x - x0, v.z - z0), stillOn = g.player.onDeck?.v === v;
       g.seats.leave(d, true); g.removeChar?.(d);
-      return canClimb && onBed && stillOn ? true : JSON.stringify({ canClimb, onBed, stillOn, moved: r1(moved) });
+      return canClimb && onBed && stillOn && moved > 3 ? true : JSON.stringify({ canClimb, onBed, stillOn, moved: r1(moved) });
     } finally { off(); }
   });
 
@@ -89,7 +89,7 @@ export async function vehWagonsChecks(api, check, C) {
     try {
       const { v, H } = await stage('draft');
       W().hitch(v, H); const r = W().unhitch(v);
-      const tied = !!H.tied && !H.hitched && v.maxSpeed === 0;
+      const tied = !!H.tied && !H.hitched && v.maxSpeed <= 0.011 && v.accel === 0; // no team: no pull, a top speed of (almost) nothing
       return one.accel > pony.accel && two.accel > one.accel && r.ok && tied ? true : JSON.stringify({ one, pony, two, r, tied });
     } finally { off(); }
   });
