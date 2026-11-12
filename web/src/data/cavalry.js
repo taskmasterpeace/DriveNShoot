@@ -32,7 +32,7 @@ export const CAVALRY_POSTS = [
     id: 'cavalry_post', name: 'THE CAVALRY POST', region: 'west', x: -3150, z: 380, half: 18, gate: 'S',
     garrison: [{ breed: 'quarter' }, { breed: 'mustang' }, { breed: 'quarter' }],
     patrols: [
-      { id: 'south_loop', riders: [{ breed: 'quarter' }, { breed: 'mustang' }], gait: 'trot', route: [[0, -60], [150, -130], [210, -30], [150, 100], [0, 60]] },
+      { id: 'south_loop', riders: [{ breed: 'quarter' }, { breed: 'mustang' }], gait: 'trot', route: [[0, -30], [150, -130], [210, -30], [150, 100], [50, 70], [35, -25]] },
     ],
   },
 ];

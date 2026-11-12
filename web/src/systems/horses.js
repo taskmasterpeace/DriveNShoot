@@ -150,8 +150,8 @@ export class Horses {
       const d = Math.hypot(H.x - foc.x, H.z - foc.z);
       const mounted = P.mount === H;
       // a body near you, none far off; a ridden horse is always near
-      if (doCheck && !a && F.enabled && d < CARE.liveR && (H.alive || !H.butchered)) a = this.spawnBody(H);
-      else if (doCheck && a && d > CARE.dropR && !mounted) { this.dropBody(H); a = null; }
+      if (doCheck && !a && F.enabled && (d < CARE.liveR || H.npcRider) && (H.alive || !H.butchered)) a = this.spawnBody(H); // a company trooper's horse is always a body while he sits it (systems/cavalry.js)
+      else if (doCheck && a && d > CARE.dropR && !mounted && !H.npcRider) { this.dropBody(H); a = null; }
       if (a) {
         if (!H.alive || a.dead) { if (a.dead && H.alive) this.died(H, 'shot'); }
         else if (a.hp < H.hp - 0.4 && H.owner !== 'wild') this.onHit(H, a, H.hp - a.hp);
