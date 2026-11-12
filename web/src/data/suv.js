@@ -3,8 +3,8 @@
 // Stats sit between the pickup and the van: heavier and taller than a sedan, softer off-road than the patrol truck.
 const S4 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
 export const SUV_ROW = {
-  name: 'SUV', len: 4.9, wid: 2.0, tall: 1.98, maxSpeed: 37, reverse: 13, accel: 17, turn: 2.05, grip: 6.2, mass: 2.0,
-  hp: 240, armor: 0.3, fuelCap: 78, seats: S4,
+  name: 'SUV', len: 4.9, wid: 2.0, tall: 2.24, maxSpeed: 37, reverse: 13, accel: 17, turn: 2.05, grip: 6.2, mass: 2.0,
+  hp: 240, armor: 0.3, fuelCap: 78, seats: S4, // tall: the top of the roof load, the body's true top (a check measures the mesh)
 };
 // The glass (vehiclebodies GREENHOUSE shape): the windshield's foot zA, the roof from roofF back to roofR, the tailgate
 // glass down to zC; belt yB, roof yR; wB/wR the width at the belt and the roof.

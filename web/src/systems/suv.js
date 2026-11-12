@@ -26,8 +26,8 @@ function suvBody(parts, s, paint, K) {
   // Nose: the block, the hood (tears off), a square grille between the lamps, the bumper with a skid plate under it.
   parts.push(slab(-hw, hw, 0.5, yHood - 0.06, G.zA - 0.05, L / 2 - 0.06, paint));
   parts.push(slab(-hw + 0.07, hw - 0.07, yHood - 0.06, yHood, G.zA + 0.02, L / 2 - 0.14, paint, PART.hood));
-  parts.push(slab(-hw + 0.32, hw - 0.32, 0.72, yHood - 0.12, L / 2 - 0.08, L / 2 - 0.01, GRILLE));
-  for (let k = 0; k < 4; k++) { const y = 0.78 + k * 0.1; parts.push(slab(-hw + 0.34, hw - 0.34, y, y + 0.025, L / 2 - 0.02, L / 2 + 0.005, CHROME)); }
+  parts.push(slab(-hw + 0.52, hw - 0.52, 0.72, yHood - 0.12, L / 2 - 0.08, L / 2 - 0.01, GRILLE)); // between the lamps (vehiclebodies lampAnchors: x +-(hw - 0.35))
+  for (let k = 0; k < 4; k++) { const y = 0.78 + k * 0.1; parts.push(slab(-hw + 0.54, hw - 0.54, y, y + 0.025, L / 2 - 0.02, L / 2 + 0.005, CHROME)); }
   parts.push(slab(-hw - 0.04, hw + 0.04, 0.48, 0.74, L / 2 - 0.08, L / 2 + 0.14, BUMPER, PART.bumperF));
   parts.push(slab(-0.55, 0.55, 0.36, 0.5, L / 2 - 0.4, L / 2 + 0.06, '#3a3836', PART.bumperF));
   // Square fender flares over the wheels and a rocker step down each side.
@@ -42,7 +42,7 @@ function suvBody(parts, s, paint, K) {
     const x0 = sd * (hw - 0.1), x1 = sd * hw;
     parts.push(slab(x0, x1, 0.5, G.yB, zB, G.zA, paint, sd > 0 ? PART.doorL : PART.doorR));
     parts.push(slab(x0, x1, 0.5, G.yB, zD, zB, paint, sd > 0 ? PART.doorL2 : PART.doorR2));
-    parts.push(slab(x0, x1, 0.5, G.yB, G.zC, zD, paint)); // the cargo quarter
+    parts.push(slab(x0, x1, 0.5, G.yB, -L / 2 + 0.02, zD, paint)); // the cargo quarter, back to the tailgate
     parts.push(slab(sd * (hw + 0.01), sd * (hw + 0.035), G.yB - 0.2, G.yB - 0.15, G.zA - 0.5, G.zA - 0.3, CHROME, sd > 0 ? PART.doorL : PART.doorR));
     parts.push(slab(sd * (hw + 0.01), sd * (hw + 0.035), G.yB - 0.2, G.yB - 0.15, zB - 0.5, zB - 0.3, CHROME, sd > 0 ? PART.doorL2 : PART.doorR2));
     parts.push(slab(sd * (hw + 0.02), sd * (hw + 0.24), G.yB + 0.06, G.yB + 0.28, G.zA - 0.12, G.zA + 0.02, '#1e1d1c', sd > 0 ? PART.doorL : PART.doorR)); // mirror
@@ -55,10 +55,10 @@ function suvBody(parts, s, paint, K) {
   greenhouse(parts, G, paint, paint, zB);
   for (const sd of [1, -1]) parts.push(beam([sd * (G.wB / 2 - 0.035), G.yB, zD], [sd * (G.wR / 2 - 0.035), G.yR + 0.02, zD], 0.07, paint, PART.body)); // the C-pillar
   // A roof rack: two rails, three crossbars, a jerry can and a rolled tarp lashed down.
-  for (const sd of [1, -1]) parts.push(slab(sd * (G.wR / 2 - 0.12), sd * (G.wR / 2 - 0.05), G.yR + 0.07, G.yR + 0.15, G.roofR + 0.15, G.roofF - 0.1, RACK));
-  for (let k = 0; k < 3; k++) { const z = G.roofR + 0.25 + k * ((G.roofF - G.roofR - 0.5) / 2); parts.push(slab(-G.wR / 2 + 0.05, G.wR / 2 - 0.05, G.yR + 0.15, G.yR + 0.19, z - 0.03, z + 0.03, RACK)); }
-  parts.push(slab(0.2, 0.55, G.yR + 0.19, G.yR + 0.52, G.roofR + 0.35, G.roofR + 0.6, '#4e5438'));
-  parts.push(slab(-0.5, 0.05, G.yR + 0.19, G.yR + 0.42, G.roofR + 0.3, G.roofR + 0.95, '#7b6a4a')); // the tarp
+  for (const sd of [1, -1]) parts.push(slab(sd * (G.wR / 2 - 0.12), sd * (G.wR / 2 - 0.05), G.yR + 0.07, G.yR + 0.12, G.roofR + 0.15, G.roofF - 0.1, RACK));
+  for (let k = 0; k < 3; k++) { const z = G.roofR + 0.25 + k * ((G.roofF - G.roofR - 0.5) / 2); parts.push(slab(-G.wR / 2 + 0.05, G.wR / 2 - 0.05, G.yR + 0.1, G.yR + 0.13, z - 0.03, z + 0.03, RACK)); }
+  parts.push(slab(0.15, 0.6, G.yR + 0.13, G.yR + 0.3, G.roofR + 0.3, G.roofR + 0.65, '#4e5438')); // a jerry can, on its side
+  parts.push(slab(-0.55, 0.05, G.yR + 0.13, G.yR + 0.3, G.roofR + 0.3, G.roofR + 0.95, '#7b6a4a')); // the tarp, rolled flat (the load stays under the row's tall: a box trailer's door)
   // The tail: the tailgate (its window is the greenhouse's rear glass), a spare on it, the bumper and the plate.
   parts.push(slab(-hw + 0.04, hw - 0.04, 0.5, G.yB, -L / 2 + 0.02, -L / 2 + 0.1, paint, PART.bumperR));
   parts.push(K.coloredBox(0.78, 0.78, 0.26, 0, G.yB - 0.4, -L / 2 - 0.12, TYRE, PART.bumperR));

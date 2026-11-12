@@ -4,7 +4,7 @@
 import { VEHICLES } from '../systems/vehicles.js';
 import { TRAILERS, FREIGHT, fitsHold } from '../data/trailers.js';
 import { CHASSIS } from '../data/workshop.js';
-import { glassLayout } from '../systems/vehiclebodies.js';
+import { glassLayout, PART as PARTID } from '../systems/vehiclebodies.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -13,7 +13,7 @@ export async function vehSuvChecks(api, check, C) {
   const keysUp = () => { for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyG']) I.down.delete(k); };
   const drop = (...vv) => { if (g.player.inVehicle) g.exitVehicle(true); for (const v of vv) if (v && g.vehicles.includes(v)) { v.carriedBy = null; vs().remove(v); } };
 
-  await check('suv: the SUV is a row and a real body - four doors, the glass to the tailgate, a roof rack, its wheels; a workshop chassis; it fits the LONGHAULER box hold and the freight\'s first box rig carries one', async () => {
+  await check('suv: the SUV is a row and a real body - four doors, the glass to the tailgate, a roof rack, its wheels; a workshop chassis; the built body is no taller than its row says; it fits the LONGHAULER box hold and the freight\'s first box rig carries one', async () => {
     const s = VEHICLES.suv;
     if (!s) return 'no VEHICLES.suv';
     const v = vs().spawn('suv', 0, -60, 0, '#5d6a52');
@@ -22,7 +22,8 @@ export async function vehSuvChecks(api, check, C) {
       const tris = v.mesh.geometry.attributes.position.count / 3, glass = glassLayout(s, 'suv');
       const fit = fitsHold(TRAILERS.box, s), freight = FREIGHT.rigs.boxes.some((r) => r.cargo?.includes('suv'));
       const doors = ['doorL', 'doorR', 'doorL2', 'doorR2'].every((p) => [...P].includes(PARTID[p]));
-      return tris > 400 && doors && glass && CHASSIS.suv && fit === null && freight ? true : JSON.stringify({ tris, doors, glass: !!glass, chassis: !!CHASSIS.suv, fit, freight });
+      v.mesh.geometry.computeBoundingBox(); const top = v.mesh.geometry.boundingBox.max.y, wide = v.mesh.geometry.boundingBox.max.x * 2; // the built body: no taller than its row says (a box trailer's door)
+      return tris > 400 && doors && glass && CHASSIS.suv && fit === null && freight && top <= s.tall + 0.005 && top > s.tall - 0.15 ? true : JSON.stringify({ tris, doors, glass: !!glass, chassis: !!CHASSIS.suv, fit, freight, top: r2(top), tall: s.tall, wide: r2(wide) });
     } finally { drop(v); }
   });
 
@@ -48,5 +49,3 @@ export async function vehSuvChecks(api, check, C) {
     } finally { keysUp(); drop(suv, ...(r.T?.cargo ?? []), r.K, r.T); for (const c of [...g.chars]) if (c.name === 'Hauler (selftest)' && !g.vehicles.includes(c.inVehicle)) g.removeChar?.(c); }
   });
 }
-// The body's part ids (vehiclebodies PART) by name, without importing the whole body module's internals here.
-import { PART as PARTID } from '../systems/vehiclebodies.js';
