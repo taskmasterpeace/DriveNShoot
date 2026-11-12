@@ -127,6 +127,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
   await check('reach: NO LOOT THROUGH A WALL - outside a real building, a shelf 2 m away on the far side of its wall: E does not open it, the pack command does not make it the other side, the PACK screen does not list it and it is never rolled; from inside the same shelf opens; and a PACK left open on it lets go when you walk round the wall', async () => hush(async () => {
     await stage();
     g.godMode = true;
+    try {
     const f = findBox();
     if (!f) return 'no island container with a wall beside it to test against';
     const { b, out, inn } = f, was = { rolled: !!b.rolled, n: b.slots.length };
@@ -151,14 +152,16 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     await put(out); await api._step(40);
     const letGo = g.invUI.other !== b;
     await shut();
-    g.godMode = false;
     const ok = d < NEAR_REACH && !reach && why === 'wall' && !eOpened && !listed && !other && untouched && reachIn && opensInside && listedInside && heldInside && letGo;
     return ok || { box: b.id, d: r1(d), reach, why, eOpened, listed, other, untouched, reachIn, opensInside, listedInside, heldInside, letGo };
+    } finally { g.godMode = false; }
   }));
 
   await check('reach: nobody to talk to, no bed and no car through a wall - a stranger, a mattress and a parked car 2 m off behind a wall give no prompt and E does nothing; with a clear line each one does', async () => hush(async () => {
     await stage();
     g.godMode = true;
+    const staged = { bed: null };
+    try {
     const f = findBox(1.7);
     if (!f) return 'no island wall to test against';
     const { b, out, inn } = f;
@@ -167,7 +170,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     await C('teleport', { x: out.x, z: out.z }); await put(out); await shut();
     const sp = await C('spawn', { kind: 'drifter', x: far.x, z: far.z });
     const c = sp.ids?.[0] ? api.findChar(sp.ids[0]) : null;
-    if (!c) { g.godMode = false; return { spawn: sp }; }
+    if (!c) return { spawn: sp };
     c.timer = 99; c.x = far.x; c.z = far.z; c.wx = c.x; c.wz = c.z; c.target = null;
     await put(out);
     const dC = Math.hypot(c.x - P().x, c.z - P().z);
@@ -179,7 +182,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     if (dlgOut) g.dialogue.close?.();
     // a bed on the far side: the rule the E chain and N (sleep) both ask
     const bed = { x: b.x, z: b.z, y: 0 }, beds = g.world.spawns.beds ?? (g.world.spawns.beds = []); // a mattress where the shelf stands: inside 1.8 m of you, the wall between
-    beds.push(bed);
+    beds.push(bed); staged.bed = bed;
     const dBed = Math.hypot(bed.x - P().x, bed.z - P().z), bedPlain = g.bedNear(P().x, P().z, 0) === bed;
     const bedOut = g.bedNear(P().x, P().z, 0, P());
     // a car against the far side of the wall
@@ -194,11 +197,11 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     if (c2) { c2.timer = 99; c2.target = null; c2.x = inn.x + (b.x - inn.x) * 0.5; c2.z = inn.z + (b.z - inn.z) * 0.5; c2.wx = c2.x; c2.wz = c2.z; talkIn = R.person(P(), c2); g.removeChar(c2); }
     const dbg = { c2: !!c2, moved: r1(Math.hypot(P().x - inn.x, P().z - inn.z)), why: R.last.why, tag: R.last.tag, il: r1(il), box: b.id };
     bedIn = g.bedNear(P().x, P().z, 0, P());
-    beds.splice(beds.indexOf(bed), 1);
+    beds.splice(beds.indexOf(bed), 1); staged.bed = null;
     const carIn = R.vehicle(P(), { x: inn.x + 1.5, z: inn.z, wid: 1.9, len: 4.2 }) || R.vehicle(P(), { x: inn.x - 1.5, z: inn.z, wid: 1.9, len: 4.2 }) || R.vehicle(P(), { x: inn.x, z: inn.z + 1.5, wid: 1.9, len: 4.2 }) || R.vehicle(P(), { x: inn.x, z: inn.z - 1.5, wid: 1.9, len: 4.2 });
-    g.godMode = false;
     const ok = dC < 2.8 && !talkOut && !/Talk to|Wake/.test(promptOut) && !dlgOut && dBed < 1.8 && bedPlain && bedOut !== bed && !carOut && talkIn && bedIn === bed && carIn;
     return ok || { dbg, dC: r1(dC), dBed: r1(dBed), bedPlain, talkOut, promptOut, dlgOut, bedOut: bedOut === bed, carOut, talkIn, bedIn: bedIn === bed, carIn };
+    } finally { g.godMode = false; const B2 = g.world.spawns.beds; if (staged.bed && B2?.includes(staged.bed)) B2.splice(B2.indexOf(staged.bed), 1); }
   }));
 
   await check('reach: a door is worked from in front of it, never through a wall - every island door probed reaches from 1.2 m in front on both sides and is what E\'s own search (interiors.nearest) offers there; stand a wall in the hand\'s line and the same search stops offering it; take the wall away and it is offered again', async () => hush(async () => {
@@ -353,7 +356,7 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     } finally { g.godMode = false; g.input.down.delete('KeyE'); }
   }));
 
-  await check('reach: below the street the same hands work - on an underground level a dead man beside you is dragged by holding E, and the PACK screen held open on the ground there keeps the one pile (no new pile, no re-pick) for two seconds', async () => hush(async () => {
+  await check('reach: below the street the same hands work - on an underground level a dead man beside you is dragged by holding E, so is one of the infected (which has no box of its own) once its ragdoll has settled on that level, and the PACK screen held open on the ground there keeps the one pile (no new pile, no re-pick) for two seconds', async () => hush(async () => {
     await stage();
     g.godMode = true;
     try {
@@ -400,8 +403,34 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
       }
       await shut();
       tidy();
-      const ok = same && grew === 0 && minted === 0 && typeof pileY === 'number' && pileY < -0.5 && level && mine && dragged;
-      return ok || { o: g0 ? { kind: g0.kind, x: g0.x, z: g0.z, y: g0.y, d: r1(Math.hypot((g0.x ?? 0) - p.x, (g0.z ?? 0) - p.z)) } : null, bodies: g.rites.bodies.size, level: p.ug, gy: r1(p.gy ?? 0), other: pk.other?.id ?? null, same, grew, minted, pileY, onLevel: level, mine, dragged, corpseGy: c.gy };
-    } finally { g.godMode = false; g.input.down.delete('KeyE'); if (g.invUI.open) g.invUI.toggle(false); }
+      // one of the infected dead on the level: it carries nothing (no box of its own), and it is dragged all the same
+      const z = g.zombies.spawn(free.x, free.z, false);
+      let zMine = false, zDragged = false, zGy = null, zBox = null, zWhy = null;
+      if (z) {
+        z.x = free.x; z.z = free.z; z.gy = p.gy; z.ug = p.ug; z.storey = p.storey;
+        await api._step(2);
+        g.combat.damage(z, 9999, null, 0, 0, 'bullet');
+        await api._step(90); // the ragdoll has fallen and tracked
+        // stand beside it where it actually fell (a ragdoll lies where it lies: the reacher is the one staged)
+        const U = g.statics.under;
+        const beside = async () => { // 0.9 m from where it lies NOW (it may still be settling)
+          const side = [[0.9, 0], [-0.9, 0], [0, 0.9], [0, -0.9]].map(([ox, oz]) => ({ x: z.x + ox, z: z.z + oz })).find((q) => !U?.pointBlocked?.(q.x, q.z, 0.4)) ?? { x: p.x, z: p.z };
+          p.x = side.x; p.z = side.z; p.vx = 0; p.vz = 0; await api._step(2);
+        };
+        await beside();
+        zGy = z.gy; zBox = g.rites.bodies.get(z.riteId ?? z.id)?.box ?? null;
+        zMine = !!g.rites.bodyNear(p.x, p.z, 1.8, p);
+        for (let k = 0; k < 3 && !zDragged; k++) {
+          await beside(); await shut();
+          g.input.down.add('KeyE'); g.input.pressed.add('KeyE'); for (let i = 0; i < 90; i++) await api._step(1); g.input.down.delete('KeyE'); await api._step(2);
+          if (g.rites.drag) { zDragged = true; g.rites.stopDrag(); }
+        }
+        if (!zDragged) { await beside(); const Rz = g.rites.bodyNear(p.x, p.z, 1.8, p), nb = inv.nearest(p.x, p.z, 2.2, true, p.gy ?? 0, p); zWhy = { rec: Rz ? { id: Rz.id, box: Rz.box ?? null, stage: Rz.stage } : null, nearBox: nb?.id ?? null, door: !!g.interiors.nearest(p), hold: g.interiors.hold, crew: !!g.crew?.drag || !!g.crew?.downedNear?.(), d: r1(Math.hypot(z.x - p.x, z.z - p.z)), ug: [z.ug, p.ug], prompt: g.hud.s.prompt, start: Rz ? g.rites.startDrag(Rz, p) : null }; if (g.rites.drag) g.rites.stopDrag(); }
+        await shut();
+        tidy();
+      }
+      const ok = same && grew === 0 && minted === 0 && typeof pileY === 'number' && pileY < -0.5 && level && mine && dragged && !!z && zBox === null && Math.abs((zGy ?? 0) - (p.gy ?? 0)) < 1.6 && zMine && zDragged;
+      return ok || { z: { made: !!z, box: zBox, gy: zGy, mine: zMine, dragged: zDragged, why: zWhy }, o: g0 ? { kind: g0.kind, x: g0.x, z: g0.z, y: g0.y, d: r1(Math.hypot((g0.x ?? 0) - p.x, (g0.z ?? 0) - p.z)) } : null, bodies: g.rites.bodies.size, level: p.ug, gy: r1(p.gy ?? 0), other: pk.other?.id ?? null, same, grew, minted, pileY, onLevel: level, mine, dragged, corpseGy: c.gy };
+    } finally { g.godMode = false; g.input.down.delete('KeyE'); if (g.invUI.open) g.invUI.toggle(false); await C('teleport', { x: 280, z: -120 }); await api._step(5); } // back up on the street
   }));
 }

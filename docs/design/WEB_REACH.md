@@ -60,7 +60,7 @@ still a counter: you lean over it to trade.
 | E: a roadside spot (fill caps, a hulk, a tank, the cistern, the dam's wheel) | `roadside.js spotNear` | hand (fixture) |
 | E: a base's generator (fixture) and duty log | `milbases.js interact` | hand |
 | E: a casino's charger pad and its office safe (fixture) | `casinos.js interact` | hand |
-| Hold E: drag, bury or burn a body | `rites.js bodyNear(…, who)` → `inReach`: on your floor (the body's box keeps the height it died at), a clear line, the nearest one you can reach | hand |
+| Hold E: drag, bury or burn a body | `rites.js bodyNear(…, who)` → `inReach`: on your floor (the corpse's own height: the ground, a hill, an upper floor or its level below the street), a clear line, the nearest one you can reach | hand |
 | The ground at your feet (a drop, the PACK's ground side) | `inventory.js groundAt`: a pile within 1.6 m that your hand can get to, else a fresh one where you stand | hand |
 | The PACK screen left open (a box, a body, a pile) | `ui/inventory.js update` (four times a second) | hand |
 | The agent's `rites action=drag` (`rites.inReach`: floor and line) and the safe's own rule (`casinos.workSafe`) | the same `g.reach` | hand |
@@ -98,7 +98,8 @@ still a counter: you lean over it to trade.
 - **Riding a vehicle's deck:** the line starts at the street's hand height; the deck's own spots have their own rule.
 - **Below the street:** the line is cast on that level's own grid (`statics.under`). A pile made down there keeps its
   level's height (before, only upstairs piles kept theirs, so a pile underground was never found again from its own
-  level). A body's floor is read from its box, not from the corpse: a ragdoll resets the corpse's own height.
+  level). A ragdoll below the street keeps the level it died on (`deaths.js track`: it used to be clamped up to the street's
+  zero, which put every corpse down there out of reach, the infected first: they carry no box).
 - **A person in a car:** not talked to at all (unchanged).
 - **The agent's `talk` command** keeps its 4 m rule and its `force=true`; it is a test verb, not the player's E.
 
@@ -150,14 +151,16 @@ still a counter: you lean over it to trade.
    `roadside.spotNear` offers the spot from every side you can stand at. Staged body records at the same wall: one
    0.5 m off on the floor above is passed over, one 1.7 m off through the wall is passed over, and the one 1.1 m off
    beside you is the one `bodyNear(…, you)` returns; with it gone, none.
-7. **Below the street:** on Red Rock Cave's second level the PACK screen held open on the ground keeps the one pile for
+7. **Below the street:** on Red Rock Cave's first level below the mouth (`level: 1`) the PACK screen held open on the ground keeps the one pile for
    120 frames (no new box, no new pile, the pile's height below −0.5), and a dead man 1 m off on that level is found for
-   your hand and dragged by holding E.
+   your hand and dragged by holding E. So is one of the infected killed there (no box of its own, its ragdoll settled
+   for 90 frames, its height within 1.6 m of yours).
 
 Before / after: `docs/renders/web/reach/zed-wallreach-before.jpg` (the PACK screen opens the cantina's crate from the
 street) and `zed-wallreach-after.jpg` (the same spot opens the ground).
 
-Critic review 2026-11-12. Third pass FAIL, two items, fixed in the fourth commit: below the street bodies could not be
+Critic review 2026-11-12. Fourth pass FAIL, one item, fixed in the sixth commit: the infected dead below the street
+(no box) could not be dragged. Third pass FAIL, two items, fixed in the fourth commit: below the street bodies could not be
 dragged (the corpse's own height is reset by its ragdoll) and the PACK's ground side re-picked a fresh pile four times a
 second (a pile underground kept no height). Second pass FAIL, three items, fixed in the third commit: a ground pile taken through a
 wall, a body dragged through a floor (and a nearer unreachable body hiding a reachable one), a drag check with no
