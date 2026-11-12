@@ -107,6 +107,7 @@ import { craftingCommands, craftingChecks } from './crafting-api.js'; // THE MAK
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
+import { vehCavalryCommands, vehCavalryChecks } from './veh-cavalry-api.js'; // VEHICLES V2 slice 6: the Cavalry Company
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -2165,6 +2166,7 @@ function buildCommands(api) {
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...longRoadCommands(api, need), // THE LONG ROAD (src/agent/longroad-api.js)
     ...roadsideCommands(api, need),
+    ...vehCavalryCommands(api, need), // VEHICLES V2 slice 6: cavalry (agent/veh-cavalry-api.js)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
     ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
   };
@@ -6178,6 +6180,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await longRoadChecks(api, check); // THE LONG ROAD: no dead stretch, travellers with origins, nothing in view (src/agent/longroad-api.js)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
+  await vehCavalryChecks(api, check, C); // VEHICLES V2 slice 6: the Cavalry Company (src/agent/veh-cavalry-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
   await worldVoiceChecks(api, check, C); // the world's voice (src/agent/worldvoice-api.js); loads the battery's save after (the four stay off until the battery ends)
@@ -6215,13 +6218,14 @@ export function snapshot(g) {
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
     // (c.pol, v.pol: a town desk's officers and motor pool are not saved: systems/police.js stands them up again with the town)
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol && !c.cavalry).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
     seasons: g.seasons?.save(), // additive: the calendar's own shift, the year's length, the snow
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
+    cavalry: g.cavalry?.save(), // the Cavalry Company's people as records (their characters are not saved: systems/cavalry.js stands them up again near you)
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
@@ -6290,6 +6294,7 @@ export function restore(g, s) {
   if (s.atlas) g.qol?.atlas?.load(s.atlas); // the fog as saved (a save without it keeps what this session has seen)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   g.crafting?.load(s.crafting ?? null); // what you know how to make, benches set down, the queue (systems/crafting.js)
+  g.cavalry?.load(s.cavalry ?? null); // an old save: the company not yet met (placed on your first approach)
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);

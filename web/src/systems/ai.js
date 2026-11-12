@@ -290,6 +290,7 @@ export class AI {
       // A follower riding as a passenger: their window (or the roof turret, data/decks.js TURRET_SEAT). The driver is the
       // vehicle AI's; everyone else in a seat just rides.
       if (c.inVehicle) { if (c.follower && c.alive && c.inVehicle.driver !== c && !c.crewRec) g.seats.followThink(c, dt); continue; }
+      if (c.mount && c.cavalry && c.alive) continue; // a Cavalry Company trooper in the saddle rides and shoots by systems/cavalry.js
       if (!c.alive) {
         c.deadTime += dt;
         if (c.downedT > 0 && (c.downedT -= dt) <= 0) {
