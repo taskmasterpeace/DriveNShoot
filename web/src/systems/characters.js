@@ -782,6 +782,16 @@ export class CharacterRenderer {
         M[key].setMatrixAt(k2, _m.multiplyMatrices(_g, _t));
       }
     }
+    // THE LIGHT IN THE HAND (main.js flashlight, systems/lamplight.js): where the one carrier asked about (lightOf, the
+    // player) holds their light this frame, world space - the muzzle of an aimed gun (a weapon light), else the dominant
+    // hand, a headlamp on the brow. Standing, crouched and prone fall out of the pose itself.
+    if (ch === this.lightOf) {
+      const P = (this.lightW ??= new THREE.Vector3());
+      if (this.lightHead) P.set(0, 0.08, 0.12).applyMatrix4(headFrame);
+      else if (gunKey && !gunHand && mode === 'aim') P.set(aimX, aimY + gm.muzzle * Math.sin(lean), gm.grip + gm.muzzle * Math.cos(lean)).applyMatrix4(_g);
+      else P.copy(hand[fh]).applyMatrix4(_g);
+      this.lightAt = ch;
+    }
     if (ch.lost) this.hideLost(ch.lost, i); // limbs that came off (systems/deaths.js sever)
     if (near && !ch.lost) {
       // Which hands are closed on something: the gun hand (and the support hand on a two-hand hold), bars, a tool, fists.

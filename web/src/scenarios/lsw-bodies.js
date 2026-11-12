@@ -51,8 +51,11 @@ export default async (DL, game) => {
   for (const c of g.chars) if (c.lswShot && c.alive && !c.inVehicle) { c.vx = c.vz = 0; }
   if (!g.qol.photo) g.qol.togglePhoto(true);
   Object.assign(g.qol.photo, { x: cx, z: cz + 1, h: 30, tilt: 0.14 });
-  g.qol.placePhotoCamera();
   const at = (x, z) => ({ x: +(cx + x).toFixed(1), z: +(cz + z).toFixed(1) });
+  // For a player: the camera sits on the set; `.` and `,` step it from the whole street to each shot in turn.
+  const labels = { crowd: 'the street crowd', gunfight: 'the gunfight', bed: 'the pickup-bed rider', prone: 'the prone shooter', driver: 'the rider at the bars', dead: 'the body on the ground' };
+  const spotsAt = { crowd: at(-6.5, -2), gunfight: at(8.5, -2), bed: at(-5, 8.5), prone: at(2, 6), driver: at(7, 8), dead: at(-2, -6) };
+  g.qol.lookStops([{ x: cx, z: cz + 1, h: 26, tilt: 0.14, label: 'BODIES IN ACTION: the whole set' }, ...Object.entries(spotsAt).map(([k, s]) => ({ x: s.x, z: s.z, h: 11, tilt: 0.14, label: labels[k] }))], 0);
   return {
     people: n, center: at(0, 0),
     spots: { crowd: at(-6.5, -2), gunfight: at(fight.x + 1.5, fight.z), bed: at(-5, 8.5), prone: at(2, 6), driver: at(7, 8), dead: at(-2, -6) },
