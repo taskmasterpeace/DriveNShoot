@@ -5681,6 +5681,9 @@ async function runSelfTest(api, only = null, skip = null) {
     g.godMode = true;
     const p = g.player, SPR = INFECTED.sprinter;
     for (const o of [...g.chars]) if (o !== p && !o.npc && o.alive && Math.hypot(o.x - p.x, o.z - p.z) < 50) g.removeChar(o); // nobody else for it to perceive
+    // A rotting body an earlier check left near the stage pulls any idle infected to it (systems/rites.js smell): it walked this
+    // one past you and it SAW you before the turn. The body's pull is off for this check (restored after): it proves sight.
+    if (g.rites) g.rites.smell = () => {}; // an own property over the class method; deleted after
     const c = g.zombies.spawn(p.x + 14, p.z, true), seq0 = g.eventSeq;
     const whys = () => g.events.filter((e) => e.seq > seq0 && e.type === 'sprinterBurst' && e.id === c.id).map((e) => e.why);
     try {
@@ -5705,7 +5708,7 @@ async function runSelfTest(api, only = null, skip = null) {
       const notWitness = !c.telling && !g.witnesses.canBribe(c); // its runner flag is not a witness's report (it once was)
       return dormant && walk < 3 && broke && why === 'saw you' && top > 8 && held && onYou && still && back && c.zSpeed < 3 && notWitness ? true
         : JSON.stringify({ dormant, walk, near, broke, why, whys: whys(), top: +top.toFixed(2), held, onYou, over, still, back, pace: c.zSpeed, notWitness });
-    } finally { g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
+    } finally { if (g.rites) delete g.rites.smell; g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
   }));
   await check('infected: an Echo works at a boarded window only while you look away, freezes mid-motion while you watch, and never comes for you', async () => hush(async () => {
     const I = g.interiors, n = g.nav.foot;
