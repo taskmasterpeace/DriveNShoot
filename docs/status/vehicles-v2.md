@@ -22,8 +22,8 @@ etc.) and node unit tests `web/tools/*.test.mjs`.
 | 5 | Box trailers you drive into: an SUV up the ramp into the 18-wheeler's box (the ramp and hold already exist from the semis lane; this adds the SUV, a real body, placed in the world) | `feat/web-veh-suv` | **pushed** (critic PASS; bus #31293) | selftest `only=suv:` 2/2 (the built mesh's height checked against the door); node `tools/suv.test.mjs` 6/6; semis 10/10, workshop 19/19, draw calls 24/24, vehicle damage 2/2; shots `suv-{before,after}-*.png` |
 | 6 | Horses as mounts (port `feat/web-horses`) + a cavalry mounted faction with a post and patrols | `feat/web-veh-horses` | **pushed** (critic PASS; bus #31321) | horses ported onto today's integrate: `horses:` 14/14; the Cavalry Company `cavalry:` 5/5; node `tools/cavalry.test.mjs` 8/8; fauna 14/14, melee 11/11, milbases 7/7, move-tow 10/10, draw calls 24/24; shots `cavalry-{before,after}-*.png` |
 | 7 | Wagons: horse-drawn, drive or walk into them | `feat/web-veh-wagons` (lands after horses) | **pushed** (critic PASS; bus #31337) | `wagons:` 5/5; node `tools/wagons.test.mjs` 7/7; horses 14/14, cavalry 5/5, walk vehicles 6/6, semis 10/10; shots `wagons-{before,after}-*.png` |
-| 8 | Tanks: an old tank and a modern tank | `feat/web-veh-tanks` (lands after boatguns) | tested, critic reviewing | `tanks:` 3/3 (twice); node `tools/tanks.test.mjs` 6/6 |
-| 9 | A real monster truck body | `feat/web-veh-monster` | not started | |
+| 8 | Tanks: an old tank and a modern tank | `feat/web-veh-tanks` (lands after boatguns) | **pushed** (critic PASS on second review; bus #31353) | `tanks:` 3/3 on a fresh harness; workshop 18/18, boat guns 6/6, vehicle damage 2/2, draw calls 21/21, milbases 7/7, drive 40/40; node `tools/tanks.test.mjs` 6/6 |
+| 9 | A real monster truck body | `feat/web-veh-monster` | building | |
 | 10 | A bicycle | `feat/web-veh-bicycle` | not started | |
 | 11 | Drones: a recon drone, then an armed one (a real flying actor) | `feat/web-veh-drones` | not started | |
 
