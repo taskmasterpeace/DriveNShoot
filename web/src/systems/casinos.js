@@ -678,7 +678,7 @@ export class Casinos {
         if (this.hold >= CAGE.hold) { this.hold = 0; const r = this.robCage(v); g.hud.toast(r.ok ? `YOU TOOK $${r.took}` : r.why.toUpperCase(), r.ok ? 'hot' : 'warn'); }
         return true;
       }
-      if (Math.hypot(p.x - v.safePos.x, p.z - v.safePos.z) < 1.6 && v.safe.state === 'locked') {
+      if (Math.hypot(p.x - v.safePos.x, p.z - v.safePos.z) < 1.6 && v.safe.state === 'locked' && (g.reach?.fixture(p, v.safePos.x, v.safePos.z) ?? true)) { // never the safe through the office wall (systems/reach.js)
         const tools = this.safeTools();
         if (!tools.length) { g.hud.prompt('The office safe · you need picks, a pry bar or a charge'); return true; }
         const how = tools[0], S = SAFE[how];

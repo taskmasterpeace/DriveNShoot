@@ -21,16 +21,21 @@ export class Reach {
   }
 
   // The height of a person's hand line as the collision grid wants it (the same convention as main.js losAt).
+  // Upstairs the boxes stand on the BUILDING's own ground (storey.y0: a town lifted onto real terrain), so the height is
+  // measured from it, as collision.js resolveBody does. On a flight of stairs you are on the street floor until you are
+  // LEVEL.same up it (its doors, windows and shelves still stop your hand).
   handY(p) {
     const g = this.g;
     if (p.ug) return (p.gy ?? 0) - (g.under?.y0 ?? 0) + REACH.hand; // below the street: that level's walls
-    if (p.storey && (p.gy ?? 0) - (p.storey.y0 ?? 0) > 0.5) return (p.gy ?? 0) + REACH.hand; // an upper floor
+    const up = p.storey ? (p.gy ?? 0) - (p.storey.y0 ?? 0) : 0;
+    if (up > LEVEL.same) return up + REACH.hand; // an upper floor
     return REACH.hand; // the street (a dune or a ramp under you changes nothing: the boxes stand on the same ground)
   }
 
   // Can p reach the point (x, z)? opts: kind 'hand' (default) | 'talk'; y = the thing's floor height (skipped when
   // undefined); op = the door or window record being worked (its own leaves and panes never block); pad = metres of the
-  // thing's own body to stop short of (a car's flank, a long body).
+  // thing's own body to stop short of (a car's flank: a car is not on the collision grid); big = the thing is a big
+  // fixture standing on its own collider (a cistern, a hulk, a generator): that collider is its body whatever its size.
   to(p, x, z, opts = undefined) {
     const g = this.g, L = this.last, C = this.counts;
     C.asked++;
@@ -39,8 +44,9 @@ export class Reach {
     if (y !== undefined && Math.abs(y - (p.gy ?? 0)) > LEVEL.same) { C.blocked++; C.floor++; L.ok = false; L.why = 'floor'; return false; }
     const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz);
     L.d = d;
+    if (d < (g.stance?.radius?.(p) ?? p.radius ?? REACH.body) + REACH.touch) return true; // at arm's length nothing fits between you (from the edge of YOUR body: prone you are narrower)
     const len = d - (opts?.pad ?? 0);
-    if (len < REACH.touch) return true; // at arm's length nothing fits between you
+    if (len <= 0) return true; // inside the thing's own flank
     const S = g.statics, mode = opts?.kind === 'talk' ? RAY_SIGHT : RAY_SOLID;
     const t = S.raycast(p.x, p.z, dx / d, dz / d, len, mode, this.handY(p));
     if (t >= len - 0.05) return true;
@@ -48,7 +54,7 @@ export class Reach {
     if (b !== null) {
       const op = opts?.op;
       if (b.op !== null) { if (op !== undefined && op !== null && (b.op === op || b.op.door === op)) return true; } // the door you are working
-      else if (x > b.minX - REACH.own && x < b.maxX + REACH.own && z > b.minZ - REACH.own && z < b.maxZ + REACH.own && this.ownBody(b)) return true; // the thing's own collider
+      else if (x > b.minX - REACH.own && x < b.maxX + REACH.own && z > b.minZ - REACH.own && z < b.maxZ + REACH.own && this.ownBody(b, opts?.big === true)) return true; // the thing's own collider
     }
     C.blocked++;
     L.ok = false; L.why = b?.op ? (b.op.kind === 'leaf' ? 'door' : 'window') : 'wall'; L.tag = b?.tag ?? null;
@@ -57,18 +63,20 @@ export class Reach {
 
   // A box the line may END inside: furniture (a shelf, a crate, a counter), never a wall. A wall is long or it is tagged
   // as one; furniture is small.
-  ownBody(b) {
+  ownBody(b, big = false) {
     if (REACH.wallTags.includes(b.tag)) return false;
-    return Math.max(b.maxX - b.minX, b.maxZ - b.minZ) <= REACH.ownMax;
+    return big || Math.max(b.maxX - b.minX, b.maxZ - b.minZ) <= REACH.ownMax;
   }
 
   // A person (to talk to, to wake, to pay): on your floor and a clear line for a voice.
   person(p, c) { return this.g.storeys.sameFloor(p, c) && this.to(p, c.x, c.z, TALK); }
-  // A container, a body, a pile.
-  box(p, b) { return this.to(p, b.x, b.z, undefined); }
+  // A container, a body, a pile (on your floor).
+  box(p, b) { BOX.y = b.y ?? 0; return this.to(p, b.x, b.z, b.kind === 'trunk' ? undefined : BOX); }
+  // A big fixture standing on its own collider (a roadside spot, a generator).
+  fixture(p, x, z) { return this.to(p, x, z, BIG); }
   // A vehicle: the line stops at its flank.
   vehicle(p, v) { PAD.pad = Math.max(0.6, (v.wid ?? 2) * 0.5); return this.to(p, v.x, v.z, PAD); }
   // A door or window record (systems/interiors.js).
   opening(p, o) { OP.op = o; const r = this.to(p, o.x, o.z, OP); OP.op = null; return r; }
 }
-const TALK = { kind: 'talk' }, PAD = { pad: 0 }, OP = { op: null };
+const TALK = { kind: 'talk' }, PAD = { pad: 0 }, OP = { op: null }, BOX = { y: 0 }, BIG = { big: true };

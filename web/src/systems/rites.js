@@ -995,7 +995,8 @@ export class Rites {
     }
     const F = this.funeralHere(p.x, p.z);
     if (F && !F.stone && I.hit('KeyG')) { I.pressed.delete('KeyG'); const r = this.payStone(F); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); return; }
-    const R = this.bodyNear(p.x, p.z, 1.8);
+    let R = this.bodyNear(p.x, p.z, 1.8);
+    if (R && g.reach && !g.reach.to(p, R.c ? R.c.x : R.x, R.c ? R.c.z : R.z)) R = null; // a body through a wall is not one to drag (systems/reach.js)
     if (!R) { this.ePress = -1; return; }
     // E is the body's only when nothing else claims it: no door or window in reach (their hold boards or picks), no
     // downed crew member (theirs is a drag too), and the nearest box is this body's own
