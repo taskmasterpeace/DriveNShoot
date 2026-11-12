@@ -129,6 +129,7 @@ stridePhase` (the step clock), `data/ballistics.js ROUNDS` (the calibre), `syste
 `systems/farsound.js` and `systems/voice.js` (the sfx bus), `ui/qol.js` (the volume row). The NAS
 (`N:\assets\audio`) is needed only to rebuild the library, never to run the game.
 - **WEB_DOOR_POUND.md (2026-11-12):** made sounds. `tools/audio-make.mjs` generates takes with the ElevenLabs sound-effects API into `public/audio/` and `src/data/audio-made.json` (lic `made`, listed with prompts in `SOUNDS-MADE.md`); `data/audiosets.js` merges that manifest over the library's (a made kind never replaces a library kind). 50 takes: door pound / frenzy / crack / break / shut, sprinter scream / chase / rage, shambler groan / notice, echo murmur / work.
+- **WEB_BREEDS.md (2026-11-12):** each breed has its own voice rows (`BREED_VOICE`) and a card with sources (`BREED_CARDS`); the Echo no longer groans like a shambler.
 
 ## 7. Tuning Knobs
 

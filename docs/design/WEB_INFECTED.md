@@ -67,6 +67,7 @@ stopped every time you looked. Out in the Glass Flats there is a mast that hums,
 | `world/storeys.js` | `sameFloor`/`steer` read the infected like anyone | — |
 | `agent/api.js` | `infected` command, three checks; the swim check bursts its sprinters on purpose | `horde runners=`, `spawn kind=zombie runner=` |
 | `THE_INFECTED.md` | the canon this follows (§3.1 rows, §3.4 counterplay) | — |
+- **WEB_BREEDS.md (2026-11-12):** each breed has its own voice rows (`BREED_VOICE`) and a card with sources (`BREED_CARDS`); the Echo no longer groans like a shambler.
 
 ## 7. Tuning knobs
 | Knob | Default | Safe range | Affects |

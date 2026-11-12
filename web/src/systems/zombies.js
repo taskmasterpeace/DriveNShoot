@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { layerMesh } from '../engine/depthlayers.js';
 import { outfit } from './characters.js';
-import { INFECTED, CHOIR_SITES, FOOTSTEPS, INSIDE, BREEDS } from '../data/infected.js';
+import { INFECTED, CHOIR_SITES, FOOTSTEPS, INSIDE, BREEDS, BREED_VOICE } from '../data/infected.js';
 import { HIT_ODDS } from '../data/gear.js';
 import { HEADSHOT } from '../data/deaths.js';
 import { BREED_ANSWERS, WARNINGS } from '../data/hordes.js';
@@ -254,8 +254,8 @@ export class Zombies {
     c.workT = (c.workT ?? 0) - dt;
     if (c.workT > 0) return;
     if (c.work.B) { c.workT = EC.workEvery; c.work.B.hp = Math.max(0, c.work.B.hp - EC.boards); if (c.res) c.res.rec.dirty = true; this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, boards: c.res?.rec.id ?? 'ring', boardHp: Math.round(c.work.B.hp) }); }
-    else if (c.work.W) { c.workT = EC.workEvery; I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
-    else { c.workT = EC.door.every; this.thump(c.work.door, c, EC.door.dmg); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
+    else if (c.work.W) { c.workT = EC.workEvery; g.audio.sample?.('echo', 'work', { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
+    else { c.workT = EC.door.every; g.audio.sample?.('echo', 'work', { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); this.thump(c.work.door, c, EC.door.dmg); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
   }
 
   // The Choir-Touched: stands at its site facing the anchor, hums; its aura is read by every infected near it.
@@ -606,6 +606,15 @@ export class Zombies {
       else this.sense(c, R);
       this.nearFire(c, R);
       if (!c.zsee && !this.fresh(c)) { this.forget(c); this.seekLight(c, R); }
+      // THE NOTICE: a shambler that has just picked one of the living out (nobody the tick before) lets out a rising moan
+      // (a sprinter's notice is its scream: burst()). Heard to its row's range; at most one every noticeEvery s each.
+      if (c.zsee && !c.ztarget && !c.zkind && g.time > (c.znoticeAt ?? 0)) {
+        const V = BREED_VOICE.shambler;
+        c.znoticeAt = g.time + V.noticeEvery;
+        this.counts.notices = (this.counts.notices ?? 0) + 1;
+        g.audio.sample?.(V.notice[0], V.notice[1], { x: c.x, z: c.z, range: V.range });
+        g.emit('infectedNotice', { id: c.id, of: c.zsee.id, how: c.zhow ?? null });
+      }
       c.ztarget = c.zsee; // who it is after right now (only ever someone it perceives)
       // A sprinter that perceives one of the living (it saw them, heard their steps, smelled them) breaks and commits.
       if (c.zkind === 'sprinter' && !c.crawl && c.zsee?.alive && c.zs.state === 'dormant' && c.zs.t <= 0) this.burst(c, c.zsee === g.player ? 'saw you' : 'saw someone');
@@ -696,7 +705,7 @@ export class Zombies {
       const P = g.player;
       let near = null, nd = WG.range, hid = null, hd = WG.range;
       for (const c of g.chars) {
-        if (c.faction !== 'zombie' || !c.alive || c.wild) continue;
+        if (c.faction !== 'zombie' || !c.alive || c.wild || c.zkind === 'echo' || c.zkind === 'choir') continue; // an Echo murmurs and a Choir-Touched hums: neither groans
         const dx = c.x - P.x, dz = c.z - P.z;
         if (dx > WG.range || dx < -WG.range || dz > WG.range || dz < -WG.range) continue;
         const d = Math.hypot(dx, dz);
@@ -705,9 +714,9 @@ export class Zombies {
       }
       const q = hid ?? near, qd = hid ? hd : nd;
       if (q) {
-        g.audio.groan?.(g.pan(q.x), qd * (32 / WG.range)); // heard to the row's range
+        g.audio.groan?.(g.pan(q.x), qd * (32 / WG.range), (BREED_VOICE[q.zkind] ?? BREED_VOICE.shambler).idle); // heard to the row's range, in its breed's voice
         if (hid) this.counts.groansUnseen = (this.counts.groansUnseen ?? 0) + 1;
-        g.emit('groanHeard', { id: q.id, dist: Math.round(qd), seen: !hid });
+        g.emit('groanHeard', { id: q.id, dist: Math.round(qd), seen: !hid, breed: q.zkind ?? 'shambler' });
       }
     }
     // The Choir: the dead fall out of the list (their aura and hum die with them); a site wakes at night, out of sight.

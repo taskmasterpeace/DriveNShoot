@@ -235,6 +235,7 @@ v1 exposes it as `zombies occupy=<kind>`. Nothing calls it on its own yet (§5).
 | `data/gear.js` | — | `HIT_ODDS` |
 | BALLISTICS (`combat.js`) | set `c.hitPart` when a round knows its hit zone | none (file not touched) |
 | `systems/interiors.js` THE SHUT DOOR (WEB_DOOR_POUND.md, 2026-11-12) | `near(p, r)`; `work` beats a SHUT door (not only a locked one) through `interiors.pound`; the sprinter's `frenzy` row and its slam; pounding is not news to those already at that door | `isShut`, `pound`, `braced`, `shudder`; the `zdoor` hint from the leaf's own collision |
+| WEB_BREEDS.md (2026-11-12) | `BREED_VOICE` (who groans, the shambler's notice, the Echo's work sound), `BREED_CARDS` with sources, `zombies cards=true`, the `breeds:` checks | `sense`, `echo()`, the groan clock |
 | `systems/reach.js` (WEB_REACH.md) | — | a shut door stops a hand and a word as it stops a body: nobody loots or talks through the door the infected are thumping |
 | residents, director, survival, gadgets lure | `ztarget` still works: it becomes a "told" fix | — |
 
