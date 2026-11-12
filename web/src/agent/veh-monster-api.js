@@ -72,6 +72,7 @@ export async function vehMonsterChecks(api, check, C) {
       const v = g.vehicles.find((q) => q.monsterRow === M.id); if (!v) return 'not placed';
       v.fuel = 7.5; // staged: a known amount in the tank
       const id = v.id, snap = (await C('save')).save;
+      g.vehiclesSys.remove(v); g.monsters.placed.clear(); // gone from the world: only the save can bring it back (full, unmarked, unless monsters.load does its job)
       await C('load', { save: snap }); for (let f = 0; f < 6; f++) await api._step(1);
       const all = g.vehicles.filter((q) => q.monsterRow === M.id), w = all[0];
       const out = { n: all.length, same: w?.id === id, type: w?.type, tyres: !!w?.utility?.monster, fuel: w && r2(w.fuel), placed: g.monsters.placed.has(M.id) };

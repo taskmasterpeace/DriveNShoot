@@ -53,7 +53,7 @@ function monsterBody(parts, s, paint, K) {
   // The tube frame low between the wheels, the long-travel shocks up to the body at each corner.
   for (const sd of [1, -1]) {
     parts.push(beam([sd * 0.55, 0.55, -L / 2 + 0.2], [sd * 0.55, 0.55, L / 2 - 0.2], 0.07, FRAME, PART.frame));
-    for (const z of [L / 2 - 0.8, -L / 2 + 0.8]) for (const dz of [-0.18, 0.18]) parts.push(beam([sd * (hw - 0.1), 0.22, z + dz], [sd * (hw - 0.35), yB + 0.15, z + dz * 0.6], 0.06, SHOCK, PART.frame)); // from the axle up to the body
+    for (const z of [L / 2 - 0.8, -L / 2 + 0.8]) for (const dz of [-0.18, 0.18]) parts.push(beam([sd * (hw - 0.2), 0.22, z + dz], [sd * (hw - 0.35), yB + 0.15, z + dz * 0.6], 0.06, SHOCK, PART.frame)); // from the axle up to the body
   }
   // The body: a high, rounded tub with a bulging hood and wheel arches cut as wide flares.
   const zb0 = -L / 2 + 0.25, zb1 = G.zC - 0.05; // the bed, behind the cab
@@ -63,8 +63,8 @@ function monsterBody(parts, s, paint, K) {
   // The axles sit where garage.js draws the tyres (UTILITY.monster: x out past the body, z at len/2 - 0.8, hub low).
   const ax = L / 2 - 0.8, hubY = 0.19, tyreOut = hw + 0.68;
   for (const z of [ax, -ax]) for (const sd of [1, -1]) {
-    parts.push(slab(sd * (hw - 0.32), sd * tyreOut, yB + 0.06, yB + 0.16, z - 0.85, z + 0.85, paint)); // the flare, as wide as the tread
-    parts.push(slab(sd * (tyreOut - 0.08), sd * tyreOut, yB - 0.16, yB + 0.16, z - 0.85, z + 0.85, paint)); // its turned-down lip
+    parts.push(slab(sd * (hw - 0.32), sd * (tyreOut + 0.05), yB + 0.06, yB + 0.16, z - 0.85, z + 0.85, paint)); // the flare, as wide as the tread
+    parts.push(slab(sd * (tyreOut - 0.03), sd * (tyreOut + 0.05), yB - 0.16, yB + 0.16, z - 0.85, z + 0.85, paint)); // its turned-down lip, just clear of the tyre
     parts.push(beam([sd * 0.5, hubY, z], [sd * (hw - 0.05), hubY, z], 0.12, FRAME, PART.frame)); // the axle tube out to the hub
     parts.push(beam([sd * 0.55, 0.55, z], [sd * 0.5, hubY, z], 0.08, FRAME, PART.frame)); // the frame down to it
   }
