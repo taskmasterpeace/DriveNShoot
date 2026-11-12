@@ -369,3 +369,6 @@ branch of `ai.js` for every unit with a target, and it re-plans at `thinkHz` 5, 
 
 ## Dependents added by WEB_FARMING (2026-10-29)
 - WEB_FARMING.md: the `farm` job now runs `farming.crewTend` from real stock and `cook` makes a real recipe (`cooking.crewCook`).
+
+
+> **Crafting (2026-10-29):** a crew job row may name a `recipe` (data/recipes.js, systems/crafting.js `crewRun`); CRAFT AMMO runs `load_pistol` and eats brass, powder, primer and lead. See WEB_CRAFTING.md.

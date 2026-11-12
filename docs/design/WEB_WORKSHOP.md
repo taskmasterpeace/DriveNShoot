@@ -227,3 +227,6 @@ face)` and `blast(...)` (gadgets: drones from above pass `face: 'top'`), `v.flar
 breaches, slicks and kills. Renders: `docs/renders/web/workshop/01-armor.png` ... `06-paint.png` (Playwright, 1920x1080 full
 page), `07-game-camera-builds.jpg` (three builds from the game camera), `08-wheels.png` (the WHEELS tab), `09-wheels-game.jpg`
 (a monster buggy with hub spikes and a twin MG, a pickup on off-road tyres with hub spikes, a sedan with its windshield pulled), `10-monster-climb.jpg` (a monster pickup up on a sedan, roof caving, cone spikes).
+
+
+> **Crafting (2026-10-29):** the keepers' benches (Kenji's yard, Ike's back room) follow this doc's keeper rule; the car bench is the model of a bench. See WEB_CRAFTING.md.

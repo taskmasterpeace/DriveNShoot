@@ -90,6 +90,8 @@ import { Farming } from './systems/farming.js'; // the house garden: beds, hens,
 import { Cooking } from './systems/cooking.js'; // meals from real ingredients at a fire or a kitchen (WEB_FARMING.md)
 import { GardenPanel } from './ui/gardenpanel.js'; // the garden panel and chip
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
+import { Crafting } from './systems/crafting.js'; // THE MAKER: recipes as rows, benches, tool wear, a queue on the game clock (WEB_CRAFTING.md)
+import { CraftUI } from './ui/craft.js'; // the CRAFT tab of the PACK screen
 import { Casinos } from './systems/casinos.js'; // CASINOS: card tables, chess, the house's money, guards, safes, security drones (WEB_CASINOS.md)
 import { TablePanel } from './ui/tablepanel.js'; // the table on green felt (WEB_CASINOS.md)
 import { Investigate } from './systems/investigate.js'; // one shared INVESTIGATE behaviour: a search party that finds you only from what it perceives
@@ -300,6 +302,8 @@ class Game {
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.kit = new Kit(this); // what you wear and look through, and what feeds it (systems/kit.js, WEB_GADGETS2.md)
+    this.crafting = new Crafting(this); // THE MAKER: every recipe a row, benches, a queue on the game clock (systems/crafting.js, WEB_CRAFTING.md)
+    this.craftUI = new CraftUI(this, ui); // the CRAFT tab of the PACK screen (ui/craft.js)
     this.investigate = new Investigate(this); // search parties (systems/investigate.js): police, hunters, a guard who heard something
     this.police = new Police(this); // the town desks: stations, beats, reports by real channels, units from the motor pool (systems/police.js)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
@@ -1399,6 +1403,7 @@ class Game {
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.crafting.update(simDt); // the queue's work runs on the game clock (systems/crafting.js)
       this.investigate.update(simDt); // the search parties out: sweep, hiding places, blood, witnesses (systems/investigate.js)
       this.police.update(simDt); // the desks hear what reached them and send from the station (systems/police.js)
       this.kit.update(simDt); // cells drain, the glass marks, the scanner listens, bad air, dog gear, car kit (systems/kit.js)

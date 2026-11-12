@@ -98,6 +98,7 @@ import { shotReadCommands, shotReadChecks } from './shotread-api.js'; // a shot 
 import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { seasonCommands, seasonChecks } from './seasons-api.js'; // SEASONS: the calendar, climate by place, snow, light (WEB_SEASONS.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
+import { craftingCommands, craftingChecks } from './crafting-api.js'; // THE MAKER: one recipe engine as rows (WEB_CRAFTING.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
@@ -2119,6 +2120,7 @@ function buildCommands(api) {
     // row above, same answers there), rivers, bridges.
     ...waterCommands(api, need),
     ...sealifeCommands(api, need),
+    ...craftingCommands(api), // craft (agent/crafting-api.js; docs/design/WEB_CRAFTING.md)
     ...workshopCommands(api), // workshop, mount, arena (agent/workshop-api.js; docs/design/WEB_WORKSHOP.md)
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
@@ -3933,6 +3935,7 @@ async function runSelfTest(api, only = null, skip = null) {
     g.garage.hazards.length = 0;
     return heavier && absorbed && breached && through && gunned && slipped ? true : JSON.stringify({ heavier, absorbed, breached, through, gunned, hg, slipped, plates: v.plates });
   });
+  await craftingChecks({ g, api, C, check, stage }); // THE MAKER: rows validate, matter never made, tools wear, benches, knowledge, the save, the crew's row, the CRAFT tab (agent/crafting-api.js)
   await workshopChecks({ g, api, C, check, stage, person }); // THE WORKSHOP: the formula, THE BREACH, oil, arcs, the rail gun, the counter, the screen, the save (agent/workshop-api.js)
   await check('faction sim: ten days off-screen move strength and stores, skirmish at war, and run in under 20 ms', async () => {
     const S = g.society, sv = S.sim.save();
@@ -6230,6 +6233,7 @@ export function snapshot(g) {
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
+    crafting: g.crafting?.save(), // what you know how to make, the benches you set down, the queue (systems/crafting.js)
     voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
     longroad: g.longroad?.save(), // wayside dead, caches taken, trip logs (systems/longroad.js)
     atlas: g.qol?.atlas?.save(), // the big map's fog: every 1 km cell of the country you have been near (ui/atlas.js)
@@ -6263,6 +6267,7 @@ export function restore(g, s) {
   g.longroad?.load(s.longroad ?? null);
   if (s.atlas) g.qol?.atlas?.load(s.atlas); // the fog as saved (a save without it keeps what this session has seen)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
+  g.crafting?.load(s.crafting ?? null); // what you know how to make, benches set down, the queue (systems/crafting.js)
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);
