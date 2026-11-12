@@ -137,7 +137,8 @@ export class Zombies {
     c.name = 'Sprinter'; // it has shown what it is (the tag says so until it is a walker again)
     this.counts.bursts++; this.counts.screams = (this.counts.screams ?? 0) + 1;
     const g = this.g, P = g.player, d = Math.hypot(c.x - P.x, c.z - P.z);
-    if (d < WARNINGS.scream.range) { const A = g.audio, V = BREED_VOICE.sprinter; A?.count?.('scream'); if (!A?.sample?.(V.notice[0], V.notice[1], { dist: d, pan: g.pan(c.x), range: V.range }) && !A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
+    const V = BREED_VOICE.sprinter, sr = Math.min(WARNINGS.scream.range, V.range); // its scream carries to the smaller of the warning row and its voice row
+    if (d < sr) { const A = g.audio; A?.count?.('scream'); if (!A?.sample?.(V.notice[0], V.notice[1], { dist: d, pan: g.pan(c.x), range: sr }) && !A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
     g.emit('sprinterBurst', { id: c.id, why });
     g.emit('sprinterScream', { id: c.id, dist: Math.round(d), windup: BS.windup });
     return true;
@@ -255,8 +256,8 @@ export class Zombies {
     c.workT = (c.workT ?? 0) - dt;
     if (c.workT > 0) return;
     if (c.work.B) { c.workT = EC.workEvery; c.work.B.hp = Math.max(0, c.work.B.hp - EC.boards); if (c.res) c.res.rec.dirty = true; this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, boards: c.res?.rec.id ?? 'ring', boardHp: Math.round(c.work.B.hp) }); }
-    else if (c.work.W) { c.workT = EC.workEvery; g.audio.sample?.('echo', 'work', { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
-    else { c.workT = EC.door.every; g.audio.sample?.('echo', 'work', { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); this.thump(c.work.door, c, EC.door.dmg); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
+    else if (c.work.W) { c.workT = EC.workEvery; g.audio.sample?.(BREED_VOICE.echo.work[0], BREED_VOICE.echo.work[1], { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
+    else { c.workT = EC.door.every; g.audio.sample?.(BREED_VOICE.echo.work[0], BREED_VOICE.echo.work[1], { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); this.thump(c.work.door, c, EC.door.dmg); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
   }
 
   // The Choir-Touched: stands at its site facing the anchor, hums; its aura is read by every infected near it.
