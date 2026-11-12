@@ -54,6 +54,9 @@ export class Shard {
     this.offset = null;            // shard clock - this clock (ms), best estimate
     this.sentAt = 0; this.saveAt = 0; this.tickAt = 0;
     this.sentI = { d: {}, w: {} };
+    this.sentL = {};               // door id -> the leaf key last sent or received (THE SHUT DOOR: shut by a hand, its hp)
+    this.pounds = new Map();       // door id -> { k, n }: blows struck here since the last world flush
+    this.poundSeq = 0;
     this.stats = { sent: 0, recv: 0, saves: 0, patchesOut: 0, patchesIn: 0, reconnects: 0 };
     this.myCar = null;
     this.saveSeq = 0;
@@ -203,6 +206,7 @@ export class Shard {
     this.lastEvent = g.eventSeq;
     this.lastChron = g.society.chronicle.seq;
     this.sentI = this.interiorKeys(g.interiors.save());
+    this.sentL = this.leafKeys();
     this.saveAt = performance.now();
     g.emit('shardEnter', { char: m.char.name, shard: m.shard, players: m.players.length });
     if (apply) this.toast(`${m.shard} · ${m.char.name.toUpperCase()}${m.players.length ? ` · ${m.players.length} MORE IN THE WASTE` : ''}`, 'job');
@@ -316,6 +320,7 @@ export class Shard {
     this.taken = { ...W.takenVehicles };
     this.chronicle = W.chronicle ?? [];
     this.mergeInteriors(W.interiors, true);
+    this.mergeLeaves(W.leaves);
     for (const id of Object.keys(this.deadNpcs)) this.layDead(id);
     // The town cars somebody drove off in are gone from where they stood.
     for (const seed of Object.keys(this.taken)) this.dropSeedVehicle(seed);
@@ -327,6 +332,8 @@ export class Shard {
   applyPatch(P, by) {
     if (!P) return;
     if (P.interiors) this.mergeInteriors(P.interiors, false);
+    if (P.leaves) this.mergeLeaves(P.leaves);
+    if (P.pound) this.heardPounds(P.pound);
     if (P.deadNpc) { this.deadNpcs[P.deadNpc.id] = P.deadNpc; this.layDead(P.deadNpc.id); }
     if (P.takeVehicle) { this.taken[P.takeVehicle.seed] = P.takeVehicle.by; this.dropSeedVehicle(P.takeVehicle.seed); }
     for (const d of P.deeds ?? []) {
@@ -370,6 +377,64 @@ export class Shard {
     }
     for (const [id, v] of Object.entries(s.w)) out.w[id] = `${v.s}|${v.hp}|${v.b}|${v.sd}`;
     return out;
+  }
+
+  // THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md). A door's leaf is the world's once a hand has shut it or fists have
+  // hurt it: { p: what the leaf has left (0 = off its hinges), s: 1 shut by somebody }. Its swing stays this page's.
+  leafKeys() {
+    const g = this.g, I = g.interiors, M = g.materials, out = {};
+    for (const door of I.doors) {
+      if (door.ug) continue;
+      const rec = M?.recs?.get(`door:${door.id}`), broken = door.broken || !!rec?.broken;
+      const hurt = broken || (rec && rec.hp < rec.hpMax);
+      if (!hurt && !door.shutBy) continue;
+      const p = broken ? 0 : Math.round(rec ? rec.hp : I.doorHp(door).hp), s = !broken && door.shutBy && I.isShut(door) ? 1 : 0;
+      if (!hurt && !s) continue;
+      out[door.id] = `${p}|${s}`;
+    }
+    return out;
+  }
+  diffLeaves() {
+    const k = this.leafKeys(), patch = {};
+    let n = 0;
+    for (const [id, key] of Object.entries(k)) if (this.sentL[id] !== key) { const [p, s] = key.split('|'); patch[id] = { p: +p, s: +s }; n++; }
+    for (const id of Object.keys(this.sentL)) if (!(id in k)) { patch[id] = null; n++; }
+    if (!n) return null;
+    this.sentL = k;
+    return patch;
+  }
+  // What the world says about leaves: a door shut over there is shut here (unless somebody stands in it), a hurt one is
+  // as hurt here, one off its hinges comes off them here.
+  mergeLeaves(Lv) {
+    const g = this.g, I = g.interiors, M = g.materials;
+    for (const [id, v] of Object.entries(Lv ?? {})) {
+      const door = I.byId?.get(id) ?? I.doors.find((x) => String(x.id) === id);
+      if (!door) continue; // a ring door not attached here: its record arrives with the next patch that names it
+      if (v === null) { delete this.sentL[id]; continue; }
+      const rec = M?.doorRec?.(door);
+      if (v.p === 0) { if (rec && !rec.broken) M.breakDoor(rec, 'pound', null, true); }
+      else if (rec && !rec.broken && v.p < rec.hp) { rec.hp = v.p; door.cracked = rec.hp <= rec.hpMax * 0.5; I.tint(door); }
+      if (v.s && !door.broken && !door.locked && !I.isShut(door) && !I.inDoorway(door)) { for (const L of door.leaves) { L.th = 0; L.w = 0; I.orient(L); } door.shutBy = 'net'; I.flush(); }
+      this.sentL[id] = `${v.p}|${v.s ? 1 : 0}`;
+      g.emit('shardLeaf', { door: id, p: v.p, s: v.s ? 1 : 0 });
+    }
+  }
+  // A blow struck on a door here (interiors.pound, zombies.thump): counted for the next world flush.
+  notePound(id, kind) {
+    const r = this.pounds.get(id);
+    if (r) { r.n++; if (kind === 'slam' || (kind === 'frenzy' && r.k === 'thump')) r.k = kind; } else if (this.pounds.size < 16) this.pounds.set(id, { k: kind, n: 1 });
+  }
+  // Blows struck on somebody else's page: the door shudders and sounds here too (no damage: its hp comes as a leaf).
+  heardPounds(list) {
+    const g = this.g, I = g.interiors;
+    for (const b of list ?? []) {
+      const door = I.byId?.get(b.d) ?? I.doors.find((x) => String(x.id) === b.d);
+      if (!door) continue;
+      door.poundAt = g.time; I.shudder(door, b.k === 'slam' ? 1.6 : 1);
+      const kind = b.k === 'frenzy' || b.n > 3 ? (door.material === 'metal' ? 'door.frenzy.metal' : 'door.frenzy.wood') : (door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood');
+      if (!g.audio?.sample?.('common', kind, { x: door.x, z: door.z, range: 60 })) g.audio?.thud?.(g.pan(door.x));
+      g.emit('shardPound', { door: b.d, kind: b.k, n: b.n });
+    }
   }
 
   // Once a second: what changed here that the world should keep.
@@ -554,8 +619,11 @@ export class Shard {
     const patch = {};
     const I = this.diffInteriors();
     if (I) patch.interiors = I;
+    const Lv = this.diffLeaves();
+    if (Lv) patch.leaves = Lv;
     for (const e of g.events) {
       if (e.seq <= this.lastEvent) continue;
+      if (e.type === 'doorPound' || e.type === 'doorThump') this.notePound(e.door, e.kind === 'slam' || e.kind === 'frenzy' ? e.kind : 'thump');
       if (e.type === 'kill' && e.by === g.player.id && !e.downed) {
         const c = g.chars.find((x) => x.id === e.victim);
         if (c?.npc && !c.npc.essential && !this.deadNpcs[c.npc.id]) { patch.deadNpc = { id: c.npc.id, name: c.npc.name }; this.deadNpcs[c.npc.id] = patch.deadNpc; }
@@ -568,6 +636,7 @@ export class Shard {
       if (mine.length) patch.deeds = mine.reverse().map((r) => ({ verb: r.v, target: r.on || r.of || '', place: g.society.places[r.p]?.name ?? r.p ?? '', x: r.x, z: r.z, seen: r.w?.length ?? 0 }));
       this.lastChron = C.seq;
     }
+    if (this.pounds.size) { patch.pound = [...this.pounds].map(([d, r]) => ({ d, k: r.k, n: r.n })); this.pounds.clear(); }
     if (Object.keys(patch).length) this.sendWorld(patch);
     // Others' parked cars near you; strays from a local load swept up.
     this.updateParked(false);

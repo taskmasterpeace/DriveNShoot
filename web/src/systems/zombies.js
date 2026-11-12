@@ -1,3 +1,4 @@
+import { DOOR } from '../data/interiors.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { layerMesh } from '../engine/depthlayers.js';
@@ -135,7 +136,7 @@ export class Zombies {
     c.name = 'Sprinter'; // it has shown what it is (the tag says so until it is a walker again)
     this.counts.bursts++; this.counts.screams = (this.counts.screams ?? 0) + 1;
     const g = this.g, P = g.player, d = Math.hypot(c.x - P.x, c.z - P.z);
-    if (d < WARNINGS.scream.range) { const A = g.audio; A?.count?.('scream'); if (!A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
+    if (d < WARNINGS.scream.range) { const A = g.audio; A?.count?.('scream'); if (!A?.sample?.('sprinter', 'scream', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range }) && !A?.sample?.('sprinter', 'attack', { dist: d, pan: g.pan(c.x), range: WARNINGS.scream.range })) A?.burst?.({ dur: 0.55, freq: 2300, type: 'bandpass', q: 3, vol: Math.max(0.02, 0.22 * (1 - d / WARNINGS.scream.range)), decay: 0.5, pitchDrop: 0.6, pan: g.pan(c.x) }); }
     g.emit('sprinterBurst', { id: c.id, why });
     g.emit('sprinterScream', { id: c.id, dist: Math.round(d), windup: BS.windup });
     return true;
@@ -172,6 +173,7 @@ export class Zombies {
     }
     if (Z.state === 'burst') { // committed: the clock only runs once it has lost you (its own senses: c.zsee), or when it is spent
       if (c.zsee?.alive) Z.t = SP.burst;
+      if ((Z.snarl = (Z.snarl ?? 0.6) - dt) <= 0) { Z.snarl = 1.3 + Math.random() * 0.9; g.audio.sample?.('sprinter', 'chase', { x: c.x, z: c.z, range: 45 }); }
       if ((Z.run = (Z.run ?? 0) + dt) > SP.chase) Z.t = 0;
     }
     if ((Z.t -= dt) > 0) {
@@ -376,14 +378,35 @@ export class Zombies {
     this.g.ai.move(c, dx, dz, pace, dt);
   }
 
+  // Is one of the infected (alive, on your level, not a wild thing) within r m of p? Asked by the E chain: main.js.
+  near(p, r) {
+    const cs = this.g.chars;
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      if (c.faction !== 'zombie' || !c.alive || c.wild || (c.ug ?? null) !== (p.ug ?? null)) continue;
+      const dx = c.x - p.x, dz = c.z - p.z;
+      if (dx < r && dx > -r && dz < r && dz > -r && dx * dx + dz * dz < r * r) return true;
+    }
+    return false;
+  }
+
   // ---- doors and windows (Zomboid's thumping; an Echo's whole purpose) ------------------------------------------------
   // One thump on a locked door: `dmg` off its lock (planks and furniture are part of that hp); at 0 it bursts open.
-  thump(door, c, dmg) {
+  // kind: thump | frenzy | slam (a sprinter in its burst: WEB_DOOR_POUND.md). A door that is only SHUT (on its latch) is
+  // beaten off its hinges instead (interiors.pound: the leaf's own hp, the shudder, the lean).
+  thump(door, c, dmg, kind = 'thump') {
     const g = this.g, I = g.interiors;
-    door.lockHp -= dmg;
-    g.audio.thud?.(g.pan(door.x));
     this.counts.thumps++;
-    g.noise(door.x, door.z, 16, c); // the others hear it (and come)
+    if (kind !== 'thump') this.counts.frenzy = (this.counts.frenzy ?? 0) + 1;
+    g.noise(door.x, door.z, kind === 'thump' ? DOOR.poundNoise : DOOR.frenzyNoise, c); // the others hear it (and come)
+    if (!door.locked) {
+      if (!I.pound(door, c, dmg, kind)) return false;
+      this.counts.doorsBroken++;
+      return true;
+    }
+    door.lockHp -= dmg * (I.braced(door) ? DOOR.braceMul : 1);
+    door.poundAt = g.time; I.shudder(door, kind === 'slam' ? 1.6 : 1);
+    if (!g.audio.sample?.('common', door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood', { x: door.x, z: door.z, range: 60 })) g.audio.thud?.(g.pan(door.x));
     if (door.lockHp > 0) { g.emit('doorThump', { door: door.id, by: c.id, kind: c.zkind ?? 'shambler', lockHp: Math.round(door.lockHp) }); return false; }
     if (door.barricade) { door.barricade = null; if (g.gadgets) g.gadgets.barred = g.gadgets.barred.filter((b) => b.door !== door); }
     I.unlock(door, 'thumped', c, true);
@@ -395,7 +418,7 @@ export class Zombies {
   blocker(c) {
     const I = this.g.interiors;
     let best = null, bd = 2.4;
-    for (const d of I?.doors ?? []) { if (!d.locked || (d.ug ?? null) !== (c.ug ?? null)) continue; const k = Math.abs(d.x - c.x) + Math.abs(d.z - c.z); if (k < bd) { bd = k; best = d; } }
+    for (const d of I?.doors ?? []) { if ((!d.locked && !I.isShut(d)) || (d.ug ?? null) !== (c.ug ?? null)) continue; const k = Math.abs(d.x - c.x) + Math.abs(d.z - c.z); if (k < bd) { bd = k; best = d; } }
     for (const W of I?.windows ?? []) { if (W.state !== 'boarded') continue; const k = Math.abs(W.x - c.x) + Math.abs(W.z - c.z); if (k < bd) { bd = k; best = W; } }
     return best;
   }
@@ -403,13 +426,24 @@ export class Zombies {
   work(c, R, dt) {
     const B = c.zblock;
     const win = B?.kind === 'window';
-    if (!B || (win ? B.state !== 'boarded' : !B.locked)) { c.zblock = null; c.handsUp = false; return false; }
+    if (!B || (win ? B.state !== 'boarded' : !B.locked && !this.g.interiors.isShut(B))) { c.zblock = null; c.handsUp = false; return false; }
+    // It has to be AT the thing to beat it (a door seen from across the room is walked to first).
+    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6) { c.zblock = null; c.handsUp = false; return false; }
     c.speed = 0; c.handsUp = true; c.face = Math.atan2(B.x - c.x, B.z - c.z);
-    c.zthT = (c.zthT ?? Math.random() * R.door.every) - dt;
+    // A sprinter in its burst POUNDS (its frenzy row); out of it, it thumps like the shambler it looks like.
+    const F = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl ? SP.frenzy : null, D = F ?? (c.zkind === 'sprinter' ? SH.door : R.door);
+    const g = this.g;
+    if (F && !win && g.time > (c.zslamAt ?? 0)) { // it hits the door at a run: the whole body
+      c.zslamAt = g.time + F.slamCool; c.zthT = F.every;
+      g.audio.sample?.('sprinter', 'rage', { x: c.x, z: c.z, range: 50 });
+      if (this.thump(B, c, F.slam, 'slam')) { c.zblock = null; c.handsUp = false; }
+      return true;
+    }
+    c.zthT = (c.zthT ?? Math.random() * D.every) - dt;
     if (c.zthT > 0) return true;
-    c.zthT = R.door.every;
-    if (!win) { if (this.thump(B, c, R.door.dmg)) { c.zblock = null; c.handsUp = false; } }
-    else { this.g.interiors.damageBoards(B, R.door.dmg * 1.5, c); this.counts.thumps++; }
+    c.zthT = D.every * (F ? 0.8 + Math.random() * 0.4 : 1); // a frenzy has no rhythm
+    if (!win) { if (this.thump(B, c, D.dmg, F ? 'frenzy' : 'thump')) { c.zblock = null; c.handsUp = false; } }
+    else { g.interiors.damageBoards(B, D.dmg * 1.5, c); this.counts.thumps++; }
     return true;
   }
 
@@ -571,6 +605,8 @@ export class Zombies {
       // Stuck pressing at a locked door or a boarded window on its way: it works that.
       const moved = Math.abs(c.x - (c._zpx ?? 0)) + Math.abs(c.z - (c._zpz ?? 0));
       c._zpx = c.x; c._zpz = c.z;
+      if (!c.zblock && c.zdoor && this.fresh(c) && g.interiors.isShut(c.zdoor)) c.zblock = c.zdoor; // pressed at a shut door with something remembered past it
+      c.zdoor = null;
       if (!c.zblock && this.fresh(c) && moved < 0.25 && (c.zwant ?? 0) > 1.2) c.zblock = this.blocker(c);
       else if (c.zblock && !this.fresh(c)) { c.zblock = null; c.handsUp = false; }
     }

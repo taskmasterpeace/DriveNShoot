@@ -37,6 +37,7 @@ export class Interiors {
     this.dt = 1 / 60;
     this.nx = 0; this.nz = 0;          // normal of the last ray hit (StaticWorld reads it)
     this.doors = []; this.leaves = []; this.windows = [];
+    this.shaking = []; // doors shuddering under a blow (THE SHUT DOOR)
     this.byId = new Map();
     this.active = [];                  // leaves in motion near the player
     this.dirty = [];                   // leaves whose instance matrix needs writing
@@ -70,6 +71,7 @@ export class Interiors {
       material: row.material, mat, color: row.color, locked: !!row.locked, lockHp: mat.lockHp, kicks: mat.kicks,
       bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [], y: row.y, // y: a door on raised ground (a settlement's pad, WEB_SITES_TERRAIN) or below the street
       broken: !!this.g.materials?.brokenDoors.has(row.id), // off its hinges for good (systems/materials.js)
+      shakeT: 0, poundAt: -99, braceAt: -99, cracked: false, shutBy: null, // THE SHUT DOOR: its shudder, who leans on it (WEB_DOOR_POUND.md; its hp is systems/materials.js doorRec)
     };
     const half = row.width / 2;
     // Hinges sit just inside each end of the opening, so an open leaf clears the wall's face.
@@ -144,7 +146,10 @@ export class Interiors {
     const d = Math.sqrt(d2);
     if (d > 1e-6) { nx /= d; nz /= d; } else { nx = L.px * side; nz = L.pz * side; }
     const pen = R - d, door = L.door;
-    if (mover && !door.locked && L.jamT <= 0 && mover.alive !== false && !mover.dead) {
+    // The infected cannot work a latch: a SHUT door is a wall to them until they have beaten it down (zombies.js pounds it).
+    const held = mover !== null && mover.faction === 'zombie' && !mover.wild && !door.locked && this.isShut(door);
+    if (held) { mover.stuck = 0; mover.zdoor = door; } // pressed at it, not lost: no detour along the wall
+    if (mover && !door.locked && !held && L.jamT <= 0 && mover.alive !== false && !mover.dead) {
       // The leaf gives way: it turns away from the mover, who keeps most of their stride.
       const veh = mover.len !== undefined;
       const arm = s > 0.3 ? s : 0.3, broad = Math.abs(nx * L.px + nz * L.pz);
@@ -259,12 +264,129 @@ export class Interiors {
     if (door.lockHp <= 0) this.unlock(door, 'battered', z, true);
   }
 
+  // ---- THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md) -------------------------------------------------
+  // Shut: every leaf on its latch (within DOOR.shutAngle of closed), still on its hinges. The living push it open as ever;
+  // the infected cannot, and have to beat it down.
+  isShut(door) {
+    if (door.broken) return false;
+    const L = door.leaves, a = DOOR.shutAngle;
+    for (let i = 0; i < L.length; i++) if (L[i].th > a || L[i].th < -a) return false;
+    return true;
+  }
+  // Is someone leaning on it right now (the player holding E against it: brace())?
+  braced(door) { return this.g.time - door.braceAt < DOOR.braceFresh; }
+  // Is it being beaten right now (a blow within DOOR.underAttack s)?
+  underAttack(door) { return this.g.time - door.poundAt < DOOR.underAttack; }
+  // A body in the doorway: whoever stands within DOOR.shutClear of the closed leaf's line (the door will not shut on them).
+  inDoorway(door, but = null) {
+    const g = this.g, half = door.width / 2;
+    for (let i = 0; i < g.chars.length; i++) {
+      const c = g.chars[i];
+      if (c === but || !c.alive || c.inVehicle || (c.ug ?? null) !== (door.ug ?? null)) continue;
+      const ex = c.x - door.x, ez = c.z - door.z;
+      if (ex > 3 || ex < -3 || ez > 3 || ez < -3) continue;
+      const along = ex * door.ux + ez * door.uz, across = ex * door.nx + ez * door.nz;
+      if (along < half && along > -half && across < DOOR.shutClear && across > -DOOR.shutClear) return c;
+    }
+    return null;
+  }
+  // The open door within reach that E would pull shut: unlocked, on its hinges, a leaf off its latch.
+  openDoorNear(p) {
+    let best = null, bd = DOOR.shutReach;
+    for (let i = 0; i < this.doors.length; i++) {
+      const d = this.doors[i];
+      if (d.broken || d.locked || (d.ug ?? null) !== (p.ug ?? null)) continue;
+      const dx = d.x - p.x, dz = d.z - p.z;
+      if (dx > bd || dx < -bd || dz > bd || dz < -bd) continue;
+      if (Math.abs((d.y ?? 0) - (p.gy ?? 0)) > 1.6 || this.isShut(d)) continue;
+      const k = Math.hypot(dx, dz);
+      if (k < bd && (this.g.reach?.opening(p, d) ?? true)) { bd = k; best = d; }
+    }
+    return best;
+  }
+  // Pull a door shut (the player's E at an open door; anyone's hand). Refused while a body stands in the doorway.
+  shutDoor(door, by = null) {
+    const g = this.g;
+    if (door.broken) return { ok: false, why: 'that door is off its hinges' };
+    if (this.isShut(door)) return { ok: false, why: 'it is shut already' };
+    const c = this.inDoorway(door, by);
+    if (c) return { ok: false, why: c.faction === 'zombie' ? 'one of them is in the doorway' : 'someone is in the doorway', blocker: c.id };
+    for (const L of door.leaves) { L.th = 0; L.w = 0; L.jamT = 0; this.orient(L); }
+    door.shutBy = by?.id ?? null;
+    if (!g.audio?.sample?.('common', 'door.shut', { x: door.x, z: door.z, range: 30 })) g.audio?.thud?.(g.pan(door.x));
+    g.noise(door.x, door.z, DOOR.shutNoise, by);
+    g.emit('doorShut', { door: door.id, by: by?.id ?? null, hp: this.doorHp(door).hp });
+    this.flush();
+    return { ok: true, text: 'DOOR SHUT', ...this.doorHp(door) };
+  }
+  // Lean on a shut door (called every frame the key is held): blows on it do DOOR.braceMul of their damage.
+  brace(door, by) { door.braceAt = this.g.time; door.braceBy = by?.id ?? null; }
+  // What the leaf has left: { hp, max, share 0..1, breaks } from the materials system's door record (a steel door never
+  // breaks to fists: breaks false).
+  doorHp(door) {
+    const M = this.g.materials, rec = M?.doorRec?.(door);
+    if (!rec) return { hp: 0, max: 0, share: 1, breaks: false };
+    return { hp: Math.round(rec.hp), max: Math.round(rec.hpMax), share: rec.hpMax > 0 ? Math.max(0, rec.hp / rec.hpMax) : 0, breaks: !!M.breaksDoor?.(rec) };
+  }
+  // One blow on a SHUT door (the infected's fists, a sprinter's shoulder): `dmg` off the leaf (systems/materials.js
+  // hitDoor: wood gives, steel does not), less while someone leans on it. It shudders, splits at DOOR.crackAt of its hp,
+  // and at 0 comes off its hinges. kind: thump | frenzy | slam. Returns true when the door is down. A locked door's lock
+  // is zombies.thump's business (the old rule).
+  pound(door, by, dmg, kind = 'thump') {
+    const g = this.g, braced = this.braced(door), wood = door.material !== 'metal';
+    const took = dmg * (braced ? DOOR.braceMul : 1);
+    const fresh = !this.underAttack(door);
+    door.poundAt = g.time;
+    this.shudder(door, kind === 'slam' ? 1.6 : 1);
+    const near = Math.abs(door.x - g.player.x) + Math.abs(door.z - g.player.z);
+    if (fresh && near < 26 && g.player.alive) g.hud?.toast?.(by?.zkind === 'sprinter' && kind !== 'thump' ? 'A SPRINTER IS POUNDING ON THE DOOR' : 'SOMETHING IS BEATING ON THE DOOR', 'hot');
+    if (!g.audio?.sample?.('common', wood ? 'door.pound.wood' : 'door.pound.metal', { x: door.x, z: door.z, range: 60, vol: kind === 'slam' ? 1.3 : 1 })) g.audio?.thud?.(g.pan(door.x));
+    if (near < 9) g.hud?.shake?.(kind === 'slam' ? 0.3 : braced ? 0.18 : 0.08); // you feel it through the door
+    for (let k = 0; k < (kind === 'slam' ? 5 : 2); k++) g.fx?.spawn?.(3, door.x + (Math.random() - 0.5) * door.width, 1 + Math.random(), door.z + (Math.random() - 0.5) * door.width, (Math.random() - 0.5) * 2, 0.5 + Math.random(), (Math.random() - 0.5) * 2, 0.6, 0.05, wood ? '#8a6a44' : '#6a6a66', 14);
+    const res = g.materials?.hitDoor?.(door, took, 'pound', by) ?? null;
+    if (res === 'broke') { // materials.breakDoor took it off its hinges (debris, the note, doorBroken)
+      door.cracked = true;
+      if (!g.audio?.sample?.('common', 'door.break', { x: door.x, z: door.z, range: 70 })) g.audio?.burst?.({ dur: 0.45, freq: 520, type: 'bandpass', q: 2, vol: 0.55, decay: 0.4, pitchDrop: 0.6 });
+      g.noise(door.x, door.z, DOOR.kickNoise, by);
+      if (near < 14) g.hud?.shake?.(0.5);
+      g.emit('doorBrokenDown', { door: door.id, by: by?.id ?? null, breed: by?.zkind ?? null });
+      return true;
+    }
+    const H = this.doorHp(door);
+    if (!door.cracked && H.breaks && H.share <= DOOR.crackAt) {
+      door.cracked = true; this.tint(door);
+      g.audio?.sample?.('common', 'door.crack', { x: door.x, z: door.z, range: 45 });
+      g.emit('doorCracked', { door: door.id, by: by?.id ?? null, hp: H.hp });
+    }
+    g.emit('doorPound', { door: door.id, by: by?.id ?? null, kind, breed: by?.zkind ?? 'shambler', hp: H.hp, took: Math.round(took * 10) / 10, braced });
+    return false;
+  }
+  // The shudder of a blow (also called for a blow struck on another player's page: net/shard.js): drawn only.
+  shudder(door, k = 1) {
+    if (door.shakeT <= 0) this.shaking.push(door);
+    door.shakeT = DOOR.shake * k;
+    for (const L of door.leaves) this.orient(L);
+  }
+  // A split panel reads darker from above (the leaf's instance colour).
+  tint(door) {
+    if (!this.leafMesh?.instanceColor) return;
+    for (const L of door.leaves) this.leafMesh.setColorAt(L.slot, _c.set(door.color).multiplyScalar(door.cracked ? 0.62 : 1));
+    this.leafMesh.instanceColor.needsUpdate = true;
+  }
+
   // ---- simulation ---------------------------------------------------------------------------------
   update(dt) {
     if (!(dt > 0)) return;
     this.dt = dt;
     if ((this.ringT -= dt) <= 0) { this.ringT = RO.every; this.ringScan(); }
     const g = this.g, P = g.player, time = g.time, A = this.active;
+    // Doors shuddering under a blow: their leaves are redrawn each frame until the shudder dies.
+    for (let i = this.shaking.length - 1; i >= 0; i--) {
+      const d = this.shaking[i];
+      d.shakeT -= dt;
+      for (const L of d.leaves) this.orient(L);
+      if (d.shakeT <= 0) { d.shakeT = 0; this.shaking[i] = this.shaking[this.shaking.length - 1]; this.shaking.pop(); }
+    }
     for (let i = A.length - 1; i >= 0; i--) {
       const L = A[i];
       L.jamT -= dt;
@@ -820,8 +942,9 @@ export class Interiors {
 
   writeLeaf(L) {
     if (L.door.broken) { this.leafMesh.setMatrixAt(L.slot, ZERO); return; }
-    _o.position.set(L.hx + L.dx * L.len / 2, (L.door.y ?? 0) + DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2); // y: a door below the street hangs on its own floor
-    _o.rotation.set(0, Math.atan2(-L.dz, L.dx), 0);
+    const sh = L.door.shakeT > 0 ? Math.sin(this.g.time * 71 + L.slot) * DOOR.shakeAngle * (L.door.shakeT / DOOR.shake) : 0; // a blow: it jumps in its frame (drawn only; the leaf's own angle is untouched)
+    _o.position.set(L.hx + L.dx * L.len / 2 - L.dz * sh * L.len / 2, (L.door.y ?? 0) + DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2 + L.dx * sh * L.len / 2); // y: a door below the street hangs on its own floor
+    _o.rotation.set(0, Math.atan2(-L.dz, L.dx) - sh, 0);
     _o.scale.set(L.len, DOOR.height, DOOR.thick);
     _o.updateMatrix();
     this.leafMesh.setMatrixAt(L.slot, _o.matrix);
@@ -959,6 +1082,7 @@ export class Interiors {
     for (const door of rec.doors) {
       const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01);
       if (moved) this.ringState.set(door.id, { a: door.leaves.map((L) => +L.th.toFixed(3)) }); else this.ringState.delete(door.id);
+      if (door.shakeT > 0) { door.shakeT = 0; drop(this.shaking, door); }
       for (const L of door.leaves) {
         this.leafMesh.setMatrixAt(L.slot, ZERO); this.freeLeaf.push(L.slot);
         L.active = false; L.isDirty = false;
@@ -1055,7 +1179,9 @@ export class Interiors {
       door.locked = locked; door.lockHp = locked ? v?.h ?? door.mat.lockHp : 0; door.kicks = locked ? v?.k ?? door.mat.kicks : 0;
       this.navBlock(door, false); if (locked) this.navBlock(door, true);
       this.syncLock(door);
+      door.shakeT = 0; door.poundAt = -99; door.braceAt = -99;
     }
+    this.shaking.length = 0;
     for (const W of this.windows) {
       const v = s?.w?.[W.id];
       W.state = v ? v.s : W.row.state;

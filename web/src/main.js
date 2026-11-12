@@ -55,6 +55,7 @@ import { Storeys } from './world/storeys.js';
 import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
 import { Reach } from './systems/reach.js';
+const SHUT_URGENT = 24; // m: one of the infected this near and an open door in reach is E's first (WEB_DOOR_POUND.md)
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
@@ -1058,18 +1059,24 @@ class Game {
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
     const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
     const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
+    // An open door within reach: E pulls it shut (the infected cannot work a latch: WEB_DOOR_POUND.md). With the infected
+    // near it is E's before anything else you could go through; otherwise it waits behind every other thing in reach.
+    const shutD = !best && !bestV && !op && !ugI && !dog && !dk && !p.onDeck ? this.interiors.openDoorNear(p) : null;
+    const shutNow = shutD && this.zombies.near(p, SHUT_URGENT) ? shutD : null;
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
-    const game = !best && !bestV && !op && !ugI && !dog && !dk ? this.fauna.nearFor(p) : null;
+    const game = !best && !bestV && !op && !ugI && !dog && !dk && !shutNow ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
     // ... or the roadside's: a tank's caps (a car beside them is what you siphon into: E stays the caps'), a hulk, a water tank, the dam's wheel.
-    const spot = !best && !op && !ugI && !dog && !dk && !game ? (!bestV ? this.travel.spotNear(p) : null) ?? rsSpot : null;
-    const box = !best && !bestV && !op && !ugI && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0, p) : null;
+    const spot = !best && !op && !ugI && !dog && !dk && !game && !shutNow ? (!bestV ? this.travel.spotNear(p) : null) ?? rsSpot : null;
+    const box = !best && !bestV && !op && !ugI && !dog && !dk && !spot && !game && !shutNow ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0, p) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !ugI && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0, p) : null;
+    const bed = !best && !bestV && !op && !ugI && !dk && !box && !spot && !game && !shutNow ? this.bedNear(p.x, p.z, p.gy ?? 0, p) : null;
+    const shut = shutNow ?? (!game && !spot && !box && !bed ? shutD : null);
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
-    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed ? this.boxRing : null));
+    if (shut && !box && !bed) { this.boxRing.x = shut.x; this.boxRing.z = shut.z; this.boxRing.len = 2.2; }
+    this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? ugI ?? (box || bed || shut ? this.boxRing : null));
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
@@ -1080,13 +1087,15 @@ class Game {
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.actions.boxKey(box, I, dt); // tap E opens it (what's on top), hold E searches it properly (systems/actions.js)
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (!op && !ugI) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
+    else if (shut) this.hud.prompt(shutNow ? '<kbd>E</kbd> <b class="warn">Shut the door</b>' : '<kbd>E</kbd> Shut the door');
+    else if (!op && !ugI && !shut) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { if (spot.roadside) this.roadside.interact(spot); else this.travel.interact(spot); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
+    else if (shut && !game && !spot && !box && I.hit('KeyE')) { const r = this.interiors.shutDoor(shut, p); this.hud.toast(r.ok ? (shutNow ? 'DOOR SHUT · THEY CANNOT WORK A LATCH · HOLD E TO LEAN ON IT' : r.text) : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
     else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }

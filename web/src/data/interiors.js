@@ -2,7 +2,9 @@
 // A new door material or window kind is a row here, not a code path.
 
 // Door leaf materials. kicks: boots it takes to burst the lock. lockHp: rounds into the lock
-// (a .45 does 38 a hit, so a few rounds). colors: the leaf (picked per door; light enough to read
+// (a .45 does 38 a hit, so a few rounds). The leaf itself (what the infected's fists must take off a SHUT door before it
+// comes off its hinges) is the materials system's: data/materials.js hpM2 x the door's area (wood 60/m2: about 135 for a
+// 1 m door; steel does not break). docs/design/WEB_DOOR_POUND.md colors: the leaf (picked per door; light enough to read
 // against a dark floor from above), lock: the chain and hasp barring a locked door.
 export const DOOR_MATERIALS = {
   wood: { name: 'wooden door', kicks: 2, lockHp: 70, bulletSlap: 0.025, colors: ['#a5743f', '#94653a', '#b3824c', '#8c5e34'], lock: '#d08a2c' },
@@ -26,6 +28,20 @@ export const DOOR = {
   kickNoise: 30,       // m: a boot on a door is loud
   kickReach: 2.2,      // m: how close you stand to kick
   kickCool: 0.55,      // s between kicks
+  // THE SHUT DOOR (WEB_DOOR_POUND.md): the infected cannot work a latch.
+  shutAngle: 0.14,     // rad: every leaf this near closed and the door is SHUT (on its latch) to the infected
+  shutReach: 2.0,      // m: how close you stand to pull an open door shut
+  shutClear: 0.5,      // m: a body this near the closed leaf's line is in the way (the door will not shut on them)
+  shutNoise: 7,        // m: a door pulled shut is heard
+  shake: 0.32,         // s a leaf shudders after a blow
+  shakeAngle: 0.07,    // rad: how far it jumps in its frame
+  crackAt: 0.5,        // share of its hp left when the panel splits (a sound, splinters, the leaf darkens)
+  braceReach: 1.5,     // m: lean on a shut door from this close (hold E)
+  braceMul: 0.45,      // a blow on a door someone leans on does this share of its damage
+  braceFresh: 0.3,     // s a lean lasts after the key (so a frame without the key does not drop it)
+  poundNoise: 16,      // m a fist on a door carries (the others hear it and come)
+  frenzyNoise: 26,     // m: a sprinter's frenzy carries further
+  underAttack: 4,      // s after the last blow a door still reads as being pounded (the prompt, the HUD line)
 };
 
 // Window kinds. hp: glass that takes a few rounds (cracks, then shatters). boardHp: boards that stop

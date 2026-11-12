@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { ACTIONS, HURT, LOCK_KINDS, SLEDGE_HITS, PADLOCKS, BREAK_MARKS, CONCEAL, CONCEAL_SIZE, HIDDEN, LOOK, LADDER, LADDER_KINDS, LADDER_PLACE, ROLLUP, RING } from '../data/actions.js';
 import { ITEMS } from '../data/items.js';
-import { WINDOW } from '../data/interiors.js';
+import { WINDOW, DOOR } from '../data/interiors.js';
 
 const HOLD_TAP = WINDOW.holdTap; // a shorter press is a tap (open, one kick, climb on)
 const MAXI = 1400;               // instanced world pieces (ladder rails and rungs, padlocks, splinters, a fallen leaf)
@@ -331,7 +331,20 @@ export class Actions {
   doorKey(p, I, dt, door) {
     const g = this.g;
     this.touch();
-    if (!door.locked) { if (I.hit('KeyE')) { this.hold = -1; this.holdOn = door; this.kickOnce(door, p); } g.hud.prompt('<kbd>E</kbd> Kick the door open'); return; }
+    if (!door.locked) {
+      // A shut door being beaten (WEB_DOOR_POUND.md): hold E leans on it (each blow does less), a tap still kicks it open.
+      const In = g.interiors;
+      if (In.underAttack?.(door) && In.isShut(door) && Math.hypot(door.x - p.x, door.z - p.z) < DOOR.braceReach) {
+        const k = this.press(door, I, dt), H = In.doorHp(door);
+        if (k === 'hold') In.brace(door, p);
+        else if (k === 'tap') { this.kickOnce(door, p); return; }
+        g.hud.prompt(`${k === 'hold' ? '<b>LEANING ON THE DOOR</b>' : 'hold <kbd>E</kbd> Lean on the door'} · ${H.breaks ? `<b class="warn">${Math.round(H.share * 100)}% left</b>` : 'steel: it will hold'} · tap <kbd>E</kbd> kick it open`);
+        return;
+      }
+      if (I.hit('KeyE')) { this.hold = -1; this.holdOn = door; this.kickOnce(door, p); }
+      g.hud.prompt('<kbd>E</kbd> Kick the door open');
+      return;
+    }
     door.wasLocked = true;
     const kind = this.lockKind(door), verb = this.pick(kind), K = LOCK_KINDS[kind];
     const k = this.press(door, I, dt);

@@ -31,7 +31,11 @@
 //              scatter         m a HEARD spot is off by (a sound gives a direction and a rough distance, never a point)
 //   door     { every, dmg }   one thump every `every` s takes `dmg` off a locked door's lock (planks and furniture add
 //                             theirs: data/gadgets.js BARRICADES). Only with something remembered behind it (an Echo
-//                             works one regardless: that is what it is)
+//                             works one regardless: that is what it is). A SHUT door (on its latch, not locked) is
+//                             beaten the same way, off the leaf's own hp (data/interiors.js DOOR_MATERIALS.hp)
+//   frenzy   (sprinter only) { every, dmg, slam, slamCool }: while it is in its burst a sprinter POUNDS: a blow every
+//            `every` s for `dmg` each, and the first time it reaches the door at a run it throws itself at it for `slam`
+//            (again after slamCool s). Out of its burst it thumps like a shambler (`door`). WEB_DOOR_POUND.md
 //   legs     hp of legs: rolled leg hits (data/gear.js HIT_ODDS) past it and it is a CRAWLER (`crawl` m/s, low, bites ankles)
 //   lunge    { at, speed, t, cool }  a target it can see this close and it throws itself the last metres
 //   fall     { dmg, chance, getUp }  a hit this hard knocks it down `chance` of the time; it gets up after getUp s
@@ -51,7 +55,7 @@ export const INFECTED = {
   sprinter: {
     name: 'Shambler', hp: 55, trigger: 5.0, ear: 20, wake: 25, burst: 6, chase: 30, burstSpeed: 9, claw: 1.4, overheat: 3, rearm: 4,
     sense: { sight: 34, night: 14, lit: 40, cone: 70, near: 5, steps: 1.3, hear: 1.2, smell: 4.5, memory: 30, search: 14, searchR: 9, scatter: 4 },
-    door: { every: 2.0, dmg: 6 }, legs: 26, crawl: 0.7,
+    door: { every: 2.0, dmg: 6 }, frenzy: { every: 0.42, dmg: 7, slam: 30, slamCool: 4 }, legs: 26, crawl: 0.7,
     lunge: { at: 4.0, speed: 10, t: 0.4, cool: 2.5 },
     fall: { dmg: 24, chance: 0.6, getUp: 1.6, grab: 2.0 },
     fire: 6, light: 70,
@@ -135,6 +139,11 @@ export function validateInfected(rows = INFECTED, breeds = BREEDS, steps = FOOTS
   const sp = rows.sprinter, ec = rows.echo, sh = rows.shambler;
   if (sp) { num('sprinter.trigger', sp.trigger, 4.7, 7.5); num('sprinter.ear', sp.ear, 5, 40); num('sprinter.burstSpeed', sp.burstSpeed, 7.7, 14); num('sprinter.burst', sp.burst, 1, 30); num('sprinter.chase', sp.chase, sp.burst, 120); num('sprinter.wake', sp.wake, 10, 80); } // faster than you sprint (7.6 m/s, main.js), or it never runs you down
   if (ec && sh && !(ec.door.dmg / ec.door.every > (sh.door.dmg / sh.door.every) * 2)) bad.push('an Echo must work a door more than twice as hard as a shambler');
+  if (sp) {
+    const f = sp.frenzy;
+    num('sprinter.frenzy.every', f?.every, 0.2, 1.5); num('sprinter.frenzy.dmg', f?.dmg, 1, 40); num('sprinter.frenzy.slam', f?.slam, 0, 120); num('sprinter.frenzy.slamCool', f?.slamCool, 1, 30);
+    if (f && sh && !(f.dmg / f.every > (sh.door.dmg / sh.door.every) * 3)) bad.push('a sprinter in its frenzy must pound a door more than three times as hard as a shambler thumps it');
+  }
   if (ec) { num('echo.call', ec.call, 0, 80); num('echo.watch', ec.watch, 10, 80); }
   for (const k of ['walk', 'run', 'crouch', 'swim', 'runAt']) num(`FOOTSTEPS.${k}`, steps[k], 0, 40);
   if (steps.prone !== 0) bad.push('a prone body makes no footsteps');

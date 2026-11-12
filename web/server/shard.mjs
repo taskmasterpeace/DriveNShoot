@@ -92,6 +92,25 @@ function applyPatch(S, patch) {
       W.interiors.w[id] = out.interiors.w[id] = { s: v.s, hp: Math.round(v.hp), b: Math.round(v.b), sd: v.sd > 0 ? 1 : -1 };
     }
   }
+  // THE SHUT DOOR (docs/design/WEB_DOOR_POUND.md): a door somebody pulled shut (s), what its leaf has left (p; 0 = off
+  // its hinges), kept; and the blows on it this second (pound), only relayed.
+  const Lv = patch?.leaves;
+  if (Lv && typeof Lv === 'object') {
+    out.leaves = {};
+    W.leaves ??= {};
+    for (const [id, v] of Object.entries(Lv).slice(0, 64)) {
+      if (!id40(id)) continue;
+      if (v === null) { delete W.leaves[id]; out.leaves[id] = null; continue; }
+      if (!v || !num(v.p, 1e5)) continue;
+      const was = W.leaves[id];
+      if (was && was.p === 0) { out.leaves[id] = was; continue; } // a door off its hinges stays off them
+      W.leaves[id] = out.leaves[id] = { p: Math.max(0, Math.round(v.p)), s: v.s ? 1 : 0 };
+    }
+  }
+  if (Array.isArray(patch?.pound)) {
+    out.pound = [];
+    for (const b of patch.pound.slice(0, 16)) if (b && id40(b.d)) out.pound.push({ d: b.d, k: b.k === 'slam' || b.k === 'frenzy' ? b.k : 'thump', n: Math.max(1, Math.min(20, Math.round(Number(b.n) || 1))) });
+  }
   const D = patch?.deadNpc;
   if (D && id40(D.id) && !W.deadNpcs[D.id]) {
     W.deadNpcs[D.id] = out.deadNpc = { id: D.id, name: String(D.name ?? D.id).slice(0, 40), by: S.char.name, at: new Date().toISOString() };
@@ -119,7 +138,7 @@ function worldView() {
   // Every character's parked car (the page shows the others' as locked; its own as its own).
   const cars = Object.values(store.chars.byId).filter((c) => c.data?.car && num(c.data.car.x) && num(c.data.car.z))
     .map((c) => ({ char: c.id, name: c.name, flag: c.flag, car: { t: c.data.car.type, x: c.data.car.x, z: c.data.car.z, h: c.data.car.h ?? 0, c: c.data.car.paint ?? '#6a2a1a', hp: c.data.car.hp ?? null, seed: c.data.car.seed ?? null } }));
-  return { interiors: W.interiors, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, cars, chronicle: W.chronicle.slice(-30), created: W.created };
+  return { interiors: W.interiors, leaves: W.leaves ?? {}, deadNpcs: W.deadNpcs, claims: W.claims, takenVehicles: W.takenVehicles, cars, chronicle: W.chronicle.slice(-30), created: W.created };
 }
 
 // ---- messages -------------------------------------------------------------------------------------------------------
