@@ -268,6 +268,7 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 
 | System | What it needs from world memory | What world memory needs from it |
 |---|---|---|
+| `systems/holdouts.js` (WEB_HOLDOUTS) | `deeds.witnessPass` decides whether a HOUSE RULE break was seen by a town's guard; `deeds.record('trespass'/'threaten')` puts it on the record | nothing new: local wanted is the holdout's own (a vendetta on its guards), never stars or standing |
 | `main.js` (Game) | `society.update(simDt)` in the sim step; `deeds.onKill` first in `onKill`; witness-gated `raiseWanted` | `addChar` assigns `fid`; `emit`; `los`; `insideBuilding`; player crouch/vehicle/flashlight |
 | `ai.js` | `hostile()` reads `factions.playerHostile[fi]` and `rel[]` | `onDamaged` calls `deeds.onHurt`; characters carry `fi` |
 | `combat.js` | — | `onKill(c, attacker, cause)` passes the cause (fixed 2026-10-22) |

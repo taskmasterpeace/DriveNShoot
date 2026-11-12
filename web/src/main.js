@@ -138,6 +138,7 @@ import { attachShard } from './net/shard.js';
 import { Creator } from './systems/creator.js';
 import { CreatorUI } from './ui/creator.js';
 import { Crew } from './systems/crew.js';       // the crew: records, orders, jobs, trust, the fallen (docs/design/WEB_CREW.md)
+import { HoldoutLaw } from './systems/holdouts.js'; // THE HOLDOUTS' LAW: gate checks, HOUSE RULES, local wanted, house paper (docs/design/WEB_HOLDOUTS.md)
 import { Tactics } from './systems/tactics.js'; // cover, bands, flanking, suppression for the crew and every hostile side
 import { CrewUI } from './ui/crew.js';          // U: the CREW panel (tap) and the orders radial (hold)
 
@@ -275,6 +276,7 @@ class Game {
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
     this.crew = new Crew(this);
+    this.holdoutLaw = new HoldoutLaw(this, ui); // every holdout its own little kingdom: the gate, the HOUSE RULES, the bulls, the paper (WEB_HOLDOUTS.md)
     this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
     this.forensics = new Forensics(this); // wounds keep their calibre, casings lie on the ground (WEB_CALIBERS.md)
     this.shotRead = new ShotRead(this, ui); // a shot at you reads: its streak, the dust, the marker toward it (WEB_SHOT_READ.md)
@@ -1427,6 +1429,7 @@ class Game {
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
+      this.holdoutLaw.update(simDt); // the gate check, HOUSE RULES through the witness pass, local wanted, the bulls' rounds
       this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
       this.homes.update(simDt); // the camp's watch and bells, owners at their doors, rent and raids on the clock (systems/homes.js)

@@ -69,6 +69,16 @@ export class Regions {
       values: { 'kill:self': -9, 'hurt:self': -2, 'carjack:self': -4, 'steal:self': -3, 'destroy:self': -3, 'rob:self': -5, 'kill:enemy': 1, 'rescue:self': 5, 'deliver:self': 4, 'trade:self': 0.5, 'defend:self': 4, 'pay:self': 2, 'heal:self': 3, 'heal:any': 1 } });
     // A holdout's traders deal like Rust Haven's (data/trade.js rows, by the person's id).
     for (const P of Object.values(PEOPLE)) for (const n of P.named) if (n.trades) TRADERS[n.id] = { name: n.name.split(' ')[0], deals: n.trades.deals };
+    // The generated holdouts (world/holdoutgen.js; docs/design/WEB_HOLDOUTS.md): one faction for all of them (the faction
+    // budget is 16; each town's own law is its local wanted, systems/holdouts.js), their traders as Meridian's.
+    for (const H of this.W.holdouts) {
+      if (!H.gen) continue;
+      const fr = H.row.faction;
+      if (F.index[fr.id] === undefined) F.register(fr.id, { name: fr.name, archetype: 'town', color: fr.color, start: fr.start, stars: false, forgivesSelfDefense: true, cohesion: 0.6, memoryDays: 10, hub: null, leaders: [],
+        relations: { infected: -100, dustwolves: -100, drifters: 20, rusthaven: 10, meridian: 20, wildlife: 0 },
+        values: { 'kill:self': -9, 'hurt:self': -2, 'steal:self': -3, 'rob:self': -5, 'kill:enemy': 1, 'rescue:self': 4, 'trade:self': 0.5, 'pay:self': 2, 'heal:self': 3 } });
+      for (const n of H.gen.people.named) if (n.trades) TRADERS[n.id] = { name: n.name.split(' ')[0], deals: n.trades.deals };
+    }
     // Holdouts' records.
     this.towns = this.W.holdouts.map((H) => this.makeTown(H));
     this.fauna = new Map();   // lair key -> { c, kind, dead: day it died }
@@ -86,12 +96,19 @@ export class Regions {
 
   // ---- a holdout's people as records ------------------------------------------------------------------------------
   makeTown(H) {
-    const P = PEOPLE[H.id], recs = [];
+    const P = PEOPLE[H.id] ?? H.gen?.people, recs = [];
     if (!P) return { H, recs, live: false };
     let seed = H.seed;
     const rnd = () => { seed = (Math.imul(seed ^ (seed >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0; return seed / 4294967296; };
     for (const n of P.named) recs.push({ id: n.id, named: n, kind: 'named', at: n.at, alive: true });
-    const D = P.deputies;
+    const D = P.deputies ?? { count: 0 };
+    // A generated holdout's gatemen (either side of the main gate) and bulls (armed, with the rounds they carry: nobody
+    // cheats, systems/holdouts.js counts every reload against them). guard: their town's law (local wanted).
+    for (const [kind, G] of [['gateman', P.gatemen], ['bull', P.bulls]]) {
+      if (!G) continue;
+      for (let i = 0; i < G.count; i++) recs.push({ id: `${H.id}_${kind}${i}`, kind, guard: true, n: i, spot: G.spot ?? G.spots[i % G.spots.length], weapon: pickW(G.weapon, rnd()), hp: G.hp,
+        rounds: Math.round(G.rounds[0] + rnd() * (G.rounds[1] - G.rounds[0])), name: randomName(rnd), flag: pickW(P.flags, rnd()), alive: true, jit: [rnd() - 0.5, rnd() - 0.5] });
+    }
     for (let i = 0; i < D.count; i++) recs.push({ id: `${H.id}_dep${i}`, kind: 'deputy', spot: D.spots[i % D.spots.length], weapon: pickW(D.weapon, rnd()), hp: D.hp, name: randomName(rnd), flag: pickW(P.flags, rnd()), alive: true });
     for (const f of P.folk) for (let i = 0; i < f.count; i++) recs.push({ id: `${H.id}_${f.job.replace(/\W+/g, '')}${i}`, kind: 'folk', job: f.job, spot: f.spot, n: i, name: randomName(rnd), flag: pickW(P.flags, rnd()), alive: true, jit: [rnd() - 0.5, rnd() - 0.5] });
     return { H, P, recs, live: false };
@@ -111,24 +128,26 @@ export class Regions {
       if (r.c || (!r.alive && !(r.named?.essential))) continue;
       let x, z, face = 0, hold = false;
       if (r.kind === 'named') { const L = H.lotOf(r.at); if (!L) continue; const p = this.postOf(L); x = p.x; z = p.z; face = p.face; hold = true; r.lot = L; }
-      else { const list = H.spots[r.spot], sp = list?.[(r.n ?? 0) % list.length]; if (!sp) continue; const j = r.jit ?? [Math.random() - 0.5, Math.random() - 0.5]; x = sp.x + j[0] * (sp.r ?? 4) * 1.6; z = sp.z + j[1] * (sp.r ?? 4) * 1.6; hold = r.kind === 'deputy' || r.job === 'patient' || r.job === 'stallkeeper'; }
+      else if (r.kind === 'gateman' && this.g.holdoutLaw) { const p = this.g.holdoutLaw.gatePost(H, r.n); x = p.x; z = p.z; face = p.face; hold = true; }
+      else { const list = H.spots[r.spot], sp = list?.[(r.n ?? 0) % list.length]; if (!sp) continue; const j = r.jit ?? [Math.random() - 0.5, Math.random() - 0.5]; x = sp.x + j[0] * (sp.r ?? 4) * 1.6; z = sp.z + j[1] * (sp.r ?? 4) * 1.6; hold = r.kind === 'deputy' || r.guard || r.job === 'patient' || r.job === 'stallkeeper'; }
       const n = r.named;
-      const arche = r.kind === 'deputy' || n?.job === 'sheriff' ? 'warden' : 'drifter';
+      const arche = r.kind === 'deputy' || n?.job === 'sheriff' ? 'warden' : 'drifter'; // a generated town's bulls are its own law, not Rust Haven's stars
       const opts = { x, z, faction: arche, weapon: n ? n.weapon ?? null : r.weapon ?? (r.kind === 'folk' && r.job === 'pit fighter' ? null : null), hp: n ? 140 : r.hp ?? 100, name: n ? n.name : r.name, flag: n ? n.flag : r.flag };
       if (n) {
-        const p = n.portrait, talk = MERIDIAN_TALK[n.id] ?? { start: 'hi', nodes: { hi: { text: 'Not now.', choices: [{ t: '[Leave]', end: true }] } } };
+        const p = n.portrait, talk = MERIDIAN_TALK[n.id] ?? this.g.holdoutLaw?.talkFor(H, n) ?? { start: 'hi', nodes: { hi: { text: 'Not now.', choices: [{ t: '[Leave]', end: true }] } } };
         opts.npc = { id: n.id, name: n.name, title: n.title, flag: n.flag, faction: arche, essential: !!n.essential, portrait: p, ...talk };
         opts.colors = { skin: p.skin, hair: p.hair, shirt: p.shirt ?? '#5a4a38', pants: '#2f2a24', boots: '#2b241e', hat: '#5a3f24',
           hatStyle: ['cowboy', 'cap', 'mohawk', 'wrap', 'long', 'bald'].includes(p.hat) ? p.hat : 'short',
           gearStyle: p.gear === 'bandolier' ? 'bandolier' : arche === 'warden' ? 'vest' : 'none', gear: '#3a3128',
           accStyle: { goggles: 'goggles', bandana: 'mask', eyepatch: 'eyepatch' }[p.gear] ?? 'none', mask: '#6a2a1e', sleeves: 'short' };
-      } else opts.colors = outfit(arche);
+      } else opts.colors = outfit(r.guard ? 'warden' : arche);
       const c = g.addChar(opts);
       if (!c) continue;
       c.fid = H.faction?.id ?? H.row.faction.id; g.society.factions.assign(c);
       c.face = face; c.home = { x, z }; c.holdout = H.id; c.rec = r.id;
       if (hold) c.hold = true;
-      if (r.kind === 'deputy') c.post = { x, z };
+      if (r.kind === 'deputy' || r.guard) c.post = { x, z };
+      if (r.guard || n?.keyholder) this.g.holdoutLaw?.enlist(c, H, r);
       if (!r.alive && n?.essential) r.alive = true; // the essential are back on their feet (as Rust Haven's)
       r.c = c;
       this.stats.promoted++;

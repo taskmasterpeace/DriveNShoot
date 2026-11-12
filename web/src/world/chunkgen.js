@@ -214,6 +214,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   out.biome = BIOMES[biomeKey]?.name ?? biomeKey; out.state = state;
   // A region past P1 (world/regions.js: Florida) lays out with its own rows: biome look, flora, water, life.
   const RGN = W.regionOf?.(centre.x, centre.z, 3000) ?? null, RB = RGN ? RGN.biome(biomeKey) : null;
+  const HOLD = RGN ? RGN.holdouts : (W.azRegion?.holdouts ?? []); // the walled holdouts this chunk may touch (Arizona's live outside any region box)
   out.region = RGN?.id ?? null;
   if (RB) out.biome = RB.name;
   // A plant from world/flora.js: scale x its model's height, the variant and a shade from where it stands (no draws on rng).
@@ -440,7 +441,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
     if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
     if ((WT && (wetNear(x, z, r) || WT.nearFord(x, z, 40 + r))) || onFill(x, z, r)) return true; // the water, its banks, a ford's way across, the bridges and their fills
-    if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
+    for (const T of HOLD) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads (a region's, or Arizona's own: world/holdoutgen.js)
     if (W.citygen && W.citygen.solid(x, z, r)) return true; // a generated settlement's footprint (systems/citygen.js)
     if (W.roadside?.solid(x, z, r)) return true; // the roadside's sites, fields, towers and billboards (world/roadside.js)
     if (W.rites?.solid(x, z, r)) return true; // a placed cemetery and its keep-out ring (systems/rites.js)
@@ -580,7 +581,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     } : null;
     // The FLOOR channel (world/surfaces.js groundSurface): a painted wood's forest floor, a holdout's packed-earth yard.
     // Colour only (the layout hash never reads it); zero everywhere else, so P1's ground draws exactly as before.
-    const FW = BR && BR.layers.has('forest'), HO = RGN?.holdouts?.length ? RGN.holdouts : null;
+    const FW = BR && BR.layers.has('forest'), HO = HOLD.length ? HOLD : null;
     const floorAt = (v, x, z) => {
       if (FW) G.flr[v * 2] = BR.sample('forest', x, z, 0);
       if (HO) { let ck = 0; for (const T2 of HO) ck = Math.max(ck, T2.cityK(x, z)); G.flr[v * 2 + 1] = ck; }
@@ -1423,6 +1424,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (let i = 0; i < B2.n; i++) { const o = i * 16; m[o + 13] += T.at(m[o + 12], m[o + 14]); }
     }
     for (const L2 of [SURF.road, SURF.rock]) { const p = L2.pos; for (let i = 0; i < L2.nv; i++) p[i * 3 + 1] += T.at(p[i * 3] + ox, p[i * 3 + 2] + oz); }
+    // The dead cars too (systems/wrecks.js draws a record at its y): left at 0 they hung over the land wherever the land is
+    // not at 0 (a holdout's husk wall in the desert, the I-10 shoulders). y is not in the chunk hash.
+    out.wrecks = out.wrecks.map((w) => ({ ...w, y: (w.y ?? 0) + T.at(w.x, w.z) })); // copies: a towner's records are shared
     pause(); yield; resume();
   }
 

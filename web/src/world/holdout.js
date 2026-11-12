@@ -10,6 +10,7 @@
 import { wreckOf } from '../data/wrecks.js';
 import { KINDS, RING } from '../data/ring.js';
 import { HOLDOUT } from '../data/holdout.js';
+import { WALL_KIT } from '../data/holdoutgen.js';
 import { C, hash32, rngOf, chunkOf } from './geo.js';
 
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -21,11 +22,24 @@ export class Holdout {
     this.W = W; this.R = R; this.row = row; this.id = row.id; this.name = row.name;
     this.hw = row.size[0] / 2; this.hd = row.size[1] / 2;
     const shore = R.mainlandShore ? R.mainlandShore(f.z) : Infinity;
-    let cx = Number.isFinite(shore) ? shore - row.shoreGap - this.hw : f.x + 1200 + this.hw;
-    cx = Math.max(cx, f.x + 800 + this.hw); // never crowding the interchange
-    this.cx = Math.round(cx); this.cz = Math.round(f.z);
+    if (row.place) {
+      // A generated holdout (world/holdoutgen.js) stands `m` off its road on `side`, its main gate toward the road: beside a
+      // north-south road the gate faces it; beside an east-west one the town sits m north or south with its west gate's
+      // mouth square to the exit, so the access road runs down the outside of the west wall. East of the road, the lagoon
+      // shore holds it back (shoreGap), as Meridian's does.
+      const P = row.place, v = { E: [1, 0], W: [-1, 0], N: [0, -1], S: [0, 1] }[P.side] ?? [-1, 0];
+      let cx, cz;
+      if (v[0]) { cx = f.x + v[0] * (P.m + this.hw); cz = f.z; if (v[0] > 0 && Number.isFinite(shore)) cx = Math.max(f.x + 160 + this.hw, Math.min(cx, shore - row.shoreGap - this.hw)); }
+      else { cz = f.z + v[1] * (P.m + this.hd); cx = f.x + this.hw + row.approach; }
+      this.cx = Math.round(cx); this.cz = Math.round(cz);
+    } else {
+      let cx = Number.isFinite(shore) ? shore - row.shoreGap - this.hw : f.x + 1200 + this.hw;
+      cx = Math.max(cx, f.x + 800 + this.hw); // never crowding the interchange
+      this.cx = Math.round(cx); this.cz = Math.round(f.z);
+    }
     this.x0 = this.cx - this.hw; this.x1 = this.cx + this.hw; this.z0 = this.cz - this.hd; this.z1 = this.cz + this.hd;
-    this.approach = { x: this.x0 - row.approach, z: this.cz };
+    this.mainGate = row.mainGate ?? 'W';
+    this.approach = this.mainGate === 'E' ? { x: this.x1 + row.approach, z: this.cz } : { x: this.x0 - row.approach, z: this.cz };
     this.seed = hash32(W.seed, row.seed);
     this.shore = shore;
     this.lots = []; this.blocks = []; this.streetList = []; this.items = []; this.deadCars = []; this.boxes = []; this.flora = []; this.spots = {}; this.gates = [];
@@ -36,7 +50,7 @@ export class Holdout {
   Z(lz) { return this.cz + lz; }
   overlaps(x0, z0, x1, z1) { return x1 > this.x0 && x0 < this.x1 && z1 > this.z0 && z0 < this.z1; }
   // The whole footprint the chunks must ask about: the wall, the approach, the lagoon road and pier.
-  get reach() { return { x0: this.x0 - this.row.approach - 30, z0: this.z0 - 30, x1: (this.dockEnd ?? this.x1) + 30, z1: this.z1 + 30 }; }
+  get reach() { return { x0: this.x0 - this.row.approach - 30, z0: this.z0 - 30, x1: (this.dockEnd ?? this.x1 + (this.mainGate === 'E' ? this.row.approach : 0)) + 30, z1: this.z1 + 30 }; }
   touches(cx, cz) { const r = this.reach, x0 = cx * C, z0 = cz * C; return x0 < r.x1 && x0 + C > r.x0 && z0 < r.z1 && z0 + C > r.z0; }
   inCity(x, z, m = 0) { return x > this.x0 - m && x < this.x1 + m && z > this.z0 - m && z < this.z1 + m; }
   // 0 outside, 1 inside the wall (the ground tint and the wild scatter follow it).
@@ -101,7 +115,7 @@ export class Holdout {
     this.lamps(rng);
     this.signs();
     // Spots people stand at (systems/regions.js).
-    const mk = this.blocks.find((b) => b.open === 'market'), gd = this.blocks.filter((b) => b.open === 'garden'), ar = this.blocks.find((b) => b.open === 'arena'), jk = this.blocks.find((b) => b.open === 'junk'), yd = this.blocks.find((b) => b.open === 'yard');
+    const mk = this.blocks.find((b) => b.open === 'market'), gd = this.blocks.filter((b) => b.open === 'garden'), ar = this.blocks.find((b) => b.open === 'arena' || b.open === 'pit'), jk = this.blocks.find((b) => b.open === 'junk'), yd = this.blocks.find((b) => b.open === 'yard');
     const mid = (b) => ({ x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, r: Math.min(b.x1 - b.x0, b.z1 - b.z0) / 2 - 6 });
     this.spots = { market: mk ? [mid(mk)] : [], garden: gd.map(mid), pit: ar ? [mid(ar)] : [], junk: jk ? [mid(jk)] : [], yard: yd ? [yd.yardSpot ?? mid(yd)] : [], dock: this.pier ? [{ x: this.pier.x0 - 6, z: (this.pier.z0 + this.pier.z1) / 2 + 4, r: 4 }] : [] };
     for (const g of this.gates) this.spots[`gate:${g.side}`] = [{ x: g.inX, z: g.inZ, r: 3 }];
@@ -117,8 +131,9 @@ export class Holdout {
   // Lay a block's programmes along its front street: real widths from KINDS, evenly spaced, centred; each lot runs from
   // the walk to the block's back (or half of it, when the block's other half is open ground).
   packLots(blk, B, rng, nextId, salt = 0) {
-    const list = [];
-    for (const it of B.lots) { if (Array.isArray(it)) for (let i = 0; i < it[1]; i++) list.push(it[0]); else list.push(it); }
+    const list = [], labels = [];
+    // A lot is a kind, [kind, n], or { kind, label } (a generated town names its own: THE JAIL, THE SALOON...).
+    for (const it of B.lots) { if (Array.isArray(it)) for (let i = 0; i < it[1]; i++) { list.push(it[0]); labels.push(null); } else if (typeof it === 'object') { list.push(it.kind); labels.push(it.label ?? null); } else { list.push(it); labels.push(null); } }
     const F = B.front, ns = F === 'N' || F === 'S', u0 = ns ? blk.x0 : blk.z0, u1 = ns ? blk.x1 : blk.z1, depth = ns ? blk.z1 - blk.z0 : blk.x1 - blk.x0;
     const half = B.open === 'half' || B.back ? depth * 0.5 : B.open ? depth * 0.55 : depth;
     const set = 3.5, gapMin = 3.2;
@@ -145,7 +160,7 @@ export class Holdout {
       // Doorways sit on whole-metre cells: round the shell to the metre grid (chunk origins are whole metres).
       for (const k of ['x0', 'x1', 'z0', 'z1']) r[k] = Math.round(r[k] * 2) / 2;
       const L = { id: nextId(), kind: q.kind, zone: 'holdout', front: F, ...r, lot, cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, seed: rng.int(0, 2147483647), ruined: false, noYard: true,
-        holdout: this.id, block: blk.id, programme: KINDS[q.kind].label ?? q.kind.toUpperCase(), blockKey: blk.id };
+        holdout: this.id, block: blk.id, programme: labels[i] ?? KINDS[q.kind].label ?? q.kind.toUpperCase(), blockKey: blk.id };
       L.backRow = B.open === 'half'; L.salt = hash32(this.seed, salt, i, 0x4c4f54);
       // Burnt shells (grit.burn): a back-row house that went up in the fall, left standing roofless (its own zone row).
       if (G && L.backRow && (q.kind === 'house' || q.kind === 'bungalow') && rngOf(hash32(this.seed, salt, i, 0x4255524e))() < G.burn) {
@@ -267,6 +282,67 @@ export class Holdout {
         this.box(x - 0.7, z - 0.7, x + 0.7, z + 0.7, 1.1, 'fence');
       }
       for (const s of [-1, 1]) for (let row = 0; row < 3; row++) { const z = cz + s * (r + 3 + row * 1.2); this.P('props', cx, 0.3 + row * 0.45, z, r * 1.4, 0.3, 0.9, '#6a5440'); this.box(cx - r * 0.7, z - 0.45, cx + r * 0.7, z + 0.45, 0.4 + row * 0.45, 'bleacher'); }
+    } else if (kind === 'pit') {
+      // A generated holdout's pit (THE PIT, where every quarrel goes): a cage of wire panels round packed sand, a ring of
+      // stacked tyres, stepped plank stands on four sides, the bookmaker's shack and its board, floodlight poles, fire
+      // barrels; round it the yard the fight nights use - dog pens, husks parked by the stands, crates, a lean-to bar. On a
+      // stream of its own (the generator's towns only: Meridian keeps its arena).
+      blk.pads.push({ x0: b.x0 + 3, x1: b.x1 - 3, z0: b.z0 + 3, z1: b.z1 - 3, band: 'yard' });
+      const r2 = rngOf(hash32(this.seed, 0x50495421)), pk = (a) => a[Math.floor(r2() * a.length)];
+      const R0 = 7.5, TY = '#232120', WIRE = '#9a9a92', PLANK = ['#6a5440', '#7a5e3e', '#5a4632'];
+      this.P('floors', cx, 0.03, cz, R0 * 2 + 1, 0.04, R0 * 2 + 1, '#b8a27a');
+      for (let k = 0; k < 8; k++) { // the cage: eight wire panels, posts, a gap to the south for the fighters
+        const a = (k / 8) * 6.283 + 0.39, x = cx + Math.cos(a) * R0, z = cz + Math.sin(a) * R0;
+        this.P('props', x, 1.3, z, 0.25, 2.6, 0.25, '#3a3632');
+        if (k === 1) continue;
+        const a2 = a + 0.39, mx = cx + Math.cos(a2) * R0 * 0.93, mz = cz + Math.sin(a2) * R0 * 0.93;
+        this.P('props', mx, 1.25, mz, 5.6, 2.4, 0.05, WIRE, -a2 + Math.PI / 2);
+        this.box(mx - 0.6, mz - 0.6, mx + 0.6, mz + 0.6, 2.4, 'fence');
+      }
+      for (let a = 0; a < 6.283; a += 0.3) { // tyres stacked round the cage
+        if (Math.abs(a - 1.18) < 0.4) continue;
+        const rr = R0 + 2.2, x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr, n = 1 + Math.floor(r2() * 3);
+        for (let s = 0; s < n; s++) this.P('barrels', x, 0.12 + s * 0.24, z, 0.9, 0.22, 0.9, TY);
+      }
+      for (const [sx, sz, along] of [[0, -1, true], [0, 1, true], [-1, 0, false], [1, 0, false]]) { // stepped stands
+        const off = R0 + 6;
+        for (let row = 0; row < 4; row++) {
+          const x = cx + sx * (off + row * 1.1), z = cz + sz * (off + row * 1.1), len = 16 + row * 2;
+          this.P('props', x, 0.25 + row * 0.5, z, along ? len : 1.0, 0.18, along ? 1.0 : len, pk(PLANK));
+          this.P('props', x, (0.25 + row * 0.5) / 2, z, along ? len - 0.4 : 0.2, 0.25 + row * 0.5, along ? 0.2 : len - 0.4, '#4a3a2a');
+        }
+        const x = cx + sx * (off + 1.6), z = cz + sz * (off + 1.6);
+        this.box(x - (along ? 11 : 2.4), z - (along ? 2.4 : 11), x + (along ? 11 : 2.4), z + (along ? 2.4 : 11), 1.9, 'bleacher');
+      }
+      { const x = b.x0 + 9, z = cz - 2; // the bookmaker: a shack, a chalk board on posts
+        this.P('walls', x, 1.3, z, 4.4, 2.6, 3.4, pk(['#7a6a52', '#8a5a3a', '#6e6a62'])); this.P('props', x, 2.7, z, 5.0, 0.12, 4.0, pk(['#8e938c', '#8a5a3a']), 0.05); this.box(x - 2.2, z - 1.7, x + 2.2, z + 1.7, 2.6, 'shack');
+        this.P('props', x + 3.4, 2.0, z, 0.12, 1.6, 3.2, '#2a2a28'); for (const o of [-1.5, 1.5]) this.P('props', x + 3.4, 1.0, z + o, 0.12, 2.0, 0.12, '#4a3a2a'); }
+      for (const [fx, fz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { // floodlight poles and fire barrels at the corners
+        const x = cx + fx * (R0 + 12), z = cz + fz * (R0 + 12);
+        this.P('props', x, 4, z, 0.22, 8, 0.22, '#3a3632'); this.P('props', x, 8, z, 1.2, 0.4, 0.5, '#d8c890');
+        this.box(x - 0.15, z - 0.15, x + 0.15, z + 0.15, 8, 'lamp');
+        this.items.push({ pool: 'glows', e: [x, 0.11, z, 15, 1, 15, '#ffd08a', 0, 1], glow: true });
+        const bx = x - fx * 2.2, bz = z + fz * 0.6;
+        this.P('barrels', bx, 0.5, bz, 0.9, 1.0, 0.9, '#4a2e1e'); this.box(bx - 0.45, bz - 0.45, bx + 0.45, bz + 0.45, 1.0, 'barrel');
+        this.items.push({ pool: 'glows', e: [bx, 0.12, bz, 8, 1, 8, '#ff8a3a', 0, 1], glow: true });
+      }
+      { const x = b.x1 - 8, z = b.z0 + 8; // dog pens: wire runs and a kennel
+        for (let k = 0; k < 3; k++) { const px = x - k * 4.2; this.P('props', px, 0.6, z - 1.6, 3.8, 1.2, 0.05, WIRE); this.P('props', px, 0.6, z + 1.6, 3.8, 1.2, 0.05, WIRE); this.P('props', px - 1.9, 0.6, z, 0.05, 1.2, 3.2, WIRE); this.P('walls', px + 0.8, 0.5, z + 0.6, 1.4, 1.0, 1.2, pk(['#7a5e3e', '#8a6a44'])); }
+        this.box(x - 10.6, z - 1.7, x + 2, z + 1.7, 1.2, 'pen'); }
+      { const x = b.x0 + 8, z = b.z1 - 8; // the lean-to bar: a tin roof on posts, a plank counter, drums for stools
+        this.P('props', x, 2.4, z, 7, 0.08, 4, pk(HOLDOUT.yard.tarp), 0.04); for (const [qx, qz] of [[-3.3, -1.8], [3.3, -1.8], [-3.3, 1.8], [3.3, 1.8]]) this.P('props', x + qx, 1.2, z + qz, 0.14, 2.4, 0.14, '#4a3a2a');
+        this.P('props', x, 0.55, z - 1.0, 6.0, 1.1, 0.7, pk(PLANK)); this.box(x - 3, z - 1.35, x + 3, z - 0.65, 1.1, 'counter');
+        for (let k = 0; k < 4; k++) this.P('barrels', x - 2.4 + k * 1.6, 0.35, z + 0.4, 0.6, 0.7, 0.6, pk(['#5a2e1a', '#3f5a62', '#6a6a5a', '#7a4a2e'])); }
+      for (const [x, z] of [[b.x1 - 7, b.z1 - 9], [b.x1 - 13, b.z1 - 9]]) { this.deadCar(x, z, false, 'street', 0, (r2() - 0.5) * 0.3); this.box(x - 1.1, z - 2.2, x + 1.1, z + 2.2, 1.4, 'car'); } // the fighters' rides
+      for (let k = 0; k < 5; k++) { const x = b.x0 + 6 + r2() * 4, z = b.z0 + 6 + k * 1.1; this.P('props', x, 0.35, z, 0.9, 0.7, 0.8, pk(['#7a5a34', '#6b4e2e', '#8a6a44']), r2() * 0.4); }
+      // The fight-night camp: tents of tarp in two ragged rows, between the stands and the block's edge.
+      for (const sz of [-1, 1]) for (let x = cx - 22; x <= cx + 22; x += 7.5 + r2() * 2) {
+        const z = cz + sz * (27 + r2() * 3), w2 = 3 + r2() * 1.2, d2 = 2.4 + r2() * 0.8, col = pk(HOLDOUT.yard.tarp), rot = (r2() - 0.5) * 0.3;
+        if (z < b.z0 + 3 || z > b.z1 - 3 || this.boxes.some((q) => x > q.x0 - 2 && x < q.x1 + 2 && z > q.z0 - 2 && z < q.z1 + 2)) continue;
+        this.P('props', x, 0.6, z, w2, 1.2, d2, col, rot); this.P('props', x, 1.45, z, w2 + 0.1, 0.5, d2 * 0.45, col, rot, 0.85);
+        this.box(x - w2 / 2, z - d2 / 2, x + w2 / 2, z + d2 / 2, 1.6, 'tent');
+      }
+      blk.spot = { x: cx, z: cz };
     } else if (kind === 'junk') {
       // The boneyard: wrecks stacked two high, a crane boom, parts in heaps.
       blk.pads.push({ x0: b.x0 + 2, x1: b.x1 - 2, z0: b.z0 + 2, z1: b.z1 - 2, band: 'yard' });
@@ -494,6 +570,7 @@ export class Holdout {
   gatesAndWall(rng) {
     const H = this.row, Wl = H.wall, hw = this.hw, hd = this.hd, t = Wl.t, G = Wl.gate;
     const gates = H.gates.map((g) => ({ ...g }));
+    const kr = Wl.kit ? rngOf(hash32(this.seed, 0x4b495457)) : null; // the wall kit's own stream
     // Sides as runs along u; gaps where gates are.
     const sides = [
       { side: 'N', fixed: -hd + t / 2, horiz: true }, { side: 'S', fixed: hd - t / 2, horiz: true },
@@ -507,6 +584,8 @@ export class Holdout {
       for (const [g0, g1] of gaps.sort((p, q) => p[0] - q[0])) { if (g0 > a) runs.push([a, g0]); a = g1; }
       if (a < a1) runs.push([a, a1]);
       for (const [r0, r1] of runs) {
+        // A generated holdout's wall is built from its kit (stacked husks, containers, tin, sandbags) on a stream of its own.
+        if (Wl.kit) { this.kitRun(S, r0, r1, kr); const bx0 = S.horiz ? this.X(r0) : this.X(S.fixed - t / 2), bx1 = S.horiz ? this.X(r1) : this.X(S.fixed + t / 2), bz0 = S.horiz ? this.Z(S.fixed - t / 2) : this.Z(r0), bz1 = S.horiz ? this.Z(S.fixed + t / 2) : this.Z(r1); this.box(bx0, bz0, bx1, bz1, Wl.h, 'wall'); continue; }
         // Panels of corrugated tin and timber, a little uneven; a rail along the top; posts at every panel joint.
         for (let p = r0; p < r1 - 0.01; p += Wl.panel) {
           const q = Math.min(r1, p + Wl.panel), mid = (p + q) / 2, h = Wl.h * rng.range(0.92, 1.06), col = rng.pick(Wl.colors);
@@ -538,6 +617,12 @@ export class Holdout {
       this.P('props', x, T.h - 2.4, z, s, 0.25, s, '#6a5440');
       for (const sgn of [-1, 1]) { this.P('props', x, T.h - 1.6, z + sgn * (s / 2 - 0.1), s, 0.7, 0.12, '#7a6a52'); this.P('props', x + sgn * (s / 2 - 0.1), T.h - 1.6, z, 0.12, 0.7, s, '#7a6a52'); }
       this.P('roofs', x, T.h + 0.2, z, s + 1, 0.2, s + 1, T.roof);
+      // A generated holdout's towers are sheathed in tin to the wall's height and sandbagged round the deck.
+      if (Wl.kit) {
+        const sh = Wl.colors[(Math.abs(Math.round(x * 7 + z * 3)) >>> 0) % Wl.colors.length];
+        for (const sgn of [-1, 1]) { this.P('walls', x, Wl.h / 2, z + sgn * (s / 2 - 0.05), s - 0.1, Wl.h, 0.1, sh, 0, 0.9); this.P('walls', x + sgn * (s / 2 - 0.05), Wl.h / 2, z, 0.1, Wl.h, s - 0.1, sh, 0, 1.05); }
+        for (const sgn of [-1, 1]) { this.P('props', x, T.h - 1.95, z + sgn * (s / 2 + 0.25), s + 0.9, 0.7, 0.55, '#a8966c'); this.P('props', x + sgn * (s / 2 + 0.25), T.h - 1.95, z, 0.55, 0.7, s, '#b0a07a'); }
+      }
       this.box(x - s / 2, z - s / 2, x + s / 2, z + s / 2, 2.6, 'tower');
     };
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) tower(sx * (hw - T.size / 2), sz * (hd - T.size / 2));
@@ -555,11 +640,65 @@ export class Holdout {
     }
   }
 
+  // ---- the wall kit (data/holdoutgen.js WALL_KIT): one run of a generated holdout's wall, panel by panel -------------------
+  // Each panel draws a piece of the kit (by the row's weights): a shipping container (a second stacked on it, or a tin
+  // screen up to the wall's height), dead cars stacked two or three high against a tin backing (our own bodies: one batched
+  // draw), patched corrugated tin, or sandbag courses under a tin screen. Posts at the joints. Looks only: the run's
+  // collision is one box (gatesAndWall).
+  kitRun(S, r0, r1, kr) {
+    const Wl = this.row.wall, t = Wl.t, out = S.side === 'N' || S.side === 'W' ? -1 : 1, K = WALL_KIT;
+    // A box along the wall: a (along) from a0 to a1, across offset o (outward +), size across `ac`, y0..y1.
+    const along = (a0, a1, o, ac, y0, y1, col, pool = 'props', shade = 1) => {
+      const mid = (a0 + a1) / 2, len = a1 - a0, f = S.fixed + out * o;
+      const [x, z] = S.horiz ? [this.X(mid), this.Z(f)] : [this.X(f), this.Z(mid)];
+      this.P(pool, x, (y0 + y1) / 2, z, S.horiz ? len : ac, y1 - y0, S.horiz ? ac : len, col, 0, shade);
+    };
+    // The core: rubble and earth banked behind whatever the face is built of, on the inner side (it gives the wall mass).
+    along(r0, r1, -(t / 2 - 0.6), 1.2, 0, Wl.h * 0.8, Wl.cap, 'walls', 0.9);
+    for (let p = r0; p < r1 - 0.01; p += Wl.panel) {
+      const q = Math.min(r1, p + Wl.panel), len = q - p, kind = pickW(kr, Wl.kit);
+      if (kind === 'container' && len > 3) {
+        const C = K.container, c1 = kr.pick(C.colors), cl = Math.min(C.len, len - 0.1), a0 = p + (len - cl) / 2;
+        along(a0, a0 + cl, 0, t - 0.15, 0, C.h, c1, 'walls', 0.9 + kr() * 0.2);
+        for (const e of [a0 + 0.08, a0 + cl - 0.08]) along(e - 0.08, e + 0.08, 0, t - 0.05, 0.05, C.h - 0.05, '#3a3632'); // door frames
+        if (kr() < C.second) { const s = (kr() - 0.5) * 0.8, c2 = kr.pick(C.colors.filter((c) => c !== c1)); along(a0 + s, a0 + cl + s, 0, t - 0.15, C.h, C.h * 2, c2, 'walls', 0.9 + kr() * 0.2); }
+        else along(p, q, -0.4, 0.16, C.h, Wl.h, kr.pick(K.tin.colors), 'props', 0.85 + kr() * 0.3);
+      } else if (kind === 'husk') {
+        // The backing: tin up most of the wall's height on the inside face; the cars banked on the outside of it.
+        along(p, q, -(t / 2 - 0.15), 0.18, 0, Wl.h * (0.82 + kr() * 0.12), kr.pick(K.husk.backing), 'props', 0.85 + kr() * 0.3);
+        const n = K.husk.stack[0] + Math.floor(kr() * (K.husk.stack[1] - K.husk.stack[0] + 1)), mid = (p + q) / 2, f = S.fixed + out * (t / 2 - 0.95);
+        for (let s = 0; s < n; s++) {
+          const a = mid + (s % 2 ? 0.5 : -0.4) + (kr() - 0.5) * 0.6, [x, z] = S.horiz ? [this.X(a), this.Z(f)] : [this.X(f), this.Z(a)];
+          this.deadCar(x, z, S.horiz, 'boneyard', s * 1.25, (kr() - 0.5) * 0.24);
+        }
+      } else if (kind === 'sandbag') {
+        const B = K.sandbag, rows = Math.round(B.h / 0.3);
+        for (let k = 0; k < rows; k++) along(p + (k % 2 ? 0.25 : 0), q - (k % 2 ? 0 : 0.25), 0.15, t - 0.4 - k * 0.12, k * 0.3, k * 0.3 + 0.3, kr.pick(B.colors), 'props', 0.9 + kr() * 0.2);
+        along(p, q, -0.5, 0.14, B.h, Wl.h * (0.9 + kr() * 0.1), kr.pick(B.screen), 'props', 0.85 + kr() * 0.3);
+      } else {
+        // Tin: two or three sheets of whatever colour was found, a little uneven.
+        let a = p;
+        while (a < q - 0.05) { const b = Math.min(q, a + 1.6 + kr() * 1.6); along(a, b, (kr() - 0.5) * 0.1, 0.16, 0, Wl.h * (0.86 + kr() * 0.14), kr.pick(K.tin.colors), 'walls', 0.85 + kr() * 0.3); a = b; }
+      }
+      // What piles up at the foot of a wall outside: scrap heaps, tyre stacks, drums, a sheet leaned against it.
+      if (kr() < Wl.junk) {
+        const o = t / 2 + 1.0 + kr() * 0.8, a = p + 0.8 + kr() * (len - 1.6), pick = kr();
+        const [jx, jz] = S.horiz ? [this.X(a), this.Z(S.fixed + out * o)] : [this.X(S.fixed + out * o), this.Z(a)];
+        if (pick < 0.4) this.P('boulders', jx, 0.3, jz, 2.4 + kr() * 1.6, 0.6 + kr() * 0.8, 1.8 + kr(), kr.pick(['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#5e5a54']), kr() * 6);
+        else if (pick < 0.7) { const n = 2 + Math.floor(kr() * 4); for (let s = 0; s < n; s++) this.P('barrels', jx + (kr() - 0.5) * 0.2, 0.12 + s * 0.24, jz + (kr() - 0.5) * 0.2, 0.9, 0.22, 0.9, '#232120'); }
+        else for (let s = 0; s < 3; s++) this.P('barrels', jx + (s - 1) * 0.75, 0.45, jz, 0.62, 0.9, 0.62, kr.pick(['#5a2e1a', '#3f5a62', '#6a6a5a', '#7a4a2e', '#2f6f6a']));
+      }
+      const [px, pz] = S.horiz ? [this.X(p), this.Z(S.fixed)] : [this.X(S.fixed), this.Z(p)];
+      this.P('props', px, (Wl.h + 0.4) / 2, pz, 0.3, Wl.h + 0.4, 0.3, Wl.post);
+    }
+  }
+
   // ---- outside the wall: the approach from the interstate, the road to the lagoon and its pier --------------------------
   outside(rng) {
     const H = this.row;
     this.outPads = [];
-    const ap = { x0: this.approach.x - 2, x1: this.x0 + 1, z0: this.cz - 8, z1: this.cz + 8, band: 'street', axis: 'x' };
+    const ap = this.mainGate === 'E' ? { x0: this.x1 - 1, x1: this.approach.x + 2, z0: this.cz - 8, z1: this.cz + 8, band: 'street', axis: 'x' }
+      : { x0: this.approach.x - 2, x1: this.x0 + 1, z0: this.cz - 8, z1: this.cz + 8, band: 'street', axis: 'x' };
     this.streetList.push({ x0: ap.x0, x1: ap.x1, z0: ap.z0, z1: ap.z1, axis: 'x', line: `${this.id}:approach`, name: 'MAIN STREET', art: true });
     this.outPads.push(ap);
     const D = H.dock;
@@ -587,7 +726,7 @@ export class Holdout {
     if (main) for (let x = main.x0 + 14; x < main.x1 - 14; x += T.every) for (const side of [-1, 1]) {
       const z = side < 0 ? main.z0 - this.row.walk + 0.8 : main.z1 + this.row.walk - 0.8;
       if (this.lots.some((L) => x > L.x0 - 2 && x < L.x1 + 2 && Math.abs(z - (side < 0 ? L.z1 : L.z0)) < 2.5)) continue;
-      if (Math.abs(x - this.X(46)) < 10 || Math.abs(x - this.X(124)) < 10 || Math.abs(x - this.X(-104)) < 10) continue; // corners stay clear
+      if (this.row.streets.ns.some((s) => Math.abs(x - this.X(s.at)) < 10)) continue; // corners stay clear (the avenues')
       this.flora.push([rng.pick(T.street), x, z, rng.range(7.5, 10), rng.int(0, 2)]);
     }
     const mk = this.blocks.find((b) => b.open === 'market');

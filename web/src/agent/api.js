@@ -82,6 +82,7 @@ import { soundCommands, soundChecks } from './sound-api.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
+import { holdoutsCommands, holdoutsChecks } from './holdouts-api.js'; // THE HOLDOUTS: the generator, Keyholders, HOUSE RULES, the gate, house paper (docs/design/WEB_HOLDOUTS.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { policeCommands, policeChecks } from './police-api.js'; // POLICE RESPONSE: stations, beats, the desk, units, sirens (WEB_POLICE_RESPONSE.md)
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
@@ -2140,6 +2141,7 @@ function buildCommands(api) {
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
+    ...holdoutsCommands(api, need), // THE HOLDOUTS (src/agent/holdouts-api.js, docs/design/WEB_HOLDOUTS.md): holdouts
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...policeCommands(api, need), // police: stations, patrols, dispatch, units (src/agent/police-api.js)
@@ -2314,6 +2316,8 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  // The holdouts' law (systems/holdouts.js) would stop a check that walks past a holdout's gate: off for the battery, on for its own checks.
+  const holdLawWas = g.holdoutLaw?.enabled; if (g.holdoutLaw) g.holdoutLaw.enabled = false;
   // Sharks and the ferry (systems/sealife.js, systems/waterplace.js) likewise: off for the battery, on for their own checks.
   const seaWas = g.sealife.enabled, ferryWas = g.waterplace.enabled;
   g.sealife.enabled = false; g.sealife.clear(); g.waterplace.enabled = false;
@@ -6181,6 +6185,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await holdoutsChecks(api, check, C); // THE HOLDOUTS: the generator, the walkability audit, the gate check, HOUSE RULES by the witness pass, the bulls' rounds, paper, save, Meridian (src/agent/holdouts-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await farmingChecks(api, check, C); // THE HOUSE GARDEN: sow, water, grow, harvest, drought, frost, blight, pests, theft, hens, the crew, the market, cooking (src/agent/farming-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
@@ -6189,6 +6194,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
+  if (g.holdoutLaw) g.holdoutLaw.enabled = holdLawWas;
   g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice back on
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
@@ -6241,6 +6247,7 @@ export function snapshot(g) {
     cooking: g.cooking?.save(), // well fed, the meals cooked (systems/cooking.js)
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
+    holdouts: g.holdoutLaw?.save(), // each holdout's standing (local wanted, the gate locker, passes) and the house paper you carry (systems/holdouts.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
     crafting: g.crafting?.save(), // what you know how to make, the benches you set down, the queue (systems/crafting.js)
@@ -6340,6 +6347,7 @@ export function restore(g, s) {
   g.cooking?.load(s.cooking ?? null);
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
+  g.holdoutLaw?.load(s.holdouts ?? null); // the holdouts' law: local wanted, the gate lockers, house paper (an old save: a clean slate)
 
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

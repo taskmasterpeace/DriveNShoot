@@ -178,6 +178,7 @@ burnt exits, to Jacksonville and Miami. Florida reads as flat, wet and green: bu
 
 ## 6. Dependencies
 
+- WEB_HOLDOUTS: the generator seeds walled holdouts at Florida's exit towns (Sebastian, Little River, Daytona, The Alley, St. Augustine, Canal Locks) through the same `world/holdout.js`; Meridian stays authored and first.
 - WEB_STREAMING (chunks, tiers, pools, the stall guard, golden hashes; this is P2's "Florida overlay" without the render
   origin), WEB_FLOORPLANS and WEB_BUILDING_LAB (the planned shells), WEB_ATLAS (Florida's sites: the Miami thrill park and
   the Kings Bay yard are next on the L4 ladder), WEB_INFECTED (`zombies.horde`), WEB_WORLD_MEMORY (the MERIDIAN and

@@ -541,7 +541,7 @@ export class Rites {
     this.planned = true;
     for (const rec of this.g.citygen?.plan ?? []) this.cemFor(rec);
     for (const F of FIXED_CEMETERIES) this.addFixed(F);
-    for (const H of this.g.streamer?.W?.holdouts ?? []) this.addFixed({ id: `holdout:${H.id ?? H.name}`, name: (H.name ?? 'HOLDOUT').toUpperCase(), kind: 'town_cemetery', x: H.cx + (H.hw ?? 40) + 26, z: H.cz, pop: H.pop ?? 60, years: 70, danger: 0.3, holdout: true });
+    for (const H of this.g.streamer?.W?.holdouts ?? []) this.addFixed({ id: `holdout:${H.id ?? H.name}`, name: (H.name ?? 'HOLDOUT').toUpperCase(), kind: 'town_cemetery', x: H.mainGate === 'E' ? H.cx - (H.hw ?? 40) - 26 : H.cx + (H.hw ?? 40) + 26, z: H.cz, /* the side away from the main gate (a generated town's gate may face east) */ pop: H.pop ?? 60, years: 70, danger: 0.3, holdout: true });
   }
   cemFor(rec) {
     const id = `cem:${rec.id}`;
