@@ -709,7 +709,7 @@ export class Dogs {
   // The dog within reach of you that E would act on, and what it would do: { d, verb, text } or null.
   nearFor(P) {
     let best = null, bd = 2.6;
-    for (const d of this.dogs) { if (d.dead || d.ride) continue; const k = Math.hypot(d.x - P.x, d.z - P.z); if (k < bd) { bd = k; best = d; } }
+    for (const d of this.dogs) { if (d.dead || d.ride) continue; const k = Math.hypot(d.x - P.x, d.z - P.z); if (k < bd && (this.g.reach?.to(P, d.x, d.z) ?? true)) { bd = k; best = d; } } // never the dog on the other side of the wall (systems/reach.js)
     if (!best) return null;
     const d = best, tierName = BOND_TIERS[this.tier(d)];
     if (d.downed) return this.bandageSlot() >= 0 ? { d, verb: 'bandage', text: `Bandage ${d.name} · ${Math.ceil(d.bleedT)} s` } : { d, verb: 'none', text: `${d.name} is bleeding out (${Math.ceil(d.bleedT)} s) · no bandage` };

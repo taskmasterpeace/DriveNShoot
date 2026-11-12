@@ -21,6 +21,7 @@ import { PRICE_TIER } from '../data/trade.js';
 const WATER_L = { water_bottle: 0.5, canteen: 1, water_can: 10 }; // litres each water container holds when full
 const r1 = (v) => Math.round(v * 10) / 10;
 
+const SPOT_PAD = { pad: 1.2 }; // a spot is a thing with a body (a tank, a hulk): the hand's line stops short of its middle
 export class RoadsideSys {
   constructor(game) {
     this.g = game;
@@ -62,6 +63,7 @@ export class RoadsideSys {
       const d = Math.hypot(sp.x - p.x, sp.z - p.z);
       // sp.y is measured from the ground (real terrain is the default: the ground under the spot, not 0)
       if (d > sp.r || d >= bd || Math.abs((p.gy ?? 0) - (sp.y ?? 0) - (W?.groundAt?.(sp.x, sp.z) ?? 0)) > 2) continue;
+      if (this.g.reach && !this.g.reach.to(p, sp.x, sp.z, SPOT_PAD)) continue; // the caps, the wheel, the hulk: a hand has to get there (systems/reach.js)
       best = sp; bd = d;
     }
     if (!best) return null;

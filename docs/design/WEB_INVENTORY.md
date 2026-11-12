@@ -157,6 +157,7 @@ rounds you have the most of. Ike will make your gun right again for a price that
 
 ## 6. Dependencies
 
+- `web/src/systems/reach.js` (WEB_REACH.md): `nearest(…, who)`, the PACK screen's other side and its NEAR list only take a box a hand can get to (no wall, shut door or floor between).
 - `web/src/main.js`: construction, the pickups (`pickItem`), V (`quickUse`), I/Tab, bodies in `onKill`, pack update.
 - `web/src/systems/skills.js`: carried weight includes `inventory.kg()`.
 - `web/src/systems/survival.js`: needs and pips (items write `g.needs`, then re-pip).

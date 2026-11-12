@@ -656,7 +656,7 @@ export class Casinos {
     if (!this.enabled || p.inVehicle || this.g.tablePanel?.open) return false;
     const g = this.g, at = this.seatNear(p.x, p.z, 1.1);
     const pad = this.dockNear(p.x, p.z, 1.8);
-    if (pad && !pad.broken) {
+    if (pad && !pad.broken && (this.g.reach?.to(p, pad.x, pad.z) ?? true)) {
       if (I.key('KeyE')) { pad.cut += dt; g.hud.prompt(`Cutting the charger's cable… ${Math.round(Math.min(1, pad.cut / SEC_DRONE.cut) * 100)}%`); if (pad.cut >= SEC_DRONE.cut) this.sabotage(pad); }
       else { pad.cut = 0; g.hud.prompt("The drones' charging pad · hold <kbd>E</kbd> cut its cable"); }
       this.ring.x = pad.x; this.ring.z = pad.z; g.qol?.highlight?.(this.ring);

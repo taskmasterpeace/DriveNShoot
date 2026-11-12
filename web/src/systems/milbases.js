@@ -26,6 +26,7 @@ const r1 = (v) => Math.round(v * 10) / 10;
 const lerp = (a, b, t) => a + (b - a) * t;
 const hashS = (s) => { let v = 2166136261; for (let i = 0; i < s.length; i++) { v ^= s.charCodeAt(i); v = Math.imul(v, 16777619); } return v >>> 0; };
 
+const GEN_PAD = { pad: 1.2 }; // the generator has a body: the hand's line stops at its casing (systems/reach.js)
 export class Milbases {
   constructor(g) {
     this.g = g;
@@ -225,13 +226,13 @@ export class Milbases {
     for (const s of this.live.values()) {
       if (!this.inside(s, p.x, p.z, 4)) continue;
       const R = this.rec(s.id), G = s.mb.generator, L = s.mb.log, B = s.mb.blast;
-      if (!R.power && Math.hypot(p.x - G.x, p.z - G.z) < 3.2) {
+      if (!R.power && Math.hypot(p.x - G.x, p.z - G.z) < 3.2 && (g.reach?.to(p, G.x, G.z, GEN_PAD) ?? true)) {
         const has = (g.inventory?.carried.count('fuel_can') ?? 0) >= MB_RULES.sealed.fuel;
         hud?.prompt?.(has ? '<kbd>E</kbd> Pour a fuel can in and start the generator' : 'Generator · dry (it wants a fuel can)');
         if (hit && has) this.power(s, p);
         return { x: G.x, z: G.z, len: 2 };
       }
-      if (Math.hypot(p.x - L.x, p.z - L.z) < 2.6 && (p.gy ?? 0) - s.y < 1.5) {
+      if (Math.hypot(p.x - L.x, p.z - L.z) < 2.6 && (p.gy ?? 0) - s.y < 1.5 && (g.reach?.to(p, L.x, L.z) ?? true)) {
         hud?.prompt?.('<kbd>E</kbd> Read the duty log');
         if (hit) this.read(s, p);
         return { x: L.x, z: L.z, len: 1.2 };

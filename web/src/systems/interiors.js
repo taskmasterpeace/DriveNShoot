@@ -561,8 +561,12 @@ export class Interiors {
 
   // ---- the player's interact key ----------------------------------------------------------------
   // Nearest door or window the interact key would act on (within reach, in front of it).
+  // A door round the corner or a window in the far wall of the next room is not in reach: the hand's line must be clear
+  // (systems/reach.js). Candidates are gathered first: the reach line re-stamps the grid.
   nearest(p) {
     let best = null, bd = 1.9;
+    const cand = this._cand ?? (this._cand = []);
+    cand.length = 0;
     const S = this.g.statics, x0 = S.ci(p.x - 2), x1 = S.ci(p.x + 2), z0 = S.ci(p.z - 2), z1 = S.ci(p.z + 2);
     const stamp = ++S.stamp;
     const lists = this._lists ?? (this._lists = []);
@@ -583,15 +587,18 @@ export class Interiors {
           for (const L of door.leaves) if (L.th > 0.3 || L.th < -0.3) shut = false;
           if (door.broken || (!shut && !door.locked)) continue;
           const d = Math.hypot(p.x - door.x, p.z - door.z);
-          if (d < bd) { bd = d; best = door; }
+          if (d < 1.9) cand.push(d, door);
         } else {
           const ex = p.x - op.x, ez = p.z - op.z, along = ex * op.ux + ez * op.uz, across = ex * op.nx + ez * op.nz;
           if (along > op.half + 0.3 || along < -op.half - 0.3 || across > 1.5 || across < -1.5) continue;
           const d = Math.hypot(ex, ez) - 0.25;
-          if (d < bd) { bd = d; best = op; }
+          if (d < 1.9) cand.push(d, op);
         }
       }
     }
+    const R = this.g.reach;
+    for (let i = 0; i < cand.length; i += 2) if (cand[i] < bd && (!R || R.opening(p, cand[i + 1]))) { bd = cand[i]; best = cand[i + 1]; }
+    cand.length = 0;
     return best;
   }
 

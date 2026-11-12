@@ -580,9 +580,11 @@ export class Inventory {
   }
 
   // y: the asker's height. A box on another floor (world/storeys.js) is out of reach whatever its x, z. Without y, any floor.
-  nearest(x, z, reach = 2.2, notGround = false, y = undefined) {
+  // who: the person reaching. Given, a box their hand cannot get to (a wall, a shut door between: systems/reach.js) is
+  // passed over, so the nearest one they CAN reach wins.
+  nearest(x, z, reach = 2.2, notGround = false, y = undefined, who = null) {
     let best = null, bd = reach;
-    for (const b of this.boxes.values()) { if (b.unseen || (notGround && b.kind === 'ground')) continue; /* unseen: lying where nobody has looked (systems/actions.js look-around) */ if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) { if (b.unseen || (notGround && b.kind === 'ground')) continue; /* unseen: lying where nobody has looked (systems/actions.js look-around) */ if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd && (who === null || this.g.reach.box(who, b))) { bd = d; best = b; } }
     return best;
   }
 

@@ -1284,7 +1284,8 @@ export class Fauna {
   // E's offer (main.js interaction chain): butcher the carcass at your feet, or cook what you carry at the fire.
   nearFor(p) {
     if (!p.alive || p.inVehicle) return null;
-    const a = this.carcassNear(p.x, p.z);
+    let a = this.carcassNear(p.x, p.z);
+    if (a && this.g.reach && !this.g.reach.to(p, a.x, a.z)) a = null; // a carcass through a wall is not one to butcher (systems/reach.js)
     if (a) {
       if (this.job?.a === a) return { a, verb: 'busy', text: `Butchering the ${a.S.name.toLowerCase()} · ${Math.round((this.job.t / this.job.need) * 100)}% · move to stop` };
       const b = this.bladeOf();

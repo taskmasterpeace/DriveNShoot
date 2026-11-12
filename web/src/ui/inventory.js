@@ -135,14 +135,14 @@ export class InventoryUI {
   // else the ground.
   pickOther() {
     const g = this.g, inv = g.inventory, p = g.player;
-    if (inv.opened && (inv.opened.kind === 'trunk' || Math.hypot(inv.opened.x - p.x, inv.opened.z - p.z) < 3 || g.trade?.keeperAt(inv.opened))) return inv.opened; // a counter opened from a talk: anywhere in the shop
-    const near = !p.inVehicle && inv.nearest(p.x, p.z, 2.6, true); // a body is long: stand anywhere along it
+    if (inv.opened && (inv.opened.kind === 'trunk' || (Math.hypot(inv.opened.x - p.x, inv.opened.z - p.z) < 3 && g.reach.box(p, inv.opened)) || g.trade?.keeperAt(inv.opened))) return inv.opened; // a counter opened from a talk: anywhere in the shop
+    const near = !p.inVehicle && inv.nearest(p.x, p.z, 2.6, true, p.gy ?? 0, p); // a body is long: stand anywhere along it
     if (near) return g.actions ? g.actions.openTop(near) : inv.open(near); // opened, not searched: what's on top (systems/actions.js)
     const v = this.carAt();
     if (v) return inv.trunk(v);
     return inv.groundAt(p.x, p.z);
   }
-  carAt() { const p = this.g.player; return p.inVehicle ?? this.g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - p.x, c.z - p.z) < Math.max(3.4, c.len * 0.65)); }
+  carAt() { const p = this.g.player; return p.inVehicle ?? this.g.vehicles.find((c) => !c.dead && !c.sunk && Math.hypot(c.x - p.x, c.z - p.z) < Math.max(3.4, c.len * 0.65) && this.g.reach.vehicle(p, c)); }
 
   // NEAR YOUR FEET: every container within reach on your floor (searched as you look: a first look is a search), the
   // trunk you stand at, the ground here; the other side first, then nearest first. At most NEAR_MAX.
@@ -154,7 +154,7 @@ export class InventoryUI {
         if (b.kind === 'ground' && !b.slots.length) continue;
         if (Math.abs((b.y ?? 0) - y) > LEVEL.same) continue;
         const d = Math.hypot(b.x - p.x, b.z - p.z);
-        if (d <= NEAR_REACH) ds.push([d, b]);
+        if (d <= NEAR_REACH && g.reach.box(p, b)) ds.push([d, b]); // never the shelf on the other side of the wall
       }
       ds.sort((a, b) => a[0] - b[0]);
       for (const [, b] of ds) { if (!b.rolled) inv.open(b); out.push(b); }

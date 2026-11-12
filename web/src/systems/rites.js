@@ -999,7 +999,7 @@ export class Rites {
     if (!R) { this.ePress = -1; return; }
     // E is the body's only when nothing else claims it: no door or window in reach (their hold boards or picks), no
     // downed crew member (theirs is a drag too), and the nearest box is this body's own
-    const box = g.inventory?.nearest(p.x, p.z, 2.2, true, p.gy ?? 0);
+    const box = g.inventory?.nearest(p.x, p.z, 2.2, true, p.gy ?? 0, p);
     if (g.interiors?.nearest?.(p) || g.interiors?.hold > 0 || g.crew?.drag || g.crew?.downedNear?.() || (box && box.id !== R.box)) { this.ePress = -1; return; }
     if (I.hit('KeyE')) { this.ePress = g.time; return; } // the tap still reaches main.js's box search
     if (this.ePress >= 0 && I.key('KeyE') && g.time - this.ePress > BURIAL.holdE) { this.ePress = -1; g.invUI?.toggle?.(false); const r = this.startDrag(R, p); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }

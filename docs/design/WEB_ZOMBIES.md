@@ -231,6 +231,7 @@ v1 exposes it as `zombies occupy=<kind>`. Nothing calls it on its own yet (§5).
 | `systems/throwables.js` | — | `fires` |
 | `data/gear.js` | — | `HIT_ODDS` |
 | BALLISTICS (`combat.js`) | set `c.hitPart` when a round knows its hit zone | none (file not touched) |
+| `systems/reach.js` (WEB_REACH.md) | — | a shut door stops a hand and a word as it stops a body: nobody loots or talks through the door the infected are thumping |
 | residents, director, survival, gadgets lure | `ztarget` still works: it becomes a "told" fix | — |
 
 ## 7. Tuning knobs

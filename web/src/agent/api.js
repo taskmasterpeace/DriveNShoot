@@ -97,6 +97,7 @@ import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
+import { reachCommands, reachChecks } from './reach-api.js'; // REACH: no hand through a wall (WEB_REACH.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
 import { INFECTED } from '../data/infected.js'; // the sprinter's row (its burst clock) for the kinds check
 
@@ -2144,6 +2145,7 @@ function buildCommands(api) {
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...longRoadCommands(api, need), // THE LONG ROAD (src/agent/longroad-api.js)
     ...roadsideCommands(api, need),
+    ...reachCommands(api, need), // what your hand can get to and what stops it (WEB_REACH.md)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
     ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
   };
@@ -5801,6 +5803,7 @@ async function runSelfTest(api, only = null, skip = null) {
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
   await deathsChecks({ g, api, C, check, stage, hush }); // THE DEATH LIBRARY and zombie fun (src/agent/deaths-api.js)
+  await reachChecks({ g, api, C, check, stage, hush }); // REACH: a wall, a shut door or a floor stops every E, the PACK list and the agent (src/agent/reach-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
   await meleeChecks({ api, g, C, check, stage, person, hush }); // HAND TO HAND: rows, block vs bat, parry, neck and clinch, hostage, struggle, finisher, knuckles, machete, the AI
