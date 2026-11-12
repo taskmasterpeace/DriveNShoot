@@ -179,6 +179,7 @@ export class Survival {
       if (!S && (this.breathT -= dt) <= 0) { this.breathT = 3.2 + Math.random() * 0.9; g.audio?.breath?.(F.treated ? 0.45 : 1); } // you can hear it
       if (this.hours() >= F.until) this.feverEnds('passed');
     }
+    const RS = g.carousel?.sickFx(); if (RS) { A.sway *= RS.spread; A.vig = Math.max(A.vig, RS.vig); if (RS.micro) A.micro = true; } // ring-sick (systems/carousel.js): aim spread, the REST look, its microsleeps
     N.staminaRegen = A.regen; N.maxStamina = A.maxSt; N.vignette = A.vig; N.sway = Math.min(SWAY.cap, A.sway); // the stack's cap (data/survival.js SWAY)
     N.speedMul = A.speed; N.healMul = A.heal * (g.deep?.fx.healMul ?? 1); N.sight = A.sight; // healMul: + Grit, First aid, Resilient (systems/stats.js)
     this.waterMul = A.water; this.foodMul = A.food; this.gloomMul = A.gloom;

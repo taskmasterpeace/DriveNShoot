@@ -83,6 +83,7 @@ import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
 import { holdoutsCommands, holdoutsChecks } from './holdouts-api.js'; // THE HOLDOUTS: the generator, Keyholders, HOUSE RULES, the gate, house paper (docs/design/WEB_HOLDOUTS.md)
+import { carouselCommands, carouselChecks } from './carousel-api.js'; // THE CAROUSEL: stations, the ring, the throw, ring-sick (docs/design/WEB_CAROUSEL.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { policeCommands, policeChecks } from './police-api.js'; // POLICE RESPONSE: stations, beats, the desk, units, sirens (WEB_POLICE_RESPONSE.md)
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
@@ -2142,6 +2143,7 @@ function buildCommands(api) {
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
     ...holdoutsCommands(api, need), // THE HOLDOUTS (src/agent/holdouts-api.js, docs/design/WEB_HOLDOUTS.md): holdouts
+    ...carouselCommands(api, need), // THE CAROUSEL: carousel, ringJump (src/agent/carousel-api.js, docs/design/WEB_CAROUSEL.md)
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...policeCommands(api, need), // police: stations, patrols, dispatch, units (src/agent/police-api.js)
@@ -6186,6 +6188,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
   await holdoutsChecks(api, check, C); // THE HOLDOUTS: the generator, the walkability audit, the gate check, HOUSE RULES by the witness pass, the bulls' rounds, paper, save, Meridian (src/agent/holdouts-api.js)
+  await carouselChecks(api, check, C); // THE CAROUSEL: the station's ladder, the ring's look, ROULETTE across regions (acceptance 9), PAIR, BACKSPIN, keys, ring-sick, save, Ring-born (src/agent/carousel-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await farmingChecks(api, check, C); // THE HOUSE GARDEN: sow, water, grow, harvest, drought, frost, blight, pests, theft, hens, the crew, the market, cooking (src/agent/farming-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
@@ -6246,6 +6249,7 @@ export function snapshot(g) {
     farming: g.farming?.save(), // beds, coops, hens, eggs, consignments, the garden log (systems/farming.js)
     cooking: g.cooking?.save(), // well fed, the meals cooked (systems/cooking.js)
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
+    carousel: g.carousel?.save(), // THE CAROUSEL: the last ring, rings known, armed rings, ring-sick, where the rig was left (systems/carousel.js)
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
     holdouts: g.holdoutLaw?.save(), // each holdout's standing (local wanted, the gate locker, passes) and the house paper you carry (systems/holdouts.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
@@ -6348,6 +6352,7 @@ export function restore(g, s) {
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
   g.holdoutLaw?.load(s.holdouts ?? null); // the holdouts' law: local wanted, the gate lockers, house paper (an old save: a clean slate)
+  if (s.carousel) g.carousel?.load(s.carousel); // after the crew: below in a station, the members stand on your level again (an old save: the ring as it is)
 
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
