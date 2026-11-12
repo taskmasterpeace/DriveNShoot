@@ -17,6 +17,21 @@ export async function vehDronesChecks(api, check, C) {
   const reset = () => { for (const d of S().drones) S().dock(d); for (const N of S().nests) N.alert = null; };
   const off = () => { I.down.delete('KeyW'); g.aimOverride = null; reset(); g.player.hp = g.player.maxHp ?? 100; g.player.alive = true; };
   // Stand where the watcher's loop will bring it over you: on the circle a quarter turn ahead of it (staging).
+  // Shoot at a drone the way a player does: the cursor on it (the aim at its height, main.js skyAim) and the trigger pulled,
+  // a press at a time, until it falls or `tries` pulls. Returns the pulls.
+  const shootAt = async (d, tries = 40) => {
+    const ammo0 = { ...g.inv.ammo }, mag0 = { ...g.inv.mag }; let pulls = 0;
+    try {
+      for (let k = 0; k < tries && d.state !== 'falling' && d.state !== 'gone'; k++) {
+        if (g.player.hp < 40) g.player.hp = 80;
+        if (g.inv.mag[g.inv.current] <= 0) for (const a in g.inv.ammo) g.inv.ammo[a] = Math.max(g.inv.ammo[a], 30); // staged: rounds in the pocket
+        g.aimOverride = { x: d.x + d.vx * 0.05, z: d.z + d.vz * 0.05, y: d.y };
+        I.mouse.left = true; I.mouse.leftPressed = true; await api._step(1); I.mouse.left = false; I.mouse.leftPressed = false; pulls++;
+        for (let f = 0; f < 14; f++) { g.aimOverride = { x: d.x, z: d.z, y: d.y }; await api._step(1); }
+      }
+    } finally { I.mouse.left = false; g.aimOverride = null; Object.assign(g.inv.ammo, ammo0); Object.assign(g.inv.mag, mag0); }
+    return pulls;
+  };
   const ahead = (d, N) => { const a = d.loopA + 0.6; return { x: N.at.x + Math.cos(a) * N.loop, z: N.at.z + Math.sin(a) * N.loop }; };
 
   await check('sky drones: the rows validate; come near a nest and its watcher lifts off and flies its loop at height, banking into the turn, while the gun drone stays on the pad', async () => {
@@ -35,7 +50,7 @@ export async function vehDronesChecks(api, check, C) {
 
   await check('sky drones: a watcher that sees you comes over you and stays on you as you walk; the Remnant at your standing only watch (no call, no gun drone)', async () => {
     try {
-      reset();
+      reset(); const F = g.society.factions, st0 = F.standing[F.index.remnant]; F.set('remnant', 0); // staged: neutral with the Remnant (restored below)
       await C('teleport', { x: OUT.at.x + 40, z: OUT.at.z + 60 }); await api._step(2);
       const w = drone(`${OUT.id}:watcher`), s = drone(`${OUT.id}:striker`); w.bat = w.D.battery;
       for (let f = 0; f < 240 && w.state !== 'patrol'; f++) await api._step(1);
@@ -47,8 +62,8 @@ export async function vehDronesChecks(api, check, C) {
       for (let f = 0; f < 360; f++) { await api._step(1); if (f > 200) far = Math.max(far, Math.hypot(w.x - g.player.x, w.z - g.player.z)); } // once it has closed in
       I.down.delete('KeyW');
       const calls = ((await C('events', { since: seq0, type: 'droneCall' })).events ?? []).filter((e) => e.nest === OUT.id).length;
-      const out = { state: w.state, far: r1(far), calls, gun: s.state, hostile: S().hostile(nest(OUT.id)) };
-      return w.state === 'track' && far < 12 && (out.hostile || (calls === 0 && s.state === 'pad')) ? true : JSON.stringify(out);
+      const out = { state: w.state, far: r1(far), calls, gun: s.state, hostile: S().hostile(nest(OUT.id)) }; F.set('remnant', st0);
+      return w.state === 'track' && far < 12 && !out.hostile && calls === 0 && s.state === 'pad' ? true : JSON.stringify(out);
     } finally { off(); }
   });
 
@@ -62,13 +77,13 @@ export async function vehDronesChecks(api, check, C) {
       await C('teleport', ahead(w, R));
       const seq0 = g.eventSeq, shots0 = S().counts.shots;
       // Count the rounds that reach you from nobody's hand (the drone's: combat.hitscan with no shooter), god mode or not.
-      const dmg0 = g.combat.damage; let hits = 0; g.combat.damage = function (t, d, by, ...a) { if (t === g.player && !by) hits++; return dmg0.call(this, t, d, by, ...a); };
+      // A hit counts only if it came along the line from the gun drone (dx, dz: the round's way).
+      const dmg0 = g.combat.damage; let hits = 0; g.combat.damage = function (t, d, by, dx, dz, ...a) { if (t === g.player && !by && Number.isFinite(dx)) { const L = Math.hypot(g.player.x - s.x, g.player.z - s.z) || 1; if ((dx * (g.player.x - s.x) + dz * (g.player.z - s.z)) / L > 0.9) hits++; } return dmg0.call(this, t, d, by, dx, dz, ...a); };
       const hp0 = g.player.hp;
       let launched = false, minHp = hp0, closest = 1e9;
       for (let f = 0; f < 3600; f++) { // up to a minute: a raider's car between you and it takes rounds too
         await api._step(1);
         if (s.state === 'hunt') launched = true;
-        if (s.state === 'home' && launched && f % 600 === 0) { s.state = 'hunt'; R.alert = { x: g.player.x, z: g.player.z, t: g.time }; } // staged: back on you if a long wait sent it home
         if (launched) closest = Math.min(closest, Math.hypot(s.x - g.player.x, s.z - g.player.z));
         minHp = Math.min(minHp, g.player.hp);
         if (S().counts.shots - shots0 >= 6 && hits > 0) break;
@@ -77,10 +92,10 @@ export async function vehDronesChecks(api, check, C) {
       const calls = ((await C('events', { since: seq0, type: 'droneCall' })).events ?? []).filter((e) => e.nest === ROOST.id).length;
       const out = { watcher: w.state, calls, launched, closest: r1(closest), shots: S().counts.shots - shots0, hits, hostile: S().hostile(R) };
       return out.hostile && calls > 0 && launched && closest < s.D.orbit + 8 && out.shots > 0 && hits > 0 ? true : JSON.stringify(out);
-    } finally { off(); }
+    } finally { delete g.combat.damage; off(); }
   });
 
-  await check('sky drones: you can shoot a gun drone down - the cursor on it aims at it; it falls, breaks and leaves its parts on the ground; the nest builds another after a day', async () => {
+  await check('sky drones: with the cursor on a gun drone your trigger shoots it down - it falls, breaks and leaves its parts on the ground; the nest has none for a day, then builds another', async () => {
     try {
       reset();
       const R = nest(ROOST.id), s = drone(`${ROOST.id}:striker`);
@@ -90,34 +105,49 @@ export async function vehDronesChecks(api, check, C) {
       // The cursor on it: a ray from the camera through the drone puts the aim on the drone at its height (main.js skyAim).
       const cam = g.camera.position, ty = S().ground(s.x, s.z) + s.y, L = Math.hypot(s.x - cam.x, ty - cam.y, s.z - cam.z);
       const aim = { x: 0, z: 0, y: 0 }, onIt = S().skyAim({ origin: cam, direction: { x: (s.x - cam.x) / L, y: (ty - cam.y) / L, z: (s.z - cam.z) / L } }, aim) === s && Math.hypot(aim.x - s.x, aim.z - s.z) < 0.01 && aim.y === s.y;
-      const seq0 = g.eventSeq; let fired = 0; const ammo0 = { ...g.inv.ammo }, mag0 = { ...g.inv.mag }; // put back after (a full pack fails later checks)
-      for (let k = 0; k < 40 && s.state !== 'falling' && s.state !== 'gone'; k++) {
-        if (g.player.hp < 40) g.player.hp = 80;
-        const r = await C('fire', { x: s.x, z: s.z, shots: 1 }); fired += r.fired ?? 0;
-        if (r.error === 'out of ammo') for (const k in g.inv.ammo) g.inv.ammo[k] = 60; // staged: a pocketful more
-        await api._step(6);
-      }
+      const seq0 = g.eventSeq, scrap0 = g.inventory.groundAt(s.x, s.z, S().ground(s.x, s.z))?.count('scrap') ?? 0;
+      const fired = await shootAt(s, 40);
       for (let f = 0; f < 600 && s.state !== 'gone'; f++) await api._step(1);
-      Object.assign(g.inv.ammo, ammo0); Object.assign(g.inv.mag, mag0);
       const down = ((await C('events', { since: seq0, type: 'droneDown' })).events ?? []).some((e) => e.drone === s.id);
-      const pile = g.inventory.groundAt(s.x, s.z), parts = pile ? pile.count('scrap') : 0;
-      const gone = s.state === 'gone', at = s.rebuildAt;
-      g.society.day = (g.society.day ?? 0) + 1; await api._step(2); // staged: a day goes by
+      const pile = g.inventory.groundAt(s.x, s.z, S().ground(s.x, s.z)), parts = (pile ? pile.count('scrap') : 0) - scrap0;
+      const gone = s.state === 'gone', at = s.rebuildAt, wait = at - S().hours();
+      const t0 = g.sky.time; g.sky.time = (t0 + 12) % 24; if (t0 + 12 >= 24) g.society.day += 1; await api._step(2); // staged: half a day goes by
+      const half = s.state === 'gone';
+      g.society.day = (g.society.day ?? 0) + 1; await api._step(2); // staged: and a whole one
       const back = s.state === 'pad';
-      return onIt && down && gone && parts > 0 && back ? true : JSON.stringify({ onIt, fired, down, state: s.state, gone, parts, at: r1(at), back });
+      return onIt && down && gone && parts === s.D.salvage.find(([i]) => i === 'scrap')[1] && wait > 23 && half && back ? true : JSON.stringify({ onIt, fired, down, state: s.state, gone, parts, wait: r1(wait), half, back });
     } finally { off(); }
   });
 
-  await check('sky drones: a save and a load keep a downed drone down until its nest has built it again', async () => {
+  await check('sky drones: a save and a load keep a downed drone down until its nest has built it again, and a hurt one hurt', async () => {
     try {
       reset();
       const s = drone(`${ROOST.id}:striker`);
       s.state = 'gone'; s.rebuildAt = S().hours() + NEST_RULES.rebuild; // staged: shot down a moment ago
+      const w = drone(`${ROOST.id}:watcher`); w.hp = 20; // staged: and its watcher winged
       const snap = (await C('save')).save;
-      Object.assign(s, S().fresh(s.nest, s.kind)); // the page forgets
+      Object.assign(s, S().fresh(s.nest, s.kind)); Object.assign(w, S().fresh(w.nest, w.kind)); // the page forgets
       await C('load', { save: snap }); await api._step(2);
       const kept = s.state === 'gone' && Math.abs(s.rebuildAt - (S().hours() + NEST_RULES.rebuild)) < 1;
-      return kept ? true : JSON.stringify({ state: s.state, rebuildAt: r1(s.rebuildAt), now: r1(S().hours()) });
-    } finally { S().drones.forEach((d) => { if (d.state === 'gone') Object.assign(d, S().fresh(d.nest, d.kind)); }); off(); }
+      return kept && w.hp === 20 ? true : JSON.stringify({ state: s.state, rebuildAt: r1(s.rebuildAt), now: r1(S().hours()), watcherHp: w.hp });
+    } finally { S().drones.forEach((d) => { if (d.state === 'gone' || d.hp < d.D.hp) Object.assign(d, S().fresh(d.nest, d.kind)); }); off(); }
+  });
+
+  await check('sky drones: shooting a friendly faction drone is an attack on them - your standing with the Remnant drops, more when it comes down; a flat shot at a man passes under a drone over his head', async () => {
+    const F = g.society.factions, st0 = F.standing[F.index.remnant];
+    try {
+      reset(); F.set('remnant', 10); // staged: on fine terms with them
+      await C('teleport', { x: OUT.at.x + 40, z: OUT.at.z + 60 }); await api._step(2);
+      const w = drone(`${OUT.id}:watcher`); w.bat = w.D.battery;
+      for (let f = 0; f < 600 && !(w.state === 'patrol' && w.y > w.D.alt * 0.9); f++) await api._step(1);
+      // Flat under it first: a ground-level round along a line under the drone does not touch it.
+      const under = S().raycast(w.x - 10, w.z, 1, 0, 30, 0);
+      await C('teleport', { x: w.x - 9, z: w.z - 9 }); await api._step(1);
+      const s1 = F.standing[F.index.remnant];
+      await shootAt(w, 1); const s2 = F.standing[F.index.remnant]; // one round: winged
+      await shootAt(w, 30); for (let f = 0; f < 400 && w.state !== 'gone'; f++) await api._step(1);
+      const s3 = F.standing[F.index.remnant];
+      return !under && w.state === 'gone' && s2 <= s1 && s3 < s1 && s3 < s2 ? true : JSON.stringify({ under: !!under, state: w.state, standing: [r1(s1), r1(s2), r1(s3)] });
+    } finally { F.set('remnant', st0); S().drones.forEach((d) => { if (d.state === 'gone') Object.assign(d, S().fresh(d.nest, d.kind)); }); off(); }
   });
 }

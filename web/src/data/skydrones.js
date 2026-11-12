@@ -21,13 +21,15 @@ export const SKY_DRONES = {
 // How far a nest wakes (m from you: past it its drones sit on the pad, nothing is simulated), how long a watcher keeps a
 // lost track before it gives up (s), when a gun drone gives up and goes home (s with no sighting), how long a nest takes to
 // build a lost drone again (game hours), how far its people hear its radio (m).
-export const NEST_RULES = { wake: 420, lose: 6, giveUp: 12, rebuild: 24, radio: 160, low: 0.15 };
+// (wake is kept under the 380 m from Rust Haven's square to the nearest nest: in the starting town none is simulated.)
+export const NEST_RULES = { wake: 260, lose: 6, giveUp: 12, rebuild: 24, radio: 300, low: 0.15 };
 
 // The nests. at: the pad (world m); faction/fid: whose (a character's faction and its society faction id, systems/factions.js:
 // your standing with it decides whether they call you in);
 // loop: the watcher's circle; flies: what lives there.
 export const DRONE_NESTS = [
   { id: 'outpost_nine_nest', name: 'OUTPOST NINE DRONE PAD', faction: 'soldier', fid: 'remnant', at: { x: -290, z: -386 }, loop: 75, flies: ['watcher', 'striker'] },
+  // The Dustwolves' watch over the Last Chance Road in the Glass Flats: their riders work that road (radio reaches them).
   { id: 'dustwolf_roost', name: 'DUSTWOLF ROOST', faction: 'raider', fid: 'dustwolves', at: { x: -120, z: 380 }, loop: 85, flies: ['watcher', 'striker'] },
 ];
 
