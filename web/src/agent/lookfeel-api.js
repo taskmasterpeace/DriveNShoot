@@ -296,9 +296,10 @@ export async function lookfeelChecks({ g, api, C, check }) {
       return s / (w * w);
     };
     // Measured at the Night setting "Pitch dark (only your light)": what the lamps add, with no moon to hide it.
-    const nl0 = g.sky.nightLight; g.sky.nightLight = 0; await api._step(2);
+    // Clean glass too: an earlier crash's screen-edge dirt (the impact pass, systems/lookfeel.js) rides the same frame.
+    const nl0 = g.sky.nightLight, dirt0 = F.dirt; g.sky.nightLight = 0; F.dirt = 0; await api._step(2);
     const off = at(near, 0), on = at(near, 1);
-    g.sky.nightLight = nl0;
+    g.sky.nightLight = nl0; F.dirt = dirt0;
     const compiled = !!g.charR.meshes.torso.material.userData.lampCompiled && F.lamps.patched >= 6;
     // The torch: on foot, facing the man, the cone reaches him.
     g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); await api._step(6);
