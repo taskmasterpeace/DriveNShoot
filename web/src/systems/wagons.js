@@ -120,7 +120,7 @@ export class Wagons {
       if (v.wagonPace) { v.maxSpeed = v.wagonPace.maxSpeed; v.accel = v.wagonPace.accel; }
     }
     // A wagon with no team: it does not move under its own power, and rolling it slows to a stop (the wheel brake).
-    for (const v of vs) if (v.type === 'wagon' && !this.teams.has(v.id)) {
+    for (const v of vs) if (v.type === 'wagon' && !this.teams.has(v.id) && !v.towLine) { // (a wagon on a tow line rolls free behind its puller)
       v.maxSpeed = STILL; v.accel = 0;
       const k = Math.max(0, 1 - dt * 1.6); v.vx *= k; v.vz *= k;
     }
