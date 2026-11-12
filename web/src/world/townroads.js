@@ -289,8 +289,30 @@ export function layTownRoads(W, plan) {
       if (W.depthAt?.(f.x + f.nx * REACH, f.z + f.nz * REACH, 0) > 0.05 || W.depthAt?.(f.x - f.nx * REACH, f.z - f.nz * REACH, 0) > 0.05) return 'the cross road ends in water';
       return null;
     };
-    let sEx = null, why = [];
-    for (const s of cands) { const w = ok(s); if (!w) { sEx = s; break; } why.push(`${Math.round(s)}: ${w}`); }
+    const own = (x, z) => x > T.x0 - 10 && x < T.x1 + 10 && z > T.z0 - 10 && z < T.z1 + 10;
+    const tc = { x: (T.x0 + T.x1) / 2, z: (T.z0 + T.z1) / 2 };
+    const routeFrom = (Xf) => {
+      const sd = (tc.x - Xf.x) * Xf.nx + (tc.z - Xf.z) * Xf.nz >= 0 ? 1 : -1;
+      const pA = { x: Xf.x + Xf.nx * sd * REACH, z: Xf.z + Xf.nz * sd * REACH };
+      const byNear = ents.slice().sort((a, b) => Math.hypot(a.x - pA.x, a.z - pA.z) - Math.hypot(b.x - pA.x, b.z - pA.z));
+      let best = null;
+      for (const en of byNear.slice(0, 4)) {
+        const dl = Math.hypot(en.x - pA.x, en.z - pA.z);
+        if (dl <= 40) return { R: null, en, pA, dl };
+        const pB = { x: Xf.x + Xf.nx * sd * (REACH + Math.min(160, dl * 0.3)), z: Xf.z + Xf.nz * sd * (REACH + Math.min(160, dl * 0.3)) };
+        const R = routeAccess(W, [pA, pB, { x: en.x, z: en.z }], (x, z) => blocked(x, z, rec) || own(x, z));
+        if (!best || R.bad < best.R.bad) best = { R, en, pA, dl };
+        if (!R.bad) break;
+      }
+      return best;
+    };
+    let sEx = null, why = [], route = null;
+    for (const s of cands) {
+      let w = ok(s);
+      if (!w) { route = routeFrom(cor.at(s)); if (route?.R?.bad) w = `its road could not be routed clean (${route.R.bad} points)`; }
+      if (!w) { sEx = s; break; }
+      why.push(`${Math.round(s)}: ${w}`); route = null;
+    }
     let X = null, reused = false;
     if (sEx !== null) {
       const f = cor.at(sEx);
@@ -323,33 +345,23 @@ export function layTownRoads(W, plan) {
     // chunks, the island and other towns (a detour sideways where the straight line meets one); a new exit's own straight
     // road (addExit) is replaced by it, so every town's road is laid by the same rule.
     if (!reused && X.access) { const i = added.ribbons.indexOf(X.access); if (i >= 0) added.ribbons.splice(i, 1); X.access = null; }
-    const tc = { x: (T.x0 + T.x1) / 2, z: (T.z0 + T.z1) / 2 };
-    const side = (tc.x - X.x) * X.nx + (tc.z - X.z) * X.nz >= 0 ? 1 : -1;
-    const pA = { x: X.x + X.nx * side * REACH, z: X.z + X.nz * side * REACH };
-    // the way in nearest the end of the cross road (a main street's end or a gate): the town is reached on its near side
-    const byNear = ents.slice().sort((a, b) => Math.hypot(a.x - pA.x, a.z - pA.z) - Math.hypot(b.x - pA.x, b.z - pA.z));
-    const e2 = byNear[0];
-    e.x = e2.x; e.z = e2.z; e.gate = e2.gate;
-    const dl = Math.hypot(e.x - pA.x, e.z - pA.z);
+    if (!route) route = routeFrom(X);
+    e.x = route.en.x; e.z = route.en.z; e.gate = route.en.gate;
     let acc = null;
-    if (dl > 40) {
-      const pB = { x: X.x + X.nx * side * (REACH + Math.min(160, dl * 0.3)), z: X.z + X.nz * side * (REACH + Math.min(160, dl * 0.3)) };
-      // ...and off its own town too: it arrives at the entry, it does not cut a corner of the town to get there
-      const own = (x, z) => x > T.x0 - 10 && x < T.x1 + 10 && z > T.z0 - 10 && z < T.z1 + 10;
-      // the nearest entry first; if something stands in the way that no detour clears (a base between the exit and the
-      // town), the next entry round the town, up to four
-      let R = null;
-      for (const en of byNear.slice(0, 4)) {
-        const Rt = routeAccess(W, [pA, pB, { x: en.x, z: en.z }], (x, z) => blocked(x, z, rec) || own(x, z));
-        if (!R || Rt.bad < R.bad) { R = Rt; e.x = en.x; e.z = en.z; e.gate = en.gate; }
-        if (!R.bad) break;
-      }
+    if (route.R) {
+      const R = route.R;
       if (R.bad) { rep.unserved.push({ id: rec.id, name: rec.name, why: `its road could not be routed clear of water, a pinned chunk or a settlement (${R.bad} points: ${R.wet} in water, ${R.other} on land it must keep off)` }); continue; }
       const ap = [];
       for (let i = 0; i < R.rs.n; i++) ap.push({ x: R.rs.x[i], z: R.rs.z[i], y: 0.032, wl: STREAM.access.halfW, wr: STREAM.access.halfW });
       acc = ribbon(`${rec.id} access`, 'county', 'county', ap, { exit: X.id, town: rec.id });
       acc.wet = R.bad; acc.detours = R.detours;
-      if (R.causeway) { acc.causeway = R.causeway; acc.causewayHalf = STREAM.access.halfW + 2.5; (W.causeways ??= []).push(acc); rep.causeways = (rep.causeways ?? 0) + 1; }
+      if (R.causeway) {
+        acc.causeway = R.causeway;
+        // the water's lookup gets only the wet stretches (+-24 m), each its own short ribbon: regions.js tests a point against them
+        const wetI = []; for (let i = 0; i < acc.n; i++) if (hardWater(W, acc.x[i], acc.z[i])) wetI.push(i);
+        for (let k = 0; k < wetI.length;) { let j = k; while (j + 1 < wetI.length && wetI[j + 1] - wetI[j] <= 2) j++; const a = Math.max(0, wetI[k] - 4), b = Math.min(acc.n - 1, wetI[j] + 4), pts = []; for (let i = a; i <= b; i++) pts.push({ x: acc.x[i], z: acc.z[i] }); const seg = ribbon(`${acc.id} causeway ${k}`, 'county', 'county', pts, { halfW: 3 }); seg.causewayHalf = STREAM.access.halfW + 2.5; (W.causeways ??= []).push(seg); k = j + 1; }
+        rep.causeways = (rep.causeways ?? 0) + 1;
+      }
       added.ribbons.push(acc);
       if (!reused) X.access = acc;
       (W.townAccess ??= []).push(acc);
@@ -424,7 +436,7 @@ export function relabelBillboards(W, cors) {
     const miles = Math.max(1, Math.round(Math.abs(X.s - b.s) / MI));
     b.next = { id: X.id, number: X.number, name: X.name, miles, metres: Math.round(Math.abs(X.s - b.s)), dead: !!X.dead };
     const face = R.faces.find((f) => f.id === b.id) ?? R.pendingBills?.find((q) => q.id === b.id)?.face;
-    if (face) face.lines = [`EXIT ${X.number}`, X.name, `${miles} ${miles === 1 ? 'MILE' : 'MILES'}`, X.dead ? 'NO SERVICES' : X.townRec ? 'FUEL · FOOD · AMMO' : face.lines[3] ?? ''];
+    if (face) face.lines = [`EXIT ${X.number}`, X.name, `${miles} ${miles === 1 ? 'MILE' : 'MILES'}`, X.dead ? 'NO SERVICES' : X.townRec ? 'FUEL · FOOD · AMMO' : X.holdout ? 'HOLDOUT · SAFE BEDS' : X.tags?.length ? X.tags.slice(0, 3).join(' · ').toUpperCase() : ''];
     b.lines = face ? face.lines.filter(Boolean) : b.lines;
     n++;
   }

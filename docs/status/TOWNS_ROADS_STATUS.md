@@ -39,6 +39,21 @@ Checks: `node tools/dl.mjs selftest only=towns:` (13 checks). `node tools/dl.mjs
   "no added lane on a bridge" holds there trivially; the `swamp` row in `LANE_TERRAIN` is ready for when a causeway
   interstate exists. Keepers and rulers are made on each machine like the town workers already are (not yet synced over
   the network).
+- **Related checks (my own tab, `only=` the 13 groups this touches: streaming, florida, worldmap, roadside, roadscape,
+  citygen, occupations, long-road, water, travel, milbases, pulls, towns).** First run 113/118: five were mine and are
+  fixed - I had sorted the shared exit list across all roads (a Florida exit became "exit 0" in I-10's ramp drive); a new
+  exit stood 450 m from a roadside billboard (exits now keep 700 m off billboards and roadside sites); the "next exit"
+  billboards still named the old next exit (they are relabelled with the town exits now); and the long road made no
+  wayside travellers at all, because its "keep off ramps" test compared Florida exits' miles against I-10's and the town
+  signs filled every dead stretch (it now plans its beats on the road as it was before the town exits: 6 beats with
+  travellers, wrecks and caches, against 9 on the base - three stretches now have a town instead). Last run: **129/131**;
+  the two misses (pulls: a bottle "no room in your pack", a medic call's body) came from my tab's pack being stuffed by
+  earlier aborted runs; on a fresh tab `pulls:` + `towns:` = **23/23**. The junkyard-strip check fails on the untouched
+  base too when run alone (not from this branch).
+- **Independent review 2 (same reviewer, the fixes): PASS, no blockers.** Its should-fixes also done: the towns are stood
+  up after the id counter on a load (no id clash); an exit is only built where its town's road routes clean; a causeway's
+  water lookup holds only its wet stretches (cheap); a keeper seated after an alarm does not freeze; relabelled
+  billboards take the service line of the exit they now name; the towns checks put the game back as they found it.
 
 ## Left / honest gaps
 

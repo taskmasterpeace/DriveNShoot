@@ -124,7 +124,7 @@ export class TownLife {
     const c = g.addChar({ x: k.spot.x, z: k.spot.z, faction: 'drifter', weapon, hp: k.keeper.hp ?? k.keeper.w?.hp ?? 100, colors: outfit('drifter', rng), name: k.keeper.name, flag: k.keeper.flag,
       npc: { id: k.keeper.id, name: k.keeper.name, title, flag: k.keeper.flag, faction: 'drifter', portrait: { seed: hashS(k.keeper.id) % 997, skin: rng.pick(SKIN), hair: '#2a1e18', hat: 'none', mood: 'neutral', shirt: '#6a5a44', gear: 'none' }, ...this.keeperTalk(s, k) } });
     if (!c) return null;
-    c.townlife = s.rec.id; c.title = title; c.face = k.spot.face; c.hold = true; c.post = { x: k.spot.x, z: k.spot.z, face: k.spot.face, role: 'counter' };
+    c.townlife = s.rec.id; c.title = title; c.face = k.spot.face; c.hold = !s.alarmed; c.post = { x: k.spot.x, z: k.spot.z, face: k.spot.face, role: 'counter' };
     if (k.box) k.box.owner = c.id;
     k.c = c;
     return c;

@@ -6262,7 +6262,6 @@ export function restore(g, s) {
   // The underground before the player: a save that has you below makes your site live and your level promoted, so the
   // floor is under your feet when you stand again (an older save: every site as it was made).
   g.milbases?.load(s.milbases ?? null);
-  g.townlife?.load(s.townlife ?? null);
   g.under?.load(s.under ?? null, s.player);
   const p = g.player;
   if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
@@ -6272,6 +6271,7 @@ export function restore(g, s) {
   if (s.player.vehicle) { const v = g.vehicles.find((x) => x.id === s.player.vehicle); if (v) g.enterVehicle(v); }
   // Id counter must stay ahead of restored ids.
   g.nextId = Math.max(g.nextId, ...s.chars.map((c) => Number(c.id.slice(1)) || 0));
+  g.townlife?.load(s.townlife ?? null); // the towns' keepers and rulers stood up again, after the id counter (their ids are new)
   // The society last: pending rumors find their witnesses by id among the people just restored.
   if (s.society) g.society.load(s.society);
   if (s.needs) g.survival.load(s.needs);

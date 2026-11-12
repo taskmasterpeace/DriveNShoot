@@ -65,6 +65,8 @@ export async function townsChecks(api, check, C) {
   const g = api.g, W = g.streamer?.W, CG = g.citygen;
   if (!W || !CG) { await check('towns: the streamed world and the city generator are built', async () => 'no W / citygen'); return; }
   const recs = CG.plan.filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site') && W.inWorld(r.x, r.z, -50));
+  // the game as these checks found it (they stand you in towns, buy, save and load): put back at the end
+  const S0 = (await C('save')).save;
   await check('towns: the rows pass their validators (names, counters, regions, rules, roadside, the lane rule)', async () => {
     const a = validateTowns({ items: ITEMS, occs: OCCUPATIONS, kinds: Object.keys(KINDS) }), b = validateLanes();
     return a.ok && b.ok ? true : [...a.errors, ...b.errors].join('; ');
@@ -107,7 +109,9 @@ export async function townsChecks(api, check, C) {
   // A town built and its counters: stand at the fuel counter at noon, buy a can of fuel; the stock does not grow back.
   let town = null;
   const stage = async () => {
-    const r = recs.find((q) => q.kind === 'town' && q.access?.ribbon) ?? recs.find((q) => q.access?.ribbon);
+    // a town whose fuel shelf has a can on it still (an earlier run bought them: nothing grows back, so take the next)
+    const inv = g.inventory, hasCan = (q) => { const id = `tl:${q.id}:fuel`, b = inv.boxes.get(id), kept = inv.ringKept?.get(id); return b ? !b.rolled || b.count('fuel_can') > 0 : kept ? kept.some((x) => x.id === 'fuel_can') : true; };
+    const r = recs.find((q) => q.kind === 'town' && q.access?.ribbon && hasCan(q)) ?? recs.find((q) => q.access?.ribbon && hasCan(q));
     if (!r) return null;
     await C('setTime', { hour: 12 });
     await C('towns', { action: 'entry', id: r.id });
@@ -191,4 +195,6 @@ export async function townsChecks(api, check, C) {
     const R = s.ruler;
     return R && R.alive && R.name && R.flag?.length === 2 && /Marshal/.test(R.title) && s.facts.rules.includes('GUNS CHECKED AT GATE') ? true : `ruler ${R?.name} ${R?.title} rules ${s.facts.rules.join('|')}`;
   });
+  await C('load', { save: S0 });
+  await C('teleport', { x: 0, z: -40 });
 }
