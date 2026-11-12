@@ -6299,7 +6299,6 @@ export function restore(g, s) {
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
   g.crafting?.load(s.crafting ?? null); // what you know how to make, benches set down, the queue (systems/crafting.js)
   g.cavalry?.load(s.cavalry ?? null); // an old save: the company not yet met (placed on your first approach)
-  g.wagons?.load(s.wagons ?? null); // the teams back at their tongues
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);
@@ -6353,6 +6352,7 @@ export function restore(g, s) {
   if (s.radio) g.radio?.load(s.radio);
   if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
   g.horses?.load(s.horses ?? null); // after the pack: the saddlebags are boxes (an old save: the herds are laid again)
+  g.wagons?.load(s.wagons ?? null); // after the horses: the teams back at their tongues (the ledger's records are the loaded ones)
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;
