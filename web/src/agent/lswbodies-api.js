@@ -208,7 +208,9 @@ export async function lswBodiesChecks(api, check, C) {
         if (up.y < Math.cos(LSW_RULES.flag.tilt) - 0.15) bad.push(`${c.name}: patch ${s} faces ${up.y.toFixed(2)} up, not the sky`);
       }
       const apart = Math.hypot(at[0].x - at[1].x, at[0].z - at[1].z);
-      if (apart < 0.2 || at[0].y < 1.2) bad.push(`${c.name}: patches ${apart.toFixed(2)} m apart at ${at[0].y.toFixed(2)} m (not on the two shoulders)`);
+      // The shoulders over the body's own ground, for its stance: a crouched one (a Greyborn kin at its fire, a worker at a snare) carries them lower.
+      const shY = at[0].y - (c.gy ?? 0), floorY = c.prone ? 0.25 : c.crouch ? 0.8 : 1.2;
+      if (apart < 0.2 || shY < floorY) bad.push(`${c.name}: patches ${apart.toFixed(2)} m apart at ${at[0].y.toFixed(2)} m (not on the two shoulders)`);
     }
     return bad.length ? bad.slice(0, 5).join('; ') : true;
   }));

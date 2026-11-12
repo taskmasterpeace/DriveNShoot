@@ -297,9 +297,12 @@ export async function lookfeelChecks({ g, api, C, check }) {
     };
     // Measured at the Night setting "Pitch dark (only your light)": what the lamps add, with no moon to hide it.
     // Clean glass too: an earlier crash's screen-edge dirt (the impact pass, systems/lookfeel.js) rides the same frame.
-    const nl0 = g.sky.nightLight, dirt0 = F.dirt; g.sky.nightLight = 0; F.dirt = 0; await api._step(2);
+    // And bare eyes at the default exposure: goggles an earlier check left on lift the exposure (systems/kit.js) and wash both reads out.
+    const K = g.kit, eyes0 = K?.on.eyes ?? null, ex0 = g.renderer.toneMappingExposure;
+    const nl0 = g.sky.nightLight, dirt0 = F.dirt; g.sky.nightLight = 0; F.dirt = 0; if (K) K.on.eyes = null; await api._step(2);
+    g.renderer.toneMappingExposure = SKY_FEEL.exposure;
     const off = at(near, 0), on = at(near, 1);
-    g.sky.nightLight = nl0; F.dirt = dirt0;
+    g.sky.nightLight = nl0; F.dirt = dirt0; if (K) K.on.eyes = eyes0; g.renderer.toneMappingExposure = ex0;
     const compiled = !!g.charR.meshes.torso.material.userData.lampCompiled && F.lamps.patched >= 6;
     // The torch: on foot, facing the man, the cone reaches him.
     g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); await api._step(6);

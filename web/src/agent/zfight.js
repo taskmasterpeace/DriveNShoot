@@ -263,6 +263,12 @@ export async function zfightChecks({ g, check, C }) {
   await check("zfight: no two visible, depth-writing, up-facing faces share a plane (closer than the depth gap, no polygonOffset between them) at seven spots - a Phoenix street, a ring house interior with its roof cut away, the ring's densest blocks, Meridian on Florida's real terrain, I-10 in the Arizona hills, Meridian's cemetery, a stamped county seat's police station and roofs - and no ground decal is buried under the floor it lies on", async () => {
     const out = {};
     let bad = 0;
+    // The blood and scorch earlier checks left about (systems/fx.js decals at the terrain's height) are put aside for the scan and
+    // put back after: a fight on the Phoenix street once left blood under a 0.3 m ruin slab there (a prop with no floor), which
+    // is not a layer this check is about. The spots' own decals (paint, stains, the cemetery) are scanned as before.
+    const DM = g.fx?.dMesh, kept = DM ? DM.instanceMatrix.array.slice() : null;
+    if (DM) { DM.instanceMatrix.array.fill(0); DM.instanceMatrix.needsUpdate = true; }
+    try {
     for (const S of ZFIGHT_SPOTS) {
       let stamp = null;
       if (S.stamp) { await C('teleport', S.at); stamp = await C('citygen', { action: 'stamp', ...S.stamp }); }
@@ -272,6 +278,7 @@ export async function zfightChecks({ g, check, C }) {
       if (z.fights || z.decals.buried) bad++;
       if (stamp?.id) await C('citygen', { action: 'remove', id: stamp.id });
     }
+    } finally { if (DM) { DM.instanceMatrix.array.set(kept); DM.instanceMatrix.needsUpdate = true; } }
     await C('teleport', home);
     return bad ? JSON.stringify(out) : true;
   });
