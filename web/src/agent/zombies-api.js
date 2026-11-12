@@ -28,7 +28,7 @@ export function zombiesCommands(api, need) {
       run: async ({ radius, id, spawn, x, z, crawl, leg, dmg, occupy, w, d, rows, cards }) => {
         const Z = g.zombies;
         if (rows) return { INFECTED, BREEDS, FOOTSTEPS, DRIFT, INSIDE, problems: validateInfected() };
-        if (cards) return { cards: BREEDS.map((k) => ({ breed: k, ...BREED_CARDS[k], voice: Object.fromEntries(Object.entries(BREED_VOICE[k]).filter(([, v]) => Array.isArray(v)).map(([n, v]) => [n, { id: v.join('/'), takes: resolve(v[0], v[1])?.files.length ?? 0 }])), pace: (INFECTED[k].speed ?? INFECTED.shambler.speed).join('-') + ' m/s', runs: INFECTED[k].burstSpeed ?? null, door: k === 'sprinter' ? `${INFECTED[k].frenzy?.dmg}/${INFECTED[k].frenzy?.every}s in its burst` : `${INFECTED[k].door.dmg}/${INFECTED[k].door.every}s`, comesAtYou: k !== 'echo' })), problems: validateInfected() };
+        if (cards) return { cards: BREEDS.map((k) => ({ breed: k, ...BREED_CARDS[k], voice: Object.fromEntries(Object.entries(BREED_VOICE[k]).filter(([, v]) => Array.isArray(v)).map(([n, v]) => [n, { id: v.join('/'), takes: resolve(v[0], v[1])?.files.length ?? 0 }])), pace: (INFECTED[k].speed ?? INFECTED.shambler.speed).join('-') + ' m/s', runs: INFECTED[k].burstSpeed ?? null, door: k === 'sprinter' ? `${INFECTED[k].frenzy?.dmg}/${INFECTED[k].frenzy?.every}s in its burst` : `${INFECTED[k].door.dmg}/${INFECTED[k].door.every}s`, approach: k === 'echo' ? 'works your walls; once it knows of you it stalks out of sight and waits at a door' : k === 'sprinter' ? 'walks like a shambler, then screams and charges' : 'walks to what it sensed' })), problems: validateInfected() };
         if (spawn) {
           const at = { x: x ?? P().x + 14, z: z ?? P().z };
           const c = spawn === 'echo' ? Z.spawnKind('echo', at.x, at.z) : Z.spawn(at.x, at.z, spawn === 'sprinter');
@@ -308,16 +308,24 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
   }));
 
   // ---- THE THREE BREEDS read apart (docs/design/WEB_BREEDS.md §8) --------------------------------------------------------
-  await check('breeds: every breed has a voice and a card - each voice id resolves to shipped takes (two or more), each card line names its source document, and a card with no source or a breed with no voice is caught', async () => {
+  await check('breeds: every breed has a voice and a card - each voice id resolves to shipped takes (two or more), each card line names its source document, a card with no source or a breed with no voice is caught, and the Test Lab page that lists the scenarios parses', async () => {
     const bad = validateInfected();
     const thin = [];
     for (const b of BREEDS) for (const [k, v] of Object.entries(BREED_VOICE[b])) if (Array.isArray(v)) { const r = resolve(v[0], v[1]); if (!r || r.files.length < 2) thin.push(`${b}.${k} ${v.join('/')}: ${r?.files.length ?? 0}`); }
     const keepC = BREED_CARDS.echo.source, keepV = BREED_VOICE.shambler.idle;
-    BREED_CARDS.echo.source = 'somebody said'; BREED_VOICE.shambler.idle = null;
-    const caught = validateInfected();
-    BREED_CARDS.echo.source = keepC; BREED_VOICE.shambler.idle = keepV;
+    let caught = [];
+    try { BREED_CARDS.echo.source = 'somebody said'; BREED_VOICE.shambler.idle = null; caught = validateInfected(); }
+    finally { BREED_CARDS.echo.source = keepC; BREED_VOICE.shambler.idle = keepV; }
+    // the Test Lab page lists the scenarios in an inline script: it must parse (one bad quote blanks every card), and it
+    // must list both of this slice's scenarios
+    let lab = 'not fetched';
+    try {
+      const html = await (await fetch('testlab.html', { cache: 'no-store' })).text(), m = /<script>([\s\S]*?)<\/script>/.exec(html);
+      if (!m) lab = 'no inline script';
+      else { new Function(m[1]); lab = /'door-siege'/.test(m[1]) && /'three-breeds'/.test(m[1]) ? 'ok' : 'scenario rows missing'; }
+    } catch (e) { lab = `does not parse: ${String(e.message).slice(0, 80)}`; }
     const differ = new Set(BREEDS.map((b) => BREED_CARDS[b].tell)).size === 3 && new Set(BREEDS.map((b) => BREED_VOICE[b].idle.join('/') + '|' + (BREED_VOICE[b].notice ?? BREED_VOICE[b].work).join('/'))).size === 3;
-    return (bad.length === 0 && thin.length === 0 && caught.some((x) => /source/.test(x)) && caught.some((x) => /BREED_VOICE.shambler/.test(x)) && differ) || { bad, thin, caught, differ };
+    return (bad.length === 0 && thin.length === 0 && caught.some((x) => /source/.test(x)) && caught.some((x) => /BREED_VOICE.shambler/.test(x)) && differ && lab === 'ok') || { bad, thin, caught, differ, lab };
   });
 
   await check('breeds: they sound apart - a shambler that picks you out lets out its notice once (not again while it still has you), the nearest unseen one groans in the shambler voice, and an Echo alone never groans (it murmurs: its own takes)', async () => hush(async () => {
@@ -330,7 +338,7 @@ export async function zombiesChecks({ g, api, C, check, stage, hush }) {
       await C('step', { seconds: 2.5 });
       const first = g.events.filter((e) => e.seq > ev0 && e.type === 'infectedNotice' && e.id === s.id).length, saw = s.zsee === p;
       Z.enabled = true; // the groan clock is the herd's own update (hush had it off)
-      await C('step', { seconds: 5 });
+      await C('step', { seconds: 9 }); // past the per-body gap, sight held the whole time: it has not LOST you, so no second notice
       const again = g.events.filter((e) => e.seq > ev0 && e.type === 'infectedNotice' && e.id === s.id).length;
       const groans = g.events.filter((e) => e.seq > ev0 && e.type === 'groanHeard' && e.id === s.id);
       // which take is asked for FIRST (headless has no audio: the fallbacks are asked after it)

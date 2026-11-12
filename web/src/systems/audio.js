@@ -1,3 +1,4 @@
+import { BREED_VOICE } from '../data/infected.js';
 import { resolve, setFor, SPATIAL, AUDIO_BASE, ENGINES, BEDS, BED_GAIN, mixGain, rateCap, STEPS, STEP_SURFACES, GAIT, STEP_RULES, CALIBER_SOUND, VOLUME_DEFAULTS } from '../data/audiosets.js';
 
 // WebAudio. Two layers (docs/design/WEB_VOICE_STATS.md §2):
@@ -328,7 +329,7 @@ export class Audio {
     const v = Math.max(0, 0.1 * (1 - dist / 26));
     if (v < 0.005) return;
     this.count('murmur');
-    if (this.sample('echo', 'murmur', { dist, pan, range: 26 })) return; // the made takes: a half sentence under its breath
+    if (this.sample(BREED_VOICE.echo.idle[0], BREED_VOICE.echo.idle[1], { dist, pan, range: 26 })) return; // the made takes (data/infected.js BREED_VOICE): a half sentence under its breath
     if (this.sample('echo', 'idle', { dist, pan, range: 26 })) return;
     for (let i = 0; i < 4; i++) this.burst({ dur: 0.22, freq: 500 + Math.random() * 400, type: 'bandpass', q: 7, vol: v, decay: 0.2, pitchDrop: 0.85, at: i * 0.26, pan });
   }

@@ -80,12 +80,17 @@ export const BREEDS = ['shambler', 'sprinter', 'echo'];
 // HOW EACH BREED SOUNDS (docs/design/WEB_BREEDS.md §3.1). [set, kind] pairs in data/audiosets.js (made takes first, the
 // library's as a fallback inside systems/audio.js); `range` m each is heard to. A dormant sprinter sounds like the
 // shambler it looks like (the uncertainty is the point): only its scream, its run and its rage give it away.
-//   idle     what the nearest one you cannot see does every few seconds (WARNINGS.groan: you hear them before you see them)
-//   notice   the moment it first perceives one of the living (a shambler's rising moan; the sprinter's is its scream)
-//   work     its hands on your boards or your door
+//   idle     what the nearest one you cannot see does every few seconds (WARNINGS.groan: you hear them before you see them);
+//            the Echo's idle is its phrase (its own clock, `phrase` s, heard to its `hear` m)
+//   notice   the moment it first perceives one of the living (a shambler's rising moan; the sprinter's is its scream,
+//            heard to `range`). noticeEvery: s before the same body may moan again; noticeGap: s between any two
+//            shamblers' moans (a herd of thirty does not all moan in one second)
+//   chase / rage   (sprinter) its snarl as it runs (chaseRange m) and as it hits a door (rageRange m)
+//   work     its hands on your boards or your door (heard to the Echo's `range`)
+//   range    m its notice (or the Echo's work) is heard to
 export const BREED_VOICE = {
-  shambler: { idle: ['shambler', 'groan'], notice: ['shambler', 'notice'], range: 50, noticeEvery: 8 },
-  sprinter: { idle: ['shambler', 'groan'], notice: ['sprinter', 'scream'], chase: ['sprinter', 'chase'], rage: ['sprinter', 'rage'], range: 60 },
+  shambler: { idle: ['shambler', 'groan'], notice: ['shambler', 'notice'], range: 50, noticeEvery: 8, noticeGap: 0.35 },
+  sprinter: { idle: ['shambler', 'groan'], notice: ['sprinter', 'scream'], chase: ['sprinter', 'chase'], rage: ['sprinter', 'rage'], range: 70, chaseRange: 45, rageRange: 50 },
   echo: { idle: ['echo', 'murmur'], work: ['echo', 'work'], range: 26 },
 };
 
@@ -98,7 +103,7 @@ export const BREED_CARDS = {
   shambler: {
     name: 'Shambler', is: 'The herd. Slow, many, and only dangerous together.',
     tell: 'A low groan before you see it. It walks, and it turns to noise.',
-    wants: 'Noise: a shot, an engine, a horn, a door being beaten. Your smell inside a few metres.',
+    wants: 'Noise: a shot, an engine, a horn, a door being beaten. The sight of you by day, a light at night. Your smell inside a few metres.',
     do: 'Walk, do not run. Go round. Throw a noise somewhere else. Never let three reach the same door.',
     source: 'THE_INFECTED.md §3.1 and §3.4 (noise is THE lever; walk away); WEB_INFECTED.md Wave 2 §3.1-3.3',
   },
@@ -110,11 +115,11 @@ export const BREED_CARDS = {
     source: 'THE_INFECTED.md §3.1 and §3.4 (walk is safe, run wakes it; the overheat window); WEB_INFECTED.md Wave 2 §3.2; WEB_DOOR_POUND.md §3.2',
   },
   echo: {
-    name: 'Echo', is: 'The one that works. At your boards, your door, your glass, while you are not looking.',
-    tell: 'A murmur: the same half sentence, over and over. It stops moving when you look at it.',
-    wants: 'Your walls. It does not chase; it undoes what you built, and its phrase calls the others to the hole.',
+    name: 'Echo', is: 'The one that works. At your boards and your locked door, while you are not looking.',
+    tell: 'A murmur: the same half sentence, over and over. At its work it stops moving when you look at it.',
+    wants: 'Your walls first: it undoes what you built, and its phrase calls the others to the hole. Once it knows of you it goes quiet, keeps out of your sight and waits for you at a door.',
     do: 'Keep your eyes on it while someone else deals with it. Kill it first. A shut door does not stop it: lock it or bar it. Check your boards when you come home.',
-    source: 'THE_INFECTED.md ruling 0.8 (a worker that waits; the phrase is the approach tell) and §3.4; WEB_INFECTED.md §3; WEB_INFECTED.md Wave 2 §3.3; WEB_DOOR_POUND.md §3.2 (a latch does not hold it)',
+    source: 'THE_INFECTED.md ruling 0.8 (a worker that waits; the phrase is the approach tell) and §3.4; WEB_INFECTED.md §3; WEB_INFECTED.md Wave 2 §3.3; WEB_DOOR_POUND.md §3.2 (a latch does not hold it); WEB_DEATHS.md (the Echo that hunts: stalk, hide, ambush)',
   },
 };
 
@@ -190,7 +195,7 @@ export function validateInfected(rows = INFECTED, breeds = BREEDS, steps = FOOTS
   for (const b of breeds) {
     const V = BREED_VOICE[b], C = BREED_CARDS[b];
     if (!V?.idle || !Array.isArray(V.idle) || V.idle.length !== 2) bad.push(`BREED_VOICE.${b}: no idle [set, kind]`);
-    if (V) num(`BREED_VOICE.${b}.range`, V.range, 5, 120);
+    if (V) { num(`BREED_VOICE.${b}.range`, V.range, 5, 120); for (const k of ['notice', 'work', 'chase', 'rage']) if (V[k] !== undefined && !(Array.isArray(V[k]) && V[k].length === 2)) bad.push(`BREED_VOICE.${b}.${k}: not a [set, kind] pair`); }
     if (!C) { bad.push(`BREED_CARDS.${b}: no card`); continue; }
     for (const f of ['name', 'is', 'tell', 'wants', 'do', 'source']) if (typeof C[f] !== 'string' || C[f].length < (f === 'name' ? 3 : 8)) bad.push(`BREED_CARDS.${b}.${f} is empty`);
     if (C.source && !/\.md/.test(C.source)) bad.push(`BREED_CARDS.${b}.source names no document`);
