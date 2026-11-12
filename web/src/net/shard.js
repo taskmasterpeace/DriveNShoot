@@ -500,6 +500,7 @@ export class Shard {
         if (v) {
           Object.assign(v, { x: s.v.x, z: s.v.z, h: s.v.h, vx: 0, vz: 0, av: 0, throttle: 0, hp: v.maxHp, onFire: 0 });
           if (c.inVehicle !== v) g.seats.board(c, v, 0);
+          g.carDoors?.applyBits(v, s.v.d ?? 0); // the doors as their page has them
           this.parked.set(r.id, { name: r.name, flag: r.flag, car: { ...s.v } });
         }
       } else if (c.inVehicle) g.seats.leave(c, true);
@@ -537,7 +538,7 @@ export class Shard {
   sendPresence() {
     const g = this.g, p = g.player, v = p.inVehicle;
     const m = { t: 'p', x: +(v ? v.x : p.x).toFixed(2), z: +(v ? v.z : p.z).toFixed(2), y: +(p.gy ?? 0).toFixed(2), f: +p.face.toFixed(3), w: p.weapon ?? null, a: p.aiming ? 1 : 0, hp: Math.round(p.hp), d: p.alive ? 0 : 1 };
-    if (v) m.v = { t: v.type, x: +v.x.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), c: /^#[0-9a-f]{6}$/i.test(v.paint ?? '') ? v.paint : '#6a2a1a', seat: p.seat ?? 0 };
+    if (v) m.v = { t: v.type, x: +v.x.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), c: /^#[0-9a-f]{6}$/i.test(v.paint ?? '') ? v.paint : '#6a2a1a', seat: p.seat ?? 0, d: g.carDoors?.bits(v) || undefined }; // d: its open doors (systems/cardoors.js)
     this.send(m);
   }
 

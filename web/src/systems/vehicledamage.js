@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PART } from './vehicles.js';
+import { hingeRotate, DOOR_SIDE } from '../data/cardoors.js'; // CAR DOORS: an open door swings round its front edge (systems/cardoors.js)
 
 // Per-part vehicle damage you can SEE and FEEL.
 //   zones   front/rear/left/right dent 0..1  → the mesh physically crumples there
@@ -61,6 +62,7 @@ export class VehicleDamage {
     if (k <= 0) return;
     d.zones[zone] = Math.min(1, d.zones[zone] + k);
     d.dirty = true;
+    if (kind !== 'bullet') this.g.carDoors?.struck(v, zone, k); // an open door on that side comes off its hinges (systems/cardoors.js)
     // What lives behind that panel.
     if (zone === 'front') { d.engine = Math.max(0, d.engine - k * 0.55); d.radiator = Math.max(0, d.radiator - k * 0.9); d.lights = Math.max(0, d.lights - k * 0.8); }
     if (zone === 'rear') { d.tank = Math.max(0, d.tank - k * 0.7); }
@@ -168,6 +170,9 @@ export class VehicleDamage {
           col.array[i * 3 + 2] = bc[i * 3 + 2] + (0.2 - bc[i * 3 + 2]) * crush;
         }
       }
+      // An open door swings out round its front edge (systems/cardoors.js keeps v.doorA and the hinge).
+      const da = name && v.doorA ? v.doorA[name] : 0;
+      if (da > 0) { const hg = this.g.carDoors?.hingeOf(v, name); if (hg) { const r = hingeRotate(x, z, hg.hx, hg.hz, da, DOOR_SIDE[name]); x = r[0]; z = r[1]; } }
       pos.array[i * 3] = x; pos.array[i * 3 + 1] = y; pos.array[i * 3 + 2] = z;
     }
     pos.needsUpdate = true;

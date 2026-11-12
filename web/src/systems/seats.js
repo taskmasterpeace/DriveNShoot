@@ -33,6 +33,7 @@ export class Seats {
     if (c.onDeck) this.g.decks.dismount(c, 'seat', true); // off the deck and into the seat
     v.occ[seat] = c;
     c.inVehicle = v; c.seat = seat;
+    this.g.carDoors?.onBoard(c, v, seat); // their door opens, and shuts a beat later (systems/cardoors.js)
     if (seat === 0) { v.driver = c; v.parked = false; }
     c.x = v.x; c.z = v.z;
     this.g.emit('boarded', { id: c.id, vehicle: v.id, seat: v.seats[seat].id });
@@ -47,6 +48,7 @@ export class Seats {
     if (!v.occ) this.init(v);
     const seat = c.seat ?? 0;
     if (v.occ[seat] === c) v.occ[seat] = null;
+    this.g.carDoors?.onLeave(c, v, seat); // out through their door, left open (systems/cardoors.js)
     if (v.driver === c) { v.driver = null; v.parked = true; } // getting out of the driver's seat leaves it braked (vehicles.js)
     c.inVehicle = null; c.seat = null; c.seatPose = null;
     if (v.turretBy === c.id) this.releaseTurret(v, 'left');
