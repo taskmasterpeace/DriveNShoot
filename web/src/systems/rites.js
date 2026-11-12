@@ -851,10 +851,10 @@ export class Rites {
   // the PACK screen read it; a record with no box has its own y) and nothing in the hand's line (systems/reach.js).
   inReach(R, who) {
     const g = this.g, box = R.box ? g.inventory?.boxes.get(R.box) : null;
-    // The floor it lies on: the corpse's own height (the ground, a hill or an upper floor under it) - except below the
-    // street, where a ragdoll resets that to 0 (systems/deaths.js) and the body's box keeps the level it died on.
-    let by = R.c ? R.c.gy : box ? box.y : R.y;
-    if (box && box.y !== undefined && box.y < -0.5) by = box.y;
+    // The floor it lies on: the corpse's own height (the ground, a hill, an upper floor or its level below the street
+     // under it); a folded record's y; a box's when that is all there is.
+    let by = R.c ? R.c.gy : R.y ?? box?.y;
+    if (who.ug && box && box.y !== undefined && box.y < -0.5) by = box.y; // (a body that died before the ragdoll kept levels)
     if (by !== undefined && Math.abs(by - (who.gy ?? 0)) > LEVEL.same) return false; // the floor between you
     return g.reach ? g.reach.to(who, R.c ? R.c.x : R.x, R.c ? R.c.z : R.z) : true;
   }

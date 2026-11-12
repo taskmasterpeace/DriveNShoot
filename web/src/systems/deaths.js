@@ -417,7 +417,7 @@ export class Deaths {
     const f = this.surface(px, pz, py + 0.3);
     R.air = lift > 0.3 || onCar;
     if (R.air) R.airT = (R.airT ?? 0) + (this.dt ?? 1 / 60);
-    c.x = px; c.z = pz; R.cx = px; R.cz = pz; c.gy = _surf.v ? 0 : Math.max(0, f);
+    c.x = px; c.z = pz; R.cx = px; R.cz = pz; c.gy = c.ug ? (c.gy ?? 0) : _surf.v ? 0 : Math.max(0, f); // below the street the body stays on the level it died on (the clamp to 0 put it on the street: nobody down there could reach it)
     R.maxY = Math.max(R.maxY, py - R.oy);
     const X = R.cross;
     if (X && this.g.vehicles.includes(X.v)) {
