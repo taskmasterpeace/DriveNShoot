@@ -28,3 +28,12 @@ test('BOAT_KIT fits its own boat: size, face, spaces, weight', () => {
   }
 });
 test('a jetski is light: one small gun at most', () => { assert.equal(CHASSIS.jetski.spaces, 1); assert.equal(CHASSIS.jetski.mounts.front.size, 1); });
+test('a hull refuses tyres, bumpers, road plates and road droppers; the dock bench works on boats', async () => {
+  const { BOAT_REFUSES, WORKSHOPS, ARMOR, UTILITY } = await import('../src/data/workshop.js');
+  for (const b of BOATS) assert.equal(CHASSIS[b].boat, true, b);
+  for (const k of BOAT_REFUSES.plates) assert.ok(ARMOR[k], k);
+  for (const k of BOAT_REFUSES.utility) assert.ok(UTILITY[k], k);
+  for (const k of BOAT_REFUSES.drops) assert.equal(MOUNT_WEAPONS[k]?.kind, 'drop', k);
+  assert.ok(WORKSHOPS.dock && WORKSHOPS.dock.boats && Number.isFinite(WORKSHOPS.dock.x));
+  assert.equal(CHASSIS.sedan.boat, undefined);
+});

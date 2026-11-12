@@ -95,6 +95,7 @@ import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the gra
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
+import { BOAT_KIT } from '../data/workshop.js'; // the lake gunboat's own gun, put back on an old save's
 import { vehBoatGunsChecks } from './veh-boatguns-api.js'; // VEHICLES V2 slice 2: guns on boats
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
@@ -6178,7 +6179,7 @@ export function snapshot(g) {
     // (c.pol, v.pol: a town desk's officers and motor pool are not saved: systems/police.js stands them up again with the town)
     chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
-      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
+      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v), boatKit: BOAT_KIT[v.type] ? 1 : undefined })), // boatKit: saved after boat guns (an unarmed gunboat in it stays unarmed) // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
@@ -6229,6 +6230,8 @@ export function restore(g, s) {
     if (!v) { v = g.vehiclesSys.spawn(sv.type, sv.x, sv.z, sv.h, sv.paint, { ai: sv.ai }); v.id = sv.id; }
     Object.assign(v, { x: sv.x, z: sv.z, h: sv.h, hp: sv.hp, vx: 0, vz: 0, av: 0, ai: sv.ai, driver: null });
     v.plates = sv.plates ? { ...sv.plates } : undefined; v.mounts = sv.mounts ? JSON.parse(JSON.stringify(sv.mounts)) : undefined;
+    for (const f in v.mounts ?? {}) { const m = v.mounts[f]; if (m) { m.cool = 0; m.dry = 0; m.chargeStart = undefined; m.lastPull = undefined; } } // their timers are game-clock times: a load's clock is not the save's
+    if (!sv.mounts && sv.ai === 'boatPatrol' && BOAT_KIT[v.type] && !sv.boatKit) for (const [face, kind] of Object.entries(BOAT_KIT[v.type])) if (!g.garage.canMount(v, face, kind)) g.garage.setMount(v, face, kind); // a save from before boat guns: the lake gunboat comes back armed (a later save marks boatKit)
     g.garage.loadBuild(v, sv.build); // an old save: plain boiler plate, no gadgets
     g.garage.retune(v);
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }

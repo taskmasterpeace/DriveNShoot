@@ -553,7 +553,7 @@ export class Vehicles {
       const want = Math.atan2(tx - v.x, tz - v.z);
       v.steer = clamp((angleLerp(v.h, want, 1) - v.h) * 2, -1, 1);
       v.throttle = pd < 12 ? 0.3 : 0.75;
-      if (v.mounts && seen && pd < 70 && v.driver && g.ai.hostile(v.driver, p)) g.workshop?.aiFire(v, px, pz, dt); // its deck gun (data/workshop.js CHASSIS.gunboat)
+      if (v.mounts && seen && pd < 70 && (p.inVehicle ? g.water.depthAt(px, pz) > 0.4 : p.swim) && v.driver && g.ai.hostile(v.driver, p)) g.workshop?.aiFire(v, px, pz, dt); // its deck gun, at a boat or a swimmer: not a man on the dock or the shore
       for (const o of v.occ ?? []) if (o && o.alive && o.weapon && seen && pd < 35 && g.ai.hostile(o, p)) {
         o.cool -= dt;
         if (o.cool <= 0) { o.cool = 0.4 + Math.random() * 0.6; g.carCombat.fireFromVehicle(o, v, o.weapon, Math.atan2(px - v.x, pz - v.z) + (Math.random() - 0.5) * 0.2); }

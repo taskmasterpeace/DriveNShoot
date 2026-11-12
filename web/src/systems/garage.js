@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { VEHICLES } from './vehicles.js';
 import { PLATE, MOUNT_OK } from '../data/parts.js';
-import { FACES6, ARMOR, CHASSIS, PERF, POWER, MOUNT_WEAPONS, UTILITY, PAINTS } from '../data/workshop.js';
+import { FACES6, ARMOR, CHASSIS, PERF, POWER, MOUNT_WEAPONS, UTILITY, PAINTS, BOAT_REFUSES } from '../data/workshop.js';
 
 // The garage: what a car WEARS (data/workshop.js rows; the old data/parts.js Kenji numbers are the 'plate' kind).
 //   v.plates    = { front, rear, left, right, top, under } points; v.plateKind = { <face>: <ARMOR id> } (default 'plate')
@@ -112,6 +112,7 @@ export class Garage {
   plate(v, face, points, kind) {
     const max = this.maxFor(v);
     if (!max) return { ok: false, why: `a ${v.name} can't carry plate` };
+    if (this.chassis(v)?.boat && BOAT_REFUSES.plates.includes(kind)) return { ok: false, why: `a ${ARMOR[kind]?.name ?? kind} is road plate: it doesn't go on a hull` };
     const faces = face === 'sides' ? ['left', 'right'] : face === 'all' ? FACES : [face];
     v.plates ??= { front: 0, rear: 0, left: 0, right: 0, top: 0, under: 0 };
     let added = 0;
@@ -140,6 +141,7 @@ export class Garage {
     if (!P) return `a ${v.name} has no ${face} mount`;
     if (!W.faces.includes(face)) return `a ${W.name} does not go on the ${face}`;
     if (P.drops && W.kind !== 'drop') return `the ${face} mount on a ${v.name} only takes droppers (what it pulls is in the way)`;
+    if (C.boat && W.kind === 'drop' && !BOAT_REFUSES.drops.includes(kind)) return `a ${W.name} is for a road: off a boat it only sinks`;
     if (W.size > P.size) return `the ${face} mount is too small for a ${W.name} (size ${P.size}, it needs ${W.size})`;
     const old = v.mounts?.[face], oldKg = old ? MOUNT_WEAPONS[old.kind]?.kg ?? 0 : 0, oldSz = old ? MOUNT_WEAPONS[old.kind]?.size ?? 1 : 0;
     if (this.spacesUsed(v) - oldSz + W.size > C.spaces) return `no room: ${C.spaces} spaces, ${this.spacesUsed(v) - oldSz} used`;
@@ -181,6 +183,7 @@ export class Garage {
     if (!C) return { ok: false, why: `a ${v.name} can't be worked on` };
     if (v.utility?.[id]) return { ok: false, why: `already fitted: ${U.name}` };
     if (U.chassis && !U.chassis.includes(this.chassisKey(v))) return { ok: false, why: `${U.name} won't go on a ${v.name}` };
+    if (C.boat && (BOAT_REFUSES.tabs.includes(U.tab) || BOAT_REFUSES.utility.includes(id))) return { ok: false, why: `a ${v.name} has no wheels and no bumpers` }; // a hull (data/workshop.js BOAT_REFUSES)
     if (U.glass && !this.g.carCombat?.layout(v)) return { ok: false, why: `a ${v.name} has no windshield to pull` };
     const swap = U.set ? Object.keys(v.utility ?? EMPTY).find((u) => UTILITY[u]?.set === U.set) : null; // one tread a car: the old set comes off
     const swapKg = swap ? UTILITY[swap].kg : 0;

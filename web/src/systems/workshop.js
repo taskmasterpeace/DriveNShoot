@@ -304,9 +304,10 @@ export class Workshop {
   muzzle(v, face, m, ang) {
     const L = v.len, W = v.wid, c = Math.cos(v.h), s = Math.sin(v.h);
     const [lx, lz] = face === 'front' ? [(m.alt = !m.alt) ? 0.32 : -0.32, L / 2 + 0.55] : face === 'rear' ? [0, -L / 2 - 0.6] : face === 'left' ? [W / 2 + 0.5, 0.2] : face === 'right' ? [-W / 2 - 0.5, 0.2] : [0, 0];
-    let x = v.x + lx * c + lz * s, z = v.z - lx * s + lz * c;
-    if (face === 'top') { x += Math.sin(ang) * (v.wid * 0.5 + 0.9); z += Math.cos(ang) * (v.wid * 0.5 + 0.9); }
-    const y = face === 'top' ? (v.tall ?? 1.8) + 0.2 : 1.15;
+    const at = this.g.garage.chassis(v)?.mounts?.[face]?.at; // a body's own spot for the gun (a boat's pintle): fire from it
+    let x = at ? v.x + at[0] * c + at[2] * s : v.x + lx * c + lz * s, z = at ? v.z - at[0] * s + at[2] * c : v.z - lx * s + lz * c;
+    if (face === 'top') { const r = at ? 1.4 : v.wid * 0.5 + 0.9; x += Math.sin(ang) * r; z += Math.cos(ang) * r; }
+    const y = at ? at[1] + 0.05 : face === 'top' ? (v.tall ?? 1.8) + 0.2 : 1.15;
     const o = (this._mz ??= { x: 0, z: 0, y: 0 });
     o.x = x; o.z = z; o.y = y;
     return o;

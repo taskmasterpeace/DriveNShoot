@@ -66,12 +66,16 @@ export const CHASSIS = {
   // BOATS (VEHICLES V2 slice 2, Robert 11-12: "we do need guns on boats"). A hull takes plate on its topsides and none
   // below the waterline (under: 0). A mount may carry `at` [x, y, z] in the body frame (garage.js draws it there, not at
   // the car spot): the gunboat's foredeck pintle swings its gun right round (a `top` mount) from inside the sandbags.
-  gunboat:     { maxKg: 2400, spaces: 14, faces: { front: 34, rear: 22, left: 28, right: 28, top: 10, under: 0 },    mounts: { ...mp(0, 1, 1, 1, 0), top: { size: 2, arc: ARC.turret, at: [0, 1.96, 2.05] } } },
-  barge:       { maxKg: 2600, spaces: 14, faces: { front: 24, rear: 20, left: 24, right: 24, top: 0, under: 0 },     mounts: mp(2, 2, 2, 2, 2) },
-  airboat:     { maxKg: 520,  spaces: 4,  faces: { front: 10, rear: 0, left: 6, right: 6, top: 0, under: 0 },        mounts: mp(2, 0, 1, 1, 0) }, // the fan cage is the stern: nothing goes back there
-  skiff:       { maxKg: 420,  spaces: 3,  faces: { front: 8, rear: 0, left: 4, right: 4, top: 0, under: 0 },         mounts: mp(1, 0, 1, 1, 0) },
-  jetski:      { maxKg: 90,   spaces: 1,  faces: { front: 2, rear: 0, left: 0, right: 0, top: 0, under: 0 },         mounts: mp(1, 0, 0, 0, 0) },
+  gunboat:     { boat: true, maxKg: 2400, spaces: 14, faces: { front: 34, rear: 22, left: 28, right: 28, top: 10, under: 0 },    mounts: { ...mp(0, 1, 1, 1, 0), top: { size: 2, arc: ARC.turret, at: [0, 1.96, 2.05] } } },
+  barge:       { boat: true, maxKg: 2600, spaces: 14, faces: { front: 24, rear: 20, left: 24, right: 24, top: 0, under: 0 },     mounts: mp(2, 2, 2, 2, 2) },
+  airboat:     { boat: true, maxKg: 520,  spaces: 4,  faces: { front: 10, rear: 0, left: 6, right: 6, top: 0, under: 0 },        mounts: mp(2, 0, 1, 1, 0) }, // the fan cage is the stern: nothing goes back there
+  skiff:       { boat: true, maxKg: 420,  spaces: 3,  faces: { front: 8, rear: 0, left: 4, right: 4, top: 0, under: 0 },         mounts: mp(1, 0, 1, 1, 0) },
+  jetski:      { boat: true, maxKg: 90,   spaces: 1,  faces: { front: 2, rear: 0, left: 0, right: 0, top: 0, under: 0 },         mounts: mp(1, 0, 0, 0, 0) },
 };
+// What a hull refuses (garage.js): tyres and wheel gear (a tread on water read as dirt and gave a boat grip), bumpers, the
+// road plates that sit at a car's nose height (ram, cowcatcher, spike strip), and droppers but for smoke and flares
+// (mines, oil, caltrops and paint on open water).
+export const BOAT_REFUSES = { plates: ['ram', 'plow', 'spikes'], utility: ['bumpers'], tabs: ['wheels'], drops: ['smoke', 'flares'] };
 // What the raider gunboat carries when it is put on the water (main.js): its own gun on the pintle, a full belt.
 export const BOAT_KIT = { gunboat: { top: 'hmg' } };
 // The old Kenji dialogue (data/parts.js PLATE_MAX) is a floor: every legacy face fits under these.
@@ -265,6 +269,7 @@ export const REPAIR = { platePt: 0.5, plateLabour: 0.02, part: { engine: 80, rad
 export const WORKSHOPS = {
   kenji:      { name: "KENJI'S GARAGE", where: 'Rust Haven', keeper: 'kenji', r: 14, rate: 20, rare: ['uncommon'] },
   homebase:   { name: 'YOUR GARAGE', where: 'home', kind: 'base', r: 10, rate: 0, rare: [], selfWork: 1.5 }, // your own bench: no labour charge, it takes you longer
+  dock:       { name: 'THE DOCK BENCH', where: 'the island lake dock', x: 360, z: 382, r: 34, rate: 25, rare: [], boats: true }, // a bench on the dock (world/water.js DOCK): the boats moored there can be worked on
   remnant:    { name: 'MOTOR POOL', where: 'Outpost Nine', x: -290, z: -400, r: 18, rate: 35, rare: ['uncommon', 'prewar'], needStanding: 30 },
 };
 
