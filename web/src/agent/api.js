@@ -68,6 +68,8 @@ import { semisCommands } from './semis-api.js'; // tractor-trailers: the hitch, 
 import { semisChecks } from './semis-selftest.js';
 import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
+import { horseCommands } from './horses-api.js';
+import { horseChecks } from './horses-selftest.js';
 import { faunaChecks } from './faunatools-selftest.js';
 import { voiceStatsCommands } from './voicestats.js';
 import { voiceStatsChecks } from './voicestats-selftest.js';
@@ -2119,6 +2121,8 @@ function buildCommands(api) {
     ...journeyCommands(api, need),
     // L5 LIFE: the regional animals (src/agent/faunatools.js, docs/design/WEB_FAUNA.md).
     ...faunaCommands(api, need),
+    // HORSES: the ledger, mount, ride, feed, tack (src/agent/horses-api.js, docs/design/WEB_HORSES.md).
+    ...horseCommands(api, need),
     // Sound sets, barks, the local model's talk, the deep sheet, the journal (src/agent/voicestats.js, docs/design/WEB_VOICE_STATS.md).
     ...voiceStatsCommands(api, need),
     ...soundCommands(api, need), // THE SOUND PASS: sound (licence audit, ids, steps, mix, rate caps, volume row), stepTest (docs/design/WEB_SOUND.md)
@@ -6109,6 +6113,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await cameraChecks({ api, g, check, C, hush }); // the boom, the views, the cutaway, the gun at the side (src/agent/camera-checks.js)
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await journeyChecks(api, check, C); // life insurance and risky journeys (src/agent/journeys-api.js); puts the battery's state back after
+  await horseChecks(api, check, C); // HORSES: mount, stamina, feed, bolt, theft, bags, save (src/agent/horses-selftest.js)
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   await voiceStatsChecks(api, check, C);
   await soundChecks(api, check); // THE SOUND PASS: every id a real file, footsteps by surface, the rate cap, calibres, the volume row (src/agent/sound-api.js) // sound sets, barks, the local model (mocked), the deep sheet, dialogue checks, the journal
@@ -6194,6 +6199,7 @@ export function snapshot(g) {
     radio: g.radio?.save(), // the station you had on, and today's emergency shelter (a lure or not, sprung or not)
     deep: g.deep?.save(), // the deep sheet: attributes, skills, perks, traits, stress, morale, reputation, wounds by zone
     fauna: g.fauna?.save(), // the animals' chunk records (who lives where, hurt, dead, butchered) and the gunfire heat
+    horses: g.horses?.save(), // the horse ledger: owners, bond, feed and water, lameness, tack, saddlebags, graves, the herds already placed (data/horses.js)
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
     melee: g.melee?.save(), // what is in your hand, its wear, your forearm (systems/melee.js)
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
@@ -6290,6 +6296,7 @@ export function restore(g, s) {
   if (s.deep) g.deep?.load(s.deep);
   if (s.radio) g.radio?.load(s.radio);
   if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
+  g.horses?.load(s.horses ?? null); // after the pack: the saddlebags are boxes (an old save: the herds are laid again)
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;

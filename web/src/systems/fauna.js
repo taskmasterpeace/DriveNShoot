@@ -452,6 +452,7 @@ export class Fauna {
     }
     for (const k of TIMERS) if (a[k] > 0) a[k] -= dt;
     a.stT += dt; a.a.flinch = Math.max(0, a.a.flinch - dt * 5);
+    if (a.ctl) { this.hazards(a, dt); this.animate(a, dt); return; } // a tame horse (systems/horses.js) moves itself; fire and cars still hurt it
     if (a.held) { this.heldStep(a, dt); this.animate(a, dt); return; }
     this.hazards(a, dt);
     if (!a.alive) return;
@@ -510,6 +511,7 @@ export class Fauna {
       const k = Math.hypot(v.x - a.x, v.z - a.z) * (sp > 8 ? 0.6 : 0.85);
       if (k < Math.min(hear, 45) && k < bd) { bd = k; best = v; bk = 'car'; }
     }
+    if (best && a.gentle?.(best)) { best = null; bk = null; bd = Infinity; } // a wild horse lets a slow person with feed close (systems/horses.js)
     a.threat = best; a.tk = bk; a.tdist = bd;
     // A flashlight or headlights on it at night (eyeshine, a deer frozen in the beam, a coyote backing out of it).
     a.lit = night > 0.35 ? this.litBy(a) : 0;

@@ -99,7 +99,7 @@ export class Melee {
   // Fists up: holstered, or no gun at all (the gun in hand keeps the old verbs).
   fistsUp() {
     const p = this.g.player;
-    return this.on && p.alive && !p.inVehicle && !p.onTrain && (!p.weapon || this.g.arms?.stance === 'holstered');
+    return this.on && p.alive && !p.inVehicle && !(p.mount && !this.g.horses?.canMelee?.(p)) && !p.onTrain && (!p.weapon || this.g.arms?.stance === 'holstered'); // in the saddle only what the horse allows (systems/horses.js)
   }
   carries(c, id) {
     const w = MW[id];
@@ -342,7 +342,7 @@ export class Melee {
     if (c === P) { this.chain = cm.chain; this.chainT = cm.chainT; }
     const lvl = c === P ? g.skillsSys?.lv?.strength ?? 0 : c.npc?.strength ?? (c.faction === 'raider' || c.faction === 'soldier' ? 3 : 1);
     const str = 1 + 0.05 * lvl;
-    let dmg = W.dmg * (a.heavy ? W.heavy.mul : 1) * (a.weak ? 0.5 : 1) * (combo ? R.combo.mul : 1) * str * (c === P ? g.deep?.fx.meleeMul ?? 1 : 1) * (cm.armBroken ? R.arm.brokenDmg : 1);
+    let dmg = W.dmg * (a.heavy ? W.heavy.mul : 1) * (a.weak ? 0.5 : 1) * (combo ? R.combo.mul : 1) * str * (c === P ? g.deep?.fx.meleeMul ?? 1 : 1) * (cm.armBroken ? R.arm.brokenDmg : 1) * (c.mount ? g.horses?.meleeTax?.() ?? 1 : 1); // swung from the saddle: the horses' tax
     if (tm.openT > 0) dmg *= R.parry.openMul;
     // ---- the guard: is T facing this blow with its guard up? ----
     const facing = Math.abs(wrap(Math.atan2(c.x - T.x, c.z - T.z) - T.face)) <= R.block.arcDeg * DEG;
