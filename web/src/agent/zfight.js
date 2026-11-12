@@ -266,8 +266,9 @@ export async function zfightChecks({ g, check, C }) {
     // The blood and scorch earlier checks left about (systems/fx.js decals at the terrain's height) are put aside for the scan and
     // put back after: a fight on the Phoenix street once left blood under a 0.3 m ruin slab there (a prop with no floor), which
     // is not a layer this check is about. The spots' own decals (paint, stains, the cemetery) are scanned as before.
-    const DM = g.fx?.dMesh, kept = DM ? DM.instanceMatrix.array.slice() : null;
-    if (DM) { DM.instanceMatrix.array.fill(0); DM.instanceMatrix.needsUpdate = true; }
+    // (both blood layers: fx's splats and the blood system's own trails and pools, systems/blood.js)
+    const aside = [g.fx?.dMesh, g.blood?.mesh].filter((m) => m?.isInstancedMesh).map((m) => ({ m, kept: m.instanceMatrix.array.slice() }));
+    for (const a of aside) { a.m.instanceMatrix.array.fill(0); a.m.instanceMatrix.needsUpdate = true; }
     try {
     for (const S of ZFIGHT_SPOTS) {
       let stamp = null;
@@ -278,7 +279,7 @@ export async function zfightChecks({ g, check, C }) {
       if (z.fights || z.decals.buried) bad++;
       if (stamp?.id) await C('citygen', { action: 'remove', id: stamp.id });
     }
-    } finally { if (DM) { DM.instanceMatrix.array.set(kept); DM.instanceMatrix.needsUpdate = true; } }
+    } finally { for (const a of aside) { a.m.instanceMatrix.array.set(a.kept); a.m.instanceMatrix.needsUpdate = true; } }
     await C('teleport', home);
     return bad ? JSON.stringify(out) : true;
   });
