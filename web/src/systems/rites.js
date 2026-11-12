@@ -1,3 +1,4 @@
+import { LEVEL } from '../data/storeys.js';
 import * as THREE from 'three';
 import { DECAY, BODY_FOLD, GRAVE_SICKNESS, FORMULA, YEARS, DANGER, POP, BATTLE_WORDS, CEMETERY_KINDS, CEM_LAYOUT, ARCH_BOOT_HILL, FIXED_CEMETERIES, RING_YARD,
   CALENDAR, CAUSES, EPITAPHS, BURIAL, RITES_ITEMS, SEXTON_LOOT, FUNERAL, DELIVERY } from '../data/rites.js';
@@ -832,12 +833,21 @@ export class Rites {
   }
 
   // ---- burial: drag, dig, bury, burn, mark --------------------------------------------------------------------------
-  bodyNear(x, z, reach = 2.2) {
+  // who: the person reaching (systems/reach.js). Given, a body on another floor or with a wall between is passed over,
+  // so the nearest one their hand can get to wins.
+  bodyNear(x, z, reach = 2.2, who = null) {
     let best = null, bd = reach;
+    const Rc = who ? this.g.reach : null;
     for (const R of this.bodies.values()) {
       if (R.buried || R.burned) continue;
       const bx = R.c ? R.c.x : R.x, bz = R.c ? R.c.z : R.z, d = Math.hypot(bx - x, bz - z);
-      if (d < bd) { bd = d; best = R; }
+      if (d >= bd) continue;
+      if (Rc) {
+        const by = R.c?.gy ?? R.y;
+        if (by !== undefined && Math.abs(by - (who.gy ?? 0)) > LEVEL.same) continue; // the floor between you
+        if (!Rc.to(who, bx, bz)) continue;
+      }
+      bd = d; best = R;
     }
     return best;
   }
@@ -995,7 +1005,7 @@ export class Rites {
     }
     const F = this.funeralHere(p.x, p.z);
     if (F && !F.stone && I.hit('KeyG')) { I.pressed.delete('KeyG'); const r = this.payStone(F); g.hud?.toast?.(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); return; }
-    const R = this.bodyNear(p.x, p.z, 1.8);
+    const R = this.bodyNear(p.x, p.z, 1.8, p); // on your floor, in your hand's reach (a body through a wall or a ceiling is not one to drag)
     if (!R) { this.ePress = -1; return; }
     // E is the body's only when nothing else claims it: no door or window in reach (their hold boards or picks), no
     // downed crew member (theirs is a drag too), and the nearest box is this body's own

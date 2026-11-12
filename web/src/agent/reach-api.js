@@ -79,13 +79,13 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     return null;
   };
 
-  await check('reach: the rows validate; a touch distance that would pass a hand through a wall, and a hand line under a counter, are both caught', async () => {
+  await check('reach: the rows validate; a touch distance that would pass a hand through a thin wall, and a hand line under a counter, are both caught', async () => {
     const a = validateReach();
-    const b = validateReach({ ...REACH, touch: 1.4 }), c = validateReach({ ...REACH, hand: 0.6 });
+    const b = validateReach({ ...REACH, touch: 0.6 }), c = validateReach({ ...REACH, hand: 0.6 });
     return (a.length === 0 && b.length === 1 && c.length === 1) || { a, b, c };
   });
 
-  await check('reach: the rule on a bare grid - a wall stops a hand, a counter does not, a shelf\'s own body does not, the same shelf from behind its wall does, a floor between does, arm\'s length passes', async () => {
+  await check('reach: the rule on a bare grid - a wall stops a hand, a counter does not, a shelf\'s own body does not, the same shelf from behind its wall does (standing pressed to the wall, and prone against a thin one), a floor between does, a big fixture is reached on its own collider, a car is stopped at its flank', async () => {
     const S = new StaticWorld(60, 8);
     const F = { statics: S, under: null, storeys: { sameFloor: (a, b) => Math.abs((a.gy ?? 0) - (b.gy ?? 0)) < 1.6 } };
     const T = new Reach(F), me = { x: 0, z: 0, gy: 0, storey: null, ug: null };
@@ -100,14 +100,31 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
       ownShelf: T.to(me, -2.3, 0),
       floor: T.to(me, -2.3, 0, { y: 3.2 }), floorWhy: T.last.why,
       talkWall: T.to(me, 0, 3.5, { kind: 'talk' }),
-      close: T.to({ x: 0, z: 1.45, gy: 0 }, 0, 2.2), // 0.75 m: arm's length (no line is cast)
+      pressed: T.to({ x: 0, z: 1.45, gy: 0, radius: 0.4 }, 0, 2.4), // pressed to the wall, the shelf 0.95 m off through it
       farShelf: T.to({ x: 0, z: 3.6, gy: 0 }, 0, 2.4), // from the shelf's own side
+      armsLength: T.to({ x: 20, z: 0, gy: 0, radius: 0.4 }, 20.7, 0), // 0.7 m in the open: no line is cast
     };
-    const want = { wall: false, wallWhy: 'wall', shelfBehind: false, behindWhy: 'wall', counter: true, ownShelf: true, floor: false, floorWhy: 'floor', talkWall: false, close: true, farShelf: true };
+    // a thin yard wall (0.2 m), a shelf's point 0.25 m past it, a PRONE body (radius 0.26) against it: 0.71 m apart
+    S.add(30, 1.9, 40, 2.1, 'wall', 2.4);
+    out.prone = T.to({ x: 35, z: 1.64, gy: 0, radius: 0.26 }, 35, 2.35);
+    // a big fixture on its own collider (a 7.8 m cistern) from 4.3 m: reached as a fixture, not as a plain point
+    S.add(-30 - 3.9, -3.9, -30 + 3.9, 3.9, 'dam', 2.4);
+    out.fixture = T.fixture({ x: -30, z: 4.3, gy: 0, radius: 0.4 }, -30, 0);
+    out.fixturePlain = T.to({ x: -30, z: 4.3, gy: 0, radius: 0.4 }, -30, 0);
+    // a car (not on the grid) parked against the far side of the thin wall: the line stops at its flank and meets the wall
+    out.carBehind = T.vehicle({ x: 35, z: 1.5, gy: 0, radius: 0.4 }, { x: 35, z: 3.2, wid: 1.9 });
+    out.carBeside = T.vehicle({ x: 35, z: 1.5, gy: 0, radius: 0.4 }, { x: 35, z: -0.5, wid: 1.9 });
+    // upstairs in a town lifted 6 m onto a hill: the partition stands on the BUILDING's ground (3.2 to 6.4 m over it)
+    const part = S.add(50, 1.9, 60, 2.1, 'wall', 6.4); part.base = 3.0;
+    const up = { x: 55, z: 0, gy: 9.2, storey: { y0: 6 }, ug: null, radius: 0.4 };
+    out.upstairs = T.to(up, 55, 3.5);
+    out.onStairs = T.to({ x: 0, z: 0, gy: 1.2, storey: { y0: 0 }, ug: null, radius: 0.4 }, 0, 3.5); // 1.2 m up a flight: still the street floor's wall
+    const want = { wall: false, wallWhy: 'wall', shelfBehind: false, behindWhy: 'wall', counter: true, ownShelf: true, floor: false, floorWhy: 'floor', talkWall: false, pressed: false, farShelf: true, armsLength: true,
+      prone: false, fixture: true, fixturePlain: false, carBehind: false, carBeside: true, upstairs: false, onStairs: false };
     return Object.keys(want).every((k) => out[k] === want[k]) || out;
   });
 
-  await check('reach: NO LOOT THROUGH A WALL - outside a real building, a shelf 2 m away on the far side of its wall: E does not offer it, the PACK screen does not list it, pack/item commands cannot take from it and it is never rolled; from inside the same shelf opens', async () => hush(async () => {
+  await check('reach: NO LOOT THROUGH A WALL - outside a real building, a shelf 2 m away on the far side of its wall: E does not open it, the pack command does not make it the other side, the PACK screen does not list it and it is never rolled; from inside the same shelf opens; and a PACK left open on it lets go when you walk round the wall', async () => hush(async () => {
     await stage();
     g.godMode = true;
     const f = findBox();
@@ -116,7 +133,6 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     await C('teleport', { x: out.x, z: out.z }); await put(out); await shut();
     const d = Math.hypot(b.x - P().x, b.z - P().z);
     const reach = R.box(P(), b), why = R.last.why;
-    const prompt0 = g.hud.s.prompt ?? '';
     await tap('KeyE'); await api._step(4);
     const eOpened = g.invUI.open && (g.invUI.other === b || inv.opened === b);
     await shut();
@@ -130,10 +146,14 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     await tap('KeyE'); await api._step(4);
     const opensInside = g.invUI.open && (g.invUI.other === b || inv.opened === b);
     const listedInside = g.invUI.findNear().includes(b);
+    // left open on it, you go back round the wall: within half a second it is not the other side any more
+    const heldInside = g.invUI.other === b;
+    await put(out); await api._step(40);
+    const letGo = g.invUI.other !== b;
     await shut();
     g.godMode = false;
-    const ok = d < NEAR_REACH && !reach && why === 'wall' && !eOpened && !listed && !other && untouched && reachIn && opensInside && listedInside;
-    return ok || { box: b.id, d: r1(d), reach, why, prompt0, eOpened, listed, other, untouched, reachIn, opensInside, listedInside };
+    const ok = d < NEAR_REACH && !reach && why === 'wall' && !eOpened && !listed && !other && untouched && reachIn && opensInside && listedInside && heldInside && letGo;
+    return ok || { box: b.id, d: r1(d), reach, why, eOpened, listed, other, untouched, reachIn, opensInside, listedInside, heldInside, letGo };
   }));
 
   await check('reach: nobody to talk to, no bed and no car through a wall - a stranger, a mattress and a parked car 2 m off behind a wall give no prompt and E does nothing; with a clear line each one does', async () => hush(async () => {
@@ -181,17 +201,138 @@ export async function reachChecks({ g, api, C, check, stage, hush }) {
     return ok || { dbg, dC: r1(dC), talkOut, promptOut, dlgOut, bedOut: bedOut === bed, carOut, talkIn, bedIn: bedIn === bed, carIn };
   }));
 
-  await check('reach: a door is worked from in front of it, never through the wall beside it or from the next room - every island door within 1.9 m of a spot with a wall in the way is refused there and offered from its own doorway', async () => hush(async () => {
+  await check('reach: a door is worked from in front of it, never through a wall - every island door probed reaches from 1.2 m in front on both sides and is what E\'s own search (interiors.nearest) offers there; stand a wall in the hand\'s line and the same search stops offering it; take the wall away and it is offered again', async () => hush(async () => {
     await stage();
-    let tried = 0, wrong = [];
-    const probe = { x: 0, z: 0, gy: 0, storey: null, ug: null };
-    for (const d of g.interiors.doors) {
-      if (d.broken || Math.max(Math.abs(d.x), Math.abs(d.z)) > 440 || (d.y ?? 0) > 0.5 || tried >= 40) continue;
-      if (d.nx === undefined) continue;
-      // in front of it, 1.2 m out on each side: both must reach
-      for (const s of [1, -1]) { probe.x = d.x + d.nx * 1.2 * s; probe.z = d.z + d.nz * 1.2 * s; if (!g.statics.pointBlocked(probe.x, probe.z, 0.4) && !R.opening(probe, d)) wrong.push({ door: d.id, side: s, front: false, why: R.last.why }); }
-      tried++;
+    const In = g.interiors, S = g.statics;
+    // a wall piece put on the island grid for one assertion and taken off again (the grid has no remove of its own)
+    const wallIn = (x0, z0, x1, z1) => S.add(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1), 'wall', 3);
+    const wallOut = (bx) => { const i = S.boxes.indexOf(bx); if (i >= 0) S.boxes.splice(i, 1); for (const list of S.cells) { const k = list.indexOf(bx); if (k >= 0) list.splice(k, 1); } };
+    let probed = 0, fronts = 0, walled = 0;
+    const wrong = [];
+    const probe = { x: 0, z: 0, gy: 0, storey: null, ug: null, radius: 0.4 };
+    for (const d of In.doors) {
+      if (d.broken || d.ug || d.ring || d.nx === undefined || Math.max(Math.abs(d.x), Math.abs(d.z)) > 440 || (d.y ?? 0) > 0.5 || probed >= 40) continue;
+      if (!d.locked && d.leaves.some((L) => Math.abs(L.th) > 0.3)) continue; // an open door is not E's to kick: skip it
+      let any = false;
+      for (const sd of [1, -1]) {
+        probe.x = d.x + d.nx * 1.2 * sd; probe.z = d.z + d.nz * 1.2 * sd;
+        if (S.pointBlocked(probe.x, probe.z, 0.4)) continue;
+        any = true; fronts++;
+        const reach = R.opening(probe, d), offered = In.nearest(probe) === d;
+        if (!reach) { wrong.push({ door: d.id, side: sd, reach, why: R.last.why }); continue; }
+        if (!offered) continue; // another door or a window is nearer on this side: E is that one's
+        // a wall slab 0.55 m out from the door, across the hand's line
+        const cx = d.x + d.nx * 0.55 * sd, cz = d.z + d.nz * 0.55 * sd;
+        const slab = wallIn(cx - d.ux * 1.4 - d.nx * 0.08, cz - d.uz * 1.4 - d.nz * 0.08, cx + d.ux * 1.4 + d.nx * 0.08, cz + d.uz * 1.4 + d.nz * 0.08);
+        let stopped = false, gone = false;
+        try { stopped = !R.opening(probe, d) && R.last.why === 'wall'; gone = In.nearest(probe) !== d; } finally { wallOut(slab); }
+        const back = In.nearest(probe) === d;
+        walled++;
+        if (!stopped || !gone || !back) wrong.push({ door: d.id, side: sd, stopped, gone, back });
+      }
+      if (any) probed++;
     }
-    return (tried >= 10 && wrong.length === 0) || { tried, wrong: wrong.slice(0, 6), n: wrong.length };
+    return (probed >= 10 && fronts >= 20 && walled >= 20 && wrong.length === 0) || { probed, fronts, walled, wrong: wrong.slice(0, 6), n: wrong.length };
+  }));
+
+  await check('reach: the other hands - a body behind a wall is not dragged (hold E) and the same body is from its own side; a pile through the wall is not the ground at your feet; a junkyard hulk and the dam\'s cistern are offered by E from every side you can stand at', async () => hush(async () => {
+    await stage();
+    g.godMode = true;
+    const S = g.statics, In = g.interiors;
+    // a bare stretch of a real island wall: 0.6 m off each face free, a wall in the line, and nothing else E would take
+    const bare = () => {
+      const probe = { x: 0, z: 0, gy: 0, storey: null, ug: null, radius: 0.4 };
+      for (const w of S.boxes) {
+        if (w.tag !== 'wall' || w.height < 2.3 || w.base > 0 || w.holes) continue;
+        const sx = w.maxX - w.minX, sz = w.maxZ - w.minZ, long = Math.max(sx, sz), thin = Math.min(sx, sz);
+        if (long < 5 || thin > 0.6 || Math.max(Math.abs(w.minX), Math.abs(w.minZ), Math.abs(w.maxX), Math.abs(w.maxZ)) > 430) continue;
+        const cx = (w.minX + w.maxX) / 2, cz = (w.minZ + w.maxZ) / 2, nx = sx < sz ? 1 : 0, nz = sx < sz ? 0 : 1, off = thin / 2 + 0.6;
+        const A = { x: cx + nx * off, z: cz + nz * off }, B = { x: cx - nx * off, z: cz - nz * off }, B2 = { x: B.x + nz * 1.1, z: B.z + nx * 1.1 };
+        if ([A, B, B2].some((q) => S.pointBlocked(q.x, q.z, 0.45) || !g.nav.foot.free(q.x, q.z))) continue;
+        let clean = true;
+        for (const q of [A, B2]) { probe.x = q.x; probe.z = q.z; if (In.nearest(probe) || inv.nearest(q.x, q.z, 2.6, true, 0) || g.bedNear(q.x, q.z, 0)) clean = false; }
+        if (!clean) continue;
+        probe.x = A.x; probe.z = A.z;
+        if (R.to(probe, B.x, B.z) || R.last.why !== 'wall') continue;
+        probe.x = B2.x; probe.z = B2.z;
+        if (!R.to(probe, B.x, B.z)) continue;
+        return { A, B, B2 };
+      }
+      return null;
+    };
+    const W = bare();
+    if (!W) { g.godMode = false; return 'no bare island wall with free ground both sides'; }
+    const holdE = async (frames) => { g.input.down.add('KeyE'); g.input.pressed.add('KeyE'); for (let i = 0; i < frames; i++) await api._step(1); g.input.down.delete('KeyE'); await api._step(2); };
+    // nobody and nothing of an earlier check's by this wall: people, body records, their boxes, dropped piles
+    const sweep = () => {
+      for (const o of [...g.chars]) if (o !== g.player && !o.npc && Math.hypot(o.x - W.A.x, o.z - W.A.z) < 30) g.removeChar(o);
+      const Bd = g.rites?.bodies;
+      if (Bd) { for (const [k, q] of Bd) if (Math.hypot((q.c ? q.c.x : q.x) - W.A.x, (q.c ? q.c.z : q.z) - W.A.z) < 30) Bd.delete(k); g.rites.dirty = true; }
+      for (const [id, q] of [...inv.boxes]) if ((q.kind === 'body' || q.kind === 'ground') && q.x !== undefined && Math.hypot(q.x - W.A.x, q.z - W.A.z) < 30) inv.boxes.delete(id);
+      inv.opened = null; inv.drawPiles?.();
+    };
+    await C('teleport', { x: W.A.x, z: W.A.z }); await put(W.A); await shut();
+    sweep();
+    const sp = await C('spawn', { kind: 'drifter', x: W.B.x, z: W.B.z });
+    const c = sp.ids?.[0] ? api.findChar(sp.ids[0]) : null;
+    if (!c) { g.godMode = false; return { spawn: sp }; }
+    c.x = W.B.x; c.z = W.B.z;
+    g.combat.damage(c, 9999, null, 0, 0, 'bullet');
+    await api._step(45);
+    const lay = () => { c.x = W.B.x; c.z = W.B.z; c.vx = 0; c.vz = 0; }; // where he fell is staged: a dying man staggers
+    lay();
+    // from the far side of the wall: 1.7 m off, in bodyNear's plain range, and holding E drags nobody
+    await put(W.A);
+    const dBody = Math.hypot(c.x - P().x, c.z - P().z);
+    const plain = !!g.rites.bodyNear(P().x, P().z, 1.8), mine = !!g.rites.bodyNear(P().x, P().z, 1.8, P());
+    // (three goes each side: the same hold is also the body's search, and which wins a given press varies)
+    const tryDrag = async (at) => { for (let k = 0; k < 3; k++) { lay(); await put(at); await shut(); await holdE(90); if (g.rites.drag) { g.rites.stopDrag(); return true; } } return false; };
+    const dragged = await tryDrag(W.A);
+    // a pile lying by the body: from your side of the wall it is not the ground at your feet
+    const pile = inv.place(`ground:reachtest${Math.round(g.time * 10)}`, 'ground', W.B.x + (W.A.x - W.B.x) * 0.18, W.B.z + (W.A.z - W.B.z) * 0.18, 999, 'THE GROUND'); // against the wall's far face
+    pile.rolled = true; inv.add(pile, 'rag', 1);
+    await put(W.A);
+    const dPile = Math.hypot(pile.x - P().x, pile.z - P().z);
+    const farSide = (q) => q && q.kind === 'ground' && Math.hypot(q.x - W.A.x, q.z - W.A.z) > 0.7; // any pile that is not at your own feet
+    const feet = inv.groundAt(P().x, P().z), feetIsPile = farSide(feet);
+    const pk = await C('pack', { on: true });
+    const listedPile = g.invUI.findNear().some(farSide) || farSide(g.invUI.other);
+    await shut();
+    // the control: from the body's own side the pile is the ground here and the same hold drags the body
+    await put(W.B2);
+    const feetB = inv.groundAt(P().x, P().z), feetIn = Math.hypot(feetB.x - W.B.x, feetB.z - W.B.z) < 1.2; // a pile lying by the body (his own things, or the rag)
+    for (const [id, q] of [...inv.boxes]) if (q.kind === 'ground' && Math.hypot(q.x - W.A.x, q.z - W.A.z) < 6) inv.boxes.delete(id);
+    inv.prune();
+    lay(); await put(W.B2);
+    const mineIn = !!g.rites.bodyNear(P().x, P().z, 1.8, P());
+    const dbg = mineIn ? null : { why: R.last.why, tag: R.last.tag, pl: [r1(P().x - W.B2.x), r1(P().z - W.B2.z)], c: [r1(c.x - W.B.x), r1(c.z - W.B.z)], alive: c.alive, inChars: g.chars.includes(c), gy: [c.gy, P().gy], recs: [...g.rites.bodies.values()].filter((q) => Math.hypot((q.c ? q.c.x : q.x) - W.B.x, (q.c ? q.c.z : q.z) - W.B.z) < 4).map((q) => ({ hasC: !!q.c, x: r1((q.c ? q.c.x : q.x) - W.B.x), z: r1((q.c ? q.c.z : q.z) - W.B.z), y: q.y, buried: q.buried, burned: q.burned })) };
+    const draggedIn = await tryDrag(W.B2);
+    await shut();
+    sweep();
+    // the roadside's big fixtures (a junkyard hulk, the dam's cistern): stand just clear of the thing's own collider on
+    // each side you can and ask E's own search (roadside.spotNear) - it must offer that spot
+    const RS = g.roadside.R;
+    let spots = 0;
+    const blocked = [];
+    const picks = [RS?.spots.find((q) => q.kind === 'hulk'), RS?.spots.find((q) => q.kind === 'water' && q.source === 'cistern')].filter(Boolean);
+    for (const q of picks) {
+      await C('teleport', { x: q.x + q.r + 3, z: q.z });
+      await C('step', { seconds: 1.2 });
+      let stood = 0;
+      for (const [ox, oz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        let k = 0.5, fx = 0, fz = 0, found = false;
+        for (; k < q.r - 0.3; k += 0.25) { fx = q.x + ox * k; fz = q.z + oz * k; if (!S.pointBlocked(fx, fz, 0.42)) { found = true; break; } }
+        if (!found) continue;
+        await put({ x: fx, z: fz });
+        if (Math.hypot(P().x - q.x, P().z - q.z) > q.r) continue; // pushed out of its reach by something else standing there
+        stood++;
+        const got = g.roadside.spotNear(P());
+        if (got?.id !== q.id) blocked.push({ id: q.id, kind: q.kind, side: [ox, oz], d: r1(Math.hypot(P().x - q.x, P().z - q.z)), got: got?.id ?? null, why: R.last.why, tag: R.last.tag });
+      }
+      if (stood) spots++;
+    }
+    g.godMode = false;
+    const ok = plain && !mine && !dragged && dPile < 1.6 && !feetIsPile && !listedPile && feetIn && mineIn && draggedIn && picks.length === 2 && spots === 2 && blocked.length === 0;
+    return ok || { dbg, dBody: r1(dBody), plain, mine, dragged, dPile: r1(dPile), feetIsPile, listedPile, feetIn, mineIn, draggedIn, picks: picks.length, spots, blocked: blocked.slice(0, 5), n: blocked.length };
   }));
 }

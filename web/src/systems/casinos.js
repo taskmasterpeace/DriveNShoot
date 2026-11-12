@@ -437,7 +437,7 @@ export class Casinos {
     if (!S) return { ok: false, why: `how: ${Object.keys(SAFE).join(' | ')}` };
     if (!v.safePos) return { ok: false, why: 'no safe in a back room' };
     if (v.safe.state !== 'locked') return { ok: false, why: `the safe is ${v.safe.state}` };
-    if (Math.hypot(P.x - v.safePos.x, P.z - v.safePos.z) > 2.2) return { ok: false, why: 'get to the safe' };
+    if (Math.hypot(P.x - v.safePos.x, P.z - v.safePos.z) > 2.2 || !(g.reach?.fixture(P, v.safePos.x, v.safePos.z) ?? true)) return { ok: false, why: 'get to the safe' };
     if (!(g.inventory.carried.count(S.needs) > 0)) return { ok: false, why: `you carry no ${ITEMS[S.needs]?.name ?? S.needs}` };
     v.safe.work += dt; v.safe.how = how;
     if (v.safe.work < S.time) return { ok: true, working: r1(v.safe.work / S.time) };
@@ -678,7 +678,7 @@ export class Casinos {
         if (this.hold >= CAGE.hold) { this.hold = 0; const r = this.robCage(v); g.hud.toast(r.ok ? `YOU TOOK $${r.took}` : r.why.toUpperCase(), r.ok ? 'hot' : 'warn'); }
         return true;
       }
-      if (Math.hypot(p.x - v.safePos.x, p.z - v.safePos.z) < 1.6 && v.safe.state === 'locked') {
+      if (Math.hypot(p.x - v.safePos.x, p.z - v.safePos.z) < 1.6 && v.safe.state === 'locked' && (g.reach?.fixture(p, v.safePos.x, v.safePos.z) ?? true)) { // never the safe through the office wall (systems/reach.js)
         const tools = this.safeTools();
         if (!tools.length) { g.hud.prompt('The office safe · you need picks, a pry bar or a charge'); return true; }
         const how = tools[0], S = SAFE[how];

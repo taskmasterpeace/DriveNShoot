@@ -590,9 +590,13 @@ export class Inventory {
 
   // What's on the ground here: the pile within reach, or a fresh empty one (pruned again if nothing is left in it).
   // y: the floor it lies on (upstairs: world/storeys.js); by default the player's.
+  // Asked for where the player stands (a drop, the PACK's ground side), the pile must be in their hand's reach: a pile
+  // 1 m off through a yard wall is not "the ground here" (systems/reach.js). Anywhere else (a body's things laid down
+  // where it lay) it is by distance alone.
   groundAt(x, z, y = this.g.player?.gy ?? 0) {
     let best = null, bd = 1.6;
-    for (const b of this.boxes.values()) if (b.kind === 'ground' && !b.unseen && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    const P = this.g.player, who = P && this.g.reach && Math.abs(P.x - x) < 0.5 && Math.abs(P.z - z) < 0.5 ? P : null;
+    for (const b of this.boxes.values()) if (b.kind === 'ground' && !b.unseen && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd && (who === null || this.g.reach.box(who, b))) { bd = d; best = b; } }
     if (best) return best;
     const b = this.place(`ground:${++this.piles}`, 'ground', x, z, 999, 'THE GROUND');
     if (y > 0.5) b.y = y;
