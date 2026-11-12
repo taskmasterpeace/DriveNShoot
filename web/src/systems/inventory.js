@@ -599,7 +599,7 @@ export class Inventory {
     for (const b of this.boxes.values()) if (b.kind === 'ground' && !b.unseen && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd && (who === null || this.g.reach.box(who, b))) { bd = d; best = b; } }
     if (best) return best;
     const b = this.place(`ground:${++this.piles}`, 'ground', x, z, 999, 'THE GROUND');
-    if (y > 0.5) b.y = y;
+    if (y > 0.5 || y < -0.5) b.y = y; // upstairs, or below the street (systems/underground.js)
     b.rolled = true;
     return b;
   }

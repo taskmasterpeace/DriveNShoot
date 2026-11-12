@@ -94,7 +94,7 @@ export function ritesCommands(api, need) {
             const r = S.tell(R, 'player'); need(r.ok, r.why);
             return { ...r, told: near?.name ?? null, facts: R.news.facts };
           }
-          case 'drag': { const R = body(a.id); const bx = R.c ? R.c.x : R.x, bz = R.c ? R.c.z : R.z; reach(bx, bz, 2.2, a.force, 'the body'); if (a.force && !R.c) { p.x = bx + 0.8; p.z = bz; } need(a.force || g.reach.to(p, bx, bz), 'a wall stands between you and the body'); const r = S.startDrag(R, p); need(r.ok, r.why); return r; }
+          case 'drag': { const R = body(a.id); const bx = R.c ? R.c.x : R.x, bz = R.c ? R.c.z : R.z; reach(bx, bz, 2.2, a.force, 'the body'); if (a.force && !R.c) { p.x = bx + 0.8; p.z = bz; } need(a.force || S.inReach(R, p), 'a wall or a floor stands between you and the body'); const r = S.startDrag(R, p); need(r.ok, r.why); return r; }
           case 'drop': need(S.drag, 'you are not dragging anyone'); S.stopDrag(); return { ok: true };
           case 'dig': {
             const x = a.x ?? p.x + Math.sin(p.face) * 1.5, z = a.z ?? p.z + Math.cos(p.face) * 1.5;

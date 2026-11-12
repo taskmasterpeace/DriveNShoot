@@ -2,7 +2,7 @@
 
 **Status:** BUILT 2026-11-12 on `feat/web-zed-wallreach`.
 **Code:** the rule is `web/src/systems/reach.js` (`g.reach`); rows in `web/src/data/reach.js` (`REACH`, `validateReach`);
-the agent surface is `web/src/agent/reach-api.js` (the `reach` command and six named checks).
+the agent surface is `web/src/agent/reach-api.js` (the `reach` command and seven named checks).
 **Source of the ask:** Robert's playtest, 2026-11-12: "right now too it looks like you can do stuff through the walls,
 bro. Like you can grab stuff through the walls. It's kind of weird."
 
@@ -60,10 +60,10 @@ still a counter: you lean over it to trade.
 | E: a roadside spot (fill caps, a hulk, a tank, the cistern, the dam's wheel) | `roadside.js spotNear` | hand (fixture) |
 | E: a base's generator (fixture) and duty log | `milbases.js interact` | hand |
 | E: a casino's charger pad and its office safe (fixture) | `casinos.js interact` | hand |
-| Hold E: drag, bury or burn a body | `rites.js bodyNear(…, who)`: on your floor, a clear line, the nearest one you can reach | hand |
+| Hold E: drag, bury or burn a body | `rites.js bodyNear(…, who)` → `inReach`: on your floor (the body's box keeps the height it died at), a clear line, the nearest one you can reach | hand |
 | The ground at your feet (a drop, the PACK's ground side) | `inventory.js groundAt`: a pile within 1.6 m that your hand can get to, else a fresh one where you stand | hand |
 | The PACK screen left open (a box, a body, a pile) | `ui/inventory.js update` (four times a second) | hand |
-| The agent's `rites action=drag` and the safe's own rule (`casinos.workSafe`) | the same `g.reach` | hand |
+| The agent's `rites action=drag` (`rites.inReach`: floor and line) and the safe's own rule (`casinos.workSafe`) | the same `g.reach` | hand |
 
 - **Not changed** (already line-of-sight or contact rules of their own): shooting (`fire` refuses through walls),
   gunpoint (it is aimed), melee (`combat.js` wall law), fences (the fence is the thing), seats at a table (1.1 m),
@@ -96,7 +96,9 @@ still a counter: you lean over it to trade.
 - **A pile just through a thin wall:** it is not "the ground here". Dropping something makes a fresh pile where you stand. A trader's counter opened from a talk stays (the
   keeper hands things across).
 - **Riding a vehicle's deck:** the line starts at the street's hand height; the deck's own spots have their own rule.
-- **Below the street:** the line is cast on that level's own grid (`statics.under`).
+- **Below the street:** the line is cast on that level's own grid (`statics.under`). A pile made down there keeps its
+  level's height (before, only upstairs piles kept theirs, so a pile underground was never found again from its own
+  level). A body's floor is read from its box, not from the corpse: a ragdoll resets the corpse's own height.
 - **A person in a car:** not talked to at all (unchanged).
 - **The agent's `talk` command** keeps its 4 m rule and its `force=true`; it is a test verb, not the player's E.
 
@@ -145,12 +147,19 @@ still a counter: you lean over it to trade.
    finds him by distance and not for your hand, and three 1.5 s holds of E start no drag; a pile against the wall's far
    face is not the ground at your feet and the PACK screen does not list it. From his own side the pile is the ground
    there and the same hold drags him (the control). At a junkyard hulk and at the dam's cistern (both required),
-   `roadside.spotNear` offers the spot from every side you can stand at.
+   `roadside.spotNear` offers the spot from every side you can stand at. Staged body records at the same wall: one
+   0.5 m off on the floor above is passed over, one 1.7 m off through the wall is passed over, and the one 1.1 m off
+   beside you is the one `bodyNear(…, you)` returns; with it gone, none.
+7. **Below the street:** on Red Rock Cave's second level the PACK screen held open on the ground keeps the one pile for
+   120 frames (no new box, no new pile, the pile's height below −0.5), and a dead man 1 m off on that level is found for
+   your hand and dragged by holding E.
 
 Before / after: `docs/renders/web/reach/zed-wallreach-before.jpg` (the PACK screen opens the cantina's crate from the
 street) and `zed-wallreach-after.jpg` (the same spot opens the ground).
 
-Critic review 2026-11-12. Second pass FAIL, three items, fixed in the third commit: a ground pile taken through a
+Critic review 2026-11-12. Third pass FAIL, two items, fixed in the fourth commit: below the street bodies could not be
+dragged (the corpse's own height is reset by its ragdoll) and the PACK's ground side re-picked a fresh pile four times a
+second (a pile underground kept no height). Second pass FAIL, three items, fixed in the third commit: a ground pile taken through a
 wall, a body dragged through a floor (and a nearer unreachable body hiding a reachable one), a drag check with no
 control. First pass FAIL, seven items, fixed in the second commit: the cistern and hulks refused
 (`ownMax` on fixtures), the upstairs height ignoring `storey.y0`, a body dragged through a wall, the casino safe, the
