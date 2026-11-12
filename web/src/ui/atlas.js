@@ -19,6 +19,7 @@ export const ATLAS = {
   uncoverS: 0.5,      // how often the fog is updated while you move (seconds)
   P: 6,               // base sheet pixels per usmap grid cell (150 x 85 cells -> 900 x 510)
   minZoom: 1, maxZoom: 8, // the view's zoom: 1 = the whole country fits the canvas width
+  pad: 2500,         // usmap metres the view may run past the painted sheet (Florida's tip is past its last row)
   cw: 1216, ch: 690,  // the COUNTRY canvas (px): the country's own shape, 75 x 42.5 km of usmap
   roadCol: { 1: '#d8b066', 2: '#e3923e', 3: '#d8452e' }, // interstates by danger: sand, orange, red
   riverCol: '#5f9fb8',
@@ -164,7 +165,8 @@ export class Atlas {
     if (!this.view) this.view = { cx: UX0 + UW / 2, cy: UY0 + UH / 2, z: 1 }; // the first open: the whole country
     const s = (W / UW) * this.view.z, hx = W / 2 / s, hy = H / 2 / s;
     const keep = (v, lo, span, half) => (half >= span / 2 ? lo + span / 2 : clamp(v, lo + half, lo + span - half));
-    this.view.cx = keep(this.view.cx, UX0, UW, hx); this.view.cy = keep(this.view.cy, UY0, UH, hy);
+    // The view may run PAD past the sheet (the sea): Florida's south (Miami, the Keys road) lies past the grid's last row.
+    this.view.cx = keep(this.view.cx, UX0 - ATLAS.pad, UW + ATLAS.pad * 2, hx); this.view.cy = keep(this.view.cy, UY0 - ATLAS.pad, UH + ATLAS.pad * 2, hy);
     return { s, x0: this.view.cx - hx, y0: this.view.cy - hy, W, H };
   }
   // Zoom about a canvas point (u, v in 0..1) by a factor.
@@ -205,7 +207,7 @@ export class Atlas {
     const z = this.view.z, line = (pts) => { c.beginPath(); pts.forEach((p, i) => { const [x, y] = U(p[0], p[1]); if (i) c.lineTo(x, y); else c.moveTo(x, y); }); };
     this.placed = []; this.texts = []; // every box text or a mark holds; the text boxes alone
     for (const st of this.states ?? []) delete st.ly;
-    c.fillStyle = `rgb(${BIOME_RGB['.'].join(',')})`; c.fillRect(0, 0, W, H);
+    c.fillStyle = 'rgb(18,23,24)'; c.fillRect(0, 0, W, H); // past the sheet: the sea under the fog (BIOME_RGB '.' under fogCol)
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     { const [a, b] = U(UX0, UY0); c.drawImage(base, a, b, UW * s, UH * s); }
     // The fog of where you have never been.

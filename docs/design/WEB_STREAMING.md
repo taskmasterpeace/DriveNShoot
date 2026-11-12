@@ -493,6 +493,8 @@ graph, so there is one code path. Convoys spawn and despawn by distance to the p
 - **Big map, three levels:** a continental atlas rendered lazily at 2048 × 1160 (about 190 m per px: biomes, state borders,
   rivers, interstates with their nicknames, towns, exits, fog of discovery); a regional vector view of the road graph (±20 km);
   a local view from minimap tiles. Click-to-waypoint works in world metres; GPS uses the graph route.
+  **Built 2026-11-12** as the big map's COUNTRY view (`WEB_WORLD_MAP.md`: a 1216 × 690 sheet, the 1 km fog saved as runs; the
+  regional view and the local view are the existing AREA view).
 
 ### 3.10 Phases, and the new surface in the agent API
 | Phase | Builds | New commands | Scenarios and tools |

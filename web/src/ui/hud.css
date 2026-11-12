@@ -524,3 +524,8 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .bigmap-tabs button:hover { color: oklch(0.9 0.02 80); background: oklch(0.27 0.01 70); }
 .bigmap-tabs button.on { color: oklch(0.16 0.01 70); background: var(--gold); border-color: var(--gold); }
 .bigmap canvas.wide { width: min(94vw, calc(80vh * 1.762)); height: auto; aspect-ratio: 1216 / 690; }
+/* The canvas sets the card's width; the title, tabs and legend wrap inside it (the legend on its own line). */
+.bigmap-card { width: min-content; }
+.bigmap-head { flex-wrap: wrap; row-gap: 4px; align-items: center; }
+.bigmap-head b { white-space: nowrap; }
+.bigmap-head span { flex: 1 0 100%; order: 3; line-height: 1.35; }
