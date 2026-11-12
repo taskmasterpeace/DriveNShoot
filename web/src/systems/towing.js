@@ -260,7 +260,7 @@ export class Towing {
     const s = p.onDeck ? null : this.footSpot(p);
     if (!s || (s.verb === 'none' && !this.carry)) { this.footT = 0; return false; } // nothing to hook (no line on you): the car's own prompt stands
     const H = this.g.hud;
-    if (s.verb === 'none') { this.footT = 0; H?.prompt(s.text); return true; }
+    if (s.verb === 'none') { if (I.key('KeyE')) this.footT = (this.footT ?? 0) + dt; else { if (this.footT > 0 && this.footT < TOW_FOOT.hookTime * 0.5) this.tapped = true; this.footT = 0; } H?.prompt(tap ? `${s.text} · tap <kbd>E</kbd> ${tap}` : s.text); return true; } // nothing to hook here: a tap still does E's other job
     if (I.key('KeyE')) {
       if (this.footT >= 0) this.footT = (this.footT ?? 0) + dt;
       if (this.footT >= 0) H?.prompt(`${s.verb === 'unhook' || s.verb === 'drop' ? 'Unhooking' : 'Hooking the line'}… ${Math.round(Math.min(1, this.footT / TOW_FOOT.hookTime) * 100)}%`);
@@ -304,7 +304,12 @@ export class Towing {
   }
   // A save while you hold a line: it goes in the save as in your pack (put back, saved, taken again). A load clears it
   // (the pack as saved already has it).
-  saveCarry(fn) { const C = this.carry, I = this.g.inventory; if (!C || !I) return fn(); I.add(I.carried, C.L.item, 1); try { return JSON.parse(JSON.stringify(fn())); } finally { I.spend(C.L.item, 1); } } // a copy: the inventory's save holds live slots
+  saveCarry(fn) {
+    const C = this.carry, I = this.g.inventory; if (!C || !I) return fn();
+    const cap0 = I.carried.cap; I.carried.cap = Infinity; // a full pack still saves the line in your hands (in the pack, as the load will have it)
+    const k = I.add(I.carried, C.L.item, 1);
+    try { return JSON.parse(JSON.stringify(fn())); } finally { if (k > 0) I.spend(C.L.item, k); I.carried.cap = cap0; } // a copy: the inventory's save holds live slots
+  }
   loadCarry() { this.carry = null; this._spot = null; }
   dropCarry(why = 'dropped') {
     const C = this.carry; if (!C) return { ok: false, why: 'not carrying a line' };
@@ -316,7 +321,7 @@ export class Towing {
   footTick() {
     const C = this.carry; if (!C) return;
     const p = this.g.player;
-    if (!p.alive || p.inVehicle || C.v.dead || C.v.sunk || !this.g.vehicles.includes(C.v)) { this.dropCarry('back in your pack'); return; }
+    if (!p.alive || p.inVehicle || C.v.sunk || !this.g.vehicles.includes(C.v)) { this.dropCarry('back in your pack'); return; } // a wreck holds a hook fine
     const A = this.anchor(C.v, C.end, _A), dx = p.x - A.x, dz = p.z - A.z, d = Math.hypot(dx, dz), max = C.L.len + TOW_FOOT.leash;
     if (d > max + 0.5) { this.dropCarry('pulled out of your hands'); return; } // the car moved off (or you were thrown): you let go
     if (d > max) { const t = (this._lt ??= { x: 0, z: 0 }); t.x = A.x + dx / d * max; t.z = A.z + dz / d * max; this.g.statics?.resolveCircle?.(t, 0.35); p.x = t.x; p.z = t.z; } // the line is only so long (and the walls still hold you)
