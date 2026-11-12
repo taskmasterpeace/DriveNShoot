@@ -14,7 +14,7 @@ import { WEAPONS } from './combat.js';
 import { outfit } from './characters.js';
 import { makeRng } from '../engine/rng.js';
 
-const ADOBE = '#b08a62', ADOBE_DARK = '#8a6a4a', RAIL = '#5a4632', POLE = '#3a3632', FLAG = '#8a5a32';
+const ADOBE = '#9a6646', ADOBE_DARK = '#5a3a26', RAIL = '#4a3624', POLE = '#2e2a26', FLAG = '#7a3a1e', CANVAS = '#cfc4a4', CANVAS_DARK = '#9a8f72';
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
 
 export class Cavalry {
@@ -36,7 +36,7 @@ export class Cavalry {
   // ---- the post ------------------------------------------------------------------------------------------------------------
   // Walls: four sides of a square, the gate a gap in its side; collision boxes in statics.extra, drawn in one mesh.
   build(S) {
-    const P = S.row, h = P.half, t = 0.7, ht = 1.6, g = this.g, gap = 5;
+    const P = S.row, h = P.half, t = 0.9, ht = 2.2, g = this.g, gap = 5;
     const sides = [
       ['N', -h, h - t / 2, h, h + t / 2], ['S', -h, -h - t / 2, h, -h + t / 2],
       ['E', h - t / 2, -h, h + t / 2, h], ['W', -h - t / 2, -h, -h + t / 2, h],
@@ -50,7 +50,7 @@ export class Cavalry {
     }
     for (const [x0, z0, x1, z1] of pieces) {
       const b = { minX: P.x + x0, minZ: P.z + z0, maxX: P.x + x1, maxZ: P.z + z1, tag: 'cav-wall', height: ht, mark: 0, op: null, holes: null, holeX: false, sill: 0, base: 0, owner: null };
-      g.statics.extra.push(b); S.boxes.push(b);
+      g.statics.extra.push(b); g.statics.rayExtra?.push(b); S.boxes.push(b); // movers meet it; bullets and sight stop at it (engine/collision.js rayExtra)
     }
     S.walls = pieces; S.built = true;
     this.dirty = true;
@@ -65,7 +65,7 @@ export class Cavalry {
     const rail = { x: P.x - P.half + 4, z: P.z + P.half - 3 }; // the corral rail inside the north-west corner
     P.garrison.forEach((h, i) => {
       const H = Hs.mk(h.breed, { x: rail.x + i * 2.4, z: rail.z, owner: `company:${P.id}`, saddle: true, bond: 0.4 });
-      H.tied = { x: H.x, z: H.z }; H.noGraze = true;
+      H.tied = { x: H.x, z: H.z }; // tied at the rail; fed from the company's hay (it grazes nothing there)
       S.people.push(person({ kind: 'garrison', horse: H.id, x: rail.x + i * 2.4, z: rail.z - 2.2 }));
     });
     for (const T of P.patrols) {
@@ -91,7 +91,11 @@ export class Cavalry {
     c.fid = 'company'; this.F()?.assign(c);
     c.cavalry = { post: S.row.id, rec: r }; c.maxHp = RIDER.hp; c.hp = r.hp;
     r.c = c;
-    if (H && H.alive && !H.stolen && H.owner === `company:${S.row.id}` && r.kind === 'patrol') this.seat(c, H);
+    if (H && H.alive && !H.stolen && H.owner === `company:${S.row.id}` && r.kind === 'patrol') {
+      const pat = r.pat ?? (r.pat = S.patrols.find((p) => p.id === r.patrol));
+      if (pat) { const at = along(pat.row.route, pat.s - (r.slot ?? 0) * CAVALRY.fileGap, S.row); H.x = at.x; H.z = at.z; const a = g.horses.bodyOf(H); if (a) { a.x = at.x; a.z = at.z; } c.x = at.x; c.z = at.z; } // where the loop's clock has them
+      this.seat(c, H);
+    }
     return c;
   }
   seat(c, H) { c.mount = H; H.rider = c.id; H.npcRider = c; H.tied = null; H.mountT = 0; this.g.horses.riderPose(c); }
@@ -138,8 +142,8 @@ export class Cavalry {
     const H = c.mount;
     if (H && (!H.alive || H.stolen || g.player.mount === H)) { this.unseat(c, H.alive ? 'taken' : 'horse down'); return; }
     if (!H) return; // on foot: ai.js has them (a dismounted trooper fights like any soldier)
-    const a = Hs.bodyOf(H);
-    if (!a) return;
+    const a = Hs.bodyOf(H) ?? (H.alive && this.g.fauna?.enabled ? Hs.spawnBody(H) : null); // his horse is a body while he sits it
+    if (!a) { this.unseat(c, 'no horse here'); return; } // never a rider hanging in the air: on his feet, ai.js has him
     const B = Hs.breed(H);
     // What to shoot: the nearest the company is at war with, in sight.
     c.scanT = (c.scanT ?? 0) - dt;
@@ -154,12 +158,15 @@ export class Cavalry {
       tx = tpx + Math.sin(ang) * want; tz = tpz + Math.cos(ang) * want; v = B.speed.canter;
       this.fire(c, t, tpx, tpz, dt);
     } else if (r.kind === 'patrol') {
-      const pat = S.patrols.find((p) => p.id === r.patrol), lead = pat.riders.find((q) => q.c?.alive && q.c.mount) ?? r;
+      const pat = r.pat ?? (r.pat = S.patrols.find((p) => p.id === r.patrol));
+      let lead = r; for (const q of pat.riders) if (q.c?.alive && q.c.mount) { lead = q; break; }
       if (lead === r) { // the lead rides the loop; the rest follow it in file
         const at = along(pat.row.route, pat.s + CAVALRY.arrive, S.row);
         tx = at.x; tz = at.z; v = gaitSpeed(g, pat);
         const here = along(pat.row.route, pat.s, S.row);
-        if (Math.hypot(here.x - a.x, here.z - a.z) < CAVALRY.arrive + 2) pat.s = (pat.s + v * dt) % loopLen(pat.row.route);
+        const dHere = Math.hypot(here.x - a.x, here.z - a.z);
+        if (dHere < CAVALRY.arrive + 2) { pat.s = (pat.s + v * dt) % loopLen(pat.row.route); pat.stuckT = 0; }
+        else { pat.stuckT = (pat.stuckT ?? 0) + (a.speed < 0.5 ? dt : 0); if (pat.stuckT > 3) { pat.s = (pat.s + 12) % loopLen(pat.row.route); pat.stuckT = 0; } } // no headway (a wall, deep water): on round the loop
       } else { const la = Hs.bodyOf(lead.c.mount) ?? lead.c; tx = la.x - Math.sin(la.face ?? 0) * CAVALRY.fileGap; tz = la.z - Math.cos(la.face ?? 0) * CAVALRY.fileGap; v = Math.hypot(tx - a.x, tz - a.z) > 3 ? B.speed.canter : gaitSpeed(g, pat); }
     } else { tx = a.x; tz = a.z; v = 0; }
     Hs.moveFree(H, a, dt, tx, tz, v);
@@ -185,6 +192,7 @@ export class Cavalry {
     if (c.cool > 0) return;
     if (c.mag <= 0) { c.mag = W.mag ?? 8; c.cool = CAVALRY.reloadSecs; return; }
     const ang = Math.atan2(tx - c.x, tz - c.z), spread = RIDER.spread * (g.horses.aimTax?.(c) ?? 1);
+    if (g.ai.clearShot && !g.ai.clearShot(c, t, ang, Math.hypot(tx - c.x, tz - c.z))) { c.cool = 0.3; return; } // a comrade in the line: hold fire
     if (g.combat.fire(c, c.weapon, ang + (Math.random() - 0.5) * spread)) { c.mag--; this.counts.shots++; }
     c.cool = (W.rate ?? 0.4) * 2.4 + Math.random() * 0.4;
   }
@@ -199,13 +207,14 @@ export class Cavalry {
       if (!S.built) continue;
       const P = S.row, y0 = this.g.stunts?.heightAt?.(P.x, P.z, 0) ?? 0;
       for (const [x0, z0, x1, z1] of S.walls) {
-        put(P.x + (x0 + x1) / 2, y0 + 0.8, P.z + (z0 + z1) / 2, x1 - x0, 1.6, z1 - z0, ADOBE);
-        put(P.x + (x0 + x1) / 2, y0 + 1.65, P.z + (z0 + z1) / 2, x1 - x0 + 0.1, 0.12, z1 - z0 + 0.1, ADOBE_DARK); // the cap
+        put(P.x + (x0 + x1) / 2, y0 + 1.1, P.z + (z0 + z1) / 2, x1 - x0, 2.2, z1 - z0, ADOBE);
+        put(P.x + (x0 + x1) / 2, y0 + 2.25, P.z + (z0 + z1) / 2, x1 - x0 + 0.16, 0.14, z1 - z0 + 0.16, ADOBE_DARK); // the cap
       }
       const rx = P.x - P.half + 4, rz = P.z + P.half - 3; // the corral rail
       put(rx + 2.4, y0 + 1.0, rz + 0.6, 8, 0.1, 0.1, RAIL); put(rx + 2.4, y0 + 0.6, rz + 0.6, 8, 0.1, 0.1, RAIL);
       for (let k = 0; k < 4; k++) put(rx - 1.6 + k * 2.6, y0 + 0.6, rz + 0.6, 0.14, 1.2, 0.14, RAIL);
-      put(P.x, y0 + 4, P.z, 0.14, 8, 0.14, POLE); put(P.x + 0.75, y0 + 7.3, P.z, 1.4, 0.9, 0.04, FLAG); // the company's colours
+      put(P.x, y0 + 4, P.z, 0.16, 8, 0.16, POLE); put(P.x + 1.1, y0 + 7.2, P.z, 2.2, 1.3, 0.05, FLAG); put(P.x + 1.1, y0 + 7.2, P.z + 0.03, 2.2, 0.22, 0.05, '#c8a24a'); // the company's colours, a brass stripe
+      for (const [dx, dz] of [[P.half - 6, -P.half + 6], [P.half - 6, -P.half + 12]]) { put(P.x + dx, y0 + 0.9, P.z + dz, 3.4, 1.8, 4.2, CANVAS); put(P.x + dx, y0 + 1.85, P.z + dz, 0.25, 0.14, 4.3, CANVAS_DARK); } // the troopers' tents
     }
     M.count = n; M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
   }
@@ -218,7 +227,7 @@ export class Cavalry {
   save() { return this.posts.map((S) => ({ id: S.row.id, placed: !!S.placed, people: S.people.map((r) => ({ name: r.name, flag: r.flag, kind: r.kind, horse: r.horse, patrol: r.patrol ?? null, slot: r.slot ?? null, weapon: r.weapon, hp: r.c ? (r.c.alive ? Math.round(r.c.hp) : 0) : r.hp, alive: r.c ? r.c.alive : r.alive, x: r.c?.x ?? r.x, z: r.c?.z ?? r.z })), patrols: (S.patrols ?? []).map((p) => ({ id: p.id, s: p.s })) })); }
   load(s) {
     for (const S of this.posts) { for (const r of S.people) if (r.c) { if (r.c.mount) this.unseat(r.c, 'load'); if (this.g.chars.includes(r.c)) this.g.removeChar(r.c); r.c = null; } S.live = false; }
-    if (!Array.isArray(s)) return;
+    if (!Array.isArray(s)) { for (const S of this.posts) { S.placed = false; S.people = []; S.patrols = []; } return; } // a save from before the company: not yet met (the horses' load dropped its horses too)
     for (const rec of s) {
       const S = this.posts.find((q) => q.row.id === rec.id); if (!S) continue;
       S.placed = rec.placed; S.people = rec.people.map((r) => ({ ...r, c: null }));

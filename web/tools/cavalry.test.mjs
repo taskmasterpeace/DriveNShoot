@@ -14,7 +14,7 @@ test('every trooper has a flag (everybody is from somewhere)', () => { assert.eq
 test('the patrol loops stay where the riders are bodies (inside liveR of the post)', () => {
   for (const P of CAVALRY_POSTS) for (const T of P.patrols) for (const [x, z] of T.route) assert.ok(Math.hypot(x, z) <= CAVALRY.liveR);
 });
-test('nobody is placed twice: a post is a row, its people a list (the dead stay dead)', () => {
+test('post ids are unique and the company is put away further out than it is stood up (no flicker at the edge)', () => {
   const ids = CAVALRY_POSTS.map((p) => p.id); assert.equal(new Set(ids).size, ids.length);
   assert.ok(CAVALRY.dropR > CAVALRY.liveR);
 });
@@ -22,4 +22,15 @@ test('a purple coat would be refused', async () => {
   const m = await import('../src/data/cavalry.js');
   const keep = m.RIDER.colors.coat; m.RIDER.colors.coat = '#8a2be2';
   try { assert.ok(m.validateCavalry(BREEDS).some((b) => /purple/.test(b))); } finally { m.RIDER.colors.coat = keep; }
+});
+test('a patrol loop never runs through its own post (every leg clears the walls\' square)', () => {
+  const crosses = (ax, az, bx, bz, h) => { // segment vs the square [-h, h]^2 (slab test)
+    let t0 = 0, t1 = 1; const dx = bx - ax, dz = bz - az;
+    for (const [p, d] of [[ax, dx], [az, dz]]) { if (Math.abs(d) < 1e-9) { if (p < -h || p > h) return false; continue; } let a = (-h - p) / d, b = (h - p) / d; if (a > b) [a, b] = [b, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) return false; }
+    return true;
+  };
+  for (const P of CAVALRY_POSTS) for (const T of P.patrols) for (let i = 0; i < T.route.length; i++) {
+    const a = T.route[i], b = T.route[(i + 1) % T.route.length];
+    assert.ok(!crosses(a[0], a[1], b[0], b[1], P.half + 1.5), `${T.id} leg ${i} crosses the post`);
+  }
 });

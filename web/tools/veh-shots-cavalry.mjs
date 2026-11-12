@@ -25,14 +25,14 @@ try {
   await call('start'); await call('god', { on: true });
   await call('setTime', { hour: 9 }); await call('setWeather', { key: 'CLEAR', instant: true });
   // Outside the post's gate.
-  await call('teleport', { x: POST.x - 4, z: POST.z - 34 });
+  await call('teleport', { x: POST.x - 4, z: POST.z - 4 }); await call('zoom', { level: 'WIDE' }); // in the yard
   await call('step', { seconds: 3 });
   await shot('1-the-post');
   console.log(await ev(`game.cavalry ? game.cavalry.view() : 'no cavalry on this build'`));
   // The patrol: stand where its loop runs and let it come by.
   const lead = await ev(`(() => { const S = game.cavalry?.posts?.[0]; const r = S?.people.find((q) => q.kind === 'patrol' && q.c?.mount); return r ? { x: r.c.x, z: r.c.z } : null; })()`);
   if (lead) {
-    await call('teleport', { x: lead.x + 8, z: lead.z + 5 }); await call('zoom', { level: 'CLOSE' });
+    await call('teleport', { x: lead.x + 6, z: lead.z + 4 }); await call('zoom', { level: 'STREET' });
     await call('step', { seconds: 1.5 });
     await shot('2-the-patrol');
     // A Dustwolf in their sight.

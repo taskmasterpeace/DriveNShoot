@@ -31,7 +31,7 @@ export async function vehCavalryChecks(api, check, C) {
     return !bad.length && rel('dustwolves') <= -50 && rel('infected') <= -50 && rel('rusthaven') > -50 ? true : JSON.stringify({ bad, dw: rel('dustwolves'), rh: rel('rusthaven') });
   });
 
-  await check('cavalry: come near the post - its adobe walls stand (you cannot walk through one), the garrison stands by the corral rail with their horses tied, and the patrol rides out mounted on real horses (seated in the saddle)', async () => {
+  await check('cavalry: come near the post - its adobe walls stand (you cannot walk through one, nor see or shoot through it), the garrison stands by the corral rail with their horses tied, and the patrol rides out mounted on real horses (seated in the saddle)', async () => {
     try {
       g.godMode = true;
       await near();
@@ -39,23 +39,25 @@ export async function vehCavalryChecks(api, check, C) {
       if (!S.placed || !S.live) return JSON.stringify({ placed: S.placed, live: S.live });
       const wall = S.boxes[0], mid = { x: (wall.minX + wall.maxX) / 2, z: (wall.minZ + wall.maxZ) / 2 };
       const t = { x: mid.x, z: mid.z }; g.statics.resolveCircle(t, 0.45); const pushed = Math.hypot(t.x - mid.x, t.z - mid.z) > 0.2;
+      const blinds = !g.statics.lineOfSight(mid.x, mid.z - 3, mid.x, mid.z + 3) || !g.statics.lineOfSight(mid.x - 3, mid.z, mid.x + 3, mid.z); // a sight line across the wall is stopped (and so a bullet)
       const gar = riders('garrison'), pat = riders('patrol');
       const garOk = gar.length === P0.garrison.length && gar.every((r) => r.c?.alive && !r.c.mount) && gar.every((r) => g.horses.get(r.horse)?.tied);
       const patOk = pat.length === P0.patrols[0].riders.length && pat.every((r) => r.c?.alive && r.c.mount && g.horses.bodyOf(r.c.mount) && r.c.seatPose?.kind === 'ride');
       const fid = pat.every((r) => r.c.fid === 'company');
-      return pushed && garOk && patOk && fid ? true : JSON.stringify({ pushed, garOk, patOk, fid, gar: gar.map((r) => !!r.c), pat: pat.map((r) => ({ c: !!r.c, m: !!r.c?.mount, pose: r.c?.seatPose?.kind })) });
+      return pushed && blinds && garOk && patOk && fid ? true : JSON.stringify({ pushed, blinds, garOk, patOk, fid, gar: gar.map((r) => !!r.c), pat: pat.map((r) => ({ c: !!r.c, m: !!r.c?.mount, pose: r.c?.seatPose?.kind })) });
     } finally { g.godMode = god0; }
   });
 
-  await check('cavalry: the patrol rides its loop in file - over 12 s the lead\'s horse covers ground at a trot, the second rider follows within a few lengths, both stay in the saddle', async () => {
+  await check('cavalry: the patrol rides its loop in file - over 40 s the lead covers ground at a trot and the loop runs on past its waypoints (never stuck on the post), the second rider follows within a few lengths, both stay in the saddle', async () => {
     await near();
-    const pat = riders('patrol'), lead = pat[0].c, second = pat[1].c;
+    const pat = riders('patrol'), lead = pat[0].c, second = pat[1].c, PT = post().patrols[0], s0 = PT.s;
     if (!lead?.mount || !second?.mount) return 'the patrol is not mounted';
     const a0 = g.horses.bodyOf(lead.mount), x0 = a0.x, z0 = a0.z;
     let maxGap = 0, path = 0, px = x0, pz = z0;
-    for (let f = 0; f < 12 * 60; f++) { await api._step(1); const a = g.horses.bodyOf(lead.mount); if (!a) break; path += Math.hypot(a.x - px, a.z - pz); px = a.x; pz = a.z; if (f > 240) maxGap = Math.max(maxGap, Math.hypot(second.x - lead.x, second.z - lead.z)); }
+    for (let f = 0; f < 40 * 60; f++) { await api._step(1); const a = g.horses.bodyOf(lead.mount); if (!a) break; path += Math.hypot(a.x - px, a.z - pz); px = a.x; pz = a.z; if (f > 240) maxGap = Math.max(maxGap, Math.hypot(second.x - lead.x, second.z - lead.z)); }
     const onLead = Math.hypot(lead.x - px, lead.z - pz) < 0.6;
-    return path > 30 && maxGap < CAVALRY.fileGap * 4 && lead.mount && second.mount && onLead ? true : JSON.stringify({ path: r1(path), maxGap: r1(maxGap), mounted: [!!lead.mount, !!second.mount], onLead });
+    const ran = ((PT.s - s0) % 1e6 + 1e6) % 1e6; // metres of loop gone by (it wraps)
+    return path > 100 && ran > 100 && maxGap < CAVALRY.fileGap * 4 && lead.mount && second.mount && onLead ? true : JSON.stringify({ path: r1(path), ran: r1(ran), maxGap: r1(maxGap), mounted: [!!lead.mount, !!second.mount], onLead });
   });
 
   await check('cavalry: a Dustwolf in sight - the patrol turns on him and shoots from the saddle; he goes down', async () => {
