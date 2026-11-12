@@ -192,7 +192,10 @@ export class Atlas {
     const towns = D.towns.map((t) => { const x = toWorldX(t.pos[0]), z = toWorldZ(t.pos[1]); return { id: t.id, name: placeName(t.name), kind: t.kind, ux: t.pos[0], uy: t.pos[1], x, z, shown: t.kind === 'city' || seenW(x, z) }; });
     const exits = D.exits.map((e) => { const x = toWorldX(e.pos[0]), z = toWorldZ(e.pos[1]); return { id: e.id, n: e.exit_number, name: e.name, road: e.highway_id, ux: e.pos[0], uy: e.pos[1], x, z, shown: seenW(x, z) }; });
     const bases = ATLAS_BASES.map((b) => { const xz = ATLAS_XZ.bases?.[b.id]; if (!xz) return null; const [ux, uy] = toUsmap(xz[0], xz[1]); return { id: b.id, name: b.name, state: b.state, x: xz[0], z: xz[1], ux, uy, shown: seenW(xz[0], xz[1]) }; }).filter(Boolean);
-    return { states: this.states, towns, exits, bases, roads: D.interstates.map((r) => ({ id: r.id, nickname: r.nickname || null, danger: r.danger, pts: r.pts })), rivers: D.rivers };
+    // The places you can actually enter (WEB_TOWNS_ROADS.md §3): the generated towns, the SITE stamps and the military
+    // bases of the streamed world (systems/citygen.js plan), under the same fog rule as a holdout (shown once seen).
+    const places = (this.g.citygen?.plan ?? []).filter((r) => !r.beyond && (r.kind === 'town' || r.kind === 'site' || r.kind === 'base')).map((r) => { const [ux, uy] = toUsmap(r.x, r.z); return { id: r.id, name: r.name, kind: r.kind, x: r.x, z: r.z, ux, uy, exit: r.access?.number ?? null, shown: seenW(r.x, r.z) }; });
+    return { states: this.states, towns, exits, bases, places, roads: D.interstates.map((r) => ({ id: r.id, nickname: r.nickname || null, danger: r.danger, pts: r.pts })), rivers: D.rivers };
   }
 
   // ---- drawing ---------------------------------------------------------------------------------------------------
@@ -235,6 +238,14 @@ export class Atlas {
       const [x, y] = U(b.ux, b.uy); c.fillStyle = '#a8b070'; c.strokeStyle = '#1b1410'; c.lineWidth = 1.5; c.beginPath();
       for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? 2.6 : 6.5; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
       c.closePath(); c.fill(); c.stroke();
+    }
+    // The places you can enter: a town a square, a site a diamond, a base a star (the bases' own colour).
+    for (const q of M.places) if (q.shown) {
+      const [x, y] = U(q.ux, q.uy); c.strokeStyle = '#1b1410'; c.lineWidth = 1.4; c.beginPath();
+      if (q.kind === 'town') { c.fillStyle = '#e8904a'; c.rect(x - 3, y - 3, 6, 6); }
+      else if (q.kind === 'site') { c.fillStyle = '#e8d27a'; c.moveTo(x, y - 4.2); c.lineTo(x + 4.2, y); c.lineTo(x, y + 4.2); c.lineTo(x - 4.2, y); c.closePath(); }
+      else { c.fillStyle = '#a8b070'; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? 2.4 : 6; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); }
+      c.fill(); c.stroke();
     }
     for (const t of M.towns) if (t.shown) {
       const [x, y] = U(t.ux, t.uy), big = t.kind === 'city';
@@ -284,6 +295,7 @@ export class Atlas {
     // 5: local places where you have been: holdouts, bases, exits (zoomed in).
     for (const t of M.towns) if (t.shown && t.kind !== 'city') { const [x, y] = U(t.ux, t.uy); if (this.label(c, t.name, x + 6, y + 4, '700 11px Barlow Condensed', '#e8d6b0', 'left', W, H)) this.labels.places++; }
     for (const b of M.bases) if (b.shown) { const [x, y] = U(b.ux, b.uy); if (this.label(c, b.name.toUpperCase(), x + 8, y + 4, '600 11px Barlow Condensed', '#cfd49a', 'left', W, H)) this.labels.places++; }
+    for (const q of M.places) if (q.shown) { const [x, y] = U(q.ux, q.uy), col = q.kind === 'town' ? '#f0b07a' : q.kind === 'site' ? '#efe0a0' : '#cfd49a'; if (this.label(c, q.exit && z >= 2 ? `${q.name} · EXIT ${q.exit}` : q.name, x + 7, y + 4, '700 11px Barlow Condensed', col, 'left', W, H)) this.labels.places++; }
     if (z >= 3) for (const e of M.exits) if (e.shown) { const [x, y] = U(e.ux, e.uy); if (this.label(c, `EXIT ${e.n} · ${e.name}`, x + 5, y - 4, '600 10px Barlow Condensed', '#bfe0a8', 'left', W, H)) this.labels.places++; }
     if (key) { key(); this.keyDrawn = true; }
     c.textAlign = 'left';

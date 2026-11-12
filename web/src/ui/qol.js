@@ -37,6 +37,10 @@ const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 
 const load = (k, d) => { try { return { ...d, ...JSON.parse(localStorage.getItem(k) ?? '{}') }; } catch { return { ...d }; } };
 
+// The AREA map's ground colour by land letter (data/usmap.json legend): d desert, f flats, u urban, m mountains, . water,
+// w waste, p plains, a farm, F forest, s swamp.
+const AREA_RGB = { d: [70, 52, 34], f: [62, 58, 40], u: [64, 58, 52], m: [78, 52, 36], '.': [40, 56, 62], w: [52, 50, 46], p: [66, 70, 44], a: [78, 74, 42], F: [38, 62, 38], s: [40, 58, 46] };
+
 export class QOL {
   saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* storage blocked */ } }
 
@@ -379,7 +383,8 @@ export class QOL {
       // Biome and relief, coarse: one cell per 400 m.
       for (let j = 0; j < 60; j++) for (let i = 0; i < 60; i++) {
         const x = x0 + (i + 0.5) * 400, z = z0 + (j + 0.5) * 400, b = W.biomeAt(x, z), rel = W.reliefAt(x, z);
-        const base = b === 'f' ? [62, 58, 40] : b === 'u' ? [64, 58, 52] : b === 'm' ? [78, 52, 36] : b === '.' ? [40, 56, 62] : b === 'w' ? [52, 50, 46] : [70, 52, 34];
+        // every land letter has its own colour (Florida's swamp, pine and farm were falling through to desert brown)
+        const base = AREA_RGB[b] ?? AREA_RGB.d;
         const l = 1 + rel * 0.35;
         b2.fillStyle = `rgb(${base[0] * l | 0},${base[1] * l | 0},${base[2] * l | 0})`; b2.fillRect(i * 400 * k, j * 400 * k, 400 * k + 1, 400 * k + 1);
       }
@@ -411,6 +416,20 @@ export class QOL {
       const label = `EXIT ${X.number} · ${X.name}`; c.strokeText(label, x + 8, y - 6); c.fillStyle = '#f2e6d0'; c.fillText(label, x + 8, y - 6);
       if (X.community) { const [cx, cy] = T(X.dest.x, X.dest.z); c.fillStyle = '#c9a46a'; c.fillRect(cx - 4, cy - 4, 8, 8); }
     }
+    // The places you can enter (WEB_TOWNS_ROADS.md §3): towns, SITE stamps and bases (systems/citygen.js plan), with names.
+    for (const r of g.citygen?.plan ?? []) {
+      if (r.beyond || (r.kind !== 'town' && r.kind !== 'site' && r.kind !== 'base') || r.x < x0 - 400 || r.x > x0 + span + 400 || r.z < z0 - 400 || r.z > z0 + span + 400) continue;
+      const [x, y] = T(r.x, r.z);
+      c.beginPath(); c.lineWidth = 2; c.strokeStyle = '#1b1410';
+      if (r.kind === 'town') { c.fillStyle = '#e8904a'; c.rect(x - 5, y - 5, 10, 10); }
+      else if (r.kind === 'site') { c.fillStyle = '#e8d27a'; c.moveTo(x, y - 7); c.lineTo(x + 7, y); c.lineTo(x, y + 7); c.lineTo(x - 7, y); c.closePath(); }
+      else { c.fillStyle = '#a8b070'; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? 3.5 : 8.5; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); }
+      c.fill(); c.stroke();
+      if (String(r.access?.exit ?? '').startsWith('TX-')) continue; // its own exit already prints its name ("EXIT 3 · CORAL ROW")
+      c.font = '700 13px Barlow Condensed'; c.lineWidth = 3; const lab = r.access?.number ? `${r.name} · EXIT ${r.access.number}` : r.name;
+      c.strokeText(lab, x + 10, y + 5); c.fillStyle = r.kind === 'town' ? '#f0b07a' : r.kind === 'site' ? '#efe0a0' : '#cfd49a'; c.fillText(lab, x + 10, y + 5);
+    }
+    c.lineWidth = 3; c.strokeStyle = '#1b1410';
     for (const t of W.towns) {
       if (!t.built && t.id !== 'phoenix') continue;
       const [x, y] = T(t.x, t.z);
@@ -502,8 +521,8 @@ export class QOL {
     cv.classList.toggle('wide', wide);
     for (const b of this.el.mapTabs.querySelectorAll('button')) b.classList.toggle('on', b.dataset.view === this.mapView);
     this.el.mapHead.textContent = this.mapView === 'country'
-      ? 'Click: waypoint · right-click: clear · wheel: zoom · drag: pan · Tab: area  —  ● city  ▪ holdout  ★ base  ▪ exit (where you have been)'
-      : 'Click: waypoint · right-click: clear · Tab: country · M closes  —  ◆ waypoint  ✕ raider camp  ★ base  ● people  ▪ empty car';
+      ? 'Click: waypoint · right-click: clear · wheel: zoom · drag: pan · Tab: area  —  ● city  ■ town  ◆ site  ★ base  ▪ holdout · exit (where you have been)'
+      : 'Click: waypoint · right-click: clear · Tab: country · M closes  —  ■ town  ◆ site / waypoint  ✕ raider camp  ★ base  ● people  ▪ empty car';
     if (this.g.time !== undefined) this.g.emit('mapView', { view: this.mapView }); // (the constructor calls this before the clock exists)
   }
   // The map's title: the state you stand in and who rules it.

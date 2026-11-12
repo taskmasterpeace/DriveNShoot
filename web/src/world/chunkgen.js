@@ -154,6 +154,7 @@ export function mesasOf(W, cx, cz) {
     if (W.ring && W.ring.depth(x, z) > -(R + 160)) continue; // no mesa in the Phoenix ring or at its edge
     if (W.project(x, z, R + 120).d < R + 55) continue;
     if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + R || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + R || (X.access && W.ribbonDist(X.access, x, z) < R + 30))) continue;
+    if (W.townAccess?.some((rb) => x > rb.x0 - R - 40 && x < rb.x1 + R + 40 && z > rb.z0 - R - 40 && z < rb.z1 + R + 40 && W.ribbonDist(rb, x, z) < R + 30)) continue; // a town's access road (world/townroads.js)
     if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + R)) continue;
     if (W.roadside?.nearSite(x, z, R + 60)) continue; // no mesa on a station, a junkyard, a farm belt or the dam (world/roadside.js)
     out.push(m);

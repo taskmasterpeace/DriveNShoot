@@ -2,6 +2,8 @@ import { OVERRUN } from '../data/citygen.js';
 import { AMBIENT_RESERVE } from './zombies.js';
 import { DRIFT } from '../data/infected.js';
 import { outfit } from './characters.js';
+import { randomName } from '../data/npcs.js';
+import { makeRng } from '../engine/rng.js';
 
 // OVERRUN (docs/design/WEB_CITYGEN.md §3.6): the dead against the living, settlement by settlement.
 //   infestation  every settlement's 0..1 value (systems/citygen.js plan records): a horde at its edge pushes it up past what
@@ -43,9 +45,11 @@ export class Overrun {
     for (let i = 0; i < want && doors.length; i++) {
       const d = doors[(i * 7 + ((rec.seed >>> 0) % 13)) % doors.length]; // >>> 0: a negative seed (hash ^ seed) gave a negative index
       const warden = !!t.T.wall && i % 2 === 0;
-      const c = g.addChar({ x: d.x + (d.side === 'E' ? 1.6 : d.side === 'W' ? -1.6 : 0), z: d.z + (d.side === 'S' ? 1.6 : d.side === 'N' ? -1.6 : 0), faction: warden ? 'warden' : 'drifter', weapon: warden ? 'smg' : null, hp: 100, colors: outfit(warden ? 'warden' : 'drifter'), name: warden ? 'Town Guard' : 'Townsfolk', flag: g.randomFlag(Math.random) });
+      // a seeded person (their name, flag and clothes the same every visit: two boots build the same world), not "Townsfolk"
+      const rng = makeRng(((rec.seed >>> 0) ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0);
+      const c = g.addChar({ x: d.x + (d.side === 'E' ? 1.6 : d.side === 'W' ? -1.6 : 0), z: d.z + (d.side === 'S' ? 1.6 : d.side === 'N' ? -1.6 : 0), faction: warden ? 'warden' : 'drifter', weapon: warden ? 'smg' : null, hp: 100, colors: outfit(warden ? 'warden' : 'drifter', rng), name: randomName(rng), flag: g.randomFlag(rng) });
       if (!c) break;
-      c.cgTown = rec.id; c.home = { x: c.x, z: c.z };
+      c.cgTown = rec.id; c.home = { x: c.x, z: c.z }; c.title = warden ? `town guard · ${rec.name}` : `of ${rec.name}`;
       t.chars.push(c);
     }
   }

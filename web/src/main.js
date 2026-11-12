@@ -94,7 +94,8 @@ import { Marks } from './systems/marks.js';
 import { Campfire } from './systems/campfire.js';
 import { Airwaves } from './systems/airwaves.js'; // the one broadcast source: key-ups and stations (WEB_WORLD_VOICE.md §3.3)
 import { RadioFeedUI } from './ui/radiofeed.js';
-import { Workforce } from './systems/workforce.js'; // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
+import { Workforce } from './systems/workforce.js';
+import { TownLife } from './systems/townlife.js'; // the towns' counters and rulers (WEB_TOWNS_ROADS.md) // who works where in a built settlement, on shift, and what the work makes (WEB_OCCUPATIONS.md)
 import { LongRoadSys } from './systems/longroad.js'; // THE LONG ROAD: wayside beats in dead stretches, travellers, the trip log (WEB_LONG_ROAD.md)
 import { RoadsideSys } from './systems/roadside.js'; // siphon a station's tank, strip a hulk, a farm's water, the dam's gates (WEB_ROADSIDE.md)
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
@@ -298,6 +299,7 @@ class Game {
     this.pulls = new Pulls(this); // pulls and what you know of them (systems/pulls.js, systems/knowledge.js)
     this.migrations = new Migrations(this); // hordes that walk the highways, seen before they are reported (WEB_DEATHS.md)
     this.workforce = new Workforce(this); // the settlements' workers (systems/workforce.js)
+    this.townlife = new TownLife(this); // the towns' counters and rulers (systems/townlife.js, WEB_TOWNS_ROADS.md)
     this.homes = new Homes(this); // camps, claimed bases, furniture carried home, owners and tenure (systems/homes.js)
     this.pullsUI = new PullsBoard(this, ui); // the PULLS chip and the board tab (ui/pullsboard.js)
     this.stories = new SiteStories(this); // site stories and the bounty guild (systems/sitestories.js)
@@ -1384,6 +1386,7 @@ class Game {
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
+      this.townlife?.update(simDt); // counters open and shut, what the town made goes on them (systems/townlife.js)
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
       this.homes.update(simDt); // the camp's watch and bells, owners at their doors, rent and raids on the clock (systems/homes.js)
       this.stories.update(simDt); // places on the world clock, traders, raids, refugees, hunters (systems/sitestories.js)
