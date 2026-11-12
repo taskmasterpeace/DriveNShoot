@@ -49,6 +49,8 @@ import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
+import { storeysCommands } from './storeys-api.js'; // STOREYS v2: rise, facades, floors (docs/design/WEB_STOREYS.md §9)
+import { storeysV2Checks } from './storeys-checks.js'; // STOREYS v2's checks (acceptance #3 and #8)
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { milbasesCommands, milbasesChecks } from './milbases-api.js'; // the military bases (WEB_MILITARY_BASES.md)
@@ -2090,6 +2092,7 @@ function buildCommands(api) {
     ...worldmapCommands(api, need), // atlas (WEB_WORLD_MAP.md)
     ...understreetCommands(api, need), // understreet (WEB_UNDERSTREET.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
+    ...storeysCommands(api, need), // rise, facades, floors (STOREYS v2, WEB_STOREYS.md §9)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
     ...semisCommands(api, need), // semi (WEB_SEMIS.md)
@@ -5263,7 +5266,8 @@ async function runSelfTest(api, only = null, skip = null) {
       str(L.id); str(JSON.stringify([geo.plan, geo.rooms, geo.inner, geo.doors, geo.props, geo.boxes, geo.beds, geo.boxesIn, geo.walls, geo.decor, geo.floor, geo.roof]));
     }
     const hex = (h >>> 0).toString(16).padStart(8, '0');
-    return hex === g.streamer.golden.ringPlans && lots > 2000 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
+    // (STOREYS v2: ~200 of the ring's planned lots now rise and are built by the generated-town builder: 1894 planned lots stay)
+    return hex === g.streamer.golden.ringPlans && lots > 1800 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
   });
   // ---- authored buildings (docs/design/WEB_BUILDING_LAB.md; world/authored.js): the Building Lab's export, loaded -------
   await check('building lab: a building exported by the lab (data/authored.js LAB_SAMPLES.office2: a two-storey office floor, hand-edited upstairs) loads at a world position in the ring (the author command): it stands in place of the lots it covers, a walk (moveTo) from its street through its front door gets inside, every room of its street floor is reached by A* from the street through its doorways, its stairs\' run is solid and their foot reached, the reachability proof passes on both floors, and taken away the block is the generator\'s again', async () => {
@@ -6144,6 +6148,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
+  await storeysV2Checks({ api, g, check, C }); // STOREYS v2: the ring's towers, roofs, bridges, escapes, window fights, the facade kit (src/agent/storeys-checks.js)
   await milbasesChecks({ api, g, check, C }); // the military bases: rows, the wire, the armory, the gate rule, the blast door, the horde (WEB_MILITARY_BASES.md §8)
   await fannodsChecks({ api, g, check, C }); // the found things: the glass room, the case, the blade, the counter, the convoy, the rain, the calendars, the meal (WEB_FAN_NODS.md §8)
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)

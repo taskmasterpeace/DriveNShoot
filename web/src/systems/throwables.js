@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { radialGlow } from '../world/textures.js';
+import { ACROSS } from '../data/storeys.js';
+const BLAST_FLOORS = ACROSS.blast; // a blast's share by floors apart (STOREYS v2, data/storeys.js)
 
 // Throwables: frag, molotov, smoke, flashbang, pipe bomb, sticky charge, rock.
 // Real arcs (gravity), bounce + roll off ground and walls, cook timers, sticking,
@@ -107,12 +109,16 @@ export class Throwables {
     g.hud.shake(Math.max(0, 1.2 - Math.hypot(x - g.player.x, z - g.player.z) / 30));
     g.noise(x, z, 80, by);
     g.interiors?.blast(x, z, r, by); // glass blows in, boards splinter, doors fly open, locks give
+    // The floor it went off on (STOREYS v2): thrown on the floor you stand on inside a storeyed building, else the street.
+    const S = g.storeys?.at(x, z), by0 = S && by?.storey === S ? by.gy ?? 0 : (S?.y0 ?? 0);
     for (const c of g.chars) {
       if (!c.alive || c.inVehicle) continue;
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r || !g.statics.lineOfSight(x, z, c.x, c.z)) continue;
+      const fl = c.storey || S ? g.storeys.floorShare(by0, x, z, c, BLAST_FLOORS) : 1; // floors apart: half one floor, none two (data/storeys.js ACROSS.blast)
+      if (fl <= 0) continue;
       const f = 1 - d / r;
-      g.combat.damage(c, dmg * f * f + 10 * f, by, (c.x - x) / (d || 1), (c.z - z) / (d || 1), f > 0.5 ? 'explosion' : 'bullet');
+      g.combat.damage(c, (dmg * f * f + 10 * f) * fl, by, (c.x - x) / (d || 1), (c.z - z) / (d || 1), f > 0.5 ? 'explosion' : 'bullet');
     }
     g.dogs?.blast(x, z, r, dmg, by); // and any dog in reach (systems/dogs.js)
     g.fauna?.blast(x, z, r, dmg, by); // and the animals (systems/fauna.js)

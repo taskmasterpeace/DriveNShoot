@@ -2,7 +2,9 @@
 
 **Status:** v1 BUILT (2026-10-22, `world/storeys.js`, data `data/storeys.js`): upper storeys on the streaming vertical
 model, as §0 below records. Basements, shooting between floors (an upper window down at the street), noise and blasts
-through floors are v2 (§0.4).
+through floors are v2 (§0.4). **v2 BUILT (2026-11-11, branch `feat/web-storeys`): the ring rises (2-6 storeys), the
+facade kit, roofs as places, fights between floors, per-floor danger - §9 below (its own eight sections).** Basements
+landed with `feat/web-underground` (systems/underground.js).
 
 ## 0. As built (v1) - where it differs from the spec below
 1. **Heights.** A building's street storey keeps the wall height city.js rolled for it (4.2-6 m; its RNG must not
@@ -205,3 +207,182 @@ rappelling; collapsing floors; elevators; seeing a lower level through a floor h
    rolls `cellar` loot, and a level-0 noise of 18 m is heard downstairs only within 9 m.
 6. **Saves:** a snapshot with the player on level 1 and a body on level 1 restores both on level 1.
 7. **Perf:** stress scenario within 0.2 ms/frame of the pre-storeys baseline (A/B on the same machine load).
+
+---
+
+## 9. STOREYS v2 - the ring rises, the facade kit, floors as places to fight (2026-11-11)
+
+Robert's grade card: "Buildings - C. All walk-in; stairs; floors as places. Max 4 storeys, only 18 buildings; no
+facades." This section is v2's own spec, in the eight sections. Code: `world/ringrise.js` (the ring's towers),
+`world/facades.js` (the facade kit), `world/storeys.js` `across` / `floorShare` (fights between floors), rows in
+`data/storeys.js` (`MAX_ABOVE`, `RING_RISE`, `ACROSS`, `DANGER`, `FACADE`), agent commands `rise`, `facades`, `floors`,
+checks in `src/agent/storeys-checks.js` (names start `storeys v2:`).
+
+### 9.1 Overview
+- **The ring rises.** A share of the Phoenix ring's lots stand 2-6 storeys by zone (§9.3): the DOWNTOWN belt of hotels,
+  offices and apartment blocks that rings the walled island (4-6 storeys: the skyline you drive past on the first ring
+  street), the Strip (2-3), the dead houses (2), the Burn's adobe shells (2-3, top floors open to the sky). The yards stay
+  one tall storey. A lot that rises is built by the generated-town builder (`world/citygen/build.js`): a switchback stair
+  core to every floor and up to the roof, a parapet, window bays on every floor, fire escapes, plank bridges between
+  facing roofs, per-floor loot. It is built when its ring chunk turns HOT and released when it cools, through
+  `citygen.stampRing` (collision tier, the one instanced mesh, the storeys law, doors and windows near you, loot) - but
+  never as a settlement (no residents, hordes, road grip, no place against `PLACE.maxLive`).
+- **The cap is six storeys everywhere** (`MAX_ABOVE = 5` floors above the street; `VERT.maxStoreys = 6` for generated
+  kinds; the island's tower is clamped by it).
+- **The facade kit** dresses every storeyed building - the island's, every live town's, every ring tower's - in five
+  instanced meshes for the whole world.
+- **Roofs are places:** a stair to the roof, a parapet to fight behind, HVAC boxes, water tanks and sandbag nests that
+  are colliders and cover, plank bridges to the next roof, a rifleman perched on a tall roof.
+- **Fights between floors:** someone at an upper window (or a roof's edge) sees and is seen from the street and from
+  other buildings, and rounds cross both ways through the window holes; noise and blasts carry one floor at half.
+- **The cutaway** (`systems/cutaway.js`, already built by the camera lane: Bayer dither in a screen circle round the
+  player, walls on the camera side down to knee height, the floors above hidden by `setView`) is reused, not rebuilt; v2
+  adds the facade kit to `setView` (a building's kit above your floor hides with its walls) and a pixel test against a
+  real six-storey ring tower.
+
+### 9.2 Player fantasy
+"I can climb that ruin and fight floor by floor." You drive the first ring street at noon and the island's wall is on
+your left and a row of six-storey hotels and apartment blocks on your right, their windows boarded, blown black or
+holding a last shard of glass, a water tank on every roof. A crack from up there: a rifleman behind sandbags. You leave
+the car under the overhang of the next block, go in by the back door, climb six flights past rooms where the infected
+stand in the dark (more of them the higher you go, and the gun crates with them), come out on the roof, cross the
+planks to his roof and finish it at the parapet. At night the same street is black but for a few warm windows.
+
+### 9.3 Detailed rules
+**Which lots rise** (`ringrise.riseOf`, from the lot's own seed: the ring's rng is never read). A block is DOWNTOWN when
+its centre is within `belt` (170 m) of the island's edge (Chebyshev) and its zone is the Strip or the dead houses.
+| zone | share | storeys (incl. street) | ring kind -> generated kind | escape | bridges |
+|---|---|---|---|---|---|
+| downtown | 0.62 | 4-6 | mall -> hotel, diner/shop -> office, house/bungalow/duplex -> apartment | 0.85 | 0.85 |
+| strip | 0.40 | 2-3 | mall, diner -> shop | 0.6 | 0.5 |
+| residential | 0.20 | 2 | house, bungalow -> house; duplex -> rowhouse | - | - |
+| industrial | never | 1 (the warehouse's 6-7.4 m bay) | - | - | - |
+| ruins (the Burn) | 0.12 | 2-3, 60% ruined (open top floor) | house, bungalow -> adobe; shop -> shop | 0.3 | - |
+A fuel stop never rises (its canopy). A downtown footprint grows inside its lot to a floor plate of at most 24 x 20 m,
+keeping 3.1 m each side (a fire escape's 2.8 m) and 2.5 m to the lot's back; under 10 m it keeps the ring's footprint.
+The lot becomes an EMPTY lot carrying `rise` (its row): the ring never builds its one-storey shell, the scatter keeps off
+it (`ring.solid`), `ring.survey` counts it as a building (`risers`, `byStoreys`, `tallest`).
+
+**Building it** (`ringrise.chunkTown`, `RingRise.chunkOn`): the chunk that holds a tower's centre owns it. Its towers
+become one generated-town plan (`makeBuilding` per row, the storeys forced), then roof bridges (`roofBridges` with the
+rows' share: facing roofs 1.5-7 m apart, within 3.2 m of height, one per roof), then fire escapes: 3+ storeys, a side
+wall (never the front, never a side a bridge lands on) whose side yard is at least 3.1 m deep. `buildTown` makes it
+solid; the facade kit dresses it (its roof clutter and lean-to posts join the colliders first); `citygen.stampRing`
+registers it. Going cold: its people go, its kit, its collision, its loot registration.
+
+**Upstairs is more dangerous** (`DANGER`, `RingRise.populate`, once per build, from the building's seed): floor k >= 1
+holds up to 2 infected at chance `0.08 + 0.1 k` each; a building of 4+ storeys whose stairs reach the roof has a raider
+rifleman perched on it (share 0.45) in the facade kit's sandbag nest, facing the street (perched: he turns and shoots,
+never steps off). At most 6 a chunk; never while free character slots are 32 or fewer (a building waits, `update` tries
+again each second). Loot is the generated builder's: containers on every floor, the gunsmith table on floor k >= 2 at
+`0.18 k`, a crate on a reached roof half the time (the gunsmith's).
+
+**The facade kit** (`FACADE`; every roll the building's own id). Each upper window bay: glass 34% (a cracked pane left
+in its top 28-54%: sight and rounds pass under it), boarded 26% (three planks outside with a firing slit at sill +
+0.18..0.55 m: eye height is free), blown 14% (soot up the wall over it), else open; a lamp behind 20% of the glass bays
+and 28% of the open ones after dark (amber, not tone-mapped: never bleached white). Roof bridges get rope rails on posts. A ledge at every floor line (0.14 proud, 0.16 tall), a cornice at the top (0.28
+proud, 0.4 tall). The roof: 1-3 HVAC boxes, a water tank on legs on 4+ storeys, a sandbag horseshoe behind the
+street-side parapet (always on 4+ storeys with a walkable roof, else 22%): colliders on a walkable roof (`fk-hvac`,
+`fk-tank`, `sandbags`). A hotel's rooftop sign on its street edge. Damage on 32% (always on a ruin): 1-3
+rebar-and-hole patches by the corners. Homes: a laundry line between two windows of one floor (45%). Shops, offices,
+hotels: a hand-painted sign over the street door (16 boards, plain trade words, no brands). Ring towers: a tin
+lean-to against a side wall (30%) and the ring's block yard wall (1.8 m, `fk-wall`) down both sides from the back
+corners and across the lot's back (the side with a fire escape stays open, the front always does).
+
+**Across floors** (`storeys.across(a, b)`; `ACROSS.window`). Two people on different floors of DIFFERENT places see and
+shoot each other when the higher one is up a storeyed building and within `reach` (2.4 m) of the outside wall the line
+between them leaves by (`roof` 3.0 m from the edge on a roof, an escape landing or a bridge), within `range` (70 m),
+and - when the lower one is up another building - they are at their own window too. The sight line then runs at the
+higher one's floor height (`main.sees` -> `losAt`: only what stands at that height meets it, so the window hole lets it
+through and a taller building does not); two floors of ONE building never (the slab). A round fired UP from the street
+(`combat.segment`): it climbs over what stands at street height and reaches the person at the window if nothing at
+their floor's height stands between. Down was v1.5 (WEB_CITYGEN §3.3) and is unchanged.
+
+**Floors muffle** (`storeys.floorShare`): inside a storeyed building a noise reaches `[1, 0.5, 0] x` its radius by floors
+apart (same / one / two+: one floor = up to `LEVEL.same + 4.6` m apart, so a 4.2-6 m street storey counts as one), and
+a blast does `[1, 0.5, 0]` of its harm; a blast goes off on the thrower's floor when it lands inside their own
+building, else on the street. Outside the storeyed buildings both keep the old flat rule.
+
+### 9.4 Formulas
+| Name | Formula | Variables and ranges | Example |
+|---|---|---|---|
+| Belt test | `max(|cx|, |cz|) - 464 <= 170` | block centre (m) | block centre (520, 120): 56 -> downtown |
+| Floor heights | `Y[0] = 0, Y[1] = h0, Y[k] = h0 + 3.2 (k - 1)` | h0 by kind: hotel 4.6, office 4.4, apartment 3.8 | 6-storey hotel: roof at 4.6 + 16 = 20.6 m |
+| Floor plate (downtown) | `w = min(24, lotW - 2 x 3.1)`, `d = min(20, lotBack - 2.5 - front)` | lot 64 x 36 (strip) | hotel 24 x 20 |
+| Escape room | `room = lot side - (wall + 0.2) >= 3.1` | 2.8 m of flights + 0.3 | a 3.1 m side yard: yes |
+| Danger upstairs | `p(k) = min(0.9, 0.08 + 0.1 k)` per try, 2 tries a floor | k = 1..5 | floor 5: 0.58 each, 1.16 expected |
+| Rich loot | `p(gunsmith) = 0.18 k` for k >= 2 | per container | floor 4: 0.72 |
+| Window reach | `exit(hi -> lo) <= 2.4` (roof 3.0) | exit: distance along the line to the outside face | 0.75 m inside a window: 0.95 -> yes |
+| Noise by floors | `r' = r x [1, 0.5, 0][n]`, `n = 0 if dy <= 1.6, 1 if dy <= 6.2, else 2` | dy: height between | a 30 m shot on floor 1: 15 m heard on floor 2, 0 on 3 |
+| Lamp opacity | `min(0.92, (night - 0.15) x 1.6)` when `night > 0.15` | sky.night 0..1 | full night: 0.92 |
+| Draw calls | `+5` (kit, glass, lit, tank, sign) `+2` shadow (kit, tank) | lit hidden by day, empty meshes hidden | see §9.8 #11 |
+
+### 9.5 Edge cases
+- **A chunk turns hot while the street is crowded:** a tower's people wait (`pending`) until free slots exceed 32; the
+  building is there at once.
+- **A tower straddles two chunks:** the chunk holding its centre owns it; the other chunk's collision tier still meets
+  it (citygen's 8 m grid is global).
+- **The player is inside a tower when its chunk cools:** the chunk cannot cool while you are in it (hot radius 224 m);
+  a teleport away releases it, and `releaseRing` puts anyone left on a released floor back on the ground (`c.storey`).
+- **A shot fired from the street at someone two floors inside, not at a window:** `across` refuses (more than 2.4 m from
+  the wall along the line), so no sight and no hit.
+- **Standing right behind a yard wall:** the cutaway keeps what is within 0.8 m of your depth (the wall in front of your
+  knees stays): by design, a wall you lean on still covers your legs.
+- **A sniper's roof is a ruin:** no rifleman (a ruin's roof is open sky, `S.n !== B.n`).
+- **Two facing roofs both want a bridge on one side:** one bridge a roof (`roofBridges`), and no escape on a side a bridge
+  lands on.
+- **Agents' saves:** a tower is rebuilt from data on load (pure), its loot rides the ring containers' record (`ringKept`
+  through `inventory.registerRing`), so a looted crate stays looted.
+- **The camera boom inside a tower** (ANGLED close with a tower south of you): the circle shows you; the rest of the frame
+  is the tower's inside. A boom that pulls in short of walls is a camera-lane follow-up.
+
+### 9.6 Dependencies (both ways)
+| v2 uses | how | noted there |
+|---|---|---|
+| `world/ring.js` | `makeBlock` -> `riseBlock`; `solid` and `survey` read `L.rise` | ring.js comments |
+| `world/streamer.js` | `ringOn` / `ringOff` -> `ringrise.chunkOn/Off` | streamer.js comments |
+| `systems/citygen.js` | `stampRing` / `releaseRing` / `extra`; `stamp` -> `facades.addTown`, `release` -> `facades.remove` | `WEB_CITYGEN.md` (ring towers are generated buildings) |
+| `world/citygen/build.js`, `layout.js` | `buildTown`, `makeBuilding`, `roofBridges(share)`; `out.upWins` (upper bays for the kit) | build.js header |
+| `systems/cutaway.js` (`WEB_CAMERA.md` §3.4) | unchanged; facade materials are patched like any | `WEB_CAMERA.md` |
+| `main.js` `sees`, `systems/combat.js`, `systems/ai.js` `onNoise`, `systems/throwables.js` `explode` | the across-floors law | comments at each |
+| `data/materials.js` | `fk-hvac`, `fk-tank`, `fk-wall` | rows there |
+| `WEB_DEATHLANDS_GAP.md` G4 | acceptance #3, #8 | G4 |
+
+### 9.7 Tuning knobs
+| Knob | Default | Safe range | Affects |
+|---|---|---|---|
+| `MAX_ABOVE` | 5 | 3-7 | the skyline's cap; above 5 the tilted camera needs >= 60 m of boom to see the roofs |
+| `RING_RISE.belt` | 170 m | 80-320 | how deep the downtown belt is (1-4 block rows) |
+| `RING_RISE.downtown.share` | 0.62 | 0.3-0.9 | skyline density downtown (more = more draw-free instances, more build ms per chunk) |
+| `RING_RISE.*.storeys` | see §9.3 | 2-6 | each zone's height |
+| `RING_RISE.downtown.grow` | 24 x 20, side 3.1, back 2.5 | w 14-28, d 12-22, side >= 3.1 | floor plate; side < 3.1 loses fire escapes |
+| `RING_RISE.*.escape / bridges` | 0.85 / 0.85 downtown | 0-1 | outside stairs, roof-to-roof routes |
+| `ACROSS.window.reach / roof / range` | 2.4 / 3.0 / 70 m | 1.2-3.5 / 2-5 / 40-120 | how close to a window you must be to fight through it |
+| `ACROSS.noise / blast` | [1, 0.5, 0] | each 0-1 | how much a floor muffles |
+| `DANGER.infected` | base 0.08, perFloor 0.1, max 2 | base 0-0.3, perFloor 0-0.2 | how infested the upper floors are |
+| `DANGER.sniper.share` | 0.45 | 0-1 | rooftop riflemen on 4+ storeys |
+| `DANGER.reserve` | 32 | 16-60 | free slots kept for the street before a tower is peopled |
+| `FACADE.window` | 0.34 / 0.26 / 0.14, lit 0.20 | each 0-0.6 | how dead or lived-in a facade reads |
+
+### 9.8 Acceptance criteria (selftest `only=storeys v2`)
+1. **Rows:** the cap is 6 everywhere (MAX_ABOVE 5, VERT.maxStoreys 6, no island building over it); zone ranges as §9.3;
+   floor shares [1, 0.5, 0].
+2. **#8a:** a six-storey building stands in Phoenix downtown (the island's tower) and in the ring (a downtown tower with
+   7 floor heights and a roof its stairs reach).
+3. **#8b:** the walkability audit (`world/citygen/audit.js`) reaches every floor of every live ring tower from its street
+   door, and a tower's front door is reached from the ring street on the foot nav grid.
+4. **#8c:** from a floor-4 window of a ring tower a shot hits a staged street target; the street target sees the window
+   and its round reaches a person standing there; from the pier beside the window, neither.
+5. **#3:** with a real six-storey ring tower between the camera and you (ANGLED, D 20), >= 90% of your screen circle shows
+   you (pixel test against the tower removed), and with the cutaway off it does not.
+6. **Roof bridge:** walked on held keys from one roof across the planks onto the next (height and building change).
+7. **Fire escape:** walked on held keys from its foot to its top landing (the storeys law's steer).
+8. **Floors muffle:** noise and blast shares 1 / 0.5 / 0 by floors apart in a tower; a raider on the shooter's floor turns,
+   one two floors up does not; the street keeps the flat rule.
+9. **Facade kit:** the island and every live ring chunk dressed (glass, boards, soot, ledges, tanks, HVAC, nests, signs)
+   in 5 meshes, nothing over capacity; lamps off at noon, on at 23:00.
+10. **Danger and loot:** upper-floor containers, a roof crate, infected upstairs or a rooftop rifleman, and the rifleman
+    sees the street from his nest.
+11. **Budget:** under 150 draw calls with the downtown belt in the widest drive view (ANGLED, TOPDOWN, ISO at D 175).
+12. **Perf:** `scenario name=stress` ABBA with fresh browsers vs the base commit: under 150 draw calls, ms/frame inside
+    noise (results in the hand-back and §9.9).

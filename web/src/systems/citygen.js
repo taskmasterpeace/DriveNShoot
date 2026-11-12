@@ -44,9 +44,13 @@ class CgGrid {
   constructor() { this.map = new Map(); this.n = 0; this.x0 = Infinity; this.z0 = Infinity; this.x1 = -Infinity; this.z1 = -Infinity; }
   key(gx, gz) { return gx * 131072 + gz; }
   cell(gx, gz) { return this.map.get(gx * 131072 + gz) ?? EMPTY; }
-  rebuild(towns) {
+  rebuild(towns, more = null) {
     this.map.clear(); this.n = 0; this.x0 = Infinity; this.z0 = Infinity; this.x1 = -Infinity; this.z1 = -Infinity;
-    for (const t of towns) {
+    for (const t of towns) this.add(t);
+    if (more) for (const t of more) this.add(t); // the Phoenix ring's risers (world/ringrise.js: stampRing)
+  }
+  add(t) {
+    {
       for (const b of t.built.boxes) {
         for (let gx = Math.floor(b.minX / CELL); gx <= Math.floor(b.maxX / CELL); gx++) for (let gz = Math.floor(b.minZ / CELL); gz <= Math.floor(b.maxZ / CELL); gz++) {
           const k = this.key(gx, gz); let L = this.map.get(k); if (!L) this.map.set(k, (L = [])); L.push(b);
@@ -227,6 +231,8 @@ export class CityGen {
     for (const r of this.plan) this.index(r);
     if (this.W) this.W.citygen = this;
     this.live = new Map();   // rec id -> { rec, T, built, base, blds, chars }
+    this.extra = new Map();  // the Phoenix ring's risers, one entry per hot chunk (world/ringrise.js stampRing): drawn, walked,
+    //                          collided and looted like a live town, but never a settlement (no residents, hordes, grip, cap)
     this.grid = new CgGrid();
     g.statics.cg = this.grid;
     g.storeys.ext = this;
@@ -291,11 +297,10 @@ export class CityGen {
     this.live.set(rec.id, t);
     rec.size = T.size; rec.half = Math.max(rec.half, Math.max(T.x1 - T.x0, T.z1 - T.z0) / 2 + 12); rec.name = T.name;
     rec.gates = T.gates; rec.defense = this.defenseOf(rec, T);
+    this.g.facades?.addTown(rec.id, T, built); // STOREYS v2: its storeyed buildings dressed (world/facades.js; roof clutter joins the colliders first)
     for (const S of built.recs) this.g.storeys.addExt(S);
     for (const R of built.blds) { R.storey = R.S; R.setRoof = (v) => this.setRoof(R, v); R.rec = rec; }
-    this.indexBlds();
-    this.grid.rebuild(this.live.values());
-    this.relayItems();
+    this.reindex();
     this.g.wrecks?.add(`town:${rec.id}`, built.wrecks, built.y0 ?? 0); // its dead cars: our bodies (systems/wrecks.js)
     // loot: each floor's containers at their own height
     const inv = this.g.inventory;
@@ -321,14 +326,13 @@ export class CityGen {
     this.g.milbases?.onReleased(t);
     this.g.rites?.onReleased(t);
     this.g.understreet?.onReleased(t);
+    this.g.facades?.remove(id);
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);
     this.g.wrecks?.remove(`town:${id}`);
     this.live.delete(id);
-    this.indexBlds();
-    this.grid.rebuild(this.live.values());
-    this.relayItems();
+    this.reindex();
     for (const c of this.g.chars) if (c.storey?.cg && !this.g.storeys.at(c.x, c.z)) { c.storey = null; c.gy = this.W?.groundAt?.(c.x, c.z) ?? 0; }
     this.counts.released++;
   }
@@ -352,10 +356,36 @@ export class CityGen {
 
   // ---- the mesh --------------------------------------------------------------------------------------------------------
   colorOf(hex) { let c = this.colorCache.get(hex); if (!c) { c = new THREE.Color(hex); this.colorCache.set(hex, c); } return c; }
+  reindex() { this.indexBlds(); this.grid.rebuild(this.live.values(), this.extra.values()); this.relayItems(); }
+  // A ring chunk's risers (world/ringrise.js): registered as a live town is, minus the settlement (no plan record, no
+  // residents or hordes, no road grip, not counted against PLACE.maxLive).
+  stampRing(rec, T, built) {
+    const t = { rec, T, built, blds: built.blds, chars: [] };
+    this.extra.set(rec.id, t);
+    for (const S of built.recs) this.g.storeys.addExt(S);
+    for (const R of built.blds) { R.storey = R.S; R.setRoof = (v) => this.setRoof(R, v); R.rec = rec; }
+    this.reindex();
+    const inv = this.g.inventory;
+    if (inv) { inv.registerRing(built.loot); for (const q of built.loot) { const b = inv.boxes.get(q.id); if (b) b.y = q.y; } }
+    return t;
+  }
+  releaseRing(id) {
+    const t = this.extra.get(id);
+    if (!t) return;
+    for (const R of t.blds) if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; }
+    for (const S of t.built.recs) this.g.storeys.removeExt(S);
+    if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
+    this.g.inventory?.unregisterRing(t.built.loot);
+    this.extra.delete(id);
+    this.reindex();
+    for (const c of this.g.chars) if (c.storey?.cg && !this.g.storeys.at(c.x, c.z)) { c.storey = null; c.gy = this.W?.groundAt?.(c.x, c.z) ?? 0; }
+  }
+  liveEntry(id) { return this.live.get(id) ?? this.extra.get(id); }
   relayItems() {
     const M = this.mesh, items = this.items;
     items.length = 0;
     for (const t of this.live.values()) { t.base = items.length; for (const it of t.built.items) { if (items.length >= CAP) break; it.idx = items.length; items.push(it); } }
+    for (const t of this.extra.values()) { t.base = items.length; for (const it of t.built.items) { if (items.length >= CAP) break; it.idx = items.length; items.push(it); } }
     for (let i = 0; i < items.length; i++) this.place(i, true);
     M.count = items.length;
     M.visible = items.length > 0;
@@ -377,7 +407,7 @@ export class CityGen {
     const R = S?.b;
     if (!R || R.i0 === undefined) return;
     let any = false;
-    for (let i = R.i0; i < R.i1; i++) { const it = R.rec && this.live.get(R.rec.id)?.built.items[i]; if (!it || it.idx === undefined) continue; this.place(it.idx, level < 0 || it.lv <= level); any = true; }
+    for (let i = R.i0; i < R.i1; i++) { const it = R.rec && this.liveEntry(R.rec.id)?.built.items[i]; if (!it || it.idx === undefined) continue; this.place(it.idx, level < 0 || it.lv <= level); any = true; }
     if (any) this.mesh.instanceMatrix.needsUpdate = true;
   }
   showAll(S) { this.hideAbove(S, -1); }
@@ -389,7 +419,11 @@ export class CityGen {
   // ---- queries ----------------------------------------------------------------------------------------------------------
   indexBlds() {
     this.bgrid.clear(); this.cover.length = 0;
-    for (const t of this.live.values()) {
+    for (const t of this.live.values()) this.indexTown(t);
+    for (const t of this.extra.values()) this.indexTown(t);
+  }
+  indexTown(t) {
+    {
       this.cover.push(t.built.cover);
       for (const R of t.blds) for (let cx = Math.floor(R.minX / 16); cx <= Math.floor(R.maxX / 16); cx++) for (let cz = Math.floor(R.minZ / 16); cz <= Math.floor(R.maxZ / 16); cz++) {
         const k = cx * 65536 + cz; let L = this.bgrid.get(k); if (!L) this.bgrid.set(k, (L = [])); L.push(R);
@@ -397,7 +431,7 @@ export class CityGen {
     }
   }
   buildingAt(x, z) {
-    if (!this.live.size) return null;
+    if (!this.live.size && !this.extra.size) return null; // (the ring's towers count: world/ringrise.js)
     const L = this.bgrid.get(Math.floor(x / 16) * 65536 + Math.floor(z / 16));
     if (!L) return null;
     for (const R of L) if (x > R.minX && x < R.maxX && z > R.minZ && z < R.maxZ) return R;
@@ -458,7 +492,11 @@ export class CityGen {
   openings(px, pz) {
     const I = this.g.interiors;
     if (!I?.attachRing) return;
-    for (const t of this.live.values()) {
+    for (const t of this.live.values()) this.openTown(t, I, px, pz);
+    for (const t of this.extra.values()) this.openTown(t, I, px, pz);
+  }
+  openTown(t, I, px, pz) {
+    {
       const near = Math.abs(t.rec.x - px) < t.rec.half + RO.far && Math.abs(t.rec.z - pz) < t.rec.half + RO.far;
       for (const R of t.blds) {
         if (R.open && !I.ringOpen.has(R.open)) R.open = null; // detached elsewhere (a load, the ring's scan): attach it again

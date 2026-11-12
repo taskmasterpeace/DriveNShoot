@@ -124,6 +124,7 @@ page; every carry (aim, low ready, the revolver swinging in the fist) mirrors fo
 |---|---|---|
 | `WEB_CONTROLLER` §3.7 (north up) | TOPDOWN/ANGLED keep ψ = 0; ISO/CHASE are opt-in views | add a line pointing here |
 | `systems/sky.js` | shadow box + fog follow `viewR` (unchanged code) | — |
+| `world/facades.js` (`WEB_STOREYS` §9) | its five meshes are patched by the cutaway like any material; `setView` hides a building's kit above your floor; acceptance #3 is also tested against a real six-storey ring tower (`storeys v2: acceptance #3`) | `WEB_STOREYS` §9.6 |
 | `world/storeys.js` `setView` | hides floors above (unchanged; the cutaway does the walls) | `WEB_STOREYS` |
 | `engine/input.js`, `engine/controls.js`, `data/controls.js` | wheel split, Alt+wheel, O / `[` `]` rows, pad VIEW chords, screen-true sticks | `WEB_CONTROLLER` |
 | `systems/combat.js` | the muzzle off the shoulder + toe-in | `WEB_INVENTORY` (guns) |

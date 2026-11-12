@@ -186,6 +186,18 @@ export class Combat {
     if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
     const fh = !up && g.fauna ? g.fauna.raycast(ox, oz, dx, dz, best, slope) : null; // an animal (systems/fauna.js); a bird in the sky at its height
     if (fh) { best = fh.t; target = fh.animal; kind = 'fauna'; }
+    // STOREYS v2 (world/storeys.js across): a round fired UP from the street (or a lower floor of another building) at
+    // someone at an upper window or a roof's edge. It climbs over what stands at street height; at their floor's height
+    // nothing may stand between (the window hole lets it in, a wall or a taller building stops it).
+    if (!up && (g.storeys.extN || g.storeys.list.length)) for (const c of g.chars) {
+      if (c === shooter || !c.alive || c.inVehicle || c.hidden || c.underwater || !c.storey || (c.gy ?? 0) - (F.gy ?? 0) < 1.6) continue;
+      const hy = g.storeys.across(F, c);
+      if (hy < 0) continue;
+      const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, left);
+      if (t < 0 || t >= over || (kind && best < t)) continue;
+      if (g.statics.raycast(ox, oz, dx, dz, t, RAY_BULLET, hy + 1.3) < t - 0.05) continue;
+      best = t; target = c; kind = 'char'; this.upShots = (this.upShots ?? 0) + 1;
+    }
     const sh = !up && g.sealife ? g.sealife.raycast(ox, oz, dx, dz, best) : null; // a shark's back at the surface, an arm of the deep one (systems/sealife.js)
     if (sh) { best = sh.t; target = sh.a; kind = 'sea'; this.seaArm = sh.arm; }
     const cd = !up && g.casinos && shooter === g.player ? g.casinos.raycast(ox, oz, dx, dz, best) : null; // a house's security drone over its property (systems/casinos.js)
