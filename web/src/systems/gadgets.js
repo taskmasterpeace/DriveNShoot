@@ -458,6 +458,8 @@ export class Gadgets {
     this.drones.update(dt);
     // ` (the detonate row; the workshop has U): every remote charge you set goes up (a drone in the air drops its bomb).
     if (g.input.hit('Backquote') && !g.dialogue?.active) { if (this.drones.piloting) this.drones.dropBomb(); else this.detonate(P); }
+    // \ (the dronebay row): the car's outrider up, home, or a drone from the pack into an empty bay.
+    if (g.input.hit('Backslash') && !g.dialogue?.active && P.inVehicle) { const r = this.drones.bay(P.inVehicle); g.hud?.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'info' : 'warn'); }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i], def = p.def;
       p.t += dt;
@@ -550,6 +552,44 @@ export class Gadgets {
     if (who === this.g.player && !n && !id) this.g.hud?.toast('NOTHING TO SET OFF', 'warn');
     this.g.emit('detonate', { by: who?.id ?? null, n });
     return n;
+  }
+
+  // ---- save / load (agent/api.js snapshot/restore) ---------------------------------------------------------------------
+  // What lies in the world: every gadget that is set, arming or sitting tripped (one in the air or burning is a moment,
+  // not a record: it is not kept), with its owner, its door or car by id, how far it has armed and who has spotted it;
+  // and every barricade by door id. The door's lock strength is the interiors' own save (loaded before this).
+  save() {
+    const list = [];
+    for (const p of this.list) {
+      if (p.state !== 'arming' && p.state !== 'armed' && p.state !== 'tripped') continue;
+      list.push({ id: p.id, k: p.kind, x: r1(p.x), z: r1(p.z), r: +p.rot.toFixed(3), o: p.owner?.id ?? null, s: p.state === 'tripped' ? 'armed' : p.state,
+        t: r1(p.t), f: p.def.trigger === 'timer' ? r1(p.fuse) : undefined, seen: p.seen || undefined,
+        door: p.ref && p.ref.leaves ? p.ref.id : undefined, car: p.ref && p.ref.len !== undefined ? p.ref.id : undefined });
+    }
+    return { seq: this.seq, list, barred: this.barred.map((b) => ({ d: b.door.id, k: b.kind, by: b.by })) };
+  }
+
+  load(s) {
+    const g = this.g;
+    this.list.length = 0;
+    for (const b of this.barred) b.door.barricade = null;
+    this.barred.length = 0;
+    if (!s) return; // a save from before the gadgets: nothing set, nothing barred
+    this.seq = Math.max(this.seq, s.seq ?? 0);
+    const who = (id) => id == null ? null : g.chars.find((c) => c.id === id) ?? null;
+    for (const r of s.list ?? []) {
+      if (!GADGETS[r.k]) continue;
+      const ref = r.door ? g.interiors?.byId.get(r.door) ?? null : r.car ? g.vehicles.find((v) => v.id === r.car) ?? null : null;
+      if ((r.door || r.car) && !ref) continue; // its door went with a detached ring lot, or its car is gone
+      const p = this.make(r.k, r.x, r.z, r.r, who(r.o), { id: r.id, state: r.s, t: r.t ?? 0, seen: r.seen ?? 0, ref });
+      if (r.f !== undefined) p.fuse = r.f;
+    }
+    for (const b of s.barred ?? []) {
+      const door = g.interiors?.byId.get(b.d);
+      if (!door?.locked || !BARRICADES[b.k]) continue; // the save has it broken through since
+      this.barred.push({ door, kind: b.k, by: b.by ?? null, at: g.time });
+      door.barricade = b.k;
+    }
   }
 
   // A door that was barricaded and now is not locked: the barricade gave (a boot, a breach, the infected).

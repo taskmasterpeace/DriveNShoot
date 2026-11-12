@@ -718,6 +718,7 @@ class Game {
       if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
       this.melee?.onBody(body, c); // the bat or the machete they fought with lies with them
+      if (c.sec) this.security?.onDeath(c, body); // a town bull or a posse man carries the town's key ring (systems/security.js)
     }
     this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
     this.stories?.onKill(c, attacker); // a party's person, a fallen place's master, a hunter (systems/sitestories.js)

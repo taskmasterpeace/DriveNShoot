@@ -1,8 +1,9 @@
 // GADGETS, DRONES, TOWN SECURITY and the door verbs as COMMANDS rows (docs/design/WEB_GADGETS.md; systems/gadgets.js,
 // systems/drones.js, systems/security.js, data/gadgets.js). buildCommands() in api.js spreads these into COMMANDS, so
 // help, the CLI, the MCP tools and docs/COMMANDS.md see them like any other row. gadgetsChecks is the selftest share.
-import { GADGETS, DRONES, BARRICADES, SECURITY, SECURITY_TIERS } from '../data/gadgets.js';
+import { GADGETS, DRONES, FOE_DRONES, BARRICADES, SECURITY, SECURITY_TIERS } from '../data/gadgets.js';
 import { ITEMS } from '../data/items.js';
+import { TRADERS } from '../data/trade.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const KINDS = Object.keys(GADGETS);
@@ -63,10 +64,13 @@ export function gadgetsCommands(api, need) {
       },
     },
     drone: {
-      group: 'world', desc: `Drones (data/gadgets.js DRONES: ${Object.keys(DRONES).join(', ')}; systems/drones.js). No args: the one in the air (state fly|home|down, where, distance from you, signal 0..1, battery s, hp, bombs) and the counts. action=launch kind= (give=true puts one in your pack first; it leaves the pack and flies, your body stays put, the camera follows it); action=fly x= z= flies it to a point (or dx= dz= -1..1 holds a direction like WASD; boost=true); action=land calls it home (it lands beside you and goes back in the pack); action=bomb drops one (the drop drone). Past its range the signal goes and it flies itself home. In the game: launch it from the PACK screen; WASD fly, Shift boost, E home, \` drop.`,
-      args: { action: { type: 'string', enum: ['launch', 'fly', 'land', 'bomb', 'view'], default: 'view' }, kind: { type: 'string', default: 'scout', enum: Object.keys(DRONES) }, give: { type: 'boolean', default: false }, x: { type: 'number' }, z: { type: 'number' }, dx: { type: 'number' }, dz: { type: 'number' }, boost: { type: 'boolean', default: false } },
-      run: async ({ action, kind, give, x, z, dx, dz, boost }) => {
+      group: 'world', desc: `Drones (data/gadgets.js DRONES: ${Object.keys(DRONES).join(', ')}; systems/drones.js). No args: the one in the air (state fly|home|down, where, distance from you, signal 0..1, battery s, hp, bombs) and the counts. action=launch kind= (give=true puts one in your pack first; it leaves the pack and flies, your body stays put, the camera follows it); action=fly x= z= flies it to a point (or dx= dz= -1..1 holds a direction like WASD; boost=true); action=land calls it home (it lands beside you and goes back in the pack); action=bomb drops one (the drop drone). action=foe foe=<${Object.keys(FOE_DRONES).join('|')}> x= z= sends one of THEIRS up (default: 20 m off you; a spotter tells its side where you are, a drop drone bombs you; shoot it, light a signal flare to pull it off, or stand in smoke); action=clearfoes takes theirs out of the sky. action=bay is the Backslash key in a car with a DRONE BAY (data/workshop.js UTILITY.dronebay; BAY_DRONE): its outrider goes up and flies itself ahead of the car marking what is hostile, or comes home and docks, or (an empty bay) takes a scout drone from your pack; bay in the view: fitted, empty, docked, battery, and the one up (ahead: metres in front of the car). Past its range the signal goes and it flies itself home. In the game: launch it from the PACK screen; WASD fly, Shift boost, E home, \` drop.`,
+      args: { action: { type: 'string', enum: ['launch', 'fly', 'land', 'bomb', 'foe', 'clearfoes', 'bay', 'view'], default: 'view' }, kind: { type: 'string', default: 'scout', enum: Object.keys(DRONES) }, foe: { type: 'string', default: 'spotter', enum: Object.keys(FOE_DRONES) }, give: { type: 'boolean', default: false }, x: { type: 'number' }, z: { type: 'number' }, dx: { type: 'number' }, dz: { type: 'number' }, boost: { type: 'boolean', default: false } },
+      run: async ({ action, kind, foe, give, x, z, dx, dz, boost }) => {
         const D = g.drones;
+        if (action === 'foe') { const r = D.foe(foe, Number.isFinite(x) ? x : P().x + 20, Number.isFinite(z) ? z : P().z); need(r.ok, r.why); return { ...r, foes: D.foeView() }; }
+        if (action === 'clearfoes') { const n = D.foes.length; D.foes.length = 0; return { cleared: n }; }
+        if (action === 'bay') { const r = D.bay(P().inVehicle); need(r.ok, r.why); return { ...r, bay: D.bayView() }; }
         if (action === 'launch') {
           const item = `drone_${kind}`;
           if (give && !g.inventory.carried.count(item)) g.inventory.stow(item, 1);
@@ -129,6 +133,7 @@ export async function gadgetsChecks(api, check, C) {
     if (g.dialogue?.active) g.dialogue.close();
     g.driveOverride = null;
     if (g.drones.d) { g.drones.d = null; g.drones.piloting = false; }
+    g.drones.foes.length = 0; g.drones.bombs.length = 0; g.drones.o = null;
     const v = P().inVehicle; if (v) { g.exitVehicle(true); g.vehiclesSys.remove(v); }
     await C('teleport', { x, z });
   };
@@ -268,6 +273,43 @@ export async function gadgetsChecks(api, check, C) {
       } finally { g.inventory.spend('drone_scout', g.inventory.carried.count('drone_scout')); g.inventory.carried.slots.push(...kept); g.inventory.changed(); }
     });
 
+    await check('drones: a drone bay goes on a pickup (not a sedan); its outrider flies 25 m ahead of the moving car, marks a raider up the road, comes home and docks; shot down the bay is empty till a scout drone from the pack goes in', async () => {
+      clean(); await home(S.x + S.ax * 3, S.z + S.az * 3);
+      const tap = async (code) => { g.input.down.add(code); g.input.pressed.add(code); await C('step', { seconds: 0.05 }); g.input.down.delete(code); await C('step', { seconds: 0.05 }); };
+      const sx = S.x - S.fx * 30, sz = S.z - S.fz * 30;
+      const sed = g.vehiclesSys.spawn('sedan', sx + S.ax * 8, sz + S.az * 8, S.h, '#4a3a2a'); sed.gadgetTest = true;
+      const onSedan = g.garage.addUtility(sed, 'dronebay');
+      const r = await C('spawnVehicle', { type: 'pickup', x: sx, z: sz, heading: S.h });
+      const v = g.vehicles.find((c) => c.id === r.id); v.gadgetTest = true;
+      const fit = g.garage.addUtility(v, 'dronebay');
+      if (onSedan.ok || !fit.ok) return `sedan=${onSedan.ok} pickup=${fit.ok} ${fit.why}`;
+      await C('teleport', { x: sx + S.ax * 3, z: sz + S.az * 3 });
+      await C('enterVehicle', { id: r.id, force: true });
+      const raider = g.spawnRaider(S.x + S.fx * 40 + S.ax * 6, S.z + S.fz * 40 + S.az * 6, Math.random, 'pistol'); raider.gadgetTest = true; raider.hold = true; raider.weapon = null;
+      const D = g.drones, kept = g.inventory.carried.slots.splice(0);
+      try {
+        await tap('Backslash');
+        if (!D.o) return `no outrider up: ${JSON.stringify(D.bayView())}`;
+        let ahead = -99, marked = false;
+        for (let k = 0; k < 12; k++) { await C('drive', { throttle: 0.7, seconds: 0.25 }); const b = D.bayView(); if (b.up) ahead = Math.max(ahead, b.up.ahead); if (raider.marked > g.time) marked = true; }
+        await C('drive', { throttle: 0, handbrake: true, seconds: 1.5 });
+        await tap('Backslash');
+        for (let k = 0; k < 40 && D.o; k++) await C('step', { seconds: 0.25 });
+        const docked = !D.o && D.bayView().docked;
+        // Shot down: the bay empties; a scout drone from the pack fills it.
+        await tap('Backslash');
+        if (!D.o) return `ahead=${ahead} marked=${marked} docked=${docked}; no relaunch: ${JSON.stringify(D.bayView())}`;
+        D.o.hp = 1; D.bayDown('shot down');
+        for (let k = 0; k < 10 && D.o; k++) await C('step', { seconds: 0.25 });
+        const empty = D.bayView().empty;
+        await tap('Backslash'); const refused = D.bayView().empty;
+        g.inventory.stow('drone_scout', 1);
+        await tap('Backslash');
+        const loaded = !D.bayView().empty && g.inventory.carried.count('drone_scout') === 0;
+        return ahead > 15 && marked && docked && empty && refused && loaded ? true : `ahead=${ahead} marked=${marked} docked=${docked} empty=${empty} refusedEmpty=${refused} loaded=${loaded}`;
+      } finally { D.o = null; g.inventory.spend('drone_scout', g.inventory.carried.count('drone_scout')); g.inventory.carried.slots.push(...kept); g.inventory.changed(); g.exitVehicle(true); }
+    });
+
     await check('security: a theft a town bull saw raises a star and brings the run-down patrol car from the station to you', async () => {
       clean(); g.security.auto = true; g.wanted = 0; g.security.lastWanted = 0;
       const T = g.security.towns[0], st = g.security.stationOf(T);
@@ -341,6 +383,81 @@ export async function gadgetsChecks(api, check, C) {
       const plain = await test(d2, false), barred = await test(d1, true);
       return barred.held && !plain.held ? true : `barred held=${barred.held} (${barred.t}s); plain held=${plain.held} (${plain.t}s) ${JSON.stringify({ plain: plain.why, barred: barred.why })}`;
     });
+
+    await check('gadgets: a save carries what is set (a chain, a buried mine, a remote charge) and a barricaded door; loaded, they lie where they lay, armed, with their owner, and the door is barred again', async () => {
+      clean();
+      await home(S.x, S.z);
+      const chain = GX.place('road_chain', S.x + S.fx * 12, S.z + S.fz * 12, S.h, P(), { state: 'armed' });
+      const mine = GX.place('car_mine', S.x + S.fx * 20, S.z + S.fz * 20, S.h, P(), { state: 'armed' });
+      const charge = GX.place('remote_charge', S.x + S.ax * 3, S.z + S.az * 3, 0, P(), { state: 'armed' });
+      const d = g.interiors.doors.find((x) => !x.broken && !x.ug && x.leaves.length === 1 && !x.locked && !GX.barred.some((b) => b.door === x));
+      if (!d) return 'no unlocked door to bar';
+      GX.barricade(d, 'planks', null, false);
+      const snap = (await C('save')).save;
+      const kept = snap.gadgets?.list?.length ?? 0, keptBar = snap.gadgets?.barred?.some((b) => b.d === d.id);
+      // Lose them, then load the save's record (a JSON round trip, as the quicksave does).
+      GX.unbarricade(d); GX.list.length = 0;
+      g.interiors.setLocked(d, true); // the interiors' own load brings the lock back first
+      GX.load(JSON.parse(JSON.stringify(snap.gadgets)));
+      const back = (p) => { const q = GX.byId(p.id); return q && q.kind === p.kind && Math.hypot(q.x - p.x, q.z - p.z) < 0.2 && q.state === 'armed' && q.owner === P(); };
+      const ok = back(chain) && back(mine) && back(charge) && d.barricade === 'planks' && GX.barred.some((b) => b.door === d);
+      const n = GX.detonate(P()); // the loaded charge still answers your button
+      GX.unbarricade(d); clean();
+      return ok && kept >= 3 && keptBar && n === 1 ? true : `kept=${kept} bar=${keptBar} back chain=${back(chain)} mine=${back(mine)} charge=${back(charge)} door=${d.barricade} det=${n}`;
+    });
+
+    await check('trade: Kenji\'s shelves keep the hardware gadgets and a scout drone, Ike keeps the bangs; each buys back what he sells', async () => {
+      const K = TRADERS.kenji, I2 = TRADERS.ike, keeps = (row) => new Set((row.keeps ?? []).map(([id]) => id)), kk = keeps(K), ik = keeps(I2), bad = [];
+      for (const id of ['road_chain', 'spike_strip', 'tripwire_bells', 'signal_flare', 'drone_scout']) if (!kk.has(id) || !g.trade.deals(K, id)) bad.push(`kenji ${id}`);
+      for (const id of ['car_mine', 'fan_mine', 'remote_charge', 'breach_charge']) if (!ik.has(id) || !g.trade.deals(I2, id)) bad.push(`ike ${id}`);
+      for (const [id] of [...K.keeps, ...I2.keeps]) if (!ITEMS[id]) bad.push(`no item ${id}`);
+      return bad.length ? bad.join(', ') : true;
+    });
+
+    await check('security: a town bull shot dead leaves the town\'s key ring on his body; a skip tracer leaves none', async () => {
+      clean();
+      await home(S.x, S.z);
+      const T = g.security.towns[0];
+      const bull = g.security.officer(T, S.x + S.fx * 6, S.z + S.fz * 6, 'bulls'), tracer = g.security.officer(T, S.x - S.fx * 6, S.z - S.fz * 6, 'tracers');
+      for (const c of [bull, tracer]) { c.gadgetTest = true; c.hold = true; g.combat.damage(c, 9999, P(), 0, 0, 'test'); }
+      await C('step', { seconds: 0.1 });
+      const box = (c) => g.inventory.boxes.get(`body:${c.id}`);
+      const b1 = box(bull)?.count('key_ring') ?? -1, b2 = box(tracer)?.count('key_ring') ?? -1;
+      clean();
+      return !bull.alive && b1 === 1 && b2 === 0 ? true : `bull alive=${bull.alive} ring=${b1}; tracer ring=${b2}`;
+    });
+
+    await check('drones: theirs - a lit signal flare pulls a raider drop drone off you and it bombs the flare; a spotter tells its own side where you are; rounds fired up at one bring it down', async () => {
+      clean();
+      await home(S.x, S.z);
+      const D = g.drones; P().hp = P().maxHp ?? P().hp; const hp0 = P().hp;
+      // 1. The flare: lit 16 m down the stretch, the drop drone up 20 m beyond you on the other side.
+      const fl = GX.place('signal_flare', S.x + S.fx * 16, S.z + S.fz * 16, 0, P(), { state: 'armed' }); GX.fire(fl);
+      const r = D.foe('dropper', S.x + S.fx * 26, S.z + S.fz * 26);
+      if (!r.ok) return r.why;
+      let onFlare = 0, onYou = 0;
+      const seq0 = g.eventSeq; // the log keeps the last 500: read it by seq, never by index
+      for (let k = 0; k < 24 && !onFlare; k++) { await C('step', { seconds: 0.5 }); onFlare = g.events.filter((e) => e.seq > seq0 && e.type === 'foeDroneBomb' && e.on === 'flare').length; }
+      onYou = g.events.filter((e) => e.seq > seq0 && e.type === 'foeDroneBomb' && e.on === 'you').length;
+      await C('step', { seconds: 1 }); // the charge falls and goes off on the flare, not on you
+      const decoyed = D.counts.decoyed > 0;
+      D.foes.length = 0; D.bombs.length = 0; clean();
+      // 2. The spotter: a raider 60 m off (held, not looking) learns where you are from it.
+      const rd = g.addChar({ x: S.x + S.fx * 60, z: S.z + S.fz * 60, faction: 'raider', weapon: 'smg', name: 'Test Raider', flag: 'MX' });
+      rd.gadgetTest = true; rd.hold = true; rd.target = null;
+      D.foe('spotter', S.x + S.fx * 30, S.z + S.fz * 30, rd);
+      let called = false;
+      for (let k = 0; k < 16 && !called; k++) { await C('step', { seconds: 0.5 }); called = rd.target === P(); }
+      // 3. Shot down: a revolver, rounds fired at it where it circles.
+      const f = D.foes[0];
+      await C('give', { weapon: 'pistol', pistol: 60 });
+      const cur0 = g.inv.current; g.inv.current = 'pistol'; P().weapon = 'pistol';
+      for (let k = 0; k < 40 && f.state !== 'down'; k++) await C('fire', { x: f.x, z: f.z, shots: 1 });
+      const down = f.state === 'down' || !D.foes.includes(f);
+      if (g.inv.weapons.includes(cur0)) { g.inv.current = cur0; P().weapon = cur0; }
+      D.foes.length = 0; D.bombs.length = 0; clean();
+      return onFlare >= 1 && decoyed && P().hp >= hp0 - 1 && called && down ? true : `flare bombs=${onFlare} you=${onYou} decoyed=${decoyed} hp ${hp0}->${Math.round(P().hp)} called=${called} down=${down} (hp ${Math.round(f.hp)})`;
+    });
   } finally {
     clean();
     restore();
@@ -348,6 +465,7 @@ export async function gadgetsChecks(api, check, C) {
     g.wanted = 0; g.security.lastWanted = 0; g.security.arrest = null;
     for (const r of g.security.responses) g.security.retire(r); g.security.responses.length = 0;
     if (g.drones.d) { g.drones.d = null; g.drones.piloting = false; }
+    g.drones.foes.length = 0; g.drones.bombs.length = 0; g.drones.o = null;
     if (P().inVehicle) g.exitVehicle(true);
     await C('teleport', { x: 0, z: -40 });
   }

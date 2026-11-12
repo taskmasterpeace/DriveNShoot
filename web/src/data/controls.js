@@ -61,6 +61,7 @@ export const BINDINGS = [
   { id: 'glass', label: 'Binoculars or scope to your eye (toggle)', group: 'WORLD', code: 'Digit8', keys: ['Digit8'], pad: {} },
   { id: 'scanner', label: 'Radio scanner on / off', group: 'WORLD', code: 'Digit9', keys: ['Digit9'], pad: {} },
   { id: 'detonate', label: 'Set off your remote charges / drop a drone bomb', group: 'WEAPONS', code: 'Backquote', keys: ['Backquote'], pad: { foot: 'back+rt', drive: 'back+rt' } },
+  { id: 'dronebay', label: 'Send the outrider drone up / call it home (a car with a drone bay)', group: 'DRIVING', code: 'Backslash', keys: ['Backslash'], pad: { drive: 'back+left', ride: 'back+left' } },
   { id: 'dropTail', label: 'The tail (group 2): oil, caltrops, smoke, mines, flares, paint', group: 'DRIVING', code: 'KeyB', keys: ['KeyB'], pad: { drive: 'b' } },
   { id: 'fireTurret', label: 'Fire the roof turret (group 3) where you aim', group: 'DRIVING', code: null, keys: ['mouse:right'], pad: { drive: 'back+rb' } },
   { id: 'workshop', label: 'Workshop (at a garage, your car parked close)', group: 'WORLD', code: 'KeyU', keys: ['KeyU'], pad: { foot: 'back+right' } },
