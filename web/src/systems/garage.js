@@ -13,6 +13,7 @@ import { FACES6, ARMOR, CHASSIS, PERF, POWER, MOUNT_WEAPONS, UTILITY, PAINTS, BO
 // Weight re-tunes the car from its base row (data/workshop.js PERF: slower off the line, a lower top speed, a lazier turn,
 // longer stops). The counter, the guns and the screen are systems/workshop.js and ui/workshop.js.
 // Plates and mounts are drawn by one InstancedMesh packed each frame from the cars near the player.
+const TURRET = new THREE.Color('#4a5236'), TURRET_DARK = new THREE.Color('#2e3326'); // a tank turret's paint (systems/tanks.js)
 const MAX_INST = 420, MAX_SPIKES = 96, MAX_TYRES = 64, VIEW_R = 90, MAX_HAZARDS = 32;
 const FACES = ['front', 'rear', 'left', 'right'];
 const STEEL = new THREE.Color('#4b4945'), GUN = new THREE.Color('#1c1c1c'), RUST = new THREE.Color('#6a3a22'), BRASS = new THREE.Color('#9a7a3a'),
@@ -399,6 +400,14 @@ export class Garage {
         const at = this.chassis(v)?.mounts?.[f]?.at; // a body's own spot for it (a boat's pintle: data/workshop.js CHASSIS)
         if (at) [mx, my, mz] = at;
         const fx = Math.sin(yaw), fz = Math.cos(yaw);
+        if (Wr.turret) { // a tank's turret (data/tanks.js): the box on its ring, the mantlet, the long barrel, turned to aim
+          const [tw, th, td] = Wr.turret, fx = Math.sin(yaw), fz = Math.cos(yaw), bl = Wr.barrel ?? 3, bo = Wr.bore ?? 0.16;
+          put(mx, my + th / 2, mz, tw, th, td, TURRET, yaw);
+          put(mx + fx * (td / 2 + 0.1), my + th * 0.45, mz + fz * (td / 2 + 0.1), tw * 0.45, th * 0.6, 0.25, TURRET_DARK, yaw);
+          put(mx + fx * (td / 2 + 0.2 + bl / 2), my + th * 0.45, mz + fz * (td / 2 + 0.2 + bl / 2), bo, bo, bl, GUN, yaw);
+          put(mx - fx * td * 0.15 + fz * tw * 0.22, my + th + 0.08, mz - fz * td * 0.15 - fx * tw * 0.22, 0.6, 0.12, 0.6, TURRET_DARK, yaw); // the commander's hatch
+          continue;
+        }
         if (Wr.kind === 'drop') { put(mx, my, mz, 0.72, 0.32, 0.34, m.kind === 'smoke' || m.kind === 'flares' ? STEEL : m.kind === 'paint' ? TILE : RUST, yaw); continue; }
         if (f === 'top' && !at) put(mx, my - 0.06, mz, 0.7, 0.12, 0.7, STEEL, yaw); // the turret ring (a pintle at its own spot has none: the post is the body's)
         const body = Wr.kind === 'rocket' ? [0.5, 0.34, 0.7, RUST] : Wr.kind === 'flame' ? [0.42, 0.36, 0.6, TANK] : Wr.kind === 'rail' ? [0.36, 0.3, 0.9, COIL] : Wr.kind === 'beam' || Wr.kind === 'emp' ? [0.44, 0.34, 0.6, BRASS] : [0.62, 0.22, 0.42, GUN];

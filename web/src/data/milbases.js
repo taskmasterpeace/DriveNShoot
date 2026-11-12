@@ -64,7 +64,7 @@ export const MB_RULES = {
 // The armory: the best loot in the world, rolled ONCE the first time a crate is opened, never refilled (law 2). The
 // command post's safe and the hospital's stores, likewise. [item, weight, min, max] as data/items.js LOOT.
 export const MB_LOOT = {
-  mb_armory: { rolls: [3, 5], none: 0, rows: [['gun_rifle', 3, 1, 1], ['gun_auto', 2, 1, 1], ['gun_pump', 2, 1, 1], ['ammo_rifle', 6, 30, 90], ['ammo_shells', 3, 8, 24], ['ammo_smg', 3, 30, 90], ['cleaning_kit', 2, 1, 1], ['first_aid', 1, 1, 1]] },
+  mb_armory: { rolls: [3, 5], none: 0, rows: [['gun_rifle', 3, 1, 1], ['shell_75', 1, 1, 2], ['shell_120', 1, 1, 1], ['gun_auto', 2, 1, 1], ['gun_pump', 2, 1, 1], ['ammo_rifle', 6, 30, 90], ['ammo_shells', 3, 8, 24], ['ammo_smg', 3, 30, 90], ['cleaning_kit', 2, 1, 1], ['first_aid', 1, 1, 1]] },
   mb_hospital: { rolls: [2, 4], none: 1, rows: [['antibiotics', 3, 1, 3], ['first_aid', 3, 1, 1], ['suture_kit', 2, 1, 1], ['painkillers', 3, 1, 2], ['bandage', 4, 2, 6]] },
   mb_command: { rolls: [1, 3], none: 1, rows: [['road_atlas', 2, 1, 1], ['radio_portable', 2, 1, 1], ['wristwatch', 1, 1, 1], ['ammo_pistol', 2, 12, 36], ['gun_pistol', 1, 1, 1]] },
   mb_fuel: { rolls: [1, 2], none: 1, rows: [['fuel_can', 4, 1, 1], ['siphon_hose', 1, 1, 1], ['spark_plugs', 2, 1, 2]] },

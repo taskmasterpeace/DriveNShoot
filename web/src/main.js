@@ -44,6 +44,7 @@ import { CharSheet } from './ui/charsheet.js';
 import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
+import { Tanks } from './systems/tanks.js'; // VEHICLES V2 slice 8: the old tank and the main battle tank (data/tanks.js)
 import { BOAT_KIT } from './data/workshop.js'; // the raider gunboat's own deck gun (VEHICLES V2 slice 2)
 import { WorkshopUI } from './ui/workshop.js';
 import { Stunts } from './systems/stunts.js';
@@ -231,6 +232,7 @@ class Game {
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
+    this.tanks = new Tanks(this); // the tanks: rows, hulls, guns, shells; placed where they stand (systems/tanks.js)
     this.towing = new Towing(this); // tow lines between vehicles, the winch, bogged cars, the boat trailer (systems/towing.js)
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
@@ -1359,6 +1361,7 @@ class Game {
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
       this.semis.update(simDt); this.nanGuard('semis');
+      this.tanks.update(); // a tank is put down where it stands the first time you come near
       this.travel.update(simDt); this.nanGuard('travel'); // the trundle on the road, the iron's riders, the boards
       this.clone.update(simDt); // brine money, the pickers on your husks, the husk drawn near you
       this.ambient.update(simDt);
