@@ -86,3 +86,14 @@ test('never purple: the can colours are red and yellow', () => {
     assert.ok(!(b > g && r > g), `${f.name} ${f.color} reads purple`);
   }
 });
+test('a generator takes either can, the diesel first', async () => {
+  const { genCans, spendGenCans } = await import('../src/data/fuels.js');
+  const have = { diesel_can: 1, fuel_can: 2 };
+  const box = { count: (id) => have[id] ?? 0 };
+  const inv = { carried: box, spend: (id, n) => { have[id] -= n; } };
+  assert.equal(genCans(box), 3);
+  assert.equal(spendGenCans(inv, 2), true);
+  assert.deepEqual(have, { diesel_can: 0, fuel_can: 1 });
+  assert.equal(spendGenCans(inv, 5), false);
+  assert.equal(genCans(null), 0);
+});

@@ -213,7 +213,7 @@ export class VehicleDamage {
       if (m.runs && v.throttle > 0) {
         d.engine = Math.max(0, d.engine - dt * m.wear * v.throttle);
         d.badCough = (d.badCough ?? 0) - dt;
-        if (d.badCough <= 0) { d.badCough = FUEL_RULES.misfire / Math.max(0.2, m.share * 4) * (0.6 + Math.random() * 0.8); power *= 0.15; g.audio?.backfire?.(g.pan(v.x)); g.fx.smoke(v.x - Math.sin(v.h) * v.len * 0.5, 0.8, v.z - Math.cos(v.h) * v.len * 0.5, true); }
+        if (d.badCough <= 0) { d.badCough = FUEL_RULES.misfire / Math.max(0.2, m.share * 4) * (0.6 + Math.random() * 0.8); power *= 0.15; d.coughs = (d.coughs ?? 0) + 1; g.audio?.backfire?.(g.pan(v.x)); g.fx.smoke(v.x - Math.sin(v.h) * v.len * 0.5, 0.8, v.z - Math.cos(v.h) * v.len * 0.5, true); }
       }
     } else if (d.warnedBad) d.warnedBad = false;
     // Tyres: flats cost grip, pull the steering, cap speed, throw sparks off the rim.

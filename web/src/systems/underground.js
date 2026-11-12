@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { genCans, spendGenCans } from '../data/fuels.js'; // FUEL TYPES: the day tank takes a diesel can or a gas can
 import { StaticWorld, RAY_SOLID, RAY_SIGHT } from '../engine/collision.js';
 import { LOOT, ITEMS } from '../data/items.js';
 import { DOOR_MATERIALS } from '../data/interiors.js';
@@ -815,7 +816,7 @@ export class Underground {
     const A = this.A, g = this.g;
     if (A.rec.power) return { ok: true, already: true };
     if (A.rec.fuel <= 0.001) {
-      if (g.inventory.carried.count('fuel_can') > 0) { g.inventory.spend('fuel_can', 1); A.rec.fuel = Math.min(1, A.rec.fuel + GENERATOR.can); g.hud.toast('YOU POUR THE CAN INTO THE DAY TANK', 'job'); }
+      if (genCans(g.inventory.carried) > 0) { spendGenCans(g.inventory, 1); A.rec.fuel = Math.min(1, A.rec.fuel + GENERATOR.can); g.hud.toast('YOU POUR THE CAN INTO THE DAY TANK', 'job'); }
       else return { ok: false, why: 'the tank is dry: a fuel can fills it' };
     }
     this.setPower(true, 'started');
@@ -857,7 +858,7 @@ export class Underground {
     if (G && Math.hypot(G.x - p.x, G.z - p.z) < 2.4) {
       ring.x = G.x; ring.z = G.z; ring.len = 2.8;
       if (A.rec.power) { g.hud.prompt(`The generator runs · tank ${Math.round(A.rec.fuel * 100)}% · hold <kbd>E</kbd> Shut it down`); hold('gen-off', 1.2, 'Shutting it down', () => this.setPower(false, 'shut down')); return ring; }
-      const dry = A.rec.fuel <= 0.001, can = g.inventory.carried.count('fuel_can') > 0;
+      const dry = A.rec.fuel <= 0.001, can = genCans(g.inventory.carried) > 0;
       if (!hold('gen', GENERATOR.hold, dry && can ? 'Pouring the can, cranking' : 'Priming, cranking', () => { const r = this.startGenerator(p); if (!r.ok) g.hud.toast(r.why.toUpperCase(), 'warn'); }))
         g.hud.prompt(dry && !can ? 'The generator · DRY · a fuel can fills it' : `hold <kbd>E</kbd> Start the generator · tank ${Math.round(A.rec.fuel * 100)}%${dry ? ' (pour your can)' : ''}`);
       return ring;

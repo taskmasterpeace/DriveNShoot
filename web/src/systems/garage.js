@@ -100,6 +100,7 @@ export class Garage {
     v.liftY = v.utility?.monster ? UTILITY.monster.monster.lift : 0; // monster tyres: the body rides this much higher
     if (!T) { v.treadGrip = undefined; v.treadTop = undefined; }
     if (v.fuel > v.fuelCap) v.fuel = v.fuelCap;
+    if (v.bad > v.fuel) v.bad = v.fuel; // the wrong fuel in it can't be more than the tank holds (data/fuels.js)
     // Power: the alternator, plus a battery bank and a power plant.
     let cap = POWER.alternator.cap, regen = POWER.alternator.regen;
     for (const u in v.utility ?? EMPTY) { const P = UTILITY[u]?.power; if (P) { cap += P.cap; regen += P.regen; } }

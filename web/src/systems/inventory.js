@@ -216,7 +216,9 @@ export class Inventory {
     }
     if (verb === 'drain') {
       if (!v) return { ok: false, why: 'no vehicle close enough to drain' };
+      if (P.inVehicle) return { ok: false, why: 'get out and get under it to drain the tank' };
       if (!(v.fuel > 0.05)) return { ok: false, why: 'its tank is already dry' };
+      if (!(v.bad > 0.05)) return { ok: false, why: 'the fuel in it is good: nothing to drain' }; // not a way to empty anyone's car
       const l = drainTank(v);
       g.fx?.decal?.(v.x - Math.sin(v.h) * v.len * 0.45, v.z - Math.cos(v.h) * v.len * 0.45, 1.1, '#1c1a14'); // a dark stain under the tank
       g.emit?.('drained', { id: v.id, litres: Math.round(l * 10) / 10 });

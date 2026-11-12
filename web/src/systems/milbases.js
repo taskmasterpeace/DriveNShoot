@@ -14,6 +14,7 @@
 // given, who of the garrison is dead (they are not hired again), how many of the horde fell (they do not come back).
 // The armory and every crate roll ONCE (inventory.registerRing keeps their slots across stamps): the loot never refills.
 import { MILBASES_BY_ID, MB_RULES, MB_LOOT, MB_TRADER, MB_LINES } from '../data/milbases.js';
+import { genCans, spendGenCans } from '../data/fuels.js'; // FUEL TYPES: the generator takes a diesel can or a gas can
 import { BASE_RULES } from '../data/bases.js';
 import { LOOT } from '../data/items.js';
 import { TRADERS } from '../data/trade.js';
@@ -176,8 +177,8 @@ export class Milbases {
     if (R.power) return { ok: true, already: true };
     if (Math.hypot(by.x - G.x, by.z - G.z) > 3.2) return { ok: false, why: 'not at the generator' };
     const inv = g.inventory;
-    if (!inv || inv.carried.count('fuel_can') < MB_RULES.sealed.fuel) return { ok: false, why: 'the generator is dry: it wants a fuel can' };
-    inv.spend('fuel_can', MB_RULES.sealed.fuel);
+    if (!inv || genCans(inv.carried) < MB_RULES.sealed.fuel) return { ok: false, why: 'the generator is dry: it wants a fuel can' };
+    spendGenCans(inv, MB_RULES.sealed.fuel); // a diesel can first, a gas can if that is all you have (data/fuels.js)
     R.power = true; this.counts.powered++;
     const U = g.under, row = s.site && U?.byId.get(s.site);
     if (row) { row.power = true; const ur = U.rec(row); ur.power = true; ur.fuel = Math.max(ur.fuel ?? 0, 0.5); }
@@ -226,7 +227,7 @@ export class Milbases {
       if (!this.inside(s, p.x, p.z, 4)) continue;
       const R = this.rec(s.id), G = s.mb.generator, L = s.mb.log, B = s.mb.blast;
       if (!R.power && Math.hypot(p.x - G.x, p.z - G.z) < 3.2) {
-        const has = (g.inventory?.carried.count('fuel_can') ?? 0) >= MB_RULES.sealed.fuel;
+        const has = genCans(g.inventory?.carried) >= MB_RULES.sealed.fuel;
         hud?.prompt?.(has ? '<kbd>E</kbd> Pour a fuel can in and start the generator' : 'Generator · dry (it wants a fuel can)');
         if (hit && has) this.power(s, p);
         return { x: G.x, z: G.z, len: 2 };

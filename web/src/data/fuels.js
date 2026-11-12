@@ -60,12 +60,22 @@ export function burnOff(v, litres) {
 export function badShare(v) { return v.bad > 0 && v.fuel > 0 ? Math.min(1, v.bad / v.fuel) : 0; }
 
 // What the mix does to the engine this tick: { power multiplier, runs, wear (engine health a second at full throttle) }.
-export function mixEffect(v) {
+// Called every frame for a car with bad fuel in it: it writes into `out` (a scratch object) rather than allocating.
+const _mix = { power: 1, runs: true, wear: 0, share: 0 };
+export function mixEffect(v, out = _mix) {
   const s = badShare(v);
-  if (s <= 0.005) return { power: 1, runs: true, wear: 0, share: 0 };
-  if (s >= FUEL_RULES.stall) return { power: 0, runs: false, wear: 0, share: s };
-  return { power: Math.max(0.1, 1 - s * FUEL_RULES.powerCut), runs: true, wear: (FUEL_RULES.wear[v.fuelType] ?? 0.03) * s, share: s };
+  out.share = s;
+  if (s <= 0.005) { out.power = 1; out.runs = true; out.wear = 0; out.share = 0; }
+  else if (s >= FUEL_RULES.stall) { out.power = 0; out.runs = false; out.wear = 0; }
+  else { out.power = Math.max(0.1, 1 - s * FUEL_RULES.powerCut); out.runs = true; out.wear = (FUEL_RULES.wear[v.fuelType] ?? 0.03) * s; }
+  return out;
 }
+
+// A generator (a base's, a bunker's) runs on either: a diesel genset by rights, but it will take a can of gas. The
+// diesel can goes first. `count(id)` / `spend(id, n)` are the inventory's own.
+export const GENERATOR_CANS = ['diesel_can', 'fuel_can'];
+export const genCans = (box) => GENERATOR_CANS.reduce((n, id) => n + (box?.count(id) ?? 0), 0);
+export function spendGenCans(inv, n) { for (const id of GENERATOR_CANS) { const k = Math.min(n, inv.carried.count(id)); if (k > 0) { inv.spend(id, k); n -= k; } if (n <= 0) break; } return n <= 0; }
 
 // Empty the tank (a siphon hose run into the dirt): good and bad together.
 export function drain(v) { const l = v.fuel ?? 0; v.fuel = 0; v.bad = 0; return l; }

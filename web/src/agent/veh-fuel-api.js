@@ -1,5 +1,5 @@
-// VEHICLES V2 (Robert's 11-12 wishlist, docs/status/vehicles-v2.md) as COMMANDS rows and selftest checks.
-// buildCommands() in api.js spreads vehiclesV2Commands into COMMANDS; runSelfTest() calls vehiclesV2Checks.
+// VEHICLES V2 slice 1, FUEL TYPES (Robert's 11-12 wishlist, docs/status/vehicles-v2.md): COMMANDS rows and selftest checks.
+// buildCommands() in api.js spreads vehFuelCommands into COMMANDS; runSelfTest() calls vehFuelChecks.
 // Slice 1, FUEL TYPES (src/data/fuels.js): gasoline and diesel per engine; red and yellow cans; a station's gasoline and
 // diesel tanks; the wrong fuel chokes the engine and a siphon hose drains it.
 import { VEHICLES } from '../systems/vehicles.js';
@@ -8,7 +8,7 @@ import { FUELS, engineFuel, validateFuels, badShare, FUEL_RULES } from '../data/
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
-export function vehiclesV2Commands(api, need) {
+export function vehFuelCommands(api, need) {
   const g = api.g;
   return {
     fuel: {
@@ -32,7 +32,7 @@ export function vehiclesV2Commands(api, need) {
 }
 const view = (v) => ({ id: v.id, type: v.type, burns: v.fuelType ?? null, fuel: r1(v.fuel ?? 0), fuelCap: v.fuelCap, bad: r1(v.bad ?? 0), share: +badShare(v).toFixed(3), engine: +(v.dmg?.engine ?? 1).toFixed(3) });
 
-export async function vehiclesV2Checks(api, check, C) {
+export async function vehFuelChecks(api, check, C) {
   const g = api.g, I = () => g.inventory;
   const cleanup = [];
   const spawn = async (type, x, z, h = 0) => { const r = await C('spawnVehicle', { type, x, z, heading: h }); const v = g.vehicles.find((q) => q.id === r.id); cleanup.push(v); return v; };
@@ -62,7 +62,7 @@ export async function vehiclesV2Checks(api, check, C) {
     } finally { off(); }
   });
 
-  await check('fuel types: a can of diesel in a sedan: it coughs and wears under throttle; more of it and the engine will not fire; the hose drains it and gas makes it run', async () => {
+  await check('fuel types: a can of diesel in a sedan: a third of the tank and it will not fire; the hose (refused from the seat, refused on a clean tank) drains it and gas makes it run; a light mix coughs and wears under throttle', async () => {
     try {
       await C('teleport', clear);
       const v = await spawn('sedan', clear.x + 3, clear.z, 0);
@@ -73,19 +73,21 @@ export async function vehiclesV2Checks(api, check, C) {
       const after = view(v);
       const x0 = v.x, z0 = v.z; await holdW(2.5);
       const moved = Math.hypot(v.x - x0, v.z - z0);
-      // Drain it (the hose, used at the car), then two red cans: it runs again.
-      g.exitVehicle(true); await api._step(2);
+      // Drain it (the hose, used at the car; not from the driver's seat), then two red cans: it runs again.
       roomy(); if (!I().hasTag('hose')) I().add(I().carried, 'siphon_hose', 1);
-      const dr = I().use(I().carried.slots.findIndex((s) => s.id === 'siphon_hose'));
+      const hose = () => I().use(I().carried.slots.findIndex((s) => s.id === 'siphon_hose'));
+      const seated = hose();
+      g.exitVehicle(true); await api._step(2);
+      const dr = hose();
       useCan('fuel_can'); useCan('fuel_can');
-      const fixed = view(v);
+      const fixed = view(v), clean2 = hose(); // good fuel: the hose will not empty it
       // A light mix (5%): it runs, weak, and the engine wears while you hold the throttle.
-      v.fuel = 38; v.bad = 2; v.dmg.engine = 1; const e0 = v.dmg.engine;
+      v.fuel = 38; v.bad = 2; v.dmg.engine = 1; v.dmg.coughs = 0; const e0 = v.dmg.engine;
       const hp0 = v.hp; g.enterVehicle(v); const x1 = v.x, z1 = v.z; await holdW(1.5);
-      const moved2 = Math.hypot(v.x - x1, v.z - z1), worn = e0 - v.dmg.engine, hit = hp0 - v.hp; // hit: a crash would wear it too
+      const moved2 = Math.hypot(v.x - x1, v.z - z1), worn = e0 - v.dmg.engine, hit = hp0 - v.hp, coughs = v.dmg.coughs; // hit: a crash would wear it too
       const ok = gas.ok && clean.bad === 0 && d1.ok && /WRONG FUEL/.test(d1.text) && after.share >= FUEL_RULES.stall && moved < 0.5
-        && dr.ok && fixed.fuel === 20 && fixed.bad === 0 && moved2 > 4 && worn > 0 && worn < 0.05 && hit === 0;
-      return ok ? true : JSON.stringify({ gas, clean, d1, after, moved: r1(moved), dr, fixed, moved2: r1(moved2), worn, hit });
+        && !seated.ok && dr.ok && fixed.fuel === 20 && fixed.bad === 0 && !clean2.ok && /good/.test(clean2.why) && moved2 > 4 && worn > 0 && worn < 0.05 && hit === 0 && coughs > 0;
+      return ok ? true : JSON.stringify({ gas, clean, d1, after, moved: r1(moved), seated, dr, fixed, clean2, moved2: r1(moved2), worn, hit, coughs });
     } finally { off(); }
   });
 
@@ -107,12 +109,21 @@ export async function vehiclesV2Checks(api, check, C) {
       const l0 = S.litres(dslT), f0 = semi.fuel;
       const into = S.siphon(dslT.id);
       const took = semi.fuel - f0;
+      g.vehiclesSys.remove(semi); cleanup.splice(cleanup.indexOf(semi), 1);
+      // Cans, no car at the caps: an empty yellow can fills from the diesel tank, an empty red one stays empty.
+      S.tank[dslT.id] = 25;
+      I().add(I().carried, 'diesel_can', 1, { left: 0 }); I().add(I().carried, 'fuel_can', 1, { left: 0 });
+      const yellow = () => I().carried.slots.find((q) => q.id === 'diesel_can'), red = () => I().carried.slots.find((q) => q.id === 'fuel_can');
+      const empties = { y: yellow()?.left ?? null, r: red()?.left ?? null };
+      const cans = S.siphon(dslT.id);
+      const filled = { y: yellow()?.left ?? null, r: red()?.left ?? null };
       return near?.id === dslT.id && /diesel/.test(near.label) && !refuse.ok && /burns gasoline/.test(refuse.why) && into.ok && into.fuel === 'diesel' && Math.abs(took - l0) < 0.2 && semi.bad === 0
-        ? true : JSON.stringify({ near: near?.id, label: near?.label, refuse, into, took: r1(took), l0 });
+        && empties.y === 0 && empties.r === 0 && cans.ok && filled.y === 1 && filled.r === 0
+        ? true : JSON.stringify({ near: near?.id, label: near?.label, refuse, into, took: r1(took), l0, empties, cans, filled });
     } finally { off(); S.load(saved); }
   });
 
-  await check('fuel types: the litres and the wrong fuel in a tank ride the save', async () => {
+  await check('fuel types: the litres and the wrong fuel in a tank ride the save; a save from before fuel types leaves the litres as they stand and the tank clean; a car spawned after a load gets an id nobody has', async () => {
     try {
       await C('teleport', clear);
       const v = await spawn('pickup', clear.x + 6, clear.z);
@@ -122,7 +133,17 @@ export async function vehiclesV2Checks(api, check, C) {
       await C('load', { save: sv });
       const w = g.vehicles.find((q) => q.id === v.id && q.type === 'pickup');
       if (w && w !== v) cleanup.push(w);
-      return row?.fuel === 33.3 && row?.bad === 4.4 && w && Math.abs(w.fuel - 33.3) < 0.05 && Math.abs(w.bad - 4.4) < 0.05 ? true : JSON.stringify({ row, w: w && view(w) });
+      const kept = row?.fuel === 33.3 && row?.bad === 4.4 && w && Math.abs(w.fuel - 33.3) < 0.05 && Math.abs(w.bad - 4.4) < 0.05;
+      // An old save: its vehicle rows carry no fuel at all.
+      const old = JSON.parse(JSON.stringify(sv)); for (const q of old.vehicles) { delete q.fuel; delete q.bad; }
+      w.fuel = 12; w.bad = 6;
+      await C('load', { save: old });
+      const o = g.vehicles.find((q) => q.id === v.id && q.type === 'pickup');
+      if (o && o !== v && o !== w) cleanup.push(o);
+      const oldOk = o && o.fuel === 12 && o.bad === 0; // an old save: the litres as they stand (a load never set them before), no wrong fuel
+      // The id counter: a fresh spawn must not take an id a restored vehicle has.
+      const n = await spawn('sedan', clear.x - 6, clear.z), dup = g.vehicles.filter((q) => q.id === n.id).length;
+      return kept && oldOk && dup === 1 ? true : JSON.stringify({ row, w: w && view(w), old: o && view(o), dup });
     } finally { off(); }
   });
 }

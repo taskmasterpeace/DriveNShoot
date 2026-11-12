@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // VEHICLES V2 proof shots (docs/status/vehicles-v2.md): the same staging on any build, so before and after compare.
 // A real headless Chrome page (the DOM HUD is in these, unlike `screenshot`), on the dev server already up at DL_URL.
-//   DL_URL=http://localhost:<port> node tools/veh-shots.mjs <slice> <outdir> [tag]
+//   DL_URL=http://localhost:<port> node tools/veh-shots-fuel.mjs fuel <outdir> [before|after]
 // Stops exactly the Chrome it started (shard-kit startHarness).
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
