@@ -186,6 +186,7 @@ export class Workshop {
     if (!v) return { ok: false, why: 'no car' };
     let back = 0, what = null, h = 0;
     const plateOff = face && (part === 'plate' || ARMOR[part] || (!part && !v.mounts?.[face] && v.plates?.[face] > 0));
+    if (part && v.builtIn?.utility?.includes(part)) return { ok: false, why: `the ${UTILITY[part]?.name ?? part} are part of the ${v.name}: they don't come off` }; // a monster truck's tyres (data/monster.js builtIn): no selling what grows back
     if (part && UTILITY[part]) {
       if (!G.removeUtility(v, part)) return { ok: false, why: `no ${UTILITY[part].name} fitted` };
       back = Math.round(UTILITY[part].price * 0.4); h = UTILITY[part].labour * 0.5; what = part;
