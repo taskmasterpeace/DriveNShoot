@@ -31,11 +31,13 @@ export class Monsters {
     const g = this.g, p = g.player;
     for (const v of g.vehicles) if (v.type === 'monster_truck' && !v.utility?.monster) this.kit(v);
     for (const M of MONSTERS) {
-      if (this.placed.has(M.id) || Math.hypot(p.x - M.near.x, p.z - M.near.z) > 260) continue;
-      if (g.vehicles.some((q) => q.monsterRow === M.id)) { this.placed.add(M.id); continue; } // already standing (a load brought it back)
+      if (this.placed.has(M.id) || Math.hypot(p.x - M.near.x, p.z - M.near.z) > 160) continue; // near enough that the ground round it has streamed in
+      const id = `seed:${M.id}`; // the same on every page and load: the shard's takeVehicle claims it once for everyone (net/shard.js)
+      if (g.shard?.taken?.[id] || g.vehicles.some((q) => q.monsterRow === M.id || q.id === id || q.shardSeed === id)) { this.placed.add(M.id); continue; } // driven off on the shard, or a load brought it back
       if (g.time < this.nextTry) continue; // the ground search is not cheap: once a second while it finds none
       const at = this.clearSpot(M.near, M.r); if (!at) { this.nextTry = g.time + 1; continue; }
       const v = g.vehiclesSys.spawn('monster_truck', at.x, at.z, M.h, M.paint); if (!v) continue;
+      v.id = id; g.shard?.seedVehicles?.add(id);
       this.placed.add(M.id); v.monsterRow = M.id; v.fuel = (v.fuelCap ?? 0) * M.fuel; this.kit(v); // on fumes (data/monster.js)
       g.emit?.('monsterPlaced', { id: M.id, vehicle: v.id });
     }

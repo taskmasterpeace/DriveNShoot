@@ -44,7 +44,7 @@ export async function vehMonsterChecks(api, check, C) {
       await C('teleport', { x: M.near.x + 400, z: M.near.z }); await api._step(5);
       await C('teleport', { x: M.near.x - 30, z: M.near.z - 30 }); await api._step(5);
       const n = g.vehicles.filter((q) => q.monsterRow === M.id).length, share = (v.fuel ?? 0) / (v.fuelCap || 1), near = Math.hypot(v.x - M.near.x, v.z - M.near.z), wet = g.water?.depthAt(v.x, v.z) ?? 0;
-      return n === 1 && v.type === 'monster_truck' && v.utility?.monster && share <= M.fuel + 0.02 && near <= M.r + 6 && wet <= 0.05 ? true : JSON.stringify({ n, type: v.type, tyres: !!v.utility?.monster, share: r2(share), near: Math.round(near), wet: r2(wet) });
+      return n === 1 && v.id === `seed:${M.id}` && v.type === 'monster_truck' && v.utility?.monster && share <= M.fuel + 0.02 && near <= M.r + 6 && wet <= 0.05 ? true : JSON.stringify({ n, id: v.id, type: v.type, tyres: !!v.utility?.monster, share: r2(share), near: Math.round(near), wet: r2(wet) });
     } finally { off(); }
   });
 
