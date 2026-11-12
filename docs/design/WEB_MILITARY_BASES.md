@@ -162,6 +162,7 @@ power, the code, whether you read it, the blast door, the last warning, the garr
   the ground back.
 
 ## 6. Dependencies (both ways)
+- **Read by WEB_WORLD_MAP** (the big map's COUNTRY view): the one-per-state installations (`data/atlas.js` `ATLAS_BASES`) appear as olive stars on the country sheet only in cells you have uncovered (law 6).
 - **Uses:**
   - `data/atlas.js` (ATLAS_BASES, ATLAS_XZ, FOOTPRINT)
   - `world/citygen/layout.js` makeBuilding, `world/citygen/build.js` buildTown

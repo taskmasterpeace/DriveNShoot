@@ -200,6 +200,8 @@ expected: the SMG (worth most) and a share of the scrip are likely gone when you
 
 ## 6. Dependencies
 
+- **Read by WEB_WORLD_MAP** (the big map's COUNTRY view): your husk and its car are drawn on the country sheet at every zoom (`clone.drawMap`); the travel network's poles and knots only at zoom 3 and closer (`travel.drawMap`, which now culls to the canvas's own size, not 800 px).
+
 Uses:
 - `main.js`: onKill (the husk), updatePlayer (the waking replaces the clinic doorstep and its 15% fee), the E chain (a board or the
   vat counter takes E before a box or a bed), N aboard (sleep through the ride), the frame order (travel, then clone, after convoys).
