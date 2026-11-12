@@ -3400,6 +3400,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await moveTowChecks(api, check, C, { hush, wvClean, wvReady, hk, tk, WV }); // dive to prone, vault, roll, slide, drop-hang, tow, snap, winch, launch, the boats' budget (src/agent/movetow-api.js)
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
     wvClean([]); wvReady();
+    const screen0 = DRIVING.screenSteer; DRIVING.screenSteer = true; // the screen-true mode: classic (car's own left) is the default since Robert 10-29
+    try {
     const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
     const bad = [];
     let runs = 0;
@@ -3430,6 +3432,7 @@ async function runSelfTest(api, only = null, skip = null) {
       tailDx = tail() - t0;
     } finally { wvClean([v]); }
     return runs === ZOOM.levels.length * 4 && !bad.length && tailDx < 0 ? true : JSON.stringify({ runs, bad, tailDx });
+    } finally { DRIVING.screenSteer = screen0; }
   }));
   await check('reverse: held S backs each rig up to its own row speed (reverse), no faster', async () => hush(async () => {
     wvClean([]); wvReady();
@@ -5680,6 +5683,9 @@ async function runSelfTest(api, only = null, skip = null) {
     g.godMode = true;
     const p = g.player, SPR = INFECTED.sprinter;
     for (const o of [...g.chars]) if (o !== p && !o.npc && o.alive && Math.hypot(o.x - p.x, o.z - p.z) < 50) g.removeChar(o); // nobody else for it to perceive
+    // A rotting body an earlier check left near the stage pulls any idle infected to it (systems/rites.js smell): it walked this
+    // one past you and it SAW you before the turn. The body's pull is off for this check (restored after): it proves sight.
+    if (g.rites) g.rites.smell = () => {}; // an own property over the class method; deleted after
     const c = g.zombies.spawn(p.x + 14, p.z, true), seq0 = g.eventSeq;
     const whys = () => g.events.filter((e) => e.seq > seq0 && e.type === 'sprinterBurst' && e.id === c.id).map((e) => e.why);
     try {
@@ -5704,7 +5710,7 @@ async function runSelfTest(api, only = null, skip = null) {
       const notWitness = !c.telling && !g.witnesses.canBribe(c); // its runner flag is not a witness's report (it once was)
       return dormant && walk < 3 && broke && why === 'saw you' && top > 8 && held && onYou && still && back && c.zSpeed < 3 && notWitness ? true
         : JSON.stringify({ dormant, walk, near, broke, why, whys: whys(), top: +top.toFixed(2), held, onYou, over, still, back, pace: c.zSpeed, notWitness });
-    } finally { g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
+    } finally { if (g.rites) delete g.rites.smell; g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
   }));
   await check('infected: an Echo works at a boarded window only while you look away, freezes mid-motion while you watch, and never comes for you', async () => hush(async () => {
     const I = g.interiors, n = g.nav.foot;

@@ -227,7 +227,7 @@ export async function fannodsChecks({ api, g, check, C }) {
       const items = g.trade.stock?.(Cv.trader) ?? [];
       stock = { boxes: Cv.boxes.length, items: Cv.boxes.reduce((a, b) => a + b.slots.length, 0), real: Cv.boxes.every((b) => b.slots.every((sl) => LOOT.fn_convoy.rows.some((r) => r[0] === sl.id))), list: Array.isArray(items) ? items.length : null };
       g.trade.openCounter(Cv.trader); await frames(2);
-      stock.counter = !!inv.opened && Cv.boxes.includes(inv.opened); inv.opened = null;
+      stock.counter = !!inv.opened && Cv.boxes.includes(inv.opened); if (g.invUI?.open) g.invUI.toggle(false); inv.opened = null; // the counter opens the PACK screen: close it, or every later check stands frozen behind it
     }
     const upHalt = guardsUp();
     F.closeSide(Cv);

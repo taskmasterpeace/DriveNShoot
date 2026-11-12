@@ -461,6 +461,12 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
     const m = M.start({ x: a0.x, z: a0.z, size: 120, dir: 1, road: 'I-10' });
     const seq0 = g.eventSeq, reports = () => g.events.filter((e) => e.seq > seq0 && e.type === 'hordeReported');
     const witnessId = 'w:check';
+    // Earlier checks leave radio men behind: a gunfire caller (rx:<id>, systems/reactions.js callIn) is a knowledge holder
+    // with a set, and spare people with radios. Standing near the road they see the horde before the planted witness and the
+    // "nobody reports it" half reads false. Their sets are off for this check (restored after); the world's own holders keep theirs.
+    const muted = [];
+    for (const h of k.holders.values()) if (h.radio && /^(rx|w):/.test(h.id) && h.id !== witnessId) { h.radio = false; muted.push(h); }
+    for (const c of g.chars) if (c.radio && c !== P() && !c.npc) { c.radio = false; muted.push(c); }
     try {
       if (!m) return 'migration did not start';
       // no witness: hours on the clock, it walks, nobody reports
@@ -480,6 +486,7 @@ export async function deathsChecks({ g, api, C, check, stage, hush }) {
       const ok = walked > 60 && walked < 140 && maxJump < 8 && offRoad < MIGRATION.lane && !before.reported && !before.youKnow && before.reports === 0 && seenAt !== null && m.reported && copy?.source.channel === 'radio' && reports().some((e) => e.you);
       return ok ? true : JSON.stringify({ walked: r1(walked), maxJump: r1(maxJump), offRoad: r1(offRoad), before, seenAt, reported: m.reported, copy: copy ? copy.source : null, reports: reports(), seen: m.seen });
     } finally {
+      for (const x of muted) x.radio = true;
       k.drop(witnessId); M.clear(); O.clear(); O.auto = auto; M.auto = mAuto;
       if (P().inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(car);
     }
