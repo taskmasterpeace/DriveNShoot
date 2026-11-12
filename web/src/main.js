@@ -1110,7 +1110,7 @@ class Game {
       else if (carV && I.hit('KeyG')) { this.carCombat.grab(p, carV, this.carCombat.sideToward(carV, p.x, p.z)); this.hud.prompt(null); }
     }
     const dog = !best && !bestV && !rsSpot && !doorNow ? this.dogs.nearFor(p) : null;
-    this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
+    this.dogs.whistleKey(!bestV && !carV && I.key('KeyC'), dt); // (C beside a car is the car's, door-first frame or not)
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV && !doorNow ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     const foot = this.footingText(p); // riding an open deck: how near the floor is to throwing you (systems/decks.js feel)
@@ -1148,7 +1148,7 @@ class Game {
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.actions.boxKey(box, I, dt); // tap E opens it (what's on top), hold E searches it properly (systems/actions.js)
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
-    else if (shut) this.hud.prompt(shutNow ? '<kbd>E</kbd> <b class="warn">Shut the door</b>' : '<kbd>E</kbd> Shut the door');
+    else if (shut && !p.inVehicle) this.hud.prompt(shutNow ? '<kbd>E</kbd> <b class="warn">Shut the door</b>' : '<kbd>E</kbd> Shut the door');
     else if (!op && !ugI && !shut) { if (!this.actions.lookKey(p, I, dt)) this.hud.prompt(null); } // nothing in reach: hold E to look around the ground
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
@@ -1163,7 +1163,7 @@ class Game {
     else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
-    else if (!best && !bestV && !op && this.train.canBoard(p)) {
+    else if (!best && !bestV && !carV && !op && this.train.canBoard(p)) {
       this.hud.prompt('<kbd>G</kbd> Climb aboard the train');
       if (I.hit('KeyG')) { this.train.board(p); this.hud.prompt(null); }
     }

@@ -450,13 +450,16 @@ export class Zombies {
   }
   // Work the thing it is stuck at while it still wants past it: a thump every door.every s.
   work(c, R, dt) {
-    const B = c.zblock;
+    let B = c.zblock;
     const win = B?.kind === 'window';
+    // A streamed door is re-made when its building comes back (or another player's patch reloads the openings): take up
+    // the door that is there now, by id.
+    if (B && !win) { const now = this.g.interiors.byId.get(B.id); if (now !== B) { B = c.zblock = now ?? null; } }
     if (!B || (win ? B.state !== 'boarded' : !B.locked && !this.g.interiors.isShut(B))) { c.zblock = null; c.handsUp = false; return false; }
     // It has to be AT the thing to beat it (a door seen from across the room is walked to first); the thing has to be
     // the one that is there now (a streamed door is re-made when its building comes back); and with a clear line to
     // who it is after it stops beating and goes for them.
-    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6 || (!win && this.g.interiors.byId.get(B.id) !== B && !(c.zblock = this.g.interiors.byId.get(B.id) ?? null)) || (c.zsee?.alive && !c.zsee.inVehicle && this.g.sees(c, c.zsee))) { c.zblock = null; c.handsUp = false; return false; }
+    if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6 || (c.zsee?.alive && !c.zsee.inVehicle && this.g.sees(c, c.zsee))) { c.zblock = null; c.handsUp = false; return false; }
     c.speed = 0; c.handsUp = true; c.face = Math.atan2(B.x - c.x, B.z - c.z);
     // A sprinter in its burst POUNDS (its frenzy row); out of it, it thumps like the shambler it looks like.
     const F = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl ? SP.frenzy : null, D = F ?? (c.zkind === 'sprinter' ? SH.door : R.door);
