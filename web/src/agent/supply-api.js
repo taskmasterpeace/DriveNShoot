@@ -4,6 +4,7 @@
 // The checks are THE CHEAT AUDIT (G0(d)): each crew job runs inside ledger.audit(), and every gain it made must trace to
 // an allowed origin. A crew job that makes goods from nothing fails here by name.
 import { CREW_RUN, validateSupply } from '../data/supply.js';
+import { runTargets } from '../systems/supply.js';
 import { CREW_JOB_BY_ID } from '../data/crewjobs.js';
 import { RECIPE_BY_ID } from '../data/recipes.js';
 import { LOOT_LAW } from '../data/rites.js';
@@ -110,7 +111,8 @@ export async function supplyChecks(api, check, C) {
     const p = g.player, ids = ['supplytest:a', 'supplytest:b', 'supplytest:c'];
     ids.forEach((id, i) => { I.place(id, 'kitchen', p.x + 6 + i * 4, p.z + 5, 40, 'TEST CUPBOARD', 9001 + i); placed.push(id); });
     I.place('supplytest:far', 'kitchen', p.x + 900, p.z, 40, 'FAR CUPBOARD', 9100); placed.push('supplytest:far');
-    for (const b of I.boxes.values()) if (!b.rolled && !placed.includes(b.id) && Math.hypot(b.x - p.x, b.z - p.z) < CREW_RUN.reach * 2.5) return `staging: another unopened box ${b.id} in reach`; // 2.5: past the best runner's skill multiplier (0.5 + 0.25 x 5 = 1.75)
+    const other = runTargets(I.boxes.values(), p, { reach: CREW_RUN.reach * 2.5, n: 999 }).filter((b) => !placed.includes(b.id)); // what a run could open (2.5: past the best runner's skill multiplier, 0.5 + 0.25 x 5 = 1.75)
+    if (other.length) return `staging: another unopened box ${other[0].id} in reach`;
     const m = await join('drifter_scav'); if (!m) return 'no scavenger joined';
     let seq = g.eventSeq;
     const run = await L.audit(async () => { await C('crewJob', { id: String(m.id), job: 'scav_run' }); await C('crewJob', { advance: 12 }); });
