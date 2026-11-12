@@ -17,9 +17,9 @@ etc.) and node unit tests `web/tools/*.test.mjs`.
 |---|---|---|---|---|
 | 1 | Fuel types: gasoline and diesel per engine; red and yellow cans; a station's two tanks; the wrong fuel chokes the engine, a hose drains it | `feat/web-veh-fuel` | **pushed** (critic PASS; bus #31217) | selftest `only=fuel types` 5/5; node `tools/fuels.test.mjs` 14/14; roadside 12/12, milbases 7/7, underground 13/13, inventory 3/3; shots `docs/renders/web/vehicles-v2/fuel-{before,after}-*.png` |
 | 2 | Guns on boats: CHASSIS rows for the boats; the raider gunboat gets its gun | `feat/web-veh-boatguns` | **pushed** (critic PASS; bus #31239) | selftest `only=boat guns` 6/6; node `tools/boatguns.test.mjs` 8/8; boat 17/17, workshop 18/18, water 38/38; shots `boats-{before,after}-*.png` (the lake gunboat's .50 sets an airboat burning) |
-| 3 | Doors: held or left open; closing takes a beat after you get in | `feat/web-veh-doors` | building | selftest `only=car doors` 6/6; node `tools/cardoors.test.mjs` 5/5 |
-| 4 | Chain towing: a chain or tow strap; hook the back of one vehicle to another and drive | `feat/web-veh-chain` | building | |
-| 5 | Box trailers you drive into: an SUV up the ramp into the 18-wheeler's box | `feat/web-veh-boxdrive` | not started | |
+| 3 | Doors: held or left open; closing takes a beat after you get in | `feat/web-veh-doors` | **pushed** (critic PASS; bus #31275) | selftest `only=car doors` 7/7 (every hinged body's pillar check); node `tools/cardoors.test.mjs` 5/5; vehicle damage 2/2, walk vehicles 6/6, seats 2/2, semis 10/10, crew 30/30, police 13/13, draw calls 24/24; shots `doors-{before,after}-*.png` |
+| 4 | Chain towing: a chain or tow strap; hook the back of one vehicle to another and drive | `feat/web-veh-chain` | tested (critic re-review) | selftest `only=chain towing` 4/4 (fresh page); node `tools/chaintow.test.mjs` 5/5; walk vehicles 6/6, inventory 3/3, timed actions 11/11, move-tow 10/10; shots `chain-{before,after}-*.png` |
+| 5 | Box trailers you drive into: an SUV up the ramp into the 18-wheeler's box (the ramp and hold already exist from the semis lane; this adds the SUV, a real body, placed in the world) | `feat/web-veh-suv` | building | |
 | 6 | Horses as mounts (port `feat/web-horses`) + a cavalry mounted faction with a post and patrols | `feat/web-veh-horses` | not started | |
 | 7 | Wagons: horse-drawn, drive or walk into them | `feat/web-veh-wagons` | not started | |
 | 8 | Tanks: an old tank and a modern tank | `feat/web-veh-tanks` | not started | |
