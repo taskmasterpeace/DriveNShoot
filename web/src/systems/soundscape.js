@@ -65,7 +65,7 @@ export class Soundscape {
     if (!this.on) return;
     // The engine you drive.
     const v = p.inVehicle;
-    if (v && A.ctx) {
+    if (v && A.ctx && !v.noEngine) { // a bicycle, a raft, a wagon: no engine to hear
       const sp = Math.abs(g.vehiclesSys?.speed?.(v) ?? 0), rpm = Math.min(1, A.rpm ?? sp / Math.max(1, v.maxSpeed ?? 40));
       A.engine(v.type, rpm, Math.max(0, v.throttle ?? 0));
     } else if (A.eng) A.engine(null);

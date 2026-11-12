@@ -414,7 +414,9 @@ export const HULLS = { airboat, jetski: waterbike, gunboat, skiff, barge, boattr
 export const LOOKS = { wrecker };
 
 // Lens anchors for the bases here (vehiclebodies lampAnchors asks first): a bow light, a stern light; the trailer's tail bar.
+export const HULL_LAMPS = {}; // base -> (s) => lamps, for a hull registered elsewhere (systems/bicycle.js)
 export function hullLamps(base, s) {
+  if (HULL_LAMPS[base]) return HULL_LAMPS[base](s);
   const L = s.len, W = s.wid;
   if (base === 'airboat') return { head: [[0, 0.98, L / 2 - 0.4]], tail: [[0, 1.0, -L / 2 + 0.1]], beamW: 6, beamL: 26, halo: 1 };
   if (base === 'gunboat') return { head: [[0.45, 2.52, 0.86]], tail: [[0, 1.3, -L / 2 + 0.1]], beamW: 7, beamL: 30, halo: 1.1 };

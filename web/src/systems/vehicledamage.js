@@ -222,6 +222,7 @@ export class VehicleDamage {
     const fx = { power, grip: Math.max(0.35, grip), pull, top: Math.max(0.5, top), brake: 1 };
     const out = g.upkeep ? g.upkeep.tick(v, dt, fx) : fx; // oil, the desert's heat, wear (systems/upkeep.js)
     if (v.brakeMul) out.brake = (out.brake ?? 1) * v.brakeMul; // a loaded car stops longer (garage.retune, data/workshop.js PERF)
+    if (v.pedal) { out.power *= v.legs ?? 1; out.top *= Math.min(1.2, v.legs ?? 1); } // a bicycle's motor is its rider's legs (systems/bicycle.js)
     return out;
   }
 
