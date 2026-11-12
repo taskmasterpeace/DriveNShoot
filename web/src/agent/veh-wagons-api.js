@@ -37,6 +37,7 @@ export async function vehWagonsChecks(api, check, C) {
 
   await check('wagons: the rows validate; a covered wagon stands at the Cottonwood stable yard (placed once); it is a real body - a bed, a canvas bonnet on hoops (its roof), big spoked wheels, a tongue', async () => {
     const bad = validateWagons(BREEDS);
+    await C('teleport', { x: WAGONS[0].x - 20, z: WAGONS[0].z - 20 }); await api._step(5); // come near the stable yard
     const w = g.vehicles.find((v) => v.type === 'wagon' && v.wagonRow === WAGONS[0].id);
     const n = g.vehicles.filter((v) => v.type === 'wagon' && v.wagonRow === WAGONS[0].id).length;
     const tris = w ? w.mesh.geometry.attributes.position.count / 3 : 0;
@@ -57,7 +58,8 @@ export async function vehWagonsChecks(api, check, C) {
       g.enterVehicle(v); await api._step(3);
       const x1 = v.x, z1 = v.z; I.down.add('KeyW'); await api._step(300); I.down.delete('KeyW');
       const rolled = Math.hypot(v.x - x1, v.z - z1);
-      const a = Hs().bodyOf(H), at = W().slot(v, 0, 1, { x: 0, z: 0 });
+      const HT = Hs().get((W().teams.get(v.id) ?? [])[0]) ?? H; // the horse actually hitched (your nearest free one)
+      const a = Hs().bodyOf(HT), at = W().slot(v, 0, 1, { x: 0, z: 0 });
       const atTongue = a ? Math.hypot(a.x - at.x, a.z - at.z) : 99;
       return still < 0.3 && spot?.verb === 'hitch' && team === 1 && rolled > 6 && atTongue < 0.6 ? true : JSON.stringify({ still: r1(still), spot: spot?.verb, team, rolled: r1(rolled), atTongue: r1(atTongue), max: v.maxSpeed });
     } finally { off(); }

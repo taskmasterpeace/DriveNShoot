@@ -4,7 +4,7 @@
 // wagon's maxSpeed/accel are the team's (data/wagons.js teamPace). Nothing hitched: it does not move.
 // You drive it from the box (its seats); you walk into its covered bed by the open back (data/wagons.js WAGON_DECK, the
 // decks system). The bonnet is the body's roof (vehiclebodies ROOF): cut away while you are inside, as a van's is.
-// Placed once (data/wagons.js WAGONS); a hitched team rides the save (horse ids by wagon id).
+// Placed once, the first time you come near (data/wagons.js WAGONS); a hitched team rides the save (horse ids by wagon id).
 import { VEHICLES } from './vehicles.js';
 import { HULLS } from './movetowbodies.js';
 import { DECKS } from '../data/decks.js';
@@ -28,8 +28,9 @@ export class Wagons {
   }
   // The wagons the world has, put down once (the first frame; far ones are just parked vehicles).
   place() {
+    const P = this.g.player;
     for (const w of WAGONS) {
-      if (this.placed.has(w.id)) continue;
+      if (this.placed.has(w.id) || Math.hypot(P.x - w.x, P.z - w.z) > 300) continue; // put down when you first come near
       const v = this.g.vehiclesSys.spawn('wagon', w.x, w.z, w.h, w.paint);
       if (v) { v.wagonRow = w.id; this.counts.placed++; }
       this.placed.add(w.id);
