@@ -167,7 +167,8 @@ export class CamRig {
     th = Math.max(0.5, Math.min(CAMERA.thetaSum - CAMERA.vfov / 2, th)) * R;
     this.theta += (th - this.theta) * (1 - Math.exp(-dt * CAMERA.thetaRate));
     const yT = ev === 'ISO' ? this.isoYaw : ev === 'CHASE' && v ? wrap(v.h + Math.PI) : ev === 'TOPDOWN' || ev === 'ANGLED' ? this.spin : 0;
-    this.yaw = wrap(this.yaw + wrap(yT - this.yaw) * (1 - Math.exp(-dt * CAMERA.yawRate)));
+    const yRate = ev === 'TOPDOWN' || ev === 'ANGLED' ? CAMERA.turnFollow : CAMERA.yawRate; // the free turn stops when you let go (no long coast)
+    this.yaw = wrap(this.yaw + wrap(yT - this.yaw) * (1 - Math.exp(-dt * yRate)));
     g.camHeight = this.D * Math.cos(this.theta);
 
     const cam = g.camera, s = g.hud.shakeV, K = g.look?.kick, sx = (Math.random() - 0.5) * s * 1.2 + (K?.x ?? 0), sz = (Math.random() - 0.5) * s * 1.2 + (K?.z ?? 0); // + the calibre's kick (systems/lookfeel.js)

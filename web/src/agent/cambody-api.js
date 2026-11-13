@@ -177,6 +177,6 @@ export async function camBodyChecks({ g, api, C, check }) {
       const ok = ['TOPDOWN', 'ANGLED'].every((v) => { const o = out[v]; return o.y0 === 0 && Math.abs(o.y1 - CAMERA.turn) < 14 && Math.abs(o.y2 - CAMERA.turn / 2) < 14 && o.north === 0; })
         && out.ANGLED.w.up > 0.03 && out.ANGLED.w.side < out.ANGLED.w.up * 0.5 && iso1 === 90 && iso0 === 0;
       return ok || JSON.stringify({ out, iso1, iso0 });
-    } finally { g.godMode = false; R.spin = 0; R.isoYaw = 0; I.keyUp('KeyW'); await back(); }
+    } finally { g.godMode = false; R.spin = 0; R.isoYaw = 0; for (const k of ['KeyW', 'BracketLeft', 'BracketRight', 'Home']) I.keyUp(k); await back(); }
   });
 }
