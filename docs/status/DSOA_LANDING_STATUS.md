@@ -32,10 +32,10 @@ parent-to-child, crew FOLLOW. They fail in the full battery and pass alone.
 | Order | Branch | From | Base | State |
 |---|---|---|---|---|
 | done | `feat/web-seasons` | seasons lane | integrate | landed (se2 827+823/828; one-offs pass on rerun; zfight fix rides in tr1) |
-| now | `feat/web-towns-roads` (PR #14) | roads session | integrate | merged `28839291`, battery tr1 running |
+| back | `feat/web-towns-roads` (PR #14) | roads session | integrate | HANDED BACK: its 14 checks pass alone, 7 fail in the full battery (towns 'not built' by then) + P1 golden + long-road wayside; reverted on integrate, waiting for a new tip |
 | 2 | `feat/web-world-connected` | roads session | on PR #14 | not on origin yet |
-| 3 | `feat/web-farming` | Oct 30 lane | prep | prepped + fixed (54/54) |
-| 4 | `feat/web-horses` | Oct 30 lane | prep | prepped (melee hooks ported) |
+| done | `feat/web-farming` | Oct 30 lane | prep | landed `1ffa47fe` (fa1 863+862/865, no repeat failure, 5 one-offs pass alone) |
+| now | `feat/web-horses` | Oct 30 lane | prep | merged from prep `e9e1d382`, battery ho1 running |
 | 5 | `feat/web-crafting` | Oct 30 lane | prep | prepped (herbs one item) |
 | 6 | `feat/web-storeys` | Nov 11 lane | prep | prepped (12/12) |
 | 7 | `feat/web-holdouts` | Nov 11 lane | prep | prepped (9/9) |
@@ -127,3 +127,5 @@ carousel (api, COMMANDS), gadgets (api, main). Carousel's local branch has one m
   now read without it). Fix `db4006f9` on integrate; battery `se2` started.
   NOTE (pace): each landing has been taking 1.5-3 h because every battery turns up something real. ~20 branches remain.
 - 2026-11-12 21:40 — se2: 827/828, 823/828. zfight failed both: a second rubble bug (re-breaking a thing laid an identical pile; now rewritten in place) — fix `0ac52867` on integrate. One-offs (airboat deck, Florida herds, a sound file, back-door kick) pass on rerun. Seasons landed. PR #14 towns-roads merged (`28839291`, 14 new checks, ip-lint clean); battery `tr1` started.
+- 2026-11-12 23:20 — tr1 (towns-roads): run 1 830/841, run 2 never started (cold page needs 39 s; battery3.sh now waits 150 s). Towns checks pass alone, fail in the battery: handed back to dsoa-towns-roads (note in the side-session folder), merge reverted. Farming merged (`1ffa47fe`), battery `fa1` started.
+- 2026-11-13 01:35 — LEAD CHANGE: the account switch at 00:34 cut the landing session; a new chat (bus #31655) carries on from this file. fa1 had finished by itself: run 1 never connected, run 2 863/865, run 3 862/865, no check failed twice; the five one-offs (look-around key, crew FOLLOW, shot read, Echo ambush, Florida herds) each pass alone on a fresh page. Farming landed, integrate pushed. Horses merged from prep (`e9e1d382`), battery `ho1` started. Also cut by the switch, not picked up here: the zombies/interiors session (uncommitted files in `web-zed`), the weather session, the roads session (uncommitted files in `web-towns-roads`, `web-world-connected`).
