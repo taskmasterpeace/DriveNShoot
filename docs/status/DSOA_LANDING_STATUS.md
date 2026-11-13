@@ -31,8 +31,8 @@ parent-to-child, crew FOLLOW. They fail in the full battery and pass alone.
 
 | Order | Branch | From | Base | State |
 |---|---|---|---|---|
-| now | `feat/web-seasons` | seasons lane | integrate | on integrate, battery se2 |
-| 1 | `feat/web-towns-roads` (PR #14) | roads session | integrate | waiting |
+| done | `feat/web-seasons` | seasons lane | integrate | landed (se2 827+823/828; one-offs pass on rerun; zfight fix rides in tr1) |
+| now | `feat/web-towns-roads` (PR #14) | roads session | integrate | merged `28839291`, battery tr1 running |
 | 2 | `feat/web-world-connected` | roads session | on PR #14 | not on origin yet |
 | 3 | `feat/web-farming` | Oct 30 lane | prep | prepped + fixed (54/54) |
 | 4 | `feat/web-horses` | Oct 30 lane | prep | prepped (melee hooks ported) |
@@ -126,3 +126,4 @@ carousel (api, COMMANDS), gadgets (api, main). Carousel's local branch has one m
   streets of Phoenix (grip 0.3); radii scaled 1/32. And the headlight pixel test (colour grade lifted the unlit read;
   now read without it). Fix `db4006f9` on integrate; battery `se2` started.
   NOTE (pace): each landing has been taking 1.5-3 h because every battery turns up something real. ~20 branches remain.
+- 2026-11-12 21:40 — se2: 827/828, 823/828. zfight failed both: a second rubble bug (re-breaking a thing laid an identical pile; now rewritten in place) — fix `0ac52867` on integrate. One-offs (airboat deck, Florida herds, a sound file, back-door kick) pass on rerun. Seasons landed. PR #14 towns-roads merged (`28839291`, 14 new checks, ip-lint clean); battery `tr1` started.
