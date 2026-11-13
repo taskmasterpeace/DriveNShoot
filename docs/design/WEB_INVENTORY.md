@@ -339,3 +339,7 @@ A search time and its noise; locked boxes (a gun safe); trade (sell to traders a
 priced by condition); a portable radio item that gates STATIC 1660 AM away from cars and the station; refilling
 bottles at pumps and the river; magazines as things (loading a spare magazine is a reload you can prepare); a
 timed clean (a kit takes a minute you spend standing still).
+
+
+## Dependents added by WEB_FARMING (2026-10-29)
+- WEB_FARMING.md: `inventory.act` asks `g.farming.act` first (hoe, seed, bucket, compost, hen, feed verbs); meals are generated items per tier.

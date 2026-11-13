@@ -508,6 +508,17 @@ export class Crew {
   // One cycle of a job: inputs in, outputs out. false: no inputs (the job waits).
   jobCycle(m, J) {
     const g = this.g, inv = g.inventory, mul = this.skillMul(m, J), p = g.player;
+    if (J.effect === 'feed' && g.cooking) { // a recipe from the real stock first (systems/cooking.js); else the plain meal below
+      const meal = g.cooking.crewCook(m, mul);
+      if (meal) {
+        for (const x of this.members) { x.needs.food = Math.min(1, x.needs.food + meal.per); if (meal.off && x.c?.alive) x.c.hp = Math.max(1, x.c.hp - 6); }
+        if (g.needs) g.needs.food = Math.min(1, g.needs.food + meal.per * 0.5);
+        if (!meal.off) this.trustEvent('fedCrew', null, true);
+        this.stats.jobsDone++; g.emit('crewJobDone', { rec: m.id, job: J.id, what: meal.text });
+        this.say(m, meal.off ? `cook: ${meal.text}. Somebody should not have kept that food.` : `cook: ${meal.text} for everyone.`, true);
+        return true;
+      }
+    }
     if (J.inputs) for (const [id, n] of Object.entries(J.inputs)) if (!this.takeItem(id, n)) { this.say(m, `Out of ${id === 'any_food' ? 'food' : ITEMS[id]?.name.toLowerCase() ?? id}.`, true); return false; }
     const O = J.outputs ?? {};
     let what = '';
@@ -518,7 +529,7 @@ export class Crew {
       case 'mend': { const G = g.gear; let n = 0; if (G?.worn) for (const s of Object.values(G.worn)) if (s && s.cond !== undefined) { s.cond = Math.min(1, s.cond + O.cond * mul); n++; } for (const k of g.inv.weapons) g.inv.cond[k] = Math.min(1, (g.inv.cond[k] ?? 1) + O.cond * 0.4 * mul); what = 'gear mended'; break; }
       case 'repair': { const v = this.vehicleNear(this.base, 30) ?? g.lastVehicle; if (v && !v.dead) { v.hp = Math.min(v.maxHp, v.hp + v.maxHp * O.hp * mul); g.vehDamage?.repair?.(v); what = `${v.name ?? 'the rig'} patched`; } break; }
       case 'ammo': { const n = Math.round(O.ammo_pistol * mul); this.deliver('ammo_pistol', n); what = `${n} hand-loads`; break; }
-      case 'farm': this.deliver('ration', O.ration); what = 'a ration from the plot'; break;
+      case 'farm': { const r = g.farming?.crewTend(m, mul); if (!r?.ok) { this.say(m, r?.why ?? 'There is no garden to tend.', true); return false; } what = r.what; break; }
       case 'navigate': case 'radio': this.pinNear(m, J.effect); what = 'a mark on the map'; break;
     }
     this.stats.jobsDone++;
