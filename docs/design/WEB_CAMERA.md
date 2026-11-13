@@ -168,3 +168,16 @@ Depended on by: the cities lane (G4 storeys v2 relies on the cutaway for 6-store
 Not in v1: a window seat's dominant-side-first rule (seats.js is another lane's), the hit-rate ±3% A/B, a distant-ridge
 card at the horizon, ISO snaps on Q/E (taken by throw-aim and interact; `[` `]` instead), R3 as the pad zoom modifier
 (R3 is melee on foot; VIEW is the modifier).
+
+## Addendum 2026-11-12: free turn, north-up, and what already fades (asked under "improve camera controls")
+
+- **Free turn.** On TOPDOWN and ANGLED, hold `]` or `[` and the view turns round you at `CAMERA.turn` (110 degrees a
+  second). W still walks up the screen. ISO keeps its 90 degree steps on the same keys.
+- **North-up.** `Home` snaps TOPDOWN, ANGLED or ISO back to north-up. A new game starts north-up; the turn is not saved.
+- **Tall buildings that hide you** already fade: the cutaway (`systems/cutaway.js`, `CAMERA.cutaway`) dithers away
+  whatever stands between the lens and you inside a 5.5 m circle, above knee height (`camera: the cutaway` checks a
+  six-storey tower between the lens and you). Nothing was added for this.
+- **Zoom** is continuous on the wheel, with five named stops on Z; indoors the boom is capped at 26 m.
+- **Not built:** turning with the mouse (right-drag) or the pad; the minimap and the compass stay north-up while the
+  view turns; hit arrows and stereo pan still assume north-up (as they did for ISO).
+- Check: `camera turn:` (in `agent/cambody-api.js`). Pictures: `docs/renders/web/camera-turn/`.

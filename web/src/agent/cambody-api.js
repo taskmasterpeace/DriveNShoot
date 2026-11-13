@@ -1,11 +1,13 @@
 // THE BODY VIEWS' checks (docs/design/WEB_CAMERA_BODY.md; rows data/camera.js CAMERA.body; the rule systems/camrig.js):
 // THIRD (behind you) and SHOULDER (over one shoulder). Every check puts the view back to TOPDOWN when it is done: the
 // rest of the battery runs on the top-down view.
+import * as THREE from 'three';
 import { CAMERA, validateCameraBody, SKY_DOME, validateSkyDome } from '../data/camera.js';
 import { RAY_SIGHT } from '../engine/collision.js';
 import { nearFor } from '../engine/depthlayers.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
+const _v = new THREE.Vector3();
 
 export async function camBodyChecks({ g, api, C, check }) {
   const R = g.cam, P = () => g.player, I = g.input;
@@ -144,5 +146,36 @@ export async function camBodyChecks({ g, api, C, check }) {
         && lum(night.zenith) < 40 && lum(day.zenith) > lum(night.zenith) + 40 && under === false && gone === false;
       return ok || JSON.stringify({ a, b, c, top, day, at, fog, night, under, gone });
     } finally { await C('setTime', { hour: hour0 }); await back(); }
+  });
+
+  await check('camera turn: on TOPDOWN and ANGLED holding ] turns the view round you (about 110 degrees a second) and [ turns it back; W still walks up the screen whatever way it is turned; Home snaps it north-up; ISO still turns in 90 degree steps and Home squares it', async () => {
+    await C('start'); g.godMode = true;
+    const deg = Math.PI / 180, p = P();
+    const yawOf = () => Math.round(R.yaw / deg);
+    const upScreen = async () => { const q = (c) => { _v.set(c.x, 0, c.z).project(g.camera); return { x: _v.x, y: _v.y }; }; g.updateCamera(0); const a = q(p); I.keyDown('KeyW'); await api._step(36); I.keyUp('KeyW'); g.updateCamera(0); await api._step(2); const b = q(p); return { up: b.y - a.y, side: Math.abs(b.x - a.x) }; };
+    try {
+      await C('teleport', { x: 0, z: -40 }); await api._step(4);
+      const out = {};
+      for (const view of ['TOPDOWN', 'ANGLED']) {
+        R.setView(view, true); R.spin = 0; g.updateCamera(10);
+        const y0 = yawOf();
+        I.keyDown('BracketRight'); await api._step(60); I.keyUp('BracketRight'); g.updateCamera(10);
+        const y1 = yawOf();
+        // the look point trails you by design, so walk long enough that the camera's own lag is not the measure
+        g.updateCamera(10); const w = await upScreen();
+        I.keyDown('BracketLeft'); await api._step(30); I.keyUp('BracketLeft'); g.updateCamera(10);
+        const y2 = yawOf();
+        I.keyDown('Home'); await api._step(2); I.keyUp('Home'); g.updateCamera(10);
+        out[view] = { y0, y1, y2, north: yawOf(), w };
+      }
+      R.setView('ISO', true); R.isoYaw = 0; g.updateCamera(10);
+      I.keyDown('BracketRight'); await api._step(2); I.keyUp('BracketRight'); g.updateCamera(10);
+      const iso1 = yawOf();
+      I.keyDown('Home'); await api._step(2); I.keyUp('Home'); g.updateCamera(10);
+      const iso0 = yawOf();
+      const ok = ['TOPDOWN', 'ANGLED'].every((v) => { const o = out[v]; return o.y0 === 0 && Math.abs(o.y1 - CAMERA.turn) < 14 && Math.abs(o.y2 - CAMERA.turn / 2) < 14 && o.north === 0; })
+        && out.ANGLED.w.up > 0.03 && out.ANGLED.w.side < out.ANGLED.w.up * 0.5 && iso1 === 90 && iso0 === 0;
+      return ok || JSON.stringify({ out, iso1, iso0 });
+    } finally { g.godMode = false; R.spin = 0; R.isoYaw = 0; I.keyUp('KeyW'); await back(); }
   });
 }

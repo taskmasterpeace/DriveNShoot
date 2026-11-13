@@ -34,6 +34,7 @@ export class CamRig {
     this.theta = CAMERA.view.TOPDOWN.theta * R;  // pitch off vertical (rad)
     this.yaw = 0;                                // 0 = camera south of the look point (north up)
     this.isoYaw = 0;
+    this.spin = 0;                               // TOPDOWN / ANGLED: the free turn (held [ and ]); 0 = north up
     this.looking = false; this.padLookT = 0; this.baseR = 30;     // look far (held), the pad's full-throw timer
     this.override = null;                        // `camera d= theta=`: { d, theta } held until the view changes
     this.corners = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
@@ -127,6 +128,12 @@ export class CamRig {
     if (this.eff() === 'ISO') {
       if (I.hit('BracketLeft')) this.isoYaw = wrap(this.isoYaw - CAMERA.view.ISO.yawSnap * R);
       if (I.hit('BracketRight')) this.isoYaw = wrap(this.isoYaw + CAMERA.view.ISO.yawSnap * R);
+      if (I.hit('Home')) this.isoYaw = 0;
+    } else if (this.eff() === 'TOPDOWN' || this.eff() === 'ANGLED') {
+      // the free turn: held, the view swings round you; Home is north-up again
+      const t = (I.key('BracketRight') ? 1 : 0) - (I.key('BracketLeft') ? 1 : 0);
+      if (t) this.spin = wrap(this.spin + t * CAMERA.turn * R * dt);
+      if (I.hit('Home') && this.spin) { this.spin = 0; g.hud?.toast?.('VIEW · NORTH UP'); }
     }
     const C0 = g.controls;
     this.padLookT = C0?.device === 'pad' && C0.aimStick.mag >= CAMERA.padAt ? this.padLookT + dt : 0;
@@ -159,7 +166,7 @@ export class CamRig {
     if (this.override?.theta !== undefined) th = this.override.theta;
     th = Math.max(0.5, Math.min(CAMERA.thetaSum - CAMERA.vfov / 2, th)) * R;
     this.theta += (th - this.theta) * (1 - Math.exp(-dt * CAMERA.thetaRate));
-    const yT = ev === 'ISO' ? this.isoYaw : ev === 'CHASE' && v ? wrap(v.h + Math.PI) : 0;
+    const yT = ev === 'ISO' ? this.isoYaw : ev === 'CHASE' && v ? wrap(v.h + Math.PI) : ev === 'TOPDOWN' || ev === 'ANGLED' ? this.spin : 0;
     this.yaw = wrap(this.yaw + wrap(yT - this.yaw) * (1 - Math.exp(-dt * CAMERA.yawRate)));
     g.camHeight = this.D * Math.cos(this.theta);
 

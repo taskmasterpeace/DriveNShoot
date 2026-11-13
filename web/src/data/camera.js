@@ -48,6 +48,9 @@ export const CAMERA = {
   // Look far (hold the middle button; pad: the right stick thrown past `padAt` for `padHold` s): the look point goes all
   // the way to the cursor, up to `lookFar` of the view radius (viewR) - scout past the edge of your normal view.
   lookFar: 0.7, padAt: 0.95, padHold: 0.4,
+  // FREE TURN (TOPDOWN and ANGLED): hold [ or ] to turn the view at `turn` deg/s (ISO keeps its 90 degree steps); Home
+  // snaps any of them back to north-up. The view turns round you; W still walks up the screen.
+  turn: 110,
   far: 600, farTilted: 1200,             // the camera's far plane: raised when a pitched view can see far ground
   view: {
     TOPDOWN: { theta: 7.97 },

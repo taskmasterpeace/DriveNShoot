@@ -1881,13 +1881,14 @@ function buildCommands(api) {
     },
     camera: {
       group: 'player', desc: 'The play camera (data/camera.js, systems/camrig.js, docs/design/WEB_CAMERA.md): view=TOPDOWN|ANGLED|ISO|CHASE (CHASE only at the wheel; on foot it reads as ANGLED), d= the boom length in m for that view and mode (mode=foot|drive picks which memory; default the current one), theta= pin the pitch off vertical in degrees (theta=-1 lets the view choose again), yaw= the ISO turn in degrees (snaps of 90 on [ and ]), cut= the cutaway on/off, settle=true jumps the camera to its target at once. Returns the view, D, theta, yaw, camera height, viewR (the farthest frustum corner on the ground), the nearest named stop, the remembered D of every view, and the cutaway (line height, screen circle). Keyboard: O cycles the view, the wheel zooms (Alt+wheel: weapons), Z / Shift+Z / - / = step the five stops. Pad: VIEW+R3 cycles, VIEW + right stick zooms.',
-      args: { view: { type: 'string' }, d: { type: 'number' }, theta: { type: 'number' }, mode: { type: 'string', enum: ['foot', 'drive'] }, yaw: { type: 'number' }, cut: { type: 'boolean' }, settle: { type: 'boolean', default: false }, orbit: { type: 'number' }, pitch: { type: 'number' }, shoulder: { type: 'number' } },
-      run: async ({ view, d, theta, mode, yaw, cut, settle, orbit, pitch, shoulder }) => {
+      args: { view: { type: 'string' }, d: { type: 'number' }, theta: { type: 'number' }, mode: { type: 'string', enum: ['foot', 'drive'] }, yaw: { type: 'number' }, cut: { type: 'boolean' }, settle: { type: 'boolean', default: false }, orbit: { type: 'number' }, pitch: { type: 'number' }, shoulder: { type: 'number' }, spin: { type: 'number' } },
+      run: async ({ view, d, theta, mode, yaw, cut, settle, orbit, pitch, shoulder, spin }) => {
         const R = g.cam;
         if (view !== undefined) need(R.setView(view, true), `unknown view "${view}"; known: ${CAMERA.views.join(', ')}`);
         if (d !== undefined) { const m = mode ?? R.mode(), ev = R.eff(m), L = R.limits(ev, m); R.mem[ev][m] = Math.max(L.dMin, Math.min(L.dMax, d)); R.override = null; }
         if (theta !== undefined) R.override = theta < 0 ? null : { theta };
         if (yaw !== undefined) R.isoYaw = Math.atan2(Math.sin((yaw * Math.PI) / 180), Math.cos((yaw * Math.PI) / 180));
+        if (spin !== undefined) R.spin = Math.atan2(Math.sin((spin * Math.PI) / 180), Math.cos((spin * Math.PI) / 180)); // TOPDOWN / ANGLED: the free turn (0 = north up)
         if (orbit !== undefined) R.orbit = Math.atan2(Math.sin((orbit * Math.PI) / 180), Math.cos((orbit * Math.PI) / 180)); // THIRD / SHOULDER: the way the view faces (0 = north, 90 = west... the boom's yaw)
         if (pitch !== undefined) R.pitch = (Math.max(CAMERA.body.pitch[0], Math.min(CAMERA.body.pitch[1], pitch)) * Math.PI) / 180;
         if (shoulder !== undefined) R.shoulder = shoulder < 0 ? -1 : 1;
