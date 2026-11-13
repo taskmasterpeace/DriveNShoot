@@ -158,7 +158,7 @@ export class Horses {
         H.hp = a.hp;
         if (a.butchered) H.butchered = true;
         H.x = a.x; H.z = a.z; H.face = a.face;
-        if (H.alive && a.ctl && !mounted && !H.npcRider) this.idle(H, a, dt); // a company rider steers their own (systems/cavalry.js)
+        if (H.alive && a.ctl && !mounted && !H.npcRider && !H.hitched) this.idle(H, a, dt); // a hitched horse walks at its wagon's tongue (systems/wagons.js) // a company rider steers their own (systems/cavalry.js)
       }
       if (H.alive && H.owner !== 'wild' && dh > 0) this.care(H, a, dh);
       if (H.bagBox) { H.bagBox.x = H.x; H.bagBox.z = H.z; }
@@ -347,6 +347,7 @@ export class Horses {
       if (hand && Math.hypot(hand.x - H.x, hand.z - H.z) < 40) return { h: H, verb: 'buy', text: `Buy ${nm} · $${Math.round(H.price)} · <kbd>F</kbd> take her (theft)` };
       return { h: H, verb: 'take', text: `Take ${nm} (nobody is minding the stable)` };
     }
+    if (H.hitched) return { h: H, verb: 'none', text: `${nm} is hitched to a wagon · unhitch at the tongue` }; // systems/wagons.js
     if (H.owner.startsWith('company:') && !H.stolen) { // the Cavalry Company's (systems/cavalry.js)
       if (H.npcRider) return { h: H, verb: 'none', text: `${nm}: a Cavalry Company horse, its trooper in the saddle` };
       return { h: H, verb: 'take', text: `Take ${nm} (a Cavalry Company horse: theft)` };
@@ -379,6 +380,7 @@ export class Horses {
     return { ...this.mount(g.player, H), stolen: true };
   }
   mount(p, H) {
+    if (H.hitched) return { ok: false, why: `${H.name} is hitched to a wagon` };
     const g = this.g, C = CARE;
     if (!H.alive) return { ok: false, why: 'it is dead' };
     const a = this.bodyOf(H);

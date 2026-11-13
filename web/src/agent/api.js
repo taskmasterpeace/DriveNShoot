@@ -109,6 +109,7 @@ import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WOR
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
 import { vehCavalryCommands, vehCavalryChecks } from './veh-cavalry-api.js'; // VEHICLES V2 slice 6: the Cavalry Company
+import { vehWagonsCommands, vehWagonsChecks } from './veh-wagons-api.js'; // VEHICLES V2 slice 7: wagons
 import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROADSIDE: lines, billboards, stations, junkyards, farms, the dam (WEB_ROADSIDE.md)
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -2168,6 +2169,7 @@ function buildCommands(api) {
     // THE ROADSIDE (src/agent/roadside-api.js, docs/design/WEB_ROADSIDE.md).
     ...longRoadCommands(api, need), // THE LONG ROAD (src/agent/longroad-api.js)
     ...roadsideCommands(api, need),
+    ...vehWagonsCommands(api, need), // VEHICLES V2 slice 7: wagon (agent/veh-wagons-api.js)
     ...vehCavalryCommands(api, need), // VEHICLES V2 slice 6: cavalry (agent/veh-cavalry-api.js)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
     ...deathsCommands(api, need), // the death library (WEB_DEATHS.md)
@@ -6182,6 +6184,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await hudChecks({ api, g, check, C }); // the HUD layout and its editor (WEB_UI_EDITOR.md §8)
   await longRoadChecks(api, check); // THE LONG ROAD: no dead stretch, travellers with origins, nothing in view (src/agent/longroad-api.js)
   await roadsideChecks(api, check, C); // THE ROADSIDE: the next-exit board, a downed line, a siphon, a hulk stripped, purity, draw calls, materials (src/agent/roadside-api.js)
+  await vehWagonsChecks(api, check, C); // VEHICLES V2 slice 7: wagons (src/agent/veh-wagons-api.js)
   await vehCavalryChecks(api, check, C); // VEHICLES V2 slice 6: the Cavalry Company (src/agent/veh-cavalry-api.js)
   g.pulls.enabled = true; await pullsChecks(api, check, C); g.pulls.enabled = pullsWas; // PULLS: the knowledge law, bars, road people, the radio, the grapevine (src/agent/pulls-api.js); loads the battery's save after
   await siteStoriesChecks(api, check, C); g.stories.enabled = storiesWas; // SITE STORIES + THE TALLY (src/agent/sitestories-api.js); loads the battery's save after
@@ -6228,6 +6231,7 @@ export function snapshot(g) {
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
+    wagons: g.wagons?.save(), // the wagons placed and their hitched teams (systems/wagons.js)
     cavalry: g.cavalry?.save(), // the Cavalry Company's people as records (their characters are not saved: systems/cavalry.js stands them up again near you)
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
@@ -6352,6 +6356,7 @@ export function restore(g, s) {
   if (s.radio) g.radio?.load(s.radio);
   if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
   g.horses?.load(s.horses ?? null); // after the pack: the saddlebags are boxes (an old save: the herds are laid again)
+  g.wagons?.load(s.wagons ?? null); // after the horses: the teams back at their tongues (the ledger's records are the loaded ones)
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;

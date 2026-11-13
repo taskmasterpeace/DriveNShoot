@@ -95,7 +95,7 @@ function axle(parts, z, r, w, x, front) {
 // is. Everything a builder pushes into ROOF while it runs ends up there (the greenhouse's roof panel too).
 let ROOF = null;
 // The helpers movetowbodies.js builds with (its hulls are lofted; everything else is these same parts).
-const K = { tag, slab, beam, coloredBox, wheel, axle, greenhouse, GREENHOUSE, PART };
+const K = { tag, slab, beam, coloredBox, wheel, axle, greenhouse, GREENHOUSE, PART, roofOr: (parts) => ROOF ?? parts }; // roofOr: a builder's roof list (cut away while someone is inside its deck)
 export function buildBody(s, type, paint, out = null) {
   const base = s.base ?? type;
   const parts = [];
