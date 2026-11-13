@@ -412,7 +412,7 @@ export class Zombies {
     }
     door.lockHp -= dmg * (I.braced(door) ? DOOR.braceMul : 1);
     door.poundAt = g.time; I.shudder(door, kind === 'slam' ? 1.6 : 1);
-    if (!g.audio.sample?.('common', door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood', { x: door.x, z: door.z, range: 60, group: 'pound' })) g.audio.thud?.(g.pan(door.x));
+    if (!g.audio.sample?.('common', door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood', { x: door.x, z: door.z, range: 60, group: 'pound' })) g.audio.thud?.(g.pan(door.x), 'pound');
     if (door.lockHp > 0) { g.emit('doorThump', { door: door.id, by: c.id, kind: c.zkind ?? 'shambler', lockHp: Math.round(door.lockHp) }); return false; }
     if (door.barricade) { door.barricade = null; if (g.gadgets) g.gadgets.barred = g.gadgets.barred.filter((b) => b.door !== door); }
     // The lock (and whatever barred it) has given. An Echo swings the door open: it works doors. For the rest the door is

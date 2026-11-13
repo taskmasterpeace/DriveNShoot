@@ -344,7 +344,7 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(...made); g.godMode = false; }
   }));
 
-  await check('door pound: the crowd at a door - eight of them told you are behind a shut steel door: never more than the door\'s places beat it at once, the rest stand behind with their hands down and land no blows, and the blows come at the pace of the places, not of the crowd; the pound command says how many pound and how many wait; take one off the door and one of the waiting takes its place; two sprinters in their burst never both shoulder in over the count; the sound budget stops the quietest voice of a full group for a louder one and refuses a quieter one, and a refused groan is not replaced by a synthesized one; a crowd of eight round you speaks with one voice from its middle', async () => hush(async () => {
+  await check('door pound: the crowd at a door - eight of them told you are behind a shut steel door: never more than the door\'s places beat it at once, the rest stand behind with their hands down and land no blows, and the blows come at the pace of the places, not of the crowd; the pound command says how many pound and how many wait; take one off the door and one of the waiting takes its place; of two sprinters in their burst at a full door exactly one shoulders in, whichever order they are thought of; the sound budget stops the quietest voice of a full group for a louder one and refuses a quieter one, and a refused groan is not replaced by a synthesized one; a crowd of eight round you speaks with one voice from its middle', async () => hush(async () => {
     await stage();
     const d = pick('metal') ?? pick('wood'); if (!d) return 'no door with clear ground';
     const made = [];
@@ -379,33 +379,69 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       let stepped = false;
       for (let i = 0; i < 24 && !stepped; i++) { await api._step(15); const now = made.filter((c) => c.alive && g.chars.includes(c) && c.zslot === d.id && c.zblock === d && c.handsUp); stepped = now.length >= cap && now.some((c) => !was.has(c.id)); for (const c of made) if (c.alive && g.chars.includes(c) && !c.ztarget) told(c); }
       // two sprinters in their burst arrive at the full door: one shoulders in, never both
-      const sA = sprinterAt(d, 3.2), sB = sprinterAt(d, 3.6); made.push(sA, sB);
-      let twoIn = 0;
-      for (let i = 0; i < 16; i++) { await api._step(15); twoIn = Math.max(twoIn, made.filter((c) => c && c.alive && g.chars.includes(c) && c.zslot === d.id && c.zblock === d && g.time - (c.zslotT ?? -9) < 0.3).length); }
-      gone(sA, sB);
+      // the rule itself, on a stand-in door and stand-in bodies (real frames between): three hold the door; two sprinters in
+      // their burst ask in the same frame, thought of BEFORE the holders and then AFTER them: one gets in, never both
+      const fd = { id: 'slot-test', width: 1.2 }, hs = [{}, {}, {}], sp2 = [{ zkind: 'sprinter', zs: { state: 'burst' } }, { zkind: 'sprinter', zs: { state: 'burst' } }];
+      const ask = (list) => list.map((c) => Z.slot(c, fd, false));
+      ask(hs); await api._step(1);
+      const f2 = [...ask(sp2), ...ask(hs)]; await api._step(1);
+      const f3 = [...ask(hs), ...ask(sp2)]; await api._step(1);
+      const f4 = [...ask(sp2), ...ask(hs)];
+      const twoIn = Math.max(f2.filter(Boolean).length, f3.filter(Boolean).length, f4.filter(Boolean).length), firstOnly = f2[0] === true && f2[1] === false && f3[3] === true && f3[4] === false;
       // the sound budget, on stand-in voices (a headless page has no audio device): a full group, a louder newcomer, a quieter one
       const A = g.audio, keepV = A.voices, capG = SPATIAL.groups.infected, stops = [];
       A.voices = []; for (let i = 0; i < capG; i++) A.voices.push({ done: false, group: 'infected', level: 0.2 + i * 0.1, src: { stop: () => stops.push(i) } });
       const quieter = A.groupRoom('infected', 0.1), louder = A.groupRoom('infected', 0.9), other = A.groupRoom('pound', 0.01);
       const left = A.voices.filter((v) => !v.done).map((v) => v.level);
-      // a groan the budget refuses is not replaced by a synthesized one: the group full of louder voices, one groan asked
-      A.voices = []; for (let i = 0; i < capG; i++) A.voices.push({ done: false, group: 'infected', level: 9, src: { stop() {} } });
-      const capped = A.groupRoom('infected', 0.01) ? 'room' : 'capped', t0c = A.counts.tone ?? 0, b0c = A.counts.burst ?? 0;
-      const keepS = A.sample; A.sample = (set, kind, at) => (at?.group ? (A.groupRoom(at.group, 0.01) ? false : 'capped') : false); // the real refusal value, without an audio device
-      A.groan(0, 5, ['shambler', 'groan']);
-      A.sample = keepS;
-      const synth = (A.counts.tone ?? 0) - t0c + (A.counts.burst ?? 0) - b0c;
-      A.voices = keepV;
+      // a groan the budget refuses is not replaced by a synthesized one: the REAL sample() and groan(), with the synth's two
+      // makers counted. A full group of louder voices: no synth. An empty group (no device here, so the take cannot play): the
+      // synth stands in, as it always did.
+      let synth = -1, control = -1, capped = null;
+      const keepT = A.tone, keepB = A.burst; let made2 = 0;
+      try {
+        A.tone = () => { made2++; }; A.burst = () => { made2++; };
+        A.voices = []; for (let i = 0; i < capG; i++) A.voices.push({ done: false, group: 'infected', level: 9, src: { stop() {} } });
+        capped = A.sample('shambler', 'groan', { dist: 5, pan: 0, range: 34, group: 'infected' });
+        made2 = 0; A.groan(0, 5, ['shambler', 'groan']); synth = made2;
+        A.voices = [];
+        made2 = 0; A.groan(0, 5, ['shambler', 'groan']); control = A.ctx ? 1 : made2;
+      } finally { A.tone = keepT; A.burst = keepB; A.voices = keepV; }
       // the herd's one voice: the survivors and a few more, all inside the crowd's radius of you
       for (let i = 0; made.filter((c) => c.alive && g.chars.includes(c)).length < SPATIAL.crowd.at + 1 && i < 6; i++) { const c = Z.spawn(d.x + d.nx * (6 + i), d.z + d.nz * (6 + i), false); if (c) { made.push(c); told(c); } }
       const e1 = g.eventSeq, en = Z.enabled; Z.groanT = 0.1; Z.enabled = true; // the herd's voice runs with the herd (the checks hush it)
       try { await api._step(60 * 6); } finally { Z.enabled = en; }
       const ev = g.events.filter((e) => e.seq > e1), crowdEv = ev.filter((e) => e.type === 'crowdHeard'), single = ev.filter((e) => e.type === 'groanHeard').length;
       const ok = t0 > 0 && maxPound === cap && maxWait >= 3 && waitersHit === 0 && thumps > 0 && thumps <= pace * 1.25 + 1 && crowd.cap === cap && crowd.pounding === cap && crowd.waiting >= 3
-        && row?.crowd?.pounding === cap && row?.crowd?.waiting >= 3 && stepped && twoIn <= cap + 1 && capped === 'capped' && synth === 0
+        && row?.crowd?.pounding === cap && row?.crowd?.waiting >= 3 && stepped && twoIn === 4 && firstOnly && capped === 'capped' && synth === 0 && control > 0
         && quieter === false && louder === true && other === true && stops.join() === '0' && left.length === capG - 1 && Math.min(...left) > 0.25
         && crowdEv.length >= 2 && crowdEv.every((e) => e.n >= SPATIAL.crowd.at) && single === 0;
-      return ok || JSON.stringify({ twoIn, capped, synth, t0: Math.round(t0), cap, maxPound, maxWait, waitersHit, thumps, pace: Math.round(pace), crowd, row: row?.crowd ?? null, stepped, quieter, louder, other, stops, left, crowdEv: crowdEv.length, single, n: crowdEv[0]?.n, door: d.material });
+      return ok || JSON.stringify({ twoIn, firstOnly, capped, synth, control, t0: Math.round(t0), cap, maxPound, maxWait, waitersHit, thumps, pace: Math.round(pace), crowd, row: row?.crowd ?? null, stepped, quieter, louder, other, stops, left, crowdEv: crowdEv.length, single, n: crowdEv[0]?.n, door: d.material });
     } finally { gone(...made); fresh(d, 0); d.zbT = undefined; d.zbFree = undefined; g.godMode = false; }
+  }));
+
+  await check('interiors: a roadside stop has doors and glass - at a fuel stop the kiosk has door leaves and window panes (before: bare gaps), a door of it pulls shut and holds one of the infected told you are inside, and 300 m away its openings are let go', async () => hush(async () => {
+    await stage();
+    const RS = g.streamer.W.roadside, site = RS?.sites?.find((q) => q.kind === 'station' && Number.isFinite(q.x));
+    if (!site) return 'no roadside station';
+    const made = [], home = { x: P().x, z: P().z };
+    g.godMode = true;
+    try {
+      const lot = RS.lots.find((L) => L.roadside === site.id); if (!lot) return 'the station has no kiosk lot';
+      await C('teleport', { x: lot.cx, z: lot.cz }); await api._step(60 * 3);
+      const mine = (q) => String(q.id).startsWith(`${lot.id}:`);
+      const doors = I.doors.filter(mine), wins = I.windows.filter(mine), front = doors.find((d) => d.kind === 'front' && d.leaves.length);
+      if (!front) return JSON.stringify({ doors: doors.length, wins: wins.length, why: 'no front door leaf' });
+      clearRound(front.x, front.z, 30);
+      const shutOk = I.shutDoor ? (I.shutDoor(front, P()), I.isShut(front)) : false;
+      const z = Z.spawn(front.x + front.nx * 5, front.z + front.nz * 5, false); made.push(z); z.x = front.x + front.nx * 5; z.z = front.z + front.nz * 5; z.zSpeed = 2.4; told(z);
+      let crossed = false;
+      for (let i = 0; i < 24; i++) { await api._step(15); if (out(front, z) < -0.3) crossed = true; if (!z.ztarget) told(z); }
+      const held = I.isShut(front) || front.broken === true;
+      gone(...made); made.length = 0;
+      await C('teleport', { x: lot.cx + 300, z: lot.cz }); await api._step(60 * 2);
+      const left = I.doors.filter(mine).length + I.windows.filter(mine).length;
+      const ok = doors.length >= 2 && wins.length >= 3 && shutOk && !crossed && held && left === 0;
+      return ok || JSON.stringify({ doors: doors.length, wins: wins.length, shutOk, crossed, held, left, site: site.id });
+    } finally { gone(...made); g.godMode = false; await C('teleport', home); await api._step(4); }
   }));
 }

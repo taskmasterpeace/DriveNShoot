@@ -88,21 +88,21 @@ export class Audio {
     const r = resolve(set, kind);
     const why = (w) => { this.lastSample = { set, kind, played: false, why: w, via: r?.via ?? null }; return false; };
     if (!r) return why('no files for this kind');
-    if (!this.useSamples) return why('samples off');
-    if (!this.ctx) return why('audio off');
     const L = this.listener, range = at.range ?? SPATIAL.range.default;
     const dist = at.x !== undefined ? Math.hypot(at.x - L.x, at.z - L.z) : (at.dist ?? 0);
     const pan = at.x !== undefined ? Math.max(-1, Math.min(1, (at.x - L.x) / 30)) : (at.pan ?? 0);
     const sp = spatial(dist, range, !!at.indoor !== !!L.indoor);
     const level = sp.gain * (at.vol ?? 1) * r.gain * mixGain(kind);
+    // The group's budget (SPATIAL.groups) is asked first, before the device or the files: a voice it refuses is HANDLED
+    // ('capped' is truthy), so no caller falls back to a synthesized stand-in for a sound the budget chose not to play.
+    if (at.group && level >= 0.004 && !this.groupRoom(at.group, level)) { why('group cap'); return 'capped'; }
+    if (!this.useSamples) return why('samples off');
+    if (!this.ctx) return why('audio off');
     if (level < 0.004) return why('out of range');
     if (!this.allow(`${set}/${kind}`, kind)) return why('rate cap');
     const take = r.files[this.pick(`${r.via}|${kind}`, r.files.length)];
     const buf = this.bank.get(take.f);
     if (!buf || buf === 'failed' || typeof buf.then === 'function') { for (const x of r.files) this.load(x.f); return why(buf === 'failed' ? 'load failed' : 'loading'); }
-    // The group's budget (SPATIAL.groups). A voice refused by it is HANDLED: 'capped' is truthy, so no caller falls back to
-    // a synthesized stand-in for a sound the budget chose not to play.
-    if (at.group && !this.groupRoom(at.group, level)) { why('group cap'); return 'capped'; }
     // The voice cap: past it the quietest voice gives way (or this one, if it is the quietest).
     if (this.voices.length >= SPATIAL.voiceCap) this.voices = this.voices.filter((v) => !v.done);
     if (this.voices.length >= SPATIAL.voiceCap) {
