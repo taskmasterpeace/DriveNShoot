@@ -22,7 +22,7 @@ import { STEP } from '../../engine/depthlayers.js';
 import { makeRng } from '../../engine/rng.js';
 import { buildBacklots } from './backlots-build.js';
 import { layRooms, clearOf } from './rooms.js';
-import { CG_ROOMS } from '../../data/cgrooms.js';
+import { CG_ROOMS, FRONTS } from '../../data/cgrooms.js';
 import { wreckOf } from '../../data/wrecks.js';
 const fnv = (x, z, k) => { let v = 2166136261 ^ k; for (const n of [Math.round(x * 10), Math.round(z * 10)]) { v ^= n; v = Math.imul(v, 16777619); } return v >>> 0; };
 
@@ -306,15 +306,64 @@ export function buildBuilding(B, out, T, rng) {
     R.lobby = fd ? doorXZ(B, fd) : null;
   }
   if (B.steeple) vis((ix0 + ix1) / 2, top + 5, iz0 + 2.5, 3, 10, 3, shade(B.color, 0.9), n);
-  if (B.canopy) { // a gas station's canopy over the pumps, in front: four posts and a lid
-    const d = B.front, cx = (ox0 + ox1) / 2, cz = d === 'N' ? oz0 - 11 : d === 'S' ? oz1 + 11 : (oz0 + oz1) / 2, cxx = d === 'W' ? ox0 - 11 : d === 'E' ? ox1 + 11 : cx;
-    const ewc = d === 'E' || d === 'W', hx = (ewc ? 9 : 15) / 2 + 1, hz = (ewc ? 15 : 9) / 2 + 1;
-    const clash = T.buildings.some((o) => o !== B && cxx + hx > o.x0 - IN && cxx - hx < o.x1 + IN && cz + hz > o.z0 - IN && cz - hz < o.z1 + IN) || (T.wall && (cxx - hx < T.wall.x0 + 2 || cxx + hx > T.wall.x1 - 2 || cz - hz < T.wall.z0 + 2 || cz + hz > T.wall.z1 - 2));
-    if (!clash) {
-    vis(cxx, 4.6, cz, ewc ? 9 : 15, 0.5, ewc ? 15 : 9, '#c8c0aa', 0);
-    const ew = d === 'E' || d === 'W';
-    for (const [pa, pb] of [[-7, -3.5], [7, -3.5], [-7, 3.5], [7, 3.5]]) { const px = ew ? pb : pa, pz = ew ? pa : pb; add(cxx + px - 0.2, cz + pz - 0.2, cxx + px + 0.2, cz + pz + 0.2, 'cg-post', 4.6); vis(cxx + px, 2.3, cz + pz, 0.4, 4.6, 0.4, '#8a8478', 0); }
-    for (const px of [0]) { add(cxx + px - 0.5, cz - 0.35, cxx + px + 0.5, cz + 0.35, 'cg-pump', 1.6); vis(cxx + px, 0.8, cz, 1, 1.6, 0.7, '#a8402e', 0); coverPt(cxx + px, cz + 1, 0, 0, 1, 'half', 4); }
+  if (B.canopy) { // a gas station's canopy over the pumps, in front: posts, a lid with a coloured band, the pumps on an island, a price sign
+    // Two forms (the first that fits): a forecourt canopy 11 m out in front (15 x 9, four posts), or, on a tight street, a
+    // lean-to against the front wall (10 x 5, two posts, centred on the front door) so a gas station always has pumps.
+    const d = B.front, ewc = d === 'E' || d === 'W', sx = d === 'W' ? -1 : d === 'E' ? 1 : 0, sz = d === 'N' ? -1 : d === 'S' ? 1 : 0; // (sx, sz): toward the street
+    const F = FRONTS[B.kind] ?? {}, np = F.pumps ?? 1, fdr = B.doors.find((q) => q.kind === 'door' && q.side === d);
+    const wallX = d === 'W' ? ox0 : d === 'E' ? ox1 : (ox0 + ox1) / 2, wallZ = d === 'N' ? oz0 : d === 'S' ? oz1 : (oz0 + oz1) / 2;
+    const lo = ewc ? B.z0 : B.x0, hi = ewc ? B.z1 : B.x1, mid = (lo + hi) / 2;
+    const forms = [
+      { out: 11, L: 15, D: 9, at: mid, posts: [[-7, -3.5], [7, -3.5], [-7, 3.5], [7, 3.5]], pumpOut: 0, sign: 3.2 },
+      { out: 2.9, L: 10, D: 5, at: Math.max(lo + 5, Math.min(hi - 5, fdr ? fdr.at : mid)), posts: [[-4.7, 2.2], [4.7, 2.2]], pumpOut: 0.7, sign: 1.8, lean: true },
+    ];
+    for (const f of forms) {
+      if (f.lean && hi - lo < 10) continue;
+      const cxx = ewc ? wallX + sx * f.out : f.at, cz = ewc ? f.at : wallZ + sz * f.out, hx = (ewc ? f.D : f.L) / 2 + (f.lean ? 0.3 : 1), hz = (ewc ? f.L : f.D) / 2 + (f.lean ? 0.3 : 1);
+      // a lean-to stands at the street's edge: it also keeps clear of every neighbour's doorstep and bay apron (the strip in
+      // front of each of their doors a body walks, and in front of each bay a car turns in on)
+      const apron = (o) => f.lean && o.doors.some((q) => { const [qx, qz] = doorXZ(o, q), nx = q.side === 'W' ? -1 : q.side === 'E' ? 1 : 0, nz = q.side === 'N' ? -1 : q.side === 'S' ? 1 : 0, len = q.kind === 'bay' ? 13 : 5, hw = q.w / 2 + 1.2;
+        const ax0 = Math.min(qx, qx + nx * len) - (nx ? 0 : hw), ax1 = Math.max(qx, qx + nx * len) + (nx ? 0 : hw), az0 = Math.min(qz, qz + nz * len) - (nz ? 0 : hw), az1 = Math.max(qz, qz + nz * len) + (nz ? 0 : hw);
+        return cxx + hx > ax0 && cxx - hx < ax1 && cz + hz > az0 && cz - hz < az1; });
+      const clash = T.buildings.some((o) => o !== B && ((cxx + hx > o.x0 - IN && cxx - hx < o.x1 + IN && cz + hz > o.z0 - IN && cz - hz < o.z1 + IN) || apron(o))) || (T.wall && (cxx - hx < T.wall.x0 + 2 || cxx + hx > T.wall.x1 - 2 || cz - hz < T.wall.z0 + 2 || cz + hz > T.wall.z1 - 2));
+      if (clash) continue;
+      const P = (al, ac) => ewc ? [cxx + sx * ac, cz + al] : [cxx + al, cz + sz * ac]; // (along the front, out toward the street) from the canopy's middle
+      vis(cxx, 4.6, cz, ewc ? f.D : f.L, 0.5, ewc ? f.L : f.D, '#c8c0aa', 0);
+      vis(cxx, 4.62, cz, (ewc ? f.D : f.L) + 0.1, 0.3, (ewc ? f.L : f.D) + 0.1, F.price ?? '#8a8478', 0); // the band round the lid
+      for (const [al, ac] of f.posts) { const [px, pz] = P(al, ac); add(px - 0.2, pz - 0.2, px + 0.2, pz + 0.2, 'cg-post', 4.6); vis(px, 2.3, pz, 0.4, 4.6, 0.4, '#8a8478', 0); }
+      // the pumps (data/cgrooms.js FRONTS[kind].pumps): along the front on one island (a lean-to keeps its doorway clear: one each side)
+      const step = f.lean ? 6 : 2.6, isl = f.lean ? 1.6 : np * 2.6 + 1;
+      for (let q = 0; q < np; q++) {
+        const [px, pz] = P((q - (np - 1) / 2) * step, f.pumpOut), wx2 = ewc ? 0.35 : 0.5, wz2 = ewc ? 0.5 : 0.35;
+        if (f.lean || q === 0) { const [ix, iz] = f.lean ? [px, pz] : P(0, f.pumpOut); vis(ix, 0.09, iz, ewc ? 1.5 : isl, 0.18, ewc ? isl : 1.5, '#b8b2a0', 0); }
+        add(px - wx2, pz - wz2, px + wx2, pz + wz2, 'cg-pump', 1.6);
+        vis(px, 0.8, pz, wx2 * 2, 1.6, wz2 * 2, '#a8402e', 0);
+        vis(px, 1.15, pz, wx2 * 2 + 0.04, 0.5, wz2 * 2 + 0.04, '#e6dfcc', 0); // the dial face, a pale band round it
+        vis(px, 1.66, pz, wx2 * 2 + 0.1, 0.12, wz2 * 2 + 0.1, '#33373a', 0);
+        coverPt(px + sx, pz + sz, 0, 0, 1, 'half', 4);
+      }
+      if (F.price) {
+        const [ex, ez] = P(f.lean ? -f.L / 2 + 1 : 0, f.sign);
+        vis(ex, 5.9, ez, 0.3, 2.1, 0.3, '#6a6a62', 0);
+        vis(ex, 7.4, ez, ewc ? 0.3 : 2.6, 1.5, ewc ? 2.6 : 0.3, F.price, 0);
+        vis(ex, 7.1, ez, ewc ? 0.34 : 2.2, 0.5, ewc ? 2.2 : 0.34, '#efe9d6', 0);
+      }
+      B.pumps = np;
+      break;
+    }
+  }
+
+  // ---- what the building wears on its street face (data/cgrooms.js FRONTS): a sign board and an awning over the front
+  // door. Looks only, all of it over head height: no collider, nothing in a lane.
+  { const F = FRONTS[B.kind], fd = F && !B.ruined ? B.doors.find((q) => q.kind === 'door' && q.side === B.front) : null;
+    if (fd && (F.board || F.awning)) {
+      const [dx0, dz0] = doorXZ(B, fd), nx = fd.side === 'W' ? -1 : fd.side === 'E' ? 1 : 0, nz = fd.side === 'N' ? -1 : fd.side === 'S' ? 1 : 0, alongX = nz !== 0;
+      const face = IN + 0.08, len = Math.min(3.6, (alongX ? B.x1 - B.x0 : B.z1 - B.z0) - 1), hy = Math.min(3.25, (Y[1] ?? top) - 0.5);
+      if (F.board) {
+        vis(dx0 + nx * face, hy, dz0 + nz * face, alongX ? len : 0.16, 0.7, alongX ? 0.16 : len, F.board, 0);
+        vis(dx0 + nx * (face + 0.03), hy, dz0 + nz * (face + 0.03), alongX ? len - 0.6 : 0.16, 0.22, alongX ? 0.16 : len - 0.6, '#efe9d6', 0);
+      }
+      if (F.awning) vis(dx0 + nx * (IN + 0.6), 2.78, dz0 + nz * (IN + 0.6), alongX ? len + 0.4 : 1.2, 0.1, alongX ? 1.2 : len + 0.4, F.awning, 0);
     }
   }
 

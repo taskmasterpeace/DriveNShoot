@@ -91,9 +91,10 @@ export function layRooms(o) {
   // Two pieces on the same wall of a room may stand side by side. Any two others in a room keep a walkway (C.pass)
   // between them: a bed out from one wall and a cupboard on the next never close the way from one doorway to another.
   let ri = 0;
-  const blocked = (r, side) => zones.some((z) => hits(r, z)) || placed.some((q) => hits(r, q, q.ri === ri ? (q.side === side && side >= 0 ? 0.25 : C.pass) : 0.05));
-  const put = (r, P, side) => {
+  const blocked = (r, side) => zones.some((z) => hits(r, z)) || placed.some((q) => hits(r, q, q.ri === ri ? (q.side === side ? (side >= 0 ? 0.25 : C.aisle - 0.05) : C.pass) : 0.05)); // rows in the middle keep the aisle between themselves, and the walkway from everything on a wall
+  const put = (r, P, side, name) => {
     const bx = add(r.minX, r.minZ, r.maxX, r.maxZ, 'cg-furn', y0 + P.h, y0);
+    bx.piece = name; bx.side = side; // what it is and the wall it backs onto (0 N, 1 S, 2 W, 3 E, -1 the middle of the room): systems/decor.js dresses it
     r.ri = ri; r.side = side;
     solids.push(bx); placed.push(r);
     vis((r.minX + r.maxX) / 2, y0 + P.h / 2, (r.minZ + r.maxZ) / 2, r.maxX - r.minX, P.h, r.maxZ - r.minZ, P.col, k);
@@ -110,19 +111,24 @@ export function layRooms(o) {
     // the four walls: N (z = minZ, runs along x), S, W, E; depth[] is how far pieces stand out from each so far
     const depth = [0, 0, 0, 0], start = Math.floor(rng() * 4);
     let got = 0, pi = 0;
+    // a room type marked retry (a shop floor): a list whose first piece fits on no wall (a long counter in a room that is
+    // all windows and doorways) is tried again from its next piece, so the room still gets its shelves. Only where the
+    // row says so: in a room with drive bays the small pieces that would then fit pinch the lane a car needs.
+    for (let skip = 0; skip < (RT.retry ? RT.wall.length : 1) && got === 0; skip++) { pi = skip;
     for (let wi = 0; wi < 4 && got < want; wi++) {
       const side = (start + wi) % 4, alongX = side < 2, len = alongX ? sx : sz, span = alongX ? sz : sx, opp = side ^ 1;
       let cur = 0.3, tries = 0;
       while (got < want && tries++ < 24) {
-        const P = PIECES[RT.wall[pi % RT.wall.length]];
+        const pn = RT.wall[pi % RT.wall.length], P = PIECES[pn];
         if (cur + P.w > len - 0.3) break;
         if (depth[opp] + P.d + C.pass > span) { pi++; if (tries > 6) break; continue; } // would close the room against the piece opposite
         const a0 = (alongX ? r.minX : r.minZ) + cur, a1 = a0 + P.w;
         const fr = side === 0 ? { minX: a0, maxX: a1, minZ: r.minZ, maxZ: r.minZ + P.d } : side === 1 ? { minX: a0, maxX: a1, minZ: r.maxZ - P.d, maxZ: r.maxZ }
           : side === 2 ? { minX: r.minX, maxX: r.minX + P.d, minZ: a0, maxZ: a1 } : { minX: r.maxX - P.d, maxX: r.maxX, minZ: a0, maxZ: a1 };
         if (blocked(fr, side)) { cur += 0.6; continue; }
-        put(fr, P, side); depth[side] = Math.max(depth[side], P.d); got++; pi++; cur += P.w + 0.35;
+        put(fr, P, side, pn); depth[side] = Math.max(depth[side], P.d); got++; pi++; cur += P.w + 0.35;
       }
+    }
     }
     if (RT.centre && Math.min(sx, sz) >= C.centreMin) {
       const P = PIECES[RT.centre], wide = sx >= sz, pw = wide ? P.w : P.d, pd = wide ? P.d : P.w, mg = C.centreEdge;
@@ -130,7 +136,7 @@ export function layRooms(o) {
       for (let z = r.minZ + mg; z + pd <= r.maxZ - mg + 1e-6 && n < 12; z += pd + C.aisle) for (let x = r.minX + mg; x + pw <= r.maxX - mg + 1e-6 && n < 12; x += pw + C.aisle) {
         const fr = { minX: x, maxX: x + pw, minZ: z, maxZ: z + pd };
         if (blocked(fr, -1)) continue;
-        put(fr, P, -1); n++;
+        put(fr, P, -1, RT.centre); n++;
       }
     }
   }

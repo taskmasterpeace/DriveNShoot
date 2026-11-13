@@ -29,18 +29,61 @@ export const DEFAULT_ROOMS = R(['hall', 'store']);
 
 // PIECES: w along the wall it backs onto, d out from that wall, h tall (m); col; holds: a loot container may live in it
 // (build.js moves the floor's containers into these instead of loose crates: nothing new is made, the same containers).
+// parts: the detail on a piece (systems/decor.js draws them for the buildings near you; they are looks only, no collider
+//   and nothing to loot). Each is [u, v, y, su, sv, sy, col]: u along the wall and v out from it, each -0.5..0.5 of the
+//   piece (v -0.5 is the wall side, 0.5 the side facing the room); y the part's underside in m above the floor;
+//   su, sv its size as a share of the piece; sy its height in m; col a colour or a DECOR.palettes key (a seeded pick).
 export const PIECES = {
-  bed: { w: 1.0, d: 2.0, h: 0.55, col: '#8c8a7a' }, hbed: { w: 1.0, d: 2.1, h: 0.7, col: '#bfc4c0' }, bunk: { w: 1.0, d: 2.0, h: 1.7, col: '#5a5f4a' },
-  dresser: { w: 1.2, d: 0.6, h: 1.0, col: '#6b4a2e', holds: true }, wardrobe: { w: 1.2, d: 0.6, h: 1.9, col: '#5c3f28', holds: true },
-  sofa: { w: 2.0, d: 0.9, h: 0.8, col: '#5d6a58' }, table: { w: 1.4, d: 0.9, h: 0.75, col: '#7a5a34' }, bench: { w: 1.6, d: 0.5, h: 0.5, col: '#6e5a40' },
-  counter: { w: 2.4, d: 0.7, h: 1.0, col: '#6e5a40', holds: true }, stove: { w: 0.8, d: 0.7, h: 0.95, col: '#4a4a48' },
-  fridge: { w: 0.8, d: 0.7, h: 1.8, col: '#c9c6ba', holds: true }, cupboard: { w: 1.6, d: 0.6, h: 0.95, col: '#8a7a5c', holds: true },
-  toilet: { w: 0.5, d: 0.7, h: 0.5, col: '#d8d5cc' }, tub: { w: 1.6, d: 0.8, h: 0.55, col: '#d0cdc4' }, basin: { w: 0.6, d: 0.6, h: 0.9, col: '#d8d5cc', holds: true },
-  shelf: { w: 2.0, d: 0.6, h: 1.9, col: '#6a6052', holds: true }, aisle: { w: 2.4, d: 0.6, h: 1.6, col: '#6a6052', holds: true },
-  rack: { w: 2.4, d: 0.8, h: 2.2, col: '#4f5258', holds: true }, desk: { w: 1.5, d: 0.75, h: 0.75, col: '#6b5236', holds: true },
-  pupil: { w: 0.7, d: 0.5, h: 0.7, col: '#8a6a42' }, cabinet: { w: 0.6, d: 0.6, h: 1.4, col: '#70726c', holds: true },
-  locker: { w: 0.9, d: 0.6, h: 1.9, col: '#56605e', holds: true }, pew: { w: 3.0, d: 0.6, h: 0.9, col: '#5a3f26' },
-  workbench: { w: 2.2, d: 0.8, h: 0.95, col: '#5e4a30', holds: true }, bar: { w: 4.0, d: 0.8, h: 1.1, col: '#4a321e' },
+  bed: { w: 1.0, d: 2.0, h: 0.55, col: '#8c8a7a', parts: [[0, -0.38, 0.55, 0.7, 0.16, 0.12, '#dcd8cc'], [0, 0.12, 0.55, 1.0, 0.62, 0.05, 'cloth']] },
+  hbed: { w: 1.0, d: 2.1, h: 0.7, col: '#bfc4c0', parts: [[0, -0.4, 0.7, 0.7, 0.14, 0.1, '#eeeeea'], [0, 0.12, 0.7, 1.0, 0.6, 0.04, '#9fb4b8']] },
+  bunk: { w: 1.0, d: 2.0, h: 1.7, col: '#5a5f4a', parts: [[0, 0, 1.7, 0.94, 0.96, 0.08, '#8a8a70']] },
+  dresser: { w: 1.2, d: 0.6, h: 1.0, col: '#6b4a2e', holds: true, parts: [[0, 0.5, 0.3, 0.9, 0.05, 0.04, '#3e2a18'], [0, 0.5, 0.65, 0.9, 0.05, 0.04, '#3e2a18'], [-0.22, 0, 1.0, 0.22, 0.4, 0.2, 'cloth']] },
+  wardrobe: { w: 1.2, d: 0.6, h: 1.9, col: '#5c3f28', holds: true, parts: [[0, 0.5, 0.1, 0.03, 0.05, 1.7, '#2e1f12']] },
+  sofa: { w: 2.0, d: 0.9, h: 0.8, col: '#5d6a58', parts: [[0, -0.36, 0.8, 1.0, 0.28, 0.3, '#4d5a48'], [-0.45, 0.1, 0.8, 0.1, 0.72, 0.12, '#4d5a48'], [0.45, 0.1, 0.8, 0.1, 0.72, 0.12, '#4d5a48'], [0, 0.12, 0.8, 0.76, 0.6, 0.04, '#6f7c68']] },
+  table: { w: 1.4, d: 0.9, h: 0.75, col: '#7a5a34', parts: [[-0.22, 0, 0.75, 0.16, 0.25, 0.03, '#dcd8cc'], [0.25, 0.1, 0.75, 0.07, 0.11, 0.2, 'bottles']] },
+  bench: { w: 1.6, d: 0.5, h: 0.5, col: '#6e5a40', parts: [[0, -0.4, 0.5, 1.0, 0.2, 0.5, '#7a3a30']] },
+  counter: { w: 2.4, d: 0.7, h: 1.0, col: '#6e5a40', holds: true, parts: [[-0.3, 0, 1.0, 0.16, 0.55, 0.3, '#33373a'], [-0.3, 0.3, 1.3, 0.1, 0.1, 0.12, '#9ad08a'], [0.22, 0, 1.0, 0.34, 0.6, 0.14, 'goods']] },
+  stove: { w: 0.8, d: 0.7, h: 0.95, col: '#4a4a48', parts: [[0, 0.06, 0.95, 0.8, 0.7, 0.02, '#1f1f1f'], [0, -0.42, 0.95, 1.0, 0.14, 0.22, '#5e5e5c']] },
+  fridge: { w: 0.8, d: 0.7, h: 1.8, col: '#c9c6ba', holds: true, parts: [[0.3, 0.5, 0.9, 0.07, 0.08, 0.6, '#8a8a84'], [0, 0.5, 1.25, 0.96, 0.04, 0.03, '#9a978c']] },
+  cupboard: { w: 1.6, d: 0.6, h: 0.95, col: '#8a7a5c', holds: true, parts: [[-0.2, 0, 0.95, 0.35, 0.62, 0.03, '#b8bcc0'], [-0.2, -0.32, 0.98, 0.04, 0.1, 0.22, '#9aa0a4'], [0.25, 0, 0.95, 0.2, 0.4, 0.16, 'goods']] },
+  toilet: { w: 0.5, d: 0.7, h: 0.5, col: '#d8d5cc', parts: [[0, -0.32, 0.5, 0.9, 0.3, 0.42, '#e4e1d8']] },
+  tub: { w: 1.6, d: 0.8, h: 0.55, col: '#d0cdc4', parts: [[0, 0, 0.5, 0.86, 0.7, 0.06, '#a4b6ba']] },
+  basin: { w: 0.6, d: 0.6, h: 0.9, col: '#d8d5cc', holds: true, parts: [[0, -0.45, 1.3, 0.8, 0.06, 0.5, '#b4c6ca']] },
+  shelf: { w: 2.0, d: 0.6, h: 1.9, col: '#6a6052', holds: true, parts: [[0, 0.5, 0.35, 0.9, 0.08, 0.3, 'goods'], [0, 0.5, 0.85, 0.9, 0.08, 0.3, 'goods'], [0, 0.5, 1.35, 0.9, 0.08, 0.3, 'goods'], [0, 0.05, 1.9, 0.8, 0.6, 0.14, 'goods']] },
+  aisle: { w: 2.4, d: 0.6, h: 1.6, col: '#6a6052', holds: true, parts: [[0, 0.5, 0.4, 0.92, 0.08, 0.4, 'goods'], [0, 0.5, 1.0, 0.92, 0.08, 0.4, 'goods'], [0, -0.5, 0.4, 0.92, 0.08, 0.4, 'goods'], [0, -0.5, 1.0, 0.92, 0.08, 0.4, 'goods'], [0, 0, 1.6, 0.86, 0.6, 0.12, 'goods']] },
+  cooler: { w: 1.6, d: 0.7, h: 2.0, col: '#2c3136', holds: true, parts: [[0, 0.5, 0.2, 0.9, 0.05, 1.5, '#a6c8d2'], [0, 0.53, 0.35, 0.82, 0.04, 0.28, 'bottles'], [0, 0.53, 0.8, 0.82, 0.04, 0.28, 'bottles'], [0, 0.53, 1.25, 0.82, 0.04, 0.28, 'bottles'], [0, 0.5, 1.78, 1.0, 0.08, 0.18, '#c23b2a']] },
+  rack: { w: 2.4, d: 0.8, h: 2.2, col: '#4f5258', holds: true, parts: [[-0.25, 0, 2.2, 0.3, 0.7, 0.36, '#9a7a4c'], [0.2, 0, 2.2, 0.26, 0.6, 0.28, '#6f7a58'], [0, 0.5, 1.0, 0.94, 0.06, 0.4, '#8a6a42']] },
+  desk: { w: 1.5, d: 0.75, h: 0.75, col: '#6b5236', holds: true, parts: [[0, -0.18, 0.75, 0.34, 0.08, 0.38, '#2a2d30'], [0.3, 0.15, 0.75, 0.2, 0.32, 0.02, '#e2ded0']] },
+  pupil: { w: 0.7, d: 0.5, h: 0.7, col: '#8a6a42' },
+  cabinet: { w: 0.6, d: 0.6, h: 1.4, col: '#70726c', holds: true, parts: [[0, 0.5, 0.45, 0.9, 0.05, 0.03, '#4e504a'], [0, 0.5, 0.92, 0.9, 0.05, 0.03, '#4e504a']] },
+  locker: { w: 0.9, d: 0.6, h: 1.9, col: '#56605e', holds: true, parts: [[0, 0.5, 0.1, 0.03, 0.05, 1.7, '#3a4442']] },
+  pew: { w: 3.0, d: 0.6, h: 0.9, col: '#5a3f26', parts: [[0, -0.38, 0.9, 1.0, 0.2, 0.3, '#4a321e']] },
+  workbench: { w: 2.2, d: 0.8, h: 0.95, col: '#5e4a30', holds: true, parts: [[-0.3, 0, 0.95, 0.24, 0.5, 0.26, '#9a3326'], [0.35, 0.2, 0.95, 0.1, 0.3, 0.2, '#3c4044'], [0, -0.47, 1.3, 0.9, 0.05, 0.7, '#7a6a4a']] },
+  bar: { w: 4.0, d: 0.8, h: 1.1, col: '#4a321e', parts: [[-0.3, -0.15, 1.1, 0.03, 0.14, 0.3, 'bottles'], [-0.1, -0.15, 1.1, 0.03, 0.14, 0.3, 'bottles'], [0.15, -0.15, 1.1, 0.03, 0.14, 0.3, 'bottles'], [0.36, 0.1, 1.1, 0.06, 0.3, 0.16, '#c8c0aa']] },
+  tyres: { w: 1.0, d: 1.0, h: 0.8, col: '#1e1e1e', parts: [[0, 0, 0.8, 0.45, 0.45, 0.02, '#6a6a6a'], [0, 0, 0.26, 1.04, 1.04, 0.03, '#0e0e0e'], [0, 0, 0.53, 1.04, 1.04, 0.03, '#0e0e0e']] },
+  drum: { w: 0.7, d: 0.7, h: 0.95, col: '#3f6a7a', parts: [[0, 0, 0.95, 0.85, 0.85, 0.03, '#2e4e5a'], [0, 0, 0.45, 1.04, 1.04, 0.05, '#2e4e5a']] },
+  pallet: { w: 1.3, d: 1.1, h: 1.1, col: '#9a7a4c', parts: [[0, 0, 0.0, 1.06, 1.06, 0.14, '#6e5636'], [-0.15, 0, 1.1, 0.5, 0.6, 0.4, '#8a7448'], [0, 0.5, 0.55, 0.5, 0.04, 0.2, '#e2ded0']] },
+};
+
+// DECOR: how the detail is drawn. near / far m from a building's footprint at which its detail is drawn and given back;
+// every s between scans; max parts drawn at once (the pool: a building past it goes without, nearest first);
+// palettes a part's colour key picks from (seeded by where the part stands, so a shelf keeps its goods). Never purple.
+export const DECOR = {
+  near: 45, far: 65, every: 0.4, max: 6000,
+  palettes: {
+    goods: ['#c23b2a', '#d9a02c', '#3f7a4a', '#2f6f8a', '#e6dcc0', '#b8562a', '#7a8a3a', '#d8d2c4'],
+    bottles: ['#3f6a3a', '#8a5a2a', '#b8b090', '#2f6f8a', '#a83a2a', '#d0c060'],
+    cloth: ['#7a3b32', '#3f5a6a', '#5a6a3f', '#8a7340', '#6a6a62'],
+  },
+};
+
+// FRONTS: what a building of a kind wears on its street face so you know it from the road. board: a sign board over the
+// front door (colour); awning: a canopy over the front door (colour); price: a gas station's price sign on its canopy
+// post (colour). Looks only: all of it is above head height or on something that already had a collider.
+export const FRONTS = {
+  gas_station: { board: '#b8322a', price: '#b8322a', pumps: 2 }, truck_stop: { board: '#b8322a' },
+  shop: { board: '#2f6f5a', awning: '#3f7a5a' }, diner: { board: '#b8562a', awning: '#c8b08a' }, saloon: { board: '#6a3a22', awning: '#5a4630' },
+  auto_shop: { board: '#2f5f8a' }, garage: {}, warehouse: { board: '#5a5a52' }, motel: { board: '#b8822a' }, hotel: { board: '#8a6a2a', awning: '#6a3a30' },
 };
 
 // ROOM_TYPES[type] = { wall: pieces to stand against the walls, in order (the list repeats until the room is full),
@@ -51,7 +94,7 @@ export const ROOM_TYPES = {
   bedroom: { name: 'bedroom', wall: ['bed', 'dresser', 'wardrobe'], centre: null },
   bath: { name: 'bathroom', wall: ['toilet', 'basin', 'tub'], centre: null },
   trailer: { name: 'trailer', wall: ['bed', 'cupboard', 'sofa', 'fridge'], centre: null },
-  sales: { name: 'shop floor', wall: ['counter', 'shelf', 'shelf', 'shelf'], centre: 'aisle' },
+  sales: { name: 'shop floor', wall: ['counter', 'cooler', 'shelf', 'shelf'], centre: 'aisle', retry: true }, // retry: if the counter fits on no wall the room still gets the rest
   stock: { name: 'stock room', wall: ['rack', 'shelf', 'rack'], centre: null },
   office: { name: 'office', wall: ['desk', 'cabinet', 'shelf'], centre: null },
   restroom: { name: 'restroom', wall: ['toilet', 'basin'], centre: null },
@@ -66,8 +109,8 @@ export const ROOM_TYPES = {
   policeoffice: { name: 'duty room', wall: ['desk', 'locker', 'cabinet'], centre: null },
   nave: { name: 'nave', wall: ['bench'], centre: 'pew' },
   lobby: { name: 'lobby', wall: ['desk', 'sofa', 'sofa'], centre: null },
-  workshop: { name: 'workshop', wall: ['workbench', 'rack', 'locker'], centre: null },
-  warehouse: { name: 'warehouse floor', wall: ['rack', 'rack', 'shelf'], centre: null },
+  workshop: { name: 'workshop', wall: ['workbench', 'rack', 'tyres', 'locker', 'drum'], centre: null },
+  warehouse: { name: 'warehouse floor', wall: ['rack', 'rack', 'shelf'], centre: 'pallet' },
   barn: { name: 'barn floor', wall: ['rack', 'workbench'], centre: null },
   guard: { name: 'guard room', wall: ['desk', 'locker'], centre: null },
   store: { name: 'store room', wall: ['shelf', 'rack'], centre: null },
@@ -83,8 +126,9 @@ export const ROOM_TYPES = {
 //   perPiece  m² of room per piece against the walls (min, max per room); centreMin: a room needs this much each way
 //             before anything stands in its middle (centreEdge: kept clear round the rows); aisle: the gap between rows
 //   under     a partition stops this far under the deck above (it never shows through the floor or the roof)
-export const CG_ROOMS = { wall: 0.2, door: 1.4, lintel: 2.6, corridor: 2.0, bay: 4.6, minRoom: 2.6, clear: 1.4, pass: 1.4, perPiece: 4.5, pieces: [2, 9], centreMin: 4.2, centreEdge: 1.5, aisle: 1.3, under: 0.24 };
+export const CG_ROOMS = { wall: 0.2, door: 1.4, lintel: 2.6, corridor: 2.0, bay: 4.6, minRoom: 2.6, clear: 1.4, pass: 1.4, perPiece: 4.5, pieces: [2, 9], centreMin: 4.8, centreEdge: 2.1, aisle: 1.3, under: 0.24 };
 
+const purple = (hex) => { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return b > g + 24 && r > g + 24; };
 export function validateCgRooms(kinds = null, touch = 0.8) {
   const bad = [], layouts = { hall: 1, split: 3, home: 4, corridor: 1 };
   const row = (id, r) => {
@@ -109,7 +153,18 @@ export function validateCgRooms(kinds = null, touch = 0.8) {
     if (!m) { bad.push(`piece ${p}: colour`); continue; }
     const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
     if (b > g + 24 && r > g + 24) bad.push(`piece ${p}: purple is not allowed`);
+    for (const [i, t] of (q.parts ?? []).entries()) {
+      if (!Array.isArray(t) || t.length !== 7) { bad.push(`piece ${p} part ${i}: [u, v, y, su, sv, sy, col]`); continue; }
+      const [u, v, y, su, sv, sy, col] = t;
+      if (!(Math.abs(u) <= 0.5 && Math.abs(v) <= 0.56 && y >= 0 && y <= 2.6 && su > 0 && su <= 1.1 && sv > 0 && sv <= 1.1 && sy > 0 && sy <= 1.8)) bad.push(`piece ${p} part ${i}: out of range`);
+      if (!/^#[0-9a-f]{6}$/i.test(col) && !DECOR.palettes[col]) bad.push(`piece ${p} part ${i}: colour "${col}" is neither a colour nor a palette`);
+      else if (/^#/.test(col) && purple(col)) bad.push(`piece ${p} part ${i}: purple is not allowed`);
+    }
+    if ((q.parts ?? []).length > 6) bad.push(`piece ${p}: more than 6 parts`);
   }
+  for (const [k, list] of Object.entries(DECOR.palettes)) for (const c of list) if (!/^#[0-9a-f]{6}$/i.test(c) || purple(c)) bad.push(`DECOR.palettes.${k}: "${c}" (a colour, never purple)`);
+  if (!(DECOR.near >= 20 && DECOR.far > DECOR.near && DECOR.max >= 1000 && DECOR.max <= 20000 && DECOR.every > 0)) bad.push('DECOR: near >= 20, far > near, max 1000-20000');
+  for (const [k, F] of Object.entries(FRONTS)) for (const f of ['board', 'awning', 'price']) if (F[f] !== undefined && (!/^#[0-9a-f]{6}$/i.test(F[f]) || purple(F[f]))) bad.push(`FRONTS.${k}.${f}: a colour, never purple`);
   const C = CG_ROOMS;
   // no hand through a partition (systems/reach.js: inside REACH.touch + a body's radius nothing is asked of the walls):
   // a container in a piece against a partition must be further than that from someone pressed to the other side

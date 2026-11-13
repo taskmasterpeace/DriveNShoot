@@ -322,6 +322,7 @@ export class CityGen {
     const t = this.live.get(id);
     if (!t) return;
     for (const R of t.blds) { if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; } if (R.openIn) { this.g.interiors?.detachRing(R.openIn); R.openIn = null; } }
+    this.g.decor?.forget(t); // the detail on its furniture goes back to the pool (systems/decor.js)
     this.overrun.depopulate(t);
     this.g.milbases?.onReleased(t);
     this.g.rites?.onReleased(t);
@@ -373,6 +374,7 @@ export class CityGen {
     const t = this.extra.get(id);
     if (!t) return;
     for (const R of t.blds) { if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; } if (R.openIn) { this.g.interiors?.detachRing(R.openIn); R.openIn = null; } }
+    this.g.decor?.forget(t); // the detail on its furniture goes back to the pool (systems/decor.js)
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);
@@ -406,6 +408,7 @@ export class CityGen {
   hideAbove(S, level) {
     const R = S?.b;
     if (!R || R.i0 === undefined) return;
+    R.cut = level; // systems/decor.js draws the detail on this building's furniture to the same cut
     let any = false;
     for (let i = R.i0; i < R.i1; i++) { const it = R.rec && this.liveEntry(R.rec.id)?.built.items[i]; if (!it || it.idx === undefined) continue; this.place(it.idx, level < 0 || it.lv <= level); any = true; }
     if (any) this.mesh.instanceMatrix.needsUpdate = true;

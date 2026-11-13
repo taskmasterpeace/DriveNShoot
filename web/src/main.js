@@ -67,6 +67,7 @@ import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
 import { WindowExit } from './systems/windowexit.js';
 import { SkyDome } from './systems/skydome.js';
+import { Decor } from './systems/decor.js';
 import { Actions } from './systems/actions.js'; // TIMED ACTIONS: search, look around, break in, climb (docs/design/WEB_TIMED_ACTIONS.md)
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
@@ -265,6 +266,7 @@ class Game {
     this.population = new Population(this); // the far fold: ambient people left far behind hand their slots back (systems/population.js)
     this.milbases = new Milbases(this); // before citygen: a stamped base hands its garrison here (systems/milbases.js)
     this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
+    this.decor = new Decor(this); // the detail on the furniture of the buildings near you: registers, goods, bottles (systems/decor.js)
     this.facades = new Facades(this); this.facades.addIsland(this.storeys); // STOREYS v2: windows, ledges, roofs, signs (world/facades.js)
     this.ringrise = new RingRise(this); for (const L of this.streamer.hot.values()) this.ringrise.chunkOn(L); // the ring's towers in the chunks already hot (world/ringrise.js)
     this.backlots = new BackLots(this); // their alleys, yard fences and gates, back-door locks, town pathing (docs/design/WEB_BACK_LOTS.md)
@@ -1512,6 +1514,7 @@ class Game {
     this.milbases.update(simDt); // the bases' gate rule, the horde's moans (systems/milbases.js)
     this.fannods.update(simDt); // the found things: the hum, the counter's ticks, the meal, the burning rain, the convoy, the ditch's bones
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
+    this.decor.update(simDt);
     this.ringrise.update(simDt); // the ring towers' people, when slots free up (world/ringrise.js)
     this.facades.update(); // the facade kit: its buffers when a source came or went, the lamps after dark (world/facades.js)
     this.windowExit.update(simDt); // the sprinters that jump after you

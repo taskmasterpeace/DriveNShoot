@@ -73,7 +73,7 @@ export const KINDS = {
   shop: K({ name: 'shop', w: [10, 16], d: [12, 18], storeys: [1, 2], h0: 4.2, zone: ['commercial', 'core'], loot: 'shop', escape: 0.2 }),
   saloon: K({ name: 'saloon', w: [12, 16], d: [14, 18], storeys: [2, 2], h0: 4.2, zone: ['commercial', 'core'], loot: 'shop' }),
   diner: K({ name: 'diner', w: [10, 14], d: [9, 12], h0: 4, zone: ['commercial', 'edge'], loot: 'shop' }),
-  gas_station: K({ name: 'gas station', w: [12, 16], d: [10, 12], h0: 4.2, zone: ['commercial', 'edge', 'road'], bays: [2, 4.2, 4.0], loot: 'garage', canopy: true }),
+  gas_station: K({ name: 'gas station', w: [12, 16], d: [10, 12], h0: 4.2, zone: ['commercial', 'edge', 'road'], loot: 'garage', canopy: true }),
   auto_shop: K({ name: 'auto shop', w: [14, 20], d: [12, 16], h0: 5, zone: ['commercial', 'industrial', 'edge'], bays: [2, 4.4, 4.2], through: true, loot: 'garage', roof: 'ladder' }),
   garage: K({ name: 'garage', w: [6, 8], d: [7, 9], h0: 3.4, zone: ['res', 'edge'], bays: [1, 4.0, 3.0], roof: 'none', parapet: 0, loot: 'garage' }),
   parking: K({ name: 'parking structure', w: [28, 34], d: [30, 38], storeys: [2, 4], h0: 3.6, zone: ['core', 'commercial'], bays: [2, 6.0, 3.2], through: true, loot: 'garage', open: true, parapet: 1.1 }),
