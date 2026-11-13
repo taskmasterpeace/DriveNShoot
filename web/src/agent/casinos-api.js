@@ -263,12 +263,15 @@ export async function casinoChecks(api, check, C) {
       if (!robA?.runner) return 'no runner from the robbery check';
       const R = robA.R, run = robA.runner, SS = g.stories, place = run.stops.at(-1).board, board = SS.boardOf(place);
       const before = R.posted === null && !SS.bounties.some((b) => b.deed.seq === R.seq);
-      const house0 = robA.fl.cage + robA.fl.safe.cash;
+      // the house's money: the cage, the safe, and what a guard is carrying from one to the other right now (the float:
+      // systems/casinos.js float / carried). Without the cash in transit a carry that starts during the wait reads as a loss.
+      const houseNow = () => robA.fl.cage + robA.fl.safe.cash + (robA.fl.carrying?.amt ?? 0);
+      const house0 = houseNow();
       let t = 0; while (!R.posted && run.c.alive && t < 120) { await C('step', { seconds: 1 }); t++; }
       const b = R.posted ? SS.bounty(R.posted.bounty) : null;
       const onBoard = b && SS.k.holds(board, b.fact);
       const arrived = Math.hypot(run.c.x - place.x, run.c.z - place.z) < WITNESS.arrive + 2;
-      const paidByHouse = b && house0 - (robA.fl.cage + robA.fl.safe.cash) === b.pay;
+      const paidByHouse = b && house0 - houseNow() === b.pay;
       const ok = before && b && b.target.kind === 'player' && onBoard && arrived && paidByHouse && b.deed.seq === R.seq;
       return ok ? true : JSON.stringify({ before, posted: R.posted, fail: R.postFail, onBoard, arrived, paidByHouse, t, seq: R.seq });
     });
