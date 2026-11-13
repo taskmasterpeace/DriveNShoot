@@ -75,15 +75,18 @@ export class VehicleDamage {
       const drop = { front: ['bumperF', 'hood'], rear: ['bumperR'], left: ['doorL', 'doorL2'], right: ['doorR', 'doorR2'] }[zone];
       for (const p of drop) if (!d.off[p] && Math.random() < 0.6) this.detach(v, p, zone, strength);
     }
+    this.g.dmgFeel?.onHit(v, zone, k, kind, lx); // the alignment, the brakes, the windshield (systems/damagefeel.js)
     if (v.driver === this.g.player && kind === 'crash' && k > 0.1) this.g.emit('vehicleDamage', { vehicle: v.id, zone, dent: +d.zones[zone].toFixed(2) });
   }
 
   popTyre(v, t) {
-    if (!v.dmg || v.dmg.tyres[t] <= 0) return;
+    if (!v.dmg || v.boat || v.tracked) return; // a hull has no tyres; a track has no air to lose
+    if (v.bike) t = t[0] === 'F' ? 'FL' : 'RL'; // a bike's two wheels are FL and RL
+    if (v.dmg.tyres[t] <= 0) return;
     if (v.utility?.solidtyres) return; // puncture-proof: no air to lose (data/workshop.js UTILITY)
     v.dmg.tyres[t] = 0;
     v.dmg.dirty = true;
-    this.g.audio.tyrePop?.(this.g.pan(v.x));
+    if (!this.g.dmgFeel?.onBlowout(v)) this.g.audio.tyrePop?.(this.g.pan(v.x)); // the recorded bang, else the synth one
     this.g.fx.dust(v.x, v.z, 3);
     this.g.emit('tyrePopped', { vehicle: v.id, tyre: t });
     if (v.driver === this.g.player) this.g.hud.toast(`TYRE BLOWN (${t})`, 'warn');
@@ -150,7 +153,7 @@ export class VehicleDamage {
       if (name && d.off[name]) { pos.array[i * 3] = 0; pos.array[i * 3 + 1] = 0.9; pos.array[i * 3 + 2] = 0; continue; }
       if (part >= PART.wheelFL && part <= PART.wheelRR) {
         const t = TYRES[part - PART.wheelFL];
-        if (d.tyres[t] <= 0) y = y * 0.7; // flat: the tyre squats onto the rim
+        if (d.tyres[t] <= 0) y = y * (d.rim && d.rim[t] <= 0 ? 0.55 : 0.7); // flat: the tyre squats onto the rim; the rim gone, lower still
       } else {
         // Smooth, noisy inward crush per zone.
         const nz = z / (L / 2), nx = x / (W / 2);
@@ -161,6 +164,7 @@ export class VehicleDamage {
         x -= l * 0.42 * noise; x += rt * 0.42 * noise;
         y -= (f + r + l + rt) * 0.18 * noise * Math.max(0, y - 0.5);
         // Scraped paint: crushed metal reads from above as bare, dark, scratched steel.
+        if ((name === 'bumperF' && d.zones.front >= 0.45) || (name === 'bumperR' && d.zones.rear >= 0.45)) y -= 0.3 * Math.min(1, Math.abs(x) / (W / 2) + 0.3); // hanging off: it drags (damagefeel.js)
         const crush = Math.min(1, (f + r + l + rt) * 1.3) * (0.75 + 0.25 * Math.sin(x * 23 + z * 17));
         if (col && part !== PART.glass && part !== PART.light) {
           col.array[i * 3] = bc[i * 3] + (0.24 - bc[i * 3]) * crush;
@@ -185,7 +189,7 @@ export class VehicleDamage {
     if ((v.empUntil ?? 0) > g.time) power = 0; // an EMP stalled it (systems/workshop.js)
     if (d.engine < 0.45 && v.throttle > 0) {
       d.misfire -= dt;
-      if (d.misfire <= 0) { d.misfire = 0.4 + Math.random() * (d.engine * 3); power *= 0.1; g.audio.backfire?.(g.pan(v.x)); g.fx.smoke(v.x + Math.sin(v.h) * v.len * 0.4, 1.2, v.z + Math.cos(v.h) * v.len * 0.4, true); }
+      if (d.misfire <= 0) { d.misfire = 0.4 + Math.random() * (d.engine * 3); power *= 0.1; if (!g.dmgFeel?.onMisfire(v)) g.audio.backfire?.(g.pan(v.x)); g.fx.smoke(v.x + Math.sin(v.h) * v.len * 0.4, 1.2, v.z + Math.cos(v.h) * v.len * 0.4, true); }
     }
     // Radiator: holed radiators overheat under throttle; boiling cooks the engine. A sound one sheds its heat: flat out
     // the temperature settles at 0.4, under the boil, so an hour on the interstate never cooks a healthy engine (it used
@@ -203,13 +207,8 @@ export class VehicleDamage {
     if (leak > 0) { d.trailT = (d.trailT ?? 0) - dt; if (d.trailT <= 0) { d.trailT = 0.18; g.fx.decal(v.x - Math.sin(v.h) * v.len * 0.45, v.z - Math.cos(v.h) * v.len * 0.45, 0.35 + Math.random() * 0.2, '#1c1a14'); g.fuelTrail?.push({ x: v.x, z: v.z, t: g.time }); } }
     if (v.fuel <= 0 && !v.noEngine) power = 0; // a raft or a ferry is poled or hauled, not fuelled (data/sealife.js)
     // Tyres: flats cost grip, pull the steering, cap speed, throw sparks off the rim.
-    let grip = 1, pull = 0, top = 1;
-    const flat = v.utility?.runflat ? 0.4 : 1; // run-flat inserts: a blown tyre still rolls (data/workshop.js UTILITY)
-    for (const t of TYRES) if (d.tyres[t] <= 0) {
-      grip -= 0.16 * flat; top -= 0.12 * flat;
-      pull += (t[1] === 'L' ? 1 : -1) * 0.18 * flat; // drags toward the flat side
-      if (Math.random() < dt * 10 * Math.min(1, g.vehiclesSys.speed(v) / 10)) g.fx.spawn(1, v.x, 0.3, v.z, (Math.random() - 0.5) * 4, 1, (Math.random() - 0.5) * 4, 0.25, 0.05, '#ffd060', 14);
-    }
+    // (the flats - pull, shimmy, tail, sag, the rim - are systems/damagefeel.js apply, below)
+    const grip = 1, pull = 0, top = 1;
     // Lamps: one dies before the other (which one is fixed per car), both flicker once the wiring is
     // hurt, all dark at zero; a crushed tail takes the tail lamps. vehiclelights.js reads these.
     const flick = d.lights < 0.4 && Math.random() < 0.15, weakLeft = (v.id.charCodeAt(v.id.length - 1) & 1) === 0;
@@ -219,7 +218,9 @@ export class VehicleDamage {
     // Rebuild the crumpled mesh at most ~5x/s.
     d.deformT -= dt;
     if (d.dirty && d.deformT <= 0) { d.deformT = 0.2; this.deform(v); }
-    const fx = { power, grip: Math.max(0.35, grip), pull, top: Math.max(0.5, top), brake: 1 };
+    const fx = { power, grip, pull, top, brake: 1, yaw: 0 };
+    g.dmgFeel?.apply(v, dt, fx); // what every hurt feels like through the wheel (systems/damagefeel.js)
+    fx.grip = Math.max(0.3, fx.grip); fx.top = Math.max(0.2, fx.top);
     const out = g.upkeep ? g.upkeep.tick(v, dt, fx) : fx; // oil, the desert's heat, wear (systems/upkeep.js)
     if (v.brakeMul) out.brake = (out.brake ?? 1) * v.brakeMul; // a loaded car stops longer (garage.retune, data/workshop.js PERF)
     return out;
@@ -231,6 +232,7 @@ export class VehicleDamage {
     for (const t of TYRES) v.dmg.tyres[t] = 1;
     for (const z of Object.keys(v.dmg.zones)) v.dmg.zones[z] = 0;
     v.dmg.off = {}; v.dmg.temp = 0; v.dmg.dirty = true; v.dmg.deformT = 0;
+    if (v.dmg.rim) { for (const t of TYRES) v.dmg.rim[t] = 1; v.dmg.align = 0; v.dmg.brakes = 1; v.dmg.seized = false; v.dmg.drag.F = v.dmg.drag.R = 0; } // a garage puts the felt damage right too
     if (v.baseCol) v.mesh.geometry.attributes.color.array.set(v.baseCol);
     v.hp = v.maxHp;
     this.g.look?.clean(v); // a garage repair washes the dust and mud off too (systems/lookfeel.js)
@@ -260,7 +262,7 @@ export class VehicleDamage {
     const d = v.dmg;
     if (!d) return {};
     const r2 = (x) => Math.round(x * 100) / 100;
-    return { parts: { engine: r2(d.engine), radiator: r2(d.radiator), tank: r2(d.tank), lights: r2(d.lights), tyres: Object.fromEntries(TYRES.map((t) => [t, r2(d.tyres[t])])), dents: Object.fromEntries(Object.entries(d.zones).map(([k, x]) => [k, r2(x)])), panelsLost: Object.keys(d.off), engineTemp: r2(d.temp) }, fuel: Math.round(v.fuel), fuelCap: v.fuelCap };
+    return { feel: this.g.dmgFeel?.view(v) ?? null, parts: { engine: r2(d.engine), radiator: r2(d.radiator), tank: r2(d.tank), lights: r2(d.lights), tyres: Object.fromEntries(TYRES.map((t) => [t, r2(d.tyres[t])])), dents: Object.fromEntries(Object.entries(d.zones).map(([k, x]) => [k, r2(x)])), panelsLost: Object.keys(d.off), engineTemp: r2(d.temp) }, fuel: Math.round(v.fuel), fuelCap: v.fuelCap };
   }
 }
 

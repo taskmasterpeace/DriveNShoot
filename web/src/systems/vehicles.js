@@ -336,6 +336,7 @@ export class Vehicles {
       // crash, a shove) settled on the target + 2πk instead and spun at ~28 rad/s for good, in place, at 16 m/s,
       // flattening anyone near it (a traffic LAWMAN spinning by the sheriff's corner ran bounty-run's player down).
       v.av += (steerAmt * Math.sign(fwd || 1) - v.av) * Math.min(1, dt * 10);
+      if (fxm.yaw) v.av += fxm.yaw * Math.min(1, dt * 10); // a rear flat walks the tail (systems/damagefeel.js)
     } else {
       v.av *= Math.exp(-dt * 2);
       // Left in park (Seats.leave: you got out of the driver's seat): the brakes hold it. A car you stepped out of
@@ -783,7 +784,7 @@ export class Vehicles {
       // The body: ride height (a landing can sink it into its springs, but never the tyres into the dirt), pitched and
       // rolled to the ground or to the arc it is flying; a bike adds its lean and its wheelie.
       v.group.position.set(v.x, Math.max(v.y, v.gy - 0.07) + (v.liftY ?? 0) + (v.climbY ?? 0), v.z); // liftY: monster tyres; climbY: up on a car it is crushing (workshop.js)
-      v.group.rotation.set(-v.pitch, v.h, v.roll);
+      v.group.rotation.set(-v.pitch, v.h, v.roll + (v.boat ? 0 : v.dmgRoll ?? 0)); // dmgRoll: sagging onto a flat, its shudder (systems/damagefeel.js)
       if (v.bike) { v.group.rotation.z += v.lean; v.group.rotation.x -= v.wheelie; v.group.position.y += v.wheelie * 0.25; }
       if (v.boat) {
         // Bob on the swell, bank into turns, throw a wake.

@@ -1,3 +1,4 @@
+import { DM_MAX } from '../data/damagefeel.js';
 // The shard's wire rules, shared by the server (web/server/shard.mjs) and the page (src/net/shard.js).
 // Plain data and pure functions only: Node imports this file as it is.
 //
@@ -61,7 +62,7 @@ export function cleanPresence(m) {
   const out = { x: r2(x), z: r2(z), y: r2(fin(m.y, 500) ?? 0), f: r2(fin(m.f, 100) ?? 0), s: r2(fin(m.s, 200) ?? 0), w: word(m.w) ?? null, a: m.a ? 1 : 0, hp: Math.round(fin(m.hp, 10000) ?? 100), d: m.d ? 1 : 0 };
   if (m.v && typeof m.v === 'object') {
     const vx = fin(m.v.x), vz = fin(m.v.z), t = word(m.v.t);
-    if (vx !== null && vz !== null && t) out.v = { t, x: r2(vx), z: r2(vz), h: r2(fin(m.v.h, 100) ?? 0), c: paint(m.v.c) ?? '#6a2a1a', seat: Math.max(0, Math.min(8, Math.round(fin(m.v.seat, 8) ?? 0))) };
+    if (vx !== null && vz !== null && t) out.v = { t, x: r2(vx), z: r2(vz), h: r2(fin(m.v.h, 100) ?? 0), c: paint(m.v.c) ?? '#6a2a1a', seat: Math.max(0, Math.min(8, Math.round(fin(m.v.seat, 8) ?? 0))), dm: Math.max(0, Math.min(DM_MAX, Math.round(fin(m.v.dm, DM_MAX) ?? 0))) }; // dm: the car's felt damage (data/damagefeel.js)
   }
   return out;
 }

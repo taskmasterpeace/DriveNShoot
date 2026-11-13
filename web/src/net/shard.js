@@ -499,6 +499,7 @@ export class Shard {
         const v = r.car = this.ghostCar(r.id, s.v, s.v.x, s.v.z, s.v.h);
         if (v) {
           Object.assign(v, { x: s.v.x, z: s.v.z, h: s.v.h, vx: 0, vz: 0, av: 0, throttle: 0, hp: v.maxHp, onFire: 0 });
+          g.dmgFeel?.decode(v, s.v.dm ?? 0); // the same flats, smoke and steam as on its driver's page
           if (c.inVehicle !== v) g.seats.board(c, v, 0);
           this.parked.set(r.id, { name: r.name, flag: r.flag, car: { ...s.v } });
         }
@@ -537,7 +538,7 @@ export class Shard {
   sendPresence() {
     const g = this.g, p = g.player, v = p.inVehicle;
     const m = { t: 'p', x: +(v ? v.x : p.x).toFixed(2), z: +(v ? v.z : p.z).toFixed(2), y: +(p.gy ?? 0).toFixed(2), f: +p.face.toFixed(3), w: p.weapon ?? null, a: p.aiming ? 1 : 0, hp: Math.round(p.hp), d: p.alive ? 0 : 1 };
-    if (v) m.v = { t: v.type, x: +v.x.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), c: /^#[0-9a-f]{6}$/i.test(v.paint ?? '') ? v.paint : '#6a2a1a', seat: p.seat ?? 0 };
+    if (v) m.v = { t: v.type, x: +v.x.toFixed(2), z: +v.z.toFixed(2), h: +v.h.toFixed(3), c: /^#[0-9a-f]{6}$/i.test(v.paint ?? '') ? v.paint : '#6a2a1a', seat: p.seat ?? 0, dm: g.dmgFeel?.encode(v) ?? 0 }; // dm: its flats, smoke, steam, a hanging bumper (systems/damagefeel.js)
     this.send(m);
   }
 

@@ -44,6 +44,7 @@ import { CharSheet } from './ui/charsheet.js';
 import { Radio } from './systems/radio.js';
 import { Garage } from './systems/garage.js';
 import { Workshop } from './systems/workshop.js';
+import { DamageFeel } from './systems/damagefeel.js'; // VEHICLES V2: damage you feel (data/damagefeel.js)
 import { WorkshopUI } from './ui/workshop.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
@@ -230,6 +231,7 @@ class Game {
     this.fuelTrail = [];
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
+    this.dmgFeel = new DamageFeel(this); // flats, rims, alignment, brakes, a seized engine, a dragging bumper: felt and heard (systems/damagefeel.js)
     this.towing = new Towing(this); // tow lines between vehicles, the winch, bogged cars, the boat trailer (systems/towing.js)
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
@@ -1046,6 +1048,7 @@ class Game {
     // A dog at your feet (systems/dogs.js): E feeds it, bandages it, or tells yours to stay or follow. C whistles (taps and a
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
+    if (!best && bestV && !p.inVehicle && this.dmgFeel.fixKey(p, bestV, I, dt)) return; // at the car's flat wheel, bent front or hanging bumper: hold E fixes it (systems/damagefeel.js)
     const rsSpot = !best ? this.roadside.spotNear(p) : null;
     const dog = !best && !bestV && !rsSpot ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
@@ -1357,6 +1360,7 @@ class Game {
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
       this.semis.update(simDt); this.nanGuard('semis');
+      this.dmgFeel.update(); // the damage loops of the car you are in
       this.travel.update(simDt); this.nanGuard('travel'); // the trundle on the road, the iron's riders, the boards
       this.clone.update(simDt); // brine money, the pickers on your husks, the husk drawn near you
       this.ambient.update(simDt);

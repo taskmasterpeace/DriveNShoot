@@ -4206,6 +4206,206 @@
      }
     ]
    }
+  },
+  "vehdmg": {
+   "tyre.flap": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/tyre.flap.0.ogg",
+      "src": "elevenlabs sound-generation: Close recording of a car driving slowly on a completely flat tire, rhythmic flapping rubber slapping the road, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 23850,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/tyre.flap.1.ogg",
+      "src": "elevenlabs sound-generation: Close recording of a car driving slowly on a completely flat tire, rhythmic flapping rubber slapping the road, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 22029,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/tyre.flap.2.ogg",
+      "src": "elevenlabs sound-generation: Close recording of a car driving slowly on a completely flat tire, rhythmic flapping rubber slapping the road, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 24623,
+      "loop": true
+     }
+    ]
+   },
+   "rim.scrape": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/rim.scrape.0.ogg",
+      "src": "elevenlabs sound-generation: Metal wheel rim grinding and scraping on asphalt as a car drives on a destroyed tire, harsh metallic grinding, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 21637,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/rim.scrape.1.ogg",
+      "src": "elevenlabs sound-generation: Metal wheel rim grinding and scraping on asphalt as a car drives on a destroyed tire, harsh metallic grinding, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 21112,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/rim.scrape.2.ogg",
+      "src": "elevenlabs sound-generation: Metal wheel rim grinding and scraping on asphalt as a car drives on a destroyed tire, harsh metallic grinding, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 20683,
+      "loop": true
+     }
+    ]
+   },
+   "bumper.drag": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/bumper.drag.0.ogg",
+      "src": "elevenlabs sound-generation: Loose metal car bumper dragging and scraping along the road under a moving car, rattling scraping metal, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 21286,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/bumper.drag.1.ogg",
+      "src": "elevenlabs sound-generation: Loose metal car bumper dragging and scraping along the road under a moving car, rattling scraping metal, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 21039,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/bumper.drag.2.ogg",
+      "src": "elevenlabs sound-generation: Loose metal car bumper dragging and scraping along the road under a moving car, rattling scraping metal, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2,
+      "bytes": 21512,
+      "loop": true
+     }
+    ]
+   },
+   "steam.hiss": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/steam.hiss.0.ogg",
+      "src": "elevenlabs sound-generation: Overheated car engine radiator boiling over, loud steady steam hiss with faint bubbling, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2.5,
+      "bytes": 23368,
+      "loop": true
+     },
+     {
+      "f": "vehdmg/steam.hiss.1.ogg",
+      "src": "elevenlabs sound-generation: Overheated car engine radiator boiling over, loud steady steam hiss with faint bubbling, steady loop, no music",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 2.5,
+      "bytes": 23729,
+      "loop": true
+     }
+    ]
+   },
+   "brake.grind": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/brake.grind.0.ogg",
+      "src": "elevenlabs sound-generation: Worn out car brakes grinding metal on metal as the car slows down, short harsh brake grind and squeal",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 12518
+     },
+     {
+      "f": "vehdmg/brake.grind.1.ogg",
+      "src": "elevenlabs sound-generation: Worn out car brakes grinding metal on metal as the car slows down, short harsh brake grind and squeal",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 12786
+     },
+     {
+      "f": "vehdmg/brake.grind.2.ogg",
+      "src": "elevenlabs sound-generation: Worn out car brakes grinding metal on metal as the car slows down, short harsh brake grind and squeal",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 1.2,
+      "bytes": 13115
+     }
+    ]
+   },
+   "engine.misfire": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/engine.misfire.0.ogg",
+      "src": "elevenlabs sound-generation: Single car engine misfire, a sputtering cough and a small backfire pop from the exhaust",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 0.8,
+      "bytes": 10745
+     },
+     {
+      "f": "vehdmg/engine.misfire.1.ogg",
+      "src": "elevenlabs sound-generation: Single car engine misfire, a sputtering cough and a small backfire pop from the exhaust",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 0.8,
+      "bytes": 9836
+     },
+     {
+      "f": "vehdmg/engine.misfire.2.ogg",
+      "src": "elevenlabs sound-generation: Single car engine misfire, a sputtering cough and a small backfire pop from the exhaust",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 0.8,
+      "bytes": 10104
+     }
+    ]
+   },
+   "tyre.blowout": {
+    "mode": "generated",
+    "files": [
+     {
+      "f": "vehdmg/tyre.blowout.0.ogg",
+      "src": "elevenlabs sound-generation: Car tire blowout while driving, a loud sharp bang followed by rubber flapping",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 1,
+      "bytes": 10503
+     },
+     {
+      "f": "vehdmg/tyre.blowout.1.ogg",
+      "src": "elevenlabs sound-generation: Car tire blowout while driving, a loud sharp bang followed by rubber flapping",
+      "lic": "elevenlabs-generated",
+      "at": 0,
+      "dur": 1,
+      "bytes": 10478
+     }
+    ]
+   }
   }
  },
  "note": "tools/audio-pick.mjs writes this from the studio library; data/audiosets.js reads it. Files under public/audio/.",

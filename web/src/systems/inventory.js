@@ -208,12 +208,12 @@ export class Inventory {
       v.fuel = Math.min(v.fuelCap, v.fuel + it.use.litres);
       return { ok: true, text: `+${it.use.litres} L FUEL` };
     }
-    if (verb === 'tyre') {
+    if (verb === 'tyre') { // a wheel is changed on your knees at it, with a jack (systems/damagefeel.js fixKey)
       const t = d && Object.keys(d.tyres).find((k) => d.tyres[k] <= 0);
       if (!t) return { ok: false, why: v ? 'none of its tyres is flat' : 'no vehicle close enough' };
-      d.tyres[t] = 1; d.dirty = true;
-      return { ok: true, text: 'TYRE CHANGED' };
+      return { ok: false, why: this.carried.count('car_jack') ? 'kneel at the flat wheel and hold E' : 'you need a jack too - then kneel at the flat wheel and hold E' };
     }
+    if (verb === 'coolant') return g.dmgFeel?.coolant(v) ?? { ok: false, why: 'not here' };
     if (verb === 'repair') {
       if (!d) return { ok: false, why: 'no vehicle close enough to work on' };
       const part = ['engine', 'radiator', 'tank'].reduce((a, b) => (d[b] < d[a] ? b : a));
