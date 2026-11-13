@@ -465,11 +465,13 @@ export class Inventory {
   armBody(box, c) {
     const k = c.weapon, id = GUN_ITEM[k], W = WEAPONS[k];
     if (!id || !W) return;
+    const before = this.g.ledger?.snap(box); // the stock ledger: a dead person's own gun and rounds ('body')
     const F = GUN_FOUND[c.faction] ?? GUN_FOUND.default, rng = makeRng(box.seed ^ 0x9e3779b9);
     const r = (a) => a[0] + rng() * (a[1] - a[0]);
     this.add(box, id, 1, { cond: +r(F.cond).toFixed(3), loaded: Math.round(W.mag * r(F.loaded)) });
     const spare = Math.round(r(F.spare));
     if (spare > 0 && AMMO_ITEM[W.ammo]) this.add(box, AMMO_ITEM[W.ammo], spare);
+    if (before) this.g.ledger.stampGain(box, before, 'body');
   }
 
   // The gunsmith brings a gun back to clean for a share of its worth per point of wear (GUN_CARE.smith).
@@ -559,9 +561,16 @@ export class Inventory {
   }
 
   // extra: rolls on top (the player's luck, systems/gear.js): drawn after the box's own, so they only ever add.
-  roll(box, extra = 0, table = box.kind) {
+  roll(box, extra = 0, table = box.kind, origin = 'roll') {
     const T = LOOT[table];
     if (!T) return;
+    // The stock ledger (systems/stockLedger.js): what a first roll puts in a box is the world's one honest source of found
+    // goods ('roll'). Every caller rolls a box once (box.rolled), so a box is stamped once.
+    const L = box.id.startsWith('tmp:') ? null : this.g.ledger, before = L?.snap(box); // tmp: a resident's pockets (systems/residents.js found), counted when they lie dead ('body')
+    this.rollRows(box, extra, T);
+    if (before) L.stampGain(box, before, origin);
+  }
+  rollRows(box, extra, T) {
     const rng = makeRng(box.seed);
     if (T.all) { for (const [id, , lo, hi] of T.rows) { const it = ITEMS[id]; this.add(box, id, lo + Math.floor(rng() * (hi - lo + 1)), it.kind === 'gun' ? { cond: +(0.7 + rng() * 0.25).toFixed(3), loaded: 0 } : {}); } return; } // a set piece: every row, once (data/fannods.js)
     const n = T.rolls[0] + Math.floor(rng() * (T.rolls[1] - T.rolls[0] + 1)) + extra;

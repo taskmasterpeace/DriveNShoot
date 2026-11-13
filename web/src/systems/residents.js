@@ -374,7 +374,7 @@ export class Residents {
     if (inv.boxes.has(id)) return inv.boxes.get(id);
     const box = inv.place(id, rec.R.loot ?? 'person', m.x, m.z, 20, `${(m.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`, m.seed);
     if (m.body) box.slots = m.body.map((s) => ({ ...s }));
-    else { if (m.carry) box.slots = m.carry.map((s) => ({ ...s })); else inv.roll(box); if (m.weapon) inv.armBody(box, { weapon: m.weapon, faction: rec.R.faction }); }
+    else { if (m.carry) { box.slots = m.carry.map((s) => ({ ...s })); this.g.ledger?.stampGain(box, new Map(), 'body'); } else inv.roll(box); if (m.weapon) inv.armBody(box, { weapon: m.weapon, faction: rec.R.faction }); } // what they carried: the stock ledger's 'body'
     box.rolled = true;
     return box;
   }

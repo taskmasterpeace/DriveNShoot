@@ -57,7 +57,8 @@ import { Storeys } from './world/storeys.js';
 import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
 import { InventoryUI } from './ui/inventory.js';
-import { ITEMS, GUN_CARE } from './data/items.js';
+import { ITEMS, GUN_CARE, AMMO_ITEM, GUN_ITEM } from './data/items.js';
+import { StockLedger } from './systems/stockLedger.js';
 import { Trade } from './systems/trade.js';
 import { ZOOM, CAMERA } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
@@ -300,6 +301,7 @@ class Game {
     this.charSheet = new CharSheet(this); // ` the character sheet
     this.radio = new Radio(this); // the stations: in a car or with a portable radio, , and . walk the dial
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
+    this.ledger = new StockLedger(this, { ammoOf: (k) => AMMO_ITEM[WEAPONS[k]?.ammo], items: ITEMS, gunItem: GUN_ITEM }); // the stock ledger: every gain stamped with its origin, an hourly census flags the rest (WEB_SUPPLY_LAW.md)
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
@@ -544,7 +546,7 @@ class Game {
   // ---- game rules -------------------------------------------------------------------
   give({ cash = 0, ammo = {} }) {
     this.cash += cash;
-    for (const k in ammo) this.inv.ammo[k] += ammo[k];
+    for (const k in ammo) { this.inv.ammo[k] += ammo[k]; if (ammo[k] > 0) this.ledger?.stamp(AMMO_ITEM[k], ammo[k], 'minted', 'give'); } // a reward from nowhere (data/rites.js LOOT_LAW todo): the stock ledger flags it
     if (cash) this.hud.toast(`+ $${cash}`, 'job');
   }
   spend(n) {
@@ -1428,6 +1430,7 @@ class Game {
       this.zombies.update(simDt);
       this.dogs.update(simDt);
       this.crew.update(simDt); // the downed bleed, deeds move trust, jobs on the game clock, dawn
+      this.ledger.update(); // the hourly census (systems/stockLedger.js)
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.horses.update(simDt); // horses: feed and water on the game clock, the herd, the ridden and the tied (systems/horses.js)
       this.updatePopulation(simDt);

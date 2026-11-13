@@ -151,9 +151,15 @@ export const LOOT_LAW = [
   { path: 'foraging regrowth (systems/outdoors.js regrowPerDay)', was: 'plants grow back', state: 'allowed', now: 'the law keeps it (plants grow)' },
   { path: 'rain catchers (systems/outdoors.js refill)', was: 'water from the sky', state: 'allowed', now: 'the law keeps it (rain falls)' },
   { path: 'water/fuel refill items (data/items.js refill)', was: 'fill at a source', state: 'allowed', now: 'only at a real source (river, pump, tank)' },
-  { path: 'the mechanic\'s "refill the guns and droppers" (data/npcs.js)', was: 'paid, rounds from nowhere', state: 'todo', now: 'TODO COURIER lane: draw from the mechanic\'s own shelves' },
-  { path: 'dialogue give:{ammo,weapon} (content packs, quests)', was: 'a reward minted', state: 'todo', now: 'TODO: quest rewards from the giver\'s own boxes' },
+  { path: 'the mechanic\'s "refill the guns and droppers" (data/npcs.js)', was: 'paid, rounds from nowhere', state: 'todo', now: 'TODO COURIER lane: draw belts and charges from the mechanic\'s own shelves (mount rounds are not items yet, so the ledger cannot see this one; WEB_SUPPLY_LAW.md open list)' },
+  { path: 'dialogue give:{ammo,weapon} (content packs, quests)', was: 'a reward minted', state: 'todo', now: 'TODO: quest rewards from the giver\'s own boxes (stamped minted meanwhile: the stock ledger flags every one; WEB_SUPPLY_LAW.md open list)' },
   { path: 'RV / deck water tanks (systems/decks.js)', was: 'filled at a source', state: 'allowed', now: 'unchanged (filled from water that exists)' },
+  // The supply law (docs/design/WEB_SUPPLY_LAW.md, 2026-11-12): the three crew jobs that made goods from nothing.
+  { path: 'crew FARM PLOT (systems/crew.js farm)', was: 'a ration every 12 game hours, no inputs', state: 'gated', now: 'the farming lane\'s real beds: seed, water and days (systems/farming.js crewTend); every pick stamped a harvest' },
+  { path: 'crew SCAVENGE RUN (systems/crew.js startRun / tickRuns)', was: 'a seeded crew_run table rolled off-screen', state: 'gated', now: 'opens the real unopened boxes near the base, rolled once; what is left stays in them; nothing in reach, nothing found' },
+  { path: 'crew CRAFT AMMO (systems/crew.js ammo)', was: '1 scrap made 8 pistol rounds (more with skill)', state: 'gated', now: 'the load_pistol recipe row: 8 brass + 8 primers + powder + lead make 8 rounds (systems/crafting.js crewRun); stamped a recipe' },
+  { path: 'the stock ledger (systems/stockLedger.js)', was: 'none: nothing counted goods', state: 'gated', now: 'every gain stamped with its origin; an hourly census flags any rise its stamps do not cover, and every minted stamp' },
+  { path: 'residents back from a run (systems/residents.js found)', was: 'a finds table rolled off-screen into their pockets', state: 'todo', now: 'TODO: the same law as the crew run (real boxes near home); listed in WEB_SUPPLY_LAW.md' },
 ];
 export const DELIVERY = { sources: ['courier', 'caravan', 'producer', 'player'] };
 

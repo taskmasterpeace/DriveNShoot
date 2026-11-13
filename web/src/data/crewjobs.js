@@ -13,7 +13,7 @@
 //   effect    the system verb: heal | mend | clean | feed | watch | lookout | navigate | drive | gun | guard | scavenge
 //             | repair | ammo | radio | farm
 //   risk      0-1: an off-screen job's chance of trouble per cycle (wounds; trouble x risk again = they do not come back)
-//   offscreen true: the member leaves the map for the duration (a run), and comes back with what the roll says
+//   offscreen true: the member leaves the map for the duration (a run), and comes back with what the real boxes held
 //   repeat    true: loops until reassigned
 export const CREW_JOBS = [
   // ---- on the road -------------------------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ export const CREW_JOBS = [
   { id: 'tend', name: 'TEND WOUNDS', where: 'camp', skill: 'medic', hours: 1, effect: 'heal', outputs: { hp: 18 }, repeat: true, desc: 'patches up the hurt, you included' },
   // ---- at a base (a claimed building) ------------------------------------------------------------------------------
   { id: 'guard', name: 'GUARD POST', where: 'base', skill: 'shooting', hours: 0, effect: 'guard', repeat: true, desc: 'holds the door of the base and shoots what comes at it' },
-  { id: 'scav_run', name: 'SCAVENGE RUN', where: 'base', skill: 'scavenge', hours: 6, effect: 'scavenge', risk: 0.22, offscreen: true, outputs: { table: 'crew_run', rolls: 3, pin: 0.5 }, repeat: false, desc: 'goes out alone for six hours: comes back with loot and maybe a map pin, or hurt, or not at all' },
+  { id: 'scav_run', name: 'SCAVENGE RUN', where: 'base', skill: 'scavenge', hours: 6, effect: 'scavenge', risk: 0.22, offscreen: true, outputs: { pin: 0.5 }, repeat: false, desc: 'goes out alone for six hours to the unopened houses near the base (data/supply.js CREW_RUN): brings back what is in them, or nothing when the town is picked clean, or comes back hurt, or not at all' },
   { id: 'repair', name: 'REPAIR VEHICLES', where: 'base', skill: 'mechanic', hours: 2, inputs: { scrap: 1 }, effect: 'repair', outputs: { hp: 0.15 }, repeat: true, desc: 'works on the rig parked at the base' },
   { id: 'ammo', name: 'CRAFT AMMO', where: 'base', skill: 'gunsmith', hours: 3, recipe: 'load_pistol', effect: 'ammo', repeat: true, desc: 'hand-loads rounds from spent brass, powder, primer and lead (the load_pistol recipe row: it eats what it makes)' },
   { id: 'radio', name: 'RADIO WATCH', where: 'base', skill: 'scout', hours: 4, effect: 'radio', outputs: { pin: 1 }, repeat: true, desc: 'listens to the static: a distress call or a cache becomes a pin' },
@@ -37,8 +37,6 @@ export const CREW_JOBS = [
 ];
 export const CREW_JOB_BY_ID = Object.fromEntries(CREW_JOBS.map((j) => [j.id, j]));
 
-// What a scavenge run turns up (rolled on the run's own seed: member id + the hour it left).
-export const CREW_RUN_LOOT = [['bandage', 3, 1, 2], ['ammo_pistol', 4, 4, 12], ['ammo_smg', 2, 8, 20], ['scrap', 4, 1, 3], ['canteen', 2, 1, 1], ['rag', 3, 1, 2], ['ammo_shells', 2, 2, 6], ['suture_kit', 1, 1, 1]];
 
 export function validateCrewJobs(jobs = CREW_JOBS, { skills = [], items = null } = {}) {
   const errors = [], ids = new Set();
@@ -53,6 +51,5 @@ export function validateCrewJobs(jobs = CREW_JOBS, { skills = [], items = null }
     if (j.risk !== undefined && !(j.risk >= 0 && j.risk <= 1)) errors.push(`${at}: risk 0-1`);
     if (items) for (const k of Object.keys(j.inputs ?? {})) if (k !== 'any_food' && !items[k]) errors.push(`${at}: input ${k} is not an item`);
   }
-  if (items) for (const [id] of CREW_RUN_LOOT) if (!items[id]) errors.push(`run loot ${id} is not an item`);
   return { ok: !errors.length, errors, jobs: jobs.length };
 }

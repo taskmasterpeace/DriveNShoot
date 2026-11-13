@@ -289,10 +289,10 @@ export class Crafting {
     }
     for (const [item, n] of r.outputs) {
       const it = ITEMS[item];
-      inv.stow(item, n, it.dur ? { cond: job.q } : {});
+      inv.stow(item, n, it.dur ? { cond: job.q } : {}); g.ledger?.stamp(item, n, 'recipe', r.id); // made from eaten inputs (the stock ledger)
       made.push([item, n]);
     }
-    for (const [item, n] of r.byproducts) { inv.stow(item, n); made.push([item, n]); }
+    for (const [item, n] of r.byproducts) { inv.stow(item, n); g.ledger?.stamp(item, n, 'recipe', r.id); made.push([item, n]); }
     g.deep?.gain?.(r.skill, r.xp * (1 + r.hours * CRAFT_RULES.xpHours), 'craft');
     this.stats.made++; this.stats.byRecipe[r.id] = (this.stats.byRecipe[r.id] ?? 0) + 1;
     const text = r.effect ? made.map(([a, b]) => `${a} ${b}`).join(' · ').toUpperCase() : r.outputs.map(([i, n]) => `${n > 1 ? `${n} ` : ''}${ITEMS[i].name}`).join(' + ').toUpperCase();
@@ -308,7 +308,7 @@ export class Crafting {
     const job = this.queue[index];
     if (!job) return { ok: false, why: 'nothing queued' };
     this.queue.splice(index, 1);
-    for (const [item, n] of job.took) if (n) this.g.inventory.stow(item, n);
+    for (const [item, n] of job.took) if (n) { this.g.inventory.stow(item, n); this.g.ledger?.stamp(item, n, 'recipe', 'cancelled'); } // the inputs back, as taken
     if (job.fee) this.g.cash += job.fee;
     this.dirty = true;
     return { ok: true, refunded: job.took.filter(([, n]) => n), recipe: job.rid };

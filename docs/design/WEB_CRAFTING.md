@@ -104,6 +104,7 @@ Variables: `skill` 0..100 (the deep sheet's value for the recipe's skill); `minS
 - Multiplayer: not synced (a bench is yours); the world's benches are the keepers' and the base lane's.
 
 ## 6. Dependencies
+- **THE SUPPLY LAW** (`WEB_SUPPLY_LAW.md`, 2026-11-12): every made output, byproduct and cancelled refund is stamped `recipe` in the stock ledger; the crew's CRAFT AMMO (`crewRun`) is audited by the `supply law` battery checks.
 
 **Reads:** `items.js` (every row is items), `inventory.js` (`add`/`take`/`stow`, slot `cond`), `stats.js` (skills, perks via
 `g.deep`), `workshop.js` pattern for keepers, `throwables.fires` and burning vehicles (campfire), `society.memory.refuses`
