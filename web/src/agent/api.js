@@ -111,6 +111,7 @@ import { roadsideCommands, roadsideChecks } from './roadside-api.js'; // THE ROA
 import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // THE DEATH LIBRARY and zombie fun: clips, ragdolls, limbs, breed answers, warnings, highway hordes (WEB_DEATHS.md)
 import { firstMinuteCommands, firstMinuteChecks } from './firstminute-api.js'; // THE FIRST MINUTE of a new Florida game (WEB_FIRST_MINUTE.md)
 import { cgRoomsCommands, cgRoomsChecks } from './cgrooms-api.js'; // ROOMS FOR GENERATED BUILDINGS (WEB_CG_ROOMS.md)
+import { camBodyChecks } from './cambody-api.js'; // THE BODY VIEWS: third-person and over the shoulder (WEB_CAMERA_BODY.md)
 import { poundCommands, poundChecks } from './pound-api.js'; // THE SHUT DOOR: the infected beat on it (WEB_DOOR_POUND.md)
 import { reachCommands, reachChecks } from './reach-api.js'; // REACH: no hand through a wall (WEB_REACH.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -1878,13 +1879,16 @@ function buildCommands(api) {
     },
     camera: {
       group: 'player', desc: 'The play camera (data/camera.js, systems/camrig.js, docs/design/WEB_CAMERA.md): view=TOPDOWN|ANGLED|ISO|CHASE (CHASE only at the wheel; on foot it reads as ANGLED), d= the boom length in m for that view and mode (mode=foot|drive picks which memory; default the current one), theta= pin the pitch off vertical in degrees (theta=-1 lets the view choose again), yaw= the ISO turn in degrees (snaps of 90 on [ and ]), cut= the cutaway on/off, settle=true jumps the camera to its target at once. Returns the view, D, theta, yaw, camera height, viewR (the farthest frustum corner on the ground), the nearest named stop, the remembered D of every view, and the cutaway (line height, screen circle). Keyboard: O cycles the view, the wheel zooms (Alt+wheel: weapons), Z / Shift+Z / - / = step the five stops. Pad: VIEW+R3 cycles, VIEW + right stick zooms.',
-      args: { view: { type: 'string' }, d: { type: 'number' }, theta: { type: 'number' }, mode: { type: 'string', enum: ['foot', 'drive'] }, yaw: { type: 'number' }, cut: { type: 'boolean' }, settle: { type: 'boolean', default: false } },
-      run: async ({ view, d, theta, mode, yaw, cut, settle }) => {
+      args: { view: { type: 'string' }, d: { type: 'number' }, theta: { type: 'number' }, mode: { type: 'string', enum: ['foot', 'drive'] }, yaw: { type: 'number' }, cut: { type: 'boolean' }, settle: { type: 'boolean', default: false }, orbit: { type: 'number' }, pitch: { type: 'number' }, shoulder: { type: 'number' } },
+      run: async ({ view, d, theta, mode, yaw, cut, settle, orbit, pitch, shoulder }) => {
         const R = g.cam;
         if (view !== undefined) need(R.setView(view, true), `unknown view "${view}"; known: ${CAMERA.views.join(', ')}`);
         if (d !== undefined) { const m = mode ?? R.mode(), ev = R.eff(m), L = R.limits(ev, m); R.mem[ev][m] = Math.max(L.dMin, Math.min(L.dMax, d)); R.override = null; }
         if (theta !== undefined) R.override = theta < 0 ? null : { theta };
         if (yaw !== undefined) R.isoYaw = Math.atan2(Math.sin((yaw * Math.PI) / 180), Math.cos((yaw * Math.PI) / 180));
+        if (orbit !== undefined) R.orbit = Math.atan2(Math.sin((orbit * Math.PI) / 180), Math.cos((orbit * Math.PI) / 180)); // THIRD / SHOULDER: the way the view faces (0 = north, 90 = west... the boom's yaw)
+        if (pitch !== undefined) R.pitch = (Math.max(CAMERA.body.pitch[0], Math.min(CAMERA.body.pitch[1], pitch)) * Math.PI) / 180;
+        if (shoulder !== undefined) R.shoulder = shoulder < 0 ? -1 : 1;
         if (cut !== undefined) g.cutaway.on = cut;
         if (settle) g.updateCamera(10);
         return { ...R.status(), cutaway: g.cutaway.status(), views: CAMERA.views };
@@ -5841,6 +5845,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await poundChecks({ g, api, C, check, stage, hush });
   await firstMinuteChecks({ g, api, C, check, stage, hush }); // THE FIRST MINUTE: rows, never armed for the harness, the three beats on real state, the save (src/agent/firstminute-api.js) // THE SHUT DOOR: the latch, a sprinter's frenzy, leaning, planks, the noise, giving up, shared rows (src/agent/pound-api.js)
   await cgRoomsChecks({ g, api, C, check }); // ROOMS FOR GENERATED BUILDINGS: rows, every building has rooms, containers reached on foot, no reach through a partition (src/agent/cgrooms-api.js)
+  await camBodyChecks({ g, api, C, check }); // THE BODY VIEWS: rows, never through a wall or a ceiling, walk and aim the way the view faces, TOPDOWN untouched (src/agent/cambody-api.js)
   await reachChecks({ g, api, C, check, stage, hush }); // REACH: a wall, a shut door or a floor stops every E, the PACK list and the agent (src/agent/reach-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee

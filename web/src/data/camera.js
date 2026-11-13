@@ -33,7 +33,7 @@ export const ZOOM = {
 };
 
 export const CAMERA = {
-  views: ['TOPDOWN', 'ANGLED', 'ISO', 'CHASE'],
+  views: ['TOPDOWN', 'ANGLED', 'ISO', 'CHASE', 'THIRD', 'SHOULDER'],
   start: 'TOPDOWN',
   foot: { dMin: 9, dMax: 140, dStart: 22 },
   drive: { dMin: 24, dMax: 175, dStart: 70, speedLift: 0.75 },
@@ -55,8 +55,46 @@ export const CAMERA = {
     ISO: { theta: 35, yawSnap: 90 },
     CHASE: { theta: 52, dStart: 26, dMin: 12, dMax: 90, ahead: 3 }, // ahead: m the look point leads the car
   },
+  // THE BODY VIEWS (docs/design/WEB_CAMERA_BODY.md): THIRD follows behind you, SHOULDER sits over one shoulder. On foot
+  // only (at the wheel both read as CHASE). The mouse (or the right stick) turns the view and looks up and down; W walks
+  // the way the view faces. The boom never passes a wall and never rises through the ceiling of the floor you are on.
+  //   dMin/dMax/dStart  the boom (m); side: m off your centre line to the shoulder; eye: m above your feet it pivots at
+  //   aimD   SHOULDER while you hold aim (right button): the boom pulls in to this
+  //   pitch  [down, up] limits (deg; 0 = level); pitchStart; sens: rad per mouse pixel (x the setting); padRate: rad/s
+  //   pad    m the boom stops short of a wall; ceil: the ceiling over a floor you stand on indoors (m), ceilGap under it;
+  //   floor  the camera never sinks under this (m over your feet); hardMin: the boom never shorter than this
+  //   near   the near plane (m); viewR: the 'in sight' radius reported to spawners and the sun's shadow box (m);
+  //   aimRange  how far out the aim point sits when nothing stops it (m); rate: 1/s the boom settles
+  body: {
+    THIRD: { dMin: 2.2, dMax: 9, dStart: 5, side: 0, eye: 1.55 },
+    SHOULDER: { dMin: 1.2, dMax: 2.8, dStart: 2.0, side: 0.55, eye: 1.6, aimD: 1.25 },
+    pitch: [-55, 60], pitchStart: -10, sens: 0.0026, padRate: 2.4, pad: 0.3, ceil: 2.8, ceilGap: 0.25, floor: 0.35, hardMin: 0.35,
+    near: 0.12, viewR: 110, aimRange: 30, rate: 9,
+  },
   // The cutaway (systems/cutaway.js): inside a screen circle of `radius` m round you, whatever stands between the camera
   // and you above `knee` m over your feet dither-fades (walls, roofs, upper storeys, trees, overpass decks). In a car the
   // line is `carClear` m over the car (its own roof and the deck it drives on stay). `soft` is the dithered rim's share.
   cutaway: { radius: 5.5, knee: 0.6, carClear: 1.8, soft: 0.35 },
 };
+
+// The body views' rows (CAMERA.body): problems, or [].
+export function validateCameraBody() {
+  const bad = [], B = CAMERA.body;
+  for (const v of ['THIRD', 'SHOULDER']) {
+    const r = B[v];
+    if (!CAMERA.views.includes(v)) bad.push(`${v}: not in CAMERA.views`);
+    if (!r || !(r.dMin >= B.hardMin && r.dMin < r.dMax && r.dStart >= r.dMin && r.dStart <= r.dMax)) bad.push(`${v}: boom dMin <= dStart <= dMax, never under hardMin (${B.hardMin})`);
+    if (r && !(r.eye >= 1.2 && r.eye <= 1.9)) bad.push(`${v}.eye: 1.2-1.9 m`);
+    if (r && !(Math.abs(r.side) <= 1)) bad.push(`${v}.side: within 1 m`);
+    if (r?.aimD !== undefined && !(r.aimD >= B.hardMin && r.aimD <= r.dMax)) bad.push(`${v}.aimD: between hardMin and dMax`);
+  }
+  if (!(B.pitch[0] < 0 && B.pitch[1] > 0 && B.pitch[0] >= -80 && B.pitch[1] <= 80)) bad.push('body.pitch: [down < 0, up > 0], within 80 degrees');
+  if (!(B.pitchStart >= B.pitch[0] && B.pitchStart <= B.pitch[1])) bad.push('body.pitchStart: inside the pitch range');
+  if (!(B.ceil >= 2.2 && B.ceil <= 4 && B.ceilGap > 0 && B.ceil - B.ceilGap > 1.9)) bad.push('body.ceil: 2.2-4 m, and head height left under it');
+  if (!(B.floor > 0.1 && B.floor < 1)) bad.push('body.floor: 0.1-1 m');
+  if (!(B.pad >= 0.15 && B.pad <= 0.8)) bad.push('body.pad: 0.15-0.8 m');
+  if (!(B.near > 0.02 && B.near <= 0.3)) bad.push('body.near: 0.02-0.3 m');
+  if (!(B.viewR >= 60 && B.viewR <= 300)) bad.push('body.viewR: 60-300 m');
+  if (CAMERA.start !== 'TOPDOWN') bad.push('CAMERA.start must stay TOPDOWN');
+  return bad;
+}

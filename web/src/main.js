@@ -847,6 +847,7 @@ class Game {
     // Something on the wing under the cursor (the wilds lane's hook: fauna.pickAir(ray) -> { x, z, y } or null): aim at it.
     this.aimAir = this.aimOverride ? null : this.fauna?.pickAir?.(_ray.ray) ?? null;
     if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
+    if (!this.aimOverride && this.cam.body()) { const a = this.cam.aimPoint(p); this.aim.x = a.x; this.aim.z = a.z; this.aimAir = null; } // THIRD / SHOULDER: you aim the way the view faces (systems/camrig.js)
     p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
     // I / TAB / ESC always shut the PACK, whatever else holds the keys (a talk, sleep, a blackout): never stuck open.
@@ -1280,8 +1281,10 @@ class Game {
       // Lean the view toward the cursor so you can see what you shoot (further out at a wider zoom).
       // Look far (held): all the way to the cursor, out to most of the screen (systems/camrig.js leanMax).
       const lean = C.leanMax(), share = C.looking ? 1 : CAMERA.lean;
-      tx += clamp((this.aim.x - p.x) * share, -lean, lean);
-      tz += clamp((this.aim.z - p.z) * share, -lean, lean);
+      if (!C.body()) { // (a body view looks from you, not at a leaned point)
+        tx += clamp((this.aim.x - p.x) * share, -lean, lean);
+        tz += clamp((this.aim.z - p.z) * share, -lean, lean);
+      }
     }
     // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
     // On real terrain (flag, world/realterrain.js) it keeps its height above the ground it looks at.
@@ -1310,14 +1313,21 @@ class Game {
       if (!inside && (Math.abs(p.x) > 464 || Math.abs(p.z) > 464)) inside = this.streamer.ringBuildingAt(p.x, p.z);
       if (!inside) inside = this.citygen?.buildingAt(p.x, p.z) ?? null; // a generated settlement's (systems/citygen.js)
     }
-    const S = inside?.storey ?? null;
+    // TOP-DOWN and the other high views lift the roof and every floor above yours so you can see yourself. THIRD and
+    // SHOULDER are inside the room with you: the building is drawn whole (its ceiling is the deck above; systems/camrig.js
+    // keeps the camera under it), so nothing is cut open.
+    const body = !!this.cam.body(), S = body ? null : inside?.storey ?? null;
     this.storeys.setView(S, p.gy ?? 0);
     this.charR.cullAbove = S ? { b: inside, y: (p.gy ?? 0) + LEVEL.same } : null;
+    const lift = body ? null : inside;
+    if (lift !== (this.roofLifted ?? null)) {
+      if (this.roofLifted) this.world.setRoofVisible(this.roofLifted, true);
+      if (lift) this.world.setRoofVisible(lift, false);
+      this.roofLifted = lift;
+    }
     this.charR.lsw.focus = p; // LSW-BODIES: the people nearest you wear the LSW bodies (systems/lswbodies.js)
     if (inside !== this.insideBuilding) {
-      if (this.insideBuilding) this.world.setRoofVisible(this.insideBuilding, true);
       if (inside) {
-        this.world.setRoofVisible(inside, false);
         if (inside.shopName) this.hud.toast(inside.shopName.toUpperCase());
         else if (inside.label && inside.district === 'town') this.hud.toast(inside.label); // Rust Haven's keeperless houses: a cantina, a boarding house, a store
 

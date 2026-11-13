@@ -330,7 +330,7 @@ export class HUD {
     this.shakeV = Math.max(0, this.shakeV - dt * 2.5);
     if (this.subT > 0) { this.subT -= dt; if (this.subT <= 0) this.el.subtitle.classList.add('hidden'); }
 
-    const mx = g.input.mouse.x, my = g.input.mouse.y;
+    const rb = g.cam?.body?.() ? g.cam.reticle : null, mx = rb ? Math.round(rb.x) : g.input.mouse.x, my = rb ? Math.round(rb.y) : g.input.mouse.y; // a body view: the reticle sits where the round goes
     if (mx !== s.mx || my !== s.my) { s.mx = mx; s.my = my; this.el.reticle.style.transform = `translate(${mx}px, ${my}px)`; }
     this.flag('retHidden', this.el.reticle, 'hidden', !!g.dialogue.active);
     this.mmT += dt;

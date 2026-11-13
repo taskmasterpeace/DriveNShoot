@@ -27,8 +27,9 @@ export class Input {
     });
     addEventListener('keyup', (e) => this.keyUp(e.code));
     addEventListener('blur', () => { for (const k of [...this.phys]) this.keyUp(k); this.down.clear(); this.holders.clear(); this.mouseButton(0, false); this.mouseButton(2, false); });
-    addEventListener('mousemove', (e) => this.mouseMove(e.clientX, e.clientY));
-    canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); this.mouseButton(e.button, true); }); // middle: no autoscroll
+    addEventListener('mousemove', (e) => { this.mouse.dx = (this.mouse.dx ?? 0) + (e.movementX || 0); this.mouse.dy = (this.mouse.dy ?? 0) + (e.movementY || 0); if (!this.mouse.locked) this.mouseMove(e.clientX, e.clientY); }); // dx, dy: the body views' mouse look (systems/camrig.js)
+    document.addEventListener('pointerlockchange', () => { this.mouse.locked = !!document.pointerLockElement; });
+    canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); this.mouseButton(e.button, true); if (this.wantLock && !this.mouse.locked) { try { canvas.requestPointerLock?.(); } catch { /* no lock: drag with the right button instead */ } } }); // middle: no autoscroll
     addEventListener('mouseup', (e) => this.mouseButton(e.button, false));
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     // Only a wheel over the game itself counts: a panel under the pointer (the pack, the map, a menu) keeps its wheel.

@@ -86,15 +86,15 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
     return ok ? true : JSON.stringify({ inCar, outCar });
   });
 
-  await check('camera: every view is reachable - O cycles TOPDOWN, ANGLED, ISO on foot and adds CHASE at the wheel (behind the car, yaw on its heading); [ and ] turn ISO 90 degrees, and W still walks up the screen', async () => {
+  await check('camera: every view is reachable - O cycles TOPDOWN, ANGLED, ISO, THIRD, SHOULDER on foot and adds CHASE at the wheel (behind the car, yaw on its heading); [ and ] turn ISO 90 degrees, and W still walks up the screen', async () => {
     await home();
     const foot = [R.view];
-    for (let k = 0; k < 3; k++) { await tap('KeyO'); foot.push(R.view); }
+    for (let k = 0; k < 5; k++) { await tap('KeyO'); foot.push(R.view); }
     reset();
     const v = await car();
     let drive = [R.view], behind = null;
     try {
-      for (let k = 0; k < 4; k++) { await tap('KeyO'); drive.push(R.view); if (R.view === 'CHASE') { await C('step', { seconds: 2.5 }); const fx = Math.sin(v.h), fz = Math.cos(v.h); behind = r2((g.camera.position.x - v.x) * fx + (g.camera.position.z - v.z) * fz); } }
+      for (let k = 0; k < 6; k++) { await tap('KeyO'); drive.push(R.view); if (R.view === 'CHASE') { await C('step', { seconds: 2.5 }); const fx = Math.sin(v.h), fz = Math.cos(v.h); behind = r2((g.camera.position.x - v.x) * fx + (g.camera.position.z - v.z) * fz); } }
     } finally { g.exitVehicle(true); g.vehiclesSys.remove(v); }
     // ISO, turned a quarter: W walks up the screen (the camera's yaw turns the keys).
     reset(); R.setView('ISO', true); await tap('BracketRight'); await C('step', { seconds: 2 });
@@ -105,7 +105,7 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
     g.updateCamera(0); const b = scr();
     const upScreen = r2(b.y - a.y), sideways = r2(Math.abs(b.x - a.x));
     reset();
-    const ok = foot.join() === 'TOPDOWN,ANGLED,ISO,TOPDOWN' && drive.join() === 'TOPDOWN,ANGLED,ISO,CHASE,TOPDOWN' && behind < -5 && Math.abs(yaw - 90) < 3 && upScreen > 0.05 && sideways < upScreen * 0.3;
+    const ok = foot.join() === 'TOPDOWN,ANGLED,ISO,THIRD,SHOULDER,TOPDOWN' && drive.join() === 'TOPDOWN,ANGLED,ISO,CHASE,THIRD,SHOULDER,TOPDOWN' && behind < -5 && Math.abs(yaw - 90) < 3 && upScreen > 0.05 && sideways < upScreen * 0.3;
     return ok ? true : JSON.stringify({ foot, drive, behind, yaw, upScreen, sideways });
   });
 
@@ -209,6 +209,7 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
       try {
         for (const view of CAMERA.views) {
           if (view === 'CHASE' && !v) continue;
+          if (CAMERA.body[view]) continue; // THIRD / SHOULDER see to the horizon: their viewR is a fixed row (CAMERA.body.viewR), checked in cambody-api.js
           R.setView(view, true);
           for (let i = 0; i < ZOOM.levels.length; i++) { R.setStop(i, true); g.updateCamera(10); probe(`${mode}/${view}/${ZOOM.levels[i].name}`); }
         }

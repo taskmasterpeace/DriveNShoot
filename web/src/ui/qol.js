@@ -27,7 +27,8 @@ const TIMES_KEY = 'dsoa.saveTimes'; // when the quick save and the autosave were
 // killFeed, dmgNumbers.
 const DEFAULTS = { volume: 0.55, musicVol: 0.8, sfxVol: 1, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'car', nightLight: SKY_FEEL.night, dayMin: SKY_FEEL.dayMinutes, brightness: 1,
   autosaveMin: 3, pauseOnBlur: true, muteOnBlur: false, hudScale: 1, nameTags: 'aim', killFeed: true, dmgNumbers: true, bodies: 'lsw',
-  grade: 1, hitStop: 1, camKick: 1, crashDirt: 1 }; // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
+  grade: 1, hitStop: 1, camKick: 1, crashDirt: 1,
+  camView: 'TOPDOWN', camSens: 1, camInvertY: false }; // the camera view you chose (O), mouse-look speed and invert-Y for the body views (systems/camrig.js) // LOOK-FEEL (systems/lookfeel.js): each 0 off, 0.5 half, 1 full
 const LOG_MAX = 14;     // messages kept for the pause menu's RECENT list
 const FOOT_MPS = 4.2;   // the ORDERS tag's on-foot ETA: a walk with some running
 const AGENT_TAB = (() => { try { return new URLSearchParams(location.search).has('agent'); } catch { return false; } })();
@@ -104,6 +105,8 @@ export class QOL {
         <label>Steering <select data-s="steer"><option value="screen">Left is screen-left (whichever way the car points)</option><option value="car">Left is the car's left (classic top-down)</option></select></label>
         <label><input type="checkbox" data-s="autoReload"> Auto-reload when empty</label>
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
+        <label>Look speed (third-person views) <select data-s="camSens"><option value="0.5">Slow</option><option value="0.75">Gentle</option><option value="1">Normal</option><option value="1.5">Fast</option><option value="2">Very fast</option></select></label>
+        <label><input type="checkbox" data-s="camInvertY"> Invert look up / down (third-person views)</label>
         <label><input type="checkbox" data-s="showFps"> Performance overlay</label>
         <label>HUD size <select data-s="hudScale"><option value="0.8">Small</option><option value="0.9">Compact</option><option value="1">Normal</option><option value="1.12">Large</option><option value="1.25">Huge</option></select></label>
         <label>Name tags <select data-s="nameTags"><option value="aim">Near your aim</option><option value="near">Everyone close by</option><option value="off">Off</option></select></label>
