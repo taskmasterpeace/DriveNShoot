@@ -75,6 +75,11 @@ rifleman in the window and shoot him out of it. In a stairwell you hold the land
   - a ricochet keeps the round's height line; glass and doors are met at the fired height, not the round's height there;
   - AI shooters and other players' pages do not use vertical aim;
   - a floor is only "open" at the stairs: there are no holes in floors, balconies or atriums.
+  - no ceiling stops a round on a building's top floor, on a flight of stairs, or in a one-storey building;
+  - at the stairs you can shoot between floors and the people the game runs cannot shoot back that way;
+  - looking down a stairwell the reticle stops on your own floor while the round goes on down the well;
+  - birds on the wing cannot be hit from these views; a shot up from the street still sparks on the street wall it
+    flies over.
 
 ## 6. Dependencies
 

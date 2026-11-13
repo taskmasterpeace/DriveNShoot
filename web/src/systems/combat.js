@@ -126,13 +126,14 @@ export class Combat {
     // The pull's seed (systems/ballistics.js): every pellet's spread and reach rolls from it, so the record replays it.
     const B = g.ballistics, round = cal ?? w.ammo;
     if (B) { if (seed !== null) B.reseed(seed); else B.seed(ch, w.ammo, round, hug ? ch.x : ox, hug ? ch.z : oz, ang0, w.pellets); }
-    for (let p = 0; p < w.pellets; p++) {
-      const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) * (ch.mount ? g.horses.aimTax(ch) : 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
-      const a = ang0 + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp;
-      const reach = w.range * (0.85 + (B ? B.rand() : Math.random()) * 0.15), rise = lift ? lift + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp : 0;
-      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, round, rise, round); // the calibre is what it punches through with
-    }
-    this.A = null;
+    try {
+      for (let p = 0; p < w.pellets; p++) {
+        const sp = w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) * (ch.mount ? g.horses.aimTax(ch) : 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
+        const a = ang0 + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp;
+        const reach = w.range * (0.85 + (B ? B.rand() : Math.random()) * 0.15), rise = lift ? lift + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp : 0;
+        this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, round, rise, round); // the calibre is what it punches through with
+      }
+    } finally { this.A = null; } // never left set: a round already in flight must not pick up a height line
     return true;
   }
 
@@ -146,7 +147,7 @@ export class Combat {
   hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null, slope = 0, round = ammo) {
     const g = this.g, M = g.materials;
     g.drones?.shotThrough(shooter, ox, oz, dx, dz, range, dmg); // a round passing under one of THEIR drones may take it (systems/drones.js)
-    if (!this.A && g.ballistics?.takes(round, slope)) { g.ballistics.launch(shooter, ox, oz, dx, dz, range, dmg, ammo, round); return; } // a round with a height of its own (vertical aim) lands at once, like a shot at a bird
+    if (!(this.A && shooter === g.player) && g.ballistics?.takes(round, slope)) { g.ballistics.launch(shooter, ox, oz, dx, dz, range, dmg, ammo, round); return; } // a round with a height of its own (vertical aim) lands at once, like a shot at a bird
     let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
     for (let seg = 0; seg < 4; seg++) {
       if (this.segment(shooter, shooter, ox, oz, dx, dz, left, dmg, energy, ammo, slope, true) !== 2) return;
@@ -205,7 +206,6 @@ export class Combat {
     // takes only a body it passes at that body's height.
     const A = shooter === g.player ? this.A : null;
     const run0 = A ? Math.hypot(ox - shooter.x, oz - shooter.z) : 0; // this run starts this far along the line (a ricochet, a second segment)
-    const yAt = (t) => A.y0 + A.slope * (run0 + t);
     if (A) left = Math.min(left, this.capOf(A, shooter, ox, oz, dx, dz, run0, left));
     const capped = A ? this.capHit : null;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
@@ -221,7 +221,7 @@ export class Combat {
       // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
       if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) - (F.storey?.y0 ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey) && !(A && this.stairLine(F, c))) continue; // (vertical aim: up or down a stairwell)
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-      if (A && t >= 0 && !this.atHeight(yAt(t), c)) continue; // it passes over their head or under their feet
+      if (A && t >= 0 && !this.atHeight(A.y0 + A.slope * (run0 + t), c)) continue; // it passes over their head or under their feet
       if (t >= 0 && t < best && (A || t < over) && (!(c.prone || c.mv || c.dive > 0) || !g.moves || Math.random() < g.moves.hitShare(c, t))) { best = t; target = c; kind = 'char'; } // a low body (a dive, prone, a roll): the round can pass over it (data/moves.js LOW_BODY)
     }
     for (const v of g.vehicles) {
@@ -249,7 +249,7 @@ export class Combat {
       if (A) { if (g.storeys.at(F.x, F.z) === c.storey) continue; hy = (c.gy ?? 0) - (c.storey.y0 ?? 0); }
       else { hy = g.storeys.across(F, c); if (hy < 0) continue; }
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, left);
-      if (A && t >= 0 && !this.atHeight(yAt(t), c)) continue; // vertical aim: you have to be aiming up at them
+      if (A && t >= 0 && !this.atHeight(A.y0 + A.slope * (run0 + t), c)) continue; // vertical aim: you have to be aiming up at them
       if (t < 0 || (!A && t >= over) || (kind && best < t)) continue;
       if (g.statics.raycast(ox, oz, dx, dz, t, RAY_BULLET, hy + 1.3) < t - 0.05) continue;
       best = t; target = c; kind = 'char'; this.upShots = (this.upShots ?? 0) + 1;
