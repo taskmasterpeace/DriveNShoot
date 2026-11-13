@@ -47,7 +47,7 @@ export async function lampChecks({ g, api, C, check, hush }) {
       !!R && R.inputs.some(([id, n]) => id === 'oil_flask' && n === 1) && R.outputs.some(([id]) => id === 'oil_lamp') &&
       A.lamp.grace > 0 && A.lamp.grace <= 0.05 && A.lamp.r >= 4 && A.lamp.r <= 20 && A.lamp.near > A.lamp.r && GX.lampLight.isLight && GX.lampLight.intensity === 0;
     const n0 = lights(); const p = GX.place('oil_lamp', g.player.x + 1, g.player.z, 0, g.player, { gy: g.player.gy ?? 0, oil: L.burn, on: true, at: g.sky.time }); await api._step(3);
-    const n1 = lights(), lit = GX.lampLight.intensity > 0; GX.remove(p); await api._step(2);
+    let n1, lit; try { n1 = lights(); lit = GX.lampLight.intensity > 0; } finally { GX.remove(p); } await api._step(2);
     return (ok && n0 === n1 && lit && GX.lampLight.intensity === 0) || JSON.stringify({ ok, n0, n1, lit, after: GX.lampLight.intensity, kg: [ITEMS.oil_lamp?.kg, ITEMS.oil_flask?.kg, ITEMS.oil_lamp_dry?.kg] });
   });
 

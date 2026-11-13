@@ -81,7 +81,7 @@ export const MAKER_ITEMS = {
     desc: 'A tallow dip on a cord wick. Lights a corner and nothing more.' },
   torch: { name: 'Torch', kind: 'tool', kg: 0.5, bulk: 0.8, stack: 4, value: 5, tags: ['light'], use: { act: 'flare' },
     desc: 'A stick wrapped in oiled cloth. Smoky; the dark keeps its distance.' },
-  oil_lamp: { name: 'Oil lamp', kind: 'gadget', kg: 0.6, bulk: 0.6, stack: 1, value: 15, tags: ['light', 'gadget'], use: { act: 'gadget' }, // set down and lit (data/gadgets.js oil_lamp; docs/design/WEB_LAMPS.md)
+  oil_lamp: { name: 'Oil lamp', kind: 'gadget', kg: 0.6, bulk: 0.6, stack: 1, value: 15, tags: ['light', 'gadget'], use: { act: 'gadget' }, // set down and lit. NOTE: data/items.js folds the GADGETS row in first, so the live item is data/gadgets.js oil_lamp.item; this row is kept in step with it (docs/design/WEB_LAMPS.md)
     desc: 'A jar, a wick and a cork, with a flask of oil in it. Set it down and it lights a room for six hours. The dead see a light at night.' },
   trap_trigger: { name: 'Trap trigger', kind: 'part', kg: 0.1, bulk: 0.1, stack: 6, value: 3, tags: ['trigger'],
     desc: 'A notched peg and a spring of wire. Half a snare.' },

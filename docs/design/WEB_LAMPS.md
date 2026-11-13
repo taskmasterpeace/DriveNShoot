@@ -58,8 +58,9 @@ light you carry; the lamp is the light you leave.
 - Oil left after `h` game hours lit: `max(0, oil − h)`; a flask is `burn` = 6 hours.
 - The game clock runs 24 hours in 48 real minutes by default, so a flask lasts 12 real minutes and a 12-hour night
   takes two.
-- Clock steps are taken as `((now − last) mod 24 + 24) mod 24`, so midnight and a sleep of up to a day are counted
-  right.
+- Clock steps are taken as `((now − last) mod 24 + 24) mod 24`, so midnight and any jump of under a day are counted
+  right. A jump of a whole day or more in one step is under-counted (24 h reads as none); that favours the lamp's
+  owner by burn time only and makes no oil.
 - Light strength: `power × (0.94 + 0.06 × sin(9.1 t) × sin(3.7 t))`: a slow, small waver.
 - Example: lit at 22:00 with a new flask, it goes out at 04:00. Lit 22:00 to 23:30, put out, lit again at 03:00: it
   goes out at 07:30.
@@ -74,6 +75,11 @@ light you carry; the lamp is the light you leave.
   floor below through the deck (same cause).
 - **Turning the clock back** (the agent `setTime` command to an earlier hour) reads as most of a day passing: a lit
   lamp burns out. Players cannot turn the clock back.
+- **Free burn time, not free oil:** set down, burned for under `grace` (about 2.4 real seconds) and taken up, a lamp is
+  still whole, so re-placing it every two seconds would burn nothing. It lights nothing useful that way.
+- **Night goggles:** a lit lamp is glare in them, as a flare is (`systems/kit.js` reads any gadget's `lit`).
+- **A lamp whose owner is gone after a load** (owner not found) cannot be lit, put out or taken up. The sentry gun has
+  the same limit.
 - **Taking up a half-burned lamp** loses the oil in it. The prompt says so before you do it.
 - **E beside it** is read by the lamp and by whatever else is in reach (a door, a pile): a tap can do both.
 - **In a car:** it cannot be set down from a seat.
@@ -87,7 +93,7 @@ light you carry; the lamp is the light you leave.
 
 - `systems/gadgets.js` (placement, pick-up, save, the per-frame loop, the glow quads), `systems/inventory.js` (`use`,
   `stow`, `spend`, `count`), `systems/sky.js` (`time`, `night`), `systems/zombies.js` (`seekLight` reads any gadget's
-  `lit`), `data/recipes.js` (`make_oil_lamp`, `render_oil`, `boil_candle_oil`), `data/makeritems.js` (`oil_flask`).
+  `lit`), `systems/kit.js` (the goggles' glare reads the same `lit`), `data/recipes.js` (`make_oil_lamp`, `render_oil`, `boil_candle_oil`), `data/makeritems.js` (`oil_flask`).
 - `systems/zombies.js` now depends on this for one more kind of light (no code change there).
 - `WEB_SENTRY.md` shares the tap-E / hold-E pattern at a placed gadget.
 - Lights in the scene: +1, always present (dark when no lamp is lit). Draw calls: none added.

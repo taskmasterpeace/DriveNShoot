@@ -297,7 +297,8 @@ export class Gadgets {
     this.lampAt = best;
     if (!best) { if (Lt.intensity) Lt.intensity = 0; return; }
     const L = best.def.lamp;
-    Lt.position.set(best.x, (best.gy ?? 0) + 0.9, best.z); Lt.distance = L.r; Lt.color.set(L.color);
+    Lt.position.set(best.x, (best.gy ?? 0) + 0.9, best.z);
+    if (this.lampRow !== L) { this.lampRow = L; Lt.distance = L.r; Lt.color.set(L.color); } // the colour is parsed once per row, not every frame
     Lt.intensity = L.power * (0.94 + 0.06 * Math.sin(g.time * 9.1) * Math.sin(g.time * 3.7));
   }
 

@@ -72,7 +72,7 @@ export const GADGETS = {
     name: 'Oil lamp', verb: 'place', arm: 0, trigger: 'lamp', r: 0.2, pickup: true,
     lamp: { burn: 6, start: 1, r: 11, power: 30, color: '#ffc56a', glow: 7, oil: 'oil_flask', full: 'oil_lamp', dry: 'oil_lamp_dry', near: 45, grace: 0.02 },
     effect: {}, hurts: 'none', notice: { spot: 0, tell: 'a jar with a wick' },
-    item: { kg: 0.6, bulk: 0.6, stack: 1, value: 15, desc: 'A jar, a wick and a cork, with a flask of oil in it. Set it down and it lights a room for six hours. The dead see a light at night.' },
+    item: { kg: 0.6, bulk: 0.6, stack: 1, value: 15, tags: ['gadget', 'light'], desc: 'A jar, a wick and a cork, with a flask of oil in it. Set it down and it lights a room for six hours. The dead see a light at night.' },
     source: { buy: 15, loot: 'nowhere: built at a workbench (data/recipes.js make_oil_lamp)' },
   },
   oil_lamp_dry: {
