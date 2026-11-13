@@ -41,6 +41,9 @@ export class Gadgets {
     this.glow.count = 0; this.glow.frustumCulled = false; this.glow.renderOrder = 3;
     this.glow.setColorAt(0, _c.set('#ff5a2a'));
     game.scene.add(this.parts, this.glow);
+    // one light for the lamps (docs/design/WEB_LAMPS.md): always in the scene so the light count never changes; it stands
+    // at the lit lamp nearest you and is dark when there is none
+    this.lampLight = new THREE.PointLight('#ffc56a', 0, 11, 1.4); this.lampLight.position.set(0, -80, 0); game.scene.add(this.lampLight);
     this.n = 0; this.ng = 0;
     this.pickHold = 0;
     game.drones = this.drones = new Drones(game, this);
@@ -69,7 +72,7 @@ export class Gadgets {
     let r;
     if (def.verb === 'throw') r = this.throwOne(id, P, g.aim.x, g.aim.z);
     else if (def.verb === 'attach') r = this.attach(id, P);
-    else r = this.place(id, P.x + Math.sin(P.face) * 1.1, P.z + Math.cos(P.face) * 1.1, P.face, P, def.sentry ? { gy: P.gy ?? 0, hp: def.sentry.hp, ammo: 0 } : {});
+    else r = this.place(id, P.x + Math.sin(P.face) * 1.1, P.z + Math.cos(P.face) * 1.1, P.face, P, def.sentry ? { gy: P.gy ?? 0, hp: def.sentry.hp, ammo: 0 } : def.lamp ? { gy: P.gy ?? 0, oil: def.lamp.start * def.lamp.burn, on: def.lamp.start > 0, at: g.sky?.time ?? 0 } : {});
     if (def.sentry && r?.id) r.loadPending = true; // it takes what rifle rounds you carry, up to its magazine: on the next frame, AFTER the pack has given the kit up (loading here would move the pack's slots under the USE that is still spending the kit)
     return r?.ok === false ? r : { ok: true, text: `${def.name.toUpperCase()} ${def.verb === 'throw' ? 'THROWN' : def.verb === 'attach' ? 'SET' : 'PLACED'}` };
   }
@@ -140,7 +143,7 @@ export class Gadgets {
   pickUp(p, who = this.g.player) {
     if (!p || p.state === 'spent' || p.state === 'flying') return { ok: false, why: 'nothing to take back' };
     if (!(p.def.pickup || p.state === 'arming' || p.kind === 'remote_charge' || p.kind === 'car_mine')) return { ok: false, why: `a set ${p.def.name.toLowerCase()} does not come back` };
-    if (who === this.g.player) this.g.inventory?.stow(p.kind, 1);
+    if (who === this.g.player) this.g.inventory?.stow(p.def.lamp ? ((p.oil ?? 0) >= p.def.lamp.burn - p.def.lamp.grace ? p.def.lamp.full : p.def.lamp.dry) : p.kind, 1); // a lamp that has burned comes back dry: what oil was left in it is poured out, never topped up for free
     if (p.def.sentry && p.ammo > 0 && who === this.g.player) { this.g.inv.ammo[p.def.sentry.ammo] = (this.g.inv.ammo[p.def.sentry.ammo] ?? 0) + p.ammo; p.ammo = 0; } // its rounds come back with it
     this.remove(p);
     this.g.emit('gadgetPicked', { id: p.id, kind: p.kind });
@@ -261,6 +264,41 @@ export class Gadgets {
     p.tick = (p.tick ?? 0) - this.dt;
     if (p.tick <= 0) { p.tick = 0.35; g.audio.clink?.(g.pan(p.x)); }
     return null;
+  }
+
+  // ---- THE OIL LAMP (docs/design/WEB_LAMPS.md; rows data/gadgets.js oil_lamp.lamp) --------------------------------------
+  // Burns its oil by the game clock (so a night slept through burns it too) and goes out when it is dry.
+  lamp(p) {
+    const g = this.g, now = g.sky?.time ?? 0;
+    const dh = (((now - (p.at ?? now)) % 24) + 24) % 24; p.at = now;
+    if (p.on) {
+      p.oil = Math.max(0, (p.oil ?? 0) - dh);
+      if (p.oil <= 0) { p.on = false; this.counts.lampsOut = (this.counts.lampsOut ?? 0) + 1; if (p.owner === g.player && Math.hypot(p.x - g.player.x, p.z - g.player.z) < 30) g.hud?.toast('OIL LAMP · OUT OF OIL', 'warn'); g.emit('lampOut', { id: p.id }); }
+    }
+    p.lit = p.on ? 1 : 0; // what the infected look for at night (zombies.js seekLight: any gadget with lit > 0 they have a line to)
+  }
+  // Tap E at it: put it out, light it, or (dry) fill it from a flask of yours and light it.
+  lampToggle(p, who = this.g.player) {
+    const g = this.g, L = p.def.lamp;
+    if (p.on) { p.on = false; p.lit = 0; g.emit('lampSet', { id: p.id, on: false, oil: r1(p.oil ?? 0) }); return { ok: true, on: false, text: 'OIL LAMP · OUT' }; }
+    if (!((p.oil ?? 0) > 0)) {
+      if (who !== g.player || !(g.inventory?.carried.count(L.oil) > 0)) return { ok: false, why: 'it is dry, and you have no lamp oil' };
+      g.inventory.spend(L.oil, 1); p.oil = L.burn; this.counts.lampsFilled = (this.counts.lampsFilled ?? 0) + 1;
+    }
+    p.on = true; p.lit = 1; p.at = g.sky?.time ?? 0; g.audio.hiss?.(g.pan(p.x));
+    g.emit('lampSet', { id: p.id, on: true, oil: r1(p.oil) });
+    return { ok: true, on: true, text: 'OIL LAMP · LIT' };
+  }
+  // The one real light stands at the lit lamp nearest you; the others are a glow on the floor.
+  lampShine() {
+    const g = this.g, P = g.player, Lt = this.lampLight;
+    let best = null, bd = Infinity;
+    for (const p of this.list) { if (!p.def.lamp || !p.on) continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < p.def.lamp.near && d < bd) { bd = d; best = p; } }
+    this.lampAt = best;
+    if (!best) { if (Lt.intensity) Lt.intensity = 0; return; }
+    const L = best.def.lamp;
+    Lt.position.set(best.x, (best.gy ?? 0) + 0.9, best.z); Lt.distance = L.r; Lt.color.set(L.color);
+    Lt.intensity = L.power * (0.94 + 0.06 * Math.sin(g.time * 9.1) * Math.sin(g.time * 3.7));
   }
 
   // ---- THE SENTRY GUN (docs/design/WEB_SENTRY.md; rows data/gadgets.js turret_kit.sentry) ---------------------------------
@@ -552,6 +590,7 @@ export class Gadgets {
       if (def.trigger === 'timer') { p.fuse -= dt; if (p.fuse <= 0) this.fire(p); continue; }
       if (def.trigger === 'remote' || def.trigger === 'impact') continue;
       if (def.trigger === 'sentry') { this.sentry(p, dt); continue; }
+      if (def.trigger === 'lamp') { this.lamp(p); continue; }
       if (p.t > p.life + p.armAt) { this.fire(p); continue; } // a crawler that found nothing: it sits down and goes
       if (Math.abs(p.x - P.x) > 300 || Math.abs(p.z - P.z) > 300) continue; // far off: nothing walks there that matters
       const who = this.checkTrigger(p);
@@ -561,6 +600,7 @@ export class Gadgets {
     if (this.noticeT <= 0) { this.noticeT = 0.5; this.notice(0.5); }
     this.barricades();
     this.pickupPrompt(dt);
+    this.lampShine();
     this.draw();
   }
 
@@ -642,7 +682,8 @@ export class Gadgets {
       if (p.state !== 'arming' && p.state !== 'armed' && p.state !== 'tripped') continue;
       list.push({ id: p.id, k: p.kind, x: r1(p.x), z: r1(p.z), r: +p.rot.toFixed(3), o: p.owner?.id ?? null, s: p.state === 'tripped' ? 'armed' : p.state,
         t: r1(p.t), f: p.def.trigger === 'timer' ? r1(p.fuse) : undefined, seen: p.seen || undefined,
-        am: p.def.sentry ? p.ammo ?? 0 : undefined, hp: p.def.sentry ? Math.round(p.hp ?? p.def.sentry.hp) : undefined, gy: p.def.sentry ? r1(p.gy ?? 0) : undefined,
+        am: p.def.sentry ? p.ammo ?? 0 : undefined, hp: p.def.sentry ? Math.round(p.hp ?? p.def.sentry.hp) : undefined, gy: p.def.sentry || p.def.lamp ? r1(p.gy ?? 0) : undefined,
+        oil: p.def.lamp ? +(p.oil ?? 0).toFixed(3) : undefined, on: p.def.lamp ? !!p.on : undefined,
         door: p.ref && p.ref.leaves ? p.ref.id : undefined, car: p.ref && p.ref.len !== undefined ? p.ref.id : undefined });
     }
     return { seq: this.seq, list, barred: this.barred.map((b) => ({ d: b.door.id, k: b.kind, by: b.by })) };
@@ -663,6 +704,7 @@ export class Gadgets {
       const p = this.make(r.k, r.x, r.z, r.r, who(r.o), { id: r.id, state: r.s, t: r.t ?? 0, seen: r.seen ?? 0, ref });
       if (r.f !== undefined) p.fuse = r.f;
       if (p.def.sentry) { p.ammo = r.am ?? 0; p.hp = r.hp ?? p.def.sentry.hp; p.gy = r.gy ?? 0; }
+      if (p.def.lamp) { p.oil = r.oil ?? 0; p.on = !!r.on && p.oil > 0; p.gy = r.gy ?? 0; p.at = g.sky?.time ?? 0; p.lit = p.on ? 1 : 0; }
     }
     for (const b of s.barred ?? []) {
       const door = g.interiors?.byId.get(b.d);
@@ -692,6 +734,14 @@ export class Gadgets {
       const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < nd) { nd = d; near = p; }
     }
     if (!near) { this.pickHold = 0; return; }
+    if (near.def.lamp) { // tap E lights it or puts it out (dry: fills it from a flask of yours); hold E takes it up
+      const L = near.def.lamp, have = g.inventory?.carried.count(L.oil) ?? 0, oil = near.oil ?? 0;
+      if (g.input.key('KeyE')) { this.pickHold += dt; if (this.pickHold >= 0.9) { this.pickUp(near, P); this.pickHold = 0; return; } }
+      else { if (this.pickHold > 0 && this.pickHold < 0.35) { const r = this.lampToggle(near, P); g.hud?.toast(r.ok ? r.text : 'NO LAMP OIL ON YOU', r.ok ? 'info' : 'warn'); } this.pickHold = 0; }
+      const left = oil > 0 ? `${oil >= 1 ? oil.toFixed(1) + ' h' : Math.max(1, Math.round(oil * 60)) + ' min'} of oil` : 'dry';
+      g.hud?.prompt(this.pickHold >= 0.35 ? `Taking up the lamp… ${Math.round(Math.min(1, this.pickHold / 0.9) * 100)}%` : `Oil lamp · ${left} · <kbd>E</kbd> ${near.on ? 'Put it out' : oil > 0 ? 'Light it' : have ? 'Fill and light it' : 'Fill it (no lamp oil on you)'} · hold <kbd>E</kbd> Take it up${oil > 0 && oil < L.burn - L.grace ? ' (pours the oil out)' : ''}`);
+      return;
+    }
     if (near.def.sentry) { // tap E loads it from your rifle rounds; hold E takes it up (its rounds come back to you)
       const S = near.def.sentry, have = g.inv.ammo[S.ammo] ?? 0;
       if (g.input.key('KeyE')) { this.pickHold += dt; if (this.pickHold >= 0.9) { this.pickUp(near, P); this.pickHold = 0; return; } }
@@ -757,6 +807,14 @@ export class Gadgets {
           if (p.state === 'flying') { this.put(p.x, gy, p.z, a, 0, 0, 0, 0.6, 0.15, 0.3, '#1d1b19'); break; }
           this.put(p.x, gy, p.z, p.rot + Math.PI / 2, 0, 0.03, 0, 0.32, 0.05, L, '#1d1b19');
           for (let k = 0; k < 8; k++) { const s = (k / 7 - 0.5) * (L - 0.3); this.put(p.x + p.ux * s, gy, p.z + p.uz * s, p.rot, 0, 0.09, 0, 0.05, 0.1, 0.05, '#a7a39b'); }
+          break;
+        }
+        case 'oil_lamp': case 'oil_lamp_dry': { // a tin base, a glass jar, a cork; the flame and its pool when lit
+          const y = p.gy ?? gy, L = p.def.lamp;
+          this.put(p.x, y, p.z, a, 0, 0.03, 0, 0.16, 0.06, 0.16, '#5a5248');
+          this.put(p.x, y, p.z, a, 0, 0.15, 0, 0.12, 0.2, 0.12, p.on ? '#ffe2a0' : '#8a9488');
+          this.put(p.x, y, p.z, a, 0, 0.27, 0, 0.07, 0.04, 0.07, '#3a3028');
+          if (p.on) { const k = 1 + 0.04 * Math.sin(t * 9.1); this.shine(p.x, p.z, (this.lampAt === p ? L.glow * 0.3 : L.glow) * k, L.color, y + 0.06); this.shine(p.x, p.z, 0.9, '#fff0c8', y + 0.3); }
           break;
         }
         case 'turret_kit': { // a tripod, a body that turns to what it tracks, a barrel; a lamp that is steady when set, dark when dry

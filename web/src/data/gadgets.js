@@ -64,6 +64,24 @@ export const GADGETS = {
     item: { kg: 22, bulk: 30, stack: 1, value: 420, desc: 'A service rifle on a steel tripod with a trip and two cells. Set it down facing a door, load it with your own rounds, and it shoots what comes through.' },
     source: { buy: 900, loot: 'nowhere: it is built at a forge (data/recipes.js build_turret, the gunsmith notebook); there is no hand recipe' },
   },
+  // THE OIL LAMP (docs/design/WEB_LAMPS.md): a light you set down. lamp: burn game hours one flask of oil lasts, start
+  //   flasks in it when set down (the built lamp holds the flask its recipe took; the dry one holds none), r m the light
+  //   reaches, power the point light's strength, glow m the pool on the floor, oil the item it burns, full / dry the
+  //   item it comes back as (full only if it has burned under grace hours: set down and taken straight up), near m from you past which it is a glow and not a light
+  oil_lamp: {
+    name: 'Oil lamp', verb: 'place', arm: 0, trigger: 'lamp', r: 0.2, pickup: true,
+    lamp: { burn: 6, start: 1, r: 11, power: 30, color: '#ffc56a', glow: 7, oil: 'oil_flask', full: 'oil_lamp', dry: 'oil_lamp_dry', near: 45, grace: 0.02 },
+    effect: {}, hurts: 'none', notice: { spot: 0, tell: 'a jar with a wick' },
+    item: { kg: 0.6, bulk: 0.6, stack: 1, value: 15, desc: 'A jar, a wick and a cork, with a flask of oil in it. Set it down and it lights a room for six hours. The dead see a light at night.' },
+    source: { buy: 15, loot: 'nowhere: built at a workbench (data/recipes.js make_oil_lamp)' },
+  },
+  oil_lamp_dry: {
+    name: 'Oil lamp (dry)', verb: 'place', arm: 0, trigger: 'lamp', r: 0.2, pickup: true,
+    lamp: { burn: 6, start: 0, r: 11, power: 30, color: '#ffc56a', glow: 7, oil: 'oil_flask', full: 'oil_lamp', dry: 'oil_lamp_dry', near: 45, grace: 0.02 },
+    effect: {}, hurts: 'none', notice: { spot: 0, tell: 'a jar with a wick' },
+    item: { kg: 0.2, bulk: 0.6, stack: 1, value: 9, desc: 'An oil lamp with nothing in it. Set it down and fill it from a flask of lamp oil.' },
+    source: { buy: 9, loot: 'nowhere: what an oil lamp is once it has burned' },
+  },
   noise_maker: {
     name: 'Noise box', verb: 'throw', arm: 0, trigger: 'timer', fuse: 1,
     effect: { lure: { r: 70, dur: 22 } }, hurts: 'none', notice: { spot: 30, tell: 'a clacking tin box' },
