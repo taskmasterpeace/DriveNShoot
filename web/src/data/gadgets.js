@@ -51,6 +51,19 @@ export const GADGETS = {
     item: { kg: 2.2, bulk: 1.6, value: 220, stack: 1, desc: 'A charge on six scrap legs and a cheap eye. Set it down; it walks to the nearest thing that hates you and sits on it.' },
     source: { craft: [['scrap', 3], ['spark_plugs', 2], ['fuel_can', 1]], buy: 220, loot: 'military caches, the Remnant' },
   },
+  // THE SENTRY GUN (docs/design/WEB_SENTRY.md): the turret kit you built (data/recipes.js build_turret), set down and
+  // loaded with your own rifle rounds. It is the same item a base's turret takes (data/homes.js FORTIFY.turret).
+  //   range m, arc deg (the whole fan in front of it), every s between rounds, dmg per round, hitNear / hitFar the
+  //   chance a round lands at 0 m and at its range, mag rounds it holds, ammo the pocket it loads from, noise m each
+  //   round carries, hp, claw hp/s each of the infected within reach m tears off it (maxClaw at once), turn rad/s,
+  //   scrap what is left when it is torn down (never the rifle)
+  turret_kit: {
+    name: 'Sentry gun', verb: 'place', arm: 3, trigger: 'sentry', r: 0.6, pickup: true,
+    sentry: { range: 16, arc: 110, every: 0.4, dmg: 30, hitNear: 0.92, hitFar: 0.55, mag: 60, ammo: 'rifle', noise: 45, hp: 160, claw: 9, reach: 1.5, maxClaw: 3, turn: 3.2, scrap: [['scrap', 5]] },
+    effect: {}, hurts: 'enemies', notice: { spot: 18, tell: 'a rifle on a steel tripod, turning by itself' },
+    item: { kg: 22, bulk: 30, stack: 1, value: 420, desc: 'A service rifle on a steel tripod with a trip and two cells. Set it down facing a door, load it with your own rounds, and it shoots what comes through.' },
+    source: { buy: 900, loot: 'nowhere: it is built at a forge (data/recipes.js build_turret, the gunsmith notebook); there is no hand recipe' },
+  },
   noise_maker: {
     name: 'Noise box', verb: 'throw', arm: 0, trigger: 'timer', fuse: 1,
     effect: { lure: { r: 70, dur: 22 } }, hurts: 'none', notice: { spot: 30, tell: 'a clacking tin box' },

@@ -114,6 +114,7 @@ import { cgRoomsCommands, cgRoomsChecks } from './cgrooms-api.js'; // ROOMS FOR 
 import { camBodyChecks } from './cambody-api.js'; // THE BODY VIEWS: third-person and over the shoulder (WEB_CAMERA_BODY.md)
 import { windowExitCommands, windowExitChecks } from './windowexit-api.js'; // OUT OF AN UPPER WINDOW (WEB_WINDOW_EXIT.md)
 import { vaimChecks } from './vaim-api.js'; // VERTICAL AIM in the body views (WEB_VERTICAL_AIM.md)
+import { sentryCommands, sentryChecks } from './sentry-api.js'; // THE SENTRY GUN (WEB_SENTRY.md)
 import { poundCommands, poundChecks } from './pound-api.js'; // THE SHUT DOOR: the infected beat on it (WEB_DOOR_POUND.md)
 import { reachCommands, reachChecks } from './reach-api.js'; // REACH: no hand through a wall (WEB_REACH.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -2179,6 +2180,7 @@ function buildCommands(api) {
     ...firstMinuteCommands(api, need), // where a new game's first minute stands (WEB_FIRST_MINUTE.md)
     ...cgRoomsCommands(api, need), // the rooms of the generated building you stand in (WEB_CG_ROOMS.md)
     ...windowExitCommands(api), // the upper window you face: the drop, what it costs (WEB_WINDOW_EXIT.md)
+    ...sentryCommands(api), // every sentry gun set: rounds, hp, what it tracks (WEB_SENTRY.md)
     ...poundCommands(api, need), // doors shut on the infected, pounded, leaned on (WEB_DOOR_POUND.md)
     ...reachCommands(api, need), // what your hand can get to and what stops it (WEB_REACH.md)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
@@ -5852,6 +5854,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await camBodyChecks({ g, api, C, check }); // THE BODY VIEWS: rows, never through a wall or a ceiling, walk and aim the way the view faces, TOPDOWN untouched (src/agent/cambody-api.js)
   await windowExitChecks({ g, api, C, check, hush }); // OUT OF AN UPPER WINDOW: rows, the drop and its cost on the real E key, who follows (src/agent/windowexit-api.js)
   await vaimChecks({ g, api, C, check, hush }); // VERTICAL AIM: the round goes where the view's centre line lands, up and down; floors stop it; TOPDOWN unchanged (src/agent/vaim-api.js)
+  await sentryChecks({ g, api, C, check, hush }); // THE SENTRY GUN: your rounds, its fan, walls, torn down, the save (src/agent/sentry-api.js)
   await reachChecks({ g, api, C, check, stage, hush }); // REACH: a wall, a shut door or a floor stops every E, the PACK list and the agent (src/agent/reach-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee

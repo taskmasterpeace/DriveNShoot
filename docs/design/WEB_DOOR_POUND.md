@@ -208,7 +208,8 @@ The shard's model is that each page simulates its own surroundings and reports w
   service rifle, 12 scrap, a lead pipe, 2 trap triggers, 2 battery cells, 4 cord: 23.8 kg in, a 22 kg kit out. A base's
   turret (`FORTIFY.turret`) still costs that kit and 30 rifle rounds (the kit is 30 bulk: it takes a frame ruck to
   carry it to the base). Before this the kit could not be made or found.
-- **Not built (said plainly):** the base turret is a defence number for raids on your base while you are away
+- **Built since:** the sentry gun (`WEB_SENTRY.md`): the same kit, set down and loaded with your rounds.
+- **Was not built at the time (kept for the record):** the base turret is a defence number for raids on your base while you are away
   (`homes.js`); it does not track and shoot what is at your door in front of you. A sentry gun you set down in a room,
   load with your own rounds and that fires at what comes through the door is a system of its own (targeting, friendly
   fire, ammunition, what the infected do about it, sharing it between players) and is not in this slice.

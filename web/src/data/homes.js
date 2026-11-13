@@ -138,7 +138,7 @@ export const TENURE = {
 export const HOME_ITEMS = {
   tent: { name: 'Tent', kind: 'tool', kg: 2.8, bulk: 9, stack: 1, value: 40, desc: 'A two-pole ridge tent, patched at one corner. Walls against the wind, and against the eyes.' },
   trip_bells: { name: 'Trip Bells', kind: 'tool', kg: 0.7, bulk: 2, stack: 1, value: 14, desc: 'A coil of cord strung with sheep bells and eight stakes. Anything that walks into it rings.' },
-  turret_kit: { name: 'Salvaged Turret', kind: 'part', kg: 22, bulk: 30, stack: 1, value: 420, desc: 'A pintle gun on a tripod with a motion trip, pulled off something that is not coming back.' },
+  turret_kit: { name: 'Sentry gun', kind: 'gadget', tags: ['gadget'], use: { act: 'gadget' }, kg: 22, bulk: 30, stack: 1, value: 420, desc: 'A pintle gun on a tripod with a motion trip, pulled off something that is not coming back.' },
 };
 for (const [k, row] of Object.entries(HOME_ITEMS)) if (!ITEMS[k]) ITEMS[k] = row;
 

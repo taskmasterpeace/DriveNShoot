@@ -1,3 +1,4 @@
+import { RAY_SIGHT } from '../engine/collision.js';
 import * as THREE from 'three';
 import { radialGlow } from '../world/textures.js';
 import { GADGETS, BARRICADES } from '../data/gadgets.js';
@@ -68,7 +69,8 @@ export class Gadgets {
     let r;
     if (def.verb === 'throw') r = this.throwOne(id, P, g.aim.x, g.aim.z);
     else if (def.verb === 'attach') r = this.attach(id, P);
-    else r = this.place(id, P.x + Math.sin(P.face) * 1.1, P.z + Math.cos(P.face) * 1.1, P.face, P);
+    else r = this.place(id, P.x + Math.sin(P.face) * 1.1, P.z + Math.cos(P.face) * 1.1, P.face, P, def.sentry ? { gy: P.gy ?? 0, hp: def.sentry.hp, ammo: 0 } : {});
+    if (def.sentry && r?.id) this.sentryLoad(r, P); // it takes what rifle rounds you carry, up to its magazine
     return r?.ok === false ? r : { ok: true, text: `${def.name.toUpperCase()} ${def.verb === 'throw' ? 'THROWN' : def.verb === 'attach' ? 'SET' : 'PLACED'}` };
   }
 
@@ -139,6 +141,7 @@ export class Gadgets {
     if (!p || p.state === 'spent' || p.state === 'flying') return { ok: false, why: 'nothing to take back' };
     if (!(p.def.pickup || p.state === 'arming' || p.kind === 'remote_charge' || p.kind === 'car_mine')) return { ok: false, why: `a set ${p.def.name.toLowerCase()} does not come back` };
     if (who === this.g.player) this.g.inventory?.stow(p.kind, 1);
+    if (p.def.sentry && p.ammo > 0 && who === this.g.player) { this.g.inv.ammo[p.def.sentry.ammo] = (this.g.inv.ammo[p.def.sentry.ammo] ?? 0) + p.ammo; p.ammo = 0; } // its rounds come back with it
     this.remove(p);
     this.g.emit('gadgetPicked', { id: p.id, kind: p.kind });
     return { ok: true, kind: p.kind };
@@ -258,6 +261,65 @@ export class Gadgets {
     p.tick = (p.tick ?? 0) - this.dt;
     if (p.tick <= 0) { p.tick = 0.35; g.audio.clink?.(g.pan(p.x)); }
     return null;
+  }
+
+  // ---- THE SENTRY GUN (docs/design/WEB_SENTRY.md; rows data/gadgets.js turret_kit.sentry) ---------------------------------
+  // Load it from the rifle rounds in your pockets, up to its magazine. Returns how many went in.
+  sentryLoad(p, who = this.g.player) {
+    const S = p.def.sentry, inv = this.g.inv, have = inv.ammo[S.ammo] ?? 0, take = Math.max(0, Math.min(S.mag - (p.ammo ?? 0), have));
+    if (take > 0) { inv.ammo[S.ammo] = have - take; p.ammo = (p.ammo ?? 0) + take; p.dryTold = false; this.g.audio.reload?.(); }
+    this.g.emit('sentryLoaded', { id: p.id, took: take, ammo: p.ammo ?? 0, by: who?.id ?? null });
+    return take;
+  }
+  // Each frame while it is set: the infected within reach tear at it; it turns to the nearest enemy in its fan that it
+  // can see on its own floor; a round goes every `every` s while it has one.
+  sentry(p, dt) {
+    const g = this.g, S = p.def.sentry, P = g.player;
+    if (Math.abs(p.x - P.x) > 200 || Math.abs(p.z - P.z) > 200) return; // nobody is simulated out there
+    p.aim ??= p.rot; p.cool = (p.cool ?? 0) - dt;
+    const gy = p.gy ?? 0, st = g.storeys?.at(p.x, p.z) ?? null, up = st ? gy - (st.y0 ?? 0) : 0, ry = up > 0.5 ? up + 1.0 : -1;
+    let best = null, bd = S.range, claws = 0;
+    for (const c of g.chars) {
+      if (!c.alive || c.inVehicle || Math.abs(c.x - p.x) > S.range || Math.abs(c.z - p.z) > S.range || Math.abs((c.gy ?? 0) - gy) > 1.6) continue;
+      if (!this.enemyOf(p.owner, c)) continue;
+      const dx = c.x - p.x, dz = c.z - p.z, d = Math.hypot(dx, dz);
+      if (c.faction === 'zombie' && d < S.reach) claws++;
+      if (d >= bd || d < 0.3) continue;
+      let off = Math.atan2(dx, dz) - p.rot; off = Math.atan2(Math.sin(off), Math.cos(off));
+      if (Math.abs(off) > (S.arc * Math.PI) / 360) continue; // outside its fan
+      if (!g.statics.lineOfSight(p.x, p.z, c.x, c.z, RAY_SIGHT, ry)) continue;
+      bd = d; best = c;
+    }
+    // torn down: what the infected at it take off, then what is left of it on the ground
+    if (claws) {
+      p.hp = (p.hp ?? S.hp) - Math.min(claws, S.maxClaw) * S.claw * dt;
+      if ((p.clawT = (p.clawT ?? 0) - dt) <= 0) { p.clawT = 0.7; g.audio.thud?.(g.pan(p.x), 'pound'); }
+      if (p.hp <= 0) { this.sentryBreak(p); return; }
+    }
+    p.target = best?.id ?? null;
+    if (!best) return;
+    const want = Math.atan2(best.x - p.x, best.z - p.z); let da = want - p.aim; da = Math.atan2(Math.sin(da), Math.cos(da));
+    p.aim += Math.sign(da) * Math.min(Math.abs(da), S.turn * dt);
+    if (Math.abs(da) > 0.12 || p.cool > 0) return; // still swinging onto it, or between rounds
+    if (!(p.ammo > 0)) { if (!p.dryTold) { p.dryTold = true; g.audio.empty?.(); if (p.owner === P) g.hud?.toast('SENTRY GUN · EMPTY', 'warn'); g.emit('sentryDry', { id: p.id }); } return; }
+    p.ammo--; p.cool = S.every; p.shots = (p.shots ?? 0) + 1; this.counts.sentryShots = (this.counts.sentryShots ?? 0) + 1;
+    const dx = Math.sin(p.aim), dz = Math.cos(p.aim), hit = Math.random() < S.hitNear + (S.hitFar - S.hitNear) * (bd / S.range);
+    g.fx.flash?.(p.x + dx * 0.8, gy + 1.0, p.z + dz * 0.8, 1.3, 0.05);
+    g.fx.tracer?.(p.x + dx * 0.8, p.z + dz * 0.8, hit ? best.x : p.x + dx * S.range, hit ? best.z : p.z + dz * S.range, gy + 1.0);
+    g.audio.gun?.('rifle', Math.hypot(p.x - P.x, p.z - P.z), g.pan(p.x), null, null);
+    g.noise(p.x, p.z, S.noise, p.owner?.alive ? p.owner : null); g.zombies?.onNoise?.(p.x, p.z, S.noise);
+    if (hit) { g.combat.damage(best, S.dmg, null, dx, dz, 'bullet'); this.counts.sentryHits = (this.counts.sentryHits ?? 0) + 1; }
+    g.emit('sentryShot', { id: p.id, at: best.id, hit, ammo: p.ammo });
+  }
+  // Torn down: the tripod's steel and whatever rounds were still in it lie where it stood. The rifle is ruined.
+  sentryBreak(p) {
+    const g = this.g, S = p.def.sentry, inv = g.inventory, pile = inv?.groundAt?.(p.x, p.z, p.gy ?? 0);
+    if (pile) { for (const [id, n] of S.scrap) inv.add(pile, id, n); if (p.ammo > 0) inv.add(pile, `ammo_${S.ammo}`, p.ammo); }
+    g.audio.thud?.(g.pan(p.x)); g.fx.sparks?.(p.x, (p.gy ?? 0) + 0.8, p.z, 0, 0, 8);
+    if (p.owner === g.player) g.hud?.toast('SENTRY GUN · TORN DOWN', 'hot');
+    this.counts.sentryBroken = (this.counts.sentryBroken ?? 0) + 1;
+    g.emit('sentryBroken', { id: p.id, left: p.ammo ?? 0, x: r1(p.x), z: r1(p.z) });
+    this.remove(p);
   }
 
   // ---- effects -------------------------------------------------------------------------------------------------------
@@ -487,6 +549,7 @@ export class Gadgets {
       if (p.state !== 'armed') continue;
       if (def.trigger === 'timer') { p.fuse -= dt; if (p.fuse <= 0) this.fire(p); continue; }
       if (def.trigger === 'remote' || def.trigger === 'impact') continue;
+      if (def.trigger === 'sentry') { this.sentry(p, dt); continue; }
       if (p.t > p.life + p.armAt) { this.fire(p); continue; } // a crawler that found nothing: it sits down and goes
       if (Math.abs(p.x - P.x) > 300 || Math.abs(p.z - P.z) > 300) continue; // far off: nothing walks there that matters
       const who = this.checkTrigger(p);
@@ -577,6 +640,7 @@ export class Gadgets {
       if (p.state !== 'arming' && p.state !== 'armed' && p.state !== 'tripped') continue;
       list.push({ id: p.id, k: p.kind, x: r1(p.x), z: r1(p.z), r: +p.rot.toFixed(3), o: p.owner?.id ?? null, s: p.state === 'tripped' ? 'armed' : p.state,
         t: r1(p.t), f: p.def.trigger === 'timer' ? r1(p.fuse) : undefined, seen: p.seen || undefined,
+        am: p.def.sentry ? p.ammo ?? 0 : undefined, hp: p.def.sentry ? Math.round(p.hp ?? p.def.sentry.hp) : undefined, gy: p.def.sentry ? r1(p.gy ?? 0) : undefined,
         door: p.ref && p.ref.leaves ? p.ref.id : undefined, car: p.ref && p.ref.len !== undefined ? p.ref.id : undefined });
     }
     return { seq: this.seq, list, barred: this.barred.map((b) => ({ d: b.door.id, k: b.kind, by: b.by })) };
@@ -596,6 +660,7 @@ export class Gadgets {
       if ((r.door || r.car) && !ref) continue; // its door went with a detached ring lot, or its car is gone
       const p = this.make(r.k, r.x, r.z, r.r, who(r.o), { id: r.id, state: r.s, t: r.t ?? 0, seen: r.seen ?? 0, ref });
       if (r.f !== undefined) p.fuse = r.f;
+      if (p.def.sentry) { p.ammo = r.am ?? 0; p.hp = r.hp ?? p.def.sentry.hp; p.gy = r.gy ?? 0; }
     }
     for (const b of s.barred ?? []) {
       const door = g.interiors?.byId.get(b.d);
@@ -625,6 +690,13 @@ export class Gadgets {
       const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < nd) { nd = d; near = p; }
     }
     if (!near) { this.pickHold = 0; return; }
+    if (near.def.sentry) { // tap E loads it from your rifle rounds; hold E takes it up (its rounds come back to you)
+      const S = near.def.sentry, have = g.inv.ammo[S.ammo] ?? 0;
+      if (g.input.key('KeyE')) { this.pickHold += dt; if (this.pickHold >= 0.9) { this.pickUp(near, P); this.pickHold = 0; return; } }
+      else { if (this.pickHold > 0 && this.pickHold < 0.35) { const n = this.sentryLoad(near, P); g.hud?.toast(n ? `SENTRY GUN · ${n} ROUNDS IN` : have ? 'SENTRY GUN · FULL' : 'NO RIFLE ROUNDS ON YOU', n ? 'info' : 'warn'); } this.pickHold = 0; }
+      g.hud?.prompt(this.pickHold >= 0.35 ? `Taking up the sentry gun… ${Math.round(Math.min(1, this.pickHold / 0.9) * 100)}%` : `Sentry gun · ${near.ammo ?? 0}/${S.mag} rounds · ${Math.max(0, Math.round(((near.hp ?? S.hp) / S.hp) * 100))}% · <kbd>E</kbd> Load (${have} on you) · hold <kbd>E</kbd> Take it up`);
+      return;
+    }
     if (g.input.key('KeyE')) {
       this.pickHold += dt;
       g.hud?.prompt(`Taking up the ${near.def.name.toLowerCase()}… ${Math.round(Math.min(1, this.pickHold / 0.9) * 100)}%`);
@@ -683,6 +755,15 @@ export class Gadgets {
           if (p.state === 'flying') { this.put(p.x, gy, p.z, a, 0, 0, 0, 0.6, 0.15, 0.3, '#1d1b19'); break; }
           this.put(p.x, gy, p.z, p.rot + Math.PI / 2, 0, 0.03, 0, 0.32, 0.05, L, '#1d1b19');
           for (let k = 0; k < 8; k++) { const s = (k / 7 - 0.5) * (L - 0.3); this.put(p.x + p.ux * s, gy, p.z + p.uz * s, p.rot, 0, 0.09, 0, 0.05, 0.1, 0.05, '#a7a39b'); }
+          break;
+        }
+        case 'turret_kit': { // a tripod, a body that turns to what it tracks, a barrel; a lamp that is steady when set, dark when dry
+          const y = p.gy ?? gy, aim = p.aim ?? p.rot, up = p.state === 'arming' ? Math.min(1, p.t / (p.armAt || 1)) : 1;
+          for (let k = 0; k < 3; k++) { const la = p.rot + k * 2.094; this.put(p.x + Math.sin(la) * 0.32, y, p.z + Math.cos(la) * 0.32, la, 0, 0.42 * up, 0, 0.07, 0.84 * up, 0.07, '#4a4842'); }
+          this.put(p.x, y, p.z, aim, 0, 0.9 * up, 0, 0.3, 0.26, 0.5, '#5e5a52');
+          this.put(p.x + Math.sin(aim) * 0.55, y, p.z + Math.cos(aim) * 0.55, aim, 0, 0.92 * up, 0, 0.07, 0.07, 0.75, '#2b2a28');
+          this.put(p.x - Math.sin(aim) * 0.2, y, p.z - Math.cos(aim) * 0.2, aim, 0, 1.08 * up, 0, 0.16, 0.12, 0.22, '#6a6052');
+          if (p.state === 'armed') this.put(p.x, y, p.z, aim, 0, 1.1, 0, 0.06, 0.06, 0.06, (p.ammo ?? 0) > 0 ? '#d8a02a' : '#3a3632', (p.ammo ?? 0) > 0 ? 0.9 : 0);
           break;
         }
         case 'car_mine': this.put(p.x, gy, p.z, p.rot, 0, 0.02, 0, 0.42, 0.05, 0.42, '#4a4a3a', p.state === 'armed' ? 0.75 : 0); this.put(p.x, gy, p.z, p.rot, 0, 0.07, 0, 0.04, 0.08, 0.04, '#7a7a68', p.state === 'armed' ? 0.4 : 0); break;
