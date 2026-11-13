@@ -94,7 +94,7 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
     const v = await car();
     let drive = [R.view], behind = null;
     try {
-      for (let k = 0; k < 6; k++) { await tap('KeyO'); drive.push(R.view); if (R.view === 'CHASE') { await C('step', { seconds: 2.5 }); const fx = Math.sin(v.h), fz = Math.cos(v.h); behind = r2((g.camera.position.x - v.x) * fx + (g.camera.position.z - v.z) * fz); } }
+      for (let k = 0; k < 4; k++) { await tap('KeyO'); drive.push(R.view); if (R.view === 'CHASE') { await C('step', { seconds: 2.5 }); const fx = Math.sin(v.h), fz = Math.cos(v.h); behind = r2((g.camera.position.x - v.x) * fx + (g.camera.position.z - v.z) * fz); } }
     } finally { g.exitVehicle(true); g.vehiclesSys.remove(v); }
     // ISO, turned a quarter: W walks up the screen (the camera's yaw turns the keys).
     reset(); R.setView('ISO', true); await tap('BracketRight'); await C('step', { seconds: 2 });
@@ -105,7 +105,7 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
     g.updateCamera(0); const b = scr();
     const upScreen = r2(b.y - a.y), sideways = r2(Math.abs(b.x - a.x));
     reset();
-    const ok = foot.join() === 'TOPDOWN,ANGLED,ISO,THIRD,SHOULDER,TOPDOWN' && drive.join() === 'TOPDOWN,ANGLED,ISO,CHASE,THIRD,SHOULDER,TOPDOWN' && behind < -5 && Math.abs(yaw - 90) < 3 && upScreen > 0.05 && sideways < upScreen * 0.3;
+    const ok = foot.join() === 'TOPDOWN,ANGLED,ISO,THIRD,SHOULDER,TOPDOWN' && drive.join() === 'TOPDOWN,ANGLED,ISO,CHASE,TOPDOWN' && behind < -5 && Math.abs(yaw - 90) < 3 && upScreen > 0.05 && sideways < upScreen * 0.3;
     return ok ? true : JSON.stringify({ foot, drive, behind, yaw, upScreen, sideways });
   });
 

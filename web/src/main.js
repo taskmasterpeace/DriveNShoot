@@ -847,7 +847,7 @@ class Game {
     // Something on the wing under the cursor (the wilds lane's hook: fauna.pickAir(ray) -> { x, z, y } or null): aim at it.
     this.aimAir = this.aimOverride ? null : this.fauna?.pickAir?.(_ray.ray) ?? null;
     if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
-    if (!this.aimOverride && this.cam.body()) { const a = this.cam.aimPoint(p); this.aim.x = a.x; this.aim.z = a.z; this.aimAir = null; } // THIRD / SHOULDER: you aim the way the view faces (systems/camrig.js)
+    if (!this.aimOverride && this.cam.body()) { const a = this.cam.aimPoint(p); this.aim.x = a.x; this.aim.z = a.z; this.aim.y = 0; this.aimAir = null; } // THIRD / SHOULDER: you aim the way the view faces (systems/camrig.js)
     p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
     // I / TAB / ESC always shut the PACK, whatever else holds the keys (a talk, sleep, a blackout): never stuck open.
@@ -1407,7 +1407,11 @@ class Game {
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
     if (I.hit('KeyT') && !this.survival.sleep) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
+    // the hands are on the game (no menu, panel, talk, screen, sleep or drone has them): the camera takes its input, and
+    // a body view may hold the mouse. Anything else lets the mouse go at once, paused or not (systems/camrig.js lock).
+    const hands = !this.paused && !this.invUI.open && !this.dialogue.active && !this.workshopUI.open && !this.carousel?.ui?.open && !this.survival.sleep && !this.droneCam?.active && !this.qol.photo && this.player.alive;
     if (!this.paused && !this.invUI.open && !this.dialogue.active) this.cam.input(I, dt); // wheel, Z / - / =, O, [ ]; a panel keeps the wheel
+    this.cam.lock(hands);
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
       if (this.invUI.open && this.packCloseHit(I)) this.invUI.toggle(false); // a pause that came up over the PACK (the window lost focus) still lets I / TAB / ESC shut it

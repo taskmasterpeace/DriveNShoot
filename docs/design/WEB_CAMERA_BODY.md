@@ -30,15 +30,19 @@ front of you. One key and you are back above it all.
 ## 3. Detailed rules
 
 1. **Views and the cycle.** `CAMERA.views` is TOPDOWN, ANGLED, ISO, CHASE, THIRD, SHOULDER. O cycles them; CHASE is
-   skipped on foot (as before). At the wheel THIRD and SHOULDER read as CHASE. The choice is remembered
+   skipped on foot (as before) and THIRD and SHOULDER are skipped at the wheel. Get into a car in a body view and it
+   reads as CHASE until you get out. The choice is remembered
    (`settings.camView`, the browser's storage) and put back the next time you play; never on the agent's page.
 2. **Turning and looking.** Mouse movement turns the view (`orbit`) and tilts it (`pitch`, −55° to +60°) while the mouse
-   is held by the game (pointer lock, taken on your first click in a body view and let go when a panel opens or you
-   leave the view), or while you drag with the right or middle button. Right stick on a pad: the same, at
+   is held by the game (pointer lock: your first click in a body view takes it and does nothing else; it is let go
+   the moment a menu, the map, the pack, a talk, the workshop, a console, sleep, the drone or photo mode has the hands,
+   paused or not), or while you drag with the right or middle button. Right stick on a pad: the same, at
    `padRate`. Settings: look speed (five steps) and invert up/down.
 3. **Walking.** W is the way the view faces; A/D strafe; S backs up (the same key-turning the ISO view already used).
 4. **Aiming.** You aim the way the view faces: the aim point is straight out from you along the view's heading, at the
-   first thing that stops a round or `aimRange` (30 m). **Shots stay on your floor** (the game's law for every view):
+   first of: a wall that stops a round, somebody or a vehicle standing on the line, the ground where you are looking
+   (when you look down), or `aimRange` (30 m). So a hold-up, aim assist and a witness's read of your gun work on the
+   person in front of you, and looking down brings a throw or an order in close. **Shots stay on your floor** (the game's law for every view):
    looking up or down moves the view, not the round. The reticle is drawn where the round goes (that point, at chest
    height, projected to the screen), so it does not sit at the screen's centre when you look steeply up or down.
 5. **SHOULDER.** The camera pivots 0.55 m to one side of your head; `;` swaps shoulders. Holding aim (right button)
@@ -69,7 +73,9 @@ front of you. One key and you are back above it all.
 - **A window behind you:** the sight ray passes a window opening, so the camera may sit just outside an open window
   looking in. Glass and boards stop it.
 - **Low furniture** (under about 1.3 m) does not stop the boom; the camera may sit over a bed or a desk.
-- **Stairs:** the ceiling limit is over your feet, so it climbs with you on a flight.
+- **Stairs:** the ceiling limit is over your feet, so it climbs with you on a flight; near the top of a flight the
+  camera can be level with the deck you are climbing through.
+- **Z, - and =** step the boom in and out in a body view (the named zoom stops are top-down heights).
 - **Outdoors under a bridge deck or a canopy:** no ceiling is applied outdoors; the camera may rise through a deck above.
 - **No pointer lock** (the browser refuses it, or you never click): drag with the right or middle mouse button.
 - **A talk, the pack, the map, a menu:** the mouse is let go and the view stops turning.
@@ -119,7 +125,8 @@ front of you. One key and you are back above it all.
    SHOULDER at 12 turns × 3 pitches each (144 placements): the camera is inside the building, a sight line from your
    head to it is clear, and it is between the floor and the ceiling limits. In the open the boom runs its full length.
 3. **Walk, aim, floors, wheel, and back:** in SHOULDER turned east, W walks you east; the aim point is straight ahead
-   and the reticle is on screen; held aim shortens the boom; the other shoulder puts the camera on the other side; on
+   and the reticle is on screen; somebody 6 m in front of you takes the aim point; looking down brings it in to the
+   ground you look at; the mouse is wanted while the hands are on the game and let go when they are not; held aim shortens the boom; the other shoulder puts the camera on the other side; on
    TOPDOWN upstairs the floor shown is the floor you stand on with the roof lifted, in THIRD the building is whole and
    the camera is under the deck above; at the wheel THIRD reads as CHASE; back on TOPDOWN the angle, yaw, far and near
    planes and view radius are what they were.
@@ -128,3 +135,10 @@ Also kept green: every `camera:` check (two were told about the new views).
 
 Pictures: `docs/renders/web/camera-body/` — the same moment in TOPDOWN, THIRD and SHOULDER on a street, in the clinic,
 and at the tower's stairwell on floors 1, 3 and 5.
+
+Critic review 2026-11-12, first pass FAIL, three items, fixed in the next commit: the mouse stayed held under the map and
+every paused panel, and under the workshop and console screens; the aim point ignored people (hold-ups, aim assist, a
+witness's read, throws and orders all measured from a point 30 m out). Also taken: the click that takes the mouse no
+longer fires, Z / - / = step the boom, the wheel's cycle has one chase view again. Known and left: the indoor checks
+test the camera against the rule's own ceiling number and ray (only the tower clause tests a real deck); spawners place
+new things from about 118 m, which is in plain view on open ground in these views.

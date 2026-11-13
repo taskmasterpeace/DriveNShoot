@@ -55,8 +55,9 @@ export async function camBodyChecks({ g, api, C, check }) {
     } finally { g.godMode = false; await back(); }
   });
 
-  await check('camera body: you walk and aim the way the view faces - in SHOULDER turned east, W walks you east and the aim point lies straight ahead with the reticle on screen; holding aim pulls the boom in; the other shoulder puts the camera on the other side; on TOPDOWN upstairs the floor shown is the floor you stand on and the roof is lifted, in THIRD the building is drawn whole and the camera is under the deck above; at the wheel THIRD reads as CHASE; back on TOPDOWN the old camera is exactly as it was', async () => {
+  await check('camera body: you walk and aim the way the view faces - in SHOULDER turned east, W walks you east and the aim point lies straight ahead with the reticle on screen; somebody standing 6 m in front of you takes the aim point, and looking down brings it in to the ground you look at; the mouse is wanted while the hands are on the game and let go the moment they are not; holding aim pulls the boom in; the other shoulder puts the camera on the other side; on TOPDOWN upstairs the floor shown is the floor you stand on and the roof is lifted, in THIRD the building is drawn whole and the camera is under the deck above; at the wheel THIRD reads as CHASE; back on TOPDOWN the old camera is exactly as it was', async () => {
     await C('start'); g.godMode = true;
+    let car = null, dummy = null;
     try {
       await C('teleport', { x: 0, z: -40 }); await api._step(4);
       g.updateCamera(10);
@@ -68,6 +69,17 @@ export async function camBodyChecks({ g, api, C, check }) {
       I.keyDown('KeyW'); await api._step(40); I.keyUp('KeyW'); await api._step(2);
       const dx = p.x - x0, dz = p.z - z0, walked = Math.hypot(dx, dz), east = dx / Math.max(1e-6, walked);
       const ax = g.aim.x - p.x, az = g.aim.z - p.z, ahead = ax / Math.max(1e-6, Math.hypot(ax, az));
+      // somebody 6 m in front of you: the aim point lands on them (not on the wall 30 m behind them); looking down
+      // at the ground brings it in to where you look; the mouse is wanted only while the hands are on the game
+      for (const c of [...g.chars]) if (c !== p && Math.hypot(c.x - p.x, c.z - p.z) < 40) { if (c.npc) { c.x += 0; c.z = p.z + 60 + Math.random(); } else g.removeChar(c); } // nobody else on the line (named townsfolk are stood aside, strangers removed)
+      dummy = g.addChar({ x: p.x + 6, z: p.z, faction: 'drifter', weapon: null, hp: 400, name: 'Aim target (selftest)', flag: 'US' }); dummy.hold = true;
+      await api._step(2);
+      const onThem = Math.hypot(g.aim.x - dummy.x, g.aim.z - dummy.z);
+      g.removeChar(dummy); dummy = null;
+      R.pitch = -0.6; await api._step(2);
+      const lookDown = Math.hypot(g.aim.x - p.x, g.aim.z - p.z), wantDown = CAMERA.body.SHOULDER.eye / Math.tan(0.6);
+      R.pitch = -0.1; await api._step(2);
+      const wanted = I.wantLock === true; g.paused = true; R.lock(false); const letGo = I.wantLock === false; g.paused = false; await api._step(2);
       const ret = { x: R.reticle.x, y: R.reticle.y }, onScreen = ret.x > 0 && ret.x < innerWidth && ret.y > 0 && ret.y < innerHeight;
       const side1 = (R.pos.x - p.x) * 0 + (R.pos.z - p.z); // facing east, your right is south (+z)
       R.shoulder = -1; g.updateCamera(0.5); g.updateCamera(0.5);
@@ -92,19 +104,18 @@ export async function camBodyChecks({ g, api, C, check }) {
       R.setView('THIRD', true);
       for (const v of [...g.vehicles]) if (Math.hypot(v.x - 6, v.z + 40) < 5) g.vehiclesSys.remove(v); // nothing parked on the spot (a run before this one)
       const n0 = g.vehicles.length; await C('spawnVehicle', { type: 'sedan', x: 6, z: -40 });
-      const car = g.vehicles.length > n0 ? g.vehicles[g.vehicles.length - 1] : null;
+      car = g.vehicles.length > n0 ? g.vehicles[g.vehicles.length - 1] : null;
       if (car) await C('enterVehicle', { id: car.id, force: true });
       await api._step(4);
       const drive = { eff: R.eff(), body: !!R.body(), in: !!P().inVehicle };
       if (P().inVehicle) g.exitVehicle(true);
-      if (car) g.vehiclesSys.remove(car);
       await api._step(3);
       await back(); await C('teleport', { x: 0, z: -40 }); await api._step(3); g.updateCamera(10);
       const after = { th: r2(R.theta), yaw: r2(R.yaw), far: g.camera.far, near: r2(g.camera.near), viewR: Math.round(g.viewR) };
-      const ok = walked > 1.5 && east > 0.95 && ahead > 0.99 && onScreen && side1 > 0.2 && side2 < -0.2 && tight < loose - 0.3
+      const ok = walked > 1.5 && east > 0.95 && ahead > 0.99 && onThem < 0.5 && Math.abs(lookDown - wantDown) < 0.4 && wanted && letGo && onScreen && side1 > 0.2 && side2 < -0.2 && tight < loose - 0.3
         && shown === lvl && lvl === 2 && liftedTop && whole && under && drive.in && drive.eff === 'CHASE' && !drive.body
         && after.th === before.th && after.yaw === before.yaw && after.far === before.far && Math.abs(after.near - before.near) < 0.02 && Math.abs(after.viewR - before.viewR) <= 1 && before.far === CAMERA.far && Math.abs(before.near - nearFor(R.D)) < 0.05;
-      return ok || JSON.stringify({ walked: r2(walked), east: r2(east), ahead: r2(ahead), onScreen, side1: r2(side1), side2: r2(side2), loose: r2(loose), tight: r2(tight), lvl, shown, liftedTop, whole, under, drive, before, after });
-    } finally { g.godMode = false; if (P().inVehicle) await C('exitVehicle'); await back(); }
+      return ok || JSON.stringify({ onThem: r2(onThem), lookDown: r2(lookDown), wantDown: r2(wantDown), wanted, letGo, walked: r2(walked), east: r2(east), ahead: r2(ahead), onScreen, side1: r2(side1), side2: r2(side2), loose: r2(loose), tight: r2(tight), lvl, shown, liftedTop, whole, under, drive, before, after });
+    } finally { g.godMode = false; if (P().inVehicle) g.exitVehicle(true); if (car) g.vehiclesSys.remove(car); if (dummy) g.removeChar(dummy); await back(); }
   });
 }

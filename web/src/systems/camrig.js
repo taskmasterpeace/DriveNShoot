@@ -82,7 +82,7 @@ export class CamRig {
   cycleView() {
     const V = CAMERA.views, drive = this.mode() === 'drive';
     let i = V.indexOf(this.view);
-    do i = (i + 1) % V.length; while (V[i] === 'CHASE' && !drive);
+    do i = (i + 1) % V.length; while ((V[i] === 'CHASE' && !drive) || (CAMERA.body[V[i]] && drive)); // CHASE is the wheel's; THIRD and SHOULDER are on-foot views
     this.setView(V[i]);
   }
 
@@ -102,12 +102,11 @@ export class CamRig {
   // Player input for the camera (main.js frame, after the pad poll; never while a panel has the hands).
   input(I, dt) {
     const g = this.g;
-    this.handsT = g.time;
     if (!this._restored) { this._restored = true; const sv = g.qol?.settings?.camView; if (!AGENT_TAB && sv && sv !== this.view && CAMERA.views.includes(sv)) this.setView(sv, true); }
     const Bd = this.body(), M = I.mouse;
     if (Bd) {
       const B = CAMERA.body, S = g.qol?.settings, inv = S?.camInvertY ? -1 : 1, sens = B.sens * (S?.camSens ?? 1);
-      if ((M.locked || M.right || M.middle) && (M.dx || M.dy)) { this.orbit = wrap(this.orbit - M.dx * sens); this.pitch = clamp(this.pitch - M.dy * sens * inv, B.pitch[0] * R, B.pitch[1] * R); }
+      if (this.hands && (M.locked || M.right || M.middle) && (M.dx || M.dy)) { this.orbit = wrap(this.orbit - M.dx * sens); this.pitch = clamp(this.pitch - M.dy * sens * inv, B.pitch[0] * R, B.pitch[1] * R); }
       const C1 = g.controls;
       if (C1?.device === 'pad' && C1.aimStick.mag > 0.15 && !C1.btn?.('back')) { this.orbit = wrap(this.orbit - C1.aimStick.x * B.padRate * dt); this.pitch = clamp(this.pitch - C1.aimStick.z * B.padRate * 0.7 * dt * inv, B.pitch[0] * R, B.pitch[1] * R); }
       if (I.hit('Semicolon')) this.shoulder = -this.shoulder;
@@ -115,9 +114,15 @@ export class CamRig {
     } else this.aiming = false;
     M.dx = 0; M.dy = 0;
     if (I.wheel) this.wheel(I.wheel);
-    if (I.hit('KeyZ')) this.setStop(this.stop() + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
-    if (I.hit('Minus')) this.setStop(this.stop() + 1);
-    if (I.hit('Equal')) this.setStop(this.stop() - 1);
+    if (Bd) { // a body view's boom is short: the named stops are top-down heights, so Z / - / = step the boom like the wheel
+      if (I.hit('KeyZ')) this.wheel(I.key('ShiftLeft') || I.key('ShiftRight') ? -2 : 2);
+      if (I.hit('Minus')) this.wheel(2);
+      if (I.hit('Equal')) this.wheel(-2);
+    } else {
+      if (I.hit('KeyZ')) this.setStop(this.stop() + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
+      if (I.hit('Minus')) this.setStop(this.stop() + 1);
+      if (I.hit('Equal')) this.setStop(this.stop() - 1);
+    }
     if (I.hit('KeyO')) this.cycleView();
     if (this.eff() === 'ISO') {
       if (I.hit('BracketLeft')) this.isoYaw = wrap(this.isoYaw - CAMERA.view.ISO.yawSnap * R);
@@ -136,11 +141,7 @@ export class CamRig {
   // The boom: D, θ, ψ toward their targets, then the camera on the arm, then the true view radius (gap §4.2).
   update(dt, look, floorY, insideBuilding) {
     const g = this.g, p = g.player, v = p.inVehicle, m = this.mode(), ev = this.eff(m), L = this.limits(ev, m);
-    const Bd = this.body(m), I = g.input;
-    if (I) { // the mouse is held (pointer lock) only while a body view has the hands; a panel, a menu or another view lets it go
-      I.wantLock = !!Bd && g.time - this.handsT < 0.25;
-      if (!I.wantLock && I.mouse.locked) { try { document.exitPointerLock?.(); } catch { /* not locked */ } }
-    }
+    const Bd = this.body(m);
     if (Bd) return this.updateBody(dt, Bd, insideBuilding);
     let dT = this.mem[ev][m];
     if (v) dT = Math.min(L.dMax, dT + g.vehiclesSys.speed(v) * CAMERA.drive.speedLift * (ev === 'CHASE' ? 0.35 : 1));
@@ -211,13 +212,38 @@ export class CamRig {
     _ret.set(a.x, feet + 1.3, a.z).project(cam);
     this.reticle.x = (_ret.x + 1) / 2 * innerWidth; this.reticle.y = (1 - _ret.y) / 2 * innerHeight;
   }
-  // Where you aim in a body view: straight out from you the way the view faces, to the first thing that stops a round
-  // (or aimRange). Shots stay on your floor (the game's law): looking up or down moves the view, not the round.
+  // The mouse is held by the game (pointer lock) only while a body view has the hands. main.js says each frame whether
+  // they do (no menu, panel, talk, screen, sleep or drone); anything else lets the mouse go at once, paused or not.
+  lock(hands) {
+    const I = this.g.input; if (!I) return;
+    this.hands = hands;
+    I.wantLock = hands && !!this.body();
+    if (!I.wantLock && I.mouse.locked) { try { document.exitPointerLock?.(); } catch { /* not locked */ } }
+  }
+  // Where you aim in a body view: straight out from you the way the view faces, to the first of: a wall that stops a
+  // round, somebody or a vehicle standing on the line, the ground where you are looking (when you look down), or
+  // aimRange. So the aim point lands ON the person in front of you (a hold-up, aim assist, a witness's read of your gun
+  // all measure from it), and looking down brings it in close (a throw, an order to a dog or a crew member).
+  // Shots stay on your floor (the game's law): looking up or down moves the view, not the round.
   aimPoint(p) {
-    const B = CAMERA.body, hx = -Math.sin(this.orbit), hz = -Math.cos(this.orbit);
-    const up = p.storey || p.ug ? (p.gy ?? 0) - (p.storey?.y0 ?? this.g.under?.y0 ?? 0) : 0;
-    const t = this.g.statics.raycast(p.x, p.z, hx, hz, B.aimRange, RAY_BULLET, up > 0.5 || up < -0.5 ? up + 1.3 : -1);
-    const d = Math.max(2, Math.min(B.aimRange, t));
+    const g = this.g, B = CAMERA.body, hx = -Math.sin(this.orbit), hz = -Math.cos(this.orbit);
+    const up = p.storey || p.ug ? (p.gy ?? 0) - (p.storey?.y0 ?? g.under?.y0 ?? 0) : 0;
+    let t = g.statics.raycast(p.x, p.z, hx, hz, B.aimRange, RAY_BULLET, up > 0.5 || up < -0.5 ? up + 1.3 : -1);
+    if (this.pitch < -0.05) t = Math.min(t, (this.body()?.eye ?? 1.55) / Math.tan(-this.pitch)); // where your look meets the ground
+    for (const c of g.chars) { // the nearest body on the line (same floor), at its centre
+      if (c === p || !c.alive || c.inVehicle || c.hidden || Math.abs((c.gy ?? 0) - (p.gy ?? 0)) > 1.6) continue;
+      const rx = c.x - p.x, rz = c.z - p.z, al = rx * hx + rz * hz;
+      if (al < 0.4 || al > t) continue;
+      const off = Math.abs(rx * hz - rz * hx);
+      if (off < (c.radius ?? 0.4) + 0.25) t = al;
+    }
+    for (const v of g.vehicles) {
+      if (v.dead && !v.len) continue;
+      const rx = v.x - p.x, rz = v.z - p.z, al = rx * hx + rz * hz;
+      if (al < 0.6 || al > t) continue;
+      if (Math.abs(rx * hz - rz * hx) < (v.wid ?? 2) * 0.6) t = Math.max(0.6, al - (v.wid ?? 2) * 0.5);
+    }
+    const d = Math.max(1.2, Math.min(B.aimRange, t));
     _aim.x = p.x + hx * d; _aim.z = p.z + hz * d; _aim.d = d;
     return _aim;
   }

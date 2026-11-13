@@ -29,7 +29,12 @@ export class Input {
     addEventListener('blur', () => { for (const k of [...this.phys]) this.keyUp(k); this.down.clear(); this.holders.clear(); this.mouseButton(0, false); this.mouseButton(2, false); });
     addEventListener('mousemove', (e) => { this.mouse.dx = (this.mouse.dx ?? 0) + (e.movementX || 0); this.mouse.dy = (this.mouse.dy ?? 0) + (e.movementY || 0); if (!this.mouse.locked) this.mouseMove(e.clientX, e.clientY); }); // dx, dy: the body views' mouse look (systems/camrig.js)
     document.addEventListener('pointerlockchange', () => { this.mouse.locked = !!document.pointerLockElement; });
-    canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); this.mouseButton(e.button, true); if (this.wantLock && !this.mouse.locked) { try { canvas.requestPointerLock?.(); } catch { /* no lock: drag with the right button instead */ } } }); // middle: no autoscroll
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 1) e.preventDefault(); // middle: no autoscroll
+      // a body view wants the mouse and does not have it: this click takes it and does nothing else (it never fires)
+      if (this.wantLock && !this.mouse.locked && e.button === 0 && canvas.requestPointerLock) { try { const r = canvas.requestPointerLock(); r?.catch?.(() => {}); return; } catch { /* no lock here: the click is a click, and the right button drags the view */ } }
+      this.mouseButton(e.button, true);
+    });
     addEventListener('mouseup', (e) => this.mouseButton(e.button, false));
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     // Only a wheel over the game itself counts: a panel under the pointer (the pack, the map, a menu) keeps its wheel.

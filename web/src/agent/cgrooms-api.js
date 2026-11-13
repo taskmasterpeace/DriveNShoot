@@ -50,7 +50,7 @@ export async function cgRoomsChecks({ g, api, C, check }) {
     PIECES.sofa.col = keep.c;
     const e = validateCgRooms(['house', 'moon_base']);
     PIECES.basin.d = 0.3; const f = validateCgRooms(); PIECES.basin.d = keep.bd;
-    return (a.length === 0 && b.length === 1 && c.length === 1 && d.length === 1 && e.length === 1 && f.length === 1 && validateCgRooms(null, REACH.touch).length === 0 && validateCgRooms(Object.keys(KINDS)).length === 0) || { a, b, c, d, e, f };
+    return (a.length === 0 && b.length === 1 && c.length === 1 && d.length === 1 && e.length === 1 && f.length === 1 && validateCgRooms(null, 0.4 + REACH.touch).length === 0 && validateCgRooms(Object.keys(KINDS)).length === 0) || { a, b, c, d, e, f };
   });
 
   await check('cg rooms: 8 towns and a base built headless - every building you can enter has rooms on every floor you can reach; a house has a kitchen, a bedroom and a bathroom, a gas station a shop floor and a stock room, a school classrooms off a corridor; no piece stands in a wall, on another piece, at a street window or in a doorway; every room of every floor with a stair to it is walked into from the front door, and every street-floor container is within reach of walked floor with no partition between; no container in a piece is within a hand of the far side of a partition; the same containers as before (ids unique)', () => {
