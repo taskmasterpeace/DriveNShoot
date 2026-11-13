@@ -19,9 +19,9 @@ export class Trade {
     // ...or what you are known for closes the counter (docs/design/WEB_ROLES.md: a known butcher at Ike's).
     // ...and a gun raised in their shop shuts it until it goes down (systems/arms.js: they noticed it).
     const refuse = !T || !!g.society?.memory?.refuses(c) || !!g.roles?.refusal?.(c) || !!g.arms?.refuses(c);
-    const mul = (g.roles?.priceMul?.(c.fid, c) ?? 1) * (g.sheet?.fx.priceMul ?? 1) * (g.deep?.fx.priceMul ?? 1) * (row.priceMul ?? 1); // row.priceMul: a town counter's region (data/towns.js REGION_ECON: fuel dear in the swamp, water in the desert) // the deep sheet: Charm, Barter, perks (systems/stats.js); a role that buys cheaper (a known trader, a Remnant quartermaster's friend); a silver tongue or a sour face (data/creator.js)
+    const mul = (g.roles?.priceMul?.(c.fid, c) ?? 1) * (g.sheet?.fx.priceMul ?? 1) * (g.deep?.fx.priceMul ?? 1); // the deep sheet: Charm, Barter, perks (systems/stats.js); a role that buys cheaper (a known trader, a Remnant quartermaster's friend); a silver tongue or a sour face (data/creator.js)
     this.restock(box);
-    return { c, id: c.npc.id, name: row.name, deals: row.deals, tier, refuse, buy: T ? T.buy * mul : 0, sell: T ? (T.sell / mul) * (row.priceMul ?? 1) * (row.priceMul ?? 1) : 0 }; // priceMul: a town counter's region (scarce there: dear to buy, worth more to sell)
+    return { c, id: c.npc.id, name: row.name, deals: row.deals, tier, refuse, buy: T ? T.buy * mul : 0, sell: T ? T.sell / mul : 0 };
   }
 
   // Is this box's keeper at their counter (alive, awake, within reach)? The PACK screen keeps a counter opened from a

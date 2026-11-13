@@ -672,7 +672,7 @@ export class Inventory {
     for (const b of s.boxes ?? []) {
       const box = this.boxes.get(b.id);
       if (box) { box.slots = b.slots.map((x) => ({ ...x })); box.rolled = true; }
-      else if (b.id.startsWith('ring:') || b.id.startsWith('tl:') || b.id.startsWith('cg:')) this.ringKept.set(b.id, b.slots.map((x) => ({ ...x }))); // the ring's, a town counter's (systems/townlife.js), a generated building's: away with their place, kept (no loot regrows on a load)
+      else if (b.id.startsWith('ring:')) this.ringKept.set(b.id, b.slots.map((x) => ({ ...x })));
     }
     for (const t of s.trunks ?? []) { const v = this.g.vehicles.find((x) => x.id === t.id); if (v) this.trunk(v).slots = t.slots.map((x) => ({ ...x })); }
     this.changed();

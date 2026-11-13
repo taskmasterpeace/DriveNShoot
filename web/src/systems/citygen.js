@@ -14,7 +14,6 @@ import { ALLEYS } from '../data/backlots.js';
 import { ROLLUP } from '../data/actions.js'; // TIMED ACTIONS: a jammed roll-up's gap (WEB_TIMED_ACTIONS.md)
 import { MILBASES, MILBASES_BY_ID, MB_RULES } from '../data/milbases.js'; // THE MILITARY BASES (WEB_MILITARY_BASES.md)
 import { layoutMilbase, buildMilbase } from '../world/citygen/milbase.js';
-import { townNameFor } from '../data/towns.js'; // TOWN LIFE: a real name per town from its region's list (WEB_TOWNS_ROADS.md)
 
 // PROCEDURAL CITIES (docs/design/WEB_CITYGEN.md): the settlements of the streamed country, planned once at boot from the
 // corridors (a pure, seeded plan: towns of every archetype by biome, homesteads along the roads, real sites, military bases
@@ -82,7 +81,7 @@ export function stampOf(row) {
   return { trade: 'trade post', camp: 'camp', station: 'station', industrial: 'works', landmark: 'landmark', farm: 'farm' }[row.kind] ?? row.kind;
 }
 export function planWorld(W, seed = 0xc17e) {
-  const rng = makeRng(seed), out = [], taken = new Set();
+  const rng = makeRng(seed), out = [];
   const corridors = [W.i10, ...Object.values(W.regions ?? {}).flatMap((R) => R.corridors ?? [])].filter(Boolean);
   const exits = corridors.flatMap((c) => c.exits ?? []).map((X) => X.dest ?? X).filter((d) => Number.isFinite(d?.x));
   const holdouts = W.holdouts ?? [];
@@ -145,11 +144,9 @@ export function planWorld(W, seed = 0xc17e) {
       const x = Math.round(f.x + f.nx * side * off), z = Math.round(f.z + f.nz * side * off);
       const biome = biomeFor(W, x, z);
       const arch = archFor(cs, biome), A = ARCHETYPES[arch];
-      const rec = { kind: 'town', arch, biome, half: A.sizeM[1] / 2 + 30, archName: A.name.toUpperCase() };
+      const rec = { kind: 'town', arch, biome, half: A.sizeM[1] / 2 + 30, name: A.name.toUpperCase() };
       if (!free(x, z, rec.half)) continue;
-      const tseed = hashStr(`${cor.id}:${Math.round(s)}`) ^ seed;
-      // its name: its region's list, by its own seed, never one the plan has given already (data/towns.js TOWN_NAMES)
-      out.push({ ...rec, name: townNameFor(biome, tseed, taken), id: `cg-${out.length}`, x, z, seed: tseed, cor: cor.id, s: Math.round(s) });
+      out.push({ ...rec, id: `cg-${out.length}`, x, z, seed: hashStr(`${cor.id}:${Math.round(s)}`) ^ seed, cor: cor.id, s: Math.round(s) });
     }
     // homesteads: living outside a city, along the road
     for (let s = 600 + cs() * 900; s < L - 300; s += cs.range(1100, 2100)) {
@@ -224,7 +221,7 @@ export class CityGen {
     this.g = g;
     this.W = g.streamer?.W ?? null;
     this.enabled = true;
-    this.plan = this.W ? this.W.townPlan ?? planWorld(this.W) : []; // the streamer plans it first, then lays the towns' roads (world/townroads.js)
+    this.plan = this.W ? planWorld(this.W) : [];
     this.byId = new Map(this.plan.map((r) => [r.id, r]));
     this.bucket = new Map(); // 1 km buckets -> plan records (chunk solid(), nearby queries)
     for (const r of this.plan) this.index(r);
@@ -311,7 +308,6 @@ export class CityGen {
     this.g.milbases?.onBuilt(t); // a military base's garrison, horde or sealed doors (systems/milbases.js)
     this.g.rites?.onBuilt(t); // its cemetery stands off its buildings now (systems/rites.js)
     this.g.understreet?.onBuilt(t); // its storm drains under its streets (systems/understreet.js)
-    this.g.townlife?.onBuilt(t); // its counters (fuel, food, ammo), its ruler (systems/townlife.js)
     const ms = performance.now() - t0;
     this.counts.stamped++; this.counts.buildMs = +ms.toFixed(1); this.counts.maxMs = Math.max(this.counts.maxMs, +ms.toFixed(1));
     this.g.emit?.('settlementBuilt', { id: rec.id, name: rec.name, arch: rec.arch, buildings: T.buildings.length, ms: Math.round(ms) });
@@ -325,7 +321,6 @@ export class CityGen {
     this.g.milbases?.onReleased(t);
     this.g.rites?.onReleased(t);
     this.g.understreet?.onReleased(t);
-    this.g.townlife?.onReleased(t);
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);

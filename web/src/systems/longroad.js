@@ -32,11 +32,9 @@ export class LongRoadSys {
   // Everything seen from the road, as s positions along I-10 with a kind and a name.
   features(withBeats = true) {
     const W = this.W, out = [], see = (x, z, kind, name) => { const p = W.project(x, z, LR.sight * 4); if (p && p.d <= LR.sight) out.push({ s: p.s, kind, name }); };
-    // (withBeats false: the beats are planned on the road as it was before the towns' own exits and signs (world/townroads.js),
-    // so a town adds to the road instead of crowding out its travellers; the audit with them counts everything)
-    for (const sg of W.signs ?? []) if (withBeats || !sg.town) see(sg.x, sg.z, 'sign', sg.lines?.[0] ?? sg.kind ?? 'sign');
+    for (const sg of W.signs ?? []) see(sg.x, sg.z, 'sign', sg.lines?.[0] ?? sg.kind ?? 'sign');
     for (const t of W.towns ?? []) { const p = W.project(t.x, t.z, 4000); if (p && p.d < 2500) out.push({ s: p.s, kind: 'town', name: t.name }); }
-    for (const e of W.exits ?? []) if (e.x !== undefined && (withBeats || !e.townRec)) see(e.x, e.z, 'exit', e.name ?? 'exit');
+    for (const e of W.exits ?? []) if (e.x !== undefined) see(e.x, e.z, 'exit', e.name ?? 'exit');
     const R = W.roadside;
     if (R) { for (const s of R.sites) see(s.x, s.z, s.kind, s.name); for (const b of R.billboards) see(b.x, b.z, 'billboard', b.id); for (const h of R.hazards) see(h.x, h.z, 'hazard', h.id); }
     for (const h of W.holdouts ?? []) if (h.x !== undefined) see(h.x, h.z, 'holdout', h.name ?? h.id);
@@ -74,7 +72,7 @@ export class LongRoadSys {
       for (let s = a + step * (1 + (rng() - 0.5) * LR.jitter), next = s; s < b - step * 0.4; s = next) {
         next = s + 300;
         if (towns.some((o) => Math.abs(o.p.s - s) < LR.townClear)) continue;
-        if ((W.exits ?? []).some((e) => (!e.cor || e.cor === W.i10) && Number.isFinite(e.s) && Math.abs(e.s - s) < LR.rampClear)) continue; // I-10's ramps only (a region exit's s is along its own road)
+        if ((W.exits ?? []).some((e) => Number.isFinite(e.s) && Math.abs(e.s - s) < LR.rampClear)) continue;
         next = s + step * (1 + (rng() - 0.5) * LR.jitter);
         const at = W.at(s), side = rng() < 0.5 ? 1 : -1, off = (W.section?.(s)?.out ?? 14) + LR.offset[0] + rng() * (LR.offset[1] - LR.offset[0]);
         const x = at.x + at.nx * off * side, z = at.z + at.nz * off * side, biome = W.biomeAt(x, z);

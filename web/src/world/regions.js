@@ -148,7 +148,6 @@ export function regionWater(R, x, z, out = { d: 0, k: 0, s: 0 }, ctx = null) {
   const Wt = R.water;
   if (!Wt || !R.inBox(x, z)) return out;
   for (const h of R.holdouts) if (h.onPier(x, z)) return out; // the pier's deck is dry
-  for (const rb of R.W?.causeways ?? []) if (x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && ribbonD(rb, x, z) < rb.causewayHalf) return out; // a town's causeway across a lagoon (world/townroads.js)
   const take = () => { if (_o.d > out.d) { out.d = _o.d; out.k = _o.k; } if (_o.s > out.s) out.s = _o.s; };
   if (Wt.atlantic) { R.atlantic(x, z, _o); take(); if (out.k === WK.ocean) return out; }
   if (Wt.gulf) { R.gulf(x, z, _o); take(); if (out.k === WK.ocean && out.d > 0.3) return out; }

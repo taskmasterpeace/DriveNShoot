@@ -18,13 +18,6 @@ import { Roadside } from './roadside.js'; // THE ROADSIDE: power lines, billboar
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const BUCKET = 1024; // metres per spatial bucket for road and feature lookups
-// The added lane's width at arc length s (world/townroads.js lays the runs: [{ s0, s1, w, taper }]): 0 outside them,
-// eased in and out over each run's taper. Allocation-free: section(s) runs per vehicle per frame.
-export function laneExtra(runs, s) {
-  if (!runs) return 0;
-  for (let i = 0; i < runs.length; i++) { const r = runs[i]; if (s > r.s0 && s < r.s1) return r.w * smooth(Math.min(s - r.s0, r.s1 - s) / r.taper); }
-  return 0;
-}
 
 // Distance from p to segment ab, with the parameter t (0..1) of the closest point.
 function segPoint(px, pz, ax, az, bx, bz, out) {
@@ -39,7 +32,7 @@ const _sp = { t: 0, d: 0 };
 const NO_RELIEF = []; // nearRelief with real terrain on, where no ramp or fill is near: the ground itself
 
 // Resample a polyline [{x,z}] at a fixed step (the last point is kept). Returns {x:Float64Array, z, s}.
-export function resample(pts, step) {
+function resample(pts, step) {
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
   const L = cum[cum.length - 1], n = Math.max(2, Math.ceil(L / step) + 1);
@@ -56,7 +49,7 @@ export function resample(pts, step) {
 
 // Fillet every interior corner of a polyline with radius R (limited by the room each side), sampled every ~6 m of arc.
 // Vertices flagged `keep` stay exactly where they are (the island edges).
-export function fillet(pts, R) {
+function fillet(pts, R) {
   const out = [pts[0]];
   let used = 0; // tangent length already consumed at the start of the current segment
   for (let i = 1; i < pts.length - 1; i++) {
@@ -87,7 +80,7 @@ export function fillet(pts, R) {
 
 // A ribbon: a centreline with heights, a paved half-width each side, and what kind of road it is.
 // band: which strip of the road atlas paints it (hwy = one carriageway, county = two-way, ramp = one-way lane).
-export function ribbon(id, kind, band, pts, opts = {}) {
+function ribbon(id, kind, band, pts, opts = {}) {
   const n = pts.length, x = new Float64Array(n), z = new Float64Array(n), y = new Float64Array(n), s = new Float64Array(n);
   const wl = new Float64Array(n), wr = new Float64Array(n);
   for (let i = 0; i < n; i++) {
@@ -188,11 +181,9 @@ export class Corridor {
     const tx = c.tx[i] + (c.tx[i + 1] - c.tx[i]) * f, tz = c.tz[i] + (c.tz[i + 1] - c.tz[i]) * f, l = Math.hypot(tx, tz) || 1;
     return { x: c.x[i] + (c.x[i + 1] - c.x[i]) * f, z: c.z[i] + (c.z[i + 1] - c.z[i]) * f, tx: tx / l, tz: tz / l, nx: -tz / l, nz: tx / l };
   }
-  // s (optional): where the lane rule adds a lane (world/townroads.js laneRuns), `extra` metres more paved outside lane 2
-  // and `out` moved out by it (the mainline's own ribbon keeps out - extra; the added lane is a ribbon of its own).
-  section(s) {
-    const S = STREAM, med = S.median / 2, extra = s === undefined ? 0 : laneExtra(this.laneRuns, s);
-    return { med, in0: med, lane0: med + S.shoulderIn, lane1: med + S.shoulderIn + S.lane, lane2: med + S.shoulderIn + 2 * S.lane, out: med + S.shoulderIn + 2 * S.lane + S.shoulderOut + extra, extra };
+  section() {
+    const S = STREAM, med = S.median / 2;
+    return { med, in0: med, lane0: med + S.shoulderIn, lane1: med + S.shoulderIn + S.lane, lane2: med + S.shoulderIn + 2 * S.lane, out: med + S.shoulderIn + 2 * S.lane + S.shoulderOut };
   }
   // Is there no canal at arc length s (an interchange, the corridor's trimmed end at its town)?
   noCanal(s) {
@@ -439,8 +430,8 @@ export class WorldIndex {
     const S = STREAM, d = Math.min(Math.abs(s - this.sIslW), Math.abs(s - this.sIslE));
     const inIsl = s > this.sIslW && s < this.sIslE;
     const k = inIsl ? 0 : smooth(d / S.spliceLead);
-    const med = (S.median / 2) * k, sIn = S.shoulderIn * k, lane = 3.5 + (S.lane - 3.5) * k, sOut = S.shoulderOut * k, extra = laneExtra(this.laneRuns, s);
-    return { med, in0: med, lane0: med + sIn, lane1: med + sIn + lane, lane2: med + sIn + 2 * lane, out: med + sIn + 2 * lane + sOut + extra, extra };
+    const med = (S.median / 2) * k, sIn = S.shoulderIn * k, lane = 3.5 + (S.lane - 3.5) * k, sOut = S.shoulderOut * k;
+    return { med, in0: med, lane0: med + sIn, lane1: med + sIn + lane, lane2: med + sIn + 2 * lane, out: med + sIn + 2 * lane + sOut };
   }
 
   // The mainline as two ribbons (one per carriageway), each painted inner shoulder -> outer shoulder, from corridor
@@ -457,7 +448,7 @@ export class WorldIndex {
       const pts = [];
       for (let i = i0; i < c.n; i++) {
         const sec = this.section(c.s[i]);
-        pts.push({ x: c.x[i] + -c.tz[i] * side * sec.med, z: c.z[i] + c.tx[i] * side * sec.med, y: 0.03 + (this.water ? this.water.liftAt(c.s[i]) : 0), wl: 0, wr: sec.out - sec.extra - sec.med }); // + a river deck's lift
+        pts.push({ x: c.x[i] + -c.tz[i] * side * sec.med, z: c.z[i] + c.tx[i] * side * sec.med, y: 0.03 + (this.water ? this.water.liftAt(c.s[i]) : 0), wl: 0, wr: sec.out - sec.med }); // + a river deck's lift
       }
       // Eastbound: the ribbon's own right is +N (outward). Westbound runs the other way so its right is -N, also outward.
       add.push(ribbon(side > 0 ? 'I-10 E' : 'I-10 W', 'hwy', 'hwy', side > 0 ? pts : pts.reverse(), { mainline: true }));
@@ -475,7 +466,7 @@ export class WorldIndex {
     const P = R.plan(this);
     this.pieces.push(...P.pieces); this.structs.push(...P.structs); this.rails.push(...P.rails);
     this.buildMainline(this.mainlineI0 ?? 0, true);
-    if (rebucket) { this.water.fixSigns(this); this.relayLanes?.(); this.bucketFeatures(); } // relayLanes: the lane rule off the new decks (world/townroads.js)
+    if (rebucket) { this.water.fixSigns(this); this.bucketFeatures(); }
   }
 
   // ---- interchanges -----------------------------------------------------------------------------------------------
