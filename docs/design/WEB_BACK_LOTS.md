@@ -109,7 +109,7 @@ Robert's review of the first renders: the alley "reads as a plain empty sand str
 - **Budget:**
   - Every piece is an item of the one town mesh; the only new things that move are the dogs.
   - The biggest town is 33.4k items (it was 25.6k with the plan alone).
-  - citygen's instance cap went from 90k to 120k, so three of the largest can be live at once.
+  - citygen's instance cap went from 90k to 120k (150k since the rooms: WEB_CG_ROOMS.md), so three of the largest can be live at once.
   - The dressing pass takes ≤ 35 ms in the largest town (a 4 m box grid for its clear-ground tests).
 
 ### 3.5 Dead cars (BACK-LOTS 2: `data/wrecks.js`, `world/wreckbody.js`, `systems/wrecks.js`)
@@ -238,7 +238,7 @@ Robert, looking at three box cars by a road: "Are these placeholder cars or some
 | `GARAGE.chance` / `needYard` | 0.35 / 15 | 0–0.8 / ≥ 14 | garages on the alley |
 | `DOCKS.kinds` / `dock` | — | — | who gets a dock, its platform |
 | `GATES.near` | 55 | 30–90 | how far gate leaves hang (the leaf pool is shared) |
-| `DRESS.*.per100` | 1.6–5 | 0–10 | litter density (items: watch the 36k a town) |
+| `DRESS.*.per100` | 1.6–5 | 0–10 | litter density (items: watch the 48k a town) |
 | `DRESS.weeds.every` / `tuft` | 4.6 / 2–4 | 3–8 / 1–6 | weed clumps (the biggest item cost) |
 | `DRESS.burnt.perAlleys` / `max` | 3 / 6 | 2–8 / 0–10 | burned-out cars |
 | `DRESS.across.h` | 3.4 | > 3 (validated) | washing over a lane clears a truck |

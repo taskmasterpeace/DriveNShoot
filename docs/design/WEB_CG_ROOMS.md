@@ -87,7 +87,7 @@ doors to watch, and something to search that is where it would be.
   partitions are tagged `cg-wall`), `systems/homes.js`, `systems/casinos.js` (avoids `cg-furn`).
 - Draw calls: none added. Partitions and pieces are instances in the town's one mesh. About 17 pieces and 6 rooms per
   building on average (705 buildings: 4,520 rooms, about 12,000 pieces). **Cost:** the town's instance count and
-  collision boxes are up (the three largest towns together were 91k of the 120k instance cap, and are now about 116k;
+  collision boxes are up (the three largest towns together were 91k of the old 120k instance cap, and are now up to about 121k, so the cap is 150k;
   build time is up about 16%). The cap silently stops adding instances when it is reached; three of the very largest
   towns live at once is the case to watch.
 
@@ -147,6 +147,10 @@ found and fixed a real trapped upstairs bathroom); a base's stash stood inside t
   out to the outside doors' distance (150 m) instead of 60 m, so a barred room is still barred when you come back from
   next door. Past 150 m a bar or a lock is forgotten, exactly as on an outside door today (a known limit of the door
   system, not new here).
+- **The item budget.** Partitions and furniture took the largest dressed town from about 30k boxes to about 41k. The
+  towns' one instanced mesh now holds 150k (was 120k: three largest towns live at once), and the back-lots check's
+  per-town ceiling is 48k (was 36k). Still one draw call; found late (11-12) because that check was not in the rooms
+  slice's own run.
 - **Outside doors first.** Inner leaves are hung in a second pass, after every outside door round you has its leaf.
 - **Check:** `cg rooms: the doorways between rooms have doors` (inner leaves present, no more than the doorways, some
   open; one pulled shut blocks sight through it; 70 m away the inner leaves are gone and the outside doors are not).

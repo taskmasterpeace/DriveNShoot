@@ -121,7 +121,7 @@ export async function backlotsChecks({ api, g, check, C }) {
     return !bad.length && n > 600 && docks > 50 ? true : JSON.stringify({ facing: n, docks, bad: bad.slice(0, 6) });
   });
 
-  await check('back lots: the alleys and yards are dressed (BACK-LOTS 2) - in a residential and a downtown town every kind of dressing stands (oil and cracks on paved lanes, puddles, sagging wires between poles, trash bags, weeds at fence feet, broken pallets, a burned-out car, a stoop at every back door, washing across a lane, yard junk and wild growth); no dressing collider stands in a lane, a bay drive lane, a door step or a gate; a town stays under 36k items (citygen CAP 120k: three live) and its dressing pass takes under 60 ms', async () => {
+  await check('back lots: the alleys and yards are dressed (BACK-LOTS 2) - in a residential and a downtown town every kind of dressing stands (oil and cracks on paved lanes, puddles, sagging wires between poles, trash bags, weeds at fence feet, broken pallets, a burned-out car, a stoop at every back door, washing across a lane, yard junk and wild growth); no dressing collider stands in a lane, a bay drive lane, a door step or a gate; a town stays under 48k items (citygen CAP 150k: three live) and its dressing pass takes under 60 ms', async () => {
     const bad = [], tot = {};
     let maxItems = 0, maxMs = 0;
     for (const [a, seed] of [['dead_suburb', 21], ['sonoran_sprawl', 9182], ['rustbelt_mill', 1000], ['boom_strip', 44]]) {
@@ -138,7 +138,7 @@ export async function backlotsChecks({ api, g, check, C }) {
       }
     }
     const need = ['oil', 'cracks', 'puddles', 'wires', 'bags', 'weeds', 'pallets', 'burnt', 'stoops', 'lines', 'junk', 'wild'].filter((k) => !(tot[k] > 0));
-    return !bad.length && !need.length && maxItems < 36000 && maxMs < 60 ? true : JSON.stringify({ bad: bad.slice(0, 6), missing: need, tot, maxItems, maxMs: Math.round(maxMs) });
+    return !bad.length && !need.length && maxItems < 48000 && maxMs < 60 ? true : JSON.stringify({ bad: bad.slice(0, 6), missing: need, tot, maxItems, maxMs: Math.round(maxMs) });
   });
 
   // ---- live: a town stamped in the streamed world ----
