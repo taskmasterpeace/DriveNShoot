@@ -164,7 +164,7 @@ export class VehicleDamage {
         x -= l * 0.42 * noise; x += rt * 0.42 * noise;
         y -= (f + r + l + rt) * 0.18 * noise * Math.max(0, y - 0.5);
         // Scraped paint: crushed metal reads from above as bare, dark, scratched steel.
-        if ((name === 'bumperF' && d.zones.front >= 0.45) || (name === 'bumperR' && d.zones.rear >= 0.45)) y -= 0.3 * Math.min(1, Math.abs(x) / (W / 2) + 0.3); // hanging off: it drags (damagefeel.js)
+        if ((name === 'bumperF' && (d.zones.front >= 0.45 || (v.netGhost && d.netDrag?.F))) || (name === 'bumperR' && (d.zones.rear >= 0.45 || (v.netGhost && d.netDrag?.R)))) y -= 0.3 * Math.min(1, Math.abs(x) / (W / 2) + 0.3); // hanging off: it drags (damagefeel.js)
         const crush = Math.min(1, (f + r + l + rt) * 1.3) * (0.75 + 0.25 * Math.sin(x * 23 + z * 17));
         if (col && part !== PART.glass && part !== PART.light) {
           col.array[i * 3] = bc[i * 3] + (0.24 - bc[i * 3]) * crush;
