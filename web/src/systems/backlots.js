@@ -223,6 +223,7 @@ export class BackLots {
       };
       for (const d of t.built.doors) if (d.kind === 'door') carve(d.x, d.z, d.w, d.side === 'E' || d.side === 'W' ? 1 : 0, d.side === 'N' || d.side === 'S' ? 1 : 0);
       for (const q of t.built.gates) carve(q.x, q.z, q.w, q.nx, q.nz);
+      for (const q of t.built.innerGaps ?? []) carve(q.x, q.z, q.w, q.nx, q.nz); // the doorways between rooms (world/citygen/rooms.js)
     }
   }
 

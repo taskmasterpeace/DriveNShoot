@@ -21,6 +21,8 @@ import { VERT, LOOT_BY_KIND, FLOOR_LOOT, ROADS, BIOMES } from '../../data/cityge
 import { STEP } from '../../engine/depthlayers.js';
 import { makeRng } from '../../engine/rng.js';
 import { buildBacklots } from './backlots-build.js';
+import { layRooms, clearOf } from './rooms.js';
+import { CG_ROOMS } from '../../data/cgrooms.js';
 import { wreckOf } from '../../data/wrecks.js';
 const fnv = (x, z, k) => { let v = 2166136261 ^ k; for (const n of [Math.round(x * 10), Math.round(z * 10)]) { v ^= n; v = Math.imul(v, 16777619); } return v >>> 0; };
 
@@ -199,6 +201,7 @@ export function buildBuilding(B, out, T, rng) {
     { s: 'W', horiz: false, fixed: B.x0, a0: oz0 + WALL, a1: oz1 - WALL, nx: -1, nz: 0 }, { s: 'E', horiz: false, fixed: B.x1, a0: oz0 + WALL, a1: oz1 - WALL, nx: 1, nz: 0 },
   ];
   const escDoorAt = esc ? esc.core.frame.along(esc.core.L0 + LAND * 0.5) : null;
+  const winKeep = []; // per floor: the space just inside each window (rooms.js stands nothing there: you shoot and climb out of it)
   const topBand = n - 1;
   for (const sd of sides) {
     for (let k = 0; k < n; k++) {
@@ -216,6 +219,8 @@ export function buildBuilding(B, out, T, rng) {
         if (gaps.some((g) => c + VERT.window.w / 2 + 0.3 > g.a && c - VERT.window.w / 2 - 0.3 < g.b)) continue;
         if (B.open && k > 0) continue; // a parking deck is open sided (its rails are the half wall)
         wins.push(c);
+        const hw = VERT.window.w / 2 + 0.25, a = sd.horiz ? sd.fixed - sd.nz * 1.3 : sd.fixed - sd.nx * 1.3;
+        (winKeep[k] ??= []).push(sd.horiz ? { minX: c - hw, maxX: c + hw, minZ: Math.min(sd.fixed, a), maxZ: Math.max(sd.fixed, a) } : { minZ: c - hw, maxZ: c + hw, minX: Math.min(sd.fixed, a), maxX: Math.max(sd.fixed, a) });
       }
       const ruinTop = B.ruined && k === topBand;
       let cur = sd.a0;
@@ -371,17 +376,61 @@ export function buildBuilding(B, out, T, rng) {
   const busy = (x, z) => (core && x > core.area.minX - 2 && x < core.area.maxX + 2 && z > core.area.minZ - 2 && z < core.area.maxZ + 2) // a walker's way round the core's landings
     || B.doors.some((d) => { const [dx, dz] = doorXZ(B, d); return Math.abs(dx - x) < (d.kind === 'bay' ? d.w / 2 + 1.5 : 1.8) && Math.abs(dz - z) < (d.kind === 'bay' ? d.w / 2 + 1.5 : 1.8); })
     || (B.drive && B.doors.some((d) => d.kind === 'bay' && ((d.side === 'N' || d.side === 'S') ? Math.abs(x - d.at) < d.w / 2 + 1.4 : Math.abs(z - d.at) < d.w / 2 + 1.4)));
+  // ---- rooms (world/citygen/rooms.js; rows data/cgrooms.js): partitions with doorways and furniture on every floor you
+  // can reach. Its own rng (the building's place), so nothing else this builder rolls moves.
+  const laid = [];
+  R.rooms = [];
+  if (!B.open && !B.noRooms) {
+    const rrng = makeRng(fnv(B.x0, B.z0, 0x726d73)), CL = CG_ROOMS.clear;
+    for (let k = 0; k < Math.min(floors, n); k++) {
+      const keep = [];
+      if (core) keep.push({ minX: core.area.minX - CL, minZ: core.area.minZ - CL, maxX: core.area.maxX + CL, maxZ: core.area.maxZ + CL });
+      if (k === 0) for (const d of B.doors) {
+        const [dx, dz] = doorXZ(B, d), alongX = d.side === 'N' || d.side === 'S', bay = d.kind === 'bay';
+        const half = d.w / 2 + (bay ? 0.6 : 0.4), opp = 'NESW'[('NESW'.indexOf(d.side) + 2) % 4], deep = bay ? (B.doors.some((q) => q.kind === 'bay' && q.side === opp) ? 1e3 : 5.5) : CL + 0.5; // a drive-through's lane runs wall to wall
+        keep.push(alongX ? { minX: dx - half, maxX: dx + half, minZ: d.side === 'N' ? dz - 1 : dz - deep, maxZ: d.side === 'N' ? dz + deep : dz + 1 }
+          : { minZ: dz - half, maxZ: dz + half, minX: d.side === 'W' ? dx - 1 : dx - deep, maxX: d.side === 'W' ? dx + deep : dx + 1 });
+      }
+      if (k > 0 && esc && k <= esc.topL) {
+        const s = esc.side, a = escDoorAt;
+        keep.push(s === 'N' || s === 'S' ? { minX: a - 1.2, maxX: a + 1.2, minZ: s === 'N' ? iz0 - 1 : iz1 - 1.8, maxZ: s === 'N' ? iz0 + 1.8 : iz1 + 1 }
+          : { minZ: a - 1.2, maxZ: a + 1.2, minX: s === 'W' ? ix0 - 1 : ix1 - 1.8, maxX: s === 'W' ? ix0 + 1.8 : ix1 + 1 });
+      }
+      if (winKeep[k]) for (const w of winKeep[k]) keep.push(w);
+      const y1 = B.ruined && k === n - 1 ? Y[k] + 1.4 : (k + 1 === n ? top : Y[k + 1]) - CG_ROOMS.under; // a ruin's top band is open to the sky: its partitions are half walls too
+      const got = layRooms({ B, k, y0: Y[k], y1, ix0, ix1, iz0, iz1, keep, add, vis, rng: rrng });
+      laid[k] = got;
+      for (const q of got.rooms) R.rooms.push(q);
+      if (k === 0) { R.roomSolids = got.solids; if (out.innerGaps) for (const q of got.gaps) out.innerGaps.push(q); }
+    }
+  }
   for (let k = 0; k < (B.noLoot ? 0 : Math.min(floors, n)); k++) {
     const y = Y[k], cnt = Math.min(4, Math.max(1, Math.floor(area / LK.per)));
     for (let i = 0; i < cnt; i++) {
       const x = Math.round(rng.range(ix0 + 1.2, ix1 - 1.2) * 2) / 2, z = Math.round(rng.range(iz0 + 1.2, iz1 - 1.2) * 2) / 2;
       if (busy(x, z)) continue;
       if (esc && Math.abs(x - (B.escape.side === 'W' ? ix0 : B.escape.side === 'E' ? ix1 : x)) < 2 && Math.abs(z - (B.escape.side === 'N' ? iz0 : B.escape.side === 'S' ? iz1 : z)) < 2) continue;
-      add(x - 0.5, z - 0.5, x + 0.5, z + 0.5, 'crate', y + 1, y);
-      vis(x, y + 0.5, z, 1, 1, 1, '#7a5a34', k);
+      // the same container, the same id and table: it lives in a shelf, a locker, a desk of this floor when there is
+      // one (rooms.js holders), else it is the loose crate it always was, moved clear of the new walls and furniture
+      const hold = laid[k]?.holders.shift() ?? null;
+      let lx = x, lz = z;
+      if (hold) { lx = hold.x; lz = hold.z; }
+      else {
+        if (laid[k] && !clearOf(laid[k].solids, lx, lz)) {
+          let found = false;
+          for (let rr = 1; rr <= 6 && !found; rr++) for (let a = 0; a < 8 && !found; a++) {
+            const tx = Math.round((x + Math.cos(a * 0.785) * rr) * 2) / 2, tz = Math.round((z + Math.sin(a * 0.785) * rr) * 2) / 2;
+            if (tx < ix0 + 1 || tx > ix1 - 1 || tz < iz0 + 1 || tz > iz1 - 1 || busy(tx, tz) || !clearOf(laid[k].solids, tx, tz)) continue;
+            lx = tx; lz = tz; found = true;
+          }
+        }
+        const cb = add(lx - 0.5, lz - 0.5, lx + 0.5, lz + 0.5, 'crate', y + 1, y);
+        if (laid[k]) laid[k].solids.push(cb);
+        vis(lx, y + 0.5, lz, 1, 1, 1, '#7a5a34', k);
+        coverPt(lx, lz + 1, y, 0, 1, 'half', 6);
+      }
       const table = LK.table[Math.floor(rng() * LK.table.length)];
-      out.loot.push({ id: `cg:${B.id}:L${k}:${i}`, table: k >= 2 && rng.chance(FLOOR_LOOT.richPerFloor * k) ? 'gunsmith' : table, x, z, y, cap: 60, label: `${k ? `FLOOR ${k + 1} · ` : ''}${B.name.toUpperCase()}`, b: B.id, k });
-      coverPt(x, z + 1, y, 0, 1, 'half', 6);
+      out.loot.push({ id: `cg:${B.id}:L${k}:${i}`, table: k >= 2 && rng.chance(FLOOR_LOOT.richPerFloor * k) ? 'gunsmith' : table, x: lx, z: lz, y, cap: 60, label: `${k ? `FLOOR ${k + 1} · ` : ''}${B.name.toUpperCase()}`, b: B.id, k, inPiece: !!hold });
     }
   }
   if (core && m === n && !B.noLoot && rng.chance(FLOOR_LOOT.roofCrate)) {
@@ -424,7 +473,7 @@ function buildBridge(br, out) {
 // ---- the whole town ------------------------------------------------------------------------------------------------------
 export function buildTown(T) {
   const rng = makeRng((T.seed ^ 0xb1d6) >>> 0);
-  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [], wrecks: [], upWins: [] };
+  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [], wrecks: [], upWins: [], innerGaps: [] };
   const BI = BIOMES[T.biome] ?? BIOMES.desert_sonoran;
   // ground: the town's lots, then the streets (and their walks) on top
   for (const b of T.blocks) out.items.push({ cx: (b.x0 + b.x1) / 2, cy: 0.02, cz: (b.z0 + b.z1) / 2, sx: b.x1 - b.x0, sy: 0.04, sz: b.z1 - b.z0, col: b.green ? '#6a7448' : BI.ground, lv: 0, R: null });

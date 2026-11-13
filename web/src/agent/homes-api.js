@@ -209,7 +209,11 @@ export async function homesChecks(api, check, C) {
       await C('teleport', { x: piece.x + 0.8, z: piece.z }); await api._step(6);
       const lift = await C('base', { action: 'lift', fid: piece.fid }); if (!lift.ok) return `lift: ${lift.why}`;
       const slow = P().haulSlow;
-      const R2 = S.liveR(bk), tx = (R2.minX + R2.maxX) / 2, tz = (R2.minZ + R2.maxZ) / 2;
+      const R2 = S.liveR(bk), cx = (R2.minX + R2.maxX) / 2, cz = (R2.minZ + R2.maxZ) / 2;
+      // the middle of the base, or the nearest clear floor to it (the building has rooms: its middle may be a wall)
+      let tx = cx, tz = cz;
+      const clear = (x, z) => !(R2.roomSolids ?? []).some((b) => x + 0.7 > b.minX && x - 0.7 < b.maxX && z + 0.7 > b.minZ && z - 0.7 < b.maxZ);
+      for (let rr = 0; rr <= 6 && !clear(tx, tz); rr++) for (let a = 0; a < 8; a++) { const qx = cx + Math.cos(a * 0.785) * rr * 0.6, qz = cz + Math.sin(a * 0.785) * rr * 0.6; if (clear(qx, qz)) { tx = qx; tz = qz; break; } }
       await C('moveTo', { x: tx, z: tz, maxSeconds: 200 });
       const room = FURNITURE[piece.kind].uses[0];
       const set = await C('base', { action: 'furnish', room }); if (!set.ok) return `furnish: ${set.why}`;

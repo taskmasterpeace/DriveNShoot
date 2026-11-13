@@ -509,7 +509,18 @@ export class Homes {
     const bag = F.from.slice(); // drawn without putting back: a house has one stove, not two (a list may name a kind twice)
     for (let i = 0; i < n && bag.length; i++) {
       const kind = bag.splice(Math.floor(rng() * bag.length), 1)[0], S = FURNITURE[kind].size;
-      const x = R.minX + 1.1 + S[0] / 2 + rng() * Math.max(0, w - 2.2 - S[0]), z = R.minZ + 1.1 + S[2] / 2 + rng() * Math.max(0, d - 2.2 - S[2]);
+      let x = R.minX + 1.1 + S[0] / 2 + rng() * Math.max(0, w - 2.2 - S[0]), z = R.minZ + 1.1 + S[2] / 2 + rng() * Math.max(0, d - 2.2 - S[2]);
+      // the building has rooms now (world/citygen/rooms.js): a piece you can lift stands clear of its walls and its fixed
+      // furniture (R.roomSolids: the street floor's), a few steps from where it would have stood
+      const solids = R.roomSolids, hx = Math.max(S[0], S[2]) / 2 + 0.15, hit = (qx, qz) => solids.some((b) => qx + hx > b.minX && qx - hx < b.maxX && qz + hx > b.minZ && qz - hx < b.maxZ) || L.some((q) => Math.abs(q.x - qx) < 1.4 && Math.abs(q.z - qz) < 1.4);
+      if (solids?.length && hit(x, z)) {
+        let found = false;
+        for (let rr = 1; rr <= 8 && !found; rr++) for (let a = 0; a < 8 && !found; a++) {
+          const qx = x + Math.cos(a * 0.785) * rr * 0.7, qz = z + Math.sin(a * 0.785) * rr * 0.7;
+          if (qx < R.minX + 0.9 + hx || qx > R.maxX - 0.9 - hx || qz < R.minZ + 0.9 + hx || qz > R.maxZ - 0.9 - hx || hit(qx, qz)) continue;
+          x = qx; z = qz; found = true;
+        }
+      }
       L.push({ fid: `pc:${bk}:${i}`, kind, x: r1(x), z: r1(z), face: rng() < 0.5 ? 0 : Math.PI / 2, bk });
     }
     this.pieceCache.set(bk, L);
