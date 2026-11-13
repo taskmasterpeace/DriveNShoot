@@ -129,8 +129,9 @@ export async function camBodyChecks({ g, api, C, check }) {
     SKY_DOME.day = '#8040c0'; const b = validateSkyDome(); SKY_DOME.day = keep.day;
     SKY_DOME.radius = 5000; const c = validateSkyDome(); SKY_DOME.radius = keep.r;
     await C('start');
-    const SD = g.skyDome, hour0 = g.sky.time;
+    const SD = g.skyDome, hour0 = g.sky.time, wx0 = g.sky.weatherKey ?? 'CLEAR';
     try {
+      await C('setWeather', { key: 'CLEAR', instant: true }); // dust or ash pull the zenith all the way to the haze: the check is of a clear sky
       await C('teleport', { x: 0, z: -40 }); await C('setTime', { hour: 13 }); await api._step(4);
       g.updateCamera(0.5); const top = SD.view().on;
       R.setView('THIRD', true); g.updateCamera(0.5); await api._step(3);
@@ -143,6 +144,6 @@ export async function camBodyChecks({ g, api, C, check }) {
       const ok = a.length === 0 && b.length === 1 && c.length === 1 && validateSkyDome().length === 0 && top === false && day.on === true && at < 0.01 && day.horizon === fog && day.zenith !== day.horizon
         && lum(night.zenith) < 40 && lum(day.zenith) > lum(night.zenith) + 40 && under === false && gone === false;
       return ok || JSON.stringify({ a, b, c, top, day, at, fog, night, under, gone });
-    } finally { await C('setTime', { hour: hour0 }); await back(); }
+    } finally { await C('setTime', { hour: hour0 }); await C('setWeather', { key: wx0, instant: true }); await back(); }
   });
 }
