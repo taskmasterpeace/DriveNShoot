@@ -49,6 +49,9 @@ export class StaticWorld {
     // `extra` boxes round an open entrance (its collar) that the street's movers meet but its hash and nav grids never see.
     this.under = null;
     this.extra = [];
+    // Solid boxes out past the island's grid that are not a streamed chunk's (the Cavalry Company's post walls,
+    // systems/cavalry.js): movers meet them through `extra`, and rays (bullets, sight) through this short list.
+    this.rayExtra = [];
     // GENERATED SETTLEMENTS (systems/citygen.js): the live towns' boxes in their own 8 m hash (cg.cell(gx, gz) -> list;
     // cg.n boxes; cg.x0..z1 their bounds), met by every query below wherever a town stands.
     this.cg = null;
@@ -265,6 +268,7 @@ export class StaticWorld {
         }
       }
     }
+    if (this.rayExtra.length) this.rayList(this.rayExtra, stamp, x0, z0, dx, dz, invX, invZ, mode, y);
     this.hit.t = this.best;
     return this.best;
   }
