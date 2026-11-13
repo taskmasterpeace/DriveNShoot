@@ -813,9 +813,14 @@ export class Materials {
     const M = MATERIALS[mat] ?? MATERIALS.wood, rng = makeRng(hashStr(key) || 1), D = this.debrisMesh;
     const area = Math.max(0.5, (x1 - x0 + 0.6) * (z1 - z0 + 0.6)), n = Math.min(18, Math.round(4 + area * 2.5));
     const flat = M.look === 'planks' || M.look === 'sheet' || M.look === 'plate' || M.look === 'cloth';
+    // One pile per broken thing: breaking (or charring) the same thing again rewrites its own pile in place. A second, identical
+    // pile in fresh slots (same seed, same spot) drew every piece twice in one plane - the zfight check's white pairs.
+    const at = this.debrisAt ??= new Map();
+    let i0 = at.get(key); const fresh = i0 === undefined;
+    if (fresh) at.set(key, (i0 = this.debrisNext));
     for (let k = 0; k < n; k++) {
-      const i = this.debrisNext;
-      this.debrisNext = (i + 1) % DEBRIS_MAX;
+      const i = (i0 + k) % DEBRIS_MAX;
+      if (fresh) this.debrisNext = (i + 1) % DEBRIS_MAX;
       const x = x0 - 0.3 + rng() * (x1 - x0 + 0.6), z = z0 - 0.3 + rng() * (z1 - z0 + 0.6);
       const sx = flat ? rng.range(0.5, 1.4) : rng.range(0.12, 0.35), sy = flat ? rng.range(0.03, 0.06) : rng.range(0.08, 0.22), sz = flat ? rng.range(0.1, 0.22) : rng.range(0.12, 0.35);
       rng(); // (the height it used to roll: kept, so every pile lies as it did)
@@ -951,7 +956,7 @@ export class Materials {
     for (const door of this.g.interiors.doors) if (door.broken) { door.broken = false; for (const L of door.leaves) this.g.interiors.orient(L); }
     this.g.interiors.flush();
     for (let i = 0; i < DEBRIS_MAX; i++) this.debrisMesh.setMatrixAt(i, ZERO);
-    this.debrisMesh.count = 0; this.debrisMesh.visible = false; this.debrisNext = 0;
+    this.debrisMesh.count = 0; this.debrisMesh.visible = false; this.debrisNext = 0; this.debrisAt?.clear();
     this.debrisMesh.instanceMatrix.needsUpdate = true;
   }
 
