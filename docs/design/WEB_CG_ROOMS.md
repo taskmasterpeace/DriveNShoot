@@ -35,8 +35,10 @@ doors to watch, and something to search that is where it would be.
    lane (5.5 m in; wall to wall for a drive-through), a fire-escape door, and the space just inside every window. So a
    partition can never close a way that was open.
 4. **Furniture** (`ROOM_TYPES[type].wall`, pieces from `PIECES`): stands against the room's walls, never in a
-   keep-clear rect, a doorway or at a window, never touching another piece, and never so deep that two pieces facing
-   each other leave less than 1.4 m between them. A room 4.2 m or more each way may get rows in its middle
+   keep-clear rect, a doorway or at a window. Two pieces on the same wall may stand side by side; any two others in a
+   room keep a 1.4 m walkway between them, so a bed out from one wall and a cupboard on the next never close the way
+   between two doorways. Pieces that hold loot are at least 0.6 m deep and partitions are 0.2 m thick, so a hand pressed
+   to the far side of a partition is out of touch range of the container (the validator holds the sum). A room 4.2 m or more each way may get rows in its middle
    (`centre`: shop aisles, school desks, pews, tables).
 5. **Loot:** the floor's containers are the same ones the builder always rolled (same ids, same tables, same count). Each
    takes the next piece on its floor that can hold one (`holds: true`); when there are more containers than such
@@ -46,6 +48,8 @@ doors to watch, and something to search that is where it would be.
 8. **Path grid:** inner doorways are kept open in the foot path grid the same way outside doors are
    (`backlots.navOverlay`), so people and infected route through rooms on the street floor.
 9. **Liftable pieces** (the base-building furniture, `homes.piecesOf`) now stand clear of the new walls and pieces.
+   A base's stash and a searcher's waypoint use the clear floor nearest the building's middle (`R.clearSpot`), and a
+   ring tower's infected are not stood inside a wall or a piece (`ringrise.floorSpot`).
 10. **Its own dice.** The rooms use a generator seeded from the building's place, so nothing else the town builder
     rolls (ruin heights, loot tables, wrecks) moved.
 
@@ -66,6 +70,9 @@ doors to watch, and something to search that is where it would be.
 - **A stair core in a small house** cuts most of a partition away: the house reads as two or three rooms, not four.
 - **Old saves:** container ids are unchanged, so saved contents stay with their container; the container itself has
   moved a few metres into a piece. A liftable piece you never moved may stand a step or two from where it did.
+- **A ruin with no stair** to an upper floor keeps that floor's rooms and loot out of reach, as its loot was before.
+- **Cover:** a container that moved into a piece no longer has the cover point its loose crate had, and furniture
+  registers no cover points. Furniture cannot be broken.
 - **Not covered yet:** inner doors have no leaves (nothing to shut between rooms). No lights inside. People and infected
   upstairs still use the stair steering rule only (there is no path grid above the street), so they do not route round
   upstairs rooms well. `zombies.occupy` still places nobody. Ring towers were not looked at in the game (none was
@@ -79,7 +86,10 @@ doors to watch, and something to search that is where it would be.
   proves every floor is reached), `systems/backlots.js` (path grid), `systems/reach.js` (no loot through a partition:
   partitions are tagged `cg-wall`), `systems/homes.js`, `systems/casinos.js` (avoids `cg-furn`).
 - Draw calls: none added. Partitions and pieces are instances in the town's one mesh. About 17 pieces and 6 rooms per
-  building on average (705 buildings: 4,520 rooms, 11,753 pieces).
+  building on average (705 buildings: 4,520 rooms, about 12,000 pieces). **Cost:** the town's instance count and
+  collision boxes are up (the three largest towns together were 91k of the 120k instance cap, and are now about 116k;
+  build time is up about 16%). The cap silently stops adding instances when it is reached; three of the very largest
+  towns live at once is the case to watch.
 
 ## 7. Tuning knobs (`CG_ROOMS`)
 
@@ -100,8 +110,10 @@ doors to watch, and something to search that is where it would be.
    caught.
 2. **Headless, 8 towns and a base (705 buildings):** every building you can enter has a room on every floor you can
    reach; a house has a kitchen, a bedroom and a bathroom, a gas station a shop floor and a stock room, a school
-   classrooms off a corridor; no piece stands in a partition or on another piece; every street-floor container is
-   reached on foot from the front door; container ids are unique.
+   classrooms off a corridor; no piece stands in a partition, on another piece, at a street window or in a doorway;
+   every room of every floor a stair reaches is walked into from the front door (about 1,900 upstairs rooms); every
+   street-floor container is within reach of walked floor with no partition between; no container in a piece is within
+   touch of the far side of a partition; container ids are unique.
 3. **In a live town:** a container in a shelf is in reach from inside its room and not from the next room through the
    partition (why: wall); the `rooms` command names the rooms of the building you stand in.
 
@@ -110,3 +122,8 @@ a floor-4 window), `homes:` (12), `casinos:`, `milbases:`, `storeys`.
 
 Pictures: `docs/renders/web/cg-rooms/` (before and after: a town house, a gas station, a school on two floors, a police
 station, a base headquarters, a base hospital).
+
+Critic review 2026-11-12, first pass FAIL, three items, fixed in the next commit: a hand reached a wash basin through a
+partition (thicker partitions, deeper holders, a validator rule and a check); the headless check claimed more than it
+tested (it now tests doorways, windows, every room on every reachable floor, and a line test to each container, which
+found and fixed a real trapped upstairs bathroom); a base's stash stood inside the new cross wall.

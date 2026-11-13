@@ -88,14 +88,19 @@ export function layRooms(o) {
 
   // ---- the furniture: against the walls of each room, then rows in the middle of a big one ---------------------------
   const holders = [], placed = [], outRooms = [];
-  const blocked = (r, pad) => zones.some((z) => hits(r, z)) || placed.some((q) => hits(r, q, pad));
-  const put = (r, P) => {
+  // Two pieces on the same wall of a room may stand side by side. Any two others in a room keep a walkway (C.pass)
+  // between them: a bed out from one wall and a cupboard on the next never close the way from one doorway to another.
+  let ri = 0;
+  const blocked = (r, side) => zones.some((z) => hits(r, z)) || placed.some((q) => hits(r, q, q.ri === ri ? (q.side === side && side >= 0 ? 0.25 : C.pass) : 0.05));
+  const put = (r, P, side) => {
     const bx = add(r.minX, r.minZ, r.maxX, r.maxZ, 'cg-furn', y0 + P.h, y0);
+    r.ri = ri; r.side = side;
     solids.push(bx); placed.push(r);
     vis((r.minX + r.maxX) / 2, y0 + P.h / 2, (r.minZ + r.maxZ) / 2, r.maxX - r.minX, P.h, r.maxZ - r.minZ, P.col, k);
     if (P.holds) holders.push({ x: (r.minX + r.maxX) / 2, z: (r.minZ + r.maxZ) / 2 });
   };
   for (const q of rooms) {
+    ri++;
     const RT = ROOM_TYPES[q.type] ?? ROOM_TYPES.store, w0 = rect(q.u0, q.v0, q.u1, q.v1);
     const r = { minX: w0.minX + T / 2, maxX: w0.maxX - T / 2, minZ: w0.minZ + T / 2, maxZ: w0.maxZ - T / 2 };
     outRooms.push({ k, type: q.type, name: RT.name, minX: r.minX, minZ: r.minZ, maxX: r.maxX, maxZ: r.maxZ });
@@ -115,8 +120,8 @@ export function layRooms(o) {
         const a0 = (alongX ? r.minX : r.minZ) + cur, a1 = a0 + P.w;
         const fr = side === 0 ? { minX: a0, maxX: a1, minZ: r.minZ, maxZ: r.minZ + P.d } : side === 1 ? { minX: a0, maxX: a1, minZ: r.maxZ - P.d, maxZ: r.maxZ }
           : side === 2 ? { minX: r.minX, maxX: r.minX + P.d, minZ: a0, maxZ: a1 } : { minX: r.maxX - P.d, maxX: r.maxX, minZ: a0, maxZ: a1 };
-        if (blocked(fr, 0.25)) { cur += 0.6; continue; }
-        put(fr, P); depth[side] = Math.max(depth[side], P.d); got++; pi++; cur += P.w + 0.35;
+        if (blocked(fr, side)) { cur += 0.6; continue; }
+        put(fr, P, side); depth[side] = Math.max(depth[side], P.d); got++; pi++; cur += P.w + 0.35;
       }
     }
     if (RT.centre && Math.min(sx, sz) >= C.centreMin) {
@@ -124,8 +129,8 @@ export function layRooms(o) {
       let n = 0;
       for (let z = r.minZ + mg; z + pd <= r.maxZ - mg + 1e-6 && n < 12; z += pd + C.aisle) for (let x = r.minX + mg; x + pw <= r.maxX - mg + 1e-6 && n < 12; x += pw + C.aisle) {
         const fr = { minX: x, maxX: x + pw, minZ: z, maxZ: z + pd };
-        if (blocked(fr, 0.7)) continue;
-        put(fr, P); n++;
+        if (blocked(fr, -1)) continue;
+        put(fr, P, -1); n++;
       }
     }
   }

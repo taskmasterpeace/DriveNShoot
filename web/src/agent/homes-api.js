@@ -209,7 +209,7 @@ export async function homesChecks(api, check, C) {
       await C('teleport', { x: piece.x + 0.8, z: piece.z }); await api._step(6);
       const lift = await C('base', { action: 'lift', fid: piece.fid }); if (!lift.ok) return `lift: ${lift.why}`;
       const slow = P().haulSlow;
-      const R2 = S.liveR(bk), cx = (R2.minX + R2.maxX) / 2, cz = (R2.minZ + R2.maxZ) / 2;
+      const R2 = S.liveR(bk), cx = R2.clearSpot?.x ?? (R2.minX + R2.maxX) / 2, cz = R2.clearSpot?.z ?? (R2.minZ + R2.maxZ) / 2;
       // the middle of the base, or the nearest clear floor to it (the building has rooms: its middle may be a wall)
       let tx = cx, tz = cz;
       const clear = (x, z) => !(R2.roomSolids ?? []).some((b) => x + 0.7 > b.minX && x - 0.7 < b.maxX && z + 0.7 > b.minZ && z - 0.7 < b.maxZ);

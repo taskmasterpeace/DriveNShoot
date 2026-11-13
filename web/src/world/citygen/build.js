@@ -401,7 +401,8 @@ export function buildBuilding(B, out, T, rng) {
       const got = layRooms({ B, k, y0: Y[k], y1, ix0, ix1, iz0, iz1, keep, add, vis, rng: rrng });
       laid[k] = got;
       for (const q of got.rooms) R.rooms.push(q);
-      if (k === 0) { R.roomSolids = got.solids; if (out.innerGaps) for (const q of got.gaps) out.innerGaps.push(q); }
+      if (k === 0) { R.roomSolids = got.solids; if (out.innerGaps) for (const q of got.gaps) out.innerGaps.push({ ...q, b: B.id }); }
+      (B.floorSolids ??= [])[k] = got.solids;
     }
   }
   for (let k = 0; k < (B.noLoot ? 0 : Math.min(floors, n)); k++) {
@@ -437,6 +438,15 @@ export function buildBuilding(B, out, T, rng) {
     const x = Math.round(((ix0 + ix1) / 2) * 2) / 2, z = Math.round((core.area.minZ > (iz0 + iz1) / 2 ? iz0 + 2 : iz1 - 2) * 2) / 2;
     if (!busy(x, z)) { add(x - 0.5, z - 0.5, x + 0.5, z + 0.5, 'crate', top + 1, top); vis(x, top + 0.5, z, 1, 1, 1, '#5e5a3a', n); out.loot.push({ id: `cg:${B.id}:roof`, table: FLOOR_LOOT.roofTable, x, z, y: top, cap: 60, label: `ROOF · ${B.name.toUpperCase()}`, b: B.id, k: n }); }
   }
+  // the clear floor nearest the middle of the street storey: where a base's stash stands and where a searcher walks to
+  // (the middle itself may be a partition now)
+  { const cx = (B.x0 + B.x1) / 2, cz = (B.z0 + B.z1) / 2, sol = laid[0]?.solids;
+    R.clearSpot = { x: cx, z: cz };
+    if (sol && !clearOf(sol, cx, cz, 0.7)) search: for (let rr = 1; rr <= 10; rr++) for (let a = 0; a < 8; a++) {
+      const x = Math.round((cx + Math.cos(a * 0.785) * rr * 0.6) * 10) / 10, z = Math.round((cz + Math.sin(a * 0.785) * rr * 0.6) * 10) / 10;
+      if (x < ix0 + 0.8 || x > ix1 - 0.8 || z < iz0 + 0.8 || z > iz1 - 0.8 || busy(x, z) || !clearOf(sol, x, z, 0.7)) continue;
+      R.clearSpot = { x, z }; break search;
+    } }
   for (const d of B.doors) { const [dx, dz] = doorXZ(B, d); out.doors.push({ b: B.id, x: dx, z: dz, side: d.side, w: d.w, h: d.h, kind: d.kind }); }
   R.i1 = out.items.length;
   return R;

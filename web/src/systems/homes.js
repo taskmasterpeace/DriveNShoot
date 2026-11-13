@@ -378,7 +378,7 @@ export class Homes {
     return { ok: true, id: bk, how, base: this.baseView(b) };
   }
   makeBase(R, how) {
-    const g = this.g, bk = this.bkOf(R), B = R.B, x = r1((R.minX + R.maxX) / 2), z = r1((R.minZ + R.maxZ) / 2);
+    const g = this.g, bk = this.bkOf(R), B = R.B, x = r1(R.clearSpot?.x ?? (R.minX + R.maxX) / 2), z = r1(R.clearSpot?.z ?? (R.minZ + R.maxZ) / 2); // clear floor near the middle (the building has rooms: world/citygen/rooms.js)
     let b = this.bases.get(bk);
     if (!b) {
       b = { id: bk, kind: B.kind, name: `${(CG_KINDS[B.kind]?.name ?? B.kind).toUpperCase()} · ${R.rec?.name ?? 'OUT IN THE OPEN'}`, town: R.rec?.id ?? null, how, day: this.day(), x, z,

@@ -6,6 +6,7 @@ import { layoutTown, layoutBase } from '../world/citygen/layout.js';
 import { buildTown } from '../world/citygen/build.js';
 import { TownProbe } from '../world/citygen/audit.js';
 import { freeSpot } from './citygen-api.js';
+import { REACH } from '../data/reach.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const inR = (R, x, z) => x > R.minX && x < R.maxX && z > R.minZ && z < R.maxZ;
@@ -40,23 +41,25 @@ export function cgRoomsCommands(api, need) {
 }
 
 export async function cgRoomsChecks({ g, api, C, check }) {
-  await check('cg rooms: the rows validate - every one of the building kinds has a rooms row, every room type and piece it names exists; an unknown layout, an unknown piece and a purple piece are each caught', () => {
+  await check('cg rooms: the rows validate - every one of the building kinds has a rooms row, every room type and piece it names exists; an unknown layout, an unknown piece, a purple piece and a loot-holding piece shallow enough to be reached through a partition are each caught', () => {
     const a = validateCgRooms(Object.keys(KINDS));
-    const keep = { k: KIND_ROOMS.house, p: ROOM_TYPES.living.wall, c: PIECES.sofa.col };
+    const keep = { k: KIND_ROOMS.house, p: ROOM_TYPES.living.wall, c: PIECES.sofa.col, bd: PIECES.basin.d };
     KIND_ROOMS.house = { street: ['maze', 'living'], up: keep.k.up }; const b = validateCgRooms();
     KIND_ROOMS.house = keep.k; ROOM_TYPES.living.wall = ['hovercraft']; const c = validateCgRooms();
     ROOM_TYPES.living.wall = keep.p; PIECES.sofa.col = '#8040c0'; const d = validateCgRooms();
     PIECES.sofa.col = keep.c;
     const e = validateCgRooms(['house', 'moon_base']);
-    return (a.length === 0 && b.length === 1 && c.length === 1 && d.length === 1 && e.length === 1 && validateCgRooms(Object.keys(KINDS)).length === 0) || { a, b, c, d, e };
+    PIECES.basin.d = 0.3; const f = validateCgRooms(); PIECES.basin.d = keep.bd;
+    return (a.length === 0 && b.length === 1 && c.length === 1 && d.length === 1 && e.length === 1 && f.length === 1 && validateCgRooms(null, REACH.touch).length === 0 && validateCgRooms(Object.keys(KINDS)).length === 0) || { a, b, c, d, e, f };
   });
 
-  await check('cg rooms: 8 towns and a base built headless - every building you can enter has rooms on every floor you can reach; a house has a kitchen, a bedroom and a bathroom, a gas station a shop floor and a stock room, a school classrooms off a corridor; no piece stands in a wall, on another piece, at a window or in a doorway; every street-floor container is reached on foot from the front door; the same containers as before (ids unique, none added)', () => {
-    const ids = Object.keys(ARCHETYPES), bad = [], seen = { blds: 0, rooms: 0, pieces: 0, loot: 0, inPiece: 0, kinds: new Set() };
+  await check('cg rooms: 8 towns and a base built headless - every building you can enter has rooms on every floor you can reach; a house has a kitchen, a bedroom and a bathroom, a gas station a shop floor and a stock room, a school classrooms off a corridor; no piece stands in a wall, on another piece, at a street window or in a doorway; every room of every floor with a stair to it is walked into from the front door, and every street-floor container is within reach of walked floor with no partition between; no container in a piece is within a hand of the far side of a partition; the same containers as before (ids unique)', () => {
+    const ids = Object.keys(ARCHETYPES), bad = [], seen = { blds: 0, rooms: 0, upRooms: 0, pieces: 0, loot: 0, inPiece: 0, kinds: new Set() };
     const want = { house: ['kitchen', 'bedroom', 'bath'], gas_station: ['sales', 'stock'], school: ['classroom', 'corridor'] }, had = {};
     const towns = [];
     for (let i = 0; i < 8; i++) towns.push(layoutTown({ arch: ids[(i * 5 + 1) % ids.length], seed: 500 + i * 61, x: 40000 + i * 1200, z: -30000 }));
     towns.push(layoutBase({ seed: 77, x: 60000, z: -30000 }));
+    const over = (f, b, pad = -0.02) => f.minX < b.maxX + pad && f.maxX > b.minX - pad && f.minZ < b.maxZ + pad && f.maxZ > b.minZ - pad;
     for (const T of towns) {
       let built; try { built = buildTown(T); } catch (e) { bad.push(`${T.id}: threw ${e.message}`); continue; }
       const P = new TownProbe(built), lootIds = new Set();
@@ -69,27 +72,63 @@ export async function cgRoomsChecks({ g, api, C, check }) {
         seen.rooms += rooms.length;
         if (want[B.kind]) { const types = new Set(rooms.map((q) => q.type)); if (want[B.kind].every((t) => types.has(t))) had[B.kind] = true; }
         const mine = built.boxes.filter((b) => b.maxX > R.minX && b.minX < R.maxX && b.maxZ > R.minZ && b.minZ < R.maxZ);
-        const furn = mine.filter((b) => b.tag === 'cg-furn'), part = mine.filter((b) => b.inner);
+        const furn = mine.filter((b) => b.tag === 'cg-furn'), part = mine.filter((b) => b.inner), street = furn.filter((f) => Math.abs(f.base - (B.Y[0] ?? 0)) < 0.05);
         seen.pieces += furn.length;
         for (const f of furn) {
-          const over = (b, pad = -0.02) => b !== f && Math.abs(b.base - f.base) < 0.6 && f.minX < b.maxX + pad && f.maxX > b.minX - pad && f.minZ < b.maxZ + pad && f.maxZ > b.minZ - pad;
-          if (part.some((b) => b.base <= f.base + 0.05 && over(b))) bad.push(`${B.id}: a piece in a partition`);
-          if (furn.some((b) => over(b))) bad.push(`${B.id}: two pieces overlap`);
+          const lvl = (b) => b !== f && Math.abs(b.base - f.base) < 0.6;
+          if (part.some((b) => b.base <= f.base + 0.05 && lvl(b) && over(f, b))) bad.push(`${B.id}: a piece in a partition`);
+          if (furn.some((b) => lvl(b) && over(f, b))) bad.push(`${B.id}: two pieces overlap`);
         }
-        // on foot from the front door to every street-floor container
+        // a doorway between rooms and the space inside a street window stay empty
+        for (const q of built.innerGaps.filter((q) => q.b === B.id)) {
+          const z = q.nz ? { minX: q.x - q.w / 2, maxX: q.x + q.w / 2, minZ: q.z - 0.9, maxZ: q.z + 0.9 } : { minX: q.x - 0.9, maxX: q.x + 0.9, minZ: q.z - q.w / 2, maxZ: q.z + q.w / 2 };
+          if (street.some((f) => over(f, z))) bad.push(`${B.id}(${B.kind}): a piece in a doorway`);
+        }
+        for (const w of built.windows.filter((w) => w.b === B.id)) {
+          const hw = w.width / 2, z = w.axis === 'x' ? { minX: w.x - hw, maxX: w.x + hw, minZ: Math.min(w.z, w.z - w.nz * 1.0), maxZ: Math.max(w.z, w.z - w.nz * 1.0) } : { minZ: w.z - hw, maxZ: w.z + hw, minX: Math.min(w.x, w.x - w.nx * 1.0), maxX: Math.max(w.x, w.x - w.nx * 1.0) };
+          if (street.some((f) => over(f, z))) bad.push(`${B.id}(${B.kind}): a piece at a window`);
+        }
+        // on foot from the front door: into every room (every floor a stair reaches), and to each street container from
+        // inside its own room
         const door = B.doors.find((d) => d.kind === 'door') ?? B.doors[0], loot = built.loot.filter((l) => l.b === B.id);
         seen.loot += loot.length; seen.inPiece += loot.filter((l) => l.inPiece).length;
-        const street = loot.filter((l) => (l.k ?? 0) === 0);
-        if (door && street.length) {
+        if (door) {
           const o = door.side === 'N' ? [door.at, B.z0 - 1.6] : door.side === 'S' ? [door.at, B.z1 + 1.6] : door.side === 'W' ? [B.x0 - 1.6, door.at] : [B.x1 + 1.6, door.at];
-          const F = P.flood(o[0], o[1], { x0: B.x0 - 8, z0: B.z0 - 8, x1: B.x1 + 8, z1: B.z1 + 8 }, 0.4);
-          for (const l of street) if (!F.states.some(([x, z, y]) => y < 0.6 && Math.hypot(x - l.x, z - l.z) < 1.75)) bad.push(`${B.id}(${B.kind}): container ${l.id} not reached on foot`);
+          const W = { x0: B.x0 - 8, z0: B.z0 - 8, x1: B.x1 + 8, z1: B.z1 + 8 };
+          if (R.E) { const e = R.E.b; W.x0 = Math.min(W.x0, e.minX - 2); W.x1 = Math.max(W.x1, e.maxX + 2); W.z0 = Math.min(W.z0, e.minZ - 2); W.z1 = Math.max(W.z1, e.maxZ + 2); }
+          const F = P.flood(o[0], o[1], W, 0.4), levels = R.S ? R.S.n : 0;
+          const inRoom = (q, x, z, m = 0) => x > q.minX - m && x < q.maxX + m && z > q.minZ - m && z < q.maxZ + m;
+          for (const q of rooms) {
+            if (q.k > levels) continue; // a ruin's floor with no stair to it (it had loot and no way up before rooms, too)
+            if (q.k > 0) seen.upRooms++;
+            const y = B.Y[q.k] ?? 0;
+            if (!F.states.some(([x, z, yy]) => Math.abs(yy - y) < 0.3 && inRoom(q, x, z))) bad.push(`${B.id}(${B.kind}): the ${q.name} on floor ${q.k} is never walked into`);
+          }
+          for (const l of loot) {
+            if ((l.k ?? 0) !== 0) continue;
+            // a walked cell within reach with no partition between it and the container (a doorway beside it counts; a wall does not)
+            const walls0 = part.filter((b) => b.base <= (B.Y[0] ?? 0) + 0.05);
+            const cut = (x0, z0, x1, z1) => walls0.some((b) => { let t0 = 0, t1 = 1; const dx = x1 - x0, dz = z1 - z0; for (const [pp, dd, lo, hi] of [[x0, dx, b.minX, b.maxX], [z0, dz, b.minZ, b.maxZ]]) { if (Math.abs(dd) < 1e-9) { if (pp < lo || pp > hi) return false; } else { let a = (lo - pp) / dd, c = (hi - pp) / dd; if (a > c) [a, c] = [c, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, c); if (t0 > t1) return false; } } return true; });
+            if (!F.states.some(([x, z, y]) => y < 0.6 && Math.hypot(x - l.x, z - l.z) < 1.75 && !cut(x, z, l.x, l.z))) bad.push(`${B.id}(${B.kind}): container ${l.id} not reached without a partition in the way`);
+          }
+        }
+        // no hand through a partition: a container in a piece is further than the touch distance from the far face
+        for (const l of loot) {
+          if (!l.inPiece) continue;
+          const y = B.Y[l.k ?? 0] ?? 0;
+          for (const w of part) {
+            if (Math.abs(w.base - y) > 0.05) continue;
+            const horiz = w.maxX - w.minX > w.maxZ - w.minZ, wc = horiz ? (w.minZ + w.maxZ) / 2 : (w.minX + w.maxX) / 2, t = (horiz ? w.maxZ - w.minZ : w.maxX - w.minX) / 2;
+            const off = Math.abs((horiz ? l.z : l.x) - wc), along = horiz ? l.x : l.z;
+            if (along < (horiz ? w.minX : w.minZ) || along > (horiz ? w.maxX : w.maxZ)) continue;
+            if (off + t + 0.4 < REACH.touch + 0.4 + 0.04) bad.push(`${B.id}: container ${l.id} is ${(off + t + 0.4).toFixed(2)} m from someone pressed to the far side of a partition`);
+          }
         }
       }
     }
     const missing = Object.keys(want).filter((k) => !had[k]);
-    const ok = !bad.length && !missing.length && seen.blds > 300 && seen.rooms > seen.blds * 2 && seen.pieces > seen.blds * 4 && seen.inPiece > seen.loot * 0.5;
-    return ok || JSON.stringify({ bad: bad.slice(0, 6), nBad: bad.length, missing, blds: seen.blds, rooms: seen.rooms, pieces: seen.pieces, loot: seen.loot, inPiece: seen.inPiece, kinds: seen.kinds.size });
+    const ok = !bad.length && !missing.length && seen.blds > 300 && seen.rooms > seen.blds * 2 && seen.upRooms > 500 && seen.pieces > seen.blds * 4 && seen.inPiece > seen.loot * 0.5;
+    return ok || JSON.stringify({ bad: bad.slice(0, 6), nBad: bad.length, missing, blds: seen.blds, rooms: seen.rooms, upRooms: seen.upRooms, pieces: seen.pieces, loot: seen.loot, inPiece: seen.inPiece, kinds: seen.kinds.size });
   });
 
   await check('cg rooms: in a live town - a container that lives in a shelf is in your reach from inside its room and NOT from the room next door through the partition (the reach rule holds for the new walls); the `rooms` command names the rooms of the building you stand in', async () => {

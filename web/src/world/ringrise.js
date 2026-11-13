@@ -206,7 +206,7 @@ export class RingRise {
         const odds = Math.min(0.9, D.infected.base + D.infected.perFloor * k);
         for (let i = 0; i < D.infected.max; i++) {
           if (rng() >= odds || !free()) continue;
-          const p = this.floorSpot(B, S, rng);
+          const p = this.floorSpot(B, S, rng, k);
           const c = g.zombies?.spawn(p.x, p.z, rng() < 0.15);
           if (!c) continue;
           c.x = p.x; c.z = p.z; c.gy = S.Y[k]; c.storey = S; c.ringRise = e.rec.id; c.home = { x: p.x, z: p.z };
@@ -216,11 +216,12 @@ export class RingRise {
     }
   }
   // A spot on a floor clear of the stair core's footprint and a metre in from the walls.
-  floorSpot(B, S, rng) {
-    const A = S.area;
-    for (let i = 0; i < 12; i++) {
+  floorSpot(B, S, rng, k = -1) {
+    const A = S.area, sol = k >= 0 ? B.floorSolids?.[k] : null; // that floor's partitions and furniture (world/citygen/rooms.js)
+    for (let i = 0; i < 16; i++) {
       const x = B.x0 + 1.4 + rng() * (B.x1 - B.x0 - 2.8), z = B.z0 + 1.4 + rng() * (B.z1 - B.z0 - 2.8);
       if (A && x > A.minX - 1.2 && x < A.maxX + 1.2 && z > A.minZ - 1.2 && z < A.maxZ + 1.2) continue;
+      if (sol && sol.some((b) => x + 0.5 > b.minX && x - 0.5 < b.maxX && z + 0.5 > b.minZ && z - 0.5 < b.maxZ)) continue;
       return { x, z };
     }
     return { x: (B.x0 + B.x1) / 2, z: (B.z0 + B.z1) / 2 };

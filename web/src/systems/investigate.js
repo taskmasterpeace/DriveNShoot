@@ -58,12 +58,12 @@ export class Investigate {
     const hides = [];
     // Inside the buildings round the spot (the live towns' and the island's).
     for (const t of g.citygen?.live?.values() ?? []) for (const B of t.blds ?? []) {
-      const bx = (B.minX + B.maxX) / 2, bz = (B.minZ + B.maxZ) / 2, d = Math.hypot(bx - x, bz - z);
+      const bx = B.clearSpot?.x ?? (B.minX + B.maxX) / 2, bz = B.clearSpot?.z ?? (B.minZ + B.maxZ) / 2, d = Math.hypot(bx - x, bz - z); // clear floor near its middle (a generated building has rooms)
       if (d < R + 12) hides.push({ x: bx, z: bz, why: 'inside a building', d, look: IV.look * 1.5 });
     }
     for (const B of g.world?.buildings ?? []) {
       if (B.minX === undefined) continue;
-      const bx = (B.minX + B.maxX) / 2, bz = (B.minZ + B.maxZ) / 2, d = Math.hypot(bx - x, bz - z);
+      const bx = B.clearSpot?.x ?? (B.minX + B.maxX) / 2, bz = B.clearSpot?.z ?? (B.minZ + B.maxZ) / 2, d = Math.hypot(bx - x, bz - z); // clear floor near its middle (a generated building has rooms)
       if (d < R + 12) hides.push({ x: bx, z: bz, why: 'inside a building', d, look: IV.look * 1.5 });
     }
     // Behind the cover: the far side of each wall, crate or wreck (its normal points away from the spot).

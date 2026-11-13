@@ -31,15 +31,15 @@ export const DEFAULT_ROOMS = R(['hall', 'store']);
 // (build.js moves the floor's containers into these instead of loose crates: nothing new is made, the same containers).
 export const PIECES = {
   bed: { w: 1.0, d: 2.0, h: 0.55, col: '#8c8a7a' }, hbed: { w: 1.0, d: 2.1, h: 0.7, col: '#bfc4c0' }, bunk: { w: 1.0, d: 2.0, h: 1.7, col: '#5a5f4a' },
-  dresser: { w: 1.2, d: 0.5, h: 1.0, col: '#6b4a2e', holds: true }, wardrobe: { w: 1.2, d: 0.6, h: 1.9, col: '#5c3f28', holds: true },
+  dresser: { w: 1.2, d: 0.6, h: 1.0, col: '#6b4a2e', holds: true }, wardrobe: { w: 1.2, d: 0.6, h: 1.9, col: '#5c3f28', holds: true },
   sofa: { w: 2.0, d: 0.9, h: 0.8, col: '#5d6a58' }, table: { w: 1.4, d: 0.9, h: 0.75, col: '#7a5a34' }, bench: { w: 1.6, d: 0.5, h: 0.5, col: '#6e5a40' },
   counter: { w: 2.4, d: 0.7, h: 1.0, col: '#6e5a40', holds: true }, stove: { w: 0.8, d: 0.7, h: 0.95, col: '#4a4a48' },
   fridge: { w: 0.8, d: 0.7, h: 1.8, col: '#c9c6ba', holds: true }, cupboard: { w: 1.6, d: 0.6, h: 0.95, col: '#8a7a5c', holds: true },
-  toilet: { w: 0.5, d: 0.7, h: 0.5, col: '#d8d5cc' }, tub: { w: 1.6, d: 0.8, h: 0.55, col: '#d0cdc4' }, basin: { w: 0.6, d: 0.45, h: 0.9, col: '#d8d5cc', holds: true },
-  shelf: { w: 2.0, d: 0.5, h: 1.9, col: '#6a6052', holds: true }, aisle: { w: 2.4, d: 0.6, h: 1.6, col: '#6a6052', holds: true },
+  toilet: { w: 0.5, d: 0.7, h: 0.5, col: '#d8d5cc' }, tub: { w: 1.6, d: 0.8, h: 0.55, col: '#d0cdc4' }, basin: { w: 0.6, d: 0.6, h: 0.9, col: '#d8d5cc', holds: true },
+  shelf: { w: 2.0, d: 0.6, h: 1.9, col: '#6a6052', holds: true }, aisle: { w: 2.4, d: 0.6, h: 1.6, col: '#6a6052', holds: true },
   rack: { w: 2.4, d: 0.8, h: 2.2, col: '#4f5258', holds: true }, desk: { w: 1.5, d: 0.75, h: 0.75, col: '#6b5236', holds: true },
   pupil: { w: 0.7, d: 0.5, h: 0.7, col: '#8a6a42' }, cabinet: { w: 0.6, d: 0.6, h: 1.4, col: '#70726c', holds: true },
-  locker: { w: 0.9, d: 0.5, h: 1.9, col: '#56605e', holds: true }, pew: { w: 3.0, d: 0.6, h: 0.9, col: '#5a3f26' },
+  locker: { w: 0.9, d: 0.6, h: 1.9, col: '#56605e', holds: true }, pew: { w: 3.0, d: 0.6, h: 0.9, col: '#5a3f26' },
   workbench: { w: 2.2, d: 0.8, h: 0.95, col: '#5e4a30', holds: true }, bar: { w: 4.0, d: 0.8, h: 1.1, col: '#4a321e' },
 };
 
@@ -83,9 +83,9 @@ export const ROOM_TYPES = {
 //   perPiece  m² of room per piece against the walls (min, max per room); centreMin: a room needs this much each way
 //             before anything stands in its middle (centreEdge: kept clear round the rows); aisle: the gap between rows
 //   under     a partition stops this far under the deck above (it never shows through the floor or the roof)
-export const CG_ROOMS = { wall: 0.16, door: 1.4, lintel: 2.6, corridor: 2.0, bay: 4.6, minRoom: 2.6, clear: 1.4, pass: 1.4, perPiece: 4.5, pieces: [2, 9], centreMin: 4.2, centreEdge: 1.5, aisle: 1.3, under: 0.24 };
+export const CG_ROOMS = { wall: 0.2, door: 1.4, lintel: 2.6, corridor: 2.0, bay: 4.6, minRoom: 2.6, clear: 1.4, pass: 1.4, perPiece: 4.5, pieces: [2, 9], centreMin: 4.2, centreEdge: 1.5, aisle: 1.3, under: 0.24 };
 
-export function validateCgRooms(kinds = null) {
+export function validateCgRooms(kinds = null, touch = 0.8) {
   const bad = [], layouts = { hall: 1, split: 3, home: 4, corridor: 1 };
   const row = (id, r) => {
     for (const f of ['street', 'up']) {
@@ -111,6 +111,9 @@ export function validateCgRooms(kinds = null) {
     if (b > g + 24 && r > g + 24) bad.push(`piece ${p}: purple is not allowed`);
   }
   const C = CG_ROOMS;
+  // no hand through a partition (systems/reach.js: inside REACH.touch + a body's radius nothing is asked of the walls):
+  // a container in a piece against a partition must be further than that from someone pressed to the other side
+  for (const [p, q] of Object.entries(PIECES)) if (q.holds && 0.4 + C.wall + q.d / 2 < touch + 0.05) bad.push(`piece ${p}: holds loot but is only ${q.d} m deep (with a ${C.wall} m partition a hand reaches it from the next room)`);
   if (!(C.door >= 0.9 && C.door <= 1.6)) bad.push('CG_ROOMS.door: 0.9-1.6');
   if (!(C.corridor >= 1.6 && C.corridor <= 3)) bad.push('CG_ROOMS.corridor: 1.6-3');
   if (!(C.minRoom >= 2.2)) bad.push('CG_ROOMS.minRoom: 2.2 or more');
