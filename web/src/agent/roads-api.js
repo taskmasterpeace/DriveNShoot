@@ -118,6 +118,7 @@ async function trip(api, need, G, to, maxKm, top, quiet = true, legKm = 0) {
     // ...and the car stays whole and cool: desert heat at full throttle cooks an engine and raiders shoot one out, which
     // the trip reports (worst engine heat) but does not let end the test of the road
     if (quiet && v.dmg) { engHeat = Math.max(engHeat, v.dmg.temp ?? 0); v.dmg.temp = Math.min(v.dmg.temp ?? 0, 0.5); v.dmg.engine = 1; v.dmg.radiator = Math.max(v.dmg.radiator ?? 1, 0.9); if (v.dmg.tyres) for (const k of Object.keys(v.dmg.tyres)) v.dmg.tyres[k] = 1; }
+    if (quiet && !(v.fuel > 5)) v.fuel = v.fuelCap ?? 60; // long trips outrun one tank; the road, not the fuel, is the question
     if (quiet && g.needs) { g.needs.water = Math.max(g.needs.water ?? 1, 0.9); g.needs.food = Math.max(g.needs.food ?? 1, 0.9); g.needs.rest = Math.max(g.needs.rest ?? 1, 0.9); g.needs.blackout = 0; }
     driven += Math.hypot(v.x - lx, v.z - lz); lx = v.x; lz = v.z;
     if (v.dead || !P.inVehicle || !P.alive) return false;
@@ -130,7 +131,7 @@ async function trip(api, need, G, to, maxKm, top, quiet = true, legKm = 0) {
   g.driveOverride = { throttle: -1, steer: 0 }; await api._step(20); g.driveOverride = null;
   for (const [f, v0] of Object.entries(stand0)) await api.call('standing', { faction: f, set: v0 });
   if (quiet) { if (g.society?.director) g.society.director.paused = was.dir; if (g.pulls) g.pulls.enabled = was.pulls; if (g.police) g.police.beatsOn = was.beats; if (g.longroad) g.longroad.enabled = was.lr; if (g.convoy) g.convoy.next = was.conv; }
-  const end = pts[pts.length - 1], left = Math.hypot(end.x - v.x, end.z - v.z), took = Math.round(1e6 - v.hp); v.hp = Math.max(1, hp0 - took);
+  const end = pts[pts.length - 1], left = Math.hypot(end.x - v.x, end.z - v.z), took = Math.round(1e6 - v.hp); v.hp = quiet ? hp0 : Math.max(1, hp0 - took); // a quiet test trip hands the next leg the car it started with
   return { to: q.name, kind: q.kind, region: q.region, arrived: left < 25, legDone, routeKm: r1(L / 1000), drivenKm: r1(driven / 1000), minutes: r1(t / 60), offRoadM: Math.round(off), worstOffM: r1(offMax), wrongWaySteps: wrongWay, metresLeft: Math.round(left), debug: { i, along: Math.round(cum[i]), next: pts.slice(Math.max(0, i - 3), i + 8).map((n) => [n.rib.id, Math.round(n.x), Math.round(n.z), +n.y.toFixed(1)]) }, car: { damageTaken: took, dead: !!v.dead, hottestEngine: +engHeat.toFixed(2) }, at: [Math.round(v.x), Math.round(v.z)] };
 }
 
