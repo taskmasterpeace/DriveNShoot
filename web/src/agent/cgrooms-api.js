@@ -164,4 +164,29 @@ export async function cgRoomsChecks({ g, api, C, check }) {
       return ok || JSON.stringify({ box: !!box, by, gy: r1(p.gy ?? 0), near, nearWhy, through, why, d: r1(d), view: { id: view.id, rooms: view.rooms?.length, c: view.containers }, b: pick.R.B.kind });
     } finally { CG.remove('cg-selftest-rooms'); }
   });
+
+  await check('cg rooms: the doorways between rooms have doors - in a live town, standing in a building, its inner doorways carry real leaves (one per doorway, no more than the doorways it has), some standing open and some shut; one pulled shut stops the line of sight through that doorway; the outside doors are still there; 70 m away the inner leaves are given back and the outside doors are not', async () => {
+    const CG = g.citygen, p = g.player, I = g.interiors;
+    const s = freeSpot(g, -6400, -12400, 280); if (!s) return 'no ground';
+    const t = CG.stampAt({ id: 'cg-selftest-indoors', arch: 'sonoran_sprawl', seed: 4242, x: s.x, z: s.z });
+    try {
+      // a building with at least three inner doorways that is whole
+      const gaps = (R) => (t.built.innerGaps ?? []).filter((q) => q.b === R.B.id);
+      const R = t.blds.filter((q) => !q.B.ruined && !q.B.open).sort((a, b) => gaps(b).length - gaps(a).length)[0];
+      if (!R || gaps(R).length < 3) return 'no building with three inner doorways';
+      const at = R.clearSpot ?? { x: (R.minX + R.maxX) / 2, z: (R.minZ + R.maxZ) / 2 };
+      await C('teleport', { x: at.x, z: at.z }); await api._step(90);
+      const inner = () => I.doors.filter((d) => String(d.id).startsWith(`cg:${R.B.id}:in:`)), outer = () => I.doors.filter((d) => String(d.id).startsWith(`cg:${R.B.id}:d`));
+      const n = inner().length, nGaps = gaps(R).length, nOut = outer().length;
+      const openN = inner().filter((d) => !I.isShut(d)).length;
+      // shut one: nothing sees through it
+      const d = inner()[0];
+      let blocked = null;
+      if (d) { I.shutDoor(d, p); await api._step(20); blocked = !g.statics.lineOfSight(d.x - d.nx * 0.8, d.z - d.nz * 0.8, d.x + d.nx * 0.8, d.z + d.nz * 0.8, 1, -1); }
+      await C('teleport', { x: at.x + 70 + (R.maxX - R.minX), z: at.z }); await api._step(90);
+      const farIn = inner().length, farOut = outer().length;
+      const ok = n >= 3 && n <= nGaps && nOut >= 1 && openN >= 1 && blocked === true && farIn === 0 && farOut === nOut;
+      return ok || JSON.stringify({ kind: R.B.kind, n, nGaps, nOut, openN, blocked, farIn, farOut });
+    } finally { CG.remove('cg-selftest-indoors'); await C('teleport', { x: 0, z: -40 }); await api._step(3); }
+  });
 }

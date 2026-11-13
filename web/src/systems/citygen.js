@@ -321,7 +321,7 @@ export class CityGen {
   release(id) {
     const t = this.live.get(id);
     if (!t) return;
-    for (const R of t.blds) if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; }
+    for (const R of t.blds) { if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; } if (R.openIn) { this.g.interiors?.detachRing(R.openIn); R.openIn = null; } }
     this.overrun.depopulate(t);
     this.g.milbases?.onReleased(t);
     this.g.rites?.onReleased(t);
@@ -372,7 +372,7 @@ export class CityGen {
   releaseRing(id) {
     const t = this.extra.get(id);
     if (!t) return;
-    for (const R of t.blds) if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; }
+    for (const R of t.blds) { if (R.open) { this.g.interiors?.detachRing(R.open); R.open = null; } if (R.openIn) { this.g.interiors?.detachRing(R.openIn); R.openIn = null; } }
     for (const S of t.built.recs) this.g.storeys.removeExt(S);
     if (this.g.storeys.viewS?.cg && t.built.recs.includes(this.g.storeys.viewS)) this.g.storeys.setView(null, 0);
     this.g.inventory?.unregisterRing(t.built.loot);
@@ -500,7 +500,16 @@ export class CityGen {
       const near = Math.abs(t.rec.x - px) < t.rec.half + RO.far && Math.abs(t.rec.z - pz) < t.rec.half + RO.far;
       for (const R of t.blds) {
         if (R.open && !I.ringOpen.has(R.open)) R.open = null; // detached elsewhere (a load, the ring's scan): attach it again
+        if (R.openIn && !I.ringOpen.has(R.openIn)) R.openIn = null;
         const B = R.B, dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ), d2 = dx * dx + dz * dz;
+        // THE DOORS BETWEEN ROOMS (world/citygen/rooms.js doorways; docs/design/WEB_CG_ROOMS.md): leaves of their own record,
+        // hung only for the buildings right round you (RO.innerNear) and given back past RO.innerFar, so a town's inner
+        // doors never take the leaves its outside doors need.
+        if (R.openIn && (!near || d2 > RO.innerFar * RO.innerFar)) { I.detachRing(R.openIn); R.openIn = null; }
+        if (!R.openIn && near && d2 < RO.innerNear * RO.innerNear && !R.B.ruined) {
+          const inner = (t.built.innerGaps ?? []).filter((q) => q.b === R.B.id).map((q) => ({ x: q.x, z: q.z, axis: q.nz ? 'x' : 'z', w: q.w }));
+          if (inner.length) { const iid = `cg:${R.B.id}:in`; I.attachRing(iid, { x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ruined: false, y: t.built.y0 || undefined }, { doors: [], innerDoors: inner, windows: [] }); R.openIn = iid; }
+        }
         if (R.open && (!near || d2 > RO.far * RO.far)) { I.detachRing(R.open); R.open = null; continue; }
         if (R.open || !near || d2 > RO.near * RO.near) continue;
         const id = `cg:${B.id}`;
