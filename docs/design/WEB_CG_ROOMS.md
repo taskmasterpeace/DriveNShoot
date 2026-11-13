@@ -127,3 +127,22 @@ Critic review 2026-11-12, first pass FAIL, three items, fixed in the next commit
 partition (thicker partitions, deeper holders, a validator rule and a check); the headless check claimed more than it
 tested (it now tests doorways, windows, every room on every reachable floor, and a line test to each container, which
 found and fixed a real trapped upstairs bathroom); a base's stash stood inside the new cross wall.
+
+## Addendum 2026-11-12 (branch `feat/web-zed-innerdoors`): doors in the doorways
+
+- **What:** the doorways between rooms in generated buildings now carry real door leaves, the same kind every other door
+  in the game is: they swing, you shut them (E), lean on them, bar them, the infected cannot work the latch and beat
+  them down (`WEB_DOOR_POUND.md`). Six in ten stand open, the rest ajar or shut (`RING_OPENINGS.innerOpen`), as in the
+  ring's houses.
+- **Where from:** the builder already recorded each street-floor doorway (`built.innerGaps`, used for the path grid);
+  `systems/citygen.js openTown` hands them to `interiors.attachRing` as `innerDoors`.
+- **Only round you.** Inner leaves are a record of their own per building (`cg:<building>:in`), hung when you are within
+  `innerNear` (40 m) of the building and given back past `innerFar` (60 m). Outside doors keep their own record and
+  their own distances (110 / 150 m). So a school's sixteen inner doors never take the leaves another building's
+  outside doors need. The leaf pool went from 220 to 320 (`RING_OPENINGS.doors`).
+- **Not covered:** upstairs doorways have no leaves (the door system hangs leaves on the street floor only, as for
+  outside doors); ruins have none; a leaf's open or shut state is kept while its building is near and by the door
+  system's own memory when you come back, as for ring doors.
+- **Check:** `cg rooms: the doorways between rooms have doors` (inner leaves present, no more than the doorways, some
+  open; one pulled shut blocks sight through it; 70 m away the inner leaves are gone and the outside doors are not).
+- Pictures: `docs/renders/web/inner-doors/`.

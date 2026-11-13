@@ -176,6 +176,7 @@ export async function cgRoomsChecks({ g, api, C, check }) {
       if (!R || gaps(R).length < 3) return 'no building with three inner doorways';
       const at = R.clearSpot ?? { x: (R.minX + R.maxX) / 2, z: (R.minZ + R.maxZ) / 2 };
       await C('teleport', { x: at.x, z: at.z }); await api._step(90);
+      CG.openings(p.x, p.z); await api._step(10); // the town's own scan hangs the doors round you (asked for here so the check does not wait on its timer)
       const inner = () => I.doors.filter((d) => String(d.id).startsWith(`cg:${R.B.id}:in:`)), outer = () => I.doors.filter((d) => String(d.id).startsWith(`cg:${R.B.id}:d`));
       const n = inner().length, nGaps = gaps(R).length, nOut = outer().length;
       const openN = inner().filter((d) => !I.isShut(d)).length;
@@ -184,6 +185,7 @@ export async function cgRoomsChecks({ g, api, C, check }) {
       let blocked = null;
       if (d) { I.shutDoor(d, p); await api._step(20); blocked = !g.statics.lineOfSight(d.x - d.nx * 0.8, d.z - d.nz * 0.8, d.x + d.nx * 0.8, d.z + d.nz * 0.8, 1, -1); }
       await C('teleport', { x: at.x + 70 + (R.maxX - R.minX), z: at.z }); await api._step(90);
+      CG.openings(p.x, p.z); await api._step(10);
       const farIn = inner().length, farOut = outer().length;
       const ok = n >= 3 && n <= nGaps && nOut >= 1 && openN >= 1 && blocked === true && farIn === 0 && farOut === nOut;
       return ok || JSON.stringify({ kind: R.B.kind, n, nGaps, nOut, openN, blocked, farIn, farOut });
