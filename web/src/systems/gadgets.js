@@ -370,7 +370,7 @@ export class Gadgets {
       else {
         let pile = null, at = -1;
         for (const b of inv?.boxes.values() ?? []) {
-          if (b.kind !== 'ground' || Math.hypot(b.x - by.x, b.z - by.z) > 2.2 || !g.reach?.to(by, b.x, b.z, { y: b.y ?? 0 })) continue;
+          if (b.kind !== 'ground' || b.unseen || Math.hypot(b.x - by.x, b.z - by.z) > 2.2 || !g.reach?.to(by, b.x, b.z, { y: b.y ?? 0 })) continue;
           const i = b.slots.findIndex((q) => q.id === B.needs);
           if (i >= 0) { pile = b; at = i; break; }
         }

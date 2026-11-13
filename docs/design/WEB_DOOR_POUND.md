@@ -193,18 +193,21 @@ The shard's model is that each page simulates its own surroundings and reports w
 
 ### 3.9 What you build holds it longer (Robert, 11-12: "we need crafting, like turrets and all that stuff")
 - **Three bars for a door**, weakest first (`BARRICADES` in `data/gadgets.js`): loose planks (300 hp on the door's lock,
-  found or ripped at a workbench), a **braced barricade** (520; `plank_barricade`, built at a workbench: planks, timber,
-  30 nails, carpentry 12) and a **plate** (1,100; `metal_barricade`, riveted at a forge: 4 scrap and charcoal, mechanics
+  found or ripped at a workbench), a **braced barricade** (520; `plank_barricade`, built at a workbench: planks,
+  salvage timber, 30 nails, carpentry 12) and a **plate** (1,100; `metal_barricade`, riveted at a forge: 4 scrap and charcoal, mechanics
   22, the smith's manual). Before this the two built ones were items that did nothing.
-- **Using one:** USE it from the pack at the door, or stand at the door with it lying within reach of your hands (a
-  barricade is 8 bulk: too big for most packs, so you carry it over and set it down). It is spent. Nothing is free.
+- **Using one:** USE it from the pack at the door, or USE it from the pile where it lies at your feet beside the door
+  (the braced one is 8 bulk, which fills a satchel: mostly you carry it over and set it down). It is spent. Nothing is
+  free.
 - **One bar at a time** on a door (plus a wedge). Take the old one down first; taking one down does not give it back.
 - **Against a siege:** a shambler's fist takes 6 off a door each 2.2 s and three can pound at once (§3.7), so on top of
-  the door itself planks buy about 37 s against three, a braced barricade about 64 s, a plate about 134 s. A sprinter's
-  frenzy takes them down about four times as fast.
+  the door itself planks buy about 37 s against three, a braced barricade about 64 s, a plate about 134 s. One
+  sprinter in its frenzy hits as hard as six shamblers (16.7 a second against 2.7 each), twice what three at the door
+  do, but only for its burst: about 130 off the door in six seconds, slam included.
 - **The turret kit can be built.** `build_turret` (forge, mechanics 35, 8 hours, taught by the gunsmith's notebook): a
   service rifle, 12 scrap, a lead pipe, 2 trap triggers, 2 battery cells, 4 cord: 23.8 kg in, a 22 kg kit out. A base's
-  turret (`FORTIFY.turret`) still costs that kit and 30 rifle rounds. Before this the kit could not be made or found.
+  turret (`FORTIFY.turret`) still costs that kit and 30 rifle rounds (the kit is 30 bulk: it takes a frame ruck to
+  carry it to the base). Before this the kit could not be made or found.
 - **Not built (said plainly):** the base turret is a defence number for raids on your base while you are away
   (`homes.js`); it does not track and shoot what is at your door in front of you. A sentry gun you set down in a room,
   load with your own rounds and that fires at what comes through the door is a system of its own (targeting, friendly

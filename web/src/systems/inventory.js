@@ -371,6 +371,16 @@ export class Inventory {
   }
 
   // Out of your pockets, newest stacks first (the part-used box before the full one). Returns how many.
+  // USE a thing where it lies, without taking it up first: a barricade in a pile at your feet (it is too big for most
+  // packs: you carried it over and set it down). The pile loses exactly one when the door takes it. null: not that kind
+  // of thing (the caller goes on as before).
+  useAt(box, i) {
+    const s = box?.slots[i], it = ITEMS[s?.id];
+    if (!s || box.kind !== 'ground' || it?.use?.act !== 'barricade') return null;
+    const r = this.g.gadgets?.useItem('barricade', s.id) ?? { ok: false, why: 'not here' };
+    if (r.ok !== false) this.take(box, i, 1);
+    return r;
+  }
   spend(id, n) {
     let left = n;
     for (let i = this.carried.slots.length - 1; i >= 0 && left > 0; i--) {

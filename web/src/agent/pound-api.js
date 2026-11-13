@@ -449,21 +449,28 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
     } finally { gone(...made); g.godMode = false; await C('teleport', home); await api._step(4); }
   }));
 
-  await check('door pound: what you build at a bench holds a door longer - with none in the pack a braced barricade is refused; one from the pack (or lying within reach: it is too big for most packs) is spent and adds its row\'s hp to the door (more than loose planks, less than a plate); a door takes one bar at a time; the plate holds a shambler\'s fists for longer than the planks do by the rows\' own ratio; the turret kit is a real recipe (a service rifle, steel, a trip: 22 kg out of no less in) taught by the gunsmith\'s notebook, and the base\'s turret still costs that kit and thirty rounds', async () => hush(async () => {
+  await check('door pound: what you build at a bench holds a door longer - with none in the pack a braced barricade is refused; one from the pack (or lying within reach: it is too big for most packs) is spent and adds its row\'s hp to the door (more than loose planks, less than a plate); a door takes one bar at a time; it is your own USE that does it (from the pack, or where it lies); the turret kit is a real recipe (a service rifle, steel, a trip: 22 kg out of no less in) taught by the gunsmith\'s notebook, and the base\'s turret still costs that kit and thirty rounds', async () => hush(async () => {
     await stage();
     const d = pick('wood'); if (!d) return 'no wooden door';
     const inv = g.inventory, GX = g.gadgets, B = BARRICADES;
+    let drop2 = () => {};
     try {
       clearRound(d.x, d.z, 30); fresh(d, 0);
       await inside(d, 1.2);
       // how many of a thing you have to hand: in the pack, or lying within reach (a barricade is too big for most packs)
       const have = (id) => { let n = inv.carried.count(id); for (const b of inv.boxes.values()) if (b.kind === 'ground' && Math.hypot(b.x - P().x, b.z - P().z) < 2.2) for (const q of b.slots) if (q.id === id) n += q.n; return n; };
       const drop = (id) => { const n = inv.carried.count(id); if (n) inv.spend(id, n); for (const b of inv.boxes.values()) if (b.kind === 'ground' && Math.hypot(b.x - P().x, b.z - P().z) < 2.2) for (let i = b.slots.length - 1; i >= 0; i--) if (b.slots[i].id === id) inv.take(b, i, b.slots[i].n); };
-      for (const id of ['planks', 'plank_barricade', 'metal_barricade']) drop(id);
+      drop2 = drop;
+      for (const id of ['plank_barricade', 'metal_barricade']) drop(id);
       const none = await C('barricade', { door: d.id, kind: 'plank_barricade' });
       inv.stow('plank_barricade', 1); inv.stow('metal_barricade', 1); // into the pack (or the hands, if the pack is full)
       const hp0 = d.lockHp ?? 0;
-      const a = await C('barricade', { door: d.id, kind: 'plank_barricade' });
+      // the PLAYER's own path: USE it from the pack if it fits there, else USE it where it lies at your feet
+      const ci = inv.carried.slots.findIndex((q) => q.id === 'plank_barricade');
+      let a, via;
+      if (ci >= 0) { via = 'pack'; a = inv.use(ci); }
+      else { const pile = [...inv.boxes.values()].find((b) => b.kind === 'ground' && Math.hypot(b.x - P().x, b.z - P().z) < 2.2 && b.slots.some((q) => q.id === 'plank_barricade')); via = 'pile'; a = pile ? inv.useAt(pile, pile.slots.findIndex((q) => q.id === 'plank_barricade')) : { ok: false, why: 'no pile' }; }
+      const kindOn = GX.barred.find((x) => x.door === d)?.kind ?? null;
       const L1 = d.lockHp ?? 0, added = L1 - hp0, left1 = have('plank_barricade');
       const second = await C('barricade', { door: d.id, kind: 'metal_barricade' });
       const kept = have('metal_barricade');
@@ -473,12 +480,12 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       const L2 = d.lockHp ?? 0, added2 = L2 - hp1, left2 = have('metal_barricade');
       await C('barricade', { door: d.id, remove: true });
       const R = RECIPE_BY_ID.build_turret, m = R ? matterOf(R, ITEMS) : null;
-      const ok = none.ok === false && /need/.test(none.error ?? none.why ?? '') && a.ok !== false && L1 >= B.plank_barricade.hp && L1 < B.plank_barricade.hp + 200 && left1 === 0
+      const ok = none.ok === false && /need/.test(none.error ?? none.why ?? '') && a?.ok !== false && kindOn === 'plank_barricade' && L1 >= B.plank_barricade.hp && L1 < B.plank_barricade.hp + 200 && left1 === 0
         && second.ok === false && kept === 1 && b.ok !== false && L2 - L1 === B.metal_barricade.hp - B.plank_barricade.hp && left2 === 0
         && B.planks.hp < B.plank_barricade.hp && B.plank_barricade.hp < B.metal_barricade.hp
         && !!R && m.net <= 0 && m.outKg >= 20 && R.inputs.some(([id]) => id === 'gun_rifle') && R.learnedFrom === 'book:manual_gunsmith' && ITEMS.manual_gunsmith.learns.includes('build_turret')
         && FORTIFY.turret.cost.some(([id, n]) => id === 'turret_kit' && n === 1) && FORTIFY.turret.cost.some(([id, n]) => id === 'ammo_rifle' && n === 30);
-      return ok || JSON.stringify({ L1, L2, none, a: a.ok, aWhy: a.error ?? a.why, added, left1, second: second.ok, why2: second.error ?? second.why, kept, b: b.ok, added2, left2, m, learned: R?.learnedFrom });
-    } finally { if (GX.barred.some((x) => x.door === d)) GX.unbarricade(d); fresh(d, 0); }
+      return ok || JSON.stringify({ via, kindOn, L1, L2, none, a: a?.ok, aWhy: a.error ?? a.why, added, left1, second: second.ok, why2: second.error ?? second.why, kept, b: b.ok, added2, left2, m, learned: R?.learnedFrom });
+    } finally { if (GX.barred.some((x) => x.door === d)) GX.unbarricade(d); fresh(d, 0); for (const id of ['plank_barricade', 'metal_barricade']) drop2(id); await C('teleport', { x: 0, z: -40 }); await api._step(3); }
   }));
 }

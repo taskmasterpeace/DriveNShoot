@@ -314,6 +314,9 @@ export class InventoryUI {
         if (gun) say(theirs ? g.trade.buy(box, e.i, 1, D) : inv.sling(box, e.i)); // straight to your hands, wherever it lies
         else if (it?.slot && this.side === 0) { const r = g.gear.wear(e.i); say(r); } // E on armor or clothes: put it on
         else {
+          // a barricade lying in the pile is used where it lies (systems/inventory.js useAt)
+          const direct = this.side !== 0 && !theirs ? inv.useAt(box, e.i) : null;
+          if (direct) { say(direct); return this.render(); }
           let j = e.i;
           if (this.side !== 0) { // into your hands first (bought, over a counter), where it may join a stack you carry
             const got = theirs ? g.trade.buy(box, e.i, 1, D) : { ok: inv.move(box, e.i, inv.carried, 1) > 0, why: 'no room on you' };
