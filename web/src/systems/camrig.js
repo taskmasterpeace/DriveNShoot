@@ -181,7 +181,7 @@ export class CamRig {
   // short of the first wall behind you and under the ceiling of the floor you stand on, so it never looks through either.
   updateBody(dt, Bd, insideBuilding) {
     const g = this.g, p = g.player, B = CAMERA.body, cam = g.camera, ST = g.statics;
-    let dT = this.mem[this.view].foot;
+    let dT = Math.max(Bd.dMin, Math.min(Bd.dMax, this.mem[this.view].foot)); // always inside the view's own boom (whatever wrote the memory)
     if (this.aiming && Bd.aimD) dT = Math.min(dT, Bd.aimD);
     if (this.override?.d) dT = this.override.d;
     this.D += (dT - this.D) * (1 - Math.exp(-dt * B.rate));

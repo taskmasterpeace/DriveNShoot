@@ -183,6 +183,7 @@ export class Sky {
     this.sun.target.position.set(center.x, cy, center.z);
 
     const low = 1 - smoothstep(0.05, 0.5, elev);
+    this.low = low; // how low the sun stands (0 high .. 1 at the horizon): the sky dome's dusk (systems/skydome.js)
     this.sun.color.copy(SUN_DAY).lerp(SUN_LOW, low * 0.85).lerp(MOON, this.night);
     const nl = this.nightLight;
     this.sun.intensity = lerp(lerp(NIGHT_I.sun[0], NIGHT_I.sun[1], nl), SUN_I[1], day) * lerp(1, cloudDim, day * 0.7 + 0.3) * (1 - c.dust * 0.4);

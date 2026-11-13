@@ -82,6 +82,16 @@ export const CAMERA = {
   cutaway: { radius: 5.5, knee: 0.6, carClear: 1.8, soft: 0.35 },
 };
 
+// THE SKY DOME (systems/skydome.js; docs/design/WEB_SKY_DOME.md): what THIRD and SHOULDER see above the horizon.
+//   day / dusk / night   the zenith's colour by the sun (the horizon is always the haze colour); moon: the disc by night
+//   lift      how fast the horizon's haze gives way to the zenith going up (lower: the blue starts sooner)
+//   duskMix   how much of the dusk colour a low sun brings; murk: how much cloud, dust and ash each pull it to the haze
+//   sun.size  the disc (1 - cos of its half angle); sun.moon: x that by night; radius m (inside the tilted far plane)
+export const SKY_DOME = {
+  day: '#6f9fc4', dusk: '#d8845a', night: '#0b121c', moon: '#c9d6e4', lift: 0.38, duskMix: 0.7,
+  murk: { clouds: 0.75, dust: 0.85, ash: 0.9 }, sun: { size: 0.0012, moon: 0.7 }, radius: 1000,
+};
+
 // The body views' rows (CAMERA.body): problems, or [].
 export function validateCameraBody() {
   const bad = [], B = CAMERA.body;
@@ -101,5 +111,20 @@ export function validateCameraBody() {
   if (!(B.near > 0.02 && B.near <= 0.3)) bad.push('body.near: 0.02-0.3 m');
   if (!(B.viewR >= 60 && B.viewR <= 300)) bad.push('body.viewR: 60-300 m');
   if (CAMERA.start !== 'TOPDOWN') bad.push('CAMERA.start must stay TOPDOWN');
+  return bad;
+}
+
+export function validateSkyDome(D = SKY_DOME) {
+  const bad = [];
+  for (const k of ['day', 'dusk', 'night', 'moon']) {
+    const m = /^#([0-9a-f]{6})$/i.exec(D[k] ?? '');
+    if (!m) { bad.push(`SKY_DOME.${k}: a #rrggbb colour`); continue; }
+    const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    if (b > g + 24 && r > g + 24) bad.push(`SKY_DOME.${k}: purple is not allowed`);
+  }
+  if (!(D.lift > 0.1 && D.lift <= 2)) bad.push('SKY_DOME.lift: 0.1-2');
+  if (!(D.radius >= 300 && D.radius < CAMERA.farTilted)) bad.push(`SKY_DOME.radius: 300 to under the tilted far plane (${CAMERA.farTilted})`);
+  if (!(D.sun.size > 0.0001 && D.sun.size < 0.02)) bad.push('SKY_DOME.sun.size: 0.0001-0.02');
+  for (const k of ['clouds', 'dust', 'ash']) if (!(D.murk[k] >= 0 && D.murk[k] <= 1)) bad.push(`SKY_DOME.murk.${k}: 0-1`);
   return bad;
 }

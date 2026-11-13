@@ -66,6 +66,7 @@ import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
 import { WindowExit } from './systems/windowexit.js';
+import { SkyDome } from './systems/skydome.js';
 import { Actions } from './systems/actions.js'; // TIMED ACTIONS: search, look around, break in, climb (docs/design/WEB_TIMED_ACTIONS.md)
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
@@ -307,6 +308,7 @@ class Game {
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.skyDome = new SkyDome(this); // the sky above the horizon, for the body views (systems/skydome.js)
     this.windowExit = new WindowExit(this); // out of an upper window: climb out, hang, drop (systems/windowexit.js)
     this.actions = new Actions(this); // TIMED ACTIONS: every interaction that takes time, its pose, its noise, its ring (systems/actions.js)
     this.workshopUI = new WorkshopUI(this, ui); // the WORKSHOP screen (U at a garage, or Kenji)
@@ -1307,6 +1309,7 @@ class Game {
     this.camLook.z += (tz - this.camLook.z) * k;
     C.update(dt, this.camLook, this.camFloor, this.insideBuilding || p.ug); // places the camera; sets camHeight and viewR (below the street: the indoor framing)
     this.cutaway.update(dt);
+    this.skyDome?.update(); // THIRD / SHOULDER see the horizon: the dome round the lens (hidden in every other view)
     this.under?.view(this.camera); // below the street: the clipping plane, the level shown, the light (systems/underground.js)
   }
 

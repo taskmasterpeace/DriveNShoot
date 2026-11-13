@@ -1,7 +1,7 @@
 // THE BODY VIEWS' checks (docs/design/WEB_CAMERA_BODY.md; rows data/camera.js CAMERA.body; the rule systems/camrig.js):
 // THIRD (behind you) and SHOULDER (over one shoulder). Every check puts the view back to TOPDOWN when it is done: the
 // rest of the battery runs on the top-down view.
-import { CAMERA, validateCameraBody } from '../data/camera.js';
+import { CAMERA, validateCameraBody, SKY_DOME, validateSkyDome } from '../data/camera.js';
 import { RAY_SIGHT } from '../engine/collision.js';
 import { nearFor } from '../engine/depthlayers.js';
 
@@ -122,5 +122,27 @@ export async function camBodyChecks({ g, api, C, check }) {
         && after.th === before.th && after.yaw === before.yaw && after.far === before.far && Math.abs(after.near - before.near) < 0.02 && Math.abs(after.viewR - before.viewR) <= 1 && before.far === CAMERA.far && Math.abs(before.near - nearFor(R.D)) < 0.05;
       return ok || JSON.stringify({ onThem: r2(onThem), lookDown: r2(lookDown), wantDown: r2(wantDown), wanted, letGo, letGo2, letGo3, back2, walked: r2(walked), east: r2(east), ahead: r2(ahead), onScreen, side1: r2(side1), side2: r2(side2), loose: r2(loose), tight: r2(tight), lvl, shown, liftedTop, whole, under, drive, before, after });
     } finally { g.godMode = false; if (P().inVehicle) g.exitVehicle(true); if (car) g.vehiclesSys.remove(car); if (dummy) g.removeChar(dummy); for (const [c, x, z] of moved) { c.x = x; c.z = z; } await back(); }
+  });
+
+  await check('sky dome: the rows validate (a purple zenith and a dome past the far plane are each caught); on TOPDOWN there is no dome; in THIRD there is one, centred on the lens, its horizon the haze colour and its zenith another colour by day and near black by night; below the street there is none; back on TOPDOWN it is gone', async () => {
+    const a = validateSkyDome(), keep = { day: SKY_DOME.day, r: SKY_DOME.radius };
+    SKY_DOME.day = '#8040c0'; const b = validateSkyDome(); SKY_DOME.day = keep.day;
+    SKY_DOME.radius = 5000; const c = validateSkyDome(); SKY_DOME.radius = keep.r;
+    await C('start');
+    const SD = g.skyDome, hour0 = g.sky.time;
+    try {
+      await C('teleport', { x: 0, z: -40 }); await C('setTime', { hour: 13 }); await api._step(4);
+      g.updateCamera(0.5); const top = SD.view().on;
+      R.setView('THIRD', true); g.updateCamera(0.5); await api._step(3);
+      const day = SD.view(), cam = g.camera.position, at = Math.hypot(SD.mesh.position.x - cam.x, SD.mesh.position.y - cam.y, SD.mesh.position.z - cam.z);
+      const fog = `#${g.sky.fog.color.getHexString()}`;
+      await C('setTime', { hour: 0.5 }); await api._step(30); g.updateCamera(0.5);
+      const night = SD.view(), lum = (h) => { const n = parseInt(h.slice(1), 16); return ((n >> 16) + ((n >> 8) & 255) + (n & 255)) / 3; };
+      const p = P(), ug = p.ug; p.ug = { fake: true }; SD.update(); const under = SD.view().on; p.ug = ug;
+      await back(); const gone = SD.view().on;
+      const ok = a.length === 0 && b.length === 1 && c.length === 1 && validateSkyDome().length === 0 && top === false && day.on === true && at < 0.01 && day.horizon === fog && day.zenith !== day.horizon
+        && lum(night.zenith) < 40 && lum(day.zenith) > lum(night.zenith) + 40 && under === false && gone === false;
+      return ok || JSON.stringify({ a, b, c, top, day, at, fog, night, under, gone });
+    } finally { await C('setTime', { hour: hour0 }); await back(); }
   });
 }

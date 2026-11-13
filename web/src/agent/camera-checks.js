@@ -21,7 +21,7 @@ async function cameraChecksBody({ api, g, check, C, hush }) {
   const step = (n) => api._step(n);
   const reset = () => {
     R.setView('TOPDOWN', true); R.override = null; R.isoYaw = 0; g.cutaway.on = true;
-    for (const v of CAMERA.views) { R.mem[v].foot = CAMERA.foot.dStart; R.mem[v].drive = v === 'CHASE' ? CAMERA.view.CHASE.dStart : CAMERA.drive.dStart; }
+    for (const v of CAMERA.views) { R.mem[v].foot = CAMERA.body[v]?.dStart ?? CAMERA.foot.dStart; R.mem[v].drive = v === 'CHASE' ? CAMERA.view.CHASE.dStart : CAMERA.drive.dStart; }
   };
   const home = async () => {
     g.driveOverride = null; g.aimOverride = null;
