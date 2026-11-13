@@ -90,6 +90,7 @@ you could have walked off with the whole crate, and the town would have known.
 
 ## 6. Dependencies
 
+- WEB_HOLDOUTS (`systems/holdouts.js`): each generated holdout's sutler, saloon keeper and doctor are TRADERS rows; the sutler also changes house paper (scrip, discounted by distance from home). Trade itself is unchanged.
 - `web/src/systems/inventory.js`: owned boxes (`placeFurniture`), `move(…, paid)`, `sling(…, paid)`, `stowGun`,
   `roll` (restock, second-hand guns), `freshness` (worth). Its doc (WEB_INVENTORY) points here for trade.
 - `web/src/systems/factions.js` / `data/society.js`: tiers (`F.tiers[c.fi]`). `web/src/systems/memory.js`:

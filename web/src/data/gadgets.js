@@ -123,6 +123,28 @@ export const DRONES = {
     source: { craft: [['scrap', 4], ['spark_plugs', 2], ['fuel_can', 1], ['wristwatch', 1]], buy: 420, loot: 'the Remnant' } },
 };
 
+// THEIR drones (systems/drones.js foes): flown at you by someone else, off a car or a camp, never by the player.
+//   hp what a round takes off (a pistol hits 38) · speed m/s · alt metres · orbit the circle it holds over what it
+//   watches · sight how far it sees you (not in smoke) · call: every callEvery s it tells its own side within `call` m
+//   where you are · life seconds before it turns for home · bombs / bombEvery / bomb: a drop drone's load
+export const FOE_DRONES = {
+  spotter: { name: 'Tracer spotter', hp: 50, speed: 13, alt: 10, orbit: 7, sight: 45, call: 80, callEvery: 1.5, life: 90, bombs: 0, look: '#4a4e44' },
+  dropper: { name: 'Raider drop drone', hp: 70, speed: 11, alt: 11, orbit: 1.5, sight: 40, call: 0, callEvery: 0, life: 75, bombs: 2, bombEvery: 4,
+    bomb: { r: 3.6, dmg: 110, car: 160, fall: 0.6 }, look: '#6a4a2e' },
+};
+
+// Against them: a round passing under one (2D, within shotR m of it) hits on shotHit of the time; a lit signal flare
+// within flareR m pulls it off you (it circles the flare and drops what it carries there); smoke you stand in hides you
+// from it (it circles where it last saw you). scrap: what one shot down leaves on the ground.
+export const ANTI_DRONE = { shotR: 1.0, shotHit: 0.5, flareR: 32, scrap: 2 };
+
+// THE BAY DRONE (systems/drones.js outrider): it rides a DRONE BAY on the car (data/workshop.js UTILITY.dronebay) and
+// flies itself. Backslash sends it up and calls it home. It holds `lead` m ahead of the car along its heading (circles
+// `orbit` m out while the car is parked), marks enemies inside `mark` m every `markEvery` s, and comes home past `range`
+// m from the car or under `low` of its battery. Docked, it charges `charge` per second. Shot down, the bay stays empty
+// until a `refill` from your pack goes in (Backslash again).
+export const BAY_DRONE = { name: 'Outrider', battery: 120, speed: 24, alt: 8, lead: 25, orbit: 12, range: 90, low: 0.15, mark: 34, markEvery: 0.5, hp: 30, charge: 2, refill: 'drone_scout', look: '#4a3a22' };
+
 // Things the security lane carries and drops: keys open the doors they belong to (`door` on the slot, or any door of a
 // building `kind`), the bulls carry a ring; planks and a wedge barricade a door from inside.
 export const DOOR_KIT = {

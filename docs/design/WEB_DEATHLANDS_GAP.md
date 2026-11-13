@@ -182,6 +182,7 @@ flaw, a movement style, cover rule, retreat rule and ammo habit. Robert's decisi
 9. **Save/load, shard-safe:** the crew is player-owned state in the save (and in the shard snapshot).
 
 ### G4. Buildings up to six storeys
+**STATUS 2026-11-11: STOREYS v2 built on `feat/web-storeys` - see `WEB_STOREYS.md` §9 (the ring rises 2-6 storeys, the facade kit, roofs, bridges, escapes, window fights, floors muffle; acceptance #3 and #8 are `storeys v2:` checks).**
 **HAVE.** `data/storeys.js`: storey 3.2 m; town buildings rise by exactly +1 on 30%; ruins rise 1–3 on 45% (≥220 m²) →
 **max 4 storeys**, and only the **18 island buildings** get any (`world/storeys.js:47-50`). The builder has no hard cap.
 Stairs switch back along a wall, railed holes, floors are separate places for sight/bullets/bites/witnesses, `setView`
@@ -215,7 +216,7 @@ and camp talk (G3.8). (d) Gate interviews for HOUSE RULES (G7). (e) Keep the str
 
 ### G6. THE CAROUSEL — the machine in the ground (D2, the engine of vastness)
 **HAVE.** Built in Godot (`carousel.gd`: 10 stations, occupiers, power/codes/purge ladder, PAIR → ROULETTE → THE DIAL,
-node garages, ring sieges). **In web: atlas rows only** (`data/atlas.js:29, 68`). WEB_ENGINE_PLAN Phase 5 lists it.
+node garages, ring sieges). **In web (2026-11-11, `feat/web-carousel`): built** - three lit stations (Phoenix x2, Florida), PAIR / ROULETTE / BACKSPIN, ring-sick per §4.5, keys, Ring-born, save; see `WEB_CAROUSEL.md`. (Before: atlas rows only, `data/atlas.js:29, 68`.) WEB_ENGINE_PLAN Phase 5 lists it.
 **NEED.** Sealed stations under ruined forts; a ring that throws you (and your crew, never your rig) a thousand miles;
 ring-sickness; the risk of a bad throw; the arrival in an unknown region as the game's signature beat.
 **PLAN.** (1) Station = an underground interior (uses the underground/basement lane) with blast door, dead status boards,
@@ -227,6 +228,8 @@ cold-open). (5) Rigs don't jump: you rebuild or steal a ride in each region — 
 survival problem.
 
 ### G7. Tyrant holdouts (D3)
+**LANDED (feat/web-holdouts): see `WEB_HOLDOUTS.md`** — the generator, eight seeded holdouts (AZ + FL), Keyholder cards,
+bulls with real rounds, gatemen, HOUSE RULES through the witness pass, the gate check, house paper.
 **HAVE.** Two hand-built settlements (Rust Haven, Meridian), one military base (Outpost Nine), factions ×5 with a sim,
 roles, witnesses, word-that-hops. `data/holdouts.js` has one row.
 **NEED.** Dozens of walled holdouts, each ruled by a **Keyholder** with **bulls** and **HOUSE RULES**.

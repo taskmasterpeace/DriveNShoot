@@ -94,6 +94,8 @@ export class AI {
       if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug || (c.rx && (!c.sleeping || this.g.reactions.heardNow(c)))) continue; // c.rx: reacting to a shot they heard (systems/reactions.js; asleep, any other noise still wakes them); below the street: it never reaches them (systems/underground.js)
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r) continue;
+      // floors muffle (data/storeys.js ACROSS.noise): inside a storeyed building a noise carries one floor at half its reach
+      if ((c.storey || src?.storey) && d > r * this.g.storeys.floorShare(src?.storey ? src.gy ?? 0 : 0, x, z, c)) continue;
       if (c.sleeping) { if (d > r * TOWN_NIGHT.hearAsleep) continue; this.wake(c, 'a noise'); } // asleep: half an ear
       if (!c.weapon) { if (c.flee <= 0) { c.flee = 5 + Math.random() * 4; c.fleeX = x; c.fleeZ = z; } }
       else if (!c.target && src && this.hostile(c, src)) { c.target = src; c.state = 'fight'; }

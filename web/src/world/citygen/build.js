@@ -248,6 +248,8 @@ export function buildBuilding(B, out, T, rng) {
         for (let i = 0; i < holes.length; i += 2) { const c = (holes[i] + holes[i + 1]) / 2, x = sd.horiz ? c : sd.fixed - sd.nx * (IN + 0.5), z = sd.horiz ? sd.fixed - sd.nz * (IN + 0.5) : c; coverPt(x, z, y0, -sd.nx, -sd.nz, 'full', 3); }
         // the street storey's windows are real (systems/interiors.js: glass, smash, climb through, board up), attached near you
         if (k === 0 && !ruinTop) for (let i = 0; i < holes.length; i += 2) { const c = (holes[i] + holes[i + 1]) / 2; out.windows.push({ b: B.id, x: sd.horiz ? c : sd.fixed, z: sd.horiz ? sd.fixed : c, axis: sd.horiz ? 'x' : 'z', width: holes[i + 1] - holes[i], nx: sd.nx, nz: sd.nz }); }
+        // the upper bays, for the facade kit (world/facades.js: glass, boards, soot, a lamp after dark): open holes
+        if (k > 0 && !ruinTop && out.upWins) for (let i = 0; i < holes.length; i += 2) { const c = (holes[i] + holes[i + 1]) / 2; out.upWins.push({ b: B.id, x: sd.horiz ? c : sd.fixed, z: sd.horiz ? sd.fixed : c, y: y0 + VERT.window.sill, h: VERT.window.h, w: holes[i + 1] - holes[i], nx: sd.nx, nz: sd.nz, k }); }
       }
       // lintels over the gaps (a door: people pass under; a bay: a car does)
       for (const g of gaps) {
@@ -422,7 +424,7 @@ function buildBridge(br, out) {
 // ---- the whole town ------------------------------------------------------------------------------------------------------
 export function buildTown(T) {
   const rng = makeRng((T.seed ^ 0xb1d6) >>> 0);
-  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [], wrecks: [] };
+  const out = { boxes: [], items: [], recs: [], loot: [], cover: [], doors: [], blds: [], bridges: [], ground: [], windows: [], bays: [], fences: [], gates: [], wrecks: [], upWins: [] };
   const BI = BIOMES[T.biome] ?? BIOMES.desert_sonoran;
   // ground: the town's lots, then the streets (and their walks) on top
   for (const b of T.blocks) out.items.push({ cx: (b.x0 + b.x1) / 2, cy: 0.02, cz: (b.z0 + b.z1) / 2, sx: b.x1 - b.x0, sy: 0.04, sz: b.z1 - b.z0, col: b.green ? '#6a7448' : BI.ground, lv: 0, R: null });

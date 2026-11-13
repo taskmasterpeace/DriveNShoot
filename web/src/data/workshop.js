@@ -211,6 +211,8 @@ export const UTILITY = {
                   desc: 'A searchlight off a dead patrol boat, bolted to the roof bars. It turns night into a stage, and you are on it.' },
   winch:        { name: 'HARPOON WINCH', kg: 35, space: 1, price: 300, labour: 1, needs: 'harpoon', pull: { slack: 1.2, range: 30 },
                   desc: 'A tow drum geared down off a wrecker. Bite a door and drive away: the door comes with you. Gates too.' },
+  dronebay:     { name: 'DRONE BAY', kg: 35, space: 1, price: 650, labour: 1, bodies: ['pickup', 'van', 'rv', 'rig', 'interceptor', 'patrol', 'apc'],
+                  desc: 'A roof cradle with a charger and a latch. Its outrider flies ahead of you on its own and marks what waits up the road (the \\ key).' },
   radar:        { name: 'RADAR DETECTOR', kg: 5, space: 0, price: 150, labour: 0.25, warn: 120,
                   desc: 'A dash box that screams when something locks onto you, or an armed car closes within a long block.' },
 };

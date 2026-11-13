@@ -135,7 +135,14 @@ export const FARM_ITEMS = {
   orange: PRODUCE('Orange', 0.25, 4, 300, 0.05, { use: { need: 'food', amount: 0.05, water: 0.05 } }),
 };
 for (const [id, c] of Object.entries(CROPS)) FARM_ITEMS[c.seed] = SEED(id, c.name.split(' ').pop() === 'tree' ? 'Orange' : c.name, 2, `A twist of paper, a pinch of ${c.name.toLowerCase()} seed. One bed of ${c.name.toLowerCase()}, if you have the water.`);
-for (const [id, r] of Object.entries(FARM_ITEMS)) if (!ITEMS[id]) ITEMS[id] = r;
+// One item, two lanes: a garden crop whose id the maker's goods already hold as a non-food part (herbs: data/makeritems.js
+// "Dried herbs") becomes the garden's food row - produce is food (validateFarming) - keeping the maker's tags, so the medic's
+// recipes (data/recipes.js) still take it and the cooks still season with it.
+for (const [id, r] of Object.entries(FARM_ITEMS)) {
+  const was = ITEMS[id];
+  if (!was) ITEMS[id] = r;
+  else if (r.kind === 'food' && was.kind !== 'food' && r.tags?.includes('produce')) ITEMS[id] = { ...was, ...r, tags: [...new Set([...(r.tags ?? []), ...(was.tags ?? [])])] };
+}
 // Where the kit turns up. NOT in the world's loot tables: those feed every generated chunk, and the P1 chunk hashes are
 // pinned (a row added to LOOT moved chunk -6,0). Seeds and tools come by the two channels that do not touch a chunk:
 //   a trader's counter (Mags, who buys fruit, keeps seed and a hoe, a bucket, a sack of feed and a hen or two), and

@@ -74,10 +74,13 @@ import { Horses } from './systems/horses.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Underground } from './systems/underground.js';
+import { Carousel } from './systems/carousel.js'; // THE CAROUSEL: the ring in a station's deepest room (docs/design/WEB_CAROUSEL.md)
 import { UnderStreet } from './systems/understreet.js'; // UNDER THE STREET: storm drains under every town (docs/design/WEB_UNDERSTREET.md)
 import { FanNods } from './systems/fannods.js'; // the found things: the glass room's hum, the counter, the meal, the burning rain, the convoy, the bones (docs/design/WEB_FAN_NODS.md)
 import { Milbases } from './systems/milbases.js'; // the military bases' garrisons, hordes and sealed doors (docs/design/WEB_MILITARY_BASES.md)
-import { CityGen } from './systems/citygen.js'; // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
+import { CityGen } from './systems/citygen.js';
+import { Facades } from './world/facades.js'; // STOREYS v2: the facade kit (docs/design/WEB_STOREYS.md §9.2)
+import { RingRise } from './world/ringrise.js'; // STOREYS v2: the ring's towers (docs/design/WEB_STOREYS.md §9.1) // procedural cities, homesteads, bases, the overrun (docs/design/WEB_CITYGEN.md)
 import { Wrecks } from './systems/wrecks.js';
 import { BackLots } from './systems/backlots.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
@@ -90,6 +93,8 @@ import { Farming } from './systems/farming.js'; // the house garden: beds, hens,
 import { Cooking } from './systems/cooking.js'; // meals from real ingredients at a fire or a kitchen (WEB_FARMING.md)
 import { GardenPanel } from './ui/gardenpanel.js'; // the garden panel and chip
 import { Kit } from './systems/kit.js'; // GADGETS-2: night goggles, heat scope, glass, torch, scanner, mask, dog gear, car kit (WEB_GADGETS2.md)
+import { Crafting } from './systems/crafting.js'; // THE MAKER: recipes as rows, benches, tool wear, a queue on the game clock (WEB_CRAFTING.md)
+import { CraftUI } from './ui/craft.js'; // the CRAFT tab of the PACK screen
 import { Casinos } from './systems/casinos.js'; // CASINOS: card tables, chess, the house's money, guards, safes, security drones (WEB_CASINOS.md)
 import { TablePanel } from './ui/tablepanel.js'; // the table on green felt (WEB_CASINOS.md)
 import { Investigate } from './systems/investigate.js'; // one shared INVESTIGATE behaviour: a search party that finds you only from what it perceives
@@ -134,6 +139,7 @@ import { attachShard } from './net/shard.js';
 import { Creator } from './systems/creator.js';
 import { CreatorUI } from './ui/creator.js';
 import { Crew } from './systems/crew.js';       // the crew: records, orders, jobs, trust, the fallen (docs/design/WEB_CREW.md)
+import { HoldoutLaw } from './systems/holdouts.js'; // THE HOLDOUTS' LAW: gate checks, HOUSE RULES, local wanted, house paper (docs/design/WEB_HOLDOUTS.md)
 import { Tactics } from './systems/tactics.js'; // cover, bands, flanking, suppression for the crew and every hostile side
 import { CrewUI } from './ui/crew.js';          // U: the CREW panel (tap) and the orders radial (hold)
 
@@ -254,6 +260,8 @@ class Game {
     this.population = new Population(this); // the far fold: ambient people left far behind hand their slots back (systems/population.js)
     this.milbases = new Milbases(this); // before citygen: a stamped base hands its garrison here (systems/milbases.js)
     this.citygen = new CityGen(this); // the country's settlements: planned at boot, built near you (after the underground: a base's vault is its site)
+    this.facades = new Facades(this); this.facades.addIsland(this.storeys); // STOREYS v2: windows, ledges, roofs, signs (world/facades.js)
+    this.ringrise = new RingRise(this); for (const L of this.streamer.hot.values()) this.ringrise.chunkOn(L); // the ring's towers in the chunks already hot (world/ringrise.js)
     this.backlots = new BackLots(this); // their alleys, yard fences and gates, back-door locks, town pathing (docs/design/WEB_BACK_LOTS.md)
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -269,10 +277,12 @@ class Game {
     this.feedback = new Feedback(this, ui);
     this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
     this.crew = new Crew(this);
+    this.holdoutLaw = new HoldoutLaw(this, ui); // every holdout its own little kingdom: the gate, the HOUSE RULES, the bulls, the paper (WEB_HOLDOUTS.md)
     this.rites = new Rites(this); // the dead: bodies that rot on the clock, cemeteries everywhere, funerals (WEB_DEATH_RITES.md)
     this.forensics = new Forensics(this); // wounds keep their calibre, casings lie on the ground (WEB_CALIBERS.md)
     this.shotRead = new ShotRead(this, ui); // a shot at you reads: its streak, the dust, the marker toward it (WEB_SHOT_READ.md)
     this.crewUI = new CrewUI(this, ui);
+    this.carousel = new Carousel(this, ui); // THE CAROUSEL: stations' rings, the throw, ring-sickness, keys, Ring-born (docs/design/WEB_CAROUSEL.md)
 
     this.cash = 120;
     this.wanted = 0;
@@ -300,6 +310,8 @@ class Game {
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.kit = new Kit(this); // what you wear and look through, and what feeds it (systems/kit.js, WEB_GADGETS2.md)
+    this.crafting = new Crafting(this); // THE MAKER: every recipe a row, benches, a queue on the game clock (systems/crafting.js, WEB_CRAFTING.md)
+    this.craftUI = new CraftUI(this, ui); // the CRAFT tab of the PACK screen (ui/craft.js)
     this.investigate = new Investigate(this); // search parties (systems/investigate.js): police, hunters, a guard who heard something
     this.police = new Police(this); // the town desks: stations, beats, reports by real channels, units from the motor pool (systems/police.js)
     this.gadgets = new Gadgets(this); // chains, mines, crawlers, lures, flares, charges, alarms, bells; g.drones and g.security (WEB_GADGETS.md)
@@ -559,7 +571,7 @@ class Game {
   }
 
   sees(a, b) {
-    if (!this.storeys.sameFloor(a, b)) return false;
+    if (!this.storeys.sameFloor(a, b)) { const y = this.storeys.across(a, b); return y >= 0 && this.losAt(a.x, a.z, b.x, b.z, y); } // up at a window or a roof's edge, from the street or another building (world/storeys.js across)
     return this.losAt(a.x, a.z, b.x, b.z, a.ug ? Math.min(a.gy ?? 0, b.gy ?? 0) - (this.under?.y0 ?? 0) : a.storey || b.storey ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0); // below the street: that level's walls (over its street: a town's pad for its drains)
   }
 
@@ -706,6 +718,7 @@ class Game {
       if (((c.gy ?? 0) > 0.5 && c.storey) || c.ug) body.y = c.gy; // the dead lie on their own floor (or their level below)
       this.inventory.armBody(body, c);
       this.melee?.onBody(body, c); // the bat or the machete they fought with lies with them
+      if (c.sec) this.security?.onDeath(c, body); // a town bull or a posse man carries the town's key ring (systems/security.js)
     }
     this.pulls?.onKill(c, attacker); // a pull's person: their body holds what they carried; a bounty's tally
     this.stories?.onKill(c, attacker); // a party's person, a fallen place's master, a hunter (systems/sitestories.js)
@@ -851,6 +864,7 @@ class Game {
       return;
     }
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
+    if (this.carousel.ui.open) { p.speed = 0; this.carousel.ui.input(I); return; } // at a ring console (ui/carousel.js)
     if (this.workshopUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.workshopUI.input(I); return; }
     if (I.hit('KeyU') && this.workshop.siteAt(p.x, p.z)) { this.workshopUI.toggle(true); return; } // at a garage U is the workshop; anywhere else it is the crew (ui/crew.js)
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
@@ -1399,6 +1413,7 @@ class Game {
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
       this.gadgets.update(simDt); // and the drone in the air, the bulls (systems/gadgets.js)
+      this.crafting.update(simDt); // the queue's work runs on the game clock (systems/crafting.js)
       this.investigate.update(simDt); // the search parties out: sweep, hiding places, blood, witnesses (systems/investigate.js)
       this.police.update(simDt); // the desks hear what reached them and send from the station (systems/police.js)
       this.kit.update(simDt); // cells drain, the glass marks, the scanner listens, bad air, dog gear, car kit (systems/kit.js)
@@ -1418,6 +1433,7 @@ class Game {
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
+      this.holdoutLaw.update(simDt); // the gate check, HOUSE RULES through the witness pass, local wanted, the bulls' rounds
       this.workforce.update(simDt); // workers to their shifts, the work banked (systems/workforce.js)
       this.pulls.update(simDt); // road people on the clock, bars near you, the grapevine, what you hear (systems/pulls.js)
       this.homes.update(simDt); // the camp's watch and bells, owners at their doors, rent and raids on the clock (systems/homes.js)
@@ -1440,8 +1456,11 @@ class Game {
     this.milbases.update(simDt); // the bases' gate rule, the horde's moans (systems/milbases.js)
     this.fannods.update(simDt); // the found things: the hum, the counter's ticks, the meal, the burning rain, the convoy, the ditch's bones
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
+    this.ringrise.update(simDt); // the ring towers' people, when slots free up (world/ringrise.js)
+    this.facades.update(); // the facade kit: its buffers when a source came or went, the lamps after dark (world/facades.js)
     this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
+    this.carousel.update(simDt, dt); // the ring: its look, the spin and the throw, ring-sickness's decay (systems/carousel.js)
     this.understreet.update(simDt, dt); // the drains: the flood and its current, who stands up near you, the rats, the dead following a sound down
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;

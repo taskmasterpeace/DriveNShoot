@@ -49,6 +49,8 @@ import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { cameraChecks } from './camera-checks.js';
+import { storeysCommands } from './storeys-api.js'; // STOREYS v2: rise, facades, floors (docs/design/WEB_STOREYS.md §9)
+import { storeysV2Checks } from './storeys-checks.js'; // STOREYS v2's checks (acceptance #3 and #8)
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 import { milbasesCommands, milbasesChecks } from './milbases-api.js'; // the military bases (WEB_MILITARY_BASES.md)
@@ -80,6 +82,8 @@ import { soundCommands, soundChecks } from './sound-api.js';
 import { outdoorsCommands } from './outdoors-api.js';
 import { outdoorsChecks } from './outdoors-selftest.js';
 import { crewCommands, crewChecks } from './crew-api.js'; // THE CREW and TACTICS (docs/design/WEB_CREW.md)
+import { holdoutsCommands, holdoutsChecks } from './holdouts-api.js'; // THE HOLDOUTS: the generator, Keyholders, HOUSE RULES, the gate, house paper (docs/design/WEB_HOLDOUTS.md)
+import { carouselCommands, carouselChecks } from './carousel-api.js'; // THE CAROUSEL: stations, the ring, the throw, ring-sick (docs/design/WEB_CAROUSEL.md)
 import { gadgetsCommands, gadgetsChecks } from './gadgets-api.js';
 import { policeCommands, policeChecks } from './police-api.js'; // POLICE RESPONSE: stations, beats, the desk, units, sirens (WEB_POLICE_RESPONSE.md)
 import { kitCommands, kitChecks } from './kit-api.js'; // GADGETS-2: the kit you wear and look through (WEB_GADGETS2.md)
@@ -99,6 +103,7 @@ import { shotReadCommands, shotReadChecks } from './shotread-api.js'; // a shot 
 import { meleeCommands, meleeChecks } from './melee-api.js'; // hand to hand: fists up, block, parry, grab, hostage, struggle, finishers (WEB_MELEE.md)
 import { seasonCommands, seasonChecks } from './seasons-api.js'; // SEASONS: the calendar, climate by place, snow, light (WEB_SEASONS.md)
 import { lookfeelCommands, lookfeelChecks } from './lookfeel-api.js'; // the grade, wind, history decals, impact feel, vehicle wear (WEB_LOOK_FEEL.md)
+import { craftingCommands, craftingChecks } from './crafting-api.js'; // THE MAKER: one recipe engine as rows (WEB_CRAFTING.md)
 import { workshopCommands, workshopChecks } from './workshop-api.js'; // THE WORKSHOP: six faces, mounts with arcs, the counter (WEB_WORKSHOP.md)
 import { MOUNT_WEAPONS } from '../data/workshop.js';
 import { longRoadCommands, longRoadChecks } from './longroad-api.js'; // THE LONG ROAD (WEB_LONG_ROAD.md)
@@ -2089,6 +2094,7 @@ function buildCommands(api) {
     ...worldmapCommands(api, need), // atlas (WEB_WORLD_MAP.md)
     ...understreetCommands(api, need), // understreet (WEB_UNDERSTREET.md)
     ...citygenCommands(api, need), // citygen, site, overrun, cover (WEB_CITYGEN.md)
+    ...storeysCommands(api, need), // rise, facades, floors (STOREYS v2, WEB_STOREYS.md §9)
     ...backlotsCommands(api, need), // backlots (WEB_BACK_LOTS.md)
     ...wrecksCommands(api, need), // wrecks (WEB_BACK_LOTS.md §3.5)
     ...semisCommands(api, need), // semi (WEB_SEMIS.md)
@@ -2120,6 +2126,7 @@ function buildCommands(api) {
     // row above, same answers there), rivers, bridges.
     ...waterCommands(api, need),
     ...sealifeCommands(api, need),
+    ...craftingCommands(api), // craft (agent/crafting-api.js; docs/design/WEB_CRAFTING.md)
     ...workshopCommands(api), // workshop, mount, arena (agent/workshop-api.js; docs/design/WEB_WORKSHOP.md)
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
@@ -2135,6 +2142,8 @@ function buildCommands(api) {
     ...outdoorsCommands(api, need), // THE WILDS: track, hunt, fish, forage, trap, camp, outdoors (src/agent/outdoors-api.js)
     // THE CREW and the TACTICS brain (src/agent/crew-api.js, docs/design/WEB_CREW.md): crew, crewJoin, crewOrder, crewJob, tactics.
     ...crewCommands(api, need),
+    ...holdoutsCommands(api, need), // THE HOLDOUTS (src/agent/holdouts-api.js, docs/design/WEB_HOLDOUTS.md): holdouts
+    ...carouselCommands(api, need), // THE CAROUSEL: carousel, ringJump (src/agent/carousel-api.js, docs/design/WEB_CAROUSEL.md)
     // Gadgets, drones, town security and the door verbs (src/agent/gadgets-api.js, docs/design/WEB_GADGETS.md).
     ...gadgetsCommands(api, need),
     ...policeCommands(api, need), // police: stations, patrols, dispatch, units (src/agent/police-api.js)
@@ -2309,6 +2318,8 @@ async function runSelfTest(api, only = null, skip = null) {
   // they are off for the battery; their own checks turn them on in a stage of their own.
   const faunaWas = g.fauna.enabled;
   g.fauna.enabled = false; g.fauna.clear();
+  // The holdouts' law (systems/holdouts.js) would stop a check that walks past a holdout's gate: off for the battery, on for its own checks.
+  const holdLawWas = g.holdoutLaw?.enabled; if (g.holdoutLaw) g.holdoutLaw.enabled = false;
   // Sharks and the ferry (systems/sealife.js, systems/waterplace.js) likewise: off for the battery, on for their own checks.
   const seaWas = g.sealife.enabled, ferryWas = g.waterplace.enabled;
   g.sealife.enabled = false; g.sealife.clear(); g.waterplace.enabled = false;
@@ -3934,6 +3945,7 @@ async function runSelfTest(api, only = null, skip = null) {
     g.garage.hazards.length = 0;
     return heavier && absorbed && breached && through && gunned && slipped ? true : JSON.stringify({ heavier, absorbed, breached, through, gunned, hg, slipped, plates: v.plates });
   });
+  await craftingChecks({ g, api, C, check, stage }); // THE MAKER: rows validate, matter never made, tools wear, benches, knowledge, the save, the crew's row, the CRAFT tab (agent/crafting-api.js)
   await workshopChecks({ g, api, C, check, stage, person }); // THE WORKSHOP: the formula, THE BREACH, oil, arcs, the rail gun, the counter, the screen, the save (agent/workshop-api.js)
   await check('faction sim: ten days off-screen move strength and stores, skirmish at war, and run in under 20 ms', async () => {
     const S = g.society, sv = S.sim.save();
@@ -5260,7 +5272,8 @@ async function runSelfTest(api, only = null, skip = null) {
       str(L.id); str(JSON.stringify([geo.plan, geo.rooms, geo.inner, geo.doors, geo.props, geo.boxes, geo.beds, geo.boxesIn, geo.walls, geo.decor, geo.floor, geo.roof]));
     }
     const hex = (h >>> 0).toString(16).padStart(8, '0');
-    return hex === g.streamer.golden.ringPlans && lots > 2000 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
+    // (STOREYS v2: ~200 of the ring's planned lots now rise and are built by the generated-town builder: 1894 planned lots stay)
+    return hex === g.streamer.golden.ringPlans && lots > 1800 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
   });
   // ---- authored buildings (docs/design/WEB_BUILDING_LAB.md; world/authored.js): the Building Lab's export, loaded -------
   await check('building lab: a building exported by the lab (data/authored.js LAB_SAMPLES.office2: a two-storey office floor, hand-edited upstairs) loads at a world position in the ring (the author command): it stands in place of the lots it covers, a walk (moveTo) from its street through its front door gets inside, every room of its street floor is reached by A* from the street through its doorways, its stairs\' run is solid and their foot reached, the reachability proof passes on both floors, and taken away the block is the generator\'s again', async () => {
@@ -6141,6 +6154,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await undergroundChecks({ api, g, check, C, snapshot, restore });
   // Procedural cities (docs/design/WEB_CITYGEN.md §8): agent/citygen-api.js.
   await citygenChecks({ api, g, check, C });
+  await storeysV2Checks({ api, g, check, C }); // STOREYS v2: the ring's towers, roofs, bridges, escapes, window fights, the facade kit (src/agent/storeys-checks.js)
   await milbasesChecks({ api, g, check, C }); // the military bases: rows, the wire, the armory, the gate rule, the blast door, the horde (WEB_MILITARY_BASES.md §8)
   await fannodsChecks({ api, g, check, C }); // the found things: the glass room, the case, the blade, the counter, the convoy, the rain, the calendars, the meal (WEB_FAN_NODS.md §8)
   await sitesChecks({ api, g, check, C }); // sites in the world, real terrain by default (WEB_SITES_TERRAIN.md §8)
@@ -6173,6 +6187,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await reactionsChecks(api, check, C); // gunfire reactions: four reactions from one shot, the heard bearing, earshot, sleep, family, jumpiness, call-in (src/agent/reactions-api.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await crewChecks(api, check, C); // the crew: joining, the panel, the radial, every order, trust, the fallen, save, jobs; tactics (src/agent/crew-api.js)
+  await holdoutsChecks(api, check, C); // THE HOLDOUTS: the generator, the walkability audit, the gate check, HOUSE RULES by the witness pass, the bulls' rounds, paper, save, Meridian (src/agent/holdouts-api.js)
+  await carouselChecks(api, check, C); // THE CAROUSEL: the station's ladder, the ring's look, ROULETTE across regions (acceptance 9), PAIR, BACKSPIN, keys, ring-sick, save, Ring-born (src/agent/carousel-api.js)
   await homesChecks(api, check, C); // CAMPS AND BASES: the camp seen and struck, a claim, boards, a carried sofa, a burglar, an owner's sale (src/agent/homes-api.js)
   await farmingChecks(api, check, C); // THE HOUSE GARDEN: sow, water, grow, harvest, drought, frost, blight, pests, theft, hens, the crew, the market, cooking (src/agent/farming-api.js)
   await ritesChecks(api, check, C); // the dead (last of the systems: its checks run the clock on days, which would move every later check's hour)
@@ -6181,6 +6197,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('no runtime errors during the battery', async () =>
  (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
+  if (g.holdoutLaw) g.holdoutLaw.enabled = holdLawWas;
   g.farsound.on = voiceWas.far; g.feed.on = voiceWas.feed; g.marks.on = voiceWas.marks; g.campfire.on = voiceWas.fire; // the world's voice back on
   await C('god', { on: false });
   bodyNeutral(); g.survival.setProfile(profile0);
@@ -6211,6 +6228,7 @@ export function snapshot(g) {
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
     actions: g.actions?.save(), // TIMED ACTIONS: break-in marks, half-done searches, what a search turned up, ladders you set (systems/actions.js)
+    gadgets: g.gadgets?.save(), // what is set in the world (chains, strips, mines, wires, charges, alarms) and which doors are barricaded (systems/gadgets.js)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
@@ -6232,9 +6250,12 @@ export function snapshot(g) {
     farming: g.farming?.save(), // beds, coops, hens, eggs, consignments, the garden log (systems/farming.js)
     cooking: g.cooking?.save(), // well fed, the meals cooked (systems/cooking.js)
     rites: g.rites?.save(), // the dead: every body's record (stage, where, its box), graves dug, funerals, open holes, deliveries
+    carousel: g.carousel?.save(), // THE CAROUSEL: the last ring, rings known, armed rings, ring-sick, where the rig was left (systems/carousel.js)
     crew: g.crew?.save(), // your crew: members (trust, needs, order, job, rounds), candidates, graves, the wall, pins (systems/crew.js)
+    holdouts: g.holdoutLaw?.save(), // each holdout's standing (local wanted, the gate locker, passes) and the house paper you carry (systems/holdouts.js)
     stories: g.stories?.save(), // every place's state, the parties on the roads, the stories, the Tally's book (systems/sitestories.js)
     pulls: g.pulls?.save(), // the pulls' records, the bars, what every holder knows, the grapevine's trucks (systems/pulls.js)
+    crafting: g.crafting?.save(), // what you know how to make, the benches you set down, the queue (systems/crafting.js)
     voice: { feed: g.feed?.save(), marks: g.marks?.save() }, // the feed's cursor and what it aired; every mark the world wrote on itself (WEB_WORLD_VOICE.md)
     longroad: g.longroad?.save(), // wayside dead, caches taken, trip logs (systems/longroad.js)
     atlas: g.qol?.atlas?.save(), // the big map's fog: every 1 km cell of the country you have been near (ui/atlas.js)
@@ -6268,6 +6289,7 @@ export function restore(g, s) {
   g.longroad?.load(s.longroad ?? null);
   if (s.atlas) g.qol?.atlas?.load(s.atlas); // the fog as saved (a save without it keeps what this session has seen)
   g.roadside?.load(s.roadside ?? null); // the roadside's keepers back onto their records (promoted again near you); tanks, hulks, gates as saved
+  g.crafting?.load(s.crafting ?? null); // what you know how to make, benches set down, the queue (systems/crafting.js)
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);
@@ -6311,6 +6333,7 @@ export function restore(g, s) {
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.actions) g.actions?.load(s.actions); // TIMED ACTIONS (after the inventory: it marks the boxes it searched)
+  g.gadgets?.load(s.gadgets ?? null); // after the doors and the people: barricades find their doors, gadgets their owners and cars (an old save: nothing set)
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   g.arms?.load(s.arms); g.gunpoint?.clear(); g.melee?.clear(); g.melee?.load(s.melee);
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
@@ -6330,6 +6353,8 @@ export function restore(g, s) {
   g.cooking?.load(s.cooking ?? null);
   if (s.rites) g.rites?.load(s.rites); // after the people and the boxes: records relink to the dead characters by id
   if (s.crew) g.crew?.load(s.crew); // after the people: members and candidates find their bodies by id (an old save: the crew as it is)
+  g.holdoutLaw?.load(s.holdouts ?? null); // the holdouts' law: local wanted, the gate lockers, house paper (an old save: a clean slate)
+  if (s.carousel) g.carousel?.load(s.carousel); // after the crew: below in a station, the members stand on your level again (an old save: the ring as it is)
 
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

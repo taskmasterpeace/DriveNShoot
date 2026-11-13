@@ -343,3 +343,6 @@ timed clean (a kit takes a minute you spend standing still).
 
 ## Dependents added by WEB_FARMING (2026-10-29)
 - WEB_FARMING.md: `inventory.act` asks `g.farming.act` first (hoe, seed, bucket, compost, hen, feed verbs); meals are generated items per tier.
+
+
+> **Crafting (2026-10-29):** slots of durable items carry `cond` (tools wear), manuals use act `learn` with `keep`, a repair kit uses act `mendgear`, and the PACK screen has a CRAFT tab (Q / pad LB). See WEB_CRAFTING.md.

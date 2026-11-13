@@ -139,6 +139,12 @@ level is promoted first, so the floor is under your feet. Boxes ride the invento
 
 ## 6. Dependencies
 
+**Used by THE CAROUSEL** (`WEB_CAROUSEL.md`): kind `station` (two levels; the generator on 1, the keyed `ringdeck` and the
+command room on 2), room `ringdeck` (the ringroom with keypad `ring`, no log, nobody spawns in it), logs `ring_power` and
+`ring_card`, the code group `ring` (appended last in `siteCodes`), and one hook: `playerInteract` asks
+`carousel.interact()` first on a station level (the ring console). Station sites are pushed into `sites`/`byId` by
+`systems/carousel.js`; the lane moves the player between stations with `place`/`activate`/`promote`.
+
 Uses: `engine/collision.js` (StaticWorld: the UnderWorld subclass; `resolveBody` and `raycast` route below by height;
 `extra` boxes), `world/floorplan.js` (NavProbe), `world/storeys.js` (`sameFloor`, `steer` call ours), `systems/stunts.js`
 (`heightAt` asks ours first), `systems/interiors.js` (door leaves and ops; kick, pick, pry, unlock; `door.y`),

@@ -13,6 +13,8 @@ import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md 
 import { buildRegions, regionAt, regionWater, makeDepthAt } from './regions.js';
 import { Holdout } from './holdout.js';
 import { HOLDOUTS } from '../data/holdouts.js';
+import { SEEDS as HOLDOUT_SEEDS } from '../data/holdoutgen.js'; // THE HOLDOUT GENERATOR's seeded towns (docs/design/WEB_HOLDOUTS.md)
+import { generateHoldout } from './holdoutgen.js';
 import { Roadside } from './roadside.js'; // THE ROADSIDE: power lines, billboards, stations, junkyards, farms, the dam (docs/design/WEB_ROADSIDE.md)
 
 const TAU = Math.PI * 2;
@@ -274,7 +276,7 @@ export class WorldIndex {
 
   buildRegionWorld() {
     const S = STREAM, D = this.data;
-    this.holdouts = [];
+    this.holdouts ??= [];
     for (const R of Object.values(this.regions)) {
       for (const row of R.row.corridors ?? []) {
         const cor = new Corridor(this, R, row);
@@ -293,9 +295,13 @@ export class WorldIndex {
         if (s < 1200 || s > cor.L - 1200) { this.warnings.push(`${R.id} exit ${e.name}: mile ${(s / S.mile).toFixed(1)} is off ${cor.id}`); continue; }
         const f = cor.at(s), number = e.mile ?? Math.floor(s / S.mile);
         let H = null;
+        const seedRow = e.holdout ? null : HOLDOUT_SEEDS.find((q) => q.region === R.id && q.exit === e.name);
         if (e.holdout) {
           H = new Holdout(this, R, HOLDOUTS[e.holdout], f);
           this.holdouts.push(H); R.holdouts.push(H);
+          dest = H.approach;
+        } else if (seedRow && !town) {
+          H = this.seededHoldout(R, seedRow, f);
           dest = H.approach;
         } else if (!dest && e.archetype !== 'dead') {
           const v = { E: [1, 0], W: [-1, 0], N: [0, -1], S: [0, 1] }[e.side ?? 'E'];
@@ -307,12 +313,24 @@ export class WorldIndex {
         if (X0) { X0.region = R; R.exits.push(X0); if (H) H.exit = X0; }
       }
       for (const cor of R.corridors) cor.exits.sort((a, b) => a.s - b.s);
+      R.holdouts.sort((a, b) => (a.gen ? 1 : 0) - (b.gen ? 1 : 0)); // the authored holdout (Meridian) stays the region's first
       // A town row this region moves (Meridian: Godot put it in Virginia): its name now answers here.
       for (const [id, how] of Object.entries(R.row.relocate ?? {})) {
         const t = this.towns.find((q) => q.id === id), H = this.holdouts.find((h) => h.id === id);
         if (t && how === 'holdout' && H) { t.x = H.cx; t.z = H.cz; t.region = R; t.holdout = H; t.relocated = true; }
       }
     }
+    this.holdouts.sort((a, b) => (a.gen ? 1 : 0) - (b.gen ? 1 : 0)); // authored first: Meridian is holdouts[0], as it always was
+  }
+
+  // A seeded holdout (data/holdoutgen.js SEEDS -> world/holdoutgen.js): generated from its seed, laid out by world/holdout.js
+  // at its exit like Meridian. H.gen keeps the generator's output (the Keyholder's card, HOUSE RULES, paper, people).
+  seededHoldout(R, seedRow, f) {
+    const gen = generateHoldout(seedRow);
+    const H = new Holdout(this, R, gen.row, f);
+    H.gen = gen;
+    this.holdouts.push(H); R.holdouts.push(H);
+    return H;
   }
 
   // ---- samplers over the 500 m usmap grids -----------------------------------------------------------------------
@@ -473,6 +491,9 @@ export class WorldIndex {
   buildExits() {
     const S = STREAM, R = S.ramp, X = S.crossRoad, D = this.data;
     this.exits = []; this.ribbons = []; this.pieces = []; this.rails = []; this.structs = []; this.stops = [];
+    this.holdouts = [];
+    // Arizona's own holdouts (data/holdoutgen.js SEEDS, region arizona): a P1 exit's community becomes a walled town.
+    this.azRegion = { id: 'arizona', name: 'ARIZONA', p1: true, holdouts: [], corridors: [], exits: [], row: {} };
     this.buildMainline(0);
     for (const e of D.exits.filter((r) => r.highway_id === 'I-10')) {
       const [ex, ez] = toWorld(e.pos);
@@ -481,6 +502,13 @@ export class WorldIndex {
       if (p.d > 400) { this.warnings.push(`exit ${e.id} is ${Math.round(p.d)} m off I-10: skipped`); continue; }
       if (!e.dest) { this.warnings.push(`exit ${e.id} has no dest: skipped`); continue; }
       const [dx0, dz0] = toWorld(e.dest);
+      const seedRow = HOLDOUT_SEEDS.find((q) => q.region === 'arizona' && q.exit === e.id);
+      if (seedRow) {
+        const H = this.seededHoldout(this.azRegion, seedRow, this.at(p.s));
+        const X0 = this.addExit(this.i10, e, ex, ez, H.approach.x, H.approach.z, { holdout: H });
+        if (X0) H.exit = X0;
+        continue;
+      }
       this.addExit(this.i10, e, ex, ez, dx0, dz0);
     }
     this.exits.sort((a, b) => a.s - b.s);

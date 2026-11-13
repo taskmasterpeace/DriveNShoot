@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
 import { STEP } from '../engine/depthlayers.js';
 import { Hasher } from './geo.js';
-import { STOREY, FLIGHT, RAIL, WINDOWS, LEVEL, RISE, UPSTAIRS, QUARTERS } from '../data/storeys.js';
+import { STOREY, FLIGHT, RAIL, WINDOWS, LEVEL, RISE, UPSTAIRS, QUARTERS, MAX_ABOVE, ACROSS } from '../data/storeys.js';
 import { ROOMS, SCATTER } from '../data/floorplans.js';
 import { FURNITURE } from '../data/ring.js';
 import { placePiece } from './furnish.js';
@@ -80,7 +80,7 @@ export class Storeys {
       const rise = riseOf(b);
       if (!rise) continue;
       let { rng, n } = rise;
-      if (!towerDone && towers.slice(0, 4).includes(b)) { n = RISE.ruins.tower; b.tower = true; }
+      if (!towerDone && towers.slice(0, 4).includes(b)) { n = Math.min(MAX_ABOVE, RISE.ruins.tower); b.tower = true; }
       let S = this.plan(b, n, rng);
       if (b.tower) { if (S) towerDone = true; else { b.tower = false; const r2 = riseOf(b); rng = r2.rng; n = r2.n; S = this.plan(b, n, rng); } }
       if (!S) continue; // no wall has room for a staircase clear of doors, the partition and the furniture
@@ -249,6 +249,9 @@ export class Storeys {
         const mid = (a0 + a1) / 2, sy = y1 - y0, cy = (y0 + y1) / 2;
         if (sd.horiz) vis(mid, cy, sd.fixed, a1 - a0, sy, WALL_T, col, lv); else vis(sd.fixed, cy, mid, WALL_T, sy, a1 - a0, col, lv);
       };
+      // the bays, for the facade kit (world/facades.js): outward normal, centre, sill height, per floor
+      const nx = sd.horiz ? 0 : sd.fixed === b.minX ? -1 : 1, nz = sd.horiz ? (sd.fixed === b.minZ ? -1 : 1) : 0;
+      for (let k = 1; k <= n; k++) for (const c of centres) (S.wins ??= []).push({ x: sd.horiz ? c : sd.fixed, z: sd.horiz ? sd.fixed : c, y: Y[k] + WINDOWS.sill, h: WINDOWS.h, w: WINDOWS.w, nx, nz, k });
       for (let k = 1; k <= n; k++) {
         const y0 = Y[k], y1 = k === n ? top + STOREY.top : Y[k] + STOREY.up;
         let cur = p0;
@@ -477,6 +480,39 @@ export class Storeys {
     return !(this.at(a.x, a.z) || this.at(b.x, b.z));
   }
 
+  // STOREYS v2 - across floors (docs/design/WEB_STOREYS.md §9.3). Two people on different floors of DIFFERENT places (the
+  // street and a building's upper floor, or two buildings) see and shoot each other when the higher one stands at a window
+  // wall (ACROSS.window.reach m from the outside wall they look out of, along the line between them) or at a roof's edge
+  // (roof m): returns the higher one's floor height over their building's own ground (for main.losAt / combat's ray, which
+  // then meet only what stands at that height: the window holes let it through, a taller building does not), or -1.
+  // Two floors of ONE building never: the slab is between them.
+  across(a, b) {
+    if (a.ug || b.ug || (!this.list.length && !this.extN)) return -1;
+    const ay = a.gy ?? 0, by = b.gy ?? 0, hi = ay >= by ? a : b, lo = hi === a ? b : a;
+    const S = this.at(hi.x, hi.z);
+    if (!S) return -1;
+    const y0 = S.y0 ?? 0, hy = (hi.gy ?? 0) - y0;
+    if (hy < LEVEL.same || (lo.gy ?? 0) > (hi.gy ?? 0) - LEVEL.same) return -1;
+    const So = this.at(lo.x, lo.z);
+    if (So === S) return -1;
+    const W = ACROSS.window, dx = lo.x - hi.x, dz = lo.z - hi.z, d = Math.hypot(dx, dz);
+    if (d > W.range || d < 0.3) return -1;
+    const B = S.b, onRoof = !!(S.cg && B.B && S.n === B.B.n && Math.abs(hy - (S.Y[S.n] - y0)) < 0.6) || !!(S.escape || B.bridge);
+    if (exitOf(B, hi.x, hi.z, dx / d, dz / d) > (onRoof ? W.roof : W.reach)) return -1;
+    // the lower one, up another building: at their own window too
+    if (So && (lo.gy ?? 0) - (So.y0 ?? 0) > LEVEL.same && !(So.escape || So.b.bridge) && exitOf(So.b, lo.x, lo.z, -dx / d, -dz / d) > W.reach) return -1;
+    return hy;
+  }
+  // How much of a noise or a blast at height y (x, z) reaches person c (ACROSS.noise / ACROSS.blast by floors apart):
+  // 1 on the same floor or anywhere outside the storeyed buildings (the old flat rule), a share one floor apart, none two.
+  floorShare(y, x, z, c, rows = ACROSS.noise) {
+    if (c.ug) return 1;
+    const cy = c.gy ?? 0;
+    if (!c.storey && !this.at(x, z)) return 1;
+    const d = Math.abs(cy - y);
+    return rows[d <= LEVEL.same ? 0 : d <= LEVEL.same + 4.6 ? 1 : 2]; // one floor: a 3.2 m storey, or a street storey's 4.2-6 m
+  }
+
   // The point to head for to reach (tx, tz) at height ty, when the stairs are the way: on a flight, its far end; on a
   // floor, the end of the flight that leads toward the target's floor (its near landing first, then through it).
   steer(c, tx, tz, ty = 0) {
@@ -530,6 +566,7 @@ export class Storeys {
       if (S && !S.cg) { this.viewS = null; this.viewL = -1; this.setView(S, y); return; }
       if (S) this.ext?.view(S, L);
       this.viewS = S; this.viewL = L;
+      this.g.facades?.view(S, L); // its facade kit above your floor too (world/facades.js)
       return;
     }
     const L = S ? Math.max(0, this.levelOf(S, y)) : -1;
@@ -540,6 +577,7 @@ export class Storeys {
     if (this.viewS && this.viewS !== S) show(this.viewS, () => true);
     if (S) show(S, (it) => it.lv <= L);
     this.viewS = S; this.viewL = L;
+    this.g.facades?.view(S, L); // its facade kit above your floor too (world/facades.js)
     M.instanceMatrix.needsUpdate = true;
   }
 
@@ -565,7 +603,14 @@ export function riseOf(b) {
   if (!R || (b.maxX - b.minX) * (b.maxZ - b.minZ) < R.minArea) return null;
   const rng = makeRng(seedOf(b));
   if (rng() >= R.share) return null;
-  return { rng, n: rng.int(R.storeys[0], R.storeys[1]) };
+  return { rng, n: Math.min(MAX_ABOVE, rng.int(R.storeys[0], R.storeys[1])) }; // the skyline's cap (data/storeys.js MAX_ABOVE)
+}
+
+// How far from (x, z) along unit (ux, uz) the line leaves rect B (its outside walls): 0 when already outside.
+function exitOf(B, x, z, ux, uz) {
+  const tx = ux > 1e-6 ? (B.maxX - x) / ux : ux < -1e-6 ? (B.minX - x) / ux : Infinity;
+  const tz = uz > 1e-6 ? (B.maxZ - z) / uz : uz < -1e-6 ? (B.minZ - z) / uz : Infinity;
+  return Math.max(0, Math.min(tx, tz));
 }
 
 // A building's own seed: from its position, so it never draws from the city's stream.
