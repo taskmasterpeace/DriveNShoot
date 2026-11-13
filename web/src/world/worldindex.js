@@ -491,6 +491,9 @@ export class WorldIndex {
   buildExits() {
     const S = STREAM, R = S.ramp, X = S.crossRoad, D = this.data;
     this.exits = []; this.ribbons = []; this.pieces = []; this.rails = []; this.structs = []; this.stops = [];
+    // A forge reindex (forge/live.js) runs buildExits alone: the regions' holdouts (buildRegionWorld's: Meridian, Florida's
+    // seeded towns) are kept and only Arizona's are generated again. Wiping them all took Florida off the map.
+    const keptHoldouts = (this.holdouts ?? []).filter((h) => h.R?.id !== 'arizona');
     this.holdouts = [];
     // Arizona's own holdouts (data/holdoutgen.js SEEDS, region arizona): a P1 exit's community becomes a walled town.
     this.azRegion = { id: 'arizona', name: 'ARIZONA', p1: true, holdouts: [], corridors: [], exits: [], row: {} };
@@ -510,6 +513,10 @@ export class WorldIndex {
         continue;
       }
       this.addExit(this.i10, e, ex, ez, dx0, dz0);
+    }
+    if (keptHoldouts.length) {
+      this.holdouts.push(...keptHoldouts);
+      this.holdouts.sort((a, b) => (a.gen ? 1 : 0) - (b.gen ? 1 : 0)); // authored first, as buildRegionWorld leaves it
     }
     this.exits.sort((a, b) => a.s - b.s);
     this.i10.exits.sort((a, b) => a.s - b.s);
