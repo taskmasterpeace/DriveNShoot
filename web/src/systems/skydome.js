@@ -40,7 +40,6 @@ export class SkyDome {
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1000; // behind everything: drawn first, never writes depth
     this.mesh.visible = false;
-    this.mesh.userData.noCut = true;
     g.scene.add(this.mesh);
     this._day = new THREE.Color(D.day); this._dusk = new THREE.Color(D.dusk); this._nightC = new THREE.Color(D.night); this._moon = new THREE.Color(D.moon);
   }

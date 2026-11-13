@@ -31,7 +31,7 @@ You step out of a doorway in third-person and there is a sky over the dead town,
    and ash each pull it toward the haze (`murk`): under an ashfall the sky is the ash's colour.
 4. **The sun and the moon:** a disc and a soft glow on the light's own direction (the same directional light that casts
    the shadows), the light's colour by day, `moon` by night, dimmed by the murk.
-5. **Stars:** by night only, fixed in the sky (a hash of the direction), fading in as it darkens and out toward the
+5. **Stars:** about a thousand, one or two pixels each, by night only, fixed in the sky (a hash of the direction), fading in as it darkens and out toward the
    horizon and under cloud.
 6. **Depth:** the dome is drawn first, writes no depth and is pinned to the far plane, so everything in the world draws
    over it. It follows the lens, so it never comes nearer.
@@ -41,7 +41,7 @@ You step out of a doorway in third-person and there is a sky over the dead town,
 - `colour(dir) = mix(horizon, zenith, clamp(dir.y, 0, 1) ^ lift)`, `lift` 0.38 (the blue starts low).
 - `zenith = day → dusk by low × (1 − night) × duskMix → night by night → haze by murk`,
   `murk = min(1, clouds × 0.75 + dust × 0.85 + ash × 0.9)`.
-- Sun disc: where `dot(dir, sunDir) > 1 − size` (`size` 0.0012, about 2.8° across).
+- Sun disc: where `dot(dir, sunDir) > 1 − size` (`size` 0.0012: about 5° across, larger than the real sun so it reads).
 
 ## 5. Edge cases
 
@@ -49,7 +49,10 @@ You step out of a doorway in third-person and there is a sky over the dead town,
 - **Indoors:** the dome is behind the walls and the ceiling; you see it through windows and doorways.
 - **Lightning, the burning rain:** the horizon follows the haze colour, which already flashes and turns; the zenith does
   not flash.
-- **Photo mode and the screenshot command's own camera** look down; the dome is not part of them.
+- **Photo mode and the screenshot command's own camera** look down; if the view was THIRD or SHOULDER the dome is
+  still drawn behind them (it is only ever behind everything).
+- **The disc jumps at dusk:** the game's one light switches from the sun's path to the moon's in a frame, and the sun
+  never goes below about 10°; the disc follows the light, so it jumps across the sky at that moment.
 - **Not covered yet:** clouds as shapes (the weather only tints); the dome does not rotate with the hours (the stars do
   not wheel); a top floor's roof-access stairwell shows sky through its hatch, which is right; a ruin with no roof
   shows sky, which is right; a one-storey building's ceiling is its roof and has no rafters or lamp.
