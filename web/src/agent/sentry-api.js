@@ -39,7 +39,7 @@ export async function sentryChecks({ g, api, C, check, hush }) {
     return ok || JSON.stringify({ it, m, S });
   });
 
-  await check('sentry: it shoots what comes into its fan with YOUR rounds - set down with no rifle rounds on you it is empty and does not fire (it says so once); loaded, it takes rounds from your pockets up to its magazine, turns to an infected 8 m in front of it and kills it, each round one fewer in it and heard 45 m off; one standing behind it is not shot and one behind a wall is not; taking it up gives the kit and every unfired round back; a save keeps its rounds and its hp', async () => hush(async () => {
+  await check('sentry: it shoots what comes into its fan with YOUR rounds - set down with no rifle rounds on you it is empty and does not fire (it says so once); loaded, it takes rounds from your pockets up to its magazine, turns to an infected 8 m in front of it and kills it, each round one fewer in it and heard 45 m off; one standing behind it is not shot and one behind a wall is not; USED from a pack with a stack of rounds before it, exactly one kit leaves the pack; taking it up gives the kit and every unfired round back; a save keeps its rounds and its hp', async () => hush(async () => {
     await C('start'); g.godMode = true;
     const made = []; const ammo0 = g.inv.ammo[S.ammo] ?? 0, kits0 = inv.carried.count('turret_kit');
     try {
@@ -90,18 +90,37 @@ export async function sentryChecks({ g, api, C, check, hush }) {
           await C('teleport', { x: spot.x, z: spot.z }); await api._step(20);
         }
       }
+      // THE PLAYER'S OWN USE, with a stack of 30 rifle rounds in the pack BEFORE the kit (the rounds' slot empties as the gun
+      // loads): exactly one kit leaves the pack, the gun holds the 30, and taking it up gives back one kit, not two
+      clear();
+      for (let n = inv.carried.count('turret_kit'); n > 0; n--) inv.spend('turret_kit', 1);
+      for (const b of inv.boxes.values()) if (b.kind === 'ground' && Math.hypot(b.x - p.x, b.z - p.z) < 3) for (let i = b.slots.length - 1; i >= 0; i--) if (b.slots[i].id === 'turret_kit') inv.take(b, i, b.slots[i].n);
+      g.inv.ammo[S.ammo] = 0; g.inv.ammo[S.ammo] = 30;
+      const cap0 = inv.carried.cap; inv.carried.cap = Math.max(cap0, 60); // a frame ruck's room for the test (the kit is 30 bulk)
+      const added = inv.add(inv.carried, 'turret_kit', 1);
+      const ki = inv.carried.slots.findIndex((q) => q.id === 'turret_kit'), ai = inv.carried.slots.findIndex((q) => q.id === 'ammo_rifle');
+      const used = ki >= 0 ? inv.use(ki) : { ok: false, why: 'no kit in the pack' };
+      await api._step(6);
+      const TU = GX.list.find((q) => q.def.sentry) ?? null;
+      const use = { added, order: ai >= 0 && ai < ki, ok: used?.ok !== false, kitsLeft: inv.carried.count('turret_kit') + piles(p.x, p.z, 'turret_kit'), in: TU?.ammo ?? -1, pocket: g.inv.ammo[S.ammo] ?? 0 };
+      if (TU) { TU.state = 'armed'; GX.pickUp(TU, p); }
+      use.kitsBack = inv.carried.count('turret_kit') + piles(p.x, p.z, 'turret_kit'); use.pocketBack = g.inv.ammo[S.ammo] ?? 0;
+      for (let n = inv.carried.count('turret_kit'); n > 0; n--) inv.spend('turret_kit', 1); // out of the pack again before its room goes back to what it was
+      inv.carried.cap = cap0;
       // a save keeps it; taking it up gives everything back
       clear();
       const T3 = GX.place('turret_kit', p.x + dir.dx * 1.1, p.z + dir.dz * 1.1, dir.a, p, { gy: p.gy ?? 0, hp: 123, ammo: 17 }); T3.state = 'armed'; T3.t = 9;
       const sv = GX.save(), rec = sv.list.find((r) => r.k === 'turret_kit');
-      const pocket0 = g.inv.ammo[S.ammo], k0 = inv.carried.count('turret_kit') + piles(p.x, p.z, 'turret_kit');
+      const rounds = () => (g.inv.ammo[S.ammo] ?? 0) + piles(p.x, p.z, `ammo_${S.ammo}`); // in your pockets, or at your feet when the pack is full
+      const pocket0 = rounds(), k0 = inv.carried.count('turret_kit') + piles(p.x, p.z, 'turret_kit');
       const up = GX.pickUp(T3, p);
-      const pocket1 = g.inv.ammo[S.ammo], k1 = inv.carried.count('turret_kit') + piles(p.x, p.z, 'turret_kit');
+      const pocket1 = rounds(), k1 = inv.carried.count('turret_kit') + piles(p.x, p.z, 'turret_kit');
       const ok = emptyAt === 0 && armed === 'armed' && dry.shots === 0 && dry.hp === 100 && dry.told === 1
         && took === S.mag && left === 100 - S.mag && killed && shots >= 2 && shotEv === shots && ammoNow === S.mag - shots && backHp === 100
-        && (typeof walled === 'string' || (walled.seen === false && walled.shots === 0 && walled.d < S.range))
+        && typeof walled === 'object' && walled.seen === false && walled.shots === 0 && walled.d < S.range
+        && use.added === 1 && use.order && use.ok && use.kitsLeft === 0 && use.in === 30 && use.pocket === 0 && use.kitsBack === 1 && use.pocketBack === 30
         && rec?.am === 17 && rec?.hp === 123 && up.ok && pocket1 === pocket0 + 17 && k1 === k0 + 1;
-      return ok || JSON.stringify({ emptyAt, armed, dry, took, left, killed, shots, shotEv, ammoNow, backHp, walled, rec, up, pocket0, pocket1, k0, k1 });
+      return ok || JSON.stringify({ use, emptyAt, armed, dry, took, left, killed, shots, shotEv, ammoNow, backHp, walled, rec, up, pocket0, pocket1, k0, k1 });
     } finally {
       clear(); for (const c of made) if (g.chars.includes(c)) g.removeChar(c);
       g.aimOverride = null; g.godMode = false; g.inv.ammo[S.ammo] = ammo0; await C('teleport', { x: 0, z: -40 }); await api._step(3);

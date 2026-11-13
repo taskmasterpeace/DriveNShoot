@@ -70,7 +70,7 @@ export class Gadgets {
     if (def.verb === 'throw') r = this.throwOne(id, P, g.aim.x, g.aim.z);
     else if (def.verb === 'attach') r = this.attach(id, P);
     else r = this.place(id, P.x + Math.sin(P.face) * 1.1, P.z + Math.cos(P.face) * 1.1, P.face, P, def.sentry ? { gy: P.gy ?? 0, hp: def.sentry.hp, ammo: 0 } : {});
-    if (def.sentry && r?.id) this.sentryLoad(r, P); // it takes what rifle rounds you carry, up to its magazine
+    if (def.sentry && r?.id) r.loadPending = true; // it takes what rifle rounds you carry, up to its magazine: on the next frame, AFTER the pack has given the kit up (loading here would move the pack's slots under the USE that is still spending the kit)
     return r?.ok === false ? r : { ok: true, text: `${def.name.toUpperCase()} ${def.verb === 'throw' ? 'THROWN' : def.verb === 'attach' ? 'SET' : 'PLACED'}` };
   }
 
@@ -307,8 +307,9 @@ export class Gadgets {
     g.fx.flash?.(p.x + dx * 0.8, gy + 1.0, p.z + dz * 0.8, 1.3, 0.05);
     g.fx.tracer?.(p.x + dx * 0.8, p.z + dz * 0.8, hit ? best.x : p.x + dx * S.range, hit ? best.z : p.z + dz * S.range, gy + 1.0);
     g.audio.gun?.('rifle', Math.hypot(p.x - P.x, p.z - P.z), g.pan(p.x), null, null);
-    g.noise(p.x, p.z, S.noise, p.owner?.alive ? p.owner : null); g.zombies?.onNoise?.(p.x, p.z, S.noise);
-    if (hit) { g.combat.damage(best, S.dmg, null, dx, dz, 'bullet'); this.counts.sentryHits = (this.counts.sentryHits ?? 0) + 1; }
+    g.noise(p.x, p.z, S.noise, p.owner?.alive ? p.owner : null); // at the gun, not at you (g.noise tells the infected too)
+    // your gun: what it does is yours (as the gas canister's is)
+    if (hit) { g.combat.damage(best, S.dmg, p.owner?.alive ? p.owner : null, dx, dz, 'bullet'); this.counts.sentryHits = (this.counts.sentryHits ?? 0) + 1; }
     g.emit('sentryShot', { id: p.id, at: best.id, hit, ammo: p.ammo });
   }
   // Torn down: the tripod's steel and whatever rounds were still in it lie where it stood. The rifle is ruined.
@@ -543,6 +544,7 @@ export class Gadgets {
         const v = p.ref; p.x = v.x; p.z = v.z; p.rot = v.h;
         if (v.dead && p.state !== 'burning') { this.remove(p); continue; }
       }
+      if (p.loadPending) { p.loadPending = false; this.sentryLoad(p, p.owner); }
       if (p.state === 'arming') { if (p.t >= p.armAt) { p.state = 'armed'; g.emit('gadgetArmed', { id: p.id, kind: p.kind }); } else continue; }
       if (p.state === 'tripped') { if (g.time >= p.rearmAt) p.state = 'armed'; continue; }
       if (p.state === 'burning') { this.burn(p, dt); continue; }
