@@ -198,17 +198,18 @@ export const FAUNA_SEASON = {
 
 // ---- 10. the passes ---------------------------------------------------------------------------------------------------
 // A pass is a road through high ground the winter can close. lat/lon place it (GEO turns them into usmap metres); r: its
-// reach (usmap metres); `cold`: degrees C the pass sits colder than the zone's mean (its altitude); `at`: the cover above which it is closed. Closed means the plows are not coming: the board says so,
+// reach (usmap metres - the map is a compressed country, about 67 real metres to one: 375 is some 25 km of real road, ~2 km
+// in game; the rows once read 12000, real-metre sized, and Raton's winter closure reached across Phoenix); `cold`: degrees C the pass sits colder than the zone's mean (its altitude); `at`: the cover above which it is closed. Closed means the plows are not coming: the board says so,
 // the radio says so, the grip is ROAD_GRIP.closed, and a trader with a cargo will not run it. Rows are the real names of
 // real places (ours to use). More are added as the map is built out.
 export const PASSES = [
-  { id: 'donner', name: 'Donner Pass', road: 'I-80', lat: 39.31, lon: -120.33, r: 14000, cold: 12, at: 0.62 },
-  { id: 'raton', name: 'Raton Pass', road: 'I-25', lat: 36.99, lon: -104.49, r: 12000, cold: 8, at: 0.7 },
-  { id: 'vail', name: 'Vail Pass', road: 'I-70', lat: 39.53, lon: -106.22, r: 12000, cold: 3, at: 0.55 },
-  { id: 'teton', name: 'Teton Pass', road: 'WY-22', lat: 43.5, lon: -110.95, r: 10000, cold: 4, at: 0.55 },
-  { id: 'snoqualmie', name: 'Snoqualmie Pass', road: 'I-90', lat: 47.42, lon: -121.41, r: 11000, cold: 9, at: 0.6 },
-  { id: 'cumberland', name: 'Cumberland Gap', road: 'US-25E', lat: 36.6, lon: -83.7, r: 9000, cold: 4, at: 0.8 },
-  { id: 'mogollon', name: 'the Mogollon Rim', road: 'AZ-87', lat: 34.3, lon: -111.4, r: 12000, cold: 12, at: 0.8 },
+  { id: 'donner', name: 'Donner Pass', road: 'I-80', lat: 39.31, lon: -120.33, r: 438, cold: 12, at: 0.62 },
+  { id: 'raton', name: 'Raton Pass', road: 'I-25', lat: 36.99, lon: -104.49, r: 375, cold: 8, at: 0.7 },
+  { id: 'vail', name: 'Vail Pass', road: 'I-70', lat: 39.53, lon: -106.22, r: 375, cold: 3, at: 0.55 },
+  { id: 'teton', name: 'Teton Pass', road: 'WY-22', lat: 43.5, lon: -110.95, r: 312, cold: 4, at: 0.55 },
+  { id: 'snoqualmie', name: 'Snoqualmie Pass', road: 'I-90', lat: 47.42, lon: -121.41, r: 344, cold: 9, at: 0.6 },
+  { id: 'cumberland', name: 'Cumberland Gap', road: 'US-25E', lat: 36.6, lon: -83.7, r: 281, cold: 4, at: 0.8 },
+  { id: 'mogollon', name: 'the Mogollon Rim', road: 'AZ-87', lat: 34.3, lon: -111.4, r: 375, cold: 12, at: 0.8 },
 ];
 
 // ---- 11. prices -------------------------------------------------------------------------------------------------------
