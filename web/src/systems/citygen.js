@@ -502,14 +502,6 @@ export class CityGen {
         if (R.open && !I.ringOpen.has(R.open)) R.open = null; // detached elsewhere (a load, the ring's scan): attach it again
         if (R.openIn && !I.ringOpen.has(R.openIn)) R.openIn = null;
         const B = R.B, dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ), d2 = dx * dx + dz * dz;
-        // THE DOORS BETWEEN ROOMS (world/citygen/rooms.js doorways; docs/design/WEB_CG_ROOMS.md): leaves of their own record,
-        // hung only for the buildings right round you (RO.innerNear) and given back past RO.innerFar, so a town's inner
-        // doors never take the leaves its outside doors need.
-        if (R.openIn && (!near || d2 > RO.innerFar * RO.innerFar)) { I.detachRing(R.openIn); R.openIn = null; }
-        if (!R.openIn && near && d2 < RO.innerNear * RO.innerNear && !R.B.ruined) {
-          const inner = (t.built.innerGaps ?? []).filter((q) => q.b === R.B.id).map((q) => ({ x: q.x, z: q.z, axis: q.nz ? 'x' : 'z', w: q.w }));
-          if (inner.length) { const iid = `cg:${R.B.id}:in`; I.attachRing(iid, { x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ruined: false, y: t.built.y0 || undefined }, { doors: [], innerDoors: inner, windows: [] }); R.openIn = iid; }
-        }
         if (R.open && (!near || d2 > RO.far * RO.far)) { I.detachRing(R.open); R.open = null; continue; }
         if (R.open || !near || d2 > RO.near * RO.near) continue;
         const id = `cg:${B.id}`;
@@ -521,6 +513,22 @@ export class CityGen {
         const rec = I.ringOpen.get(id);
         const odds = this.g.backlots?.backLock(B, t.rec) ?? (t.rec.state !== 'overrun' ? 0.35 : 0); // BACK LOTS: data/backlots.js LOCKS
         if (rec) for (const door of rec.doors) if (door.kind === 'back' && ((hashStr(door.id) % 100) / 100) < odds) I.setLocked(door, true);
+      }
+      // THE DOORS BETWEEN ROOMS (world/citygen/rooms.js doorways; docs/design/WEB_CG_ROOMS.md): leaves of their own record,
+      // hung only for the buildings right round you (RO.innerNear) and given back past RO.innerFar. A second pass, after
+      // every outside door round you has its leaf, so inner doors never take a leaf an outside door needs. A record with
+      // a door you locked, barred or broke is HELD out to the outside doors' own distance (RO.far): what you did to a
+      // room's door is still done when you come back from the house next door.
+      for (const R of t.blds) {
+        const dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ), d2 = dx * dx + dz * dz;
+        if (R.openIn) {
+          const rec = I.ringOpen.get(R.openIn), held = !!rec?.doors.some((q) => q.locked || q.broken), far = held ? RO.far : RO.innerFar;
+          if (!near || d2 > far * far) { I.detachRing(R.openIn); R.openIn = null; }
+        }
+        if (!R.openIn && near && d2 < RO.innerNear * RO.innerNear && !R.B.ruined) {
+          const inner = (t.built.innerGaps ?? []).filter((q) => q.b === R.B.id).map((q) => ({ x: q.x, z: q.z, axis: q.nz ? 'x' : 'z', w: q.w }));
+          if (inner.length) { const iid = `cg:${R.B.id}:in`; I.attachRing(iid, { x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ruined: false, y: t.built.y0 || undefined }, { doors: [], innerDoors: inner, windows: [] }); R.openIn = iid; }
+        }
       }
     }
   }

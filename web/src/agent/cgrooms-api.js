@@ -165,7 +165,7 @@ export async function cgRoomsChecks({ g, api, C, check }) {
     } finally { CG.remove('cg-selftest-rooms'); }
   });
 
-  await check('cg rooms: the doorways between rooms have doors - in a live town, standing in a building, its inner doorways carry real leaves (one per doorway, no more than the doorways it has), some standing open and some shut; one pulled shut stops the line of sight through that doorway; the outside doors are still there; 70 m away the inner leaves are given back and the outside doors are not', async () => {
+  await check('cg rooms: the doorways between rooms have doors - in a live town, standing in a building, its inner doorways carry real leaves (one per doorway, no more than the doorways it has), some standing open and some shut; one pulled shut stops the line of sight through that doorway; the outside doors are still there; a shut leaf stops a body walking through; 70 m away the inner leaves are given back and the outside doors are not; a door you barred is still barred, with one bar on it, when you go 70 m and come back', async () => {
     const CG = g.citygen, p = g.player, I = g.interiors;
     const s = freeSpot(g, -6400, -12400, 280); if (!s) return 'no ground';
     const t = CG.stampAt({ id: 'cg-selftest-indoors', arch: 'sonoran_sprawl', seed: 4242, x: s.x, z: s.z });
@@ -182,13 +182,21 @@ export async function cgRoomsChecks({ g, api, C, check }) {
       const openN = inner().filter((d) => !I.isShut(d)).length;
       // shut one: nothing sees through it
       const d = inner()[0];
-      let blocked = null;
-      if (d) { I.shutDoor(d, p); await api._step(20); blocked = !g.statics.lineOfSight(d.x - d.nx * 0.8, d.z - d.nz * 0.8, d.x + d.nx * 0.8, d.z + d.nz * 0.8, 1, -1); }
+      let blocked = null, walled = null;
+      if (d) { I.shutDoor(d, p); await api._step(20); blocked = !g.statics.lineOfSight(d.x - d.nx * 0.8, d.z - d.nz * 0.8, d.x + d.nx * 0.8, d.z + d.nz * 0.8, 1, -1); walled = g.statics.raycast(d.x - d.nx * 0.8, d.z - d.nz * 0.8, d.nx, d.nz, 1.6, 0) < 1.6; }
       await C('teleport', { x: at.x + 70 + (R.maxX - R.minX), z: at.z }); await api._step(90);
       CG.openings(p.x, p.z); await api._step(10);
       const farIn = inner().length, farOut = outer().length;
-      const ok = n >= 3 && n <= nGaps && nOut >= 1 && openN >= 1 && blocked === true && farIn === 0 && farOut === nOut;
-      return ok || JSON.stringify({ kind: R.B.kind, n, nGaps, nOut, openN, blocked, farIn, farOut });
+      // bar one, go away and come back: it is the same door, still barred, and the bar is on it (not on a dead leaf)
+      await C('teleport', { x: at.x, z: at.z }); await api._step(60); CG.openings(p.x, p.z); await api._step(10);
+      const d2 = inner()[0], bar = d2 ? g.gadgets.barricade(d2, 'planks', p, false) : null;
+      await C('teleport', { x: at.x + 70 + (R.maxX - R.minX), z: at.z }); await api._step(60); CG.openings(p.x, p.z); await api._step(10);
+      const heldFar = inner().length;
+      await C('teleport', { x: at.x, z: at.z }); await api._step(60); CG.openings(p.x, p.z); await api._step(10);
+      const d3 = I.byId.get(d2?.id), still = !!d3 && d3 === d2 && d3.locked === true, bars = g.gadgets.barred.filter((q) => q.door === d3).length;
+      if (d3) g.gadgets.unbarricade(d3, p);
+      const ok = n >= 3 && n <= nGaps && nOut >= 1 && openN >= 1 && blocked === true && walled === true && farIn === 0 && farOut === nOut && bar?.ok === true && heldFar >= 1 && still && bars === 1;
+      return ok || JSON.stringify({ kind: R.B.kind, n, nGaps, nOut, openN, blocked, walled, farIn, farOut, bar, heldFar, still, bars });
     } finally { CG.remove('cg-selftest-indoors'); await C('teleport', { x: 0, z: -40 }); await api._step(3); }
   });
 }

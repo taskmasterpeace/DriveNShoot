@@ -141,8 +141,13 @@ found and fixed a real trapped upstairs bathroom); a base's stash stood inside t
   their own distances (110 / 150 m). So a school's sixteen inner doors never take the leaves another building's
   outside doors need. The leaf pool went from 220 to 320 (`RING_OPENINGS.doors`).
 - **Not covered:** upstairs doorways have no leaves (the door system hangs leaves on the street floor only, as for
-  outside doors); ruins have none; a leaf's open or shut state is kept while its building is near and by the door
-  system's own memory when you come back, as for ring doors.
+  outside doors); ruins have none; a leaf's angle (and a door being beaten) is kept by the door
+  system's own memory when its leaves are given back and hung again.
+- **What you did to a door holds.** A building with an inner door you locked, barred or broke keeps its inner leaves
+  out to the outside doors' distance (150 m) instead of 60 m, so a barred room is still barred when you come back from
+  next door. Past 150 m a bar or a lock is forgotten, exactly as on an outside door today (a known limit of the door
+  system, not new here).
+- **Outside doors first.** Inner leaves are hung in a second pass, after every outside door round you has its leaf.
 - **Check:** `cg rooms: the doorways between rooms have doors` (inner leaves present, no more than the doorways, some
   open; one pulled shut blocks sight through it; 70 m away the inner leaves are gone and the outside doors are not).
 - Pictures: `docs/renders/web/inner-doors/`.
