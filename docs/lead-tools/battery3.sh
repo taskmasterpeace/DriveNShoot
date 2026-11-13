@@ -4,6 +4,7 @@
 W=/d/git/DriveNShoot/.worktrees/integrate/web
 OUT=/d/git/DriveNShoot/.worktrees/integrate/scratchpad/lead
 export DL_URL=http://localhost:3410
+export DL_BOOT_S=150 # a cold page took 39 s to reach the bridge after towns-roads (the agent waits 30 s by default)
 for i in ${RUNS:-1 2}; do
   powershell -NoProfile -File "$(cygpath -w $OUT/relaunch.ps1)"
   (cd $W && nohup node tools/agent.mjs --port 3410 > $OUT/$1-agent$i.log 2>&1 &)
