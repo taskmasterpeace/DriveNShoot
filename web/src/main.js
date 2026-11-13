@@ -1409,7 +1409,8 @@ class Game {
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
     // the hands are on the game (no menu, panel, talk, screen, sleep or drone has them): the camera takes its input, and
     // a body view may hold the mouse. Anything else lets the mouse go at once, paused or not (systems/camrig.js lock).
-    const hands = !this.paused && !this.invUI.open && !this.dialogue.active && !this.workshopUI.open && !this.carousel?.ui?.open && !this.survival.sleep && !this.droneCam?.active && !this.qol.photo && this.player.alive;
+    const hands = !this.paused && !this.invUI.open && !this.dialogue.active && !this.workshopUI.open && !this.carousel?.ui?.open && !this.charSheet?.open && !this.crewUI?.open && !this.gardenUI?.open
+      && !this.survival.sleep && !(this.needs?.blackout > 0) && !this.droneCam?.active && !this.qol.photo && this.player.alive;
     if (!this.paused && !this.invUI.open && !this.dialogue.active) this.cam.input(I, dt); // wheel, Z / - / =, O, [ ]; a panel keeps the wheel
     this.cam.lock(hands);
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }

@@ -35,8 +35,8 @@ front of you. One key and you are back above it all.
    (`settings.camView`, the browser's storage) and put back the next time you play; never on the agent's page.
 2. **Turning and looking.** Mouse movement turns the view (`orbit`) and tilts it (`pitch`, −55° to +60°) while the mouse
    is held by the game (pointer lock: your first click in a body view takes it and does nothing else; it is let go
-   the moment a menu, the map, the pack, a talk, the workshop, a console, sleep, the drone or photo mode has the hands,
-   paused or not), or while you drag with the right or middle button. Right stick on a pad: the same, at
+   the moment a menu, the map, the pack, a talk, the workshop, a console, the character sheet, the crew or garden panel,
+   sleep, a blackout, the drone or photo mode has the hands, paused or not), or while you drag with the right or middle button. Right stick on a pad: the same, at
    `padRate`. Settings: look speed (five steps) and invert up/down.
 3. **Walking.** W is the way the view faces; A/D strafe; S backs up (the same key-turning the ISO view already used).
 4. **Aiming.** You aim the way the view faces: the aim point is straight out from you along the view's heading, at the
@@ -77,7 +77,12 @@ front of you. One key and you are back above it all.
   camera can be level with the deck you are climbing through.
 - **Z, - and =** step the boom in and out in a body view (the named zoom stops are top-down heights).
 - **Outdoors under a bridge deck or a canopy:** no ceiling is applied outdoors; the camera may rise through a deck above.
-- **No pointer lock** (the browser refuses it, or you never click): drag with the right or middle mouse button.
+- **No pointer lock** (the browser refuses it, or the second after Escape): the click that asked is lost; for the next
+  3 s clicks are ordinary clicks (you can always fire) and the right or middle button drags the view. Then it asks again.
+- **Looking down brings the aim point in.** At the starting pitch (−5°) it meets the ground about 18 m out, so somebody
+  further than that is not taken by the aim point until you look up a little; the round itself still flies flat.
+- **A friend on the line** (a crew member, a dog) takes the aim point like anyone else: a throw or an order lands on them.
+- **Birds** cannot be aimed at in these views (the aim point is on your floor).
 - **A talk, the pack, the map, a menu:** the mouse is let go and the view stops turning.
 - **Not covered yet (said plainly):**
   - **Vertical aim does not move the round.** Combat is flat per floor in this engine; shooting up a stairwell at
@@ -110,6 +115,7 @@ front of you. One key and you are back above it all.
 | `THIRD.dMin / dMax / dStart` | 2.2 / 9 / 5 m | 1.5–12 | How far behind you the follow camera sits |
 | `SHOULDER.dStart`, `aimD` | 2.0, 1.25 m | 1–3 | The shoulder view's boom, and held aim |
 | `SHOULDER.side` | 0.55 m | 0.3–0.8 | How far off your centre line |
+| `pitchStart` | −5° | −15 to 0 | Where the view looks when you enter it (lower brings the aim point nearer) |
 | `pitch` | −55° to +60° | within ±80° | How far down and up you can look |
 | `sens`, `padRate` | 0.0026 rad/px, 2.4 rad/s | 0.001–0.006, 1–4 | Look speed before the setting |
 | `pad` | 0.3 m | 0.15–0.8 | How far short of a wall the camera stops |
@@ -142,3 +148,7 @@ witness's read, throws and orders all measured from a point 30 m out). Also take
 longer fires, Z / - / = step the boom, the wheel's cycle has one chase view again. Known and left: the indoor checks
 test the camera against the rule's own ceiling number and ray (only the tower clause tests a real deck); spawners place
 new things from about 118 m, which is in plain view on open ground in these views.
+
+Second pass FAIL, two items, fixed: the character sheet, crew panel, garden panel and a blackout now let the mouse go;
+a refused pointer lock no longer swallows clicks (3 s of ordinary clicks, then it asks again). The check now stands
+bystanders aside and puts them back, and tests the let-go on real frames.

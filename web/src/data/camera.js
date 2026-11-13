@@ -68,7 +68,7 @@ export const CAMERA = {
   body: {
     THIRD: { dMin: 2.2, dMax: 9, dStart: 5, side: 0, eye: 1.55 },
     SHOULDER: { dMin: 1.2, dMax: 2.8, dStart: 2.0, side: 0.55, eye: 1.6, aimD: 1.25 },
-    pitch: [-55, 60], pitchStart: -10, sens: 0.0026, padRate: 2.4, pad: 0.3, ceil: 2.8, ceilGap: 0.25, floor: 0.35, hardMin: 0.35,
+    pitch: [-55, 60], pitchStart: -5, sens: 0.0026, padRate: 2.4, pad: 0.3, ceil: 2.8, ceilGap: 0.25, floor: 0.35, hardMin: 0.35,
     near: 0.12, viewR: 110, aimRange: 30, rate: 9,
   },
   // The cutaway (systems/cutaway.js): inside a screen circle of `radius` m round you, whatever stands between the camera
