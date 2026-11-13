@@ -8,6 +8,7 @@ import { PIECES, DECOR } from '../data/cgrooms.js';
 
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 const frac = (v) => v - Math.floor(v);
+const byD2 = (a, b) => a.d2 - b.d2;
 const hash = (x, z, k) => frac(Math.sin(x * (12.9898 + k) + z * (78.233 - k * 0.7)) * 43758.5453);
 
 export class Decor {
@@ -19,7 +20,9 @@ export class Decor {
     game.scene.add(this.mesh);
     this.free = []; for (let i = DECOR.max - 1; i >= 0; i--) this.free.push(i);
     this.hi = 0;            // one past the highest slot ever used (mesh.count)
-    this.open = new Map();  // building record R -> { slots: [], floors: [], cut }
+    this.open = new Map();  // building record R -> { R, slots: [], lv: [], m: [], cut }
+    this.list = [];         // the same records, in an array: walked every frame without making an iterator
+    this.cand = [];         // scratch: the buildings to dress this scan, nearest first
     this.t = 0;
     this.pal = {}; for (const [k, list] of Object.entries(DECOR.palettes)) this.pal[k] = list.map((c) => new THREE.Color(c));
     this.cols = new Map();  // '#rrggbb' -> Color (parsed once)
@@ -59,9 +62,9 @@ export class Decor {
     if (!floors) return false;
     let need = 0;
     for (const sol of floors) if (sol) for (const b of sol) if (b.piece) need += PIECES[b.piece]?.parts?.length ?? 0;
-    if (!need) { this.open.set(R, { slots: [], lv: [], cut: -1 }); return true; }
+    if (!need) { const e = { R, slots: [], lv: [], cut: -1 }; this.open.set(R, e); this.list.push(e); return true; }
     if (this.free.length < need) { this.counts.short++; return false; }
-    const rec = { slots: [], lv: [], cut: -2 };
+    const rec = { R, slots: [], lv: [], cut: -2 };
     for (let k = 0; k < floors.length; k++) {
       const sol = floors[k]; if (!sol) continue;
       for (const b of sol) {
@@ -74,7 +77,7 @@ export class Decor {
         }, dy);
       }
     }
-    this.open.set(R, rec);
+    this.open.set(R, rec); this.list.push(rec);
     this.counts.dressed++;
     this.show(R, rec);
     this.mesh.count = this.hi; this.mesh.instanceColor.needsUpdate = true;
@@ -101,7 +104,7 @@ export class Decor {
     const rec = this.open.get(R); if (!rec) return;
     for (const i of rec.slots) { this.zero(i); this.free.push(i); }
     if (rec.slots.length) this.mesh.instanceMatrix.needsUpdate = true;
-    this.open.delete(R); this.counts.given++;
+    this.open.delete(R); const li = this.list.indexOf(rec); if (li >= 0) this.list.splice(li, 1); this.counts.given++;
   }
 
   update(dt) {
@@ -109,23 +112,30 @@ export class Decor {
     const CG = this.g.citygen;
     if (!CG) return;
     // the cutaway follows you at once (a floor's detail must not hang in the air for half a second)
-    for (const [R, rec] of this.open) if ((R.cut ?? -1) !== rec.cut) this.show(R, rec);
+    const L = this.list;
+    for (let i = 0; i < L.length; i++) if ((L[i].R.cut ?? -1) !== L[i].cut) this.show(L[i].R, L[i]);
     if (this.t > 0) return;
     this.t = DECOR.every;
     const P = this.g.player, px = P.x, pz = P.z, N2 = DECOR.near * DECOR.near, F2 = DECOR.far * DECOR.far;
-    for (const R of [...this.open.keys()]) {
-      const dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ);
-      if (dx * dx + dz * dz > F2 || !R.live) this.give(R);
+    // given back: past DECOR.far from you, wherever in its town it stands (or its town is gone: forget() did that)
+    for (let i = L.length - 1; i >= 0; i--) {
+      const R = L[i].R, dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ);
+      if (dx * dx + dz * dz > F2 || R.live === false) this.give(R);
     }
+    // dressed: within DECOR.near, the nearest first (so when the pool is short it is the far ones that go without)
+    const cand = this.cand; cand.length = 0;
     for (const t of CG.live.values()) {
-      if (Math.abs(t.rec.x - px) > t.rec.half + DECOR.near || Math.abs(t.rec.z - pz) > t.rec.half + DECOR.near) { for (const R of t.blds) R.live = false; continue; }
+      if (Math.abs(t.rec.x - px) > t.rec.half + DECOR.near || Math.abs(t.rec.z - pz) > t.rec.half + DECOR.near) continue;
+      const dy = t.built.y0 ?? 0;
       for (const R of t.blds) {
-        R.live = true;
         if (this.open.has(R)) continue;
-        const dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ);
-        if (dx * dx + dz * dz < N2) this.dress(R, t.built.y0 ?? 0);
+        const dx = Math.max(R.minX - px, 0, px - R.maxX), dz = Math.max(R.minZ - pz, 0, pz - R.maxZ), d2 = dx * dx + dz * dz;
+        if (d2 < N2) { R.live = true; R.d2 = d2; R.dy = dy; cand.push(R); }
       }
     }
+    if (cand.length > 1) cand.sort(byD2);
+    for (let i = 0; i < cand.length; i++) this.dress(cand[i], cand[i].dy);
+    cand.length = 0;
   }
 
   // A town was taken down or rebuilt (systems/citygen.js release / remove): its buildings' detail goes back to the pool.

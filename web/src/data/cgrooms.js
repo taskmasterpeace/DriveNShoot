@@ -66,7 +66,8 @@ export const PIECES = {
 };
 
 // DECOR: how the detail is drawn. near / far m from a building's footprint at which its detail is drawn and given back;
-// every s between scans; max parts drawn at once (the pool: a building past it goes without, nearest first);
+// every s between scans; max parts drawn at once (the pool: the nearest buildings are dressed first; one that does not
+// fit goes without until others are given back);
 // palettes a part's colour key picks from (seeded by where the part stands, so a shelf keeps its goods). Never purple.
 export const DECOR = {
   near: 45, far: 65, every: 0.4, max: 6000,
@@ -156,7 +157,7 @@ export function validateCgRooms(kinds = null, touch = 0.8) {
     for (const [i, t] of (q.parts ?? []).entries()) {
       if (!Array.isArray(t) || t.length !== 7) { bad.push(`piece ${p} part ${i}: [u, v, y, su, sv, sy, col]`); continue; }
       const [u, v, y, su, sv, sy, col] = t;
-      if (!(Math.abs(u) <= 0.5 && Math.abs(v) <= 0.56 && y >= 0 && y <= 2.6 && su > 0 && su <= 1.1 && sv > 0 && sv <= 1.1 && sy > 0 && sy <= 1.8)) bad.push(`piece ${p} part ${i}: out of range`);
+      if (!(Math.abs(u) <= 0.5 && Math.abs(v) <= 0.56 && y >= 0 && y <= 2.6 && su > 0 && su <= 1.1 && sv > 0 && sv <= 1.1 && sy > 0 && sy <= 1.8 && y + sy <= 2.7)) bad.push(`piece ${p} part ${i}: out of range (a part tops out under 2.7 m)`);
       if (!/^#[0-9a-f]{6}$/i.test(col) && !DECOR.palettes[col]) bad.push(`piece ${p} part ${i}: colour "${col}" is neither a colour nor a palette`);
       else if (/^#/.test(col) && purple(col)) bad.push(`piece ${p} part ${i}: purple is not allowed`);
     }

@@ -55,8 +55,9 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
 2. **Palettes** (`DECOR.palettes`: `goods`, `bottles`, `cloth`): a part with a palette name takes one of the palette's
    colours, chosen by where the piece stands. The same shelf always has the same goods. No palette holds a purple.
 3. **Drawn near you.** Every 0.4 s the buildings of the live towns within 45 m of you (`near`, measured to the
-   footprint) are dressed: all the parts of all their pieces, every floor. Past 65 m (`far`) they are given back.
-   The pool holds 6,000 parts (`max`); a building that does not fit goes without until others are given back.
+   footprint) are dressed, the nearest first: all the parts of all their pieces, every floor. Past 65 m (`far`) they
+   are given back. The pool holds 6,000 parts (`max`); a building that does not fit goes without until others are
+   given back.
 4. **The cutaway.** When a building is cut away to the floor you stand on, the parts of the floors above are not drawn,
    exactly as its furniture is not.
 5. **Looks only.** A part has no collider, holds nothing, stops no round and is not saved. What you can loot is what
@@ -77,7 +78,9 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
      door (5 m) and bay (13 m).
    A station with room for neither has no pumps; it still has the shop, the sign board and the shop floor.
 10. **Sign boards and awnings** (`FRONTS`): a board 0.7 m tall over the front door at about 3.2 m, a pale stripe
-    across it, and for some kinds a 1.2 m awning at 2.8 m. No lettering. No collider: all of it is over head height.
+    across it, and for some kinds a 1.2 m awning at 2.8 m. On a building with drive bays in its front (auto shop,
+    warehouse, truck stop) the board goes on the middle of the face above the tallest bay; if there is no room there
+    under the roof it has no board. No lettering. No collider: all of it is over head height.
 11. The `decor` command says how many buildings are dressed and how many parts are drawn and free, and for the
     building you stand in its kind, its pieces by name and what it wears outside.
 
@@ -88,15 +91,19 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
   `(cx + u W, y0 + y + sy / 2, cz + v D)` with size `(su W, sy, sv D)`.
 - Parts drawn for a building: the sum over its pieces of the piece's part count. A gas station's street floor
   (counter 3, cooler 5, two shelves 8, an aisle 5, two basins 2, three toilets 3) is 26 or 27.
-- Counted over 312 built towns (26 town types, 12 seeds each): 286 whole gas stations: 114 with a forecourt canopy,
-  115 with a lean-to, 57 with no pumps (80% have pumps); 1,614 whole shops: 1,525 with a counter (94%), none bare.
+- Counted over 312 built towns (26 town types, 12 seeds each): 556 whole gas stations: 216 with a forecourt canopy,
+  219 with a lean-to, 121 with no pumps (78% have pumps); 3,101 whole shops: 2,918 with a counter (94%), none bare;
+  1,689 buildings with drive bays in their front that have a sign-board row: 766 have room for the board over the
+  bays, and none has a board across a bay.
 - The towns' own box count did not grow from the parts (they are not in the town mesh). It grew a little from rows of
-  shelving and the outside dressing: the largest town went from 46,067 to 46,543 boxes (ceiling 48,000).
+  shelving and the outside dressing: the largest town went from 46,067 to 46,519 boxes (ceiling 48,000).
 
 ## 5. Edge cases
 
-- **The pool is full** (a dense block of tall buildings): the nearest buildings scanned first are dressed; one that
-  does not fit stays plain and is tried again each scan. It is counted (`counts.short`).
+- **The pool is full** (a dense block of tall buildings): each scan dresses the nearest undressed buildings first; one
+  that does not fit stays plain and is tried again each scan. It is counted (`counts.short`). A building dressed
+  earlier is not stripped to make room for a nearer one: it keeps its parts until you are 65 m from it. The most
+  measured within 45 m of one spot in the test towns was 4,809 parts.
 - **A building you are in the middle of leaving** keeps its detail to 65 m, so walking round a block does not make it
   flicker.
 - **A town taken down or rebuilt** gives all its detail back at once.
@@ -127,6 +134,7 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
   `decor.forget`; `liftBuilt`'s raise (`built.y0`) is added to every part.
 - `world/citygen/build.js` (`doorXZ`, the canopy), `world/citygen/layout.js` (a kind without `bays` gets a front door).
 - `WEB_CITYGEN.md` (the town audit: lanes, bays, front steps) is what the outside dressing must not break.
+- A pump's cover point is where it always was (a metre south of the pump).
 - Checks that read a town's layout: `citygen: a shot out of a floor-4 window` now picks the first window whose line to
   the street is clear at ground level (the layout moved a dead car onto the old line).
 - Draw calls: +1 (the detail). Lights: none.
@@ -146,17 +154,18 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
 
 ## 8. Acceptance criteria (selftest, `only="furnish:"`)
 
-1. **Rows:** every part validates; a purple part, an unknown palette and a malformed part are each caught; a shop
+1. **Rows:** every part validates; a purple part, an unknown palette, a malformed part and a part that tops out
+   through the ceiling are each caught; a shop
    floor lists a counter and a cooler, a workshop tyres and a drum, a warehouse pallets; the gas station row has no
    bays, a canopy, two pumps, a board and a price sign; at least 24 pieces have parts.
-2. **Eight towns built headless:** every town passes the town audit; every furniture box has a piece name and a wall;
+2. **Eight towns built headless:** every town passes the town audit; no sign board hangs across an open drive bay; every furniture box has a piece name and a wall;
    the number of pump colliders equals the pumps the buildings say they have; every whole gas station has a front door
    on its street side, a counter, and a cooler or shelves; at least half have pumps and every one with pumps has two;
    no shop is bare and nine in ten have a counter; every town with a shop has one with two or more rows of shelving.
 3. **In a live town:** standing in a gas station, the parts drawn for it equal the parts its pieces name (8 or more),
    every one is inside the footprint between the floor and the roof (the town's raised ground counted), and the detail
-   is one mesh in the scene; with a building cut at the street floor none of its upstairs parts are drawn and its
-   street-floor parts are; 90 m away the building's parts are back in the pool; back inside it is dressed again; with
+   is one mesh in the scene; standing on the street floor of a building with furnished floors above, the game's own cutaway
+   hides every upstairs part and keeps the street floor's; 90 m away the building's parts are back in the pool; back inside it is dressed again; with
    the town removed nothing of it is left dressed.
 
 Pictures: `docs/renders/web/furnish/` (a gas station before and after inside; from the street with its forecourt; a

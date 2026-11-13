@@ -309,6 +309,7 @@ export function buildBuilding(B, out, T, rng) {
   if (B.canopy) { // a gas station's canopy over the pumps, in front: posts, a lid with a coloured band, the pumps on an island, a price sign
     // Two forms (the first that fits): a forecourt canopy 11 m out in front (15 x 9, four posts), or, on a tight street, a
     // lean-to against the front wall (10 x 5, two posts, centred on the front door) so a gas station always has pumps.
+    B.pumps = 0; B.canopyForm = null; // (a plan built twice says the same thing twice)
     const d = B.front, ewc = d === 'E' || d === 'W', sx = d === 'W' ? -1 : d === 'E' ? 1 : 0, sz = d === 'N' ? -1 : d === 'S' ? 1 : 0; // (sx, sz): toward the street
     const F = FRONTS[B.kind] ?? {}, np = F.pumps ?? 1, fdr = B.doors.find((q) => q.kind === 'door' && q.side === d);
     const wallX = d === 'W' ? ox0 : d === 'E' ? ox1 : (ox0 + ox1) / 2, wallZ = d === 'N' ? oz0 : d === 'S' ? oz1 : (oz0 + oz1) / 2;
@@ -340,7 +341,7 @@ export function buildBuilding(B, out, T, rng) {
         vis(px, 0.8, pz, wx2 * 2, 1.6, wz2 * 2, '#a8402e', 0);
         vis(px, 1.15, pz, wx2 * 2 + 0.04, 0.5, wz2 * 2 + 0.04, '#e6dfcc', 0); // the dial face, a pale band round it
         vis(px, 1.66, pz, wx2 * 2 + 0.1, 0.12, wz2 * 2 + 0.1, '#33373a', 0);
-        coverPt(px + sx, pz + sz, 0, 0, 1, 'half', 4);
+        coverPt(px, pz + 1, 0, 0, 1, 'half', 4); // as it always was: a metre south of the pump
       }
       if (F.price) {
         const [ex, ez] = P(f.lean ? -f.L / 2 + 1 : 0, f.sign);
@@ -358,10 +359,14 @@ export function buildBuilding(B, out, T, rng) {
   { const F = FRONTS[B.kind], fd = F && !B.ruined ? B.doors.find((q) => q.kind === 'door' && q.side === B.front) : null;
     if (fd && (F.board || F.awning)) {
       const [dx0, dz0] = doorXZ(B, fd), nx = fd.side === 'W' ? -1 : fd.side === 'E' ? 1 : 0, nz = fd.side === 'N' ? -1 : fd.side === 'S' ? 1 : 0, alongX = nz !== 0;
-      const face = IN + 0.08, len = Math.min(3.6, (alongX ? B.x1 - B.x0 : B.z1 - B.z0) - 1), hy = Math.min(3.25, (Y[1] ?? top) - 0.5);
-      if (F.board) {
-        vis(dx0 + nx * face, hy, dz0 + nz * face, alongX ? len : 0.16, 0.7, alongX ? 0.16 : len, F.board, 0);
-        vis(dx0 + nx * (face + 0.03), hy, dz0 + nz * (face + 0.03), alongX ? len - 0.6 : 0.16, 0.22, alongX ? 0.16 : len - 0.6, '#efe9d6', 0);
+      const face = IN + 0.08, len = Math.min(3.6, (alongX ? B.x1 - B.x0 : B.z1 - B.z0) - 1);
+      // Over the front door; on a building with drive bays in its front, over the bays on the middle of the face (a board
+      // by the man door would hang across the open bay beside it). No room over the bays under the roof: no board.
+      const bayH = Math.max(0, ...B.doors.filter((q) => q.kind === 'bay' && q.side === B.front).map((q) => q.h)), ceil = (Y[1] ?? top);
+      const hy = bayH ? bayH + 0.55 : Math.min(3.25, ceil - 0.5), bx0 = bayH ? (alongX ? (B.x0 + B.x1) / 2 : dx0) : dx0, bz0 = bayH ? (alongX ? dz0 : (B.z0 + B.z1) / 2) : dz0;
+      if (F.board && hy + 0.35 <= ceil - 0.1) {
+        vis(bx0 + nx * face, hy, bz0 + nz * face, alongX ? len : 0.16, 0.7, alongX ? 0.16 : len, F.board, 0);
+        vis(bx0 + nx * (face + 0.03), hy, bz0 + nz * (face + 0.03), alongX ? len - 0.6 : 0.16, 0.22, alongX ? 0.16 : len - 0.6, '#efe9d6', 0);
       }
       if (F.awning) vis(dx0 + nx * (IN + 0.6), 2.78, dz0 + nz * (IN + 0.6), alongX ? len + 0.4 : 1.2, 0.1, alongX ? 1.2 : len + 0.4, F.awning, 0);
     }
