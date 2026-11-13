@@ -216,8 +216,8 @@ export class Workshop {
     const cost = q.price + q.labour;
     if (!this.pay(cost, pay)) return { ok: false, why: `not enough scrip: ${cost}` };
     if (face) { v.plates[face] = v.platesFull[face]; g.garage.retune(v); }
-    else if (part === 'tyres') { for (const t of Object.keys(v.dmg.tyres)) v.dmg.tyres[t] = 1; v.dmg.dirty = true; }
-    else if (part === 'body') { for (const z of Object.keys(v.dmg.zones)) v.dmg.zones[z] = 0; v.dmg.off = {}; v.hp = v.maxHp; v.dmg.dirty = true; v.dmg.deformT = 0; if (v.baseCol) v.mesh.geometry.attributes.color.array.set(v.baseCol); }
+    else if (part === 'tyres') { for (const t of Object.keys(v.dmg.tyres)) { v.dmg.tyres[t] = 1; if (v.dmg.rim) v.dmg.rim[t] = 1; } v.dmg.dirty = true; } // new tyres on true rims
+    else if (part === 'body') { if (v.dmg.rim) { v.dmg.align = 0; v.dmg.brakes = 1; v.dmg.drag.F = v.dmg.drag.R = 0; } for (const z of Object.keys(v.dmg.zones)) v.dmg.zones[z] = 0; /* the body shop trues the front and does the brakes too (systems/damagefeel.js) */ v.dmg.off = {}; v.hp = v.maxHp; v.dmg.dirty = true; v.dmg.deformT = 0; if (v.baseCol) v.mesh.geometry.attributes.color.array.set(v.baseCol); }
     else { v.dmg[part] = 1; if (part === 'radiator') v.dmg.temp = 0; }
     const hours = time ? this.passHours(q.hours) : 0;
     this.stats.repairs++;

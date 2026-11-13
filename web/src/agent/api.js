@@ -6192,7 +6192,7 @@ export function snapshot(g) {
     // (c.pol, v.pol: a town desk's officers and motor pool are not saved: systems/police.js stands them up again with the town)
     chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk && !c.ug && !c.roadside && !c.pullRec && !c.barRole && !c.storyMover && !c.storyGarrison && !c.storyCamp && !c.pol).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.filter((v) => !v.trundle && !v.storyCar && !v.pol).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
-      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v) })), // build: plate kinds, gadgets, paint (systems/garage.js)
+      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined, build: g.garage.saveBuild(v), dmg: g.vehDamage.save(v) })), // dmg: its parts, dents and felt damage (an old save: none) // build: plate kinds, gadgets, paint (systems/garage.js)
     society: g.society.save(), // additive: a save without it loads with fresh standings
     milbases: g.milbases?.save(), // the military bases: power, the code read, the blast doors, warnings, the garrison's dead, the horde's fallen
     under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
@@ -6245,6 +6245,7 @@ export function restore(g, s) {
     v.plates = sv.plates ? { ...sv.plates } : undefined; v.mounts = sv.mounts ? JSON.parse(JSON.stringify(sv.mounts)) : undefined;
     g.garage.loadBuild(v, sv.build); // an old save: plain boiler plate, no gadgets
     g.garage.retune(v);
+    if (sv.dmg) g.vehDamage.load(v, sv.dmg); // flats, rims, a bent front, beaten brakes as saved (an old save: as it stands)
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }
   }
   // The ring's residents first: their characters go, their records start again from the save (promoted again near you).

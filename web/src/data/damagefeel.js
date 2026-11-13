@@ -45,7 +45,7 @@ export const FIXES = {
   bumper: { label: 'Pulling the hanging bumper', item: null, tool: 'wrench', secs: 5, at: 'end' },
   brakes: { label: 'Fitting brake pads', item: 'brake_pads', tool: 'wrench', secs: 12, at: 'front' },
 };
-export const COOLANT = { drop: 0.85, radiator: 0.25 };           // a jug poured: the heat it takes off, the stop-leak it adds
+export const COOLANT = { drop: 0.85, radiator: 0.25, leakCap: 0.6 }; // a jug poured: the heat it takes off, the stop-leak it adds (never past leakCap: it slows a hole)
 
 // The parts, as items, and where the world has them (loot rows: [item, weight, min, max] into data/items.js LOOT tables).
 export const FEEL_ITEMS = {

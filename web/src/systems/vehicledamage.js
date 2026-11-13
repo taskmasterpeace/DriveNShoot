@@ -226,6 +226,22 @@ export class VehicleDamage {
     return out;
   }
 
+  // The save: the parts, the dents, the panels gone, the heat, and the felt damage (systems/damagefeel.js), rounded.
+  save(v) {
+    const d = v.dmg; if (!d) return undefined;
+    const r = (x) => Math.round(x * 1000) / 1000;
+    return { e: r(d.engine), ra: r(d.radiator), t: r(d.tank), l: r(d.lights), ty: { ...d.tyres }, z: { ...d.zones }, off: Object.keys(d.off), tp: r(d.temp),
+      rim: d.rim ? { ...d.rim } : undefined, al: r(d.align ?? 0), br: r(d.brakes ?? 1), sz: d.seized ? 1 : 0, dr: d.drag ? { ...d.drag } : undefined };
+  }
+  load(v, s) {
+    const d = v.dmg; if (!d || !s) return;
+    d.engine = s.e ?? 1; d.radiator = s.ra ?? 1; d.tank = s.t ?? 1; d.lights = s.l ?? 1; Object.assign(d.tyres, s.ty ?? {}); Object.assign(d.zones, s.z ?? {});
+    d.off = {}; for (const p of s.off ?? []) d.off[p] = true;
+    d.temp = s.tp ?? 0; this.g.dmgFeel?.ensure(d);
+    if (s.rim) Object.assign(d.rim, s.rim); d.align = s.al ?? 0; d.brakes = s.br ?? 1; d.seized = !!s.sz; if (s.dr && d.drag) Object.assign(d.drag, s.dr);
+    d.dirty = true; d.deformT = 0;
+  }
+
   repair(v) {
     if (!v.dmg) return;
     v.dmg.engine = v.dmg.radiator = v.dmg.tank = v.dmg.lights = 1;

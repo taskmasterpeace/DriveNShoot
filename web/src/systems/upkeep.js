@@ -58,7 +58,7 @@ export class Upkeep {
       if (v.oil <= 0) { fx.power *= U.oil.dryPower; if (v.throttle > 0) d.engine = Math.max(0, d.engine - U.oil.dryEngine * dt * v.throttle); }
     }
     fx.grip *= 1 - W.tyres.grip * over(w.tyres, W.tyres.from);
-    fx.brake = 1 - W.brakes.brake * over(w.brakes, W.brakes.from);
+    fx.brake = (fx.brake ?? 1) * (1 - W.brakes.brake * over(w.brakes, W.brakes.from)); // on top of a beaten brake system (systems/damagefeel.js)
     const e = over(w.engine, W.engine.from);
     fx.power *= 1 - W.engine.power * e; fx.top *= 1 - W.engine.top * e;
     if (v.driver === g.player) this.warn(v);

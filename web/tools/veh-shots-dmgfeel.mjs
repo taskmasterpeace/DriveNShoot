@@ -29,6 +29,8 @@ const make = async (at, stage, drive = true) => {
 };
 const hold = async (key, secs) => { await ev(`(() => { game.input.down.add('${key}'); return true; })()`); await call('step', { seconds: secs }); };
 const release = async () => ev(`(() => { for (const k of ['KeyW','KeyE','KeyS']) game.input.down.delete(k); return true; })()`);
+// Out of the car and a few steps off its side: a bystander's close look (the drive camera sits too high to see a sag).
+const look = async (dx, dz) => { await release(); await ev(`(() => { game.exitVehicle(true); const v = window._v; game.player.x = v.x + (${dx}); game.player.z = v.z + (${dz}); return true; })()`); await call('camera', { view: 'ANGLED', mode: 'foot', d: 9, cut: true }).catch(() => null); await call('step', { seconds: 0.5 }); };
 const clear = async () => { await release(); await ev(`(() => { if (game.player.inVehicle) game.exitVehicle(true); if (window._v) game.vehiclesSys.remove(window._v); return true; })()`); };
 
 try {
@@ -39,10 +41,12 @@ try {
   await ev(`(() => { game.hud.root.style.display = 'none'; return true; })()`); // the HUD off
   await make(YARD, `d.tyres.FL = 0; if (d.rim) d.rim.FL = 0`);
   await hold('KeyW', 1.6);
-  await shot('1-flat-on-the-rim', 0); await clear();
+  await shot('1-flat-on-the-rim', 0);
+  await look(3.5, 3); await shot('1b-flat-on-the-rim-close', 0); await clear();
   await make(YARD, `d.zones.front = 0.55; d.engine = 0.18`);
   await hold('KeyW', 1.4);
-  await shot('2-bumper-dragging-smoking', 0); await clear();
+  await shot('2-bumper-dragging-smoking', 0);
+  await look(3, 5); await shot('2b-bumper-hanging-close', 0); await clear();
   await make(YARD, `d.radiator = 0; d.temp = 1.3`);
   await hold('KeyW', 1.0); await release(); await call('step', { seconds: 0.3 });
   await ev(`(() => { game.exitVehicle(true); const v = window._v; game.player.x = v.x + 5; game.player.z = v.z - 3; return true; })()`); // a bystander's view

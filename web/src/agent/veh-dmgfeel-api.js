@@ -18,8 +18,8 @@ export async function vehDmgFeelChecks(api, check, C) {
   const g = api.g, I = g.input, F = () => g.dmgFeel, made = [];
   const yard = { x: 250, z: 400 }, LOT = { x: 120, z: -20 }; // the yard: open ground to drive; the lot by Rust Haven: quiet, to kneel and work
   let quiet = null; // the world held still while you kneel (no new raiders or infected; the ones near are put away)
-  const hush = () => { if (quiet) return; quiet = { z: g.zombies.enabled, rt: g.raiderTimer, w: g.wilds.enabled }; g.zombies.enabled = false; g.raiderTimer = 1e9; g.wilds.enabled = false; for (const c of g.chars) if (c.alive && c !== g.player && (c.faction === 'raider' || c.faction === 'zombie' || c.target === g.player) && Math.hypot(c.x - LOT.x, c.z - LOT.z) < 160) { if (c.faction === 'raider' || c.faction === 'zombie') { c.alive = false; c.hp = 0; } else { c.target = null; c.state = 'idle'; c.grudge = null; } } };
-  const unhush = () => { if (!quiet) return; g.zombies.enabled = quiet.z; g.raiderTimer = quiet.rt; g.wilds.enabled = quiet.w; quiet = null; };
+  const hush = () => { if (quiet) return; quiet = { z: g.zombies.enabled, rt: g.raiderTimer, w: g.wilds.enabled, th: g.actions.threatInSight }; g.actions.threatInSight = () => false; /* staged: no hostile walks in and cancels the job (not what these checks test) */ g.zombies.enabled = false; g.raiderTimer = 1e9; g.wilds.enabled = false; for (const c of g.chars) if (c.alive && c !== g.player && (c.faction === 'raider' || c.faction === 'zombie' || c.target === g.player) && Math.hypot(c.x - LOT.x, c.z - LOT.z) < 160) { if (c.faction === 'raider' || c.faction === 'zombie') { c.alive = false; c.hp = 0; } else { c.target = null; c.state = 'idle'; c.grudge = null; } } };
+  const unhush = () => { if (!quiet) return; delete g.actions.threatInSight; g.zombies.enabled = quiet.z; g.raiderTimer = quiet.rt; g.wilds.enabled = quiet.w; quiet = null; };
   const toLot = async (v) => { hush(); if (g.player.inVehicle) g.exitVehicle(true); Object.assign(v, { x: LOT.x, z: LOT.z, h: 0, vx: 0, vz: 0, av: 0 }); await C('teleport', { x: LOT.x - 4, z: LOT.z }); await api._step(4); }; // staged: towed to the lot
   const keys = ['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyE', 'Space'];
   const off = () => { unhush(); for (const k of keys) I.down.delete(k); if (g.player.inVehicle) g.exitVehicle(true); for (const v of made.splice(0)) if (g.vehicles.includes(v)) g.vehiclesSys.remove(v); };
@@ -62,7 +62,6 @@ export async function vehDmgFeelChecks(api, check, C) {
       const flatRun = { side: v.x - (yard.x), top: ftop };
       const pos = g.vehiclesSys.speed(v);
       if (g.hud?.root) g.hud.root.style.display = hud0 ?? '';
-      const squat = (() => { const pa = v.mesh.geometry.attributes.part, P = v.mesh.geometry.attributes.position; let lo = 9, base = 9; for (let i = 0; i < pa.count; i++) if (pa.array[i] === 10) { lo = Math.min(lo, P.array[i * 3 + 1] + 0); base = Math.min(base, v.basePos[i * 3 + 1]); } return { lo, base }; })();
       const out = { good: { side: r1(good.side), top: r1(good.top) }, flat: { side: r1(flatRun.side), speed: r1(pos) }, roll: r2(v.dmgRoll ?? 0), flap, scrape };
       // re-drive the flat car for the numbers (top, roll, shudder) on the same keys
       const fr = await drive(v, 200); out.flat.top = r1(fr.top); out.flat.roll = r2(fr.roll); out.flat.shudder = r2(fr.shudder * 1000) / 1000;
@@ -118,13 +117,15 @@ export async function vehDmgFeelChecks(api, check, C) {
       const fixed = Math.abs(v.dmg.align) <= 0.01;
       if (!had) g.inventory.spend('wrench', 1);
       const out = { align: r2(align), brakes: r2(brakes), glass, side: r1(bent.side), fixed, log: g.actions.log.slice(-3), prompt: g.hud?.lastPrompt ?? null };
-      return Math.abs(align) > 0.12 && Math.sign(bent.side) === Math.sign(align) && Math.abs(bent.side) > 1 && brakes < 1 && (!glass0 || (glass !== null && glass < (v.windows?.front?.max ?? 999))) && fixed ? true : JSON.stringify(out);
+      return Math.abs(align) > 0.12 && Math.sign(bent.side) === Math.sign(align) && Math.abs(bent.side) > 1 && brakes < 1 && glass0 && glass !== null && glass < (v.windows?.front?.max ?? 0) && fixed ? true : JSON.stringify(out);
     } finally { off(); }
   });
 
+  let prof = null, up0;
   await check('car feel: beaten brakes stop long, then fade, and grind when they bite; hold E at the front with pads and a wrench and the pedal bites again', async () => {
     try {
-      const stop = async (stage) => { const v = await car(stage); await drive(v, 150); const z0 = v.z; I.down.add('KeyS'); let f = 0; for (; f < 600 && g.vehiclesSys.speed(v) > 0.6; f++) await api._step(1); I.down.delete('KeyS'); return { v, d: v.z - z0, f }; };
+      prof = g.survival?.prof; up0 = prof?.upkeep; if (prof) prof.upkeep = true; // the full game's upkeep on (it used to overwrite the brakes)
+      const stop = async (stage) => { const v = await car(stage); await drive(v, 150); const z0 = v.z; let lo = 9, hi = 0; I.down.add('KeyS'); let f = 0; for (; f < 600 && g.vehiclesSys.speed(v) > 0.6; f++) { await api._step(1); lo = Math.min(lo, v.feelBrake ?? 1); hi = Math.max(hi, v.feelBrake ?? 1); } I.down.delete('KeyS'); return { v, d: v.z - z0, f, fade: hi - lo }; };
       const good = await stop(); off();
       const g0 = F().counts.grinds;
       const bad = await stop((d) => { d.brakes = 0.25; });
@@ -136,9 +137,9 @@ export async function vehDmgFeelChecks(api, check, C) {
       I.down.add('KeyE'); for (let f = 0; f < 60 * (FIXES.brakes.secs + 2) && bad.v.dmg.brakes < 1; f++) await api._step(1); I.down.delete('KeyE');
       const fixed = bad.v.dmg.brakes === 1, spent = g.inventory.carried.count('brake_pads') === p0;
       if (!w0) g.inventory.spend('wrench', 1);
-      const out = { good: r1(good.d), bad: r1(bad.d), grinds, fixed, spent, log: g.actions.log.slice(-3) };
-      return bad.d > good.d * 1.6 && grinds > 0 && fixed && spent ? true : JSON.stringify(out);
-    } finally { off(); }
+      const out = { good: r1(good.d), bad: r1(bad.d), fade: r2(bad.fade), grinds, fixed, spent, log: g.actions.log.slice(-3) };
+      return bad.d > good.d * 1.6 && bad.fade > 0.02 && grinds > 0 && fixed && spent ? true : JSON.stringify(out);
+    } finally { if (prof) prof.upkeep = up0; off(); }
   });
 
   await check('car feel: a holed radiator boils (steam), then the engine seizes and the car rolls to a stop with W held; it frees once cool, and coolant brings it back at once', async () => {
@@ -198,12 +199,12 @@ export async function vehDmgFeelChecks(api, check, C) {
     } finally { off(); }
   });
 
-  await check('car feel: the damage rides the presence sample - a friend\'s car on this page shows the same flats, rim, smoke, steam and hanging bumper; boats have no tyres to lose, a bike only two', async () => {
+  await check('car feel: the damage word survives the shard\'s own cleaner and puts the same flats, rim, smoke, steam and hanging bumper on the other car; boats have no tyres to lose, a bike only two', async () => {
     try {
       const a = g.vehiclesSys.spawn('sedan', yard.x, yard.z, 0, '#777'), b = g.vehiclesSys.spawn('sedan', yard.x + 8, yard.z, 0, '#777'); made.push(a, b);
       Object.assign(a.dmg.tyres, { FL: 0, RR: 0 }); F().ensure(a.dmg); a.dmg.rim.RR = 0; a.dmg.engine = 0.2; a.dmg.temp = 1.1; a.dmg.zones.rear = 0.5; a.dmg.align = 0.4;
       const msg = cleanPresence({ x: a.x, z: a.z, v: { t: a.type, x: a.x, z: a.z, h: a.h, c: '#777777', seat: 0, dm: F().encode(a) } }); // through the shard's own cleaner
-      F().decode(b, msg.v.dm);
+      b.netGhost = { char: 'a friend' }; F().decode(b, msg.v.dm); // b stands in for their car on this page
       const s = decodeDm(msg.v.dm), same = F().encode(b) === F().encode(a);
       const boat = g.vehiclesSys.spawn('gunboat', yard.x + 30, yard.z + 30, 0, '#777'); made.push(boat);
       g.vehDamage.popTyre(boat, 'FL'); const boatKept = boat.dmg.tyres.FL === 1;
@@ -211,6 +212,31 @@ export async function vehDmgFeelChecks(api, check, C) {
       g.vehDamage.popTyre(bike, 'FR'); const bikeFront = bike.dmg.tyres.FL === 0 && bike.dmg.tyres.FR === 1;
       const out = { dm: msg.v.dm, same, flats: s.flat, rimRR: s.rimGone.RR, boatKept, bikeFront };
       return msg.v.dm > 0 && same && s.flat.FL && s.flat.RR && s.rimGone.RR && s.smoke && s.steam && s.dragR && s.pullL && boatKept && bikeFront ? true : JSON.stringify(out);
+    } finally { off(); }
+  });
+
+  await check('car feel: beside a flat front wheel F still opens the door (the fix only takes E), and the prompt says what holding E would do', async () => {
+    try {
+      const v = await car((d) => { d.tyres.FL = 0; }); await toLot(v);
+      await C('teleport', F().spot(v, 'wheel', 'FL')); await api._step(3);
+      const q0 = { ...F().spot(v, 'wheel', 'FL') }; const J0 = F().jobAt(v, g.player)?.job ?? null;
+      F().fixKey(g.player, v, I, 1 / 60); const hint = F().hint ?? ''; // E up: it only leaves its hint for the car's prompt
+      I.down.add('KeyF'); I.pressed.add('KeyF'); await api._step(1); I.down.delete('KeyF'); await api._step(4);
+      const inIt = g.player.inVehicle === v;
+      return inIt && /hold|spare|jack/i.test(hint) ? true : JSON.stringify({ inIt, hint, job: J0, at: [r1(g.player.x), r1(g.player.z)], spot: [r1(q0.x), r1(q0.z)], car: [r1(v.x), r1(v.z)] });
+    } finally { off(); }
+  });
+
+  await check('car feel: a save and a load keep a car\'s felt damage - its flats, a worn rim, the bent front, beaten brakes', async () => {
+    try {
+      const v = g.vehiclesSys.spawn('sedan', yard.x, yard.z, 0, '#777'); made.push(v); F().ensure(v.dmg);
+      Object.assign(v.dmg.tyres, { FL: 0 }); v.dmg.rim.FL = 0.3; v.dmg.align = -0.4; v.dmg.brakes = 0.2; v.dmg.zones.front = 0.5;
+      const snap = (await C('save')).save;
+      g.vehDamage.repair(v); // the page forgets
+      await C('load', { save: snap }); await api._step(2);
+      const w = g.vehicles.find((q) => q.id === v.id) ?? v, d = w.dmg;
+      const out = { FL: d.tyres.FL, rim: d.rim?.FL, align: d.align, brakes: d.brakes, front: d.zones.front };
+      return d.tyres.FL === 0 && Math.abs(d.rim.FL - 0.3) < 0.01 && Math.abs(d.align + 0.4) < 0.01 && Math.abs(d.brakes - 0.2) < 0.01 && Math.abs(d.zones.front - 0.5) < 0.01 ? true : JSON.stringify(out);
     } finally { off(); }
   });
 }

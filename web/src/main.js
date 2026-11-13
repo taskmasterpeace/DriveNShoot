@@ -1048,7 +1048,7 @@ class Game {
     // A dog at your feet (systems/dogs.js): E feeds it, bandages it, or tells yours to stay or follow. C whistles (taps and a
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
-    if (!best && bestV && !p.inVehicle && this.dmgFeel.fixKey(p, bestV, I, dt)) return; // at the car's flat wheel, bent front or hanging bumper: hold E fixes it (systems/damagefeel.js)
+    if (!best && bestV && !p.inVehicle && this.dmgFeel.fixKey(p, bestV, I, dt)) return; // E held at the car's flat wheel, bent front or hanging bumper: the fix (systems/damagefeel.js); F, C, G stay the car's
     const rsSpot = !best ? this.roadside.spotNear(p) : null;
     const dog = !best && !bestV && !rsSpot ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
@@ -1075,7 +1075,7 @@ class Game {
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
-    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
+    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${spot ? ` · ${spot.label}` : climb ? ` · <kbd>E</kbd> ${climb}` : ''}${this.dmgFeel.hint ?? ''}`); // hold E: what a job here would be (systems/damagefeel.js)
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
