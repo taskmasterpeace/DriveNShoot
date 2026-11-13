@@ -1,3 +1,4 @@
+import { SPATIAL } from '../data/audiosets.js';
 import { DOOR } from '../data/interiors.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -175,7 +176,7 @@ export class Zombies {
     }
     if (Z.state === 'burst') { // committed: the clock only runs once it has lost you (its own senses: c.zsee), or when it is spent
       if (c.zsee?.alive) Z.t = SP.burst;
-      if ((Z.snarl = (Z.snarl ?? 0.6) - dt) <= 0) { Z.snarl = 1.3 + Math.random() * 0.9; g.audio.sample?.(BREED_VOICE.sprinter.chase[0], BREED_VOICE.sprinter.chase[1], { x: c.x, z: c.z, range: BREED_VOICE.sprinter.chaseRange }); }
+      if ((Z.snarl = (Z.snarl ?? 0.6) - dt) <= 0) { Z.snarl = 1.3 + Math.random() * 0.9; g.audio.sample?.(BREED_VOICE.sprinter.chase[0], BREED_VOICE.sprinter.chase[1], { x: c.x, z: c.z, range: BREED_VOICE.sprinter.chaseRange, group: 'infected' }); }
       if ((Z.run = (Z.run ?? 0) + dt) > SP.chase) Z.t = 0;
     }
     if ((Z.t -= dt) > 0) {
@@ -256,8 +257,8 @@ export class Zombies {
     c.workT = (c.workT ?? 0) - dt;
     if (c.workT > 0) return;
     if (c.work.B) { c.workT = EC.workEvery; c.work.B.hp = Math.max(0, c.work.B.hp - EC.boards); if (c.res) c.res.rec.dirty = true; this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, boards: c.res?.rec.id ?? 'ring', boardHp: Math.round(c.work.B.hp) }); }
-    else if (c.work.W) { c.workT = EC.workEvery; g.audio.sample?.(BREED_VOICE.echo.work[0], BREED_VOICE.echo.work[1], { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
-    else { c.workT = EC.door.every; g.audio.sample?.(BREED_VOICE.echo.work[0], BREED_VOICE.echo.work[1], { x: c.x, z: c.z, range: BREED_VOICE.echo.range }); this.thump(c.work.door, c, EC.door.dmg); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
+    else if (c.work.W) { c.workT = EC.workEvery; g.audio.sample?.(BREED_VOICE.echo.work[0], BREED_VOICE.echo.work[1], { x: c.x, z: c.z, range: BREED_VOICE.echo.range, group: 'infected' }); I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
+    else { c.workT = EC.door.every; g.audio.sample?.(BREED_VOICE.echo.work[0], BREED_VOICE.echo.work[1], { x: c.x, z: c.z, range: BREED_VOICE.echo.range, group: 'infected' }); this.thump(c.work.door, c, EC.door.dmg); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
   }
 
   // The Choir-Touched: stands at its site facing the anchor, hums; its aura is read by every infected near it.
@@ -411,7 +412,7 @@ export class Zombies {
     }
     door.lockHp -= dmg * (I.braced(door) ? DOOR.braceMul : 1);
     door.poundAt = g.time; I.shudder(door, kind === 'slam' ? 1.6 : 1);
-    if (!g.audio.sample?.('common', door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood', { x: door.x, z: door.z, range: 60 })) g.audio.thud?.(g.pan(door.x));
+    if (!g.audio.sample?.('common', door.material === 'metal' ? 'door.pound.metal' : 'door.pound.wood', { x: door.x, z: door.z, range: 60, group: 'pound' })) g.audio.thud?.(g.pan(door.x));
     if (door.lockHp > 0) { g.emit('doorThump', { door: door.id, by: c.id, kind: c.zkind ?? 'shambler', lockHp: Math.round(door.lockHp) }); return false; }
     if (door.barricade) { door.barricade = null; if (g.gadgets) g.gadgets.barred = g.gadgets.barred.filter((b) => b.door !== door); }
     // The lock (and whatever barred it) has given. An Echo swings the door open: it works doors. For the rest the door is
@@ -461,7 +462,11 @@ export class Zombies {
     // the one that is there now (a streamed door is re-made when its building comes back); and with a clear line to
     // who it is after it stops beating and goes for them.
     if (Math.abs(B.x - c.x) + Math.abs(B.z - c.z) > 2.6 || (c.zsee?.alive && !c.zsee.inVehicle && this.g.sees(c, c.zsee))) { c.zblock = null; c.handsUp = false; return false; }
-    c.speed = 0; c.handsUp = true; c.face = Math.atan2(B.x - c.x, B.z - c.z);
+    c.speed = 0; c.face = Math.atan2(B.x - c.x, B.z - c.z);
+    // THE CROWD AT A DOOR (data/interiors.js DOOR.pounders): only the front few get their fists on it; the rest press in
+    // behind and wait their turn (no blows, no noise of their own).
+    if (!this.slot(c, B, win)) { c.handsUp = false; c.zwait = B.id; c.zthT = undefined; return true; }
+    c.zwait = null; c.handsUp = true;
     // A sprinter in its burst POUNDS (its frenzy row); out of it, it thumps like the shambler it looks like.
     const F = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl ? SP.frenzy : null, D = F ?? (c.zkind === 'sprinter' ? SH.door : R.door);
     const g = this.g;
@@ -470,7 +475,7 @@ export class Zombies {
     c.zworkAt = g.time;
     if (F && !win && arrived) {
       c.zslam = B.id; c.zthT = F.every;
-      g.audio.sample?.(BREED_VOICE.sprinter.rage[0], BREED_VOICE.sprinter.rage[1], { x: c.x, z: c.z, range: BREED_VOICE.sprinter.rageRange });
+      g.audio.sample?.(BREED_VOICE.sprinter.rage[0], BREED_VOICE.sprinter.rage[1], { x: c.x, z: c.z, range: BREED_VOICE.sprinter.rageRange, group: 'infected' });
       if (this.thump(B, c, F.slam, 'slam')) { c.zblock = null; c.handsUp = false; }
       return true;
     }
@@ -480,6 +485,29 @@ export class Zombies {
     if (!win) { if (this.thump(B, c, D.dmg, F ? 'frenzy' : 'thump')) { c.zblock = null; c.handsUp = false; } }
     else { g.interiors.damageBoards(B, D.dmg * 1.5, c); this.counts.thumps++; }
     return true;
+  }
+
+  // A place at the door (or the boards). Whoever beat it last frame keeps their place; a free place goes to whoever asks
+  // first once it has been free for DOOR.pounders.takeover s (the nearest get there first: they arrived first). A
+  // sprinter in its burst shoulders in: it always gets a place (one over the count at most).
+  // The door's record carries the count: zbT (the frame), zbN (places taken this frame), zbPrev (last frame), zbFree
+  // (when a place last came free), zbWait (how many are waiting this frame; zbWaitPrev: last frame, for the HUD and agents).
+  slot(c, B, win) {
+    const g = this.g, P = DOOR.pounders, t = g.time;
+    const cap = win ? P.boards : Math.max(P.min, Math.min(P.max, Math.round((B.width ?? 1.2) * P.perMetre)));
+    if (B.zbT !== t) { if ((B.zbN ?? 0) < (B.zbPrev ?? 0)) B.zbFree = t; B.zbPrev = B.zbN ?? 0; B.zbWaitPrev = B.zbWait ?? 0; B.zbN = 0; B.zbNew = 0; B.zbWait = 0; B.zbT = t; B.zbCap = cap; }
+    const mine = c.zslot === B.id && t - (c.zslotT ?? -9) < 0.5;
+    const frenzy = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl;
+    const free = B.zbN < cap && B.zbPrev + B.zbNew < cap && t - (B.zbFree ?? -9) >= P.takeover; // zbNew: places given out this frame (two waiters never take one place)
+    const first = B.zbN < cap && (B.zbPrev ?? 0) === 0 && B.zbFree === undefined; // nobody has been at it yet: no wait
+    if (mine || free || first || (frenzy && B.zbN <= cap)) { if (!mine) B.zbNew++; c.zslot = B.id; c.zslotT = t; B.zbN++; return true; }
+    c.zslot = null; B.zbWait++;
+    return false;
+  }
+  // How a door's crowd stands: { cap, pounding, waiting } (the `pound` command, the checks).
+  crowdAt(B) {
+    const live = B.zbT !== undefined && this.g.time - B.zbT < 0.3;
+    return { cap: B.zbCap ?? null, pounding: live ? Math.max(B.zbN ?? 0, B.zbPrev ?? 0) : 0, waiting: live ? Math.max(B.zbWait ?? 0, B.zbWaitPrev ?? 0) : 0 };
   }
 
   // ---- hurt: legs, falls (from ai.onDamaged) --------------------------------------------------------------------------
@@ -641,7 +669,7 @@ export class Zombies {
         const V = BREED_VOICE.shambler;
         c.znoticeAt = g.time + V.noticeEvery; this.noticeAt = g.time + V.noticeGap; // one body, then the herd's own gap
         this.counts.notices = (this.counts.notices ?? 0) + 1;
-        g.audio.sample?.(V.notice[0], V.notice[1], { x: c.x, z: c.z, range: V.range });
+        g.audio.sample?.(V.notice[0], V.notice[1], { x: c.x, z: c.z, range: V.range, group: 'infected' });
         g.emit('infectedNotice', { id: c.id, of: c.zsee.id, how: c.zhow ?? null });
       }
       c.ztarget = c.zsee; // who it is after right now (only ever someone it perceives)
@@ -731,18 +759,29 @@ export class Zombies {
       // READABLE WARNINGS (data/hordes.js WARNINGS.groan): you hear them before you see them. The nearest you cannot see
       // inside its range groans (a positional sound); else the nearest you can.
       this.groanT = WG.every[0] + Math.random() * (WG.every[1] - WG.every[0]);
-      const P = g.player;
-      let near = null, nd = WG.range, hid = null, hd = WG.range;
+      const P = g.player, CR = SPATIAL.crowd;
+      let near = null, nd = WG.range, hid = null, hd = WG.range, cn = 0, cx = 0, cz = 0;
       for (const c of g.chars) {
         if (c.faction !== 'zombie' || !c.alive || c.wild || c.zkind === 'echo' || c.zkind === 'choir') continue; // an Echo murmurs and a Choir-Touched hums: neither groans
         const dx = c.x - P.x, dz = c.z - P.z;
         if (dx > WG.range || dx < -WG.range || dz > WG.range || dz < -WG.range) continue;
         const d = Math.hypot(dx, dz);
+        if (d < CR.r) { cn++; cx += c.x; cz += c.z; }
         if (d < nd) { nd = d; near = c; }
         if (d < hd && !(P.inVehicle ? g.los(P.x, P.z, c.x, c.z) : g.sees(P, c))) { hd = d; hid = c; }
       }
       const q = hid ?? near, qd = hid ? hd : nd;
-      if (q) {
+      // THE HERD'S ONE VOICE (data/audiosets.js SPATIAL.crowd): a crowd round you speaks with the one groan slot, from its
+      // middle, more often and louder. Never one voice per body.
+      const crowd = cn >= CR.at;
+      this.crowdN = cn;
+      if (crowd) {
+        this.groanT /= CR.rate;
+        const mx = cx / cn, mz = cz / cn, md = Math.hypot(mx - P.x, mz - P.z);
+        g.audio.groan?.(g.pan(mx), md * (32 / WG.range), BREED_VOICE.shambler.idle, CR.vol);
+        this.counts.crowdVoice = (this.counts.crowdVoice ?? 0) + 1;
+        g.emit('crowdHeard', { n: cn, dist: Math.round(md) });
+      } else if (q) {
         g.audio.groan?.(g.pan(q.x), qd * (32 / WG.range), (BREED_VOICE[q.zkind] ?? BREED_VOICE.shambler).idle); // heard to the row's range, in its breed's voice
         if (hid) this.counts.groansUnseen = (this.counts.groansUnseen ?? 0) + 1;
         g.emit('groanHeard', { id: q.id, dist: Math.round(qd), seen: !hid, breed: q.zkind ?? 'shambler' });

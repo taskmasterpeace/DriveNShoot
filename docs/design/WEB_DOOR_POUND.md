@@ -159,6 +159,31 @@ The shard's model is that each page simulates its own surroundings and reports w
 - **A hostile page** can report doors as broken, as it already can report locks kicked in and windows broken. The shard
   bounds a patch (64 leaves, 16 shuts, 16 blows) and what it keeps (20,000 leaves).
 
+### 3.7 The crowd at a door (Robert, 11-12: "multiple zombies knocking on the door, but not all of them knocking")
+- **Only the front few can get their fists on it.** A door has `round(width × 2.2)` places, never under 2 or over 4 (a
+  1.2 m door: 3). Boards over a window have 2. Rows: `DOOR.pounders`.
+- **The rest wait.** Anyone else who reaches the door stands behind, facing it, hands down: no blows, no damage, no
+  noise of their own. They are still at the door (they do not wander off, and they do not count as having given up).
+- **Turns.** Whoever beat the door last frame keeps their place. When a place comes free (one dies, is pulled off, gives
+  up or goes for somebody it can see) it stays empty for 0.6 s, then the first of the waiting to ask takes it.
+- **A sprinter in its burst shoulders in:** it always gets a place, one over the count at most.
+- **An Echo** works doors by its own rule (it is a worker, not one of the crowd) and takes no place.
+- **So a crowd does not break a door faster than its places can.** Twenty at a door land the blows of three. More
+  bodies mean the door never gets a rest, not that it falls sooner.
+- The `pound` command shows each door's `crowd: { cap, pounding, waiting }`.
+- **Multiplayer:** places are decided on each page for the infected that page simulates (the infected are not shared
+  yet, §3.6); the door's hp is the shared thing and still only goes down.
+
+### 3.8 The sound budget (Robert, 11-12: "you don't gotta play all the sound")
+- **Nothing is made at play time.** Every sound here is one of the shipped takes (`data/audio-made.json`, the library).
+- **Groups with a cap** (`SPATIAL.groups`): at most 4 infected voices (groans, moans, screams, snarls, murmurs, working
+  noises) and at most 3 door or board blows sound at once. When a group is full, a louder newcomer stops the quietest
+  voice of the group and takes its place (louder means nearer, mostly); a quieter one is not played.
+- **The herd's one voice** (`SPATIAL.crowd`): with 8 or more of them inside 28 m of you, the single idle groan slot
+  speaks for the crowd: from the crowd's middle, twice as often, half again as loud. It is one voice, never one per
+  body. (There is no separate crowd recording; it is the groan takes used as a bed.)
+- Door blows were already one sound per blow; with three places a door makes at most three at once.
+
 ## 4. Formulas
 | Name | Formula | Variables | Example |
 |---|---|---|---|
@@ -228,6 +253,10 @@ The shard's model is that each page simulates its own surroundings and reports w
 | `sprinter.frenzy.slam` / `slamCool` | 30 / 4 s | 0–120 / 1–30 | The first hit |
 | `GAVE_UP` (zombies.js) | 90 s | 30–300 | How long a door it gave up on stays not-news |
 | wood `hpM2` (data/materials.js) | 60 | 40–120 | Every wooden door and wall in the game |
+| `DOOR.pounders.perMetre / min / max` | 2.2 / 2 / 4 | 1.5–3 / 1–3 / 3–6 | How many can beat one door at once (how fast a crowd breaks it) |
+| `DOOR.pounders.takeover` | 0.6 s | 0.2–2 | How long a place stands empty before one of the waiting takes it |
+| `SPATIAL.groups.infected / pound` | 4 / 3 | 2–8 | How many of their voices and of door blows sound at once |
+| `SPATIAL.crowd.at / r / rate / vol` | 8 / 28 m / 2 / 1.5 | 5–20 / 15–40 / 1–3 / 1–2 | When the herd speaks with one voice, how often and how loud |
 
 ## 8. Acceptance criteria (selftest, `node tools/dl.mjs selftest only="door pound:"`)
 1. **Rows:** `validateInfected` is clean, and a frenzy no harder than a shambler is caught.
@@ -254,6 +283,11 @@ The shard's model is that each page simulates its own surroundings and reports w
    on the door as built sets its hp and `heardShuts` shuts it; a row that would heal it does not; `heardPounds` makes it
    shudder and read as under attack; `p: 0` takes it off its hinges; a steel door is not broken by a row; a row for a
    door that is not loaded waits; a materials save and load keep the hurt leaf's hp.
+7. **The crowd:** eight told you are behind a shut steel door: never more than its 3 places beat it at once, three or
+   more wait with their hands down and land no blows, the blows over the watch are no more than three bodies' worth;
+   `pound` reports the same; one taken off the door is replaced by one of the waiting; a full sound group refuses a
+   quieter newcomer and stops its quietest voice for a louder one; with the herd switched on, eight round you are heard
+   as `crowdHeard` (one voice, from the middle) and no single groans.
 
 Two players: `node tools/shard-door-test.mjs` (a real shard and two game pages; 10/10 on 2026-11-12): a door B pulls shut
 and something beats on is shut, as hurt (149 of 189) and heard on A; B opens it again and nothing re-shuts it; beaten off

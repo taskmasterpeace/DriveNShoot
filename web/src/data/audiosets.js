@@ -123,6 +123,13 @@ export const SPATIAL = {
   ref: 4, rolloff: 0.9, cutoffMax: 18000, cutoffMin: 650, indoorCut: 900, indoorGain: 0.55, voiceCap: 24,
   range: { shot: 220, mg: 260, far: 520, step: 22, impact: 45, bark: 60, creature: 70, door: 35, glass: 50, explosion: 600, alarm: 320, engine: 80, default: 60 },
   jitter: 0.06, // pitch: +- this share, every play
+  // SOUND BUDGET (WEB_DOOR_POUND.md §3.8): how many voices of one group may sound at once. Past it the quietest of
+  // the group gives way to a louder newcomer (nearest and loudest win), or the newcomer is not played. infected: every
+  // groan, moan, scream, snarl, murmur and working noise of theirs; pound: fists and bodies on doors and boards.
+  groups: { infected: 4, pound: 3 },
+  // THE HERD'S ONE VOICE: with `at` or more of them inside `r` m of you, the single idle groan slot speaks for the
+  // crowd: from its middle, `rate` x as often, `vol` x as loud. It is still one voice (never one per body).
+  crowd: { at: 8, r: 28, rate: 2, vol: 1.5 },
 };
 
 // ---- THE MIX (docs/design/WEB_SOUND.md, the 2026-10-29 sound pass) ---------------------------------------------------

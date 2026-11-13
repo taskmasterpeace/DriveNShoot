@@ -3,6 +3,7 @@
 // and the named selftest checks. The player acts through the real E key (shut, lean); the infected walk and beat the door
 // on their own minds; only positions, the door's starting state and who was told about you are staged.
 import { DOOR } from '../data/interiors.js';
+import { SPATIAL } from '../data/audiosets.js';
 import { INFECTED, validateInfected } from '../data/infected.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -12,7 +13,7 @@ export function poundCommands(api, need) {
   const view = (d) => {
     const I = g.interiors, H = I.doorHp(d);
     return { id: d.id, kind: d.kind, material: d.material, shut: I.isShut(d), locked: d.locked, barricade: d.barricade ?? null, broken: !!d.broken, hp: H.hp, max: H.max, left: r1(H.share), breaks: H.breaks,
-      cracked: !!d.cracked, underAttack: I.underAttack(d), leaned: I.braced(d), shutBy: d.shutBy ?? null, dist: r1(Math.hypot(d.x - P().x, d.z - P().z)) };
+      cracked: !!d.cracked, underAttack: I.underAttack(d), crowd: g.zombies.crowdAt(d), leaned: I.braced(d), shutBy: d.shutBy ?? null, dist: r1(Math.hypot(d.x - P().x, d.z - P().z)) };
   };
   return {
     pound: {
@@ -341,5 +342,58 @@ export async function poundChecks({ g, api, C, check, stage, hush }) {
       const ok = doors.length >= 40 && wins.length >= 100 && smashedLived === 0 && open && /Shut the door/.test(prompt) && shut && held && left === 0;
       return ok || { doors: doors.length, wins: wins.length, smashedLived, open, prompt, shut, crossed, held, left };
     } finally { gone(...made); g.godMode = false; }
+  }));
+
+  await check('door pound: the crowd at a door - eight of them told you are behind a shut steel door: never more than the door\'s places beat it at once, the rest stand behind with their hands down and land no blows, and the blows come at the pace of the places, not of the crowd; the pound command says how many pound and how many wait; take one off the door and one of the waiting takes its place; the sound budget stops the quietest voice of a full group for a louder one and refuses a quieter one; a crowd of eight round you speaks with one voice from its middle', async () => hush(async () => {
+    await stage();
+    const d = pick('metal') ?? pick('wood'); if (!d) return 'no door with clear ground';
+    const made = [];
+    g.godMode = true;
+    try {
+      clearRound(d.x, d.z, 45); fresh(d, 0);
+      d.zbT = undefined; d.zbFree = undefined; d.zbN = 0; d.zbPrev = 0;
+      if (d.material !== 'metal') { const R = M.doorRec?.(d); if (R) R.hp = R.max = 99999; } // it must outlast the check
+      await inside(d, 5);
+      const ev0 = g.eventSeq;
+      for (let i = 0; i < 8; i++) {
+        const k = 2.2 + Math.floor(i / 3) * 1.3, side = ((i % 3) - 1) * 1.1, x = d.x + d.nx * k + d.ux * side, z = d.z + d.nz * k + d.uz * side;
+        const c = Z.spawn(x, z, false); if (!c) continue;
+        made.push(c); c.x = x; c.z = z; c.zSpeed = 2.4; told(c);
+      }
+      const cap = Math.max(DOOR.pounders.min, Math.min(DOOR.pounders.max, Math.round((d.width ?? 1.2) * DOOR.pounders.perMetre)));
+      let maxPound = 0, maxWait = 0, t0 = -1, th0 = 0;
+      const count = () => { let pnd = 0, w = 0; for (const c of made) { if (!c.alive) continue; if (c.zblock === d && c.handsUp && c.zslot === d.id) pnd++; else if (c.zwait === d.id && c.zblock === d) w++; } return { pnd, w }; };
+      for (let i = 0; i < 80; i++) { // 20 s
+        await api._step(15);
+        const q = count(); maxPound = Math.max(maxPound, q.pnd); maxWait = Math.max(maxWait, q.w);
+        if (t0 < 0 && q.pnd >= cap) { t0 = g.time; th0 = Z.counts.thumps; }
+        for (const c of made) if (c.alive && !c.ztarget) told(c);
+      }
+      const view = await C('pound', { radius: 8 });
+      const row = (view.doors ?? view.near ?? []).find?.((r) => r.id === d.id) ?? null, crowd = Z.crowdAt(d);
+      const secs = g.time - t0, thumps = Z.counts.thumps - th0, pace = cap * (secs / INFECTED.shambler.door.every);
+      const waitersHit = made.filter((c) => c.zwait === d.id && c.handsUp).length;
+      // one of the pounders is taken off the door: a waiting one steps up
+      const holders = made.filter((c) => c.alive && c.zslot === d.id && c.zblock === d), was = new Set(holders.map((c) => c.id));
+      if (holders[0]) gone(holders[0]);
+      let stepped = false;
+      for (let i = 0; i < 24 && !stepped; i++) { await api._step(15); const now = made.filter((c) => c.alive && g.chars.includes(c) && c.zslot === d.id && c.zblock === d && c.handsUp); stepped = now.length >= cap && now.some((c) => !was.has(c.id)); for (const c of made) if (c.alive && g.chars.includes(c) && !c.ztarget) told(c); }
+      // the sound budget, on stand-in voices (a headless page has no audio device): a full group, a louder newcomer, a quieter one
+      const A = g.audio, keepV = A.voices, capG = SPATIAL.groups.infected, stops = [];
+      A.voices = []; for (let i = 0; i < capG; i++) A.voices.push({ done: false, group: 'infected', level: 0.2 + i * 0.1, src: { stop: () => stops.push(i) } });
+      const quieter = A.groupRoom('infected', 0.1), louder = A.groupRoom('infected', 0.9), other = A.groupRoom('pound', 0.01);
+      const left = A.voices.filter((v) => !v.done).map((v) => v.level);
+      A.voices = keepV;
+      // the herd's one voice: the survivors and a few more, all inside the crowd's radius of you
+      for (let i = 0; made.filter((c) => c.alive && g.chars.includes(c)).length < SPATIAL.crowd.at + 1 && i < 6; i++) { const c = Z.spawn(d.x + d.nx * (6 + i), d.z + d.nz * (6 + i), false); if (c) { made.push(c); told(c); } }
+      const e1 = g.eventSeq, en = Z.enabled; Z.groanT = 0.1; Z.enabled = true; // the herd's voice runs with the herd (the checks hush it)
+      try { await api._step(60 * 6); } finally { Z.enabled = en; }
+      const ev = g.events.filter((e) => e.seq > e1), crowdEv = ev.filter((e) => e.type === 'crowdHeard'), single = ev.filter((e) => e.type === 'groanHeard').length;
+      const ok = t0 > 0 && maxPound === cap && maxWait >= 3 && waitersHit === 0 && thumps > 0 && thumps <= pace * 1.25 + 1 && crowd.cap === cap && crowd.pounding === cap && crowd.waiting >= 3
+        && (row === null || (row.crowd?.pounding === cap && row.crowd?.waiting >= 3)) && stepped
+        && quieter === false && louder === true && other === true && stops.join() === '0' && left.length === capG - 1 && Math.min(...left) > 0.25
+        && crowdEv.length >= 2 && crowdEv.every((e) => e.n >= SPATIAL.crowd.at) && single === 0;
+      return ok || JSON.stringify({ t0: Math.round(t0), cap, maxPound, maxWait, waitersHit, thumps, pace: Math.round(pace), crowd, row: row?.crowd ?? null, stepped, quieter, louder, other, stops, left, crowdEv: crowdEv.length, single, n: crowdEv[0]?.n, door: d.material });
+    } finally { gone(...made); fresh(d, 0); d.zbT = undefined; d.zbFree = undefined; g.godMode = false; }
   }));
 }

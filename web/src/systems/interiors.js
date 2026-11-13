@@ -376,7 +376,7 @@ export class Interiors {
     this.shudder(door, kind === 'slam' ? 1.6 : 1);
     const near = Math.abs(door.x - g.player.x) + Math.abs(door.z - g.player.z);
     if (fresh && near < 26 && g.player.alive) g.hud?.toast?.(by?.zkind === 'sprinter' && kind !== 'thump' ? 'A SPRINTER IS POUNDING ON THE DOOR' : 'SOMETHING IS BEATING ON THE DOOR', 'hot');
-    if (!g.audio?.sample?.('common', wood ? 'door.pound.wood' : 'door.pound.metal', { x: door.x, z: door.z, range: 60, vol: kind === 'slam' ? 1.3 : 1 })) g.audio?.thud?.(g.pan(door.x));
+    if (!g.audio?.sample?.('common', wood ? 'door.pound.wood' : 'door.pound.metal', { x: door.x, z: door.z, range: 60, vol: kind === 'slam' ? 1.3 : 1, group: 'pound' })) g.audio?.thud?.(g.pan(door.x));
     if (near < 9) g.hud?.shake?.(kind === 'slam' ? 0.3 : braced ? 0.18 : 0.08); // you feel it through the door
     for (let k = 0; k < (kind === 'slam' ? 5 : 2); k++) g.fx?.spawn?.(3, door.x + (Math.random() - 0.5) * door.width, 1 + Math.random(), door.z + (Math.random() - 0.5) * door.width, (Math.random() - 0.5) * 2, 0.5 + Math.random(), (Math.random() - 0.5) * 2, 0.6, 0.05, wood ? '#8a6a44' : '#6a6a66', 14);
     g.fx?.dust?.(door.x, door.z, kind === 'slam' ? 3 : 1); // a puff off the frame each blow: the hit reads from above

@@ -43,6 +43,11 @@ export const DOOR = {
   frenzyNoise: 26,     // m: a sprinter's frenzy carries further
   underAttack: 4,      // s after the last blow a door still reads as being pounded (the prompt, the HUD line)
   threat: 24,          // m: one of the infected this near and E at a door means the door (shut it first; lean, never kick)
+  // THE CROWD AT A DOOR (WEB_DOOR_POUND.md §3.7): only the front few can get their fists on it. A door takes
+  // round(width x perMetre) pounders, never under min or over max; boards over a window take `boards`. The rest stand
+  // behind, pressed in, and wait: no blows, no noise of their own. A place frees (one dies, gives up, is pulled off)
+  // and the nearest of the waiting takes it after `takeover` s.
+  pounders: { perMetre: 2.2, min: 2, max: 4, boards: 2, takeover: 0.6 },
 };
 
 // Window kinds. hp: glass that takes a few rounds (cracks, then shatters). boardHp: boards that stop

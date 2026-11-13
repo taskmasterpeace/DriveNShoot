@@ -69,6 +69,21 @@ export class Audio {
   }
   // Play one take of set/kind. at: { x, z } (positional, from the listener) or { dist, pan }; range (m), vol, rate,
   // indoor (the source is inside), prio. Returns true when a sample was started (false: the caller synthesizes).
+  // THE SOUND BUDGET (data/audiosets.js SPATIAL.groups): is there room for one more voice of this group at this level?
+  // Under the group's cap: yes. At it: the quietest voice of the group is stopped if the newcomer is louder (nearest and
+  // loudest win), else the newcomer is refused.
+  groupRoom(group, level) {
+    const cap = SPATIAL.groups?.[group] ?? 0;
+    if (!cap) return true;
+    let n = 0, q = null;
+    for (const v of this.voices) if (!v.done && v.group === group) { n++; if (!q || v.level < q.level) q = v; }
+    if (n < cap) return true;
+    this.sampleStats.grouped = (this.sampleStats.grouped ?? 0) + 1;
+    if (q.level >= level) return false;
+    try { q.src.stop(); } catch { /* already stopped */ }
+    q.done = true;
+    return true;
+  }
   sample(set, kind, at = {}) {
     const r = resolve(set, kind);
     const why = (w) => { this.lastSample = { set, kind, played: false, why: w, via: r?.via ?? null }; return false; };
@@ -85,6 +100,7 @@ export class Audio {
     const take = r.files[this.pick(`${r.via}|${kind}`, r.files.length)];
     const buf = this.bank.get(take.f);
     if (!buf || buf === 'failed' || typeof buf.then === 'function') { for (const x of r.files) this.load(x.f); return why(buf === 'failed' ? 'load failed' : 'loading'); }
+    if (at.group && !this.groupRoom(at.group, level)) return why('group cap'); // the group's budget (SPATIAL.groups)
     // The voice cap: past it the quietest voice gives way (or this one, if it is the quietest).
     if (this.voices.length >= SPATIAL.voiceCap) this.voices = this.voices.filter((v) => !v.done);
     if (this.voices.length >= SPATIAL.voiceCap) {
@@ -100,7 +116,7 @@ export class Audio {
     const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = sp.cutoff; f.Q.value = 0.5;
     const g = ctx.createGain(); g.gain.value = Math.min(1.4, level);
     src.connect(f).connect(g); this.out(g, pan);
-    const v = { src, g, level, t: ctx.currentTime, done: false };
+    const v = { src, g, level, t: ctx.currentTime, done: false, group: at.group ?? null };
     src.onended = () => { v.done = true; };
     src.start();
     this.voices.push(v);
@@ -299,12 +315,12 @@ export class Audio {
   }
   thud(pan = 0) { this.count('thud'); if (this.sample('common', 'impact.wood', { dist: 4, pan, vol: 0.9 })) return; this.burst({ dur: 0.12, freq: 420, vol: 0.2, decay: 0.1, pan }); }
   // voice: the breed's own [set, kind] (data/infected.js BREED_VOICE); the library's shambler takes and the synth follow.
-  groan(pan = 0, dist = 0, voice = null) {
+  groan(pan = 0, dist = 0, voice = null, vol = 1) {
     const v = Math.max(0, 0.16 * (1 - dist / 32));
     if (v < 0.01) return;
     this.count('groan');
-    if (voice && this.sample(voice[0], voice[1], { dist, pan, range: 34 })) return;
-    if (this.sample('shambler', Math.random() < 0.8 ? 'idle' : 'attack', { dist, pan, range: 34 })) return;
+    if (voice && this.sample(voice[0], voice[1], { dist, pan, range: 34, group: 'infected', vol })) return;
+    if (this.sample('shambler', Math.random() < 0.8 ? 'idle' : 'attack', { dist, pan, range: 34, group: 'infected', vol })) return;
     this.tone(70 + Math.random() * 40, 0.9, v, 'sawtooth', 0.7, pan);
     this.burst({ dur: 0.8, freq: 380, type: 'bandpass', q: 4, vol: v * 1.4, decay: 0.75, pan });
   }
@@ -329,8 +345,8 @@ export class Audio {
     const v = Math.max(0, 0.1 * (1 - dist / 26));
     if (v < 0.005) return;
     this.count('murmur');
-    if (this.sample(BREED_VOICE.echo.idle[0], BREED_VOICE.echo.idle[1], { dist, pan, range: 26 })) return; // the made takes (data/infected.js BREED_VOICE): a half sentence under its breath
-    if (this.sample('echo', 'idle', { dist, pan, range: 26 })) return;
+    if (this.sample(BREED_VOICE.echo.idle[0], BREED_VOICE.echo.idle[1], { dist, pan, range: 26, group: 'infected' })) return; // the made takes (data/infected.js BREED_VOICE): a half sentence under its breath
+    if (this.sample('echo', 'idle', { dist, pan, range: 26, group: 'infected' })) return;
     for (let i = 0; i < 4; i++) this.burst({ dur: 0.22, freq: 500 + Math.random() * 400, type: 'bandpass', q: 7, vol: v, decay: 0.2, pitchDrop: 0.85, at: i * 0.26, pan });
   }
   throwWhoosh(pan = 0) { this.count('throw'); if (this.sample('common', 'melee.swing', { dist: 2, pan })) return; this.burst({ dur: 0.22, freq: 900, type: 'bandpass', q: 2, vol: 0.18, decay: 0.2, pitchDrop: 1.8, pan }); }
