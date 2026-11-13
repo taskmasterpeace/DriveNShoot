@@ -58,6 +58,10 @@ its hinges and the gun starts. You stand behind it with a pistol and count what 
 - **You in its fan:** it never fires at you or your allies, and a round it fires resolves only on the body it chose: it
   cannot hit you by accident. (Friendly fire from a sentry is not modelled.)
 - **Two sentries** work independently and may pick the same target.
+- **What it does is yours.** Its rounds are attributed to whoever set it (kills, crimes, who the hurt turn on), like a
+  gas canister's. Its target list is "anyone hostile to you, either way": after a crime it will shoot your pursuers.
+- **Glass:** sight passes a window pane, so it will fire at what it sees through unbroken glass.
+- **E beside it** is read by the gun and by whatever else is in reach (a door, a pile): a tap can do both.
 - **Upstairs:** it watches its own floor. It does not shoot down a stairwell or out of a window at the street.
 - **Multiplayer:** a sentry is a placed gadget; the gadgets are per page today (like mines), so another player does not
   see or benefit from yours. The same limit as every other gadget.
