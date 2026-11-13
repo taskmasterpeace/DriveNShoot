@@ -28,14 +28,14 @@ export class Input {
     addEventListener('keyup', (e) => this.keyUp(e.code));
     addEventListener('blur', () => { for (const k of [...this.phys]) this.keyUp(k); this.down.clear(); this.holders.clear(); this.mouseButton(0, false); this.mouseButton(2, false); });
     addEventListener('mousemove', (e) => { this.mouse.dx = (this.mouse.dx ?? 0) + (e.movementX || 0); this.mouse.dy = (this.mouse.dy ?? 0) + (e.movementY || 0); if (!this.mouse.locked) this.mouseMove(e.clientX, e.clientY); }); // dx, dy: the body views' mouse look (systems/camrig.js)
-    document.addEventListener('pointerlockchange', () => { this.mouse.locked = !!document.pointerLockElement; });
+    document.addEventListener('pointerlockchange', () => { this.mouse.locked = !!document.pointerLockElement; if (this.mouse.locked) this.mouse.lockRefused = 0; });
     document.addEventListener('pointerlockerror', () => { this.mouse.lockDeniedT = performance.now() + 3000; });
     canvas.addEventListener('mousedown', (e) => {
       if (e.button === 1) e.preventDefault(); // middle: no autoscroll
       // a body view wants the mouse and does not have it: this click takes it and does nothing else (it never fires)
       // If the browser refuses (an embedded pane, or the second after Escape), clicks are clicks again for 3 s: you can
       // always fire, and the right button drags the view.
-      const denied = () => { this.mouse.lockDeniedT = performance.now() + 3000; };
+      const denied = () => { const n = (this.mouse.lockRefused = (this.mouse.lockRefused ?? 0) + 1); this.mouse.lockDeniedT = n >= 3 ? Infinity : performance.now() + 3000; }; // three refusals in a row: it stops asking (the right button drags the view)
       if (this.wantLock && !this.mouse.locked && e.button === 0 && canvas.requestPointerLock && !(performance.now() < (this.mouse.lockDeniedT ?? 0))) { try { const r = canvas.requestPointerLock(); r?.catch?.(denied); return; } catch { denied(); } }
       this.mouseButton(e.button, true);
     });

@@ -83,6 +83,7 @@ export async function camBodyChecks({ g, api, C, check }) {
       // the mouse: wanted while the hands are on the game; a blackout (a real frame of one) lets it go; so does the crew panel's flag
       const wanted = I.wantLock === true, bo = g.needs.blackout; g.needs.blackout = 1; await api._step(1); const letGo = I.wantLock === false; g.needs.blackout = bo ?? 0;
       const cu = g.crewUI.open; g.crewUI.open = true; await api._step(1); const letGo2 = I.wantLock === false; g.crewUI.open = cu; await api._step(2);
+      const cr = g.crewUI.radial; g.crewUI.radial = true; await api._step(1); const letGo3 = I.wantLock === false; g.crewUI.radial = cr; await api._step(2);
       const back2 = I.wantLock === true; I.mouse.lockDeniedT = 0;
       const ret = { x: R.reticle.x, y: R.reticle.y }, onScreen = ret.x > 0 && ret.x < innerWidth && ret.y > 0 && ret.y < innerHeight;
       const side1 = (R.pos.x - p.x) * 0 + (R.pos.z - p.z); // facing east, your right is south (+z)
@@ -116,10 +117,10 @@ export async function camBodyChecks({ g, api, C, check }) {
       await api._step(3);
       await back(); await C('teleport', { x: 0, z: -40 }); await api._step(3); g.updateCamera(10);
       const after = { th: r2(R.theta), yaw: r2(R.yaw), far: g.camera.far, near: r2(g.camera.near), viewR: Math.round(g.viewR) };
-      const ok = walked > 1.5 && east > 0.95 && ahead > 0.99 && onThem < 0.5 && Math.abs(lookDown - wantDown) < 0.4 && wanted && letGo && letGo2 && back2 && onScreen && side1 > 0.2 && side2 < -0.2 && tight < loose - 0.3
+      const ok = walked > 1.5 && east > 0.95 && ahead > 0.99 && onThem < 0.5 && Math.abs(lookDown - wantDown) < 0.4 && wanted && letGo && letGo2 && letGo3 && back2 && onScreen && side1 > 0.2 && side2 < -0.2 && tight < loose - 0.3
         && shown === lvl && lvl === 2 && liftedTop && whole && under && drive.in && drive.eff === 'CHASE' && !drive.body
         && after.th === before.th && after.yaw === before.yaw && after.far === before.far && Math.abs(after.near - before.near) < 0.02 && Math.abs(after.viewR - before.viewR) <= 1 && before.far === CAMERA.far && Math.abs(before.near - nearFor(R.D)) < 0.05;
-      return ok || JSON.stringify({ onThem: r2(onThem), lookDown: r2(lookDown), wantDown: r2(wantDown), wanted, letGo, letGo2, back2, walked: r2(walked), east: r2(east), ahead: r2(ahead), onScreen, side1: r2(side1), side2: r2(side2), loose: r2(loose), tight: r2(tight), lvl, shown, liftedTop, whole, under, drive, before, after });
+      return ok || JSON.stringify({ onThem: r2(onThem), lookDown: r2(lookDown), wantDown: r2(wantDown), wanted, letGo, letGo2, letGo3, back2, walked: r2(walked), east: r2(east), ahead: r2(ahead), onScreen, side1: r2(side1), side2: r2(side2), loose: r2(loose), tight: r2(tight), lvl, shown, liftedTop, whole, under, drive, before, after });
     } finally { g.godMode = false; if (P().inVehicle) g.exitVehicle(true); if (car) g.vehiclesSys.remove(car); if (dummy) g.removeChar(dummy); for (const [c, x, z] of moved) { c.x = x; c.z = z; } await back(); }
   });
 }

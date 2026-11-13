@@ -35,7 +35,7 @@ front of you. One key and you are back above it all.
    (`settings.camView`, the browser's storage) and put back the next time you play; never on the agent's page.
 2. **Turning and looking.** Mouse movement turns the view (`orbit`) and tilts it (`pitch`, −55° to +60°) while the mouse
    is held by the game (pointer lock: your first click in a body view takes it and does nothing else; it is let go
-   the moment a menu, the map, the pack, a talk, the workshop, a console, the character sheet, the crew or garden panel,
+   the moment a menu, the map, the pack, a talk, the workshop, a console, the character sheet, the crew panel or its orders wheel, the garden panel,
    sleep, a blackout, the drone or photo mode has the hands, paused or not), or while you drag with the right or middle button. Right stick on a pad: the same, at
    `padRate`. Settings: look speed (five steps) and invert up/down.
 3. **Walking.** W is the way the view faces; A/D strafe; S backs up (the same key-turning the ISO view already used).
@@ -78,7 +78,8 @@ front of you. One key and you are back above it all.
 - **Z, - and =** step the boom in and out in a body view (the named zoom stops are top-down heights).
 - **Outdoors under a bridge deck or a canopy:** no ceiling is applied outdoors; the camera may rise through a deck above.
 - **No pointer lock** (the browser refuses it, or the second after Escape): the click that asked is lost; for the next
-  3 s clicks are ordinary clicks (you can always fire) and the right or middle button drags the view. Then it asks again.
+  3 s clicks are ordinary clicks (you can always fire) and the right or middle button drags the view. Then it asks again; after three refusals in a row it stops asking.
+- **HUD chips** (the pulls board, the garden chip) cannot be clicked while the mouse is held; use their keys.
 - **Looking down brings the aim point in.** At the starting pitch (−5°) it meets the ground about 18 m out, so somebody
   further than that is not taken by the aim point until you look up a little; the round itself still flies flat.
 - **A friend on the line** (a crew member, a dog) takes the aim point like anyone else: a throw or an order lands on them.
