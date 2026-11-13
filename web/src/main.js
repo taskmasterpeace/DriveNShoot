@@ -65,6 +65,7 @@ import { ZOOM, CAMERA } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
+import { WindowExit } from './systems/windowexit.js';
 import { Actions } from './systems/actions.js'; // TIMED ACTIONS: search, look around, break in, climb (docs/design/WEB_TIMED_ACTIONS.md)
 import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
@@ -306,6 +307,7 @@ class Game {
     this.gear = new Gear(this); // the 19-slot paperdoll: armor that soaks, clothes and charms with mods (data/gear.js)
     this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.windowExit = new WindowExit(this); // out of an upper window: climb out, hang, drop (systems/windowexit.js)
     this.actions = new Actions(this); // TIMED ACTIONS: every interaction that takes time, its pose, its noise, its ring (systems/actions.js)
     this.workshopUI = new WorkshopUI(this, ui); // the WORKSHOP screen (U at a garage, or Kenji)
     this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
@@ -1120,7 +1122,9 @@ class Game {
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const ugI = !best && !bestV && !dog && !dk && p.ug ? this.under.playerInteract(p, I, dt) : null; // below the street: the lift, the generator, keypads, doors, logs (systems/underground.js)
     const lad = !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !doorNow ? this.actions.ladderKey(p, I, dt) : null; // a ladder's foot or top (systems/actions.js)
-    const op = lad ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
+    // Upstairs, facing a window in an outside wall: hold E to climb out and drop (systems/windowexit.js).
+    const wexit = !lad && !best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !doorNow && p.storey && (p.gy ?? 0) > LEVEL.same ? this.windowExit.interact(p, I, dt) : null;
+    const op = lad ?? wexit ?? (!best && !bestV && !dog && !dk && !ugI && !p.ug && !p.onDeck && !shutNow && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? (this.interiors.playerInteract(p, I, dt) ?? this.citygen?.bayInteract(p, I, dt) ?? this.milbases?.interact(p, I, dt) ?? this.backlots?.interact(p, I, dt) ?? this.understreet?.interact(p, I, dt) ?? null) : null); // the street storey's doors and windows (and a generated building's roll-up bays)
     // An open door within reach: E pulls it shut (the infected cannot work a latch: WEB_DOOR_POUND.md). With the infected
     // near it is E's before anything else you could go through; otherwise it waits behind every other thing in reach.
     const shutD = shutNow ?? (!best && !bestV && !op && !ugI && !dog && !dk && !p.onDeck ? this.interiors.openDoorNear(p) : null);
@@ -1502,6 +1506,7 @@ class Game {
     this.citygen.update(simDt); // generated settlements near you built, far ones released; hordes, sieges, falls (systems/citygen.js)
     this.ringrise.update(simDt); // the ring towers' people, when slots free up (world/ringrise.js)
     this.facades.update(); // the facade kit: its buffers when a source came or went, the lamps after dark (world/facades.js)
+    this.windowExit.update(simDt); // the sprinters that jump after you
     this.backlots.update(simDt); // their yard gates hung near you, the nav windows told when a town comes or goes
     this.under.update(simDt, dt); // the underground: entrances near you, levels promoted and written back, the lift, the power
     this.carousel.update(simDt, dt); // the ring: its look, the spin and the throw, ring-sickness's decay (systems/carousel.js)

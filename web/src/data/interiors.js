@@ -93,3 +93,26 @@ export const WINDOW_MIX = {
   ruins: [0.38, 0.37, 0.25],
   ruined: [0.12, 0.62, 0.26],
 };
+
+// OUT OF AN UPPER WINDOW (docs/design/WEB_WINDOW_EXIT.md; systems/windowexit.js). The fall's damage is the ladders' rule
+// (data/actions.js LADDER.fall: nothing up to `safe` m, then hpPerM per metre).
+//   reach   m: how close to the wall's inside you stand, facing it (wall: m, the thickest wall counted)      hold   s E is held
+//   minUp   m above the street before a window is a way OUT (the street floor's windows are climbed through as before)
+//   hang    m: you hang from the sill by your hands before you let go (the drop is the height less this)
+//   out     m out from the wall you land                           noise  [m base, m per metre dropped] the landing carries
+//   down    s on the ground after landing: clean (inside the safe height) | hurt
+//   follow  who jumps after you: kinds (in their burst only), for `secs` s after you went, from within `reach` m of the sill
+export const WINDOW_EXIT = { wall: 0.9, reach: 1.3, hold: 1.0, minUp: 2.4, hang: 1.9, out: 1.1, noise: [8, 2], down: { clean: 0.4, hurt: 1.2 }, follow: { kinds: ['sprinter'], secs: 25, reach: 1.7 } };
+
+export function validateWindowExit(W = WINDOW_EXIT) {
+  const bad = [], kinds = ['shambler', 'sprinter', 'echo'];
+  if (!(W.reach >= 0.8 && W.reach <= 2)) bad.push('WINDOW_EXIT.reach: 0.8-2 m');
+  if (!(W.hold >= 0.3 && W.hold <= 5)) bad.push('WINDOW_EXIT.hold: 0.3-5 s (a tap must not throw you out of a window)');
+  if (!(W.minUp >= 2 && W.minUp <= 4)) bad.push('WINDOW_EXIT.minUp: 2-4 m');
+  if (!(W.hang >= 1 && W.hang <= 2.4)) bad.push('WINDOW_EXIT.hang: 1-2.4 m (a body hanging by its hands, never more than a storey)');
+  if (!(W.out >= 0.7 && W.out <= 2)) bad.push('WINDOW_EXIT.out: 0.7-2 m');
+  if (!(W.down.clean >= 0 && W.down.hurt >= W.down.clean && W.down.hurt <= 4)) bad.push('WINDOW_EXIT.down: clean <= hurt <= 4 s');
+  if (!Array.isArray(W.follow?.kinds) || W.follow.kinds.some((k) => !kinds.includes(k))) bad.push(`WINDOW_EXIT.follow.kinds: of ${kinds.join(', ')}`);
+  if (!(W.follow?.secs >= 5 && W.follow.secs <= 120)) bad.push('WINDOW_EXIT.follow.secs: 5-120 s');
+  return bad;
+}

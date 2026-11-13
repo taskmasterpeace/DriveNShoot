@@ -112,6 +112,7 @@ import { deathsCommands, deathsChecks, hordeAction } from './deaths-api.js'; // 
 import { firstMinuteCommands, firstMinuteChecks } from './firstminute-api.js'; // THE FIRST MINUTE of a new Florida game (WEB_FIRST_MINUTE.md)
 import { cgRoomsCommands, cgRoomsChecks } from './cgrooms-api.js'; // ROOMS FOR GENERATED BUILDINGS (WEB_CG_ROOMS.md)
 import { camBodyChecks } from './cambody-api.js'; // THE BODY VIEWS: third-person and over the shoulder (WEB_CAMERA_BODY.md)
+import { windowExitCommands, windowExitChecks } from './windowexit-api.js'; // OUT OF AN UPPER WINDOW (WEB_WINDOW_EXIT.md)
 import { poundCommands, poundChecks } from './pound-api.js'; // THE SHUT DOOR: the infected beat on it (WEB_DOOR_POUND.md)
 import { reachCommands, reachChecks } from './reach-api.js'; // REACH: no hand through a wall (WEB_REACH.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -2175,6 +2176,7 @@ function buildCommands(api) {
     ...roadsideCommands(api, need),
     ...firstMinuteCommands(api, need), // where a new game's first minute stands (WEB_FIRST_MINUTE.md)
     ...cgRoomsCommands(api, need), // the rooms of the generated building you stand in (WEB_CG_ROOMS.md)
+    ...windowExitCommands(api), // the upper window you face: the drop, what it costs (WEB_WINDOW_EXIT.md)
     ...poundCommands(api, need), // doors shut on the infected, pounded, leaned on (WEB_DOOR_POUND.md)
     ...reachCommands(api, need), // what your hand can get to and what stops it (WEB_REACH.md)
     ...zombiesCommands(api, need), // the infected's minds (WEB_ZOMBIES.md)
@@ -5846,6 +5848,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await firstMinuteChecks({ g, api, C, check, stage, hush }); // THE FIRST MINUTE: rows, never armed for the harness, the three beats on real state, the save (src/agent/firstminute-api.js) // THE SHUT DOOR: the latch, a sprinter's frenzy, leaning, planks, the noise, giving up, shared rows (src/agent/pound-api.js)
   await cgRoomsChecks({ g, api, C, check }); // ROOMS FOR GENERATED BUILDINGS: rows, every building has rooms, containers reached on foot, no reach through a partition (src/agent/cgrooms-api.js)
   await camBodyChecks({ g, api, C, check }); // THE BODY VIEWS: rows, never through a wall or a ceiling, walk and aim the way the view faces, TOPDOWN untouched (src/agent/cambody-api.js)
+  await windowExitChecks({ g, api, C, check, hush }); // OUT OF AN UPPER WINDOW: rows, the drop and its cost on the real E key, who follows (src/agent/windowexit-api.js)
   await reachChecks({ g, api, C, check, stage, hush }); // REACH: a wall, a shut door or a floor stops every E, the PACK list and the agent (src/agent/reach-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee
