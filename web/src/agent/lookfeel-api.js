@@ -299,10 +299,12 @@ export async function lookfeelChecks({ g, api, C, check }) {
     // Clean glass too: an earlier crash's screen-edge dirt (the impact pass, systems/lookfeel.js) rides the same frame.
     // And bare eyes at the default exposure: goggles an earlier check left on lift the exposure (systems/kit.js) and wash both reads out.
     const K = g.kit, eyes0 = K?.on.eyes ?? null, ex0 = g.renderer.toneMappingExposure;
+    // ...and no colour grade (it follows the region and the hour, and lifted the unlit read from ~30 to ~40 late in a battery).
+    const grade0 = F.settings.grade; F.settings.grade = 0;
     const nl0 = g.sky.nightLight, dirt0 = F.dirt; g.sky.nightLight = 0; F.dirt = 0; if (K) K.on.eyes = null; await api._step(2);
     g.renderer.toneMappingExposure = SKY_FEEL.exposure;
     const off = at(near, 0), on = at(near, 1);
-    g.sky.nightLight = nl0; F.dirt = dirt0; if (K) K.on.eyes = eyes0; g.renderer.toneMappingExposure = ex0;
+    g.sky.nightLight = nl0; F.dirt = dirt0; F.settings.grade = grade0; if (K) K.on.eyes = eyes0; g.renderer.toneMappingExposure = ex0;
     const compiled = !!g.charR.meshes.torso.material.userData.lampCompiled && F.lamps.patched >= 6;
     // The torch: on foot, facing the man, the cone reaches him.
     g.exitVehicle(true); await C('teleport', { x: near.x - 5, z: near.z }); await api._step(6);
@@ -311,7 +313,7 @@ export async function lookfeelChecks({ g, api, C, check }) {
     for (const d of [near, far, back]) g.removeChar(d);
     dropMine(g); await C('setTime', { hour: 12 });
     const ok = head && lNear > 0.6 && lFar > 0 && lFar < lNear * 0.6 && lBack === 0 && on > off + 6 && on > off * 1.4 && compiled && torch && lTorch > 0.3;
-    return ok ? true : JSON.stringify({ head, lNear: r3(lNear), lFar: r3(lFar), lBack: r3(lBack), off: r3(off), on: r3(on), compiled, patched: F.lamps.patched, torch, lTorch: r3(lTorch), tAt, lamps: F.lamps.view().lamps });
+    return ok ? true : JSON.stringify({ head, lNear: r3(lNear), lFar: r3(lFar), lBack: r3(lBack), off: r3(off), on: r3(on), grade0, compiled, patched: F.lamps.patched, torch, lTorch: r3(lTorch), tAt, lamps: F.lamps.view().lamps });
   });
 
   await check('look-feel: a game day lasts the Day length (48 real minutes by default); everything off screen keeps its pace in game hours; the night defaults to a readable dark with a long dusk; Brightness sets the exposure', async () => {
