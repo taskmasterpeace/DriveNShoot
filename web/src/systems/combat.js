@@ -1,3 +1,4 @@
+import { CAMERA } from '../data/camera.js';
 import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision.js';
 import { muzzleForward, carryLateral } from './characters.js';
 import { CARRY } from '../data/arms.js';
@@ -117,6 +118,10 @@ export class Combat {
     g.ambient?.onShot(ch.x, ch.z);
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)
     const sky = ch === g.player ? g.fauna?.skyShot(ch, ang) : null; // the mouse on a bird in the sky: the shot rises to it (systems/fauna.js skyAim)
+    // VERTICAL AIM (docs/design/WEB_VERTICAL_AIM.md): in a body view the round leaves your muzzle for the point the view's
+    // centre line lands on (main.js g.aim3), so it climbs or falls on the way: A = { y0: the muzzle's height, slope }.
+    const T3 = ch === g.player && !sky ? g.aim3 : null, A3 = CAMERA.body.aim3;
+    this.A = T3 ? { y0: (ch.gy ?? 0) + A3.muzzle, slope: (T3.y - ((ch.gy ?? 0) + A3.muzzle)) / Math.max(1.5, Math.hypot(T3.x - ch.x, T3.z - ch.z)) } : null;
     const lift = sky ? sky.slope : 0, ang0 = sky ? sky.ang : ang;
     // The pull's seed (systems/ballistics.js): every pellet's spread and reach rolls from it, so the record replays it.
     const B = g.ballistics, round = cal ?? w.ammo;
@@ -127,6 +132,7 @@ export class Combat {
       const reach = w.range * (0.85 + (B ? B.rand() : Math.random()) * 0.15), rise = lift ? lift + ((B ? B.rand() : Math.random()) - 0.5) * 2 * sp : 0;
       this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), reach, w.dmg, round, rise, round); // the calibre is what it punches through with
     }
+    this.A = null;
     return true;
   }
 
@@ -140,7 +146,7 @@ export class Combat {
   hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null, slope = 0, round = ammo) {
     const g = this.g, M = g.materials;
     g.drones?.shotThrough(shooter, ox, oz, dx, dz, range, dmg); // a round passing under one of THEIR drones may take it (systems/drones.js)
-    if (g.ballistics?.takes(round, slope)) { g.ballistics.launch(shooter, ox, oz, dx, dz, range, dmg, ammo, round); return; }
+    if (!this.A && g.ballistics?.takes(round, slope)) { g.ballistics.launch(shooter, ox, oz, dx, dz, range, dmg, ammo, round); return; } // a round with a height of its own (vertical aim) lands at once, like a shot at a bird
     let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
     for (let seg = 0; seg < 4; seg++) {
       if (this.segment(shooter, shooter, ox, oz, dx, dz, left, dmg, energy, ammo, slope, true) !== 2) return;
@@ -151,6 +157,42 @@ export class Combat {
     }
   }
 
+  // ---- VERTICAL AIM helpers ---------------------------------------------------------------------------------------------
+  // Is height y inside body c (its feet to its head, by its stance)?
+  atHeight(y, c) {
+    const B = CAMERA.body.aim3.body, cy = c.gy ?? 0, h = c.prone ? B.prone : c.crouch ? B.crouch : B.stand;
+    return y >= cy - 0.05 && y <= cy + h + 0.1;
+  }
+  // Is (x, z) at a flight of stairs of building S (the well a round can pass between floors through)?
+  nearFlight(S, x, z, pad = CAMERA.body.aim3.stair) {
+    for (const f of S?.flights ?? []) if (x > f.minX - pad && x < f.maxX + pad && z > f.minZ - pad && z < f.maxZ + pad) return true;
+    return false;
+  }
+  // Two people on different floors of ONE building, both at its stairs: a round can pass between them.
+  stairLine(a, b) {
+    const S = a.storey;
+    return !!S && b.storey === S && this.nearFlight(S, a.x, a.z) && this.nearFlight(S, b.x, b.z);
+  }
+  // How far a round with a height (A) flies along this run before it meets the ground, the floor it was fired on, or
+  // the deck over the shooter's head (never inside a stairwell). Sets this.capHit ('ground' | 'deck' | null).
+  capOf(A, sh, ox, oz, dx, dz, run0, left) {
+    const g = this.g, S = sh.storey ?? null, feet = sh.gy ?? 0;
+    this.capHit = null;
+    const inS = (t) => { const x = ox + dx * t, z = oz + dz * t; return S && x > S.b.minX && x < S.b.maxX && z > S.b.minZ && z < S.b.maxZ; };
+    if (A.slope < -1e-4) {
+      // your own floor while the line is over it; past the building's edge, the street below
+      const tFloor = (A.y0 - feet) / -A.slope - run0, street = S ? S.y0 ?? 0 : feet;
+      if (tFloor < left && (!S || (inS(Math.max(0, tFloor)) && !this.nearFlight(S, ox + dx * Math.max(0, tFloor), oz + dz * Math.max(0, tFloor))))) { this.capHit = 'ground'; return Math.max(0.05, tFloor); }
+      const tStreet = (A.y0 - street) / -A.slope - run0;
+      if (tStreet < left) { this.capHit = 'ground'; return Math.max(0.05, tStreet); }
+    } else if (A.slope > 1e-4 && S) {
+      const lvl = g.storeys.levelOf(S, feet), deck = lvl >= 0 && lvl + 1 <= S.n ? S.Y[lvl + 1] : Infinity;
+      const tDeck = (deck - A.y0) / A.slope - run0;
+      if (tDeck < left && inS(Math.max(0, tDeck)) && !this.nearFlight(S, ox + dx * Math.max(0, tDeck), oz + dz * Math.max(0, tDeck))) { this.capHit = 'deck'; return Math.max(0.05, tDeck); }
+    }
+    return left;
+  }
+
   // One straight run of a round, `left` m from (ox, oz) along (dx, dz): the first thing on it takes it. F: the floor it
   // was fired on (the shooter at the trigger; a round in flight keeps a copy). Returns 0 when it meets nothing (this.seg
   // at the run's end), 1 when it stops (this.seg: where, and seg.kind char | veh | dog | fauna | train | wall), 2 when it
@@ -158,6 +200,14 @@ export class Combat {
   segment(shooter, F, ox, oz, dx, dz, left, dmg, energy, ammo = null, slope = 0, tracer = true) {
     const g = this.g, M = g.materials, over = slope > 0 ? 1.15 / slope : Infinity, out = this.seg;
     shooter = shooter ?? NOBODY; F = F ?? NOBODY;
+    // VERTICAL AIM: A = { y0, slope } while the player's body-view shot is being resolved. The round is at height
+    // y0 + slope x (flat m from where it left): it stops in the ground or your floor, in the deck over your head, and
+    // takes only a body it passes at that body's height.
+    const A = shooter === g.player ? this.A : null;
+    const run0 = A ? Math.hypot(ox - shooter.x, oz - shooter.z) : 0; // this run starts this far along the line (a ricochet, a second segment)
+    const yAt = (t) => A.y0 + A.slope * (run0 + t);
+    if (A) left = Math.min(left, this.capOf(A, shooter, ox, oz, dx, dz, run0, left));
+    const capped = A ? this.capHit : null;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
     const fy = F.storey || F.ug ? (F.gy ?? 0) - (F.storey?.y0 ?? (F.ug ? g.under?.y0 ?? 0 : 0)) : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
     const down = up && fy > 0.5 && !F.ug; // up a building: its walls stop the round unless it leaves by a window hole or over the parapet
@@ -169,9 +219,10 @@ export class Combat {
       if (c.underwater) continue;                          // bullets don't reach under water
       // through a floor: no (world/storeys.js) - except a round fired DOWN out of a window or over a parapet at someone
       // in the street (or another building), never at the floors of your own (WEB_CITYGEN.md §3.3)
-      if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) - (F.storey?.y0 ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey)) continue;
+      if (!g.storeys.sameFloor(F, c) && !(down && (c.gy ?? 0) - (F.storey?.y0 ?? 0) < fy - 1.6 && !c.ug && g.storeys.at(c.x, c.z) !== F.storey) && !(A && this.stairLine(F, c))) continue; // (vertical aim: up or down a stairwell)
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-      if (t >= 0 && t < best && t < over && (!(c.prone || c.mv || c.dive > 0) || !g.moves || Math.random() < g.moves.hitShare(c, t))) { best = t; target = c; kind = 'char'; } // a low body (a dive, prone, a roll): the round can pass over it (data/moves.js LOW_BODY)
+      if (A && t >= 0 && !this.atHeight(yAt(t), c)) continue; // it passes over their head or under their feet
+      if (t >= 0 && t < best && (A || t < over) && (!(c.prone || c.mv || c.dive > 0) || !g.moves || Math.random() < g.moves.hitShare(c, t))) { best = t; target = c; kind = 'char'; } // a low body (a dive, prone, a roll): the round can pass over it (data/moves.js LOW_BODY)
     }
     for (const v of g.vehicles) {
       if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
@@ -192,10 +243,14 @@ export class Combat {
     // nothing may stand between (the window hole lets it in, a wall or a taller building stops it).
     if (!up && (g.storeys.extN || g.storeys.list.length)) for (const c of g.chars) {
       if (c === shooter || !c.alive || c.inVehicle || c.hidden || c.underwater || !c.storey || (c.gy ?? 0) - (F.gy ?? 0) < 1.6) continue;
-      const hy = g.storeys.across(F, c);
-      if (hy < 0) continue;
+      // The old rule (across) wants them AT a window or a roof's edge. With vertical aim the line itself decides: whoever
+      // the rising round reaches at its height through an opening (the wall test below), however deep in the room.
+      let hy;
+      if (A) { if (g.storeys.at(F.x, F.z) === c.storey) continue; hy = (c.gy ?? 0) - (c.storey.y0 ?? 0); }
+      else { hy = g.storeys.across(F, c); if (hy < 0) continue; }
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, left);
-      if (t < 0 || t >= over || (kind && best < t)) continue;
+      if (A && t >= 0 && !this.atHeight(yAt(t), c)) continue; // vertical aim: you have to be aiming up at them
+      if (t < 0 || (!A && t >= over) || (kind && best < t)) continue;
       if (g.statics.raycast(ox, oz, dx, dz, t, RAY_BULLET, hy + 1.3) < t - 0.05) continue;
       best = t; target = c; kind = 'char'; this.upShots = (this.upShots ?? 0) + 1;
     }
@@ -259,6 +314,12 @@ export class Combat {
       if (!up && Math.random() < 0.3) g.fx.decal(hx + wnx * 0.2, hz + wnz * 0.2, 0.3, '#1a1714');
     }
     if (box || (kind && kind !== 'char')) g.shotRead?.impact(hx, hz, shooter, F); // dust where it lands near you
+    if (!kind && !box && capped) { // vertical aim: into the ground, your floor, or the deck over your head
+      g.fx.sparks?.(hx, capped === 'deck' ? 2.4 + fy : 0.1 + fy, hz, 0, 0, 3);
+      g.shotRead?.impact(hx, hz, shooter, F);
+      this.vaimStops = (this.vaimStops ?? 0) + 1; this.lastStop = capped;
+      return 1;
+    }
     if (!kind && !box) return 0;
     if (!o) { if (!kind) out.kind = 'wall'; return 1; }
     out.x = o.x; out.z = o.z; out.dx = o.dx; out.dz = o.dz; out.dmg = o.dmg; out.energy = o.energy; out.kind = 'wall';

@@ -70,6 +70,11 @@ export const CAMERA = {
     SHOULDER: { dMin: 1.2, dMax: 2.8, dStart: 2.0, side: 0.55, eye: 1.6, aimD: 1.25 },
     pitch: [-55, 60], pitchStart: -5, sens: 0.0026, padRate: 2.4, pad: 0.3, ceil: 2.8, ceilGap: 0.25, floor: 0.35, hardMin: 0.35,
     near: 0.12, viewR: 110, aimRange: 30, rate: 9,
+    // VERTICAL AIM (docs/design/WEB_VERTICAL_AIM.md): in a body view you aim where the view's centre line lands.
+    //   aim3: reach m of that line; step m between tests along it; muzzle m above your feet the round leaves from;
+    //   body m: a standing / crouched / prone body's height the round must pass within; stair m: how near a flight of
+    //   stairs both ends of a line must be for a round to pass between two floors of one building
+    aim3: { reach: 60, step: 1.5, muzzle: 1.45, body: { stand: 1.85, crouch: 1.2, prone: 0.5 }, stair: 1.6 },
   },
   // The cutaway (systems/cutaway.js): inside a screen circle of `radius` m round you, whatever stands between the camera
   // and you above `knee` m over your feet dither-fades (walls, roofs, upper storeys, trees, overpass decks). In a car the

@@ -849,7 +849,12 @@ class Game {
     // Something on the wing under the cursor (the wilds lane's hook: fauna.pickAir(ray) -> { x, z, y } or null): aim at it.
     this.aimAir = this.aimOverride ? null : this.fauna?.pickAir?.(_ray.ray) ?? null;
     if (this.aimAir) { this.aim.x = this.aimAir.x; this.aim.z = this.aimAir.z; }
-    if (!this.aimOverride && this.cam.body()) { const a = this.cam.aimPoint(p); this.aim.x = a.x; this.aim.z = a.z; this.aim.y = 0; this.aimAir = null; } // THIRD / SHOULDER: you aim the way the view faces (systems/camrig.js)
+    this.aim3 = null;
+    if (!this.aimOverride && this.cam.body()) { // THIRD / SHOULDER: you aim where the view's centre line lands, up and down too (systems/camrig.js aimPoint3)
+      const a = this.cam.aimPoint3(p);
+      this.aim3 = a; this.aimAir = null; this.aim.y = 0;
+      if (a.d > 0.8) { this.aim.x = a.x; this.aim.z = a.z; } else { const b = this.cam.aimPoint(p); this.aim.x = b.x; this.aim.z = b.z; } // straight down at your own feet: keep facing the way the view faces
+    } // THIRD / SHOULDER: you aim the way the view faces (systems/camrig.js)
     p.aimD = Math.hypot(this.aim.x - (p.inVehicle ?? p).x, this.aim.z - (p.inVehicle ?? p).z); // the gun at the side toes in to it (characters.js)
 
     // I / TAB / ESC always shut the PACK, whatever else holds the keys (a talk, sleep, a blackout): never stuck open.

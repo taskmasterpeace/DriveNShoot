@@ -113,6 +113,7 @@ import { firstMinuteCommands, firstMinuteChecks } from './firstminute-api.js'; /
 import { cgRoomsCommands, cgRoomsChecks } from './cgrooms-api.js'; // ROOMS FOR GENERATED BUILDINGS (WEB_CG_ROOMS.md)
 import { camBodyChecks } from './cambody-api.js'; // THE BODY VIEWS: third-person and over the shoulder (WEB_CAMERA_BODY.md)
 import { windowExitCommands, windowExitChecks } from './windowexit-api.js'; // OUT OF AN UPPER WINDOW (WEB_WINDOW_EXIT.md)
+import { vaimChecks } from './vaim-api.js'; // VERTICAL AIM in the body views (WEB_VERTICAL_AIM.md)
 import { poundCommands, poundChecks } from './pound-api.js'; // THE SHUT DOOR: the infected beat on it (WEB_DOOR_POUND.md)
 import { reachCommands, reachChecks } from './reach-api.js'; // REACH: no hand through a wall (WEB_REACH.md)
 import { zombiesCommands, zombiesChecks } from './zombies-api.js'; // THE INFECTED's minds: three breeds, senses with memory, drift, doors, crawlers (WEB_ZOMBIES.md)
@@ -5849,6 +5850,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await cgRoomsChecks({ g, api, C, check }); // ROOMS FOR GENERATED BUILDINGS: rows, every building has rooms, containers reached on foot, no reach through a partition (src/agent/cgrooms-api.js)
   await camBodyChecks({ g, api, C, check }); // THE BODY VIEWS: rows, never through a wall or a ceiling, walk and aim the way the view faces, TOPDOWN untouched (src/agent/cambody-api.js)
   await windowExitChecks({ g, api, C, check, hush }); // OUT OF AN UPPER WINDOW: rows, the drop and its cost on the real E key, who follows (src/agent/windowexit-api.js)
+  await vaimChecks({ g, api, C, check, hush }); // VERTICAL AIM: the round goes where the view's centre line lands, up and down; floors stop it; TOPDOWN unchanged (src/agent/vaim-api.js)
   await reachChecks({ g, api, C, check, stage, hush }); // REACH: a wall, a shut door or a floor stops every E, the PACK list and the agent (src/agent/reach-api.js)
   await zombiesChecks({ g, api, C, check, stage, hush }); // THE INFECTED: breeds, memory, stance, drift, doors, crawlers, law 6, fire, light, the Echo's call (src/agent/zombies-api.js)
   await controllerChecks({ api, g, C, check, stage, person, hush }); // the pad, the weapon bar, grip, holster, gunpoint, melee

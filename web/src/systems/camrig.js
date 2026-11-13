@@ -18,7 +18,7 @@ const NDC = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const _look = new THREE.Vector3(), _ret = new THREE.Vector3(), _aim = { x: 0, z: 0, d: 0 };
+const _look = new THREE.Vector3(), _ret = new THREE.Vector3(), _aim = { x: 0, z: 0, d: 0 }, _aim3 = { x: 0, y: 0, z: 0, d: 0, hit: null };
 const AGENT_TAB = (() => { try { return new URLSearchParams(location.search).has('agent'); } catch { return false; } })();
 
 export class CamRig {
@@ -29,7 +29,7 @@ export class CamRig {
     for (const v of CAMERA.views) this.mem[v] = { foot: CAMERA.body[v]?.dStart ?? CAMERA.foot.dStart, drive: v === 'CHASE' ? CAMERA.view.CHASE.dStart : CAMERA.drive.dStart };
     // the body views (THIRD, SHOULDER): where the view faces (orbit: the boom's yaw), up and down (pitch: + up), which shoulder
     this.orbit = 0; this.pitch = CAMERA.body.pitchStart * R; this.shoulder = 1; this.aiming = false; this.handsT = -9;
-    this.reticle = { x: 0, y: 0 }; this.pos = { x: 0, y: 0, z: 0 }; this.pivot = { x: 0, y: 0, z: 0 };
+    this.reticle = { x: 0, y: 0 }; this.pos = { x: 0, y: 0, z: 0 }; this.pivot = { x: 0, y: 0, z: 0 }; this.fwd = { x: 0, y: 0, z: -1 };
     this.D = CAMERA.foot.dStart;                 // the boom as it is (smoothed)
     this.theta = CAMERA.view.TOPDOWN.theta * R;  // pitch off vertical (rad)
     this.yaw = 0;                                // 0 = camera south of the look point (north up)
@@ -204,13 +204,65 @@ export class CamRig {
     if (cam.far !== CAMERA.farTilted || Math.abs(cam.near - B.near) > 1e-4) { cam.far = CAMERA.farTilted; cam.near = B.near; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();
     this.pos.x = cx; this.pos.y = cyy; this.pos.z = cz; this.pivot.x = px; this.pivot.y = py; this.pivot.z = pz; this.boom = d;
+    this.fwd.x = fx; this.fwd.y = fy; this.fwd.z = fz;
     this.theta = Math.PI / 2 + pit;
     g.camHeight = Math.max(1, cyy - feet);
     g.viewR = B.viewR; this.baseR = g.viewR;
-    // the reticle: where the round goes (the flat line from you along the view, at chest height on your floor), on screen
-    const a = this.aimPoint(p);
-    _ret.set(a.x, feet + 1.3, a.z).project(cam);
+    // the reticle: where the round goes (the point the view's centre line lands on: aimPoint3), on screen
+    const a = this.aimPoint3(p);
+    _ret.set(a.x, a.y, a.z).project(cam);
     this.reticle.x = (_ret.x + 1) / 2 * innerWidth; this.reticle.y = (1 - _ret.y) / 2 * innerHeight;
+  }
+  // VERTICAL AIM: the point the view's centre line lands on, in the world: { x, y, z, d (flat m from you), hit }. The line
+  // starts past you (so nothing between the lens and your back counts) and stops at the first of: the ground or the
+  // floor you stand on, the deck over your head, a wall that stops a round at that height, a body or a car at that
+  // height, or its reach. The round is then fired from your muzzle AT that point (systems/combat.js), so it climbs or
+  // falls on the way. Reuses one record (no allocation).
+  aimPoint3(p) {
+    const g = this.g, A = CAMERA.body.aim3, f = this.fwd, o = this.pos, ST = g.statics, S = p.storey ?? null, out = _aim3;
+    const hl = Math.hypot(f.x, f.z), feet = p.gy ?? 0, offs = S ? S.y0 ?? 0 : feet; // offs: the height the collision boxes round you count from
+    const inS = (x, z) => S && x > S.b.minX && x < S.b.maxX && z > S.b.minZ && z < S.b.maxZ;
+    const lvl = S ? g.storeys.levelOf(S, feet) : -1, deck = S && lvl >= 0 ? (lvl + 1 <= S.n ? S.Y[lvl + 1] : Infinity) : Infinity; // the deck over your head
+    let sEnd = A.reach, hit = null;
+    // a body or a car on the line, at the line's height there
+    if (hl > 1e-3) {
+      const dx = f.x / hl, dz = f.z / hl;
+      for (const c of g.chars) {
+        if (c === p || !c.alive || c.inVehicle || c.hidden) continue;
+        const rx = c.x - o.x, rz = c.z - o.z, al = rx * dx + rz * dz;
+        if (al <= 0) continue;
+        const s = al / hl; if (s < this.boom + 0.6 || s > sEnd) continue;
+        if (Math.abs(rx * dz - rz * dx) > (c.radius ?? 0.4) + 0.15) continue;
+        const y = o.y + f.y * s, cy = c.gy ?? 0, h = c.prone ? A.body.prone : c.crouch ? A.body.crouch : A.body.stand;
+        if (y < cy - 0.05 || y > cy + h + 0.1) continue;
+        sEnd = s; hit = 'char';
+      }
+      for (const v of g.vehicles) {
+        const rx = v.x - o.x, rz = v.z - o.z, al = rx * dx + rz * dz;
+        if (al <= 0) continue;
+        const s = Math.max(0, al - (v.wid ?? 2) * 0.5) / hl; if (s < this.boom + 0.6 || s > sEnd) continue;
+        if (Math.abs(rx * dz - rz * dx) > (v.wid ?? 2) * 0.6) continue;
+        const y = o.y + f.y * s, vy = v.gy ?? v.y ?? offs;
+        if (y < vy - 0.1 || y > vy + 1.8) continue;
+        sEnd = s; hit = 'veh';
+      }
+    }
+    // along the line: the ground or your floor, the deck above, a wall at the line's height
+    let s = this.boom + 0.6, px = o.x + f.x * s, py = o.y + f.y * s, pz = o.z + f.z * s;
+    while (s < sEnd) {
+      const n = Math.min(sEnd, s + A.step), x = o.x + f.x * n, y = o.y + f.y * n, z = o.z + f.z * n;
+      const floor = inS(x, z) && lvl >= 0 ? feet : offs; // your own floor while the line is over it, else the street
+      if (f.y < -1e-4 && y <= floor) { const k = (floor - py) / (y - py); sEnd = s + (n - s) * Math.max(0, Math.min(1, k)); hit = 'ground'; break; }
+      if (f.y > 1e-4 && y >= deck && inS(x, z) && !g.combat?.nearFlight?.(S, x, z)) { const k = (deck - py) / (y - py); sEnd = s + (n - s) * Math.max(0, Math.min(1, k)); hit = 'deck'; break; }
+      if (hl > 1e-3) {
+        const len = (n - s) * hl, d = ST.raycast(px, pz, f.x / hl, f.z / hl, len, RAY_BULLET, Math.max(0.05, (py + y) / 2 - offs));
+        if (d < len) { sEnd = s + d / hl; hit = 'wall'; break; }
+      }
+      s = n; px = x; py = y; pz = z;
+    }
+    out.x = o.x + f.x * sEnd; out.y = o.y + f.y * sEnd; out.z = o.z + f.z * sEnd; out.hit = hit;
+    out.d = Math.hypot(out.x - p.x, out.z - p.z);
+    return out;
   }
   // The mouse is held by the game (pointer lock) only while a body view has the hands. main.js says each frame whether
   // they do (no menu, panel, talk, screen, sleep or drone); anything else lets the mouse go at once, paused or not.

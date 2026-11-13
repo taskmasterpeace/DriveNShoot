@@ -86,9 +86,8 @@ front of you. One key and you are back above it all.
 - **Birds** cannot be aimed at in these views (the aim point is on your floor).
 - **A talk, the pack, the map, a menu:** the mouse is let go and the view stops turning.
 - **Not covered yet (said plainly):**
-  - **Vertical aim does not move the round.** Combat is flat per floor in this engine; shooting up a stairwell at
-    another floor, or down from an upper window by looking down, follows the old rules (down out of a window at the
-    street works as it did; up at another floor does not). Real vertical ballistics is its own piece of work.
+  - ~~Vertical aim does not move the round.~~ Built since: `WEB_VERTICAL_AIM.md` (the round goes where the view's
+    centre line lands; §3.4 above describes the first version).
   - **No sky.** Above the horizon is the haze colour. The top-down views never showed the horizon.
   - **The wall cutaway** (the dither that opens walls between a high camera and you) still runs in these views and can
     thin a wall edge close to the lens.
