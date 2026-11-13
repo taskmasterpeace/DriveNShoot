@@ -37,7 +37,8 @@ export const CAMP_RULES = {
 // ---- 3. fortification: what you add to a claimed building ----------------------------------------------------------
 // def: points toward the base's DEFENSE (capped at BASE_RULES.defenseCap). Every one costs real things from your pack.
 // windows/doors are per opening of the building (the interiors' own boards and the gadgets' planks barricade); the rest
-// are one-offs drawn round the yard. A turret needs a turret you FOUND (turret_kit: in no loot table yet - a content call).
+// are one-offs drawn round the yard. A turret needs a turret KIT: built at a forge (data/recipes.js build_turret: a
+// service rifle, scrap, a trip; the gunsmith's manual teaches it). It is in no loot table.
 export const FORTIFY = {
   board_windows: { name: 'boarded windows', per: 'window', cost: [['planks', 1]], def: 0.03, secs: 6 },
   bar_doors: { name: 'barred doors', per: 'door', cost: [['planks', 1]], def: 0.06, secs: 5 },

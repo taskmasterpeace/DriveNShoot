@@ -46,7 +46,8 @@ export class WindowExit {
     F.drop = Math.max(0, (p.gy ?? 0) - ground - WX.hang);
     // somewhere to land: open ground at the street (not a wall, a roof, another building, a car)
     const solid = ST.raycast(lx - nx * 0.1, lz - nz * 0.1, nx, nz, 0.5, RAY_SOLID, -1) < 0.5 || ST.raycast(lx, lz, -nx, -nz, 0.6, RAY_SOLID, -1) < 0.45;
-    if (solid || g.storeys.at(lx, lz) || g.citygen?.buildingAt?.(lx, lz)) F.blocked = 'nothing to land on below';
+    if (g.storeys.at(lx, lz)) return null; // out there is another floor to walk onto (a fire escape, the next building's deck): not a drop
+    if (solid || g.citygen?.buildingAt?.(lx, lz)) F.blocked = 'nothing to land on below';
     else for (const v of g.vehicles) if (Math.hypot(v.x - lx, v.z - lz) < (v.len ?? 4) * 0.6) { F.blocked = 'a car is under the window'; break; }
     return F;
   }
@@ -54,7 +55,7 @@ export class WindowExit {
   interact(p, I, dt) {
     const g = this.g, F = this.find(p);
     if (!F) { this.hold = 0; return null; }
-    if (F.blocked) { this.hold = 0; g.hud.prompt(`Window · ${F.blocked}`); return F; }
+    if (F.blocked) { this.hold = 0; g.hud.prompt(`Way out · ${F.blocked}`); return F; }
     const hurt = Math.round(this.damageOf(F.drop));
     if (I.key('KeyE') && this.hold >= 0) {
       this.hold += dt;
@@ -64,7 +65,7 @@ export class WindowExit {
       p.speed = 0;
     } else {
       if (!I.key('KeyE')) this.hold = 0;
-      g.hud.prompt(`Window · hold <kbd>E</kbd> Climb out and drop ${r1(F.drop)} m${hurt > 0 ? ` (it will hurt: about ${hurt})` : ''}`);
+      g.hud.prompt(`Way out · hold <kbd>E</kbd> Climb out and drop ${r1(F.drop)} m${hurt > 0 ? ` (it will hurt: about ${hurt})` : ''}`);
     }
     return F;
   }

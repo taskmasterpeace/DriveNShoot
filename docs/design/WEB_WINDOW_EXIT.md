@@ -27,7 +27,7 @@ get up limping, and hear the one that screams come out of the window after you.
    within `reach` (1.3 m) of the inside of an outside wall and facing it, and the line straight out at chest height is
    open (a window opening: glass and boards stop it). A partition's doorway is not a window. Street-floor windows are
    climbed through as before (`WEB_INTERIORS`).
-2. **The prompt** says the drop and what it will cost: "Window · hold E Climb out and drop 7.3 m (it will hurt: about
+2. **The prompt** says the drop and what it will cost: "Way out · hold E Climb out and drop 7.3 m (it will hurt: about
    46)". If there is nothing to land on (a wall, another building, a roof, a car under the window) it says so and E
    does nothing.
 3. **Hold E for `hold` (1 s).** A tap does nothing: nobody falls out of a window by brushing a key. Letting go resets it.
@@ -53,11 +53,15 @@ get up limping, and hear the one that screams come out of the window after you.
 
 - **A drop that would kill** is allowed and the prompt says the number. Nothing stops you.
 - **Something under the window:** refused, with the reason. A car parked there blocks it (you do not land on roofs).
-- **A ruin's top floor with half walls:** the wall there is low, not a window; this rule does not offer it.
+- **Low walls are ways out too.** Anything in an outside wall that is open at chest height is offered: a window, a
+  roof's parapet, a ruin's half wall, a parking deck's waist-high side. The prompt says "Way out", the drop and the
+  cost are the same rule.
+- **A fire-escape door or the next building's deck** beyond the opening is somewhere to walk, not a drop: nothing is
+  offered there.
 - **Upper-floor glass:** generated buildings have open holes upstairs (no glass yet), so there is nothing to break
   first. Where glass or boards stand in an upper window, the line is not open and the window is not offered.
-- **Multiplayer:** the drop moves you like any other move; the other page sees you on the street. A sprinter's jump is
-  decided on the page that simulates that sprinter.
+- **Multiplayer:** the drop moves you like any other move; the other page sees you on the street. Only the sprinters
+  YOUR page simulates follow you out; one simulated on another player's page does not follow you.
 - **Not covered yet:**
   - **Climbing IN or UP through a window.** The portable ladder and the fixed ladders exist (`systems/actions.js`), and a
     ladder set under a window would be the way, but ladders do not open onto windows yet.

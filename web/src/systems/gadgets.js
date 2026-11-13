@@ -55,7 +55,7 @@ export class Gadgets {
     if (verb === 'barricade' || verb === 'wedge') {
       const door = this.doorInReach(P);
       if (!door) return { ok: false, why: 'no door within reach' };
-      return this.barricade(door, verb === 'wedge' ? 'wedge' : 'planks', P, false);
+      return this.barricade(door, verb === 'wedge' ? 'wedge' : BARRICADES[id] ? id : 'planks', P, false); // the thing you used: loose planks, a braced barricade, a plate
     }
     if (verb === 'keys') {
       const door = this.doorInReach(P);
@@ -361,9 +361,22 @@ export class Gadgets {
     if (!B) return { ok: false, why: `kinds: ${Object.keys(BARRICADES).join(', ')}` };
     if (door.broken) return { ok: false, why: 'that door is off its hinges' };
     if (this.barred.some((b) => b.door === door && b.kind === kind)) return { ok: false, why: `it is already ${B.name}` };
+    const other = B.bar ? this.barred.find((b) => b.door === door && BARRICADES[b.kind]?.bar) : null; // one bar on a door at a time
+    if (other) return { ok: false, why: `it is already ${BARRICADES[other.kind].name} (take that down first)` };
     if (spend && B.needs && by === g.player) {
-      if (!g.inventory?.carried.count(B.needs)) return { ok: false, why: `you need ${ITEMS[B.needs]?.name.toLowerCase() ?? B.needs}` };
-      g.inventory.spend(B.needs, 1);
+      // from the pack; or, for a thing too big to pack (a braced barricade, a plate), one lying within reach of your hands
+      const inv = g.inventory;
+      if (inv?.carried.count(B.needs)) inv.spend(B.needs, 1);
+      else {
+        let pile = null, at = -1;
+        for (const b of inv?.boxes.values() ?? []) {
+          if (b.kind !== 'ground' || Math.hypot(b.x - by.x, b.z - by.z) > 2.2 || !g.reach?.to(by, b.x, b.z, { y: b.y ?? 0 })) continue;
+          const i = b.slots.findIndex((q) => q.id === B.needs);
+          if (i >= 0) { pile = b; at = i; break; }
+        }
+        if (!pile) return { ok: false, why: `you need ${ITEMS[B.needs]?.name.toLowerCase() ?? B.needs}` };
+        inv.take(pile, at, 1);
+      }
     }
     const I = g.interiors;
     if (!door.locked) I.setLocked(door, true);

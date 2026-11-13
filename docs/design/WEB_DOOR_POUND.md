@@ -191,6 +191,25 @@ The shard's model is that each page simulates its own surroundings and reports w
 - **In a crowd the single-body warning is replaced.** With 8 or more round you the "one you cannot see" groan gives way
   to the crowd's voice from its middle, so one hidden behind you is not picked out.
 
+### 3.9 What you build holds it longer (Robert, 11-12: "we need crafting, like turrets and all that stuff")
+- **Three bars for a door**, weakest first (`BARRICADES` in `data/gadgets.js`): loose planks (300 hp on the door's lock,
+  found or ripped at a workbench), a **braced barricade** (520; `plank_barricade`, built at a workbench: planks, timber,
+  30 nails, carpentry 12) and a **plate** (1,100; `metal_barricade`, riveted at a forge: 4 scrap and charcoal, mechanics
+  22, the smith's manual). Before this the two built ones were items that did nothing.
+- **Using one:** USE it from the pack at the door, or stand at the door with it lying within reach of your hands (a
+  barricade is 8 bulk: too big for most packs, so you carry it over and set it down). It is spent. Nothing is free.
+- **One bar at a time** on a door (plus a wedge). Take the old one down first; taking one down does not give it back.
+- **Against a siege:** a shambler's fist takes 6 off a door each 2.2 s and three can pound at once (§3.7), so on top of
+  the door itself planks buy about 37 s against three, a braced barricade about 64 s, a plate about 134 s. A sprinter's
+  frenzy takes them down about four times as fast.
+- **The turret kit can be built.** `build_turret` (forge, mechanics 35, 8 hours, taught by the gunsmith's notebook): a
+  service rifle, 12 scrap, a lead pipe, 2 trap triggers, 2 battery cells, 4 cord: 23.8 kg in, a 22 kg kit out. A base's
+  turret (`FORTIFY.turret`) still costs that kit and 30 rifle rounds. Before this the kit could not be made or found.
+- **Not built (said plainly):** the base turret is a defence number for raids on your base while you are away
+  (`homes.js`); it does not track and shoot what is at your door in front of you. A sentry gun you set down in a room,
+  load with your own rounds and that fires at what comes through the door is a system of its own (targeting, friendly
+  fire, ammunition, what the infected do about it, sharing it between players) and is not in this slice.
+
 ## 4. Formulas
 | Name | Formula | Variables | Example |
 |---|---|---|---|
@@ -295,6 +314,9 @@ The shard's model is that each page simulates its own surroundings and reports w
    `pound` reports the same; one taken off the door is replaced by one of the waiting; a full sound group refuses a
    quieter newcomer and stops its quietest voice for a louder one; with the herd switched on, eight round you are heard
    as `crowdHeard` (one voice, from the middle) and no single groans.
+8. **What you build:** with none to hand a braced barricade is refused; one is spent and its row's hp is on the door; a
+   second bar is refused; a plate adds the difference its row says; the turret kit's recipe eats more kilograms than it
+   makes, needs a rifle, is taught by the gunsmith's notebook, and the base turret costs the kit and 30 rounds.
 
 Two players: `node tools/shard-door-test.mjs` (a real shard and two game pages; 10/10 on 2026-11-12): a door B pulls shut
 and something beats on is shut, as hurt (149 of 189) and heard on A; B opens it again and nothing re-shuts it; beaten off

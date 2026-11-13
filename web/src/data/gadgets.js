@@ -159,7 +159,11 @@ export const DOOR_KIT = {
 // long the work takes; noise is how far the hammering carries; needs: what you must carry (spent on use).
 export const BARRICADES = {
   wedge: { name: 'wedged', hp: 25, kicks: 1, time: 0.8, noise: 4, needs: 'door_wedge' },
-  planks: { name: 'barred with planks', hp: 300, kicks: 3, time: 4.5, noise: 32, needs: 'planks' },
+  planks: { name: 'barred with planks', hp: 300, kicks: 3, time: 4.5, noise: 32, needs: 'planks', bar: true },
+  // MADE AT A BENCH (data/recipes.js plank_barricade, forge_barricade): the same job done properly. bar: a door takes one
+  // bar at a time (loose planks, a braced barricade or a plate), plus a wedge.
+  plank_barricade: { name: 'braced with a barricade', hp: 520, kicks: 5, time: 6, noise: 30, needs: 'plank_barricade', bar: true },
+  metal_barricade: { name: 'plated shut', hp: 1100, kicks: 9, time: 8, noise: 36, needs: 'metal_barricade', bar: true },
   furniture: { name: 'barricaded with furniture', hp: 420, kicks: 4, time: 6, noise: 22, needs: null }, // whatever is in the room
 };
 
