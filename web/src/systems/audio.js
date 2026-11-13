@@ -100,7 +100,9 @@ export class Audio {
     const take = r.files[this.pick(`${r.via}|${kind}`, r.files.length)];
     const buf = this.bank.get(take.f);
     if (!buf || buf === 'failed' || typeof buf.then === 'function') { for (const x of r.files) this.load(x.f); return why(buf === 'failed' ? 'load failed' : 'loading'); }
-    if (at.group && !this.groupRoom(at.group, level)) return why('group cap'); // the group's budget (SPATIAL.groups)
+    // The group's budget (SPATIAL.groups). A voice refused by it is HANDLED: 'capped' is truthy, so no caller falls back to
+    // a synthesized stand-in for a sound the budget chose not to play.
+    if (at.group && !this.groupRoom(at.group, level)) { why('group cap'); return 'capped'; }
     // The voice cap: past it the quietest voice gives way (or this one, if it is the quietest).
     if (this.voices.length >= SPATIAL.voiceCap) this.voices = this.voices.filter((v) => !v.done);
     if (this.voices.length >= SPATIAL.voiceCap) {
@@ -313,7 +315,7 @@ export class Audio {
     this.burst({ dur: 0.35, freq: 5200, type: 'highpass', vol: 0.55, decay: 0.32, pan });
     for (let i = 0; i < 4; i++) setTimeout(() => this.tone(2600 + Math.random() * 2400, 0.12, 0.05, 'sine', 0.8, pan), 40 + i * 55);
   }
-  thud(pan = 0) { this.count('thud'); if (this.sample('common', 'impact.wood', { dist: 4, pan, vol: 0.9 })) return; this.burst({ dur: 0.12, freq: 420, vol: 0.2, decay: 0.1, pan }); }
+  thud(pan = 0, group = null) { this.count('thud'); if (this.sample('common', 'impact.wood', { dist: 4, pan, vol: 0.9, group })) return; this.burst({ dur: 0.12, freq: 420, vol: 0.2, decay: 0.1, pan }); }
   // voice: the breed's own [set, kind] (data/infected.js BREED_VOICE); the library's shambler takes and the synth follow.
   groan(pan = 0, dist = 0, voice = null, vol = 1) {
     const v = Math.max(0, 0.16 * (1 - dist / 32));
@@ -337,7 +339,7 @@ export class Audio {
     const v = Math.max(0, 0.12 * (1 - dist / 30));
     if (v < 0.01) return;
     this.count('wheeze');
-    if (this.sample('sprinter', 'idle', { dist, pan, range: 30 })) return;
+    if (this.sample('sprinter', 'idle', { dist, pan, range: 30, group: 'infected' })) return;
     this.burst({ dur: 0.5, freq: 1900, type: 'bandpass', q: 6, vol: v, decay: 0.45, pitchDrop: 0.7, pan });
     this.burst({ dur: 0.6, freq: 1400, type: 'bandpass', q: 5, vol: v * 0.8, decay: 0.55, pitchDrop: 1.2, at: 0.55, pan });
   }

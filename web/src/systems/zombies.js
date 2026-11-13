@@ -500,7 +500,8 @@ export class Zombies {
     const frenzy = c.zkind === 'sprinter' && c.zs?.state === 'burst' && !c.crawl;
     const free = B.zbN < cap && B.zbPrev + B.zbNew < cap && t - (B.zbFree ?? -9) >= P.takeover; // zbNew: places given out this frame (two waiters never take one place)
     const first = B.zbN < cap && (B.zbPrev ?? 0) === 0 && B.zbFree === undefined; // nobody has been at it yet: no wait
-    if (mine || free || first || (frenzy && B.zbN <= cap)) { if (!mine) B.zbNew++; c.zslot = B.id; c.zslotT = t; B.zbN++; return true; }
+    const shoulder = frenzy && B.zbPrev + B.zbNew <= cap; // one over the count at most, whatever order they are thought in
+    if (mine || free || first || shoulder) { if (!mine) B.zbNew++; c.zslot = B.id; c.zslotT = t; B.zbN++; return true; }
     c.zslot = null; B.zbWait++;
     return false;
   }

@@ -165,7 +165,8 @@ The shard's model is that each page simulates its own surroundings and reports w
 - **The rest wait.** Anyone else who reaches the door stands behind, facing it, hands down: no blows, no damage, no
   noise of their own. They are still at the door (they do not wander off, and they do not count as having given up).
 - **Turns.** Whoever beat the door last frame keeps their place. When a place comes free (one dies, is pulled off, gives
-  up or goes for somebody it can see) it stays empty for 0.6 s, then the first of the waiting to ask takes it.
+  up or goes for somebody it can see) it stays empty for 0.6 s, then the first of the waiting to ask takes it. (A door
+  that has had a crowd keeps that 0.6 s for the next arrival's first blow too.)
 - **A sprinter in its burst shoulders in:** it always gets a place, one over the count at most.
 - **An Echo** works doors by its own rule (it is a worker, not one of the crowd) and takes no place.
 - **So a crowd does not break a door faster than its places can.** Twenty at a door land the blows of three. More
@@ -182,7 +183,13 @@ The shard's model is that each page simulates its own surroundings and reports w
 - **The herd's one voice** (`SPATIAL.crowd`): with 8 or more of them inside 28 m of you, the single idle groan slot
   speaks for the crowd: from the crowd's middle, twice as often, half again as loud. It is one voice, never one per
   body. (There is no separate crowd recording; it is the groan takes used as a bed.)
+- A voice the budget refuses is simply not played: nothing synthesized stands in for it.
+- **In the groups:** groans, the shambler's moan, the sprinter's running snarl, its slam cry and its wheeze, the Echo's
+  murmur and working noise (infected); blows on doors and on boards (pound). **Left out on purpose:** the sprinter's
+  scream (it is the warning that it has broken; it must always be heard) and the Choir-Touched's hum (one site special).
 - Door blows were already one sound per blow; with three places a door makes at most three at once.
+- **In a crowd the single-body warning is replaced.** With 8 or more round you the "one you cannot see" groan gives way
+  to the crowd's voice from its middle, so one hidden behind you is not picked out.
 
 ## 4. Formulas
 | Name | Formula | Variables | Example |
@@ -311,3 +318,7 @@ for ever; a locked or wedged door weaker than a shut one; the Echo stuck at a la
 shut; shutting unavailable with a friend, a car or a dog beside you; a door shut on yourself; a door off its hinges
 forgotten by the shard; a shut state that two pages kept re-sending; a remote patch wiping the blows in flight; a real
 game named in this doc.
+
+Critic review of §3.7 and §3.8, 2026-11-12, first pass FAIL, three items, fixed: a voice refused by the budget fell
+through to a synthesized stand-in; boards, the wheeze and other sites were not in a group; two sprinters in their burst
+could both shoulder in depending on the order they were thought in.

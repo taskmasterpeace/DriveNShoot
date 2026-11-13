@@ -583,7 +583,7 @@ export class Interiors {
     if (W.state !== 'boarded') return;
     W.boardHp -= dmg;
     for (let k = 0; k < 4; k++) g.fx.spawn(3, hx, 1.2 + Math.random(), hz, -dx * 2 + (Math.random() - 0.5) * 3, 1 + Math.random() * 2, -dz * 2 + (Math.random() - 0.5) * 3, 0.8, 0.06 + Math.random() * 0.06, '#7a5a3a', 18);
-    g.audio.thud?.(g.pan(W.x));
+    g.audio.thud?.(g.pan(W.x), 'pound'); // fists on boards: in the pound group's budget (data/audiosets.js SPATIAL.groups)
     if (W.boardHp <= 0) {
       W.boardHp = 0; W.state = 'shattered';
       for (let k = 0; k < 10; k++) g.fx.spawn(3, W.x, 1.6, W.z, (Math.random() - 0.5) * 6, 2 + Math.random() * 3, (Math.random() - 0.5) * 6, 1.4, 0.12 + Math.random() * 0.1, '#6b4e30', 20);

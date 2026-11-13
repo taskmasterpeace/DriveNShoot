@@ -29,7 +29,7 @@ export class Input {
     addEventListener('blur', () => { for (const k of [...this.phys]) this.keyUp(k); this.down.clear(); this.holders.clear(); this.mouseButton(0, false); this.mouseButton(2, false); });
     addEventListener('mousemove', (e) => { this.mouse.dx = (this.mouse.dx ?? 0) + (e.movementX || 0); this.mouse.dy = (this.mouse.dy ?? 0) + (e.movementY || 0); if (!this.mouse.locked) this.mouseMove(e.clientX, e.clientY); }); // dx, dy: the body views' mouse look (systems/camrig.js)
     document.addEventListener('pointerlockchange', () => { this.mouse.locked = !!document.pointerLockElement; if (this.mouse.locked) this.mouse.lockRefused = 0; });
-    document.addEventListener('pointerlockerror', () => { this.mouse.lockDeniedT = performance.now() + 3000; });
+    document.addEventListener('pointerlockerror', () => { if (this.mouse.lockDeniedT !== Infinity) this.mouse.lockDeniedT = performance.now() + 3000; });
     canvas.addEventListener('mousedown', (e) => {
       if (e.button === 1) e.preventDefault(); // middle: no autoscroll
       // a body view wants the mouse and does not have it: this click takes it and does nothing else (it never fires)
