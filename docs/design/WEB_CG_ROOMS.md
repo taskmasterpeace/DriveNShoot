@@ -157,3 +157,11 @@ found and fixed a real trapped upstairs bathroom); a base's stash stood inside t
   open; one pulled shut blocks sight and a body through it; 70 m away the inner leaves are gone and the outside doors are
   not; a door you barred is the same door, still barred with one bar, after going 70 m and coming back).
 - Pictures: `docs/renders/web/inner-doors/`.
+
+## Addendum (2026-11-13): the furnishing pass
+
+`WEB_FURNISH.md` builds on this: every piece box now carries its piece name and wall (`piece`, `side`); pieces have
+`parts` (detail drawn near you by `systems/decor.js`); rows in the middle of a room keep `aisle` from each other
+(they used to need the full walkway, so a second row almost never fitted) with `centreEdge` 2.1 and `centreMin` 4.8;
+a room type may be marked `retry` (shop floors); new pieces `cooler`, `tyres`, `drum`, `pallet`; the gas station has
+no drive bays. This doc depends on that one for those rules, and that one on this for rooms and pieces.

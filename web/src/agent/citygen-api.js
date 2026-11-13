@@ -306,7 +306,14 @@ export async function citygenChecks({ api, g, check, C }) {
     const fixed = B.front === 'N' ? B.z0 : B.front === 'S' ? B.z1 : B.front === 'W' ? B.x0 : B.x1, horiz = B.front === 'N' || B.front === 'S';
     const band = T0.built.boxes.find((b) => b.tag === 'cg-wall' && Math.abs(b.base - (y4 - (S.y0 ?? 0))) < 0.01 && b.holes && (horiz ? Math.abs((b.minZ + b.maxZ) / 2 - fixed) < 0.05 : Math.abs((b.minX + b.maxX) / 2 - fixed) < 0.05));
     if (!band) return 'no front window on floor 4';
-    const wc = (band.holes[0] + band.holes[1]) / 2, out = B.front === 'N' || B.front === 'W' ? -1 : 1;
+    // the first window of that band whose line down to the street is clear at ground level (a dead car or a neighbour's
+    // wall on the line stops a round under the flat rule; which window that is moves with the town's layout)
+    const out = B.front === 'N' || B.front === 'W' ? -1 : 1;
+    let wc = (band.holes[0] + band.holes[1]) / 2;
+    for (let i = 0; i + 1 < band.holes.length; i += 2) {
+      const c = (band.holes[i] + band.holes[i + 1]) / 2, ox = horiz ? c : fixed + out * 0.5, oz = horiz ? fixed + out * 0.5 : c;
+      if (g.statics.raycast(ox, oz, horiz ? 0 : out, horiz ? out : 0, 14.5, 2, -1) >= 14.5) { wc = c; break; }
+    }
     const inX = horiz ? wc : fixed - out * 0.7, inZ = horiz ? fixed - out * 0.7 : wc;
     const tx = horiz ? wc : fixed + out * 14, tz = horiz ? fixed + out * 14 : wc;
     await stand(inX, inZ, y4);

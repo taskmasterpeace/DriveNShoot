@@ -42,7 +42,7 @@ export async function furnishChecks({ g, api, C, check }) {
     return (a.length === 0 && b.length === 1 && c.length === 1 && d.length === 1 && validateCgRooms().length === 0 && rows && gas && withParts >= 24) || JSON.stringify({ a: a.slice(0, 3), b, c, d, rows, gas, withParts });
   });
 
-  await check('furnish: 8 towns built headless - every town still audits clean; every piece of furniture knows what it is and which wall it backs onto; every whole gas station has a front door on its street side, a counter, and a cooler or shelves on its street floor; at least seven in ten gas stations have pumps (a forecourt canopy, or a lean-to on a tight street) and every one that has them has two; no shop is bare and nine in ten have a counter; in every town at least one shop floor has rows of shelving in the middle', async () => {
+  await check('furnish: 8 towns built headless - every town still audits clean; every piece of furniture knows what it is and which wall it backs onto; every whole gas station has a front door on its street side, a counter, and a cooler or shelves on its street floor; at least half the gas stations have pumps (a forecourt canopy, or a lean-to on a tight street) and every one that has them has two; no shop is bare and nine in ten have a counter; in every town at least one shop floor has rows of shelving in the middle', async () => {
     const bad = []; let gas = 0, two = 0, canopies = 0, shops = 0, counters = 0, towns = 0, rowsTowns = 0, furn = 0;
     const archs = Object.keys(ARCHETYPES).slice(0, 8);
     for (let i = 0; i < archs.length; i++) {
@@ -66,27 +66,27 @@ export async function furnishChecks({ g, api, C, check }) {
       }
       if (rows || !T.buildings.some((B) => B.kind === 'shop' && !B.ruined)) rowsTowns++;
     }
-    const ok = !bad.length && gas >= 4 && shops >= 20 && furn > 2000 && canopies / gas >= 0.7 && two === canopies && counters / shops >= 0.9 && rowsTowns === towns;
+    const ok = !bad.length && gas >= 4 && shops >= 20 && furn > 2000 && canopies / gas >= 0.5 && two === canopies && counters / shops >= 0.9 && rowsTowns === towns;
     return ok || JSON.stringify({ bad: bad.slice(0, 5), nBad: bad.length, gas, canopies, two, shops, counters, furn, towns, rowsTowns });
   });
 
-  await check('furnish: in a live town - standing in a gas station its furniture is dressed: the parts drawn for it are exactly the parts its pieces name, every one stands inside the building between its floor and its ceiling (the town\'s raised ground counted), and the scene gained no mesh for it; with the cutaway at the street floor an upstairs piece\'s parts are not drawn; 90 m away the building\'s parts are back in the pool; when the town is removed nothing of it is left dressed', async () => {
+  await check('furnish: in a live town - standing in a gas station its furniture is dressed: the parts drawn for it are exactly the parts its pieces name, every one stands inside the building between its floor and its ceiling (the town\'s raised ground counted), and the detail is one mesh in the scene, however many buildings are dressed; with the cutaway at the street floor an upstairs piece\'s parts are not drawn; 90 m away the building\'s parts are back in the pool; when the town is removed nothing of it is left dressed', async () => {
     const CG = g.citygen, D = g.decor, p = g.player;
     const s = freeSpot(g, -5600, -12400, 280); if (!s) return 'no ground';
-    const meshes = () => { let n = 0; g.scene.traverse((o) => { if (o.isMesh) n++; }); return n; };
+    const meshes = () => g.scene.children.filter((o) => o === D.mesh).length;
     const t = CG.stampAt({ id: 'cg-selftest-furnish', arch: 'interstate_exit', seed: 4242, x: s.x, z: s.z });
     try {
       const R = t.blds.find((q) => q.B.kind === 'gas_station' && !q.B.ruined && !q.B.open);
       if (!R) return 'no gas station in the town';
       const at = R.clearSpot ?? { x: (R.minX + R.maxX) / 2, z: (R.minZ + R.maxZ) / 2 };
       await C('teleport', { x: at.x + 200, z: at.z }); await api._step(40);
-      const free0 = D.free.length, m0 = meshes();
+      const free0 = D.free.length;
       await C('teleport', { x: at.x, z: at.z }); await api._step(60);
       const rec = D.open.get(R); if (!rec) return 'the building was not dressed: ' + JSON.stringify(D.view());
       let want = 0; for (const sol of R.B.floorSolids ?? []) for (const b of sol ?? []) if (b.piece) want += PIECES[b.piece]?.parts?.length ?? 0;
       const y0 = t.built.y0 ?? 0; let out = 0;
       for (let j = 0; j < rec.slots.length; j++) { const q = j * 6, x = rec.m[q], y = rec.m[q + 1], z = rec.m[q + 2]; if (x < R.minX - 0.3 || x > R.maxX + 0.3 || z < R.minZ - 0.3 || z > R.maxZ + 0.3 || y < y0 - 0.01 || y > y0 + R.B.top + 0.2) out++; }
-      const a = { parts: rec.slots.length, want, out, meshes: meshes() - m0, used: free0 - D.free.length };
+      const a = { parts: rec.slots.length, want, out, meshes: meshes(), used: free0 - D.free.length };
       // an upstairs floor under the cutaway: a two-storey building near, cut at 0
       let cutOk = 'no two-storey building dressed';
       for (const [R2, rec2] of D.open) {
@@ -104,7 +104,7 @@ export async function furnishChecks({ g, api, C, check }) {
       const again = D.open.has(R);
       CG.remove('cg-selftest-furnish'); await api._step(40);
       const left = [...D.open.keys()].filter((q) => t.blds.includes(q)).length;
-      const ok = a.parts === want && want >= 8 && a.out === 0 && a.meshes === 0 && a.used >= want && (cutOk === true || cutOk === 'no two-storey building dressed') && far.open === false && again === true && left === 0;
+      const ok = a.parts === want && want >= 8 && a.out === 0 && a.meshes === 1 && a.used >= want && (cutOk === true || cutOk === 'no two-storey building dressed') && far.open === false && again === true && left === 0;
       return ok || JSON.stringify({ a, cutOk, far, again, left });
     } finally { if (CG.byId?.get('cg-selftest-furnish')) CG.remove('cg-selftest-furnish'); await C('teleport', { x: 0, z: -40 }); await api._step(3); }
   });

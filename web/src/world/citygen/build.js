@@ -348,7 +348,7 @@ export function buildBuilding(B, out, T, rng) {
         vis(ex, 7.4, ez, ewc ? 0.3 : 2.6, 1.5, ewc ? 2.6 : 0.3, F.price, 0);
         vis(ex, 7.1, ez, ewc ? 0.34 : 2.2, 0.5, ewc ? 2.2 : 0.34, '#efe9d6', 0);
       }
-      B.pumps = np;
+      B.pumps = np; B.canopyForm = f.lean ? 'lean-to' : 'forecourt';
       break;
     }
   }
