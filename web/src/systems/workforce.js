@@ -136,7 +136,7 @@ export class Workforce {
       if (Math.hypot(t.rec.x - p.x, t.rec.z - p.z) > WORK.promoteR + t.rec.half) continue;
       const B = this.book(t); if (!B) continue;
       for (const w of B.workers) {
-        if (w.c || !w.alive) continue;
+        if (w.c || !w.alive || w.counter) continue; // w.counter: keeping the town's counter (systems/townlife.js)
         const q = this.goal(w), d = Math.hypot(q.x - p.x, q.z - p.z);
         if (d < WORK.promoteR) want.push([d, w, q]);
       }

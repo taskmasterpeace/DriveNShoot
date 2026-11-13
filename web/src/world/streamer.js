@@ -9,6 +9,8 @@ import { roadAtlasTexture, radialGlow } from './textures.js';
 import { roofSurface, wallSurface, groundSurface } from './surfaces.js';
 import { poolName } from './flora.js';
 import GOLDEN from '../data/golden.json';
+import { planWorld } from '../systems/citygen.js';
+import { layTownRoads } from './townroads.js';
 import { BillboardAtlas } from './roadside-art.js'; // the roadside's billboard faces (world/roadside.js, docs/design/WEB_ROADSIDE.md)
 import { EXT as WATER_EXT } from './water.js';
 
@@ -72,6 +74,9 @@ export class Streamer {
     const t0 = performance.now();
     this.g = game;
     this.W = new WorldIndex();
+    // TOWN ROADS (world/townroads.js): the settlements planned now, then an exit and an access road to each, the lane rule
+    // on the interstates and the towns' roadside; before the sign atlas, so their boards are painted into it.
+    try { this.W.townPlan = planWorld(this.W); layTownRoads(this.W, this.W.townPlan); } catch (e) { console.error('town roads', e); this.W.townRoadsError = String(e?.stack ?? e); }
     // P1's faces in its own atlas, exactly as before; a region's (Florida) in a second, smaller one with repeats shared.
     this.W.signAtlas = this.atlas = new SignAtlas(this.W.signs.filter((s) => !s.region));
     this.W.signAtlasFL = this.atlasFL = new SignAtlas(this.W.signs.filter((s) => s.region), { scale: 0.75, dedupe: true });
