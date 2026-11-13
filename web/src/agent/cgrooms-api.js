@@ -197,6 +197,6 @@ export async function cgRoomsChecks({ g, api, C, check }) {
       if (d3) g.gadgets.unbarricade(d3, p);
       const ok = n >= 3 && n <= nGaps && nOut >= 1 && openN >= 1 && blocked === true && walled === true && farIn === 0 && farOut === nOut && bar?.ok === true && heldFar >= 1 && still && bars === 1;
       return ok || JSON.stringify({ kind: R.B.kind, n, nGaps, nOut, openN, blocked, walled, farIn, farOut, bar, heldFar, still, bars });
-    } finally { CG.remove('cg-selftest-indoors'); await C('teleport', { x: 0, z: -40 }); await api._step(3); }
+    } finally { for (const q of [...g.gadgets.barred]) if (String(q.door?.id).startsWith('cg:') && q.door.ring && t.blds.some((R) => q.door.ring === `cg:${R.B.id}:in`)) g.gadgets.unbarricade(q.door, g.player); CG.remove('cg-selftest-indoors'); await C('teleport', { x: 0, z: -40 }); await api._step(3); }
   });
 }

@@ -145,13 +145,15 @@ found and fixed a real trapped upstairs bathroom); a base's stash stood inside t
   system's own memory when its leaves are given back and hung again.
 - **What you did to a door holds.** A building with an inner door you locked, barred or broke keeps its inner leaves
   out to the outside doors' distance (150 m) instead of 60 m, so a barred room is still barred when you come back from
-  next door. Past 150 m a bar or a lock is forgotten, exactly as on an outside door today (a known limit of the door
-  system, not new here).
+  next door. Past 150 m the lock is forgotten, exactly as on an outside door today, and the bar's planks are still
+  drawn on the re-hung, unlocked door (a known fault of the door system for every town door, not new here; listed as
+  a follow-up).
 - **The item budget.** Partitions and furniture took the largest dressed town from about 30k boxes to about 41k. The
   towns' one instanced mesh now holds 150k (was 120k: three largest towns live at once), and the back-lots check's
   per-town ceiling is 48k (was 36k). Still one draw call; found late (11-12) because that check was not in the rooms
   slice's own run.
 - **Outside doors first.** Inner leaves are hung in a second pass, after every outside door round you has its leaf.
 - **Check:** `cg rooms: the doorways between rooms have doors` (inner leaves present, no more than the doorways, some
-  open; one pulled shut blocks sight through it; 70 m away the inner leaves are gone and the outside doors are not).
+  open; one pulled shut blocks sight and a body through it; 70 m away the inner leaves are gone and the outside doors are
+  not; a door you barred is the same door, still barred with one bar, after going 70 m and coming back).
 - Pictures: `docs/renders/web/inner-doors/`.
