@@ -109,10 +109,17 @@ export async function camBodyChecks({ g, api, C, check }) {
       // at the wheel
       await C('teleport', { x: 0, z: -40 }); await api._step(3);
       R.setView('THIRD', true);
-      for (const v of [...g.vehicles]) if (Math.hypot(v.x - 6, v.z + 40) < 5) g.vehiclesSys.remove(v); // nothing parked on the spot (a run before this one)
-      const n0 = g.vehicles.length; await C('spawnVehicle', { type: 'sedan', x: 6, z: -40 });
-      car = g.vehicles.length > n0 ? g.vehicles[g.vehicles.length - 1] : null;
-      if (car) await C('enterVehicle', { id: car.id, force: true });
+      // a car to sit in: the first of a few spots round you that is clear of parked cars and takes you in
+      for (const [ox, oz] of [[6, 0], [0, 8], [-7, 0], [0, -8], [9, 7], [-9, -7]]) {
+        const sx = P().x + ox, sz = P().z + oz;
+        if (g.vehicles.some((v) => Math.hypot(v.x - sx, v.z - sz) < 5.5)) continue;
+        const n0 = g.vehicles.length; await C('spawnVehicle', { type: 'sedan', x: sx, z: sz });
+        car = g.vehicles.length > n0 ? g.vehicles[g.vehicles.length - 1] : null;
+        if (!car) continue;
+        await C('enterVehicle', { id: car.id, force: true }); await api._step(2);
+        if (P().inVehicle) break;
+        g.vehiclesSys.remove(car); car = null;
+      }
       await api._step(4);
       const drive = { eff: R.eff(), body: !!R.body(), in: !!P().inVehicle };
       if (P().inVehicle) g.exitVehicle(true);
