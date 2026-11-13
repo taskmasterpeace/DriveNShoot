@@ -146,7 +146,7 @@ export class Melee {
 
   can(c = this.g.player) {
     const g = this.g;
-    if (c === g.player) return c.alive && !c.inVehicle && !c.grabbing && !c.onTrain && !c.swim && !c.vault && !(c.knockT > 0) && !(c.dive > 0) && !g.dialogue.active && !g.invUI?.open && !g.survival?.sleep && !(c.m?.heldBy) && !(c.m?.stagT > 0);
+    if (c === g.player) return c.alive && !c.inVehicle && !(c.mount && !g.horses?.canMelee(c)) && !c.grabbing && !c.onTrain && !c.swim && !c.vault && !(c.knockT > 0) && !(c.dive > 0) && !g.dialogue.active && !g.invUI?.open && !g.survival?.sleep && !(c.m?.heldBy) && !(c.m?.stagT > 0);
     return c.alive && !c.inVehicle && !c.swim && !(c.knockT > 0) && !(c.m?.heldBy) && !(c.m?.stagT > 0);
   }
 
@@ -342,7 +342,7 @@ export class Melee {
     if (c === P) { this.chain = cm.chain; this.chainT = cm.chainT; }
     const lvl = c === P ? g.skillsSys?.lv?.strength ?? 0 : c.npc?.strength ?? (c.faction === 'raider' || c.faction === 'soldier' ? 3 : 1);
     const str = 1 + 0.05 * lvl;
-    let dmg = W.dmg * (a.heavy ? W.heavy.mul : 1) * (a.weak ? 0.5 : 1) * (combo ? R.combo.mul : 1) * str * (c === P ? g.deep?.fx.meleeMul ?? 1 : 1) * (cm.armBroken ? R.arm.brokenDmg : 1);
+    let dmg = W.dmg * (a.heavy ? W.heavy.mul : 1) * (a.weak ? 0.5 : 1) * (combo ? R.combo.mul : 1) * str * (c === P ? g.deep?.fx.meleeMul ?? 1 : 1) * (cm.armBroken ? R.arm.brokenDmg : 1) * (c.mount ? g.horses?.meleeTax() ?? 1 : 1); // from the saddle: the horse's tax (systems/horses.js)
     if (tm.openT > 0) dmg *= R.parry.openMul;
     // ---- the guard: is T facing this blow with its guard up? ----
     const facing = Math.abs(wrap(Math.atan2(c.x - T.x, c.z - T.z) - T.face)) <= R.block.arcDeg * DEG;
