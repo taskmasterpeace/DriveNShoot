@@ -20,6 +20,8 @@ function clearStrip(g, len, w = 6) {
     if (roadLines.some((c) => Math.abs(z - c) < 30)) continue; // well off the island's streets (sand, not paving; no convoy crossing)
     let ok = true;
     for (const b of S.boxes) if (b.maxX > x - 4 && b.minX < x + len && b.maxZ > z - w && b.minZ < z + w) { ok = false; break; }
+    // and clear of what an earlier check built here and set alight (systems/materials.js: the burnt shack smokes over a dark strip)
+    if (ok) for (const r of g.materials?.placed.values() ?? []) if (r.x > x - 30 && r.x < x + len + 30 && Math.abs(r.z - z) < 30) { ok = false; break; }
     if (ok && g.water.depthAt(x, z) <= 0 && g.water.depthAt(x + len, z) <= 0) { clearCars(g, x - 6, z - w - 4, x + len + 6, z + w + 4); return { x, z }; }
   }
   return null;
@@ -39,6 +41,8 @@ function clearStripRow(g, len, z, w = 6) {
   for (let x = -440; x + len <= 440; x += 30) {
     let ok = true;
     for (const b of S.boxes) if (b.maxX > x - 4 && b.minX < x + len && b.maxZ > z - w && b.minZ < z + w) { ok = false; break; }
+    // and clear of what an earlier check built here and set alight (systems/materials.js: the burnt shack smokes over a dark strip)
+    if (ok) for (const r of g.materials?.placed.values() ?? []) if (r.x > x - 30 && r.x < x + len + 30 && Math.abs(r.z - z) < 30) { ok = false; break; }
     if (ok && g.water.depthAt(x, z) <= 0 && g.water.depthAt(x + len, z) <= 0) { clearCars(g, x - 6, z - w - 4, x + len + 6, z + w + 4); return { x, z }; }
   }
   return null;
