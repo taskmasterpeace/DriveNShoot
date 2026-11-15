@@ -39,7 +39,7 @@ export async function windows2Checks({ g, api, C, check }) {
   const WE = g.windowExit, p = g.player, CG = g.citygen;
   const hold = { key: (k) => k === 'KeyE', hit: () => false }, idle = { key: () => false, hit: () => false };
 
-  await check('windows 2: the rows and the pipes - the pipe and roof rows validate (a pipe too slow and a roof landing nearer than the wall are each caught); over 6 towns built headless at least nine in ten whole buildings with a floor above the street have a drainpipe, every pipe serves at least one upstairs window, stands on an outside wall that is not the front, and no collider was made for one', async () => {
+  await check('windows 2: the rows and the pipes - the pipe and roof rows validate (a pipe too slow and a roof landing nearer than the wall are each caught); over 6 towns built headless at least nine in ten whole buildings with stairs and a floor above the street have a drainpipe and no other building has one; every pipe serves a real window hole on each floor it lists, stands on an outside wall that is not the front, never in or beside a street-floor door or bay, and no collider was made for one', async () => {
     const a = validateWindowExit();
     const b = validateWindowExit({ ...WX, pipe: { ...WX.pipe, speed: 0.1 } }), c = validateWindowExit({ ...WX, roof: { ...WX.roof, reach: 0.5 } });
     let multi = 0, piped = 0; const bad = [];
@@ -47,11 +47,15 @@ export async function windows2Checks({ g, api, C, check }) {
     for (let i = 0; i < archs.length; i++) {
       const T = layoutTown({ arch: archs[i], seed: 3000 + i * 41, x: 40000 + i * 1500, z: -40000 }), built = buildTown(T);
       if (built.boxes.some((q) => /pipe/.test(q.tag) && q.tag !== 'cg-pipe-none')) bad.push(`${archs[i]}: a pipe collider`);
-      for (const B of T.buildings) {
-        if (B.n < 2 || B.ruined || B.open) { if (B.pipe && (B.ruined || B.open)) bad.push(`${B.id}: a pipe on a ruin or an open deck`); continue; }
+      for (const R of built.blds) {
+        const B = R.B;
+        if (B.n < 2 || B.ruined || B.open || !R.S) { if (B.pipe) bad.push(`${B.id}: a pipe on a ruin, an open deck or a building with no stairs`); continue; }
         multi++;
         const P = B.pipe; if (!P) continue;
         piped++;
+        if (B.doors.some((q) => q.side === P.side && Math.abs(q.at - P.at) < q.w / 2 + 0.8)) bad.push(`${B.id}: the pipe stands in a doorway or a bay`);
+        // the window it serves is a real hole in that wall on every floor it lists
+        for (const k of P.floors) { const band = built.boxes.find((q) => q.tag === 'cg-wall' && q.holes && Math.abs(q.base - B.Y[k]) < 0.01 && (q.holeX ? Math.abs((q.minZ + q.maxZ) / 2 - P.wz) < 0.3 : Math.abs((q.minX + q.maxX) / 2 - P.wx) < 0.3) && (() => { const c = q.holeX ? P.wx : P.wz; for (let i = 0; i < q.holes.length; i += 2) if (c > q.holes[i] && c < q.holes[i + 1]) return true; return false; })()); if (!band) bad.push(`${B.id}: no window at the pipe on floor ${k}`); }
         if (!P.floors.length || P.floors.some((k) => k < 1 || k >= B.n)) bad.push(`${B.id}: floors ${P.floors}`);
         if (P.side === B.front) bad.push(`${B.id}: the pipe is on the front`);
         const onWall = P.side === 'N' ? Math.abs(P.z - B.z0) < 0.5 : P.side === 'S' ? Math.abs(P.z - B.z1) < 0.5 : P.side === 'W' ? Math.abs(P.x - B.x0) < 0.5 : Math.abs(P.x - B.x1) < 0.5;
@@ -107,7 +111,7 @@ export async function windows2Checks({ g, api, C, check }) {
       const ok = /pipe/i.test(prompt) && !afterTap.storey && up.storey && up.gy && up.inside && up.hp === hp0 && Math.abs(up.time - up.need) < 0.2 && up.count >= 1 &&
         out.pipe && !out.blocked && /pipe/i.test(promptDown) && down.street && down.at < 0.3 && down.hp === hp0 && Math.abs(down.time - down.need) < 0.2 && !down.knock && !zed.storey && zed.gy < 1;
       return ok || JSON.stringify({ kind: R.B.kind, k, prompt, afterTap, up, out, promptDown, down, zed });
-    } finally { for (const c of made) if (g.chars.includes(c)) g.removeChar(c); CG.remove('cg-selftest-pipes'); g.godMode = false; await C('teleport', { x: 0, z: -40 }); await api._step(3); }
+    } finally { for (const c of made) if (g.chars.includes(c)) g.removeChar(c); CG.remove('cg-selftest-pipes'); g.godMode = false; p.hp = p.maxHp; await C('teleport', { x: 0, z: -40 }); await api._step(3); }
   });
 
   await check('windows 2: onto a lower roof - where an upstairs window looks onto a lower roof you can stand on, the way out lands you ON THAT ROOF (inside its edge, on its deck, that building now under your feet), the drop is your floor less the roof less the hang (not the height to the street), and it costs what that drop costs; where the roof is level with your floor or higher nothing is offered through it', async () => {
@@ -149,6 +153,7 @@ export async function windows2Checks({ g, api, C, check }) {
       for (const c of [...g.chars]) if (c !== p && !c.npc && Math.hypot(c.x - p.x, c.z - p.z) < 60) g.removeChar(c);
       const F = WE.find(p), wantDrop = Math.max(0, S.Y[k] - roofY - WX.hang), street = S.Y[k] - (S.y0 ?? 0), cost = Math.round(WE.damageOf(wantDrop));
       const before = { roof: F?.roof === roof, drop: r1(F?.drop ?? -1), wantDrop: r1(wantDrop), street: r1(street), lower: roofY <= S.Y[k] - WX.roof.min };
+      WE.interact(p, idle, 1 / 60); // (the hold starts from a fresh press)
       let steps = 0; while (p.storey === S && steps++ < 600) WE.interact(p, { key: (q) => q === 'KeyE', hit: () => false }, 1 / 60);
       WE.interact(p, idle, 1 / 60); await api._step(5);
       const B2 = roof.b, after = { on: p.storey === roof, gy: Math.abs((p.gy ?? 0) - roofY) < 0.05, inside: p.x > B2.minX + WX.roof.in - 0.05 && p.x < B2.maxX - WX.roof.in + 0.05 && p.z > B2.minZ + WX.roof.in - 0.05 && p.z < B2.maxZ - WX.roof.in + 0.05, lost: Math.round(hp0 - p.hp), cost, roofs: WE.counts.roofs };

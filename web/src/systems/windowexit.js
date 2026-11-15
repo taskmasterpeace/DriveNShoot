@@ -42,7 +42,7 @@ export class WindowExit {
     const lx = wx + nx * WX.out, lz = wz + nz * WX.out;
     if (g.storeys.at(lx, lz) === S) return null; // an inside wall (a partition's doorway is walked, not climbed)
     const F = this.found;
-    F.x = wx; F.z = wz; F.nx = nx; F.nz = nz; F.blocked = null; F.roof = null; F.pipe = null;
+    F.x = wx; F.z = wz; F.nx = nx; F.nz = nz; F.blocked = null; F.roof = null; F.pipe = null; F.dropBlocked = null;
     const ground = g.streamer?.W?.terrain ? g.streamer.W.groundAt(lx, lz) : y0;
     F.land.x = lx; F.land.z = lz; F.land.y = ground;
     F.drop = Math.max(0, (p.gy ?? 0) - ground - WX.hang);
@@ -53,7 +53,7 @@ export class WindowExit {
     if (!S2) for (const o of WX.roof.jump) { const q = g.storeys.at(wx + nx * o, wz + nz * o); if (q && q !== S) { S2 = q; jx = wx + nx * o; jz = wz + nz * o; break; } }
     if (S2 && S2 !== g.storeys.at(lx, lz)) { // across the alley: only a lower roof you can stand on counts; anything else and it is the street below as before
       const roofY2 = S2.cg && S2.b?.B && S2.n === S2.b.B.n ? S2.Y[S2.n] : null;
-      if (roofY2 === null || roofY2 > (p.gy ?? 0) - WX.roof.min || ST.raycast(wx, wz, nx, nz, Math.hypot(jx - wx, jz - wz), RAY_SOLID, up + 1.0) < Math.hypot(jx - wx, jz - wz) - 0.05) S2 = null;
+      if (roofY2 === null || roofY2 > (p.gy ?? 0) - WX.roof.min || ST.raycast(wx, wz, nx, nz, Math.hypot(jx - wx, jz - wz), RAY_SOLID, chest) < Math.hypot(jx - wx, jz - wz) - 0.05) S2 = null;
     }
     if (S2) {
       // Out there is another building. If it is a floor to walk onto (a fire escape, a deck level with you) this is not a
@@ -72,19 +72,22 @@ export class WindowExit {
     else for (const v of g.vehicles) if (Math.hypot(v.x - lx, v.z - lz) < (v.len ?? 4) * 0.6) { F.blocked = 'a car is under the window'; break; }
     // Something to hold: this wall's drainpipe within reach of the window you face. You climb down it instead of
     // dropping, if there is ground at its foot.
-    const P = B.B?.pipe;
-    if (P && P.nx === nx && P.nz === nz && Math.hypot(P.x - wx, P.z - wz) < WX.pipe.reach) {
+    const P = B.B?.pipe, lvl = g.storeys.levelOf(S, p.gy ?? 0);
+    if (P && P.nx === nx && P.nz === nz && P.floors.includes(lvl) && Math.hypot(P.x - wx, P.z - wz) < WX.pipe.reach) { // from a floor the pipe serves (not from the roof: it stops at the top window)
       const fx = P.x + nx * WX.pipe.foot, fz = P.z + nz * WX.pipe.foot;
       let ok = ST.raycast(fx - 0.25, fz, 1, 0, 0.5, RAY_SOLID, -1) >= 0.5 && ST.raycast(fx, fz - 0.25, 0, 1, 0.5, RAY_SOLID, -1) >= 0.5 && !g.storeys.at(fx, fz) && !g.citygen?.buildingAt?.(fx, fz);
       if (ok) for (const v of g.vehicles) if (Math.hypot(v.x - fx, v.z - fz) < (v.len ?? 4) * 0.6) { ok = false; break; }
-      if (ok) { F.pipe = P; F.foot.x = fx; F.foot.z = fz; F.foot.y = g.streamer?.W?.terrain ? g.streamer.W.groundAt(fx, fz) : y0; F.blocked = null; }
+      if (ok) { F.pipe = P; F.foot.x = fx; F.foot.z = fz; F.foot.y = g.streamer?.W?.terrain ? g.streamer.W.groundAt(fx, fz) : y0; F.dropBlocked = F.blocked; F.blocked = null; } // dropBlocked: what a body that JUMPS from this window would land in
     }
     return F;
   }
 
   interact(p, I, dt) {
     const g = this.g, F = this.find(p);
-    if (!F) { this.hold = 0; return null; }
+    if (!F) { this.hold = 0; this.holdKey = null; return null; }
+    // the hold belongs to one way out of one window: turn to another wall, or from the pipe to a drop, and it starts again
+    const key = `${F.pipe ? 'p' : F.roof ? 'r' : 'd'}:${F.nx},${F.nz}:${Math.round(F.x)},${Math.round(F.z)}`;
+    if (key !== this.holdKey) { this.holdKey = key; this.hold = I.key('KeyE') ? -1 : 0; } // E already down when it changed: let go first
     if (F.pipe) { // the pipe: slower than letting go, and it costs nothing
       const h = Math.max(0.5, (p.gy ?? 0) - F.foot.y), need = WX.hold + h / WX.pipe.speed;
       if (I.key('KeyE') && this.hold >= 0) {
@@ -140,7 +143,8 @@ export class WindowExit {
     g.noise?.(c.x, c.z, WX.pipe.noise, c);
     if (c === g.player) {
       this.counts.pipeDown++;
-      this.last = { x: F.x, z: F.z, nx: F.nx, nz: F.nz, land: { x: F.land.x, z: F.land.z, y: F.land.y }, roof: null, S, y, drop: Math.max(0, y - F.land.y - WX.hang), t: g.time };
+      // who may jump after you: only if a drop from this window has somewhere to land (a car or a wall under it: nobody follows)
+      this.last = F.dropBlocked ? null : { x: F.x, z: F.z, nx: F.nx, nz: F.nz, land: { x: F.land.x, z: F.land.z, y: F.land.y }, roof: null, S, y, drop: Math.max(0, y - F.land.y - WX.hang), t: g.time };
       g.hud?.toast?.('DOWN THE PIPE', 'job');
     }
     g.emit?.('pipeClimb', { id: c.id, dir: 'down', m: r1(y - F.foot.y) });
@@ -162,8 +166,10 @@ export class WindowExit {
         for (const k of P.floors) {
           const up = S.Y[k] - y0, ox = P.wx + P.nx * 0.7, oz = P.wz + P.nz * 0.7; // from just outside the window, in through it at chest height
           if (ST.raycast(ox, oz, -P.nx, -P.nz, 1.7, RAY_SOLID, up + 1.3) < 1.7 || ST.raycast(ox, oz, -P.nx, -P.nz, 1.7, RAY_SIGHT, up + 1.3) < 1.7) continue; // glazed, boarded, or something stands inside it
+          const ax = P.wx - P.nx * 1.0, az = P.wz - P.nz * 1.0;
+          if (g.storeys.heightAt(ax, az, S.Y[k] + 0.3) !== S.Y[k]) continue; // inside that window is the stair's opening: not a place to climb in
           const U = this.up;
-          U.P = P; U.S = S; U.k = k; U.x = P.wx - P.nx * 1.0; U.z = P.wz - P.nz * 1.0; U.y = S.Y[k]; U.climb = Math.max(0.5, S.Y[k] - (p.gy ?? y0));
+          U.P = P; U.S = S; U.k = k; U.x = ax; U.z = az; U.y = S.Y[k]; U.climb = Math.max(0.5, S.Y[k] - (p.gy ?? y0));
           return U;
         }
       }
@@ -174,6 +180,8 @@ export class WindowExit {
   // The E chain on the street (main.js): the prompt, the hold, the climb.
   interactUp(p, I, dt) {
     const g = this.g, U = this.findUp(p);
+    if (g.time - (this.upAsked ?? -9) > 0.25) this.holdUp = I.key('KeyE') ? -1 : 0; // not asked last frame (something else had E): the hold starts again, from a fresh press
+    this.upAsked = g.time;
     if (!U) { this.holdUp = 0; return null; }
     const need = WX.hold + U.climb / WX.pipe.speed;
     if (I.key('KeyE') && this.holdUp >= 0) {

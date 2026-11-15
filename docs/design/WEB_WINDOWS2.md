@@ -13,8 +13,8 @@ upper one where there's something to hold, and land on a lower roof."
 `WEB_WINDOW_EXIT.md` gave you one way out of an upper window: hang and drop to the street. It listed three things it
 did not do. This does them.
 
-1. **Up.** Every town building with a floor above the street has a drainpipe on its back wall (a side wall if the back
-   has no windows). Stand at its foot and hold E: you climb it and go in over the sill of the lowest open window beside
+1. **Up.** Every town building with stairs and a floor above the street has a drainpipe on its back wall (a side wall
+   if the back has no place for one). Stand at its foot and hold E: you climb it and go in over the sill of the lowest open window beside
    it. It is a way into a building whose doors are barred, and a way past whatever is on the street floor.
 2. **Down.** Upstairs at a window with that pipe in reach, the way out is the pipe: slower than letting go, and it
    costs nothing.
@@ -34,10 +34,12 @@ scratch, or out of the side window onto the roof next door.
 
 ## 3. Detailed rules
 
-1. **Where pipes are.** A building with two or more storeys that is not a ruin and not an open deck gets one pipe. It
-   stands on the back wall, between the first two upstairs windows (0.5 to 2.8 m from the first window's centre); if
-   the back wall has no windows, on a side wall; never on the front; never down the face of a fire escape's doors. It
-   serves that first window on every upstairs floor where the window exists.
+1. **Where pipes are.** A building with two or more storeys and stairs inside, that is not a ruin and not an open
+   deck, gets one pipe. It stands on the back wall beside an upstairs window: halfway to the next window (1.8 m or
+   more from the window's centre) or, failing that, 1.65 m from it; if the back wall has no place, on a side wall;
+   never on the front; never in or within 0.9 m of a street-floor door or drive bay of that wall; never down the face
+   of a fire escape's doors. It serves that window on every upstairs floor where the window exists. (Counted over 156
+   built towns: all 3,873 such buildings have one, none at a door.)
 2. **It is not a wall.** A pipe has no collider. You cannot hide behind it and it stops no round.
 3. **From the street** (`findUp`): on foot, outside, within 1.2 m (`grab`) of the pipe's foot (0.6 m out from the
    wall). The lowest upstairs floor whose window on the pipe is open (a body's line and a sight line both pass through
@@ -45,8 +47,8 @@ scratch, or out of the side window onto the roof next door.
 4. **The climb takes** `hold + height / speed` seconds of E held (1.0 s + height / 1.4 m/s: 4.1 s to a floor 4.4 m up).
    Letting go of E before the end leaves you where you were. A tap does nothing.
 5. **You arrive** 1 m inside that window, on that floor, facing in, unhurt. The climb is heard 6 m (`noise`).
-6. **From upstairs** (`find`): at a window in an outside wall (the old rule), if this wall's pipe is within 2.8 m
-   (`reach`) of the window and its foot is clear (open ground, no car, not another building), the way out is the pipe.
+6. **From upstairs** (`find`): at a window in an outside wall (the old rule), on a floor the pipe serves (not from
+   the roof: the pipe stops at the top window), if this wall's pipe is within 2.8 m (`reach`) of the window and its foot is clear (open ground, no car, not another building), the way out is the pipe.
    It takes `hold + height / speed` seconds and puts you at the pipe's foot, unhurt, on your feet.
 7. **No pipe in reach:** the old drop, with its cost.
 8. **Onto a lower roof:** if the spot you would land on, or a spot up to 3.2 m out across an alley (`jump`: 1.8, 2.5,
@@ -61,8 +63,11 @@ scratch, or out of the side window onto the roof next door.
 9. **A roof level with your floor or higher,** a fire escape, the next building's deck: not a drop (you walk, or it
    is a wall). Nothing is offered, as before.
 10. **Who follows:** a sprinter in its burst jumps from the window you left and lands where a drop from that window
-    lands (the street, or the roof you dropped onto). Nothing follows up a pipe.
-11. The `pipes` command lists the pipes near you, what the street side offers where you stand and what the window you
+    lands (the street, or the roof you dropped onto). If you went down the pipe because a drop there had nowhere to
+    land (a car or a wall under the window), nothing jumps after you. Nothing follows up a pipe.
+11. **The hold belongs to one way out of one window.** Turning to another wall, or from a pipe to a drop, with E still
+    down does nothing until you let go and press again.
+12. The `pipes` command lists the pipes near you, what the street side offers where you stand and what the window you
     face offers.
 
 ## 4. Formulas
@@ -75,8 +80,11 @@ scratch, or out of the side window onto the roof next door.
 
 ## 5. Edge cases
 
-- **The window beside the pipe is glazed, boarded or furnished across:** the line through it does not pass and that
-  floor is skipped; the next floor up is tried. If none is open the pipe offers nothing from the street.
+- **Something solid stands across the window inside, or inside it is the stair's opening:** that floor is skipped and
+  the next floor up is tried. If none is open the pipe offers nothing from the street.
+- **Boards and glass drawn on upstairs windows are looks only** (the facade kit paints boards on about a quarter of
+  upper windows and a pane on about a third; neither is a collider). You climb in through them, as a round and a
+  sight line already pass them. This is wrong to the eye and is listed below.
 - **A car or a wall at the pipe's foot:** from upstairs the pipe is not offered and the drop rule applies; from the
   street you cannot stand at the foot, so nothing is offered.
 - **Buildings in a row with no gap:** a back wall pipe may stand against the neighbour. Its foot is inside that
@@ -91,6 +99,8 @@ scratch, or out of the side window onto the roof next door.
   There is no body on the pipe in between.
 - **Multiplayer:** the climb moves you like any other move; the other page sees you appear upstairs or at the foot.
 - **Not covered yet:**
+  - an upstairs window that is drawn boarded or glazed does not stop you (see above): it needs the facade kit's boards
+    and panes to become real, which is its own piece of work;
   - the hand-built places (the first island's tower, the Phoenix ring) have no pipes;
   - no climbing animation and no time spent visibly on the pipe (you are moved when the hold completes);
   - people the game runs and the infected do not use pipes, in either direction;
@@ -129,8 +139,8 @@ scratch, or out of the side window onto the roof next door.
 
 1. **Rows and pipes:** the rows validate; a pipe slower than 0.5 m/s and a roof reach shorter than its longest jump
    are each caught; over 6 towns built headless at least nine in ten whole buildings with a floor above the street have a pipe;
-   every pipe serves at least one upstairs floor, stands on an outside wall that is not the front, and no collider was
-   made for one.
+   and no building without stairs has one; every pipe serves a real window hole on each floor it lists, stands on an
+   outside wall that is not the front, never in or beside a street-floor door or bay, and no collider was made for one.
 2. **Up and down:** in a live town at a pipe's foot the prompt names the pipe; a 0.2 s tap leaves you in the street;
    holding E for `hold + height / speed` (within 0.2 s) puts you on that floor, inside the building, with the health
    you had; facing the window from inside, the way out is the pipe and not blocked, the prompt names it, and the hold
