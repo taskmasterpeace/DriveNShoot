@@ -98,6 +98,7 @@ export async function furnishChecks({ g, api, C, check }) {
       const R2 = t.blds.find((q) => q.S && !q.B.ruined && !q.B.open && (q.B.floorSolids ?? []).some((sol, k) => k >= 1 && (sol ?? []).some((bx) => bx.piece && PIECES[bx.piece]?.parts?.length)));
       if (R2) {
         const at2 = R2.clearSpot ?? { x: (R2.minX + R2.maxX) / 2, z: (R2.minZ + R2.maxZ) / 2 };
+        await C('camera', { view: 'TOPDOWN' }); // the cutaway is the looking-down views' (a body view draws the building whole)
         await C('teleport', { x: at2.x, z: at2.z }); await api._step(60);
         const rec2 = D.open.get(R2);
         if (!rec2) cutOk = 'the two-storey building was not dressed';

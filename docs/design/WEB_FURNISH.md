@@ -80,7 +80,7 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
 10. **Sign boards and awnings** (`FRONTS`): a board 0.7 m tall over the front door at about 3.2 m, a pale stripe
     across it, and for some kinds a 1.2 m awning at 2.8 m. On a building with drive bays in its front (auto shop,
     warehouse, truck stop) the board goes on the middle of the face above the tallest bay; if there is no room there
-    under the roof it has no board. No lettering. No collider: all of it is over head height.
+    under the street floor's ceiling it has no board. No lettering. No collider: all of it is over head height.
 11. The `decor` command says how many buildings are dressed and how many parts are drawn and free, and for the
     building you stand in its kind, its pieces by name and what it wears outside.
 
@@ -93,8 +93,9 @@ cooler is where a cooler is and the till is by the door, so you go straight to t
   (counter 3, cooler 5, two shelves 8, an aisle 5, two basins 2, three toilets 3) is 26 or 27.
 - Counted over 312 built towns (26 town types, 12 seeds each): 556 whole gas stations: 216 with a forecourt canopy,
   219 with a lean-to, 121 with no pumps (78% have pumps); 3,101 whole shops: 2,918 with a counter (94%), none bare;
-  1,689 buildings with drive bays in their front that have a sign-board row: 766 have room for the board over the
-  bays, and none has a board across a bay.
+  1,689 buildings with drive bays in their front that have a sign-board row: 766 carry the board over the bays, 786
+  have no room for it under the street floor's ceiling, 137 have no front man door (the board needs one), and none
+  has a board across a bay.
 - The towns' own box count did not grow from the parts (they are not in the town mesh). It grew a little from rows of
   shelving and the outside dressing: the largest town went from 46,067 to 46,519 boxes (ceiling 48,000).
 
