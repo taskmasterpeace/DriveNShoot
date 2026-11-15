@@ -13,10 +13,11 @@ add({
   table: 'Infected', rows: snap.INFECTED, parentCol: 'Breed', legacy: 'src/data/infected.js INFECTED',
   description: 'The infected, one row per breed (shambler, sprinter, echo, and the choir special): hit points, speed, senses, door work, legs, lunge, fall, fire and light. Sparse: a column applies to the breeds that use it. Claw: damage for a shambler or echo, a damage MULTIPLIER for a sprinter (as the legacy row has it).',
   tuples: { speed: ['Min', 'Max'], herd: ['Min', 'Max'] },
-  units: { hp: 'hp', speed: 'mps', trigger: 'mps', ear: 'm', wake: 'm', burst: 's', chase: 's', burstSpeed: 'mps', overheat: 's', rearm: 's', reach: 'm', workEvery: 's', boards: '', watch: 'm', cone: 'deg', phrase: 's', hear: 'm', call: 'm',
+  units: { herd: 'count', hp: 'hp', speed: 'mps', trigger: 'mps', ear: 'm', wake: 'm', burst: 's', chase: 's', burstSpeed: 'mps', overheat: 's', rearm: 's', reach: 'm', workEvery: 's', boards: '', watch: 'm', cone: 'deg', phrase: 's', hear: 'm', call: 'm',
     hum: 'm', humEvery: 's', aura: 'm', legs: 'hp', crawl: 'mps', fire: 'm', light: 'm', 'sense.sight': 'm', 'sense.night': 'm', 'sense.lit': 'm', 'sense.cone': 'deg', 'sense.near': 'm', 'sense.steps': '', 'sense.hear': '', 'sense.smell': 'm', 'sense.memory': 's', 'sense.search': 's', 'sense.searchR': 'm', 'sense.scatter': 'm',
     'door.every': 's', 'door.dmg': 'hp', 'lunge.at': 'm', 'lunge.speed': 'mps', 'lunge.t': 's', 'lunge.cool': 's', 'fall.dmg': 'hp', 'fall.chance': '', 'fall.getUp': 's', 'fall.grab': 'm', claw: '' },
   ints: ['boards', 'herd.0', 'herd.1'], source: SRC,
+  descs: { claw: 'Shambler and echo: damage per claw (hp). Sprinter: a damage MULTIPLIER on top (dimensionless). One legacy field, two meanings; split when the rows are next touched.', 'sense.steps': 'Multiplier on the footstep radius it hears (FootstepSettings).', 'sense.hear': 'Multiplier on a noise radius it hears.', 'sense.cone': 'Half-angle either side of its facing it sees (degrees).', herd: 'Bodies in the herd round a choir-touched one.', boards: 'Boards it can work off a window per visit.' },
 });
 add({
   table: 'HordeBreeds', rows: Object.fromEntries(snap.BREEDS.map((b, i) => [b, { order: i }])), parentCol: 'Breed', legacy: 'src/data/infected.js BREEDS',
