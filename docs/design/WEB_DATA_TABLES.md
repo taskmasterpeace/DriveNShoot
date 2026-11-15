@@ -17,7 +17,7 @@ web/src/data/tables/load.js                        reads both, checks every row,
 - **Flat rows. Nested values are separate tables joined by key, never packed into a cell.** A vehicle's seats are `VehiclesSeats.csv`
   (`Name, Vehicle, Index, ...`); a list of faces is `ArmorTypesFaces.csv`. The schema's `parent` block says which table, which column and which
   game-object path the child rows go back to. A fixed 3-tuple (a seat's `at`) is three columns (`At_X_m, At_Y_m, At_Z_m`).
-- **Units live in the schema** (`unit`: `m`, `mps`, `mps2`, `kg`, `t`, `L`, `s`, `rad`, `radps`, `gh` = game hours, `hp` = hit points, `scrip`, `per_s`,
+- **Units live in the schema** (`unit`: `m`, `mps`, `mps2`, `kg`, `t`, `L`, `s`, `rad`, `radps`, `gh` = game hours, `hit_points` (column suffix `_hp`, never horsepower), `scrip`, `per_s` (1/s), `deg`, `game_min`,
   or `""` for a dimensionless number). A column with a unit is named for it (`Len_m`); `tables:check` fails if the two disagree.
 - **Every row carries `Source`**: where the fact came from (a doc, a real place, a real dataset) or `design` (invented for the game).
 - **Empty cell = the field is absent** (a column with `required: false`). `Infinity` is written `Infinity`.

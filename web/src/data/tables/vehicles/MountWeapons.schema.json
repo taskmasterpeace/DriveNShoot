@@ -69,7 +69,7 @@
       "type": "float",
       "path": "dmg",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Rate_s",
@@ -256,7 +256,7 @@
       "type": "float",
       "path": "mine.dmg",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Mine_Blast_m",
