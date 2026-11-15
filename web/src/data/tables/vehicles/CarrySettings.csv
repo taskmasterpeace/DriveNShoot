@@ -1,0 +1,2 @@
+Name,Board_Angle_rad,Board_Speed_mps,Board_Cool_s,WallBounce,WallHurt_mps,BrakeHold_mps2,TyreHold_mps2,RampSafe_mps,MatchSpeed_mps,Source
+default,0.45,4.5,1.5,0.25,5,8,9,9,9,design: docs/design/WEB_SEMIS.md

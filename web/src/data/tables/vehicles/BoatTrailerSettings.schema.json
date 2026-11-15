@@ -1,0 +1,91 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "BoatTrailerSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaBoatTrailerSettingsRow",
+  "description": "The boat trailer and the ramp: water depths for launching and the winch. One row.",
+  "legacy": {
+    "file": "src/data/towing.js TRAILER",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "TailDepth_m",
+      "type": "float",
+      "path": "tailDepth",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "WheelMax_m",
+      "type": "float",
+      "path": "wheelMax",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "BunkY_m",
+      "type": "float",
+      "path": "bunkY",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "BunkZ_m",
+      "type": "float",
+      "path": "bunkZ",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "LoadReach_m",
+      "type": "float",
+      "path": "loadReach",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "LoadSpeed_mps",
+      "type": "float",
+      "path": "loadSpeed",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "LoadAngle_rad",
+      "type": "float",
+      "path": "loadAngle",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "HaulSpeed_mps",
+      "type": "float",
+      "path": "haulSpeed",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "LaunchPush_mps",
+      "type": "float",
+      "path": "launchPush",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

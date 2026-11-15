@@ -1,0 +1,104 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "ArenasProps",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaArenasPropsRow",
+  "description": "Child table of Arenas: props. Joined by Arena, ordered by Index.",
+  "legacy": {
+    "file": "src/data/workshop.js ARENAS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Arena",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "ref": {
+        "table": "Arenas",
+        "column": "Name"
+      },
+      "description": "The Arenas row this belongs to."
+    },
+    {
+      "name": "Index",
+      "type": "int",
+      "unit": "",
+      "path": null,
+      "required": true,
+      "min": 0,
+      "description": "Order within the parent (0 first)."
+    },
+    {
+      "name": "Kind",
+      "type": "string",
+      "path": "kind",
+      "required": true
+    },
+    {
+      "name": "X_m",
+      "type": "float",
+      "path": "x",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Z_m",
+      "type": "float",
+      "path": "z",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "N",
+      "type": "int",
+      "path": "n",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Hp_hp",
+      "type": "float",
+      "path": "hp",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Blast_m",
+      "type": "float",
+      "path": "blast",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "H_m",
+      "type": "float",
+      "path": "h",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ],
+  "parent": {
+    "table": "Arenas",
+    "column": "Arena",
+    "path": "props",
+    "kind": "rows",
+    "orderColumn": "Index",
+    "emptyWhenMissing": false
+  }
+}

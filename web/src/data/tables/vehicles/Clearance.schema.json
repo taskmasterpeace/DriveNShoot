@@ -1,0 +1,35 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Clearance",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaClearanceRow",
+  "description": "Clearance under things you drive beneath (overpass, rail bridge, low bridge), in metres.",
+  "legacy": {
+    "file": "src/data/trailers.js CLEARANCE",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Clearance_m",
+      "type": "float",
+      "path": "clearance",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+Name,Item,Index,Value,Source
+belt_mg_0,belt_mg,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+belt_50_0,belt_50,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+ac_shells_0,ac_shells,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+rocket_0,rocket,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+heavy_rocket_0,heavy_rocket,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+napalm_0,napalm,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+napalm_1,napalm,1,fuel,design: docs/design/WEB_WORKSHOP.md
+rail_slug_0,rail_slug,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+rail_slug_1,rail_slug,1,prewar,design: docs/design/WEB_WORKSHOP.md
+car_mine_0,car_mine,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+oil_drum_0,oil_drum,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+caltrop_bag_0,caltrop_bag,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+smoke_can_0,smoke_can,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+flare_pack_0,flare_pack,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+paint_can_0,paint_can,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+nitrous_bottle_0,nitrous_bottle,0,car_ammo,design: docs/design/WEB_WORKSHOP.md
+suppressant_0,suppressant,0,car_ammo,design: docs/design/WEB_WORKSHOP.md

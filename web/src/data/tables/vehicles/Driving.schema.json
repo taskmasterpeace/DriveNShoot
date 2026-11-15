@@ -1,0 +1,132 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Driving",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaDrivingRow",
+  "description": "How driving answers the wheel (docs/design/WEB_WALK_VEHICLES.md, WEB_FEEL.md): steering, reverse, shooting from a moving car, slide. One row.",
+  "legacy": {
+    "file": "src/systems/vehicles.js DRIVING",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "ScreenSteer",
+      "type": "bool",
+      "path": "screenSteer",
+      "required": true
+    },
+    {
+      "name": "ReverseAccel",
+      "type": "float",
+      "path": "reverseAccel",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "ReverseShare",
+      "type": "float",
+      "path": "reverseShare",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "ReverseCap_Min_mps",
+      "type": "float",
+      "path": "reverseCap.0",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "ReverseCap_Max_mps",
+      "type": "float",
+      "path": "reverseCap.1",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "ShootSpread_PerMs_rad",
+      "type": "float",
+      "path": "shootSpread.perMs",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "ShootSpread_Max_rad",
+      "type": "float",
+      "path": "shootSpread.max",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "ShootSpread_Driver",
+      "type": "float",
+      "path": "shootSpread.driver",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "AimHold_s",
+      "type": "float",
+      "path": "aimHold",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "SteerRate_per_s",
+      "type": "float",
+      "path": "steerRate",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "SteerReturn_per_s",
+      "type": "float",
+      "path": "steerReturn",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "Slide_Carry",
+      "type": "float",
+      "path": "slide.carry",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Slide_HbCarry",
+      "type": "float",
+      "path": "slide.hbCarry",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Slide_HbGrip",
+      "type": "float",
+      "path": "slide.hbGrip",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "ParkBrake_mps2",
+      "type": "float",
+      "path": "parkBrake",
+      "required": true,
+      "unit": "mps2"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

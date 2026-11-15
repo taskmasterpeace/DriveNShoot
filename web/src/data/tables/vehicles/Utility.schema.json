@@ -1,0 +1,424 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Utility",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaUtilityRow",
+  "description": "What is not a gun: batteries, tyres, nitrous, turbo, tanks, racks, spotlights, winch, drone bay. Sparse: a column applies to the parts that use it.",
+  "legacy": {
+    "file": "src/data/workshop.js UTILITY",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Space",
+      "type": "int",
+      "path": "space",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Price_scrip",
+      "type": "float",
+      "path": "price",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Labour_gh",
+      "type": "float",
+      "path": "labour",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Power_Cap",
+      "type": "float",
+      "path": "power.cap",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Power_Regen_per_s",
+      "type": "float",
+      "path": "power.regen",
+      "required": false,
+      "unit": "per_s"
+    },
+    {
+      "name": "Desc",
+      "type": "string",
+      "path": "desc",
+      "required": true
+    },
+    {
+      "name": "Rare",
+      "type": "string",
+      "path": "rare",
+      "required": false
+    },
+    {
+      "name": "Charges",
+      "type": "int",
+      "path": "charges",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Ammo",
+      "type": "string",
+      "path": "ammo",
+      "required": false
+    },
+    {
+      "name": "PerItem",
+      "type": "int",
+      "path": "perItem",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "OpenFront",
+      "type": "bool",
+      "path": "openFront",
+      "required": false
+    },
+    {
+      "name": "Glass",
+      "type": "bool",
+      "path": "glass",
+      "required": false
+    },
+    {
+      "name": "Tab",
+      "type": "string",
+      "path": "tab",
+      "required": false
+    },
+    {
+      "name": "FlatMul",
+      "type": "float",
+      "path": "flatMul",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Grip",
+      "type": "float",
+      "path": "grip",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Set",
+      "type": "string",
+      "path": "set",
+      "required": false
+    },
+    {
+      "name": "Tread_Paved",
+      "type": "float",
+      "path": "tread.paved",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Tread_Dirt",
+      "type": "float",
+      "path": "tread.dirt",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Tread_TopPaved",
+      "type": "float",
+      "path": "tread.topPaved",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Tread_Wade_m",
+      "type": "float",
+      "path": "tread.wade",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Monster_Scale",
+      "type": "float",
+      "path": "monster.scale",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Monster_Lift_m",
+      "type": "float",
+      "path": "monster.lift",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Monster_Turn",
+      "type": "float",
+      "path": "monster.turn",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Monster_Top",
+      "type": "float",
+      "path": "monster.top",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Monster_Crush",
+      "type": "float",
+      "path": "monster.crush",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Monster_Climb_Speed_mps",
+      "type": "float",
+      "path": "monster.climb.speed",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Monster_Climb_Under_m",
+      "type": "float",
+      "path": "monster.climb.under",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Monster_Climb_Dps_hp",
+      "type": "float",
+      "path": "monster.climb.dps",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Monster_Climb_Pin",
+      "type": "float",
+      "path": "monster.climb.pin",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Monster_Climb_Part_hp",
+      "type": "float",
+      "path": "monster.climb.part",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Burst_Time_s",
+      "type": "float",
+      "path": "burst.time",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Burst_Accel",
+      "type": "float",
+      "path": "burst.accel",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Burst_Top",
+      "type": "float",
+      "path": "burst.top",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Accel",
+      "type": "float",
+      "path": "accel",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Top",
+      "type": "float",
+      "path": "top",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Crash",
+      "type": "float",
+      "path": "crash",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Fuel_L",
+      "type": "float",
+      "path": "fuel",
+      "required": false,
+      "unit": "L"
+    },
+    {
+      "name": "Trunk_kg",
+      "type": "float",
+      "path": "trunk",
+      "required": false,
+      "unit": "kg"
+    },
+    {
+      "name": "Ports",
+      "type": "bool",
+      "path": "ports",
+      "required": false
+    },
+    {
+      "name": "Spread",
+      "type": "float",
+      "path": "spread",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Lock",
+      "type": "float",
+      "path": "lock",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Slash_R_m",
+      "type": "float",
+      "path": "slash.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Slash_Tyres",
+      "type": "int",
+      "path": "slash.tyres",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Slash_Every_s",
+      "type": "float",
+      "path": "slash.every",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Slash_Dmg_hp",
+      "type": "float",
+      "path": "slash.dmg",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Hub_Reach_m",
+      "type": "float",
+      "path": "hub.reach",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Hub_Car_hp",
+      "type": "float",
+      "path": "hub.car",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Hub_Person_hp",
+      "type": "float",
+      "path": "hub.person",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Hub_Grip_per_s",
+      "type": "float",
+      "path": "hub.grip",
+      "required": false,
+      "unit": "per_s"
+    },
+    {
+      "name": "Beam_Reach",
+      "type": "float",
+      "path": "beam.reach",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Beam_Power",
+      "type": "float",
+      "path": "beam.power",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Beam_Seen",
+      "type": "float",
+      "path": "beam.seen",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Needs",
+      "type": "string",
+      "path": "needs",
+      "required": false
+    },
+    {
+      "name": "Pull_Slack_m",
+      "type": "float",
+      "path": "pull.slack",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Pull_Range_m",
+      "type": "float",
+      "path": "pull.range",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Warn_m",
+      "type": "float",
+      "path": "warn",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

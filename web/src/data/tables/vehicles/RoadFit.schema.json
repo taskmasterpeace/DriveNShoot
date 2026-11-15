@@ -1,0 +1,56 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "RoadFit",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaRoadFitRow",
+  "description": "Per road class: the paved width a rig may use, the longest rig its bends take, whether a wide load may use it.",
+  "keyAlias": "GameKey",
+  "legacy": {
+    "file": "src/data/trailers.js ROAD_FIT",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "GameKey",
+      "type": "string",
+      "path": null,
+      "required": false,
+      "description": "The key the game uses when it is not a safe Unreal row name (Name is the sanitized form)."
+    },
+    {
+      "name": "Width_m",
+      "type": "float",
+      "path": "width",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "MaxLen_m",
+      "type": "float",
+      "path": "maxLen",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Wide",
+      "type": "bool",
+      "path": "wide",
+      "required": true
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

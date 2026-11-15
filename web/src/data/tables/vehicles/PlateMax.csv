@@ -1,0 +1,7 @@
+Name,Front,Rear,Left,Right,Source
+sedan,10,10,8,8,design
+interceptor,12,10,8,8,design
+pickup,12,12,10,10,design
+van,12,14,12,12,design
+rig,24,16,18,18,design
+buggy,6,4,2,2,design

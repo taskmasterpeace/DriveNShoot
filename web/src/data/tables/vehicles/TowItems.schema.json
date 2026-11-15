@@ -1,0 +1,74 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "TowItems",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaTowItemsRow",
+  "description": "The pack items towing registers (tow rope, tow chain). Item rows proper move to the items family later.",
+  "legacy": {
+    "file": "src/data/towing.js TOW_ITEMS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Kind",
+      "type": "string",
+      "path": "kind",
+      "required": true
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Bulk",
+      "type": "float",
+      "path": "bulk",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Stack",
+      "type": "int",
+      "path": "stack",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Value_scrip",
+      "type": "float",
+      "path": "value",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Desc",
+      "type": "string",
+      "path": "desc",
+      "required": true
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

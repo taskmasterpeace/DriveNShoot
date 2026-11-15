@@ -13,7 +13,9 @@
     "docs:commands": "node tools/gen-commands.mjs",
     "shard": "node server/shard.mjs",
     "shard:seed": "node server/seed-dev.mjs",
-    "shard:test": "node tools/shard-test.mjs"
+    "shard:test": "node tools/shard-test.mjs",
+    "tables:check": "node --import ./tools/tables/register-json.mjs tools/tables-check.mjs",
+    "tables:test": "node --import ./tools/tables/register-json.mjs --test tools/tables-load.test.mjs tools/tables-vehicles.test.mjs"
   },
   "dependencies": {
     "three": "^0.170.0",

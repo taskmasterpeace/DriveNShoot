@@ -1,0 +1,2 @@
+Name,Reach_m,ReachAngle_rad,YawLimit_rad,Jackknife_BrakeA_mps2,Jackknife_MinSpeed_mps,Jackknife_Gain,Jackknife_Sustain,Jackknife_Kick,Jackknife_CabShare,Jackknife_LoadBite,Jackknife_Scrub_per_s,Jackknife_ClearAt_rad,Jackknife_SeedAngle_rad,Pull_PullMass_t,Swing_Grip_mps2,Swing_K,Sparks,Source
+default,1.4,0.45,1.38,9,11,0.18,0.12,0.25,0.35,3,2.6,0.6,0.02,9,5.5,0.05,1.2,design: docs/design/WEB_SEMIS.md

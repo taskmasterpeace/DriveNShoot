@@ -1,0 +1,6 @@
+Name,DisplayName,Item,Len_m,K,Damp,MaxStretch_m,BreakLoad,Color,Sag_m,W_m,Range_m,Winch,Rigid,Lift,Source
+rope,tow rope,tow_rope,5,38,5,1.4,21,#c8b48a,0.9,0.05,,,,,design: docs/design/WEB_MOVE_TOW.md
+chain,tow chain,tow_chain,4,150,14,0.35,100,#6f6b64,0.45,0.07,,,,,design: docs/design/WEB_MOVE_TOW.md
+cable,winch cable,,30,120,12,0.5,48,#a39d92,0.3,0.04,30,true,,,design: docs/design/WEB_MOVE_TOW.md
+boom,wrecker's boom,,0.35,,,,400,#2a2622,0,0.12,,,true,true,design: docs/design/WEB_MOVE_TOW.md
+hitch,trailer hitch,,0.25,,,,400,#2a2622,0,0.1,,,true,,design: docs/design/WEB_MOVE_TOW.md

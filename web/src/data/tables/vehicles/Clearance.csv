@@ -1,0 +1,4 @@
+Name,Clearance_m,Source
+overpass,5,design: docs/design/WEB_SEMIS.md
+railBridge,4.6,design: docs/design/WEB_SEMIS.md
+lowBridge,3.8,design: docs/design/WEB_SEMIS.md

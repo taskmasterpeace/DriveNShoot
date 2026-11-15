@@ -1,0 +1,7 @@
+Name,Part,Index,Value,Source
+monster_0,monster,0,buggy,design: docs/design/WEB_WORKSHOP.md
+monster_1,monster,1,sedan,design: docs/design/WEB_WORKSHOP.md
+monster_2,monster,2,interceptor,design: docs/design/WEB_WORKSHOP.md
+monster_3,monster,3,pickup,design: docs/design/WEB_WORKSHOP.md
+monster_4,monster,4,patrol,design: docs/design/WEB_WORKSHOP.md
+monster_5,monster,5,van,design: docs/design/WEB_WORKSHOP.md

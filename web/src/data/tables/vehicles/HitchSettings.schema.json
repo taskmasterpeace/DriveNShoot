@@ -1,0 +1,147 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "HitchSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaHitchSettingsRow",
+  "description": "How a tractor and trailer move as one: coupling reach, articulation stop, jackknife, trailer swing. One row.",
+  "legacy": {
+    "file": "src/data/trailers.js HITCH",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Reach_m",
+      "type": "float",
+      "path": "reach",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "ReachAngle_rad",
+      "type": "float",
+      "path": "reachAngle",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "YawLimit_rad",
+      "type": "float",
+      "path": "yawLimit",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "Jackknife_BrakeA_mps2",
+      "type": "float",
+      "path": "jackknife.brakeA",
+      "required": true,
+      "unit": "mps2"
+    },
+    {
+      "name": "Jackknife_MinSpeed_mps",
+      "type": "float",
+      "path": "jackknife.minSpeed",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "Jackknife_Gain",
+      "type": "float",
+      "path": "jackknife.gain",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Jackknife_Sustain",
+      "type": "float",
+      "path": "jackknife.sustain",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Jackknife_Kick",
+      "type": "float",
+      "path": "jackknife.kick",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Jackknife_CabShare",
+      "type": "float",
+      "path": "jackknife.cabShare",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Jackknife_LoadBite",
+      "type": "float",
+      "path": "jackknife.loadBite",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Jackknife_Scrub_per_s",
+      "type": "float",
+      "path": "jackknife.scrub",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "Jackknife_ClearAt_rad",
+      "type": "float",
+      "path": "jackknife.clearAt",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "Jackknife_SeedAngle_rad",
+      "type": "float",
+      "path": "jackknife.seedAngle",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "Pull_PullMass_t",
+      "type": "float",
+      "path": "pull.pullMass",
+      "required": true,
+      "unit": "t"
+    },
+    {
+      "name": "Swing_Grip_mps2",
+      "type": "float",
+      "path": "swing.grip",
+      "required": true,
+      "unit": "mps2"
+    },
+    {
+      "name": "Swing_K",
+      "type": "float",
+      "path": "swing.k",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Sparks",
+      "type": "float",
+      "path": "sparks",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

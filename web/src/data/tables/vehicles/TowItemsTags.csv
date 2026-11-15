@@ -1,0 +1,4 @@
+Name,Item,Index,Value,Source
+tow_rope_0,tow_rope,0,tow,design: docs/design/WEB_MOVE_TOW.md
+tow_chain_0,tow_chain,0,tow,design: docs/design/WEB_MOVE_TOW.md
+tow_chain_1,tow_chain,1,steel,design: docs/design/WEB_MOVE_TOW.md

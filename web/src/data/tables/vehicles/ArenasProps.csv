@@ -1,0 +1,8 @@
+Name,Arena,Index,Kind,X_m,Z_m,N,Hp_hp,Blast_m,H_m,Source
+dustbowl_0,dustbowl,0,barrels,-30,0,6,40,4,,design: docs/design/WEB_WORKSHOP.md
+dustbowl_1,dustbowl,1,barrels,30,0,6,40,4,,design: docs/design/WEB_WORKSHOP.md
+dustbowl_2,dustbowl,2,kicker,0,-25,,,,1.4,design: docs/design/WEB_WORKSHOP.md
+dustbowl_3,dustbowl,3,wreck,0,22,,,,,design: docs/design/WEB_WORKSHOP.md
+loopline_0,loopline,0,barrels,-80,-40,8,40,4,,design: docs/design/WEB_WORKSHOP.md
+loopline_1,loopline,1,barrels,80,40,8,40,4,,design: docs/design/WEB_WORKSHOP.md
+loopline_2,loopline,2,kicker,0,55,,,,1.2,design: docs/design/WEB_WORKSHOP.md

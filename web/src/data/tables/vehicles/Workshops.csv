@@ -1,0 +1,4 @@
+Name,DisplayName,Where,Keeper,R_m,Rate_scrip,Kind,SelfWork,X_m,Z_m,NeedStanding,Source
+kenji,KENJI'S GARAGE,Rust Haven,kenji,14,20,,,,,,design: docs/design/WEB_WORKSHOP.md
+homebase,YOUR GARAGE,home,,10,0,base,1.5,,,,design: docs/design/WEB_WORKSHOP.md
+remnant,MOTOR POOL,Outpost Nine,,18,35,,,-290,-400,30,design: docs/design/WEB_WORKSHOP.md

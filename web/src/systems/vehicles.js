@@ -6,56 +6,17 @@ import { roadLines, SPACING, GRID } from '../world/city.js';
 import { clamp, angleLerp } from '../engine/rng.js';
 import { STUNT } from '../data/stunts.js';
 import { Decks } from './decks.js';
+import { vehicleBodies, one } from '../data/tables/vehicles/index.js';
 
 // Each vehicle is ONE merged, vertex-coloured mesh: 1 draw call per car (every lamp in the game
 // shares 2 more, in vehiclelights.js).
 // Seats: the driver is always seat 0. side = driver's left/right (left = local +x),
 // row 0 = front. exposed seats (bike pillion, pickup bed) render their rider and
 // can be shot / grabbed directly.
-const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
-const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
 // `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed, the
 // boats' decks; `roofDeck`: a roof you climb onto by its ladder),
 // the van's cargo box, the RV's coach; systems/decks.js carries the people on it) - a walkable vehicle is a row.
-export const VEHICLES = {
-  rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, reverse: 11, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
-  interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, reverse: 15, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
-  // A town's patrol car (systems/security.js): a LAWMAN gone to seed - primer, mismatched panels, a dead lightbar, a welded ram bar (vehiclebodies.js look: 'rundown').
-  bullcar: { name: 'BULL CAR', base: 'interceptor', look: 'rundown', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 41, reverse: 14, accel: 19, turn: 2.3, grip: 6.2, mass: 1.55, hp: 210, armor: 0.36, fuelCap: 60, seats: S2 },
-  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, tall: 1.6, maxSpeed: 40, reverse: 14, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
-  // The pickup's bed is a deck now (data/decks.js pickupBed): stand in it, crouch behind its sides, shoot any way, fall
-  // out. Its old standing seats (bedL, bedR) are gone: the bed is somewhere you are, not a seat.
-  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, tall: 1.95, maxSpeed: 36, reverse: 13, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80, seats: S2, deck: 'pickupBed' },
-  sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, tall: 1.8, maxSpeed: 40, reverse: 14, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
-  // Two seats up front, then a cargo box you walk round in (data/decks.js vanCargo): a bench, a locker, a mattress.
-  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, reverse: 12, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75, seats: S2, deck: 'vanCargo', roofDeck: 'vanRoof' },
-  // A home on wheels (data/decks.js rvCoach): slow, heavy, tall, and somewhere to live. Parked, it makes camp.
-  rv:          { name: 'RV', len: 8.0, wid: 2.5, tall: 3.3, maxSpeed: 27, reverse: 10, accel: 10, turn: 1.35, grip: 5.4, mass: 3.6, hp: 380, armor: 0.22, fuelCap: 200, springs: 'rig', seats: S2, deck: 'rvCoach', roofDeck: 'rvRoof' },
-  airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, tall: 2.2, maxSpeed: 34, reverse: 7, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
-                 seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }], deck: 'airboatDeck' },
-  jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, reverse: 5, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
-                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4, deck: 'gunboatDeck' },
-  // Water-place (docs/design/WEB_WATER_LIFE.md): a log-and-drum raft you pole across (it goes where the current takes it
-  // unless you push), and a cable ferry that shuttles a river by itself (systems/waterplace.js); both decks you stand on.
-  raft:        { name: 'RAFT', len: 4.4, wid: 2.8, tall: 0.6, maxSpeed: 3.2, reverse: 1.6, accel: 1.4, turn: 0.9, grip: 1.2, mass: 0.9, hp: 90, armor: 0.7, fuelCap: 0, open: true, boat: true, shallow: true, noEngine: true,
-                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'stand', at: [0.4, 0.42, -1.4] }], deck: 'raftDeck' },
-  ferry:       { name: 'RIVER FERRY', len: 8.4, wid: 4.6, tall: 1.6, maxSpeed: 4, reverse: 4, accel: 1.2, turn: 0.4, grip: 1.5, mass: 6, hp: 600, armor: 0.3, fuelCap: 0, open: true, boat: true, shallow: true, noEngine: true,
-                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'stand', at: [1.6, 0.55, -3.2] }], deck: 'ferryDeck' },
-  // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
-  atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, reverse: 12, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
-                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  // The rider and the pillion shoot any way they look (carcombat.fireFromVehicle; DRIVING.shootSpread when moving).
-  bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, tall: 1.25, maxSpeed: 52, reverse: 10, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
-                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  // Military (the Federal Remnant's motor pool, data/bases.js). Generic on purpose: no make, no model, no designation.
-  // A seat's `at` puts an exposed rider exactly there in the body frame: the roof-ring gunner stands in the cab with
-  // head and shoulders out of the hatch.
-  patrol:      { name: 'PATROL TRUCK', len: 4.9, wid: 2.3, tall: 2.05, maxSpeed: 37, reverse: 13, accel: 17, turn: 2.0, grip: 6.6, mass: 2.4, hp: 330, armor: 0.2, fuelCap: 95,
-                 seats: [...S4, { id: 'gunner', side: 'left', row: 1, exposed: 'stand', at: [0, 0.78, -0.35] }] },
-  apc:         { name: 'ARMORED CARRIER', len: 7.0, wid: 2.85, tall: 2.6, maxSpeed: 26, reverse: 10, accel: 10, turn: 1.25, grip: 7.2, mass: 6, hp: 720, armor: 0.06, fuelCap: 220, springs: 'rig',
-                 seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }, { id: 'hatch', side: 'left', row: 3, exposed: 'stand', at: [0, 1.3, 0.05] }] },
-};
+export const VEHICLES = vehicleBodies('core');
 
 // How driving answers the wheel (docs/design/WEB_WALK_VEHICLES.md §Steering and reverse).
 //   screenSteer   the keyboard's left and right are SCREEN-true: at the moment you press left, the car turns toward the
@@ -66,21 +27,7 @@ export const VEHICLES = {
 //   reverseShare / reverseCap   a row without `reverse` backs up at this share of its top speed, within these m/s
 //   shootSpread   shooting from anything that moves: extra spread (radians, +-) per m/s, its cap, and x driver (one hand)
 //   aimHold       an exposed rider (a bike, a quad, a deck seat) keeps aiming this long after a shot
-export const DRIVING = {
-  screenSteer: false, // Robert 10-29: A always turns the car's own left (classic), like walking; true = screen-true
-  reverseAccel: 0.85, reverseShare: 0.4, reverseCap: [6, 15],
-  shootSpread: { perMs: 0.004, max: 0.1, driver: 1.5 },
-  aimHold: 1.2,
-  // steerRate / steerReturn (1/s): the player's wheel turns toward the keys at steerRate and back to centre at
-  // steerReturn, so a tapped key is a nudge, never a twitch (docs/design/WEB_FEEL.md); the AI steers its own curves.
-  steerRate: 6, steerReturn: 10,
-  // slide: how the car's weight follows the nose (docs/design/WEB_FEEL.md). `carry` is the share of each frame's turn the
-  // velocity takes with it (1 = on rails, the old model: it never slid); the rest stays behind as sideways slip that
-  // the row's `grip` pulls back in. On the handbrake only `hbCarry` follows and grip drops to `hbGrip` x: a real slide
-  // you can hold, then catch by letting go. The player's car (and the feel probe) only; the AI keeps the rails for now.
-  slide: { carry: 0.86, hbCarry: 0.35, hbGrip: 0.18 },
-  parkBrake: 14, // m/s^2: a car its driver got out of brakes to a stop (it no longer rolls off out of reach)
-};
+export const DRIVING = one('Driving');
 export const reverseOf = (v) => v.reverse ?? clamp(v.maxSpeed * DRIVING.reverseShare, DRIVING.reverseCap[0], DRIVING.reverseCap[1]);
 
 // Bodies (geometry, lamp anchors, glass layout) are built in vehiclebodies.js; PART is re-exported for damage.

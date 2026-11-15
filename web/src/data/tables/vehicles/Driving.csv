@@ -1,0 +1,2 @@
+Name,ScreenSteer,ReverseAccel,ReverseShare,ReverseCap_Min_mps,ReverseCap_Max_mps,ShootSpread_PerMs_rad,ShootSpread_Max_rad,ShootSpread_Driver,AimHold_s,SteerRate_per_s,SteerReturn_per_s,Slide_Carry,Slide_HbCarry,Slide_HbGrip,ParkBrake_mps2,Source
+default,false,0.85,0.4,6,15,0.004,0.1,1.5,1.2,6,10,0.86,0.35,0.18,14,design: docs/design/WEB_FEEL.md

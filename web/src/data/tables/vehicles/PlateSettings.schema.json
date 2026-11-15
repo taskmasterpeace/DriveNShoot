@@ -1,0 +1,49 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "PlateSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaPlateSettingsRow",
+  "description": "The old garage plate: hit points a point stops, weight, price. One row.",
+  "legacy": {
+    "file": "src/data/parts.js PLATE",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Absorb_hp",
+      "type": "float",
+      "path": "absorb",
+      "required": true,
+      "unit": "hp"
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Price_scrip",
+      "type": "float",
+      "path": "price",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

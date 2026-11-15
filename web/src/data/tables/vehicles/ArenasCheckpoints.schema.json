@@ -1,0 +1,70 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "ArenasCheckpoints",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaArenasCheckpointsRow",
+  "description": "Child table of Arenas: checkpoints. Joined by Arena, ordered by Index.",
+  "legacy": {
+    "file": "src/data/workshop.js ARENAS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Arena",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "ref": {
+        "table": "Arenas",
+        "column": "Name"
+      },
+      "description": "The Arenas row this belongs to."
+    },
+    {
+      "name": "Index",
+      "type": "int",
+      "unit": "",
+      "path": null,
+      "required": true,
+      "min": 0,
+      "description": "Order within the parent (0 first)."
+    },
+    {
+      "name": "X",
+      "type": "float",
+      "path": "0",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Z",
+      "type": "float",
+      "path": "1",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ],
+  "parent": {
+    "table": "Arenas",
+    "column": "Arena",
+    "path": "checkpoints",
+    "kind": "tuples",
+    "orderColumn": "Index",
+    "emptyWhenMissing": false
+  }
+}

@@ -1,0 +1,367 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "MountWeapons",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaMountWeaponsRow",
+  "description": "Car-mounted guns, launchers, droppers: kind, size, weight, price, damage, rate, range, magazine, ammo item. Sparse: a column applies to the kinds that use it.",
+  "legacy": {
+    "file": "src/data/workshop.js MOUNT_WEAPONS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Kind",
+      "type": "string",
+      "path": "kind",
+      "required": true,
+      "description": "hitscan|rocket|flame|beam|rail|harpoon|emp|drop"
+    },
+    {
+      "name": "Size",
+      "type": "int",
+      "path": "size",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Price_scrip",
+      "type": "float",
+      "path": "price",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Labour_gh",
+      "type": "float",
+      "path": "labour",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Type",
+      "type": "string",
+      "path": "type",
+      "required": false
+    },
+    {
+      "name": "Dmg_hp",
+      "type": "float",
+      "path": "dmg",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Rate_s",
+      "type": "float",
+      "path": "rate",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Spread_rad",
+      "type": "float",
+      "path": "spread",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Range_m",
+      "type": "float",
+      "path": "range",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Mag",
+      "type": "int",
+      "path": "mag",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Ammo",
+      "type": "string",
+      "path": "ammo",
+      "required": false,
+      "description": "Item key that reloads it (AmmoItems)."
+    },
+    {
+      "name": "PerItem",
+      "type": "int",
+      "path": "perItem",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Sound",
+      "type": "string",
+      "path": "sound",
+      "required": false
+    },
+    {
+      "name": "Cal",
+      "type": "string",
+      "path": "cal",
+      "required": false,
+      "description": "Caliber key (data/arms.js calibers)."
+    },
+    {
+      "name": "Desc",
+      "type": "string",
+      "path": "desc",
+      "required": true
+    },
+    {
+      "name": "Blast_m",
+      "type": "float",
+      "path": "blast",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Speed_mps",
+      "type": "float",
+      "path": "speed",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Rare",
+      "type": "string",
+      "path": "rare",
+      "required": false,
+      "description": "prewar|uncommon: found, not bought."
+    },
+    {
+      "name": "Lock_Time_s",
+      "type": "float",
+      "path": "lock.time",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Lock_Cone_rad",
+      "type": "float",
+      "path": "lock.cone",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Lock_Turn_radps",
+      "type": "float",
+      "path": "lock.turn",
+      "required": false,
+      "unit": "radps"
+    },
+    {
+      "name": "Arc_rad",
+      "type": "float",
+      "path": "arc",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Cone_rad",
+      "type": "float",
+      "path": "cone",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Power",
+      "type": "float",
+      "path": "power",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Charge_s",
+      "type": "float",
+      "path": "charge",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Pierce",
+      "type": "int",
+      "path": "pierce",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Carry",
+      "type": "float",
+      "path": "carry",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Grapple_Lengths",
+      "type": "float",
+      "path": "grapple.lengths",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Grapple_Hook",
+      "type": "float",
+      "path": "grapple.hook",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Group",
+      "type": "int",
+      "path": "group",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Mine_Arm_s",
+      "type": "float",
+      "path": "mine.arm",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Mine_R_m",
+      "type": "float",
+      "path": "mine.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Mine_Dmg_hp",
+      "type": "float",
+      "path": "mine.dmg",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Mine_Blast_m",
+      "type": "float",
+      "path": "mine.blast",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Mine_Life_s",
+      "type": "float",
+      "path": "mine.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Slick_R_m",
+      "type": "float",
+      "path": "slick.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Slick_Life_s",
+      "type": "float",
+      "path": "slick.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Slick_Grip",
+      "type": "float",
+      "path": "slick.grip",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Slick_Spin_radps",
+      "type": "float",
+      "path": "slick.spin",
+      "required": false,
+      "unit": "radps"
+    },
+    {
+      "name": "Field_R_m",
+      "type": "float",
+      "path": "field.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Field_Life_s",
+      "type": "float",
+      "path": "field.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Flare_R_m",
+      "type": "float",
+      "path": "flare.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Flare_Life_s",
+      "type": "float",
+      "path": "flare.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Cloud_R_m",
+      "type": "float",
+      "path": "cloud.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Cloud_Life_s",
+      "type": "float",
+      "path": "cloud.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Cloud_Blind_s",
+      "type": "float",
+      "path": "cloud.blind",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Stall_s",
+      "type": "float",
+      "path": "stall",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

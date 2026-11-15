@@ -1,0 +1,160 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Chassis",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaChassisRow",
+  "description": "What each body can carry: total bolt-on kilograms, spaces, plate points per face, mount points per face (size 1..3, arc). A body not listed cannot be worked on.",
+  "legacy": {
+    "file": "src/data/workshop.js CHASSIS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "MaxKg_kg",
+      "type": "float",
+      "path": "maxKg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Spaces",
+      "type": "int",
+      "path": "spaces",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Faces_Front",
+      "type": "int",
+      "path": "faces.front",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Faces_Rear",
+      "type": "int",
+      "path": "faces.rear",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Faces_Left",
+      "type": "int",
+      "path": "faces.left",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Faces_Right",
+      "type": "int",
+      "path": "faces.right",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Faces_Top",
+      "type": "int",
+      "path": "faces.top",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Faces_Under",
+      "type": "int",
+      "path": "faces.under",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Mounts_Front_Size",
+      "type": "int",
+      "path": "mounts.front.size",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Mounts_Front_Arc_rad",
+      "type": "float",
+      "path": "mounts.front.arc",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "Mounts_Rear_Size",
+      "type": "int",
+      "path": "mounts.rear.size",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Mounts_Rear_Arc_rad",
+      "type": "float",
+      "path": "mounts.rear.arc",
+      "required": true,
+      "unit": "rad"
+    },
+    {
+      "name": "Mounts_Left_Size",
+      "type": "int",
+      "path": "mounts.left.size",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Mounts_Left_Arc_rad",
+      "type": "float",
+      "path": "mounts.left.arc",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Mounts_Right_Size",
+      "type": "int",
+      "path": "mounts.right.size",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Mounts_Right_Arc_rad",
+      "type": "float",
+      "path": "mounts.right.arc",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Mounts_Top_Size",
+      "type": "int",
+      "path": "mounts.top.size",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Mounts_Top_Arc_rad",
+      "type": "float",
+      "path": "mounts.top.arc",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Mounts_Rear_Drops",
+      "type": "bool",
+      "path": "mounts.rear.drops",
+      "required": false
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

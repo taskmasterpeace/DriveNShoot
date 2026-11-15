@@ -1,0 +1,2 @@
+Name,TailDepth_m,WheelMax_m,BunkY_m,BunkZ_m,LoadReach_m,LoadSpeed_mps,LoadAngle_rad,HaulSpeed_mps,LaunchPush_mps,Source
+default,0.3,0.95,0.62,-0.2,3.2,2.5,0.55,1.2,2.2,design: docs/design/WEB_MOVE_TOW.md

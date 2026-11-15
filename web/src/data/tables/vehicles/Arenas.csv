@@ -1,0 +1,3 @@
+Name,DisplayName,Kind,At_Town,At_Dx_m,At_Dz_m,W_m,D_m,Wall,Event,Desc,Laps,Source
+dustbowl,THE DUST BOWL,arena,rust_haven,420,140,120,90,tyres,derby,"A dried-out reservoir ringed with tyres. Friday nights, last car moving keeps the pot.",,design: docs/design/WEB_WORKSHOP.md
+loopline,LOOPLINE SPEEDWAY,track,tucson,0,300,260,140,jersey,loaner,"An old county oval, the grandstand half burnt. The promoter lends junkers to anybody with nerve.",3,design: docs/design/WEB_WORKSHOP.md

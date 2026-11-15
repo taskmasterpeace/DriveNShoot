@@ -1,0 +1,152 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "PartMounts",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaPartMountsRow",
+  "description": "The old garage mounts (front gun, rear droppers).",
+  "legacy": {
+    "file": "src/data/parts.js MOUNTS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Slot",
+      "type": "string",
+      "path": "slot",
+      "required": true
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Price_scrip",
+      "type": "float",
+      "path": "price",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Dmg_hp",
+      "type": "float",
+      "path": "dmg",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Rate_s",
+      "type": "float",
+      "path": "rate",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Spread",
+      "type": "float",
+      "path": "spread",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Range_m",
+      "type": "float",
+      "path": "range",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Arc_rad",
+      "type": "float",
+      "path": "arc",
+      "required": false,
+      "unit": "rad"
+    },
+    {
+      "name": "Ammo",
+      "type": "int",
+      "path": "ammo",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Refill",
+      "type": "float",
+      "path": "refill",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Charges",
+      "type": "int",
+      "path": "charges",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Slick_R_m",
+      "type": "float",
+      "path": "slick.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Slick_Life_s",
+      "type": "float",
+      "path": "slick.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Slick_Grip",
+      "type": "float",
+      "path": "slick.grip",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Slick_Spin",
+      "type": "float",
+      "path": "slick.spin",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Field_R_m",
+      "type": "float",
+      "path": "field.r",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Field_Life_s",
+      "type": "float",
+      "path": "field.life",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

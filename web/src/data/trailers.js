@@ -1,3 +1,4 @@
+import { rows, one, clearance } from './tables/vehicles/index.js';
 // SEMIS (docs/design/WEB_SEMIS.md): tractor-trailers you drive a car INTO. A tractor (the vehicle row `semi`) pulls a
 // trailer (its own vehicle row: `boxtrailer`, `widetrailer`) joined at a kingpin; a trailer's hold carries cars on its
 // floor the way a deck carries people (systems/decks.js law, extended to vehicles: systems/semis.js). Everything here is
@@ -16,29 +17,7 @@
 //   maxCargo    how many cars, and their total mass (vehicle `mass` units), the hold takes
 //   wide        a wide load: WIDE LOAD banners, flags, amber markers; escorted; takes two lanes (lane rules below)
 //   escort      the pilot cars a wide load wants in front of and behind it when it travels (systems/semis.js freight)
-export const TRAILERS = {
-  // A long dry box with a hydraulic slide-out ramp under the floor and a roll-up door: a car, a LAWMAN or a motorcycle
-  // drives up into it, rides on the floor in the dark, and drives back out. 3.2 m across: this country's lanes are 4.2 m,
-  // and there is room to get out of a car inside it and walk round it.
-  box: {
-    name: 'BOX TRAILER', vehicle: 'boxtrailer',
-    kingpin: 5.35, axle: -4.33, floorY: 1.3,
-    hold: { x0: -1.52, x1: 1.52, z0: -6.06, z1: 6.0, h: 2.25, walls: true, rail: 2.5 },
-    ramp: { hinge: -6.2, len: 4.6, width: 2.6, kind: 'slide', secs: 3.2, door: true },
-    maxCargo: { cars: 2, mass: 4 },
-    wide: false, escort: 0,
-  },
-  // An extra-wide drop-deck lowboy: an RV rides on it with room to walk round it. WIDE LOAD banners front and back, red
-  // flags at the corners, amber markers down both sides, a beacon on the gooseneck. It straddles the lane line: two lanes.
-  wide: {
-    name: 'WIDE-LOAD LOWBOY', vehicle: 'widetrailer',
-    kingpin: 6.3, axle: -4.5, floorY: 0.9,
-    hold: { x0: -2.6, x1: 2.6, z0: -7.0, z1: 3.7, h: Infinity, walls: false, rail: 0.3 },
-    ramp: { hinge: -7.1, len: 3.4, width: 4.2, kind: 'flip', secs: 2.6, door: false },
-    maxCargo: { cars: 1, mass: 4.5 },
-    wide: true, escort: 2,
-  },
-};
+export const TRAILERS = rows('Trailers');
 
 // The hitch: how the tractor and its trailer move as one (systems/semis.js). Angles in radians, speeds m/s.
 //   reach        how near the fifth wheel must be to the kingpin to couple (m), and the most the two headings may differ
@@ -52,14 +31,7 @@ export const TRAILERS = {
 //   swing        trailer swing: through a fast bend the trailer's axles hold `grip` m/s^2 sideways (x (1 + load x loadBite));
 //                past it the tail slides out of the bend at `k` rad/s per m/s^2 over
 //   sparks       a ramp left down on the move drags its tip on the road: sparks per second per m/s
-export const HITCH = {
-  reach: 1.4, reachAngle: 0.45,
-  yawLimit: 1.38,
-  jackknife: { brakeA: 9, minSpeed: 11, gain: 0.18, sustain: 0.12, kick: 0.25, cabShare: 0.35, loadBite: 3, scrub: 2.6, clearAt: 0.6, seedAngle: 0.02 },
-  pull: { pullMass: 9 },
-  swing: { grip: 5.5, k: 0.05 },
-  sparks: 1.2,
-};
+export const HITCH = one('HitchSettings');
 
 // A car in a hold (systems/semis.js carry): it keeps its pose in the trailer's frame, as a deck rider does. The floor's own
 // acceleration pushes it (a parked car's brake holds up to vehicles.js DRIVING.parkBrake; a rolling one shifts); the walls
@@ -71,35 +43,18 @@ export const HITCH = {
 //                length; its tyres hold `tyreHold` across it. Past either it shifts by the excess. Chocked: it never shifts
 //   rampSafe     the trailer must be slower than this (m/s) for the ramp to come down (and to go up with nobody on it)
 //   matchSpeed   a car may board, or leave, a ramp that moves no faster than this
-export const CARRY = {
-  board: { angle: 0.45, speed: 4.5, cool: 1.5 },
-  wallBounce: 0.25, wallHurt: 5,
-  brakeHold: 8, tyreHold: 9,
-  rampSafe: 9, matchSpeed: 9,
-};
+export const CARRY = one('CarrySettings');
 
 // Road fit (the AI's routing and the `semi action=fit` probe). Per road class (data/roadscape.js ROAD_CLASSES, plus the
 // town street and the island grid): the paved width a rig may use, the longest rig its curves take, and whether a wide
 // load may use it at all. A rig fits when its widest body is narrower than `width` less a margin each side, it is no
 // longer than `maxLen`, and (a wide load) the class allows it with its escort. Lane width matches data/streaming.js laneW.
-export const LANE_W = 4.2;
-export const ROAD_FIT = {
-  interstate: { width: 3 * LANE_W, maxLen: 40, wide: true },
-  divided: { width: 2 * LANE_W, maxLen: 30, wide: true },
-  'two-lane': { width: 2 * LANE_W, maxLen: 24, wide: true },  // a wide load takes the whole road: escorted, oncoming wait
-  rural: { width: 2 * 3.4, maxLen: 20, wide: false },
-  dirt: { width: 4.2, maxLen: 12, wide: false },               // a dirt track: its bends and its soft shoulders take no semi
-  street: { width: 14, maxLen: 22, wide: true },               // the island's 14 m streets (world/city.js)
-};
-export const FIT_MARGIN = 0.4;
+export const LANE_W = one('TrailerConstants').laneW;
+export const ROAD_FIT = rows('RoadFit');
+export const FIT_MARGIN = one('TrailerConstants').fitMargin;
 // Clearance under things you drive beneath (m). The rig's height (tallest of the tractor, the trailer and what rides on it)
 // must be under it. The AI probes ahead for anything overhead lower than its height and stops short (systems/semis.js).
-export const CLEARANCE = {
-  overpass: 5.0,   // data/streaming.js deckH 7.0 less its 2 m of structure
-  railBridge: 4.6,
-  lowBridge: 3.8,  // an old county bridge or a rail trestle over a back road
-  margin: 0.15,
-};
+export const CLEARANCE = clearance();
 
 // The freight (systems/semis.js): hauler crews moving goods between holdouts on the interstate. One rolls by every
 // `every` seconds (range); a wide load travels between its escorts. Rows: the formation, front to back, with the gap

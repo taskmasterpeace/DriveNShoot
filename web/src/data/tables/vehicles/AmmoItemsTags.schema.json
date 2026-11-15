@@ -1,0 +1,62 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "AmmoItemsTags",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaAmmoItemsTagsRow",
+  "description": "Child table of AmmoItems: tags. Joined by Item, ordered by Index.",
+  "legacy": {
+    "file": "src/data/workshop.js AMMO_ITEMS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Item",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "ref": {
+        "table": "AmmoItems",
+        "column": "Name"
+      },
+      "description": "The AmmoItems row this belongs to."
+    },
+    {
+      "name": "Index",
+      "type": "int",
+      "unit": "",
+      "path": null,
+      "required": true,
+      "min": 0,
+      "description": "Order within the parent (0 first)."
+    },
+    {
+      "name": "Value",
+      "type": "string",
+      "path": "$",
+      "required": false
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ],
+  "parent": {
+    "table": "AmmoItems",
+    "column": "Item",
+    "path": "tags",
+    "kind": "values",
+    "orderColumn": "Index",
+    "emptyWhenMissing": false
+  }
+}

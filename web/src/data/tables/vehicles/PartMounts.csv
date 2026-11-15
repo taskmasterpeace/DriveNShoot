@@ -1,0 +1,5 @@
+Name,Slot,DisplayName,Price_scrip,Kg_kg,Dmg_hp,Rate_s,Spread,Range_m,Arc_rad,Ammo,Refill,Charges,Slick_R_m,Slick_Life_s,Slick_Grip,Slick_Spin,Field_R_m,Field_Life_s,Source
+mg,front,TWIN MG,300,60,15,0.07,0.035,60,0.45,240,1,,,,,,,,design
+oil,rear,OIL SPRAYER,150,40,,,,,,,25,4,4.5,40,0.12,2.2,,,design
+caltrops,rear,CALTROP DROPPER,120,30,,,,,,,20,5,,,,,3.5,45,design
+smoke,rear,SMOKE LAYER,100,20,,,,,,,15,4,,,,,,,design

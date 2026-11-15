@@ -1,0 +1,178 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Trailers",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaTrailersRow",
+  "description": "Semi trailers: kingpin, axle, floor, the hold a car drives into, the drop ramp, cargo limits. Body frame: +x the driver's left, +z forward. docs/design/WEB_SEMIS.md.",
+  "legacy": {
+    "file": "src/data/trailers.js TRAILERS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Vehicle",
+      "type": "string",
+      "path": "vehicle",
+      "required": true,
+      "description": "Key of the Vehicles row that is this trailer."
+    },
+    {
+      "name": "Kingpin_m",
+      "type": "float",
+      "path": "kingpin",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Axle_m",
+      "type": "float",
+      "path": "axle",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "FloorY_m",
+      "type": "float",
+      "path": "floorY",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Hold_X0_m",
+      "type": "float",
+      "path": "hold.x0",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Hold_X1_m",
+      "type": "float",
+      "path": "hold.x1",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Hold_Z0_m",
+      "type": "float",
+      "path": "hold.z0",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Hold_Z1_m",
+      "type": "float",
+      "path": "hold.z1",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Hold_H_m",
+      "type": "float",
+      "path": "hold.h",
+      "required": true,
+      "unit": "m",
+      "description": "Clear height of the opening (m); Infinity for an open deck."
+    },
+    {
+      "name": "Hold_Walls",
+      "type": "bool",
+      "path": "hold.walls",
+      "required": true
+    },
+    {
+      "name": "Hold_Rail_m",
+      "type": "float",
+      "path": "hold.rail",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Ramp_Hinge_m",
+      "type": "float",
+      "path": "ramp.hinge",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Ramp_Len_m",
+      "type": "float",
+      "path": "ramp.len",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Ramp_Width_m",
+      "type": "float",
+      "path": "ramp.width",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Ramp_Kind",
+      "type": "string",
+      "path": "ramp.kind",
+      "required": true
+    },
+    {
+      "name": "Ramp_Secs_s",
+      "type": "float",
+      "path": "ramp.secs",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "Ramp_Door",
+      "type": "bool",
+      "path": "ramp.door",
+      "required": true
+    },
+    {
+      "name": "MaxCargo_Cars",
+      "type": "int",
+      "path": "maxCargo.cars",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "MaxCargo_Mass_t",
+      "type": "float",
+      "path": "maxCargo.mass",
+      "required": true,
+      "unit": "t"
+    },
+    {
+      "name": "Wide",
+      "type": "bool",
+      "path": "wide",
+      "required": true
+    },
+    {
+      "name": "Escort",
+      "type": "int",
+      "path": "escort",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

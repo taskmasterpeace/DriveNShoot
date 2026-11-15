@@ -1,0 +1,2 @@
+Name,Soft_per_s,SoftPower,Sink_per_s,SinkIdle_per_s,Firm_per_s,Power,Drag_per_s,StuckAt,PullFree,FreeAt,SpinSpeed_mps,MaxBog,Source
+default,2.4,0.55,0.55,0.04,0.5,0.96,6,0.55,22,0.12,3,1,design: docs/design/WEB_MOVE_TOW.md

@@ -1,0 +1,5 @@
+Name,Arena,Index,X,Z,Source
+loopline_0,loopline,0,-110,0,design: docs/design/WEB_WORKSHOP.md
+loopline_1,loopline,1,0,-55,design: docs/design/WEB_WORKSHOP.md
+loopline_2,loopline,2,110,0,design: docs/design/WEB_WORKSHOP.md
+loopline_3,loopline,3,0,55,design: docs/design/WEB_WORKSHOP.md

@@ -1,0 +1,91 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "RepairPrices",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaRepairPricesRow",
+  "description": "Counter prices: per plate point, per part, labour hours. One row.",
+  "legacy": {
+    "file": "src/data/workshop.js REPAIR",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "PlatePt_scrip",
+      "type": "float",
+      "path": "platePt",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "PlateLabour_gh",
+      "type": "float",
+      "path": "plateLabour",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Part_Engine_scrip",
+      "type": "float",
+      "path": "part.engine",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Part_Radiator_scrip",
+      "type": "float",
+      "path": "part.radiator",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Part_Tank_scrip",
+      "type": "float",
+      "path": "part.tank",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Part_Lights_scrip",
+      "type": "float",
+      "path": "part.lights",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Part_Tyre_scrip",
+      "type": "float",
+      "path": "part.tyre",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Part_Body_scrip",
+      "type": "float",
+      "path": "part.body",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "PartLabour_gh",
+      "type": "float",
+      "path": "partLabour",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

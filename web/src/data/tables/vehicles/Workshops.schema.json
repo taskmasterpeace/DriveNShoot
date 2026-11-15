@@ -1,0 +1,94 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Workshops",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaWorkshopsRow",
+  "description": "Where the workshop opens: keeper NPC or fixed site, radius, labour rate, which rare rows it deals in, standing needed.",
+  "legacy": {
+    "file": "src/data/workshop.js WORKSHOPS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Where",
+      "type": "string",
+      "path": "where",
+      "required": true
+    },
+    {
+      "name": "Keeper",
+      "type": "string",
+      "path": "keeper",
+      "required": false
+    },
+    {
+      "name": "R_m",
+      "type": "float",
+      "path": "r",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Rate_scrip",
+      "type": "float",
+      "path": "rate",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Kind",
+      "type": "string",
+      "path": "kind",
+      "required": false
+    },
+    {
+      "name": "SelfWork",
+      "type": "float",
+      "path": "selfWork",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "X_m",
+      "type": "float",
+      "path": "x",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Z_m",
+      "type": "float",
+      "path": "z",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "NeedStanding",
+      "type": "float",
+      "path": "needStanding",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

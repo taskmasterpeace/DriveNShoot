@@ -1,0 +1,112 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "MudSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaMudSettingsRow",
+  "description": "Mud: how soft ground holds a car that sits or spins its wheels in it (bog 0..1). One row.",
+  "legacy": {
+    "file": "src/data/towing.js MUD",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Soft_per_s",
+      "type": "float",
+      "path": "soft",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "SoftPower",
+      "type": "float",
+      "path": "softPower",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Sink_per_s",
+      "type": "float",
+      "path": "sink",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "SinkIdle_per_s",
+      "type": "float",
+      "path": "sinkIdle",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "Firm_per_s",
+      "type": "float",
+      "path": "firm",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "Power",
+      "type": "float",
+      "path": "power",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Drag_per_s",
+      "type": "float",
+      "path": "drag",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "StuckAt",
+      "type": "float",
+      "path": "stuckAt",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "PullFree",
+      "type": "float",
+      "path": "pullFree",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "FreeAt",
+      "type": "float",
+      "path": "freeAt",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "SpinSpeed_mps",
+      "type": "float",
+      "path": "spinSpeed",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "MaxBog",
+      "type": "float",
+      "path": "maxBog",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

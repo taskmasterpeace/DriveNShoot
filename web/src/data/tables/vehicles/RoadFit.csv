@@ -1,0 +1,7 @@
+Name,GameKey,Width_m,MaxLen_m,Wide,Source
+interstate,,12.600000000000001,40,true,design: docs/design/WEB_SEMIS.md
+divided,,8.4,30,true,design: docs/design/WEB_SEMIS.md
+two_lane,two-lane,8.4,24,true,design: docs/design/WEB_SEMIS.md
+rural,,6.8,20,false,design: docs/design/WEB_SEMIS.md
+dirt,,4.2,12,false,design: docs/design/WEB_SEMIS.md
+street,,14,22,true,design: docs/design/WEB_SEMIS.md

@@ -1,0 +1,8 @@
+Name,DisplayName,Color,Price_scrip,Source
+primer,PRIMER GREY,#5f5b55,20,design: docs/design/WEB_WORKSHOP.md
+rust,RUST RED,#7a3a22,30,design: docs/design/WEB_WORKSHOP.md
+sand,DESERT SAND,#a88d5c,30,design: docs/design/WEB_WORKSHOP.md
+olive,DRAB OLIVE,#4f5434,30,design: docs/design/WEB_WORKSHOP.md
+bone,BONE WHITE,#cfc4ab,40,design: docs/design/WEB_WORKSHOP.md
+hazard,HAZARD YELLOW,#c99a1c,45,design: docs/design/WEB_WORKSHOP.md
+ink,ROAD TAR,#2a2622,35,design: docs/design/WEB_WORKSHOP.md

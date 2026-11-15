@@ -1,0 +1,49 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "TrailerConstants",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaTrailerConstantsRow",
+  "description": "Lane width, the margin each side a rig needs, the margin under a structure. One row.",
+  "legacy": {
+    "file": "src/data/trailers.js LANE_W, FIT_MARGIN, CLEARANCE.margin",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "LaneW_m",
+      "type": "float",
+      "path": "laneW",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "FitMargin_m",
+      "type": "float",
+      "path": "fitMargin",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "ClearanceMargin_m",
+      "type": "float",
+      "path": "clearanceMargin",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

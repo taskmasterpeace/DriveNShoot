@@ -1,0 +1,16 @@
+Name,DisplayName,Kind,Kg_kg,Bulk,Stack,Value_scrip,Desc,Source
+belt_mg,MG belt,ammo,2.8,1.6,4,30,A hundred linked rounds in a steel can. Feeds either hood gun.,design: docs/design/WEB_WORKSHOP.md
+belt_50,.50 belt,ammo,6,3,3,90,Fifty linked .50 rounds in a can you need both hands for. Feeds the heavy gun.,design: docs/design/WEB_WORKSHOP.md
+ac_shells,Autocannon shells,ammo,6,3,3,60,Twenty fat shells in a crate with rope handles.,design: docs/design/WEB_WORKSHOP.md
+rocket,Rocket,ammo,3,2.4,6,45,A tube with fins and a bad attitude. Fits the pods.,design: docs/design/WEB_WORKSHOP.md
+heavy_rocket,Heavy rocket,ammo,9,7,1,110,One round for the big tube. Carry it like it is asleep.,design: docs/design/WEB_WORKSHOP.md
+napalm,Napalm can,ammo,5,5,2,40,"Jellied fuel. It sticks, and it keeps burning.",design: docs/design/WEB_WORKSHOP.md
+rail_slug,Rail slugs,ammo,1.6,0.4,6,160,Two pre-war tungsten slugs in foam. Nobody makes these any more.,design: docs/design/WEB_WORKSHOP.md
+car_mine,Car mine,ammo,6,3,4,55,A pressure plate on a cake tin of explosive. Do not step on it either.,design: docs/design/WEB_WORKSHOP.md
+oil_drum,Waste oil,ammo,8,8,2,10,Black sludge drained from a hundred dead engines. Two slicks.,design: docs/design/WEB_WORKSHOP.md
+caltrop_bag,Caltrop bag,ammo,3,1.5,3,12,A sack of welded jacks.,design: docs/design/WEB_WORKSHOP.md
+smoke_can,Smudge oil,ammo,2,2,4,10,Oil cut with tar for the smoke layer. Two clouds.,design: docs/design/WEB_WORKSHOP.md
+flare_pack,Flare pack,ammo,1.2,1,4,25,Three magnesium flares and a striker.,design: docs/design/WEB_WORKSHOP.md
+paint_can,Paint drum,ammo,4,4,3,15,"White house paint, thinned for the sprayer.",design: docs/design/WEB_WORKSHOP.md
+nitrous_bottle,Nitrous bottle,ammo,4,3,3,50,A blue bottle that hisses. One burst.,design: docs/design/WEB_WORKSHOP.md
+suppressant,Suppressant bottle,ammo,3,2.5,2,35,A charge for the car's fire system.,design: docs/design/WEB_WORKSHOP.md

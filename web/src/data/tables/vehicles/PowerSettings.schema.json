@@ -1,0 +1,42 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "PowerSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaPowerSettingsRow",
+  "description": "Every engine's alternator: energy capacity and regen per second. One row.",
+  "legacy": {
+    "file": "src/data/workshop.js POWER",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Alternator_Cap",
+      "type": "float",
+      "path": "alternator.cap",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Alternator_Regen_per_s",
+      "type": "float",
+      "path": "alternator.regen",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "TowSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaTowSettingsRow",
+  "description": "The towing system's own numbers: hook reach, load smoothing, towed drag, winch speed, gate and wreck loads. One row. docs/design/WEB_MOVE_TOW.md.",
+  "legacy": {
+    "file": "src/data/towing.js TOW",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Reach_m",
+      "type": "float",
+      "path": "reach",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Filter_per_s",
+      "type": "float",
+      "path": "filter",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "TowedDrag_per_s",
+      "type": "float",
+      "path": "towedDrag",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "LiftedDrag_per_s",
+      "type": "float",
+      "path": "liftedDrag",
+      "required": true,
+      "unit": "per_s"
+    },
+    {
+      "name": "DeadDrag",
+      "type": "float",
+      "path": "deadDrag",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "ReelSpeed_mps",
+      "type": "float",
+      "path": "reelSpeed",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "StallLoad",
+      "type": "float",
+      "path": "stallLoad",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Inertia",
+      "type": "float",
+      "path": "inertia",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "SnapFling",
+      "type": "float",
+      "path": "snapFling",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "GateLoad",
+      "type": "float",
+      "path": "gateLoad",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "WreckLoad",
+      "type": "float",
+      "path": "wreckLoad",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "TieSlack_m",
+      "type": "float",
+      "path": "tieSlack",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Segs",
+      "type": "int",
+      "path": "segs",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "MaxLinks",
+      "type": "int",
+      "path": "maxLinks",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

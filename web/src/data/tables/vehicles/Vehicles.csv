@@ -1,0 +1,25 @@
+Name,Group,DisplayName,Len_m,Wid_m,Tall_m,MaxSpeed_mps,Reverse_mps,Accel_mps2,Turn_radps,Grip,Mass_t,Hp_hp,Harpoon,Armor,FuelCap_L,Base,Look,Open,Deck,RoofDeck,Springs,Boat,Shallow,NoEngine,Quad,Bike,Tractor_Fifth_m,Trailer,Tow,Winch,BoatTrailer,Source
+rig,core,WHALER,7.6,2.7,3.1,30,11,13,1.5,5,4,450,true,0.1,160,,,,,,,,,,,,,,,,,design
+interceptor,core,LAWMAN,4.6,2,1.76,46,15,22,2.4,6.5,1.4,180,,0.3,60,,,,,,,,,,,,,,,,,design
+bullcar,core,BULL CAR,4.6,2,1.76,41,14,19,2.3,6.2,1.55,210,,0.36,60,interceptor,rundown,,,,,,,,,,,,,,,design
+buggy,core,DUNE BUGGY,3.6,1.9,1.6,40,14,26,2.9,5.2,1,110,,0.45,35,,,true,,,,,,,,,,,,,,design
+pickup,core,PICKUP,5,2.2,1.95,36,13,17,2.1,6,1.8,220,,0.28,80,,,,pickupBed,,,,,,,,,,,,,design
+sedan,core,SEDAN,4.8,2,1.8,40,14,18,2.2,6.2,1.5,170,,0.32,55,,,,,,,,,,,,,,,,,design
+van,core,VAN,5.4,2.25,2.1,32,12,14,1.8,5.6,2.2,240,,0.26,75,,,,vanCargo,vanRoof,,,,,,,,,,,,design
+rv,core,RV,8,2.5,3.3,27,10,10,1.35,5.4,3.6,380,,0.22,200,,,,rvCoach,rvRoof,rig,,,,,,,,,,,design
+airboat,core,AIRBOAT,4.6,2.4,2.2,34,7,18,2,2.2,1.2,140,,0.4,50,,,true,airboatDeck,,,true,true,,,,,,,,,design
+jetski,core,WATERBIKE,2.8,1,1.1,40,5,26,3.2,2.6,0.5,60,,0.6,20,,,true,,,,true,,,,,,,,,,design
+gunboat,core,RAIDER GUNBOAT,7.2,2.8,2.6,28,6,12,1.3,1.8,3,380,,0.15,120,,,,gunboatDeck,,,true,,,,,,,,,,design
+raft,core,RAFT,4.4,2.8,0.6,3.2,1.6,1.4,0.9,1.2,0.9,90,,0.7,0,,,true,raftDeck,,,true,true,true,,,,,,,,design
+ferry,core,RIVER FERRY,8.4,4.6,1.6,4,4,1.2,0.4,1.5,6,600,,0.3,0,,,true,ferryDeck,,,true,true,true,,,,,,,,design
+atv,core,ATV,2.3,1.25,1.2,38,12,28,3,5.8,0.35,85,,0.6,15,,,true,,,,,,,true,,,,,,,design
+bike,core,MOTORCYCLE,2.15,0.8,1.25,52,10,30,3,6.4,0.45,70,,0.6,18,,,true,,,,,,,,true,,,,,,design
+patrol,core,PATROL TRUCK,4.9,2.3,2.05,37,13,17,2,6.6,2.4,330,,0.2,95,,,,,,,,,,,,,,,,,design
+apc,core,ARMORED CARRIER,7,2.85,2.6,26,10,10,1.25,7.2,6,720,,0.06,220,,,,,,rig,,,,,,,,,,,design
+semi,semi,LONGHAULER,7.4,2.6,3.95,31,7,11,1.4,6.4,5,520,,0.12,300,,,,,,rig,,,,,,-2.35,,,,,design
+boxtrailer,semi,BOX TRAILER,12.4,3.2,4,31,7,0,0,5.5,4,600,,0.2,0,,,,boxHold,,rig,,,true,,,,box,,,,design
+widetrailer,semi,WIDE-LOAD LOWBOY,14.2,5.6,1.8,31,7,0,0,5.5,5,700,,0.15,0,,,,wideDeck,,rig,,,true,,,,wide,,,,design
+towtruck,tow,WRECKER,5.6,2.25,2,33,11,16,1.95,6.4,2.6,300,,0.24,95,pickup,wrecker,,,,,,,,,,,,boom,true,,design
+boattrailer,tow,BOAT TRAILER,5.4,2.1,0.95,30,10,0,0,6,0.45,120,,0.5,0,boattrailer,,,,,,,,true,,,,,,,true,design
+skiff,tow,FISHING SKIFF,4.8,1.9,1.3,24,6,14,2.2,2.4,0.8,110,,0.5,40,skiff,,true,,,,true,true,,,,,,,,,design
+barge,tow,PONTOON BARGE,7.4,3,2.4,12,5,6,0.9,2,2.6,260,,0.4,60,barge,,true,,,,true,true,,,,,,,,,design

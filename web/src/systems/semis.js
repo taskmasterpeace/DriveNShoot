@@ -4,7 +4,7 @@ import { rampGeometry, holdDoorGeometry } from './vehiclebodies.js';
 import { TRAILERS, TRAILER_DECKS, HITCH, CARRY, FREIGHT, CLEARANCE, fitsHold, fitsRoad, fitsUnder } from '../data/trailers.js';
 import { makeRng, clamp, angleLerp } from '../engine/rng.js';
 import { outfit } from './characters.js';
-import { CHASSIS } from '../data/workshop.js';
+import { vehicleBodies } from '../data/tables/vehicles/index.js';
 
 // SEMIS (docs/design/WEB_SEMIS.md; rows in data/trailers.js): tractor-trailers you drive a car INTO.
 //
@@ -28,16 +28,11 @@ import { CHASSIS } from '../data/workshop.js';
 // (linked) / aiDrive ('semi'), vehiclelights.js (a towed trailer is lit by its tractor), decks.js (a door that `needs`
 // a flag; v.cargoBoxes), seats.js leave (out onto the hold's floor), main.js (the system, trailers aren't "Drive" targets).
 
-const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
-// The rows (as systems/travel.js adds the trundle's): a sleeper tractor, `tractor.fifth` its fifth wheel's local z; the two
-// trailers, each naming its TRAILERS row and its hold deck. No engine, no seats: a trailer moves when something pulls it.
-VEHICLES.semi ??= { name: 'LONGHAULER', len: 7.4, wid: 2.6, tall: 3.95, maxSpeed: 31, reverse: 7, accel: 11, turn: 1.4, grip: 6.4, mass: 5, hp: 520, armor: 0.12, fuelCap: 300, springs: 'rig', seats: S2, tractor: { fifth: -2.35 } };
-VEHICLES.boxtrailer ??= { name: 'BOX TRAILER', len: 12.4, wid: 3.2, tall: 4.0, maxSpeed: 31, reverse: 7, accel: 0, turn: 0, grip: 5.5, mass: 4, hp: 600, armor: 0.2, fuelCap: 0, noEngine: true, springs: 'rig', seats: [], trailer: 'box', deck: TRAILER_DECKS.boxHold };
-// The workshop (data/workshop.js CHASSIS): the tractor takes plate and guns like the old rig; its rear point sits at the fifth
-// wheel, so it only takes droppers (`drops`), and they fall behind whatever it pulls (dropTail). Trailers are not worked on.
-CHASSIS.semi ??= { maxKg: 3600, spaces: 22, faces: { front: 60, rear: 30, left: 44, right: 44, top: 28, under: 30 },
-  mounts: { front: { size: 3, arc: 0.45 }, rear: { size: 1, arc: 0.6, drops: true }, left: { size: 2, arc: 0.6 }, right: { size: 2, arc: 0.6 }, top: { size: 3, arc: Math.PI } } };
-VEHICLES.widetrailer ??= { name: 'WIDE-LOAD LOWBOY', len: 14.2, wid: 5.6, tall: 1.8, maxSpeed: 31, reverse: 7, accel: 0, turn: 0, grip: 5.5, mass: 5, hp: 700, armor: 0.15, fuelCap: 0, noEngine: true, springs: 'rig', seats: [], trailer: 'wide', deck: TRAILER_DECKS.wideDeck };
+// The rows (tables/vehicles/Vehicles.csv, Group = semi): a sleeper tractor (`tractor.fifth` its fifth wheel's local z) and two trailers,
+// each naming its TRAILERS row and its hold deck (a key into TRAILER_DECKS). No engine, no seats on a trailer: it moves when pulled.
+for (const [k, v] of Object.entries(vehicleBodies('semi'))) VEHICLES[k] ??= v.deck ? { ...v, deck: TRAILER_DECKS[v.deck] } : v;
+// The tractor's workshop row (CHASSIS.semi: it takes plate and guns like the old rig; its rear point sits at the fifth wheel, so it only takes
+// droppers (`drops`), and they fall behind whatever it pulls) is in the tables now: tables/vehicles/Chassis.csv.
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const _v = new THREE.Vector3(), L = { x: 0, z: 0 }, W = { x: 0, z: 0 }, NONE = [];

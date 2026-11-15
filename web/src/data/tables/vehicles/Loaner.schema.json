@@ -1,0 +1,99 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Loaner",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaLoanerRow",
+  "description": "The loaner night: the promoter's junker, its build and the race. One row.",
+  "legacy": {
+    "file": "src/data/workshop.js LOANER",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Arena",
+      "type": "string",
+      "path": "arena",
+      "required": true
+    },
+    {
+      "name": "Vehicle",
+      "type": "string",
+      "path": "vehicle",
+      "required": true
+    },
+    {
+      "name": "Build_Armor_Front_Kind",
+      "type": "string",
+      "path": "build.armor.front.0",
+      "required": true
+    },
+    {
+      "name": "Build_Armor_Front_Points",
+      "type": "int",
+      "path": "build.armor.front.1",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Build_Armor_Rear_Kind",
+      "type": "string",
+      "path": "build.armor.rear.0",
+      "required": true
+    },
+    {
+      "name": "Build_Armor_Rear_Points",
+      "type": "int",
+      "path": "build.armor.rear.1",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Build_Mounts_Front",
+      "type": "string",
+      "path": "build.mounts.front",
+      "required": true
+    },
+    {
+      "name": "Field",
+      "type": "int",
+      "path": "field",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Entry_scrip",
+      "type": "float",
+      "path": "entry",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Purse_scrip",
+      "type": "float",
+      "path": "purse",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Keep",
+      "type": "string",
+      "path": "keep",
+      "required": true
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

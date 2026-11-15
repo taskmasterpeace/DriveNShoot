@@ -1,0 +1,42 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "LoadSettings",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaLoadSettingsRow",
+  "description": "Weight costs performance (old garage): top-speed loss per mass ratio and the turn exponent. One row.",
+  "legacy": {
+    "file": "src/data/parts.js LOAD",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "TopLossPerMassRatio",
+      "type": "float",
+      "path": "topLossPerMassRatio",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "TurnExp",
+      "type": "float",
+      "path": "turnExp",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

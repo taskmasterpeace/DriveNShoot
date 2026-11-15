@@ -1,0 +1,8 @@
+Name,Part,Index,Value,Source
+dronebay_0,dronebay,0,pickup,design: docs/design/WEB_WORKSHOP.md
+dronebay_1,dronebay,1,van,design: docs/design/WEB_WORKSHOP.md
+dronebay_2,dronebay,2,rv,design: docs/design/WEB_WORKSHOP.md
+dronebay_3,dronebay,3,rig,design: docs/design/WEB_WORKSHOP.md
+dronebay_4,dronebay,4,interceptor,design: docs/design/WEB_WORKSHOP.md
+dronebay_5,dronebay,5,patrol,design: docs/design/WEB_WORKSHOP.md
+dronebay_6,dronebay,6,apc,design: docs/design/WEB_WORKSHOP.md

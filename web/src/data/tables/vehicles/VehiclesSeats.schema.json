@@ -1,0 +1,102 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "VehiclesSeats",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaVehiclesSeatsRow",
+  "description": "Child table of Vehicles: seats. Joined by Vehicle, ordered by Index.",
+  "legacy": {
+    "file": "src/systems/vehicles.js (+ semis.js, data/towing.js)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Vehicle",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "ref": {
+        "table": "Vehicles",
+        "column": "Name"
+      },
+      "description": "The Vehicles row this belongs to."
+    },
+    {
+      "name": "Index",
+      "type": "int",
+      "unit": "",
+      "path": null,
+      "required": true,
+      "min": 0,
+      "description": "Order within the parent (0 first)."
+    },
+    {
+      "name": "Id",
+      "type": "string",
+      "path": "id",
+      "required": true
+    },
+    {
+      "name": "Side",
+      "type": "string",
+      "path": "side",
+      "required": true
+    },
+    {
+      "name": "Row",
+      "type": "int",
+      "path": "row",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Exposed",
+      "type": "string",
+      "path": "exposed",
+      "required": false
+    },
+    {
+      "name": "At_X_m",
+      "type": "float",
+      "path": "at.0",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "At_Y_m",
+      "type": "float",
+      "path": "at.1",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "At_Z_m",
+      "type": "float",
+      "path": "at.2",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ],
+  "parent": {
+    "table": "Vehicles",
+    "column": "Vehicle",
+    "path": "seats",
+    "kind": "rows",
+    "orderColumn": "Index",
+    "emptyWhenMissing": true
+  }
+}

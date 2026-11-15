@@ -1,0 +1,134 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "ArmorTypes",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaArmorTypesRow",
+  "description": "What a face can be plated with: weight, price, hit points absorbed, welding hours, damage-type multipliers. docs/design/WEB_WORKSHOP.md.",
+  "legacy": {
+    "file": "src/data/workshop.js ARMOR",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg"
+    },
+    {
+      "name": "Price_scrip",
+      "type": "float",
+      "path": "price",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Absorb_hp",
+      "type": "float",
+      "path": "absorb",
+      "required": true,
+      "unit": "hp"
+    },
+    {
+      "name": "Labour_gh",
+      "type": "float",
+      "path": "labour",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Vs_Bullet",
+      "type": "float",
+      "path": "vs.bullet",
+      "required": true,
+      "unit": "",
+      "description": "Multiplier on bullet hits."
+    },
+    {
+      "name": "Vs_Fire",
+      "type": "float",
+      "path": "vs.fire",
+      "required": true,
+      "unit": "",
+      "description": "Multiplier on fire."
+    },
+    {
+      "name": "Vs_Blast",
+      "type": "float",
+      "path": "vs.blast",
+      "required": true,
+      "unit": "",
+      "description": "Multiplier on blasts."
+    },
+    {
+      "name": "Vs_Pierce",
+      "type": "float",
+      "path": "vs.pierce",
+      "required": true,
+      "unit": "",
+      "description": "Multiplier on rail/pierce hits."
+    },
+    {
+      "name": "Desc",
+      "type": "string",
+      "path": "desc",
+      "required": true
+    },
+    {
+      "name": "Crash",
+      "type": "float",
+      "path": "crash",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Ram",
+      "type": "float",
+      "path": "ram",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Plow",
+      "type": "bool",
+      "path": "plow",
+      "required": false
+    },
+    {
+      "name": "Grabbers_Grip_per_s",
+      "type": "float",
+      "path": "grabbers.grip",
+      "required": false,
+      "unit": "per_s"
+    },
+    {
+      "name": "Grabbers_Dps_hp",
+      "type": "float",
+      "path": "grabbers.dps",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

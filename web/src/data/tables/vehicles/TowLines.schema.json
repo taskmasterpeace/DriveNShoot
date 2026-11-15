@@ -1,0 +1,124 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "TowLines",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaTowLinesRow",
+  "description": "Lines between vehicles (rope, chain, winch cable, the wrecker boom, a trailer hitch). A spring that only pulls, or a rigid bar. docs/design/WEB_MOVE_TOW.md.",
+  "legacy": {
+    "file": "src/data/towing.js LINES",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Item",
+      "type": "string",
+      "path": "item",
+      "required": false,
+      "description": "Item key the player carries to make it (empty = part of a vehicle)."
+    },
+    {
+      "name": "Len_m",
+      "type": "float",
+      "path": "len",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "K",
+      "type": "float",
+      "path": "k",
+      "required": false,
+      "unit": "",
+      "description": "Spring constant."
+    },
+    {
+      "name": "Damp",
+      "type": "float",
+      "path": "damp",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "MaxStretch_m",
+      "type": "float",
+      "path": "maxStretch",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "BreakLoad",
+      "type": "float",
+      "path": "breakLoad",
+      "required": true,
+      "unit": "",
+      "description": "Smoothed tension (vehicle mass x m/s^2) that parts it."
+    },
+    {
+      "name": "Color",
+      "type": "string",
+      "path": "color",
+      "required": true,
+      "description": "Hex colour drawn."
+    },
+    {
+      "name": "Sag_m",
+      "type": "float",
+      "path": "sag",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "W_m",
+      "type": "float",
+      "path": "w",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Range_m",
+      "type": "float",
+      "path": "range",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Winch",
+      "type": "bool",
+      "path": "winch",
+      "required": false
+    },
+    {
+      "name": "Rigid",
+      "type": "bool",
+      "path": "rigid",
+      "required": false
+    },
+    {
+      "name": "Lift",
+      "type": "bool",
+      "path": "lift",
+      "required": false
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

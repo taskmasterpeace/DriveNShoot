@@ -1,0 +1,2 @@
+Name,Arena,Vehicle,Build_Armor_Front_Kind,Build_Armor_Front_Points,Build_Armor_Rear_Kind,Build_Armor_Rear_Points,Build_Mounts_Front,Field,Entry_scrip,Purse_scrip,Keep,Source
+default,loopline,sedan,sheet,8,sheet,6,mg1,4,0,150,win,design: docs/design/WEB_WORKSHOP.md

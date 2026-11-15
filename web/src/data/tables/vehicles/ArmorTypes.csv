@@ -1,0 +1,8 @@
+Name,DisplayName,Kg_kg,Price_scrip,Absorb_hp,Labour_gh,Vs_Bullet,Vs_Fire,Vs_Blast,Vs_Pierce,Desc,Crash,Ram,Plow,Grabbers_Grip_per_s,Grabbers_Dps_hp,Source
+plate,BOILER PLATE,25,12,10,0.05,1,1,1,0.5,Quarter-inch boiler steel cut from a dead refinery. The honest choice: stops a burst a slab and weighs like sin.,,,,,,design: docs/design/WEB_WORKSHOP.md
+sheet,SHEET STEEL,14,6,6,0.03,1,0.9,0.8,0.3,"Road signs and fridge doors hammered flat. Light, cheap, and gone in a long burst.",,,,,,design: docs/design/WEB_WORKSHOP.md
+ablative,ABLATIVE PACK,12,20,8,0.06,0.8,1.9,1.4,0.4,Ceramic tiles in fibre bags. It burns away so the steel under it does not. Laughs at flame.,,,,,,design: docs/design/WEB_WORKSHOP.md
+spaced,SPACED PLATE,22,18,9,0.08,0.95,1,1.8,0.9,Two skins with a hand-span of air between. A rocket spends itself on the first one.,,,,,,design: docs/design/WEB_WORKSHOP.md
+ram,RAM PLATE,35,16,11,0.08,1,1,1,0.6,A wedge of grader blade. You stop caring what you hit.,0.4,1.6,,,,design: docs/design/WEB_WORKSHOP.md
+plow,COWCATCHER,30,14,7,0.07,0.9,1,0.9,0.4,"A railroad grille welded to the frame. The dead go under and to the side, not through the glass.",0.5,1.25,true,,,design: docs/design/WEB_WORKSHOP.md
+spikes,SPIKE STRIP,18,10,5,0.05,0.8,1,0.8,0.3,Rebar points sharpened on a wheel. Nobody hangs onto this side for long.,0.9,1.35,,2.6,14,design: docs/design/WEB_WORKSHOP.md

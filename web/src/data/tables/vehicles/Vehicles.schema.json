@@ -1,0 +1,246 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Vehicles",
+  "family": "vehicles",
+  "key": "Name",
+  "rowStruct": "FDsoaVehiclesRow",
+  "description": "Every vehicle body: size, speed, handling, hit points, fuel, flags. One row per body; seats are the VehiclesSeats child table. Group: core = vehicles.js, semi = systems/semis.js, tow = data/towing.js.",
+  "legacy": {
+    "file": "src/systems/vehicles.js (+ semis.js, data/towing.js)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Group",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "enum": [
+        "core",
+        "semi",
+        "tow"
+      ],
+      "description": "Which game module registers the row (load order)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Len_m",
+      "type": "float",
+      "path": "len",
+      "required": true,
+      "unit": "m",
+      "description": "Body length (m)."
+    },
+    {
+      "name": "Wid_m",
+      "type": "float",
+      "path": "wid",
+      "required": true,
+      "unit": "m",
+      "description": "Body width (m)."
+    },
+    {
+      "name": "Tall_m",
+      "type": "float",
+      "path": "tall",
+      "required": true,
+      "unit": "m",
+      "description": "Body height (m)."
+    },
+    {
+      "name": "MaxSpeed_mps",
+      "type": "float",
+      "path": "maxSpeed",
+      "required": true,
+      "unit": "mps",
+      "description": "Top speed (m/s)."
+    },
+    {
+      "name": "Reverse_mps",
+      "type": "float",
+      "path": "reverse",
+      "required": true,
+      "unit": "mps",
+      "description": "Top speed backing up (m/s); empty = a share of maxSpeed (Driving table)."
+    },
+    {
+      "name": "Accel_mps2",
+      "type": "float",
+      "path": "accel",
+      "required": true,
+      "unit": "mps2",
+      "description": "Engine pull (m/s^2)."
+    },
+    {
+      "name": "Turn_radps",
+      "type": "float",
+      "path": "turn",
+      "required": true,
+      "unit": "radps",
+      "description": "Steering rate at the wheel (rad/s)."
+    },
+    {
+      "name": "Grip",
+      "type": "float",
+      "path": "grip",
+      "required": true,
+      "unit": "",
+      "description": "Tyre grip; pulls sideways slip back in (dimensionless)."
+    },
+    {
+      "name": "Mass_t",
+      "type": "float",
+      "path": "mass",
+      "required": true,
+      "unit": "t",
+      "description": "Mass in tonnes."
+    },
+    {
+      "name": "Hp_hp",
+      "type": "float",
+      "path": "hp",
+      "required": true,
+      "unit": "hp",
+      "description": "Hit points of the hull."
+    },
+    {
+      "name": "Harpoon",
+      "type": "bool",
+      "path": "harpoon",
+      "required": false
+    },
+    {
+      "name": "Armor",
+      "type": "float",
+      "path": "armor",
+      "required": true,
+      "unit": "",
+      "description": "Damage taken multiplier (lower = tougher)."
+    },
+    {
+      "name": "FuelCap_L",
+      "type": "float",
+      "path": "fuelCap",
+      "required": true,
+      "unit": "L",
+      "description": "Tank size in litres (0 = no engine)."
+    },
+    {
+      "name": "Base",
+      "type": "string",
+      "path": "base",
+      "required": false
+    },
+    {
+      "name": "Look",
+      "type": "string",
+      "path": "look",
+      "required": false
+    },
+    {
+      "name": "Open",
+      "type": "bool",
+      "path": "open",
+      "required": false
+    },
+    {
+      "name": "Deck",
+      "type": "string",
+      "path": "deck",
+      "required": false,
+      "description": "Key of the walkable deck row (data/decks.js; trailer holds: data/trailers.js)."
+    },
+    {
+      "name": "RoofDeck",
+      "type": "string",
+      "path": "roofDeck",
+      "required": false
+    },
+    {
+      "name": "Springs",
+      "type": "string",
+      "path": "springs",
+      "required": false
+    },
+    {
+      "name": "Boat",
+      "type": "bool",
+      "path": "boat",
+      "required": false
+    },
+    {
+      "name": "Shallow",
+      "type": "bool",
+      "path": "shallow",
+      "required": false
+    },
+    {
+      "name": "NoEngine",
+      "type": "bool",
+      "path": "noEngine",
+      "required": false
+    },
+    {
+      "name": "Quad",
+      "type": "bool",
+      "path": "quad",
+      "required": false
+    },
+    {
+      "name": "Bike",
+      "type": "bool",
+      "path": "bike",
+      "required": false
+    },
+    {
+      "name": "Tractor_Fifth_m",
+      "type": "float",
+      "path": "tractor.fifth",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Trailer",
+      "type": "string",
+      "path": "trailer",
+      "required": false
+    },
+    {
+      "name": "Tow",
+      "type": "string",
+      "path": "tow",
+      "required": false
+    },
+    {
+      "name": "Winch",
+      "type": "bool",
+      "path": "winch",
+      "required": false
+    },
+    {
+      "name": "BoatTrailer",
+      "type": "bool",
+      "path": "boatTrailer",
+      "required": false
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

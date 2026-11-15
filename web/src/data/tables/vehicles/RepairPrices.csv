@@ -1,0 +1,2 @@
+Name,PlatePt_scrip,PlateLabour_gh,Part_Engine_scrip,Part_Radiator_scrip,Part_Tank_scrip,Part_Lights_scrip,Part_Tyre_scrip,Part_Body_scrip,PartLabour_gh,Source
+default,0.5,0.02,80,40,50,15,20,30,0.4,design: docs/design/WEB_WORKSHOP.md
