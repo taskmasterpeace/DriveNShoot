@@ -7,7 +7,7 @@ import { allFamilies, loadFamily, tableFiles, TableError } from '../src/data/tab
 const bad = [];
 let tables = 0, rows = 0;
 const hue = (hex) => { const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (mx - mn < 0.08) return -1; const h = mx === r ? ((g - b) / (mx - mn)) : mx === g ? 2 + (b - r) / (mx - mn) : 4 + (r - g) / (mx - mn); return (h * 60 + 360) % 360; };
-const SUFFIX = { m: 'm', mps: 'mps', mps2: 'mps2', kg: 'kg', t: 't', L: 'L', s: 's', rad: 'rad', radps: 'radps', gh: 'gh', hp: 'hp', scrip: 'scrip', per_s: 'per_s', deg: 'deg', game_min: 'gmin' };
+const SUFFIX = { m: 'm', mps: 'mps', mps2: 'mps2', kg: 'kg', t: 't', L: 'L', s: 's', rad: 'rad', radps: 'radps', gh: 'gh', hit_points: 'hp', scrip: 'scrip', per_s: 'per_s', deg: 'deg', game_min: 'gmin' };
 import { denyHits } from './ip-terms.mjs';
 
 try {

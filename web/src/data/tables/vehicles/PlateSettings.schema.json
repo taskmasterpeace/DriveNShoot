@@ -22,7 +22,7 @@
       "type": "float",
       "path": "absorb",
       "required": true,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Kg_kg",

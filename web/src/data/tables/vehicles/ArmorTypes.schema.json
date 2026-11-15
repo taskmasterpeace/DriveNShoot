@@ -42,7 +42,7 @@
       "type": "float",
       "path": "absorb",
       "required": true,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Labour_gh",
@@ -121,7 +121,7 @@
       "type": "float",
       "path": "grabbers.dps",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Source",

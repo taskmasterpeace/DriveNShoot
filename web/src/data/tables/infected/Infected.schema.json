@@ -28,7 +28,7 @@
       "type": "float",
       "path": "hp",
       "required": true,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Speed_Min_mps",
@@ -151,14 +151,14 @@
       "type": "float",
       "path": "door.dmg",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Legs_hp",
       "type": "float",
       "path": "legs",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Crawl_mps",
@@ -200,7 +200,7 @@
       "type": "float",
       "path": "fall.dmg",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Fall_Chance",

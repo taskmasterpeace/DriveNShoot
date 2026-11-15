@@ -48,7 +48,7 @@
       "type": "float",
       "path": "dmg",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Rate_s",

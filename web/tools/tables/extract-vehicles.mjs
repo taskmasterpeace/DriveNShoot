@@ -20,7 +20,7 @@ add({
   description: 'Every vehicle body: size, speed, handling, hit points, fuel, flags. One row per body; seats are the VehiclesSeats child table. Group: core = vehicles.js, semi = systems/semis.js, tow = data/towing.js.',
   prep: (o) => ({ ...o, deck: o.deck && typeof o.deck === 'object' ? o.deck.key : o.deck }),
   meta: { Group: (k) => group[k] }, metaEnum: { Group: ['core', 'semi', 'tow'] }, metaDesc: { Group: 'Which game module registers the row (load order).' },
-  units: { len: 'm', wid: 'm', tall: 'm', maxSpeed: 'mps', reverse: 'mps', accel: 'mps2', turn: 'radps', mass: 't', hp: 'hp', fuelCap: 'L', 'tractor.fifth': 'm', at: 'm' },
+  units: { len: 'm', wid: 'm', tall: 'm', maxSpeed: 'mps', reverse: 'mps', accel: 'mps2', turn: 'radps', mass: 't', grip: 'per_s', hp: 'hit_points', fuelCap: 'L', 'tractor.fifth': 'm', at: 'm' },
   descs: {
     len: 'Body length (m).', wid: 'Body width (m).', tall: 'Body height (m).', maxSpeed: 'Top speed (m/s).', reverse: 'Top speed backing up (m/s); empty = a share of maxSpeed (Driving table).',
     accel: 'Engine pull (m/s^2).', turn: 'Steering rate at the wheel (rad/s).', grip: 'Tyre grip; pulls sideways slip back in (dimensionless).', mass: 'Mass in tonnes.',
@@ -111,7 +111,7 @@ add({
 // ---- parts (the older garage rows, data/parts.js) ---------------------------------------------------------------------
 add({
   table: 'PlateSettings', rows: { default: snap.PLATE }, parentCol: 'Setting', legacy: 'src/data/parts.js PLATE',
-  description: 'The old garage plate: hit points a point stops, weight, price. One row.', units: { absorb: 'hp', kg: 'kg', price: 'scrip' }, source: 'design',
+  description: 'The old garage plate: hit points a point stops, weight, price. One row.', units: { absorb: 'hit_points', kg: 'kg', price: 'scrip' }, source: 'design',
 });
 add({
   table: 'PlateMax', rows: snap.PLATE_MAX, parentCol: 'Body', legacy: 'src/data/parts.js PLATE_MAX',
@@ -124,7 +124,7 @@ add({
 add({
   table: 'PartMounts', rows: snap.MOUNTS, parentCol: 'Mount', legacy: 'src/data/parts.js MOUNTS',
   description: 'The old garage mounts (front gun, rear droppers).',
-  units: { price: 'scrip', kg: 'kg', rate: 's', range: 'm', arc: 'rad', 'slick.r': 'm', 'slick.life': 's', 'field.r': 'm', 'field.life': 's', dmg: 'hp' }, ints: ['ammo', 'charges'], source: 'design',
+  units: { price: 'scrip', kg: 'kg', rate: 's', range: 'm', arc: 'rad', 'slick.r': 'm', 'slick.life': 's', 'field.r': 'm', 'field.life': 's', dmg: 'hit_points' }, ints: ['ammo', 'charges'], source: 'design',
 });
 add({
   table: 'PartMountOk', rows: Object.fromEntries(Object.entries(snap.MOUNT_OK).map(([k, v]) => [k, { ok: v }])), parentCol: 'Body', legacy: 'src/data/parts.js MOUNT_OK',
@@ -135,7 +135,7 @@ add({
 add({
   table: 'ArmorTypes', rows: snap.ARMOR, parentCol: 'Armor', legacy: 'src/data/workshop.js ARMOR',
   description: 'What a face can be plated with: weight, price, hit points absorbed, welding hours, damage-type multipliers. docs/design/WEB_WORKSHOP.md.',
-  units: { kg: 'kg', price: 'scrip', absorb: 'hp', labour: 'gh', crash: '', ram: '', 'grabbers.grip': 'per_s', 'grabbers.dps': 'hp' },
+  units: { kg: 'kg', price: 'scrip', absorb: 'hit_points', labour: 'gh', crash: '', ram: '', 'grabbers.grip': 'per_s', 'grabbers.dps': 'hit_points' },
   descs: { 'vs.bullet': 'Multiplier on bullet hits.', 'vs.fire': 'Multiplier on fire.', 'vs.blast': 'Multiplier on blasts.', 'vs.pierce': 'Multiplier on rail/pierce hits.' },
   source: 'design: docs/design/WEB_WORKSHOP.md',
 });
@@ -157,8 +157,8 @@ add({
 add({
   table: 'MountWeapons', rows: snap.MOUNT_WEAPONS, parentCol: 'Weapon', legacy: 'src/data/workshop.js MOUNT_WEAPONS',
   description: 'Car-mounted guns, launchers, droppers: kind, size, weight, price, damage, rate, range, magazine, ammo item. Sparse: a column applies to the kinds that use it.',
-  units: { kg: 'kg', price: 'scrip', labour: 'gh', dmg: 'hp', rate: 's', spread: 'rad', range: 'm', blast: 'm', speed: 'mps', arc: 'rad', cone: 'rad', charge: 's', 'lock.time': 's', 'lock.cone': 'rad', 'lock.turn': 'radps',
-    'mine.arm': 's', 'mine.r': 'm', 'mine.dmg': 'hp', 'mine.blast': 'm', 'mine.life': 's', 'slick.r': 'm', 'slick.life': 's', 'slick.spin': 'radps', 'field.r': 'm', 'field.life': 's', 'flare.r': 'm', 'flare.life': 's',
+  units: { kg: 'kg', price: 'scrip', labour: 'gh', dmg: 'hit_points', rate: 's', spread: 'rad', range: 'm', blast: 'm', speed: 'mps', arc: 'rad', cone: 'rad', charge: 's', 'lock.time': 's', 'lock.cone': 'rad', 'lock.turn': 'radps',
+    'mine.arm': 's', 'mine.r': 'm', 'mine.dmg': 'hit_points', 'mine.blast': 'm', 'mine.life': 's', 'slick.r': 'm', 'slick.life': 's', 'slick.spin': 'radps', 'field.r': 'm', 'field.life': 's', 'flare.r': 'm', 'flare.life': 's',
     'cloud.r': 'm', 'cloud.life': 's', 'cloud.blind': 's', stall: 's', 'grapple.lengths': '', 'grapple.hook': '', power: '', carry: '', pierce: '', mag: '', perItem: '', size: '', group: '' },
   ints: ['size', 'mag', 'perItem', 'group', 'pierce'],
   descs: { kind: 'hitscan|rocket|flame|beam|rail|harpoon|emp|drop', rare: 'prewar|uncommon: found, not bought.', ammo: 'Item key that reloads it (AmmoItems).', cal: 'Caliber key (data/arms.js calibers).' },
@@ -167,8 +167,8 @@ add({
 add({
   table: 'Utility', rows: snap.UTILITY, parentCol: 'Part', legacy: 'src/data/workshop.js UTILITY',
   description: 'What is not a gun: batteries, tyres, nitrous, turbo, tanks, racks, spotlights, winch, drone bay. Sparse: a column applies to the parts that use it.',
-  units: { kg: 'kg', price: 'scrip', labour: 'gh', space: '', fuel: 'L', trunk: 'kg', warn: 'm', 'burst.time': 's', 'tread.wade': 'm', 'monster.scale': '', 'monster.lift': 'm', 'monster.climb.speed': 'mps', 'monster.climb.under': 'm', 'monster.climb.dps': 'hp', 'monster.climb.part': 'hp',
-    'slash.r': 'm', 'slash.every': 's', 'slash.dmg': 'hp', 'hub.reach': 'm', 'hub.car': 'hp', 'hub.person': 'hp', 'hub.grip': 'per_s', 'pull.slack': 'm', 'pull.range': 'm', 'power.regen': 'per_s' },
+  units: { kg: 'kg', price: 'scrip', labour: 'gh', space: '', fuel: 'L', trunk: 'kg', warn: 'm', 'burst.time': 's', 'tread.wade': 'm', 'monster.scale': '', 'monster.lift': 'm', 'monster.climb.speed': 'mps', 'monster.climb.under': 'm', 'monster.climb.dps': 'hit_points', 'monster.climb.part': 'hit_points',
+    'slash.r': 'm', 'slash.every': 's', 'slash.dmg': 'hit_points', 'hub.reach': 'm', 'hub.car': 'hit_points', 'hub.person': 'hit_points', 'hub.grip': 'per_s', 'pull.slack': 'm', 'pull.range': 'm', 'power.regen': 'per_s' },
   ints: ['space', 'charges', 'perItem', 'slash.tyres'], source: 'design: docs/design/WEB_WORKSHOP.md',
 });
 add({
@@ -193,7 +193,7 @@ add({
 add({
   table: 'Arenas', rows: snap.ARENAS, parentCol: 'Arena', legacy: 'src/data/workshop.js ARENAS',
   description: 'Destruction sets and tracks the cities lane stamps: size, wall, props, checkpoints, event.',
-  units: { 'at.dx': 'm', 'at.dz': 'm', w: 'm', d: 'm', x: 'm', z: 'm', h: 'm', hp: 'hp', blast: 'm', hp2: 'hp' }, ints: ['laps', 'n'],
+  units: { 'at.dx': 'm', 'at.dz': 'm', w: 'm', d: 'm', x: 'm', z: 'm', h: 'm', hp: 'hit_points', blast: 'm', hp2: 'hit_points' }, ints: ['laps', 'n'],
   childTuples: { ArenasCheckpoints: ['X', 'Z'] },
   source: 'design: docs/design/WEB_WORKSHOP.md',
 });

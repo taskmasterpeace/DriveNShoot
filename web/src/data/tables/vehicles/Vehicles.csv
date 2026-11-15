@@ -1,4 +1,4 @@
-Name,Group,DisplayName,Len_m,Wid_m,Tall_m,MaxSpeed_mps,Reverse_mps,Accel_mps2,Turn_radps,Grip,Mass_t,Hp_hp,Harpoon,Armor,FuelCap_L,Base,Look,Open,Deck,RoofDeck,Springs,Boat,Shallow,NoEngine,Quad,Bike,Tractor_Fifth_m,Trailer,Tow,Winch,BoatTrailer,Source
+Name,Group,DisplayName,Len_m,Wid_m,Tall_m,MaxSpeed_mps,Reverse_mps,Accel_mps2,Turn_radps,Grip_per_s,Mass_t,Hp_hp,Harpoon,Armor,FuelCap_L,Base,Look,Open,Deck,RoofDeck,Springs,Boat,Shallow,NoEngine,Quad,Bike,Tractor_Fifth_m,Trailer,Tow,Winch,BoatTrailer,Source
 rig,core,WHALER,7.6,2.7,3.1,30,11,13,1.5,5,4,450,true,0.1,160,,,,,,,,,,,,,,,,,design
 interceptor,core,LAWMAN,4.6,2,1.76,46,15,22,2.4,6.5,1.4,180,,0.3,60,,,,,,,,,,,,,,,,,design
 bullcar,core,BULL CAR,4.6,2,1.76,41,14,19,2.3,6.2,1.55,210,,0.36,60,interceptor,rundown,,,,,,,,,,,,,,,design
