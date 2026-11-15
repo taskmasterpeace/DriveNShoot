@@ -1,0 +1,48 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "RegionHazards",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaRegionHazardsRow",
+  "description": "Hazards named by a region's site rows.",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "Region",
+      "type": "string",
+      "path": null,
+      "ref": {
+        "table": "Regions",
+        "column": "Name"
+      }
+    },
+    {
+      "required": true,
+      "name": "Hazard",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "SiteCount",
+      "type": "int",
+      "path": null,
+      "unit": "count",
+      "min": 1
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}

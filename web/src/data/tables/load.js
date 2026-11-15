@@ -168,8 +168,8 @@ export function loadFamily(family) {
   }
   // references: a ref column names a row that exists
   for (const t of tables.values()) for (const c of t.schema.columns) if (c.ref) {
-    const target = tables.get(c.ref.table);
-    if (!target) throw new TableError(`${t.file}: ${c.name} refers to table ${c.ref.table}, which is not in ${family}`);
+    const target = (c.ref.family && c.ref.family !== family ? loadFamily(c.ref.family) : tables).get(c.ref.table);
+    if (!target) throw new TableError(`${t.file}: ${c.name} refers to table ${c.ref.table}, which is not in ${c.ref.family ?? family}`);
     const keys = new Set(target.rows.map((r) => (c.ref.column === 'Name' ? r.name : r.cells[c.ref.column])));
     for (const r of t.rows) if (r.cells[c.name] !== undefined && !keys.has(r.cells[c.name])) throw new TableError(`${t.file}:${r.line}: ${c.name} ${JSON.stringify(r.cells[c.name])} is not a ${c.ref.table}.${c.ref.column}`);
   }

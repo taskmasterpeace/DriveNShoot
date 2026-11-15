@@ -1,0 +1,30 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "Biomes",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaBiomesRow",
+  "description": "The site catalogue's biome vocabulary, one row per biome (src/data/sites/validate.js BIOMES). Joined by RegionBiomes and BiomeFlora.",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "Description",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}

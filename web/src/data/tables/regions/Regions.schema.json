@@ -1,0 +1,73 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "Regions",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaRegionsRow",
+  "description": "One row per region of the country: climate band, terrain, dialect tag, and the count of site rows that back the derived tables. Region ids are the site catalogue's (src/data/sites/index.js SITE_REGIONS). NOTHING READS THIS YET (docs/design/WEB_REGION_CHARACTER.md says who should).",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "Label",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "ClimateBand",
+      "type": "string",
+      "path": null,
+      "enum": [
+        "hot_desert",
+        "semi_arid",
+        "mediterranean",
+        "humid_subtropical",
+        "humid_continental",
+        "marine_west_coast",
+        "subarctic_tundra",
+        "tropical_oceanic"
+      ]
+    },
+    {
+      "required": true,
+      "name": "Terrain",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "DialectTag",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "SiteRows",
+      "type": "int",
+      "path": null,
+      "unit": "count",
+      "min": 0,
+      "description": "Site rows in src/data/sites for this region when derived."
+    },
+    {
+      "required": true,
+      "name": "Note",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}

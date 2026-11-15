@@ -1,0 +1,69 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "BiomeFlora",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaBiomeFloraRow",
+  "description": "What grows in a biome: a species key (world/flora.js SPECIES) and a relative weight. Weights are relative within a biome.",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "Biome",
+      "type": "string",
+      "path": null,
+      "ref": {
+        "table": "Biomes",
+        "column": "Name"
+      }
+    },
+    {
+      "required": true,
+      "name": "Species",
+      "type": "string",
+      "path": null,
+      "enum": [
+        "paloverde",
+        "mesquite",
+        "fanpalm",
+        "datepalm",
+        "citrus",
+        "saguaro",
+        "joshua",
+        "ocotillo",
+        "deadtree",
+        "tumbleweed",
+        "creosote",
+        "pricklypear",
+        "pine",
+        "oak",
+        "sabal",
+        "slashpine",
+        "cypress",
+        "mangrove",
+        "liveoak"
+      ]
+    },
+    {
+      "required": true,
+      "name": "Weight",
+      "type": "float",
+      "path": null,
+      "unit": "",
+      "min": 0
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}

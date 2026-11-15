@@ -1,0 +1,48 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "RegionScarcity",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaRegionScarcityRow",
+  "description": "What a region's sites WANT (economy.wants): the goods that are scarce there, by how many sites want them.",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "Region",
+      "type": "string",
+      "path": null,
+      "ref": {
+        "table": "Regions",
+        "column": "Name"
+      }
+    },
+    {
+      "required": true,
+      "name": "Good",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "SiteCount",
+      "type": "int",
+      "path": null,
+      "unit": "count",
+      "min": 1
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}

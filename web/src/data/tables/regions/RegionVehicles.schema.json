@@ -1,0 +1,54 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "RegionVehicles",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaRegionVehiclesRow",
+  "description": "The vehicles you see in a region: a Vehicles row key (tables/vehicles/Vehicles.csv) and a relative weight.",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "Region",
+      "type": "string",
+      "path": null,
+      "ref": {
+        "table": "Regions",
+        "column": "Name"
+      }
+    },
+    {
+      "required": true,
+      "name": "Vehicle",
+      "type": "string",
+      "path": null,
+      "ref": {
+        "family": "vehicles",
+        "table": "Vehicles",
+        "column": "Name"
+      },
+      "description": "A Name in vehicles/Vehicles.csv (a cross-family key, checked at load)."
+    },
+    {
+      "required": true,
+      "name": "Weight",
+      "type": "float",
+      "path": null,
+      "unit": "",
+      "min": 0
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}
