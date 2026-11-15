@@ -13,7 +13,7 @@ import { join } from 'node:path';
 const pascal = (s) => s.split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('_');
 const isScalar = (v) => ['number', 'string', 'boolean'].includes(typeof v);
 const isPlain = (v) => v && typeof v === 'object' && !Array.isArray(v);
-const SUFFIX = { m: 'm', mps: 'mps', mps2: 'mps2', kg: 'kg', t: 't', L: 'L', s: 's', rad: 'rad', radps: 'radps', gh: 'gh', hp: 'hp', scrip: 'scrip', per_s: 'per_s' };
+const SUFFIX = { m: 'm', mps: 'mps', mps2: 'mps2', kg: 'kg', t: 't', L: 'L', s: 's', rad: 'rad', radps: 'radps', gh: 'gh', hit_points: 'hp', scrip: 'scrip', per_s: 'per_s' };
 
 export function csvCell(v) {
   if (v === undefined || v === null) return '';

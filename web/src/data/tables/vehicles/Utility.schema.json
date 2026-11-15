@@ -217,7 +217,7 @@
       "type": "float",
       "path": "monster.climb.dps",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Monster_Climb_Pin",
@@ -231,7 +231,7 @@
       "type": "float",
       "path": "monster.climb.part",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Burst_Time_s",
@@ -335,7 +335,7 @@
       "type": "float",
       "path": "slash.dmg",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Hub_Reach_m",
@@ -349,14 +349,14 @@
       "type": "float",
       "path": "hub.car",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Hub_Person_hp",
       "type": "float",
       "path": "hub.person",
       "required": false,
-      "unit": "hp"
+      "unit": "hit_points"
     },
     {
       "name": "Hub_Grip_per_s",

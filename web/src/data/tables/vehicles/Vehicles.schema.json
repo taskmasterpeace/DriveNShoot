@@ -92,11 +92,11 @@
       "description": "Steering rate at the wheel (rad/s)."
     },
     {
-      "name": "Grip",
+      "name": "Grip_per_s",
       "type": "float",
       "path": "grip",
       "required": true,
-      "unit": "",
+      "unit": "per_s",
       "description": "Tyre grip; pulls sideways slip back in (dimensionless)."
     },
     {
@@ -112,7 +112,7 @@
       "type": "float",
       "path": "hp",
       "required": true,
-      "unit": "hp",
+      "unit": "hit_points",
       "description": "Hit points of the hull."
     },
     {
