@@ -1,4 +1,4 @@
-Name,DisplayName,Kind,Kg_kg,KgEmpty_kg,Bulk_L,Stack,Value_scrip,Uses,Refill,Use_Need,Use_Amount,Desc,Use_Hp_hp,Needs,Use_Water,Dog_Bond,Dog_Hp_hp,Spoils_gh,Use_Calm,Use_Bleed,Use_Cure,Use_Act,Use_Litres,Pack_L,Ammo,Weapon,Source
+Name,DisplayName,Kind,Kg_kg,KgEmpty_kg,Bulk_L,Stack,Value_scrip,Uses,Refill,Use_Need,Use_Amount,Desc,Use_Hp_hp,Needs,Use_Water,Dog_Bond,Dog_Hp_hp,Spoils_gh,Use_Calm,Use_Bleed,Use_Cure,Use_Act,Use_Litres_L,Pack_L,Ammo,Weapon,Source
 water_bottle,Water bottle,water,0.55,0.05,0.6,1,6,3,water,water,0.16,Half a litre in a plastic bottle gone milky in the sun. Three good swallows.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
 canteen,Steel canteen,water,1.25,0.3,1.1,1,25,6,water,water,0.12,A litre in dented steel under a felt cover. Keeps it cooler than plastic does.,2,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
 water_can,Water can,water,10.6,0.6,12,1,30,40,water,water,0.2,Ten litres in a blue plastic can. A week for one careful person. Heavy as sin.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
@@ -76,5 +76,5 @@ road_atlas,Road atlas,paper,0.6,,0.8,1,10,,,,,"A spiral-bound atlas of the old s
 photograph,Photograph,paper,0.01,,0.01,1,0,,,,,"A family on a porch, squinting into the sun. Nobody you know.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
 dog_collar,Dog collar,paper,0.08,,0.05,1,0,,,,,A worn leather collar with a name scratched into the buckle. You know the name.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
 tin_star,Deputy's star,paper,0.03,,0.02,1,0,,,,,"Pressed tin, the points filed round, RUST HAVEN stamped in a ring. Okonkwo pins one on the people who keep her peace.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
-gator_meat,Gator tail meat,food,0.9,,0.8,4,9,,,food,0.35,"White, tough, tastes like the swamp it came out of. Cook it today: in this heat it turns by tomorrow.",2,,,,,24,,,,,,,,,design: docs/design/WEB_INVENTORY.md
-gator_hide,Gator hide,valuable,2.2,,2.5,2,35,,,,,"A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+gator_meat,Gator tail meat,food,0.9,,0.8,4,9,,,food,0.35,"White, tough, tastes like the swamp it came out of. Cook it today: in this heat it turns by tomorrow.",2,,,,,24,,,,,,,,,design: docs/design/WEB_FLORIDA.md section 3.6 (what a dead alligator gives up)
+gator_hide,Gator hide,valuable,2.2,,2.5,2,35,,,,,"A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.",,,,,,,,,,,,,,,design: docs/design/WEB_FLORIDA.md section 3.6 (what a dead alligator gives up)

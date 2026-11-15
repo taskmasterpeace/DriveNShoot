@@ -1,51 +1,53 @@
-Name,Region,State,Ruler,Source
-FL_FL,FL,FL,the Swamp Kingdoms,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SW_AZ,SW,AZ,the Sun Court,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SW_NM,SW,NM,the Atomic Priesthood,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SW_NV,SW,NV,the House,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SW_UT,SW,UT,the Prophet,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SW_CO,SW,CO,the Mountain Council,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-CA_CA,CA,CA,"the Silicon CEO, the Cartel and the Angel Warlords","docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-GULF_LA,GULF,LA,the Bayou Krewe,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-GULF_MS,GULF,MS,the River Barons,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-GULF_AL,GULF,AL,the Rocket Barony,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_OH,MW,OH,the Aviator King,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_IN,MW,IN,the Speedway Warlord,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_IL,MW,IL,the Machine City,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_MI,MW,MI,the Motor Guild,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_WI,MW,WI,the Brewer Barons and the Dairy Chiefs,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_MN,MW,MN,the Ore Chiefs,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_IA,MW,IA,the Grain Council,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-MW_MO,MW,MO,the Gateway barons,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_ME,NE,ME,the Lighthouse Keepers' Compact,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_NH,NE,NH,the Free Town,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_VT,NE,VT,the Dairy Collective,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_MA,NE,MA,the Colleges,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_RI,NE,RI,the Smugglers' Republic,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_CT,NE,CT,the Gun Barons,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_NY,NE,NY,the Council of Trade,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_NJ,NE,NJ,the Turnpike Toll-Lords,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_PA,NE,PA,the Foundry King and the Plain Folk,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_DE,NE,DE,the Chartered CEOs,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_MD,NE,MD,the Beltway Ghosts,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NE_DC,NE,DC,no ruler: the Capitol Dead Zone,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_VA,SE,VA,the Admiralty,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_WV,SE,WV,the Mine Kings,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_NC,SE,NC,the Research Barons,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_SC,SE,SC,the Secession Baron,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_GA,SE,GA,the Peach Throne,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_TN,SE,TN,the Music Barons,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_KY,SE,KY,the Bourbon Barons and the Gold Reeve,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-SE_AR,SE,AR,the Diamond Warlords,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NW_WA,NW,WA,the Aerospace Guild,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NW_OR,NW,OR,the Timber Commune,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NW_ID,NW,ID,the Preppers' Republic,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NW_MT,NW,MT,the Missileer Cult,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-NW_WY,NW,WY,the Caldera Wardens,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-PLAINS_ND,PLAINS,ND,the Petro-Emir,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-PLAINS_SD,PLAINS,SD,the Stone Kings,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-PLAINS_NE,PLAINS,NE,the General,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-PLAINS_KS,PLAINS,KS,the Free Winds,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-PLAINS_OK,PLAINS,OK,the Dust Chiefs,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-AK_AK,AK,AK,the Pipeline Clans,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
-HI_HI,HI,HI,the restored Kingdom,"docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS"
+Name,Region,State,Source
+FL_FL,FL,FL,data/sites/index.js SITE_REGIONS
+SW_AZ,SW,AZ,data/sites/index.js SITE_REGIONS
+SW_NM,SW,NM,data/sites/index.js SITE_REGIONS
+SW_NV,SW,NV,data/sites/index.js SITE_REGIONS
+SW_UT,SW,UT,data/sites/index.js SITE_REGIONS
+SW_CO,SW,CO,data/sites/index.js SITE_REGIONS
+SW_TX,SW,TX,docs/DIVIDED_STATES.md; data/sites/index.js SITE_REGIONS labels (west and east Texas)
+CA_CA,CA,CA,data/sites/index.js SITE_REGIONS
+GULF_LA,GULF,LA,data/sites/index.js SITE_REGIONS
+GULF_MS,GULF,MS,data/sites/index.js SITE_REGIONS
+GULF_AL,GULF,AL,data/sites/index.js SITE_REGIONS
+GULF_TX,GULF,TX,docs/DIVIDED_STATES.md; data/sites/index.js SITE_REGIONS labels (west and east Texas)
+MW_OH,MW,OH,data/sites/index.js SITE_REGIONS
+MW_IN,MW,IN,data/sites/index.js SITE_REGIONS
+MW_IL,MW,IL,data/sites/index.js SITE_REGIONS
+MW_MI,MW,MI,data/sites/index.js SITE_REGIONS
+MW_WI,MW,WI,data/sites/index.js SITE_REGIONS
+MW_MN,MW,MN,data/sites/index.js SITE_REGIONS
+MW_IA,MW,IA,data/sites/index.js SITE_REGIONS
+MW_MO,MW,MO,data/sites/index.js SITE_REGIONS
+NE_ME,NE,ME,data/sites/index.js SITE_REGIONS
+NE_NH,NE,NH,data/sites/index.js SITE_REGIONS
+NE_VT,NE,VT,data/sites/index.js SITE_REGIONS
+NE_MA,NE,MA,data/sites/index.js SITE_REGIONS
+NE_RI,NE,RI,data/sites/index.js SITE_REGIONS
+NE_CT,NE,CT,data/sites/index.js SITE_REGIONS
+NE_NY,NE,NY,data/sites/index.js SITE_REGIONS
+NE_NJ,NE,NJ,data/sites/index.js SITE_REGIONS
+NE_PA,NE,PA,data/sites/index.js SITE_REGIONS
+NE_DE,NE,DE,data/sites/index.js SITE_REGIONS
+NE_MD,NE,MD,data/sites/index.js SITE_REGIONS
+NE_DC,NE,DC,data/sites/index.js SITE_REGIONS
+SE_VA,SE,VA,data/sites/index.js SITE_REGIONS
+SE_WV,SE,WV,data/sites/index.js SITE_REGIONS
+SE_NC,SE,NC,data/sites/index.js SITE_REGIONS
+SE_SC,SE,SC,data/sites/index.js SITE_REGIONS
+SE_GA,SE,GA,data/sites/index.js SITE_REGIONS
+SE_TN,SE,TN,data/sites/index.js SITE_REGIONS
+SE_KY,SE,KY,data/sites/index.js SITE_REGIONS
+SE_AR,SE,AR,data/sites/index.js SITE_REGIONS
+NW_WA,NW,WA,data/sites/index.js SITE_REGIONS
+NW_OR,NW,OR,data/sites/index.js SITE_REGIONS
+NW_ID,NW,ID,data/sites/index.js SITE_REGIONS
+NW_MT,NW,MT,data/sites/index.js SITE_REGIONS
+NW_WY,NW,WY,data/sites/index.js SITE_REGIONS
+PLAINS_ND,PLAINS,ND,data/sites/index.js SITE_REGIONS
+PLAINS_SD,PLAINS,SD,data/sites/index.js SITE_REGIONS
+PLAINS_NE,PLAINS,NE,data/sites/index.js SITE_REGIONS
+PLAINS_KS,PLAINS,KS,data/sites/index.js SITE_REGIONS
+PLAINS_OK,PLAINS,OK,data/sites/index.js SITE_REGIONS
+AK_AK,AK,AK,data/sites/index.js SITE_REGIONS
+HI_HI,HI,HI,data/sites/index.js SITE_REGIONS

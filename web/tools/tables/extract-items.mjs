@@ -12,10 +12,10 @@ const DOC = 'design: docs/design/WEB_INVENTORY.md';
 add({
   table: 'Items', rows: { ...snap.ITEMS, ...snap.GATOR_ITEMS }, parentCol: 'Item', legacy: 'src/data/items.js ITEMS (the rows typed in that file; gear, gadgets, melee, maker and fan-nod items are folded in by code)',
   description: 'Things you can carry: weight, room, stack size, price, what using one does. One row per item; tags are the ItemsTags child table. docs/design/WEB_INVENTORY.md. Rows other modules register (gear.js, gadgets.js, melee.js, makeritems.js, fannods.js, towing, workshop ammo) migrate with their own families.',
-  units: { kg: 'kg', kgEmpty: 'kg', bulk: 'L', value: 'scrip', spoils: 'gh', pack: 'L', 'use.amount': '', 'use.hp': 'hp', 'use.water': '', 'use.food': '', 'dog.hp': 'hp', 'dog.bond': '' },
+  units: { kg: 'kg', kgEmpty: 'kg', bulk: 'L', value: 'scrip', spoils: 'gh', pack: 'L', 'use.litres': 'L', 'use.amount': '', 'use.hp': 'hp', 'use.water': '', 'use.food': '', 'dog.hp': 'hp', 'dog.bond': '' },
   ints: ['stack', 'uses'],
   descs: { kg: 'Weight when full (kg).', kgEmpty: 'Weight once its uses are gone (kg).', bulk: 'Room it takes in a pocket, pack or trunk (litres).', stack: 'How many share one slot (1 = each its own thing).', value: 'What a trader starts from (scrip).', uses: 'Uses before it is spent.', spoils: 'Game hours it stays fresh; as long again stale, then rotten.', pack: 'Litres it adds when worn on the back.', 'use.need': 'The need one use feeds (water, food, rest ...).', needs: 'A tag another carried thing must have before it can be used.', refill: 'Where it fills again (water, fuel).' },
-  source: DOC,
+  source: (k) => (k.startsWith('gator_') ? 'design: docs/design/WEB_FLORIDA.md section 3.6 (what a dead alligator gives up)' : DOC),
 });
 add({
   table: 'LootTables', rows: snap.LOOT, parentCol: 'Table', legacy: 'src/data/items.js LOOT (the tables typed in that file; other modules add tables and rows by code)',
