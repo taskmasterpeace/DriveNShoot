@@ -35,11 +35,13 @@ scratch, or out of the side window onto the roof next door.
 ## 3. Detailed rules
 
 1. **Where pipes are.** A building with two or more storeys and stairs inside, that is not a ruin and not an open
-   deck, gets one pipe. It stands on the back wall beside an upstairs window: halfway to the next window (1.8 m or
-   more from the window's centre) or, failing that, 1.65 m from it; if the back wall has no place, on a side wall;
+   deck, gets one pipe. It stands on the back wall beside an upstairs window: halfway to the next window or the one before (1.8 to 2.7 m
+   from the window's centre) or, failing that, 1.65 m to either side of it; if the back wall has no place, on a side wall;
    never on the front; never in or within 0.9 m of a street-floor door or drive bay of that wall; never down the face
    of a fire escape's doors. It serves that window on every upstairs floor where the window exists. (Counted over 156
-   built towns: all 3,873 such buildings have one, none at a door.)
+   built towns, seeds 1000 to 1185: all 3,873 such buildings have one, none at a door; a reviewer's four other seed
+   sets gave 3,575 to 3,940, the same. About 1 in 120 serves only windows whose inside is the stair's opening: those
+   work going down and offer nothing from the street.)
 2. **It is not a wall.** A pipe has no collider. You cannot hide behind it and it stops no round.
 3. **From the street** (`findUp`): on foot, outside, within 1.2 m (`grab`) of the pipe's foot (0.6 m out from the
    wall). The lowest upstairs floor whose window on the pipe is open (a body's line and a sight line both pass through
@@ -48,7 +50,7 @@ scratch, or out of the side window onto the roof next door.
    Letting go of E before the end leaves you where you were. A tap does nothing.
 5. **You arrive** 1 m inside that window, on that floor, facing in, unhurt. The climb is heard 6 m (`noise`).
 6. **From upstairs** (`find`): at a window in an outside wall (the old rule), on a floor the pipe serves (not from
-   the roof: the pipe stops at the top window), if this wall's pipe is within 2.8 m (`reach`) of the window and its foot is clear (open ground, no car, not another building), the way out is the pipe.
+   the roof: the pipe stops at the top window), if this wall's pipe is within 3.4 m (`reach`) of the window and its foot is clear (open ground, no car, not another building), the way out is the pipe.
    It takes `hold + height / speed` seconds and puts you at the pipe's foot, unhurt, on your feet.
 7. **No pipe in reach:** the old drop, with its cost.
 8. **Onto a lower roof:** if the spot you would land on, or a spot up to 3.2 m out across an alley (`jump`: 1.8, 2.5,
@@ -126,7 +128,7 @@ scratch, or out of the side window onto the roof next door.
 | Knob | Value | Safe range | What it changes |
 |---|---|---|---|
 | `pipe.speed` | 1.4 m/s | 0.5–4 | How long a climb takes (how exposed you are) |
-| `pipe.reach` | 2.8 m | 1–4 | How far along the wall from a window the pipe may be |
+| `pipe.reach` | 3.4 m | 1–4 | How far along the wall from a window the pipe may be |
 | `pipe.grab` | 1.2 m | 0.8–2 | How near the foot you must stand to start up |
 | `pipe.foot` | 0.6 m | 0.4–1 | How far out from the wall the foot is |
 | `pipe.noise` | 6 m | 0–20 | How far a climb is heard |

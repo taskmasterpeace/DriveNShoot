@@ -86,8 +86,10 @@ export class WindowExit {
     const g = this.g, F = this.find(p);
     if (!F) { this.hold = 0; this.holdKey = null; return null; }
     // the hold belongs to one way out of one window: turn to another wall, or from the pipe to a drop, and it starts again
-    const key = `${F.pipe ? 'p' : F.roof ? 'r' : 'd'}:${F.nx},${F.nz}:${Math.round(F.x)},${Math.round(F.z)}`;
-    if (key !== this.holdKey) { this.holdKey = key; this.hold = I.key('KeyE') ? -1 : 0; } // E already down when it changed: let go first
+    // (the way out and the wall, not where along the window you stand: a step sideways must not drop the hold)
+    const key = `${F.pipe ? 'p' : F.roof ? 'r' : 'd'}:${F.nx},${F.nz}`, gap = g.time - (this.outAsked ?? -9) > 0.25; // gap: not asked last frame (something else had E)
+    this.outAsked = g.time;
+    if (key !== this.holdKey || gap) { this.holdKey = key; this.hold = I.key('KeyE') ? -1 : 0; } // E already down when it changed: let go first
     if (F.pipe) { // the pipe: slower than letting go, and it costs nothing
       const h = Math.max(0.5, (p.gy ?? 0) - F.foot.y), need = WX.hold + h / WX.pipe.speed;
       if (I.key('KeyE') && this.hold >= 0) {

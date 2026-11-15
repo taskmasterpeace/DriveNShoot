@@ -109,7 +109,7 @@ export const WINDOW_MIX = {
 //           step, not a drop); in m inside its edge you land (past the parapet); reach m from the window, at most;
 //           jump m out from the wall the next building is looked for across an alley (nearest first)
 export const WINDOW_EXIT = { wall: 0.9, reach: 1.3, hold: 1.0, minUp: 2.4, hang: 1.9, out: 1.1, noise: [8, 2], down: { clean: 0.4, hurt: 1.2 }, follow: { kinds: ['sprinter'], secs: 25, reach: 1.7 },
-  pipe: { reach: 2.8, speed: 1.4, foot: 0.6, grab: 1.2, noise: 6 }, roof: { min: 0.6, in: 0.9, reach: 4.4, jump: [1.8, 2.5, 3.2] } };
+  pipe: { reach: 3.4, speed: 1.4, foot: 0.6, grab: 1.2, noise: 6 }, roof: { min: 0.6, in: 0.9, reach: 4.4, jump: [1.8, 2.5, 3.2] } };
 
 export function validateWindowExit(W = WINDOW_EXIT) {
   const bad = [], kinds = ['shambler', 'sprinter', 'echo'];
