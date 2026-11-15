@@ -44,10 +44,11 @@ from across the road, so you do not waste the run on them.
 
 ## 5. Edge cases
 
-- **A block against another building:** the face between them is boarded too; you never see it.
-- **A short block (under 4 m):** one row of windows, and none if it would pass the top.
-- **A narrow face (under 8.5 m):** one window, or none if the doorway takes its place.
-- **Top-down view:** the planks stand 15 cm off the wall, so from above they are thin lines at the wall's foot; the
+- **A block beside another building:** lots stand 2 m or more apart, so that face is seen from the alley and is
+  boarded like the rest.
+- **A short block (under 4 m) or a narrow face (under 8.5 m)** cannot be made by the island builder today (blocks are
+  7 to 42 m tall and 14 to 52 m wide). The rule still guards them: one row, nothing past the top, one window or none.
+- **Top-down view:** the planks' outer faces stand 20 cm off the wall, so from above they are thin lines at the wall's foot; the
   look is for the angled, third-person and shoulder views.
 - **Not covered:** the holdouts' back-yard shacks and sheds and the bases' igloos, pump houses and tanks are also
   solid and are not boarded by this (they are built by other builders; an igloo has its steel door and a crate at it
@@ -75,8 +76,11 @@ from across the road, so you do not waste the run on them.
 ## 8. Acceptance criteria (selftest, `only="boarded:"`)
 
 1. The rows are sane and no colour is purple.
-2. Every solid block of the island (there are at least 20) carries four nailed-over doorways, at least four window
-   openings, at least `4 × doorPlanks` planks, nothing standing more than 0.3 m off its wall and nothing above its
-   top; no building you can enter carries any; the whole island adds fewer than 6,000 boxes.
+2. Every solid block of the island (there are at least 20) carries four nailed-over doorways with exactly
+   `doorPlanks` planks each, at least four window openings with planks on some, every box's centre outside the block
+   with its outer face between 5 and 30 cm off the wall, and nothing above its top; no building you can enter carries
+   any; the whole island adds fewer than 6,000 boxes. These numbers are the builder's own tally, measured from the
+   coordinates it handed to the wall mesh; they are not read back from the mesh. The pictures are the proof it looks
+   right.
 
 Pictures: `docs/renders/web/boarded/` (a tower stump before and after, from the street).

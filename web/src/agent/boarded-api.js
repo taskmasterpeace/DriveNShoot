@@ -8,7 +8,7 @@ export async function boardedChecks({ g, check }) {
   await check('boarded: the rows are sane - a doorway a body would fit, windows smaller than the gap between them, one to six rows, a share between 0 and 1, colours that are colours and never purple', async () => {
     const K = BOARDED, cols = [K.dark, ...K.wood];
     const ok = K.door[0] >= 1 && K.door[0] <= 3 && K.door[1] >= 2 && K.door[1] <= 3 && K.doorPlanks >= 2 && K.doorPlanks <= 6 && K.win[0] < K.every - 1 && K.win[1] < K.storey - 0.5 &&
-      K.floors >= 1 && K.floors <= 6 && K.upBoarded >= 0 && K.upBoarded <= 1 && K.plank > 0.05 && K.plank < 0.5 && K.thick > 0.02 && K.thick <= 0.2 && K.sill >= 0.6 &&
+      K.floors >= 1 && K.floors <= 6 && K.upBoarded >= 0 && K.upBoarded <= 1 && K.plank > 0.05 && K.plank < 0.5 && K.thick > 0.02 && K.thick <= 0.15 && K.sill >= 0.6 &&
       cols.every((c) => /^#[0-9a-f]{6}$/i.test(c) && !purple(c)) && K.wood.length >= 1;
     return ok || JSON.stringify(K);
   });
@@ -20,7 +20,7 @@ export async function boardedChecks({ g, check }) {
       const T = b.boarded;
       if (b.enterable) { bad.push('a building you can enter is boarded'); continue; }
       boxes += T.boxes;
-      if (T.doors !== 4 || T.wins < 4 || T.planks < 4 * BOARDED.doorPlanks || T.off > 0.3 || T.top > b.h + 1e-6) bad.push(JSON.stringify({ h: Math.round(b.h), w: Math.round(b.maxX - b.minX), ...T }));
+      if (T.doors !== 4 || T.wins < 4 || T.doorPlanks !== 4 * BOARDED.doorPlanks || T.planks <= T.doorPlanks || !(T.off > 0.05 && T.off <= 0.3) || T.inside !== 0 || T.top > b.h + 1e-6) bad.push(JSON.stringify({ h: Math.round(b.h), w: Math.round(b.maxX - b.minX), ...T }));
     }
     const ok = solid.length >= 20 && !bad.length && !open.some((b) => b.boarded) && boxes > 500 && boxes < 6000;
     return ok || JSON.stringify({ solid: solid.length, bad: bad.slice(0, 4), nBad: bad.length, boxes });
