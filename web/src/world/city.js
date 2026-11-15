@@ -5,6 +5,7 @@ import { sandTexture, asphaltTexture, concreteTexture, radialGlow } from './text
 import { nearWater } from './water.js';
 import { nearRail } from './rail.js';
 import { DOOR_MATERIALS, WINDOW, WINDOW_MIX } from '../data/interiors.js';
+import { BOARDED } from '../data/interiors.js';
 import { roofSurface, wallSurface } from './surfaces.js';
 import { HOLDOUT } from '../data/holdout.js';
 import { PROGRAMMES, SCATTER } from '../data/floorplans.js';
@@ -517,7 +518,36 @@ export function buildWorld(scene, statics) {
       for (let i = 0; i < rng.int(1, 4); i++)
         roofs.add(cx + rng.range(-w / 3, w / 3), h + 0.9, cz + rng.range(-d / 3, d / 3), rng.range(1.5, 3.5), rng.range(1, 2), rng.range(1.5, 3.5), '#7a746c');
     }
-    buildings.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, enterable: false, roofIdx: [], doors: [], h });
+    const rec = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, enterable: false, roofIdx: [], doors: [], h };
+    buildings.push(rec);
+    rec.boarded = boardUp(cx, cz, w, d, h); // { doors, wins, planks, boxes, off }: what was nailed over it (the `boarded` check reads it)
+  };
+  // A SOLID BLOCK LOOKS SHUT, NOT BLANK (docs/design/WEB_BOARDED.md; rows data/interiors.js BOARDED): on each face a
+  // doorway nailed over with planks, and dark window openings up its first storeys, the street row boarded. Looks only
+  // (the block is one collider already), and it draws no number from the city's own stream: where each thing goes is
+  // a hash of the block's place, so nothing else in the city moves.
+  const boardUp = (cx, cz, w, d, h) => {
+    const K = BOARDED, hh = (a, b, k) => { const v = Math.sin(a * (12.9898 + k) + b * (78.233 - k * 0.7)) * 43758.5453; return v - Math.floor(v); };
+    const floors = Math.max(1, Math.min(K.floors, Math.floor((h - 0.6) / K.storey))), tally = { doors: 0, wins: 0, planks: 0, boxes: 0, off: 0, top: 0 };
+    for (let f = 0; f < 4; f++) {
+      const alongX = f < 2, len = alongX ? w : d, sgn = f % 2 ? 1 : -1; // faces: N (z-), S (z+), W (x-), E (x+)
+      const fx = alongX ? cx : cx + sgn * (w / 2), fz = alongX ? cz + sgn * (d / 2) : cz;
+      const at = (t, y, sx, sy, out, col) => { const o = sgn * out; if (alongX) walls.add(fx + t, y, fz + o, sx, sy, K.thick, col); else walls.add(fx + o, y, fz + t, K.thick, sy, sx, col); tally.boxes++; tally.off = Math.max(tally.off, out + K.thick / 2); tally.top = Math.max(tally.top, y + sy / 2); if (col !== K.dark) tally.planks++; };
+      // the doorway, nailed over
+      const dt = (hh(cx + f, cz, 1) - 0.5) * len * 0.5;
+      at(dt, K.door[1] / 2, K.door[0], K.door[1], K.thick / 2, K.dark); tally.doors++;
+      for (let i = 0; i < K.doorPlanks; i++) at(dt + (hh(cx + f, cz + i, 2) - 0.5) * 0.3, 0.45 + i * (K.door[1] - 0.7) / Math.max(1, K.doorPlanks - 1), K.door[0] + 0.5, K.plank, K.thick * 1.5, K.wood[i % K.wood.length]);
+      // the windows: a row per storey, clear of the doorway; the street row is boarded
+      const n = Math.max(1, Math.floor((len - 3) / K.every)), step = (len - 3) / n;
+      for (let k = 0; k < floors; k++) for (let i = 0; i < n; i++) {
+        const t = -len / 2 + 1.5 + step * (i + 0.5), y = K.sill + K.win[1] / 2 + k * K.storey;
+        if (k === 0 && Math.abs(t - dt) < K.door[0] / 2 + K.win[0] / 2 + 0.5) continue;
+        if (y + K.win[1] / 2 > h - 0.4) continue;
+        at(t, y, K.win[0], K.win[1], K.thick / 2, K.dark); tally.wins++;
+        if (k === 0 || hh(cx + i, cz + f + k, 3) < K.upBoarded) for (let q = 0; q < 2; q++) at(t + (hh(cx + i + q, cz + f, 4) - 0.5) * 0.2, y - 0.3 + q * 0.6, K.win[0] + 0.4, K.plank, K.thick * 1.5, K.wood[(i + q) % K.wood.length]);
+      }
+    }
+    return tally;
   };
 
   // ---- wrecks, barrels, trees ----------------------------------------------------

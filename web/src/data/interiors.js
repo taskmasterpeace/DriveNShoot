@@ -125,3 +125,11 @@ export function validateWindowExit(W = WINDOW_EXIT) {
   if (!(W.follow?.secs >= 5 && W.follow.secs <= 120)) bad.push('WINDOW_EXIT.follow.secs: 5-120 s');
   return bad;
 }
+
+// BOARDED: how a solid block (a building you cannot enter: the island's tower stumps and sealed blocks) shows that it
+// is shut (world/city.js boardUp; docs/design/WEB_BOARDED.md). door [w, h] m of the nailed-over doorway on each face
+// and doorPlanks across it; win [w, h] m of a window opening, sill m its underside above the street, every m between
+// windows along a face, storey m between rows, floors how many rows up it goes; upBoarded the share of upstairs
+// openings that also carry planks (the street row always does); plank m a plank's height, thick m how far an opening
+// stands off the wall; dark the opening's colour, wood the planks'. Never purple.
+export const BOARDED = { door: [1.7, 2.4], doorPlanks: 4, win: [1.3, 1.5], sill: 1.0, every: 5.5, storey: 3.4, floors: 3, upBoarded: 0.35, plank: 0.2, thick: 0.1, dark: '#221f1c', wood: ['#8a6a42', '#7a5c38', '#94764e'] };
