@@ -29,8 +29,10 @@ test('every region has climate, terrain, dialect, a ruler per state, vehicles, a
     for (const t of (r === 'HI' ? ['RegionStates', 'RegionVehicles'] : ['RegionStates', 'RegionVehicles', 'RegionFactions'])) assert.ok(T.get(t).rows.some((x) => x.cells.Region === r), `${r} has no ${t}`);
     if (r !== 'HI') for (const t of ['RegionScarcity', 'RegionSupplies']) assert.ok(T.get(t).rows.some((x) => x.cells.Region === r), `${r} has no ${t}`);
   }
-  for (const s of T.get('RegionStates').rows) assert.ok(s.cells.Ruler, `${s.name}: no ruler`);
+  const ruled = new Set(T.get('StateRulers').rows.map((r) => r.cells.State));
+  for (const s of T.get('RegionStates').rows) assert.ok(ruled.has(s.cells.State), `${s.name}: no ruler`);
+  assert.ok(T.get('RegionStates').rows.some((s) => s.cells.State === 'TX'), 'Texas is in a region');
 });
 test('every row names a source (a real one, a repo file, or design)', () => {
-  for (const t of T.values()) for (const r of t.rows) assert.ok(/^(real|derived|design|docs|climate)/.test(r.cells.Source), `${t.file}:${r.line}: Source`);
+  for (const t of T.values()) for (const r of t.rows) assert.ok(/^(real|derived|design|docs|climate|data)/.test(r.cells.Source), `${t.file}:${r.line}: Source`);
 });

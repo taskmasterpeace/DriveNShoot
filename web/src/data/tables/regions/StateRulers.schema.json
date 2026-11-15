@@ -1,0 +1,44 @@
+{
+  "$comment": "Hand-editable. path null = a table-only column (nothing builds a game object from this table yet).",
+  "table": "StateRulers",
+  "family": "regions",
+  "key": "Name",
+  "rowStruct": "FDsoaStateRulersRow",
+  "description": "Who rules each state: one row per ruler (California has three). Canon: docs/DIVIDED_STATES.md.",
+  "columns": [
+    {
+      "required": true,
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "description": "Row key."
+    },
+    {
+      "required": true,
+      "name": "State",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "Index",
+      "type": "int",
+      "path": null,
+      "unit": "",
+      "min": 0
+    },
+    {
+      "required": true,
+      "name": "Ruler",
+      "type": "string",
+      "path": null
+    },
+    {
+      "required": true,
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "description": "Where the fact came from: a real source, a repo file, or `design`."
+    }
+  ]
+}

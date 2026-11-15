@@ -4,7 +4,7 @@
   "family": "regions",
   "key": "Name",
   "rowStruct": "FDsoaRegionStatesRow",
-  "description": "Which states are in a region, and who rules each (the canon rulers).",
+  "description": "Which states are in a region (Texas is split: west in SW, east in GULF, by the site catalogue labels). Rulers are in StateRulers.",
   "columns": [
     {
       "required": true,
@@ -26,12 +26,6 @@
     {
       "required": true,
       "name": "State",
-      "type": "string",
-      "path": null
-    },
-    {
-      "required": false,
-      "name": "Ruler",
       "type": "string",
       "path": null
     },
