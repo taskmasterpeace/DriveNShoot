@@ -22,10 +22,9 @@ import { MELEE_ITEMS } from './melee.js'; // bats, knuckles, pipes, sledges (WEB
 //   tags     what tools, loot tables and crafting know it by
 export const ITEMS = rows('Items');
 
+Object.assign(ITEMS, MELEE_ITEMS); // the melee rows' carried things (data/melee.js)
 // Where things are found. Each table: weighted rows [item, weight, countMin, countMax]; a container rolls `rolls`
 // times (min..max), and a roll can come up empty (the `none` weight).
-// Florida's game (docs/design/WEB_FLORIDA.md §3.6): what a dead alligator gives up. Rows, like everything here.
-Object.assign(ITEMS, MELEE_ITEMS); // the melee rows' carried things (data/melee.js)
 export const LOOT = rows('LootTables');
 
 // What you start with: pockets, a satchel on your back, a bottle and a little food (plus the guns in g.inv).

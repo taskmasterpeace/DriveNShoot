@@ -172,11 +172,11 @@
       "required": false
     },
     {
-      "name": "Use_Litres",
+      "name": "Use_Litres_L",
       "type": "float",
       "path": "use.litres",
       "required": false,
-      "unit": ""
+      "unit": "L"
     },
     {
       "name": "Pack_L",
