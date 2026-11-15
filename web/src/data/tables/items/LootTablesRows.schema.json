@@ -1,0 +1,83 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "LootTablesRows",
+  "family": "items",
+  "key": "Name",
+  "rowStruct": "FDsoaLootTablesRowsRow",
+  "description": "Child table of LootTables: rows. Joined by Table, ordered by Index.",
+  "legacy": {
+    "file": "src/data/items.js LOOT (the tables typed in that file; other modules add tables and rows by code)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Table",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "ref": {
+        "table": "LootTables",
+        "column": "Name"
+      },
+      "description": "The LootTables row this belongs to."
+    },
+    {
+      "name": "Index",
+      "type": "int",
+      "unit": "",
+      "path": null,
+      "required": true,
+      "min": 0,
+      "description": "Order within the parent (0 first)."
+    },
+    {
+      "name": "Item",
+      "type": "string",
+      "path": "0",
+      "required": true
+    },
+    {
+      "name": "Weight",
+      "type": "float",
+      "path": "1",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "CountMin",
+      "type": "int",
+      "path": "2",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "CountMax",
+      "type": "int",
+      "path": "3",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ],
+  "parent": {
+    "table": "LootTables",
+    "column": "Table",
+    "path": "rows",
+    "kind": "tuples",
+    "orderColumn": "Index",
+    "emptyWhenMissing": false
+  }
+}

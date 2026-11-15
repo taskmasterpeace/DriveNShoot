@@ -1,0 +1,77 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "GunCare",
+  "family": "items",
+  "key": "Name",
+  "rowStruct": "FDsoaGunCareRow",
+  "description": "Keeping a gun working: the condition below which shots may jam, jam rate, jam clearing time, what a cleaning kit restores, the gunsmith's price share. One row.",
+  "legacy": {
+    "file": "src/data/items.js GUN_CARE",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "JamBelow",
+      "type": "float",
+      "path": "jamBelow",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "JamRate",
+      "type": "float",
+      "path": "jamRate",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "ClearTime_s",
+      "type": "float",
+      "path": "clearTime",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "Kit",
+      "type": "float",
+      "path": "kit",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "KitMax",
+      "type": "float",
+      "path": "kitMax",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Smith",
+      "type": "float",
+      "path": "smith",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "SmithMin_scrip",
+      "type": "float",
+      "path": "smithMin",
+      "required": true,
+      "unit": "scrip"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

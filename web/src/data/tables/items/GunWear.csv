@@ -1,0 +1,7 @@
+Name,Wear,Jam,Source
+pistol,0.0012,0.5,design: docs/design/WEB_INVENTORY.md
+smg,0.0007,1.6,design: docs/design/WEB_INVENTORY.md
+shotgun,0.0018,0.6,design: docs/design/WEB_INVENTORY.md
+rifle,0.0009,1,design: docs/design/WEB_INVENTORY.md
+auto,0.001,0.9,design: docs/design/WEB_INVENTORY.md
+pump,0.0014,0.7,design: docs/design/WEB_INVENTORY.md

@@ -1,0 +1,209 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Items",
+  "family": "items",
+  "key": "Name",
+  "rowStruct": "FDsoaItemsRow",
+  "description": "Things you can carry: weight, room, stack size, price, what using one does. One row per item; tags are the ItemsTags child table. docs/design/WEB_INVENTORY.md. Rows other modules register (gear.js, gadgets.js, melee.js, makeritems.js, fannods.js, towing, workshop ammo) migrate with their own families.",
+  "legacy": {
+    "file": "src/data/items.js ITEMS (the rows typed in that file; gear, gadgets, melee, maker and fan-nod items are folded in by code)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Kind",
+      "type": "string",
+      "path": "kind",
+      "required": true
+    },
+    {
+      "name": "Kg_kg",
+      "type": "float",
+      "path": "kg",
+      "required": true,
+      "unit": "kg",
+      "description": "Weight when full (kg)."
+    },
+    {
+      "name": "KgEmpty_kg",
+      "type": "float",
+      "path": "kgEmpty",
+      "required": false,
+      "unit": "kg",
+      "description": "Weight once its uses are gone (kg)."
+    },
+    {
+      "name": "Bulk_L",
+      "type": "float",
+      "path": "bulk",
+      "required": true,
+      "unit": "L",
+      "description": "Room it takes in a pocket, pack or trunk (litres)."
+    },
+    {
+      "name": "Stack",
+      "type": "int",
+      "path": "stack",
+      "required": true,
+      "unit": "",
+      "description": "How many share one slot (1 = each its own thing)."
+    },
+    {
+      "name": "Value_scrip",
+      "type": "float",
+      "path": "value",
+      "required": true,
+      "unit": "scrip",
+      "description": "What a trader starts from (scrip)."
+    },
+    {
+      "name": "Uses",
+      "type": "int",
+      "path": "uses",
+      "required": false,
+      "unit": "",
+      "description": "Uses before it is spent."
+    },
+    {
+      "name": "Refill",
+      "type": "string",
+      "path": "refill",
+      "required": false,
+      "description": "Where it fills again (water, fuel)."
+    },
+    {
+      "name": "Use_Need",
+      "type": "string",
+      "path": "use.need",
+      "required": false,
+      "description": "The need one use feeds (water, food, rest ...)."
+    },
+    {
+      "name": "Use_Amount",
+      "type": "float",
+      "path": "use.amount",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Desc",
+      "type": "string",
+      "path": "desc",
+      "required": true
+    },
+    {
+      "name": "Use_Hp_hp",
+      "type": "float",
+      "path": "use.hp",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Needs",
+      "type": "string",
+      "path": "needs",
+      "required": false,
+      "description": "A tag another carried thing must have before it can be used."
+    },
+    {
+      "name": "Use_Water",
+      "type": "float",
+      "path": "use.water",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Dog_Bond",
+      "type": "float",
+      "path": "dog.bond",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Dog_Hp_hp",
+      "type": "float",
+      "path": "dog.hp",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Spoils_gh",
+      "type": "float",
+      "path": "spoils",
+      "required": false,
+      "unit": "gh",
+      "description": "Game hours it stays fresh; as long again stale, then rotten."
+    },
+    {
+      "name": "Use_Calm",
+      "type": "bool",
+      "path": "use.calm",
+      "required": false
+    },
+    {
+      "name": "Use_Bleed",
+      "type": "bool",
+      "path": "use.bleed",
+      "required": false
+    },
+    {
+      "name": "Use_Cure",
+      "type": "bool",
+      "path": "use.cure",
+      "required": false
+    },
+    {
+      "name": "Use_Act",
+      "type": "string",
+      "path": "use.act",
+      "required": false
+    },
+    {
+      "name": "Use_Litres",
+      "type": "float",
+      "path": "use.litres",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Pack_L",
+      "type": "float",
+      "path": "pack",
+      "required": false,
+      "unit": "L",
+      "description": "Litres it adds when worn on the back."
+    },
+    {
+      "name": "Ammo",
+      "type": "string",
+      "path": "ammo",
+      "required": false
+    },
+    {
+      "name": "Weapon",
+      "type": "string",
+      "path": "weapon",
+      "required": false
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

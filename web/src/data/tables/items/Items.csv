@@ -1,0 +1,80 @@
+Name,DisplayName,Kind,Kg_kg,KgEmpty_kg,Bulk_L,Stack,Value_scrip,Uses,Refill,Use_Need,Use_Amount,Desc,Use_Hp_hp,Needs,Use_Water,Dog_Bond,Dog_Hp_hp,Spoils_gh,Use_Calm,Use_Bleed,Use_Cure,Use_Act,Use_Litres,Pack_L,Ammo,Weapon,Source
+water_bottle,Water bottle,water,0.55,0.05,0.6,1,6,3,water,water,0.16,Half a litre in a plastic bottle gone milky in the sun. Three good swallows.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+canteen,Steel canteen,water,1.25,0.3,1.1,1,25,6,water,water,0.12,A litre in dented steel under a felt cover. Keeps it cooler than plastic does.,2,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+water_can,Water can,water,10.6,0.6,12,1,30,40,water,water,0.2,Ten litres in a blue plastic can. A week for one careful person. Heavy as sin.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+beans_tin,Tin of beans,food,0.45,,0.45,6,8,,,food,0.3,"Beans in sauce, label long gone. Keeps forever. You need a blade or an opener to get in.",3,blade,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+peaches_tin,Tin of peaches,food,0.48,,0.45,6,10,,,food,0.22,Peaches in syrup. Drink the syrup; out here nobody wastes it.,,blade,0.06,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+jerky,Jerky,food,0.08,,0.1,10,4,,,food,0.12,A strip of dried meat. What kind of meat is a question you stop asking. Salty: it costs you water.,,,-0.03,6,12,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+dried_meat,Dried meat,food,0.4,,0.4,6,9,,,food,0.32,A slab of smoke-dried meat wrapped in paper. A dog will follow you a mile for it. So will people.,2,,-0.04,10,30,120,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+coffee,Trail coffee,food,0.3,,0.3,4,12,,,rest,0.12,"Ground coffee in a twist of foil, boiled black in a can. It buys you an hour on your feet.",,,0.04,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+rotgut,Rotgut,food,0.9,0.3,0.8,1,14,4,,,,"Clear liquor from a still behind somebody's garage. Steadies the hands, then doesn't.",3,,-0.05,,,,true,,,,,,,,design: docs/design/WEB_INVENTORY.md
+flatbread,Flatbread,food,0.2,,0.3,4,5,,,food,0.25,Baked on a steel plate in Rust Haven this week. Eat it before it turns.,,,,,,48,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+cactus_fruit,Cactus fruit,food,0.1,,0.15,8,2,,,food,0.08,"Red pear off a paddle cactus, spines rubbed off in the sand. Wet and sweet.",,,0.06,,,36,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+ration,Ration pack,food,0.65,,0.8,4,40,,,food,0.55,"A sealed meal in olive foil, stamped with a date from before the split. Still good. Probably.",8,,,8,20,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+honey,Jar of honey,food,0.5,,0.4,4,15,,,food,0.3,Honey does not go off. Somebody kept bees out here once.,4,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+rag,Torn rag,med,0.04,,0.1,10,1,,,,,A strip of somebody's shirt. It will stop the bleeding. It will not keep it clean.,4,,,,,,,true,,,,,,,design: docs/design/WEB_INVENTORY.md
+bandage,Bandage,med,0.05,,0.1,8,12,,,,,"A clean roll of gauze, still in the paper.",12,,,,,,,true,,,,,,,design: docs/design/WEB_INVENTORY.md
+painkillers,Painkillers,med,0.06,,0.05,1,18,8,,,,A brown bottle with eight pills rattling in it. Takes the edge off; does not take the bullet out.,6,,,,,,true,,,,,,,,design: docs/design/WEB_INVENTORY.md
+antibiotics,Antibiotics,med,0.03,,0.05,4,70,,,,,"A blister pack, a course for one. Worth more than the gun you'd trade for it.",4,,,,,,,,true,,,,,,design: docs/design/WEB_INVENTORY.md
+suture_kit,Suture kit,med,0.2,,0.3,2,45,,,,,"Curved needle, thread, a little bottle of iodine. Sit still.",35,,,,,,,true,,,,,,,design: docs/design/WEB_INVENTORY.md
+first_aid,First-aid kit,med,0.7,,1.2,1,80,3,,,,A red tin box with most of what it should have in it. Three proper patch-ups.,30,,,,,,,true,,,,,,,design: docs/design/WEB_INVENTORY.md
+knife,Folding knife,tool,0.15,,0.1,1,15,,,,,"A lock-back with a chipped edge. Opens tins, cuts cloth.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+can_opener,Can opener,tool,0.1,,0.1,1,4,,,,,The little army kind that lives on a keyring.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+lockpicks,Lockpicks,tool,0.05,,0.05,1,30,6,,,,A roll of picks and a tension wrench. Quiet. Each lock costs you a pick or two.,,,,,,,,,,pick,,,,,design: docs/design/WEB_INVENTORY.md
+hacksaw,Hacksaw,tool,0.7,,0.6,1,14,,,,,"A bow saw for metal and a spare blade. Slow work, and nobody hears it.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+crowbar,Crowbar,tool,2.4,,1.2,1,18,,,,,"Forged steel, the paint worn off the end that does the work. Opens what keys don't. Loudly.",,,,,,,,,,pry,,,,,design: docs/design/WEB_INVENTORY.md
+bolt_cutters,Bolt cutters,tool,3.2,,1.4,1,26,,,,,"Two-foot jaws on long handles. A padlock's shackle or a run of chain-link, quietly.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+sledgehammer,Sledgehammer,tool,4.5,,1.6,1,20,,,,,"Ten pounds on a hickory handle. Any door, any lock, and everyone for a block hears it.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+hammer_nails,Hammer and nails,tool,1.1,,0.5,1,12,,,,,"A claw hammer and a coffee tin of bent nails. Boards go up, boards come down.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+ladder_portable,Aluminium ladder,tool,7.5,,2.8,1,30,,,,,"A folding ladder, sixteen feet open. Set it against a wall and the roof is yours.",,,,,,,,,,place_ladder,,,,,design: docs/design/WEB_INVENTORY.md
+door_key,Door key,paper,0.01,,0.01,4,2,,,,,"A brass key on a split ring. Somebody's door, somewhere near.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+scrap_note,Folded note,paper,0.01,,0.01,1,0,,,,,"A page torn from a pad, folded small. Whoever dropped it was in a hurry.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+radio_portable,Portable radio,tool,0.7,,0.6,1,40,,,,,A battered transistor set with a bent aerial. Comma and period walk the dial.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+wrench,Wrench,tool,0.6,,0.3,1,14,,,,,An adjustable wrench. Any repair goes faster with one.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+machete,Machete,tool,0.9,,0.7,1,22,,,,,"A cane knife with a taped grip. Opens tins, cuts brush, settles arguments.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+fire_axe,Fire axe,tool,2.8,,1.6,1,26,,,,,"A red-handled axe off a firehouse wall. Takes a locked door off its hinges, loudly.",,,,,,,,,,pry,,,,,design: docs/design/WEB_INVENTORY.md
+flare,Road flare,tool,0.25,,0.2,6,6,,,,,A red flare in a paper tube. Strike it and put it down: a minute of fire nothing with sense walks into.,,,,,,,,,,flare,,,,,design: docs/design/WEB_INVENTORY.md
+duct_tape,Duct tape,tool,0.3,,0.3,1,10,4,,,,"Half a roll. Holds a radiator, a tank, a cracked hose until it doesn't.",,,,,,,,,,repair,,,,,design: docs/design/WEB_INVENTORY.md
+fuel_can,Fuel can,part,8.4,1.2,11,1,40,1,fuel,,,Ten litres of gasoline that smells like it has been through a few cans. Pour it into anything that runs.,,,,,,,,,,refuel,10,,,,design: docs/design/WEB_INVENTORY.md
+siphon_hose,Siphon hose,tool,0.7,,0.8,1,15,,,,,"Three metres of fuel line and a hand bulb. Down a station's fill pipe, the dregs come up into your car or your cans.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+spare_tyre,Spare tyre,part,9,,40,1,35,,,,,"A spare on a rim, more patches than tread. Swaps for a flat.",,,,,,,,,,tyre,,,,,design: docs/design/WEB_INVENTORY.md
+scrap,Scrap steel,part,1.5,,1,10,3,,,,,"Sheet steel, a bent hubcap, a length of rebar. A mechanic can make plate out of it.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+spark_plugs,Spark plugs,part,0.2,,0.1,4,12,,,,,"A set of four, wrapped in an oily rag. A misfiring engine wants these.",,,,,,,,,,repair,,,,,design: docs/design/WEB_INVENTORY.md
+bedroll,Bedroll,tool,1.6,,7,1,18,,,,,"A rolled blanket and a sheet of foam, tied with cord. Better than the ground; not much better.",,,,,,,,,,sleep,,,,,design: docs/design/WEB_INVENTORY.md
+satchel,Satchel,pack,0.5,,2,1,12,,,,,A canvas bag on a strap. Room for a few days of water and food.,,,,,,,,,,,,8,,,design: docs/design/WEB_INVENTORY.md
+backpack,Backpack,pack,1.2,,4,1,35,,,,,"A school pack, the zip mended with wire. Twenty-odd litres.",,,,,,,,,,,,22,,,design: docs/design/WEB_INVENTORY.md
+ruck,Frame ruck,pack,2.3,,6,1,90,,,,,An army ruck on an alloy frame. Carries like a mule; you will feel every kilo of it.,,,,,,,,,,,,45,,,design: docs/design/WEB_INVENTORY.md
+ammo_pistol,Pistol rounds (.45 ACP),ammo,0.012,,0.006,200,0.4,,,,,"Big, slow revolver rounds, loose in a paper box gone soft at the corners.",,,,,,,,,,,,,pistol,,design: docs/design/WEB_INVENTORY.md
+ammo_smg,SMG rounds (9mm),ammo,0.008,,0.004,300,0.3,,,,,"Small, fast rounds for a submachine gun. Some are reloads; you can tell by the dents.",,,,,,,,,,,,,smg,,design: docs/design/WEB_INVENTORY.md
+ammo_shells,Shotgun shells (12 gauge buck),ammo,0.045,,0.04,50,1.2,,,,,Twelve-gauge buckshot in faded red hulls. Bulky; every one counts.,,,,,,,,,,,,,shells,,design: docs/design/WEB_INVENTORY.md
+ammo_birdshot,Birdshot shells,ammo,0.04,,0.04,50,0.8,,,,,Green hulls of fine lead shot for ducks and doves. Peppers a man; stops a dog.,,,,,,,,,,,,,birdshot,,design: docs/design/WEB_INVENTORY.md
+ammo_slug,Slug shells,ammo,0.05,,0.04,50,2,,,,,"Black hulls, each with one soft lead slug the size of your thumb. Goes through a car door.",,,,,,,,,,,,,slug,,design: docs/design/WEB_INVENTORY.md
+ammo_rifle,Rifle rounds (5.56),ammo,0.025,,0.012,150,0.9,,,,,"Long brass rounds on stripper clips, the old government's issue.",,,,,,,,,,,,,rifle,,design: docs/design/WEB_INVENTORY.md
+ammo_22lr,.22 rounds,ammo,0.003,,0.002,500,0.1,,,,,A brick of five hundred little rimfire rounds. Every farmhouse had one in a drawer.,,,,,,,,,,,,,22lr,,design: docs/design/WEB_INVENTORY.md
+ammo_357mag,.357 Magnum rounds,ammo,0.016,,0.007,150,0.7,,,,,"Long-cased revolver rounds with soft lead noses. Loud, and they go where you point them.",,,,,,,,,,,,,357mag,,design: docs/design/WEB_INVENTORY.md
+ammo_762x39,7.62x39 rounds,ammo,0.016,,0.009,200,0.6,,,,,"Short fat rounds in grey-green lacquered steel cases, a surplus spam can of them.",,,,,,,,,,,,,762x39,,design: docs/design/WEB_INVENTORY.md
+ammo_762x51,.308 rounds (7.62x51),ammo,0.025,,0.013,150,1.2,,,,,"Full-power rifle rounds, some still on their links. The battle rifle and the medium gun eat them.",,,,,,,,,,,,,762x51,,design: docs/design/WEB_INVENTORY.md
+ammo_50bmg,.50 rounds (12.7mm),ammo,0.115,,0.05,40,6,,,,,Each one as long as your hand and heavy as a full can of beans. Made to stop trucks.,,,,,,,,,,,,,50bmg,,design: docs/design/WEB_INVENTORY.md
+gun_pistol,.45 revolver,gun,1.2,,0.8,1,80,,,,,"A six-shot revolver, the bluing worn to grey where a hand has held it for twenty years.",,,,,,,,,,,,,,pistol,design: docs/design/WEB_INVENTORY.md
+gun_smg,Rust-9 SMG,gun,3.2,,2.6,1,220,,,,,A stamped-steel submachine gun from a backyard shop. Eats rounds; jams when it is dirty.,,,,,,,,,,,,,,smg,design: docs/design/WEB_INVENTORY.md
+gun_shotgun,Sawn-off,gun,3.3,,3.5,1,160,,,,,"A double barrel cut down to the forestock with a hacksaw. Two shots, then a long minute.",,,,,,,,,,,,,,shotgun,design: docs/design/WEB_INVENTORY.md
+gun_rifle,Service rifle,gun,3.8,,5.5,1,350,,,,,"The Federal Remnant's issue rifle, serial filed off. Reaches further than anything else out here.",,,,,,,,,,,,,,rifle,design: docs/design/WEB_INVENTORY.md
+gun_auto,Self-loader,gun,1,,0.7,1,120,,,,,"A twelve-round semi-automatic pistol in the small, fast calibre the SMGs eat. Quick to hand, quick to empty.",,,,,,,,,,,,,,auto,design: docs/design/WEB_INVENTORY.md
+gun_pump,Pump shotgun,gun,3.4,,4.5,1,190,,,,,"A full-length pump gun with five in the tube. Slower to fire than the sawn-off, slower to run dry.",,,,,,,,,,,,,,pump,design: docs/design/WEB_INVENTORY.md
+gun_rimfire,.22 rifle,gun,2.4,,4,1,70,,,,,A tube-fed .22 with a scratched walnut stock. Kept the crows off the corn; now it keeps worse off.,,,,,,,,,,,,,,rimfire,design: docs/design/WEB_INVENTORY.md
+gun_magnum,.357 Magnum,gun,1.3,,0.9,1,140,,,,,A heavy-framed six-shot revolver. The rounds crack and the muzzle jumps.,,,,,,,,,,,,,,magnum,design: docs/design/WEB_INVENTORY.md
+gun_carbine,Surplus carbine,gun,3.6,,4.6,1,260,,,,,A stamped-steel carbine with a curved thirty-round magazine. Rattles when you run; fires when it is filthy.,,,,,,,,,,,,,,carbine,design: docs/design/WEB_INVENTORY.md
+gun_battle,Battle rifle,gun,4.4,,6,1,480,,,,,"A long, heavy rifle in .308, twenty to a magazine. Every shot shoves your shoulder back.",,,,,,,,,,,,,,battle,design: docs/design/WEB_INVENTORY.md
+gun_lmg,Light machine gun,gun,7.5,,8,1,700,,,,,A 5.56 machine gun with a hundred-round box under it and a bipod folded flat.,,,,,,,,,,,,,,lmg,design: docs/design/WEB_INVENTORY.md
+gun_mmg,Medium machine gun,gun,11,,10,1,950,,,,,A belt-fed .308 gun built for a tripod or a cradle. You can carry it. You will not enjoy it.,,,,,,,,,,,,,,mmg,design: docs/design/WEB_INVENTORY.md
+gun_amr,Anti-materiel rifle,gun,13,,12,1,1400,,,,,"A .50 rifle as long as a man, with a muzzle brake like a fist. It stops engines.",,,,,,,,,,,,,,amr,design: docs/design/WEB_INVENTORY.md
+cleaning_kit,Gun cleaning kit,tool,0.35,,0.4,1,25,5,,,,"A rod, brushes, patches and a little can of oil. Takes the grit out of whatever you are holding.",,,,,,,,,,clean,,,,,design: docs/design/WEB_INVENTORY.md
+wristwatch,Wristwatch,valuable,0.08,,0.05,1,20,,,,,It still ticks. Somebody wound it every morning until they didn't.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+gold_ring,Gold ring,valuable,0.01,,0.01,5,45,,,,,Somebody's promise. Worth more than a promise now.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+silverware,Silverware,valuable,0.2,,0.2,5,6,,,,,"A fork and two spoons, real silver. Traders weigh it.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+road_atlas,Road atlas,paper,0.6,,0.8,1,10,,,,,"A spiral-bound atlas of the old states, the borders inked over in three colours of pen.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+photograph,Photograph,paper,0.01,,0.01,1,0,,,,,"A family on a porch, squinting into the sun. Nobody you know.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+dog_collar,Dog collar,paper,0.08,,0.05,1,0,,,,,A worn leather collar with a name scratched into the buckle. You know the name.,,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+tin_star,Deputy's star,paper,0.03,,0.02,1,0,,,,,"Pressed tin, the points filed round, RUST HAVEN stamped in a ring. Okonkwo pins one on the people who keep her peace.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+gator_meat,Gator tail meat,food,0.9,,0.8,4,9,,,food,0.35,"White, tough, tastes like the swamp it came out of. Cook it today: in this heat it turns by tomorrow.",2,,,,,24,,,,,,,,,design: docs/design/WEB_INVENTORY.md
+gator_hide,Gator hide,valuable,2.2,,2.5,2,35,,,,,"A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.",,,,,,,,,,,,,,,design: docs/design/WEB_INVENTORY.md

@@ -1,0 +1,70 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "GunFound",
+  "family": "items",
+  "key": "Name",
+  "rowStruct": "FDsoaGunFoundRow",
+  "description": "The guns the dead leave, by who carried them: condition range, how full the magazine was, spare rounds on them.",
+  "legacy": {
+    "file": "src/data/items.js GUN_FOUND",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Cond_Min",
+      "type": "float",
+      "path": "cond.0",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Cond_Max",
+      "type": "float",
+      "path": "cond.1",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Loaded_Min",
+      "type": "float",
+      "path": "loaded.0",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Loaded_Max",
+      "type": "float",
+      "path": "loaded.1",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Spare_Min",
+      "type": "float",
+      "path": "spare.0",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Spare_Max",
+      "type": "float",
+      "path": "spare.1",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

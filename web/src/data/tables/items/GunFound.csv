@@ -1,0 +1,5 @@
+Name,Cond_Min,Cond_Max,Loaded_Min,Loaded_Max,Spare_Min,Spare_Max,Source
+raider,0.18,0.6,0,0.6,0,12,design: docs/design/WEB_INVENTORY.md
+soldier,0.62,0.95,0.3,1,20,60,design: docs/design/WEB_INVENTORY.md
+warden,0.55,0.9,0.4,1,6,24,design: docs/design/WEB_INVENTORY.md
+default,0.3,0.8,0,0.8,0,8,design: docs/design/WEB_INVENTORY.md

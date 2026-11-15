@@ -1,0 +1,6668 @@
+{
+ "inline": {
+  "ITEMS": {
+   "water_bottle": {
+    "name": "Water bottle",
+    "kind": "water",
+    "kg": 0.55,
+    "kgEmpty": 0.05,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 6,
+    "uses": 3,
+    "refill": "water",
+    "use": {
+     "need": "water",
+     "amount": 0.16
+    },
+    "desc": "Half a litre in a plastic bottle gone milky in the sun. Three good swallows."
+   },
+   "canteen": {
+    "name": "Steel canteen",
+    "kind": "water",
+    "kg": 1.25,
+    "kgEmpty": 0.3,
+    "bulk": 1.1,
+    "stack": 1,
+    "value": 25,
+    "uses": 6,
+    "refill": "water",
+    "use": {
+     "need": "water",
+     "amount": 0.12,
+     "hp": 2
+    },
+    "desc": "A litre in dented steel under a felt cover. Keeps it cooler than plastic does.",
+    "tags": [
+     "steel"
+    ]
+   },
+   "water_can": {
+    "name": "Water can",
+    "kind": "water",
+    "kg": 10.6,
+    "kgEmpty": 0.6,
+    "bulk": 12,
+    "stack": 1,
+    "value": 30,
+    "uses": 40,
+    "refill": "water",
+    "use": {
+     "need": "water",
+     "amount": 0.2
+    },
+    "desc": "Ten litres in a blue plastic can. A week for one careful person. Heavy as sin."
+   },
+   "beans_tin": {
+    "name": "Tin of beans",
+    "kind": "food",
+    "kg": 0.45,
+    "bulk": 0.45,
+    "stack": 6,
+    "value": 8,
+    "use": {
+     "need": "food",
+     "amount": 0.3,
+     "hp": 3
+    },
+    "needs": "blade",
+    "desc": "Beans in sauce, label long gone. Keeps forever. You need a blade or an opener to get in."
+   },
+   "peaches_tin": {
+    "name": "Tin of peaches",
+    "kind": "food",
+    "kg": 0.48,
+    "bulk": 0.45,
+    "stack": 6,
+    "value": 10,
+    "use": {
+     "need": "food",
+     "amount": 0.22,
+     "water": 0.06
+    },
+    "needs": "blade",
+    "desc": "Peaches in syrup. Drink the syrup; out here nobody wastes it."
+   },
+   "jerky": {
+    "name": "Jerky",
+    "kind": "food",
+    "kg": 0.08,
+    "bulk": 0.1,
+    "stack": 10,
+    "value": 4,
+    "use": {
+     "need": "food",
+     "amount": 0.12,
+     "water": -0.03
+    },
+    "dog": {
+     "bond": 6,
+     "hp": 12
+    },
+    "desc": "A strip of dried meat. What kind of meat is a question you stop asking. Salty: it costs you water."
+   },
+   "dried_meat": {
+    "name": "Dried meat",
+    "kind": "food",
+    "kg": 0.4,
+    "bulk": 0.4,
+    "stack": 6,
+    "value": 9,
+    "spoils": 120,
+    "use": {
+     "need": "food",
+     "amount": 0.32,
+     "hp": 2,
+     "water": -0.04
+    },
+    "dog": {
+     "bond": 10,
+     "hp": 30
+    },
+    "desc": "A slab of smoke-dried meat wrapped in paper. A dog will follow you a mile for it. So will people."
+   },
+   "coffee": {
+    "name": "Trail coffee",
+    "kind": "food",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 4,
+    "value": 12,
+    "use": {
+     "need": "rest",
+     "amount": 0.12,
+     "water": 0.04
+    },
+    "desc": "Ground coffee in a twist of foil, boiled black in a can. It buys you an hour on your feet."
+   },
+   "rotgut": {
+    "name": "Rotgut",
+    "kind": "food",
+    "kg": 0.9,
+    "kgEmpty": 0.3,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 14,
+    "uses": 4,
+    "use": {
+     "hp": 3,
+     "calm": true,
+     "water": -0.05
+    },
+    "desc": "Clear liquor from a still behind somebody's garage. Steadies the hands, then doesn't."
+   },
+   "flatbread": {
+    "name": "Flatbread",
+    "kind": "food",
+    "kg": 0.2,
+    "bulk": 0.3,
+    "stack": 4,
+    "value": 5,
+    "spoils": 48,
+    "use": {
+     "need": "food",
+     "amount": 0.25
+    },
+    "desc": "Baked on a steel plate in Rust Haven this week. Eat it before it turns."
+   },
+   "cactus_fruit": {
+    "name": "Cactus fruit",
+    "kind": "food",
+    "kg": 0.1,
+    "bulk": 0.15,
+    "stack": 8,
+    "value": 2,
+    "spoils": 36,
+    "use": {
+     "need": "food",
+     "amount": 0.08,
+     "water": 0.06
+    },
+    "desc": "Red pear off a paddle cactus, spines rubbed off in the sand. Wet and sweet."
+   },
+   "ration": {
+    "name": "Ration pack",
+    "kind": "food",
+    "kg": 0.65,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 40,
+    "use": {
+     "need": "food",
+     "amount": 0.55,
+     "hp": 8
+    },
+    "dog": {
+     "bond": 8,
+     "hp": 20
+    },
+    "desc": "A sealed meal in olive foil, stamped with a date from before the split. Still good. Probably.",
+    "tags": [
+     "military"
+    ]
+   },
+   "honey": {
+    "name": "Jar of honey",
+    "kind": "food",
+    "kg": 0.5,
+    "bulk": 0.4,
+    "stack": 4,
+    "value": 15,
+    "use": {
+     "need": "food",
+     "amount": 0.3,
+     "hp": 4
+    },
+    "desc": "Honey does not go off. Somebody kept bees out here once."
+   },
+   "rag": {
+    "name": "Torn rag",
+    "kind": "med",
+    "kg": 0.04,
+    "bulk": 0.1,
+    "stack": 10,
+    "value": 1,
+    "use": {
+     "hp": 4,
+     "bleed": true
+    },
+    "desc": "A strip of somebody's shirt. It will stop the bleeding. It will not keep it clean."
+   },
+   "bandage": {
+    "name": "Bandage",
+    "kind": "med",
+    "kg": 0.05,
+    "bulk": 0.1,
+    "stack": 8,
+    "value": 12,
+    "use": {
+     "hp": 12,
+     "bleed": true
+    },
+    "desc": "A clean roll of gauze, still in the paper."
+   },
+   "painkillers": {
+    "name": "Painkillers",
+    "kind": "med",
+    "kg": 0.06,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 18,
+    "uses": 8,
+    "use": {
+     "hp": 6,
+     "calm": true
+    },
+    "desc": "A brown bottle with eight pills rattling in it. Takes the edge off; does not take the bullet out."
+   },
+   "antibiotics": {
+    "name": "Antibiotics",
+    "kind": "med",
+    "kg": 0.03,
+    "bulk": 0.05,
+    "stack": 4,
+    "value": 70,
+    "use": {
+     "hp": 4,
+     "cure": true
+    },
+    "desc": "A blister pack, a course for one. Worth more than the gun you'd trade for it."
+   },
+   "suture_kit": {
+    "name": "Suture kit",
+    "kind": "med",
+    "kg": 0.2,
+    "bulk": 0.3,
+    "stack": 2,
+    "value": 45,
+    "use": {
+     "hp": 35,
+     "bleed": true
+    },
+    "desc": "Curved needle, thread, a little bottle of iodine. Sit still."
+   },
+   "first_aid": {
+    "name": "First-aid kit",
+    "kind": "med",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 80,
+    "uses": 3,
+    "use": {
+     "hp": 30,
+     "bleed": true
+    },
+    "desc": "A red tin box with most of what it should have in it. Three proper patch-ups."
+   },
+   "knife": {
+    "name": "Folding knife",
+    "kind": "tool",
+    "kg": 0.15,
+    "bulk": 0.1,
+    "stack": 1,
+    "value": 15,
+    "tags": [
+     "blade"
+    ],
+    "desc": "A lock-back with a chipped edge. Opens tins, cuts cloth."
+   },
+   "can_opener": {
+    "name": "Can opener",
+    "kind": "tool",
+    "kg": 0.1,
+    "bulk": 0.1,
+    "stack": 1,
+    "value": 4,
+    "tags": [
+     "blade"
+    ],
+    "desc": "The little army kind that lives on a keyring."
+   },
+   "lockpicks": {
+    "name": "Lockpicks",
+    "kind": "tool",
+    "kg": 0.05,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 30,
+    "uses": 6,
+    "use": {
+     "act": "pick"
+    },
+    "tags": [
+     "picks"
+    ],
+    "desc": "A roll of picks and a tension wrench. Quiet. Each lock costs you a pick or two."
+   },
+   "hacksaw": {
+    "name": "Hacksaw",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 14,
+    "tags": [
+     "cut",
+     "steel"
+    ],
+    "desc": "A bow saw for metal and a spare blade. Slow work, and nobody hears it."
+   },
+   "crowbar": {
+    "name": "Crowbar",
+    "kind": "tool",
+    "kg": 2.4,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 18,
+    "use": {
+     "act": "pry"
+    },
+    "tags": [
+     "pry",
+     "steel"
+    ],
+    "desc": "Forged steel, the paint worn off the end that does the work. Opens what keys don't. Loudly."
+   },
+   "bolt_cutters": {
+    "name": "Bolt cutters",
+    "kind": "tool",
+    "kg": 3.2,
+    "bulk": 1.4,
+    "stack": 1,
+    "value": 26,
+    "tags": [
+     "cutters",
+     "steel"
+    ],
+    "desc": "Two-foot jaws on long handles. A padlock's shackle or a run of chain-link, quietly."
+   },
+   "sledgehammer": {
+    "name": "Sledgehammer",
+    "kind": "tool",
+    "kg": 4.5,
+    "bulk": 1.6,
+    "stack": 1,
+    "value": 20,
+    "tags": [
+     "sledge",
+     "steel"
+    ],
+    "desc": "Ten pounds on a hickory handle. Any door, any lock, and everyone for a block hears it."
+   },
+   "hammer_nails": {
+    "name": "Hammer and nails",
+    "kind": "tool",
+    "kg": 1.1,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 12,
+    "tags": [
+     "hammer"
+    ],
+    "desc": "A claw hammer and a coffee tin of bent nails. Boards go up, boards come down."
+   },
+   "ladder_portable": {
+    "name": "Aluminium ladder",
+    "kind": "tool",
+    "kg": 7.5,
+    "bulk": 2.8,
+    "stack": 1,
+    "value": 30,
+    "use": {
+     "act": "place_ladder"
+    },
+    "tags": [
+     "ladder"
+    ],
+    "desc": "A folding ladder, sixteen feet open. Set it against a wall and the roof is yours."
+   },
+   "door_key": {
+    "name": "Door key",
+    "kind": "paper",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 4,
+    "value": 2,
+    "desc": "A brass key on a split ring. Somebody's door, somewhere near."
+   },
+   "scrap_note": {
+    "name": "Folded note",
+    "kind": "paper",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 1,
+    "value": 0,
+    "desc": "A page torn from a pad, folded small. Whoever dropped it was in a hurry."
+   },
+   "radio_portable": {
+    "name": "Portable radio",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 40,
+    "tags": [
+     "radio"
+    ],
+    "desc": "A battered transistor set with a bent aerial. Comma and period walk the dial."
+   },
+   "wrench": {
+    "name": "Wrench",
+    "kind": "tool",
+    "kg": 0.6,
+    "bulk": 0.3,
+    "stack": 1,
+    "value": 14,
+    "tags": [
+     "wrench",
+     "steel"
+    ],
+    "desc": "An adjustable wrench. Any repair goes faster with one."
+   },
+   "machete": {
+    "name": "Machete",
+    "kind": "tool",
+    "kg": 0.9,
+    "bulk": 0.7,
+    "stack": 1,
+    "value": 22,
+    "tags": [
+     "blade",
+     "steel"
+    ],
+    "desc": "A cane knife with a taped grip. Opens tins, cuts brush, settles arguments."
+   },
+   "fire_axe": {
+    "name": "Fire axe",
+    "kind": "tool",
+    "kg": 2.8,
+    "bulk": 1.6,
+    "stack": 1,
+    "value": 26,
+    "use": {
+     "act": "pry"
+    },
+    "tags": [
+     "pry",
+     "blade",
+     "steel"
+    ],
+    "desc": "A red-handled axe off a firehouse wall. Takes a locked door off its hinges, loudly."
+   },
+   "flare": {
+    "name": "Road flare",
+    "kind": "tool",
+    "kg": 0.25,
+    "bulk": 0.2,
+    "stack": 6,
+    "value": 6,
+    "use": {
+     "act": "flare"
+    },
+    "desc": "A red flare in a paper tube. Strike it and put it down: a minute of fire nothing with sense walks into."
+   },
+   "duct_tape": {
+    "name": "Duct tape",
+    "kind": "tool",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 1,
+    "value": 10,
+    "uses": 4,
+    "use": {
+     "act": "repair"
+    },
+    "desc": "Half a roll. Holds a radiator, a tank, a cracked hose until it doesn't."
+   },
+   "fuel_can": {
+    "name": "Fuel can",
+    "kind": "part",
+    "kg": 8.4,
+    "kgEmpty": 1.2,
+    "bulk": 11,
+    "stack": 1,
+    "value": 40,
+    "uses": 1,
+    "refill": "fuel",
+    "use": {
+     "act": "refuel",
+     "litres": 10
+    },
+    "desc": "Ten litres of gasoline that smells like it has been through a few cans. Pour it into anything that runs."
+   },
+   "siphon_hose": {
+    "name": "Siphon hose",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 15,
+    "tags": [
+     "hose"
+    ],
+    "desc": "Three metres of fuel line and a hand bulb. Down a station's fill pipe, the dregs come up into your car or your cans."
+   },
+   "spare_tyre": {
+    "name": "Spare tyre",
+    "kind": "part",
+    "kg": 9,
+    "bulk": 40,
+    "stack": 1,
+    "value": 35,
+    "use": {
+     "act": "tyre"
+    },
+    "desc": "A spare on a rim, more patches than tread. Swaps for a flat."
+   },
+   "scrap": {
+    "name": "Scrap steel",
+    "kind": "part",
+    "kg": 1.5,
+    "bulk": 1,
+    "stack": 10,
+    "value": 3,
+    "tags": [
+     "steel"
+    ],
+    "desc": "Sheet steel, a bent hubcap, a length of rebar. A mechanic can make plate out of it."
+   },
+   "spark_plugs": {
+    "name": "Spark plugs",
+    "kind": "part",
+    "kg": 0.2,
+    "bulk": 0.1,
+    "stack": 4,
+    "value": 12,
+    "use": {
+     "act": "repair"
+    },
+    "desc": "A set of four, wrapped in an oily rag. A misfiring engine wants these."
+   },
+   "bedroll": {
+    "name": "Bedroll",
+    "kind": "tool",
+    "kg": 1.6,
+    "bulk": 7,
+    "stack": 1,
+    "value": 18,
+    "use": {
+     "act": "sleep"
+    },
+    "desc": "A rolled blanket and a sheet of foam, tied with cord. Better than the ground; not much better."
+   },
+   "satchel": {
+    "name": "Satchel",
+    "kind": "pack",
+    "kg": 0.5,
+    "bulk": 2,
+    "stack": 1,
+    "value": 12,
+    "pack": 8,
+    "desc": "A canvas bag on a strap. Room for a few days of water and food."
+   },
+   "backpack": {
+    "name": "Backpack",
+    "kind": "pack",
+    "kg": 1.2,
+    "bulk": 4,
+    "stack": 1,
+    "value": 35,
+    "pack": 22,
+    "desc": "A school pack, the zip mended with wire. Twenty-odd litres."
+   },
+   "ruck": {
+    "name": "Frame ruck",
+    "kind": "pack",
+    "kg": 2.3,
+    "bulk": 6,
+    "stack": 1,
+    "value": 90,
+    "pack": 45,
+    "tags": [
+     "military"
+    ],
+    "desc": "An army ruck on an alloy frame. Carries like a mule; you will feel every kilo of it."
+   },
+   "ammo_pistol": {
+    "name": "Pistol rounds (.45 ACP)",
+    "kind": "ammo",
+    "kg": 0.012,
+    "bulk": 0.006,
+    "stack": 200,
+    "value": 0.4,
+    "ammo": "pistol",
+    "desc": "Big, slow revolver rounds, loose in a paper box gone soft at the corners."
+   },
+   "ammo_smg": {
+    "name": "SMG rounds (9mm)",
+    "kind": "ammo",
+    "kg": 0.008,
+    "bulk": 0.004,
+    "stack": 300,
+    "value": 0.3,
+    "ammo": "smg",
+    "desc": "Small, fast rounds for a submachine gun. Some are reloads; you can tell by the dents."
+   },
+   "ammo_shells": {
+    "name": "Shotgun shells (12 gauge buck)",
+    "kind": "ammo",
+    "kg": 0.045,
+    "bulk": 0.04,
+    "stack": 50,
+    "value": 1.2,
+    "ammo": "shells",
+    "desc": "Twelve-gauge buckshot in faded red hulls. Bulky; every one counts."
+   },
+   "ammo_birdshot": {
+    "name": "Birdshot shells",
+    "kind": "ammo",
+    "kg": 0.04,
+    "bulk": 0.04,
+    "stack": 50,
+    "value": 0.8,
+    "ammo": "birdshot",
+    "desc": "Green hulls of fine lead shot for ducks and doves. Peppers a man; stops a dog."
+   },
+   "ammo_slug": {
+    "name": "Slug shells",
+    "kind": "ammo",
+    "kg": 0.05,
+    "bulk": 0.04,
+    "stack": 50,
+    "value": 2,
+    "ammo": "slug",
+    "desc": "Black hulls, each with one soft lead slug the size of your thumb. Goes through a car door."
+   },
+   "ammo_rifle": {
+    "name": "Rifle rounds (5.56)",
+    "kind": "ammo",
+    "kg": 0.025,
+    "bulk": 0.012,
+    "stack": 150,
+    "value": 0.9,
+    "ammo": "rifle",
+    "desc": "Long brass rounds on stripper clips, the old government's issue.",
+    "tags": [
+     "military"
+    ]
+   },
+   "ammo_22lr": {
+    "name": ".22 rounds",
+    "kind": "ammo",
+    "kg": 0.003,
+    "bulk": 0.002,
+    "stack": 500,
+    "value": 0.1,
+    "ammo": "22lr",
+    "desc": "A brick of five hundred little rimfire rounds. Every farmhouse had one in a drawer."
+   },
+   "ammo_357mag": {
+    "name": ".357 Magnum rounds",
+    "kind": "ammo",
+    "kg": 0.016,
+    "bulk": 0.007,
+    "stack": 150,
+    "value": 0.7,
+    "ammo": "357mag",
+    "desc": "Long-cased revolver rounds with soft lead noses. Loud, and they go where you point them."
+   },
+   "ammo_762x39": {
+    "name": "7.62x39 rounds",
+    "kind": "ammo",
+    "kg": 0.016,
+    "bulk": 0.009,
+    "stack": 200,
+    "value": 0.6,
+    "ammo": "762x39",
+    "desc": "Short fat rounds in grey-green lacquered steel cases, a surplus spam can of them."
+   },
+   "ammo_762x51": {
+    "name": ".308 rounds (7.62x51)",
+    "kind": "ammo",
+    "kg": 0.025,
+    "bulk": 0.013,
+    "stack": 150,
+    "value": 1.2,
+    "ammo": "762x51",
+    "desc": "Full-power rifle rounds, some still on their links. The battle rifle and the medium gun eat them.",
+    "tags": [
+     "military"
+    ]
+   },
+   "ammo_50bmg": {
+    "name": ".50 rounds (12.7mm)",
+    "kind": "ammo",
+    "kg": 0.115,
+    "bulk": 0.05,
+    "stack": 40,
+    "value": 6,
+    "ammo": "50bmg",
+    "desc": "Each one as long as your hand and heavy as a full can of beans. Made to stop trucks.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_pistol": {
+    "name": ".45 revolver",
+    "kind": "gun",
+    "kg": 1.2,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 80,
+    "weapon": "pistol",
+    "desc": "A six-shot revolver, the bluing worn to grey where a hand has held it for twenty years."
+   },
+   "gun_smg": {
+    "name": "Rust-9 SMG",
+    "kind": "gun",
+    "kg": 3.2,
+    "bulk": 2.6,
+    "stack": 1,
+    "value": 220,
+    "weapon": "smg",
+    "desc": "A stamped-steel submachine gun from a backyard shop. Eats rounds; jams when it is dirty."
+   },
+   "gun_shotgun": {
+    "name": "Sawn-off",
+    "kind": "gun",
+    "kg": 3.3,
+    "bulk": 3.5,
+    "stack": 1,
+    "value": 160,
+    "weapon": "shotgun",
+    "desc": "A double barrel cut down to the forestock with a hacksaw. Two shots, then a long minute."
+   },
+   "gun_rifle": {
+    "name": "Service rifle",
+    "kind": "gun",
+    "kg": 3.8,
+    "bulk": 5.5,
+    "stack": 1,
+    "value": 350,
+    "weapon": "rifle",
+    "desc": "The Federal Remnant's issue rifle, serial filed off. Reaches further than anything else out here.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_auto": {
+    "name": "Self-loader",
+    "kind": "gun",
+    "kg": 1,
+    "bulk": 0.7,
+    "stack": 1,
+    "value": 120,
+    "weapon": "auto",
+    "desc": "A twelve-round semi-automatic pistol in the small, fast calibre the SMGs eat. Quick to hand, quick to empty."
+   },
+   "gun_pump": {
+    "name": "Pump shotgun",
+    "kind": "gun",
+    "kg": 3.4,
+    "bulk": 4.5,
+    "stack": 1,
+    "value": 190,
+    "weapon": "pump",
+    "desc": "A full-length pump gun with five in the tube. Slower to fire than the sawn-off, slower to run dry."
+   },
+   "gun_rimfire": {
+    "name": ".22 rifle",
+    "kind": "gun",
+    "kg": 2.4,
+    "bulk": 4,
+    "stack": 1,
+    "value": 70,
+    "weapon": "rimfire",
+    "desc": "A tube-fed .22 with a scratched walnut stock. Kept the crows off the corn; now it keeps worse off."
+   },
+   "gun_magnum": {
+    "name": ".357 Magnum",
+    "kind": "gun",
+    "kg": 1.3,
+    "bulk": 0.9,
+    "stack": 1,
+    "value": 140,
+    "weapon": "magnum",
+    "desc": "A heavy-framed six-shot revolver. The rounds crack and the muzzle jumps."
+   },
+   "gun_carbine": {
+    "name": "Surplus carbine",
+    "kind": "gun",
+    "kg": 3.6,
+    "bulk": 4.6,
+    "stack": 1,
+    "value": 260,
+    "weapon": "carbine",
+    "desc": "A stamped-steel carbine with a curved thirty-round magazine. Rattles when you run; fires when it is filthy."
+   },
+   "gun_battle": {
+    "name": "Battle rifle",
+    "kind": "gun",
+    "kg": 4.4,
+    "bulk": 6,
+    "stack": 1,
+    "value": 480,
+    "weapon": "battle",
+    "desc": "A long, heavy rifle in .308, twenty to a magazine. Every shot shoves your shoulder back.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_lmg": {
+    "name": "Light machine gun",
+    "kind": "gun",
+    "kg": 7.5,
+    "bulk": 8,
+    "stack": 1,
+    "value": 700,
+    "weapon": "lmg",
+    "desc": "A 5.56 machine gun with a hundred-round box under it and a bipod folded flat.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_mmg": {
+    "name": "Medium machine gun",
+    "kind": "gun",
+    "kg": 11,
+    "bulk": 10,
+    "stack": 1,
+    "value": 950,
+    "weapon": "mmg",
+    "desc": "A belt-fed .308 gun built for a tripod or a cradle. You can carry it. You will not enjoy it.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_amr": {
+    "name": "Anti-materiel rifle",
+    "kind": "gun",
+    "kg": 13,
+    "bulk": 12,
+    "stack": 1,
+    "value": 1400,
+    "weapon": "amr",
+    "desc": "A .50 rifle as long as a man, with a muzzle brake like a fist. It stops engines.",
+    "tags": [
+     "military"
+    ]
+   },
+   "cleaning_kit": {
+    "name": "Gun cleaning kit",
+    "kind": "tool",
+    "kg": 0.35,
+    "bulk": 0.4,
+    "stack": 1,
+    "value": 25,
+    "uses": 5,
+    "use": {
+     "act": "clean"
+    },
+    "desc": "A rod, brushes, patches and a little can of oil. Takes the grit out of whatever you are holding."
+   },
+   "wristwatch": {
+    "name": "Wristwatch",
+    "kind": "valuable",
+    "kg": 0.08,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 20,
+    "desc": "It still ticks. Somebody wound it every morning until they didn't."
+   },
+   "gold_ring": {
+    "name": "Gold ring",
+    "kind": "valuable",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 5,
+    "value": 45,
+    "desc": "Somebody's promise. Worth more than a promise now."
+   },
+   "silverware": {
+    "name": "Silverware",
+    "kind": "valuable",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 5,
+    "value": 6,
+    "desc": "A fork and two spoons, real silver. Traders weigh it."
+   },
+   "road_atlas": {
+    "name": "Road atlas",
+    "kind": "paper",
+    "kg": 0.6,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 10,
+    "desc": "A spiral-bound atlas of the old states, the borders inked over in three colours of pen."
+   },
+   "photograph": {
+    "name": "Photograph",
+    "kind": "paper",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 1,
+    "value": 0,
+    "desc": "A family on a porch, squinting into the sun. Nobody you know."
+   },
+   "dog_collar": {
+    "name": "Dog collar",
+    "kind": "paper",
+    "kg": 0.08,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 0,
+    "tags": [
+     "keepsake"
+    ],
+    "desc": "A worn leather collar with a name scratched into the buckle. You know the name."
+   },
+   "tin_star": {
+    "name": "Deputy's star",
+    "kind": "paper",
+    "kg": 0.03,
+    "bulk": 0.02,
+    "stack": 1,
+    "value": 0,
+    "tags": [
+     "badge"
+    ],
+    "desc": "Pressed tin, the points filed round, RUST HAVEN stamped in a ring. Okonkwo pins one on the people who keep her peace."
+   }
+  },
+  "GATOR_ITEMS": {
+   "gator_meat": {
+    "name": "Gator tail meat",
+    "kind": "food",
+    "kg": 0.9,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 9,
+    "spoils": 24,
+    "use": {
+     "need": "food",
+     "amount": 0.35,
+     "hp": 2
+    },
+    "desc": "White, tough, tastes like the swamp it came out of. Cook it today: in this heat it turns by tomorrow."
+   },
+   "gator_hide": {
+    "name": "Gator hide",
+    "kind": "valuable",
+    "kg": 2.2,
+    "bulk": 2.5,
+    "stack": 2,
+    "value": 35,
+    "desc": "A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters."
+   }
+  },
+  "LOOT": {
+   "gator": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 0,
+    "rows": [
+     [
+      "gator_meat",
+      5,
+      1,
+      2
+     ],
+     [
+      "gator_hide",
+      3,
+      1,
+      1
+     ]
+    ]
+   },
+   "kitchen": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 4,
+    "rows": [
+     [
+      "beans_tin",
+      5,
+      1,
+      2
+     ],
+     [
+      "peaches_tin",
+      3,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      2
+     ],
+     [
+      "honey",
+      1,
+      1,
+      1
+     ],
+     [
+      "can_opener",
+      2,
+      1,
+      1
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ],
+     [
+      "silverware",
+      2,
+      1,
+      3
+     ],
+     [
+      "flatbread",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "bathroom": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "bandage",
+      4,
+      1,
+      2
+     ],
+     [
+      "rag",
+      3,
+      1,
+      3
+     ],
+     [
+      "painkillers",
+      2,
+      1,
+      1
+     ],
+     [
+      "antibiotics",
+      1,
+      1,
+      1
+     ],
+     [
+      "suture_kit",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "bedroom": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 5,
+    "rows": [
+     [
+      "ammo_pistol",
+      2,
+      6,
+      14
+     ],
+     [
+      "ammo_shells",
+      1,
+      2,
+      6
+     ],
+     [
+      "wristwatch",
+      2,
+      1,
+      1
+     ],
+     [
+      "gold_ring",
+      1,
+      1,
+      1
+     ],
+     [
+      "photograph",
+      3,
+      1,
+      1
+     ],
+     [
+      "satchel",
+      1,
+      1,
+      1
+     ],
+     [
+      "backpack",
+      1,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      1,
+      1,
+      1
+     ],
+     [
+      "bedroll",
+      2,
+      1,
+      1
+     ]
+    ]
+   },
+   "garage": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "wrench",
+      3,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      3,
+      1,
+      1
+     ],
+     [
+      "scrap",
+      4,
+      1,
+      4
+     ],
+     [
+      "spark_plugs",
+      2,
+      1,
+      1
+     ],
+     [
+      "fuel_can",
+      2,
+      1,
+      1
+     ],
+     [
+      "crowbar",
+      1,
+      1,
+      1
+     ],
+     [
+      "spare_tyre",
+      1,
+      1,
+      1
+     ],
+     [
+      "cleaning_kit",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_shells",
+      1,
+      3,
+      8
+     ]
+    ]
+   },
+   "gunsmith": {
+    "rolls": [
+     3,
+     5
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "ammo_pistol",
+      6,
+      18,
+      48
+     ],
+     [
+      "ammo_smg",
+      5,
+      30,
+      75
+     ],
+     [
+      "ammo_shells",
+      4,
+      8,
+      20
+     ],
+     [
+      "ammo_birdshot",
+      2,
+      4,
+      12
+     ],
+     [
+      "ammo_slug",
+      1,
+      2,
+      8
+     ],
+     [
+      "ammo_rifle",
+      2,
+      15,
+      40
+     ],
+     [
+      "ammo_22lr",
+      2,
+      25,
+      100
+     ],
+     [
+      "ammo_357mag",
+      2,
+      6,
+      24
+     ],
+     [
+      "ammo_762x39",
+      2,
+      15,
+      45
+     ],
+     [
+      "ammo_762x51",
+      1,
+      10,
+      30
+     ],
+     [
+      "cleaning_kit",
+      3,
+      1,
+      1
+     ],
+     [
+      "gun_pistol",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_smg",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_rimfire",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_magnum",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_carbine",
+      1,
+      1,
+      1
+     ],
+     [
+      "wrench",
+      1,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "office": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 5,
+    "rows": [
+     [
+      "photograph",
+      2,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      2,
+      1,
+      3
+     ],
+     [
+      "lockpicks",
+      1,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      2,
+      1,
+      1
+     ],
+     [
+      "painkillers",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_pistol",
+      1,
+      6,
+      18
+     ]
+    ]
+   },
+   "military": {
+    "rolls": [
+     2,
+     4
+    ],
+    "none": 2,
+    "rows": [
+     [
+      "ration",
+      5,
+      1,
+      3
+     ],
+     [
+      "canteen",
+      3,
+      1,
+      1
+     ],
+     [
+      "first_aid",
+      2,
+      1,
+      1
+     ],
+     [
+      "bandage",
+      3,
+      2,
+      4
+     ],
+     [
+      "antibiotics",
+      1,
+      1,
+      2
+     ],
+     [
+      "ruck",
+      1,
+      1,
+      1
+     ],
+     [
+      "crowbar",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_rifle",
+      4,
+      15,
+      60
+     ],
+     [
+      "ammo_762x51",
+      2,
+      20,
+      60
+     ],
+     [
+      "ammo_50bmg",
+      1,
+      5,
+      15
+     ],
+     [
+      "gun_battle",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_lmg",
+      1,
+      1,
+      1
+     ],
+     [
+      "cleaning_kit",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "wreck": {
+    "rolls": [
+     0,
+     2
+    ],
+    "none": 5,
+    "rows": [
+     [
+      "scrap",
+      5,
+      1,
+      3
+     ],
+     [
+      "fuel_can",
+      1,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      2,
+      1,
+      2
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ],
+     [
+      "photograph",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "desert": {
+    "rolls": [
+     1,
+     1
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "cactus_fruit",
+      6,
+      1,
+      3
+     ],
+     [
+      "water_bottle",
+      1,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      1,
+      1,
+      2
+     ]
+    ]
+   },
+   "storefront": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 4,
+    "rows": [
+     [
+      "beans_tin",
+      4,
+      1,
+      3
+     ],
+     [
+      "peaches_tin",
+      3,
+      1,
+      2
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      2
+     ],
+     [
+      "jerky",
+      3,
+      1,
+      2
+     ],
+     [
+      "painkillers",
+      1,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ],
+     [
+      "can_opener",
+      1,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "pumps": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "fuel_can",
+      3,
+      1,
+      1
+     ],
+     [
+      "spare_tyre",
+      1,
+      1,
+      1
+     ],
+     [
+      "spark_plugs",
+      2,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      2,
+      1,
+      2
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      2,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "person": {
+    "rolls": [
+     0,
+     2
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "ammo_pistol",
+      2,
+      3,
+      10
+     ],
+     [
+      "ammo_smg",
+      1,
+      5,
+      15
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      3,
+      1,
+      2
+     ],
+     [
+      "rag",
+      3,
+      1,
+      2
+     ],
+     [
+      "photograph",
+      3,
+      1,
+      1
+     ],
+     [
+      "flatbread",
+      2,
+      1,
+      1
+     ],
+     [
+      "wristwatch",
+      1,
+      1,
+      1
+     ],
+     [
+      "gold_ring",
+      1,
+      1,
+      1
+     ],
+     [
+      "painkillers",
+      1,
+      1,
+      1
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "raider": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "jerky",
+      4,
+      1,
+      3
+     ],
+     [
+      "water_bottle",
+      3,
+      1,
+      1
+     ],
+     [
+      "rag",
+      3,
+      1,
+      2
+     ],
+     [
+      "scrap",
+      2,
+      1,
+      2
+     ],
+     [
+      "gold_ring",
+      1,
+      1,
+      2
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ],
+     [
+      "canteen",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_smg",
+      4,
+      12,
+      36
+     ],
+     [
+      "ammo_pistol",
+      3,
+      6,
+      18
+     ],
+     [
+      "ammo_shells",
+      2,
+      3,
+      8
+     ]
+    ]
+   },
+   "soldier": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 2,
+    "rows": [
+     [
+      "ration",
+      4,
+      1,
+      1
+     ],
+     [
+      "canteen",
+      3,
+      1,
+      1
+     ],
+     [
+      "bandage",
+      4,
+      1,
+      2
+     ],
+     [
+      "first_aid",
+      1,
+      1,
+      1
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ],
+     [
+      "photograph",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_rifle",
+      5,
+      20,
+      50
+     ],
+     [
+      "bedroll",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "trunk_patrol": {
+    "rolls": [
+     2,
+     3
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "ammo_smg",
+      5,
+      12,
+      30
+     ],
+     [
+      "ammo_pistol",
+      4,
+      8,
+      24
+     ],
+     [
+      "ammo_shells",
+      4,
+      4,
+      12
+     ],
+     [
+      "ammo_slug",
+      1,
+      2,
+      6
+     ],
+     [
+      "bandage",
+      2,
+      1,
+      2
+     ],
+     [
+      "flare",
+      2,
+      1,
+      2
+     ],
+     [
+      "gun_pump",
+      1,
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  "AMMO_ITEM": {
+   "pistol": "ammo_pistol",
+   "smg": "ammo_smg",
+   "shells": "ammo_shells",
+   "birdshot": "ammo_birdshot",
+   "slug": "ammo_slug",
+   "rifle": "ammo_rifle",
+   "22lr": "ammo_22lr",
+   "357mag": "ammo_357mag",
+   "762x39": "ammo_762x39",
+   "762x51": "ammo_762x51",
+   "50bmg": "ammo_50bmg"
+  },
+  "GUN_ITEM": {
+   "pistol": "gun_pistol",
+   "smg": "gun_smg",
+   "shotgun": "gun_shotgun",
+   "rifle": "gun_rifle",
+   "auto": "gun_auto",
+   "pump": "gun_pump",
+   "rimfire": "gun_rimfire",
+   "magnum": "gun_magnum",
+   "carbine": "gun_carbine",
+   "battle": "gun_battle",
+   "lmg": "gun_lmg",
+   "mmg": "gun_mmg",
+   "amr": "gun_amr"
+  },
+  "GUN_WEAR": {
+   "pistol": {
+    "wear": 0.0012,
+    "jam": 0.5
+   },
+   "smg": {
+    "wear": 0.0007,
+    "jam": 1.6
+   },
+   "shotgun": {
+    "wear": 0.0018,
+    "jam": 0.6
+   },
+   "rifle": {
+    "wear": 0.0009,
+    "jam": 1
+   },
+   "auto": {
+    "wear": 0.001,
+    "jam": 0.9
+   },
+   "pump": {
+    "wear": 0.0014,
+    "jam": 0.7
+   }
+  },
+  "GUN_CARE": {
+   "jamBelow": 0.65,
+   "jamRate": 0.06,
+   "clearTime": 0.9,
+   "kit": 0.35,
+   "kitMax": 0.95,
+   "smith": 0.6,
+   "smithMin": 10
+  },
+  "GUN_FOUND": {
+   "raider": {
+    "cond": [
+     0.18,
+     0.6
+    ],
+    "loaded": [
+     0,
+     0.6
+    ],
+    "spare": [
+     0,
+     12
+    ]
+   },
+   "soldier": {
+    "cond": [
+     0.62,
+     0.95
+    ],
+    "loaded": [
+     0.3,
+     1
+    ],
+    "spare": [
+     20,
+     60
+    ]
+   },
+   "warden": {
+    "cond": [
+     0.55,
+     0.9
+    ],
+    "loaded": [
+     0.4,
+     1
+    ],
+    "spare": [
+     6,
+     24
+    ]
+   },
+   "default": {
+    "cond": [
+     0.3,
+     0.8
+    ],
+    "loaded": [
+     0,
+     0.8
+    ],
+    "spare": [
+     0,
+     8
+    ]
+   }
+  },
+  "START_KIT": {
+   "pack": "satchel",
+   "items": [
+    [
+     "water_bottle",
+     1
+    ],
+    [
+     "jerky",
+     2
+    ],
+    [
+     "rag",
+     2
+    ],
+    [
+     "knife",
+     1
+    ],
+    [
+     "flashlight",
+     1
+    ],
+    [
+     "battery_cell",
+     1
+    ]
+   ]
+  },
+  "BODY_LITRES": 3
+ },
+ "composed": {
+  "ITEMS": {
+   "water_bottle": {
+    "name": "Water bottle",
+    "kind": "water",
+    "kg": 0.55,
+    "kgEmpty": 0.05,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 6,
+    "uses": 3,
+    "refill": "water",
+    "use": {
+     "need": "water",
+     "amount": 0.16
+    },
+    "desc": "Half a litre in a plastic bottle gone milky in the sun. Three good swallows."
+   },
+   "canteen": {
+    "name": "Steel canteen",
+    "kind": "water",
+    "kg": 1.25,
+    "kgEmpty": 0.3,
+    "bulk": 1.1,
+    "stack": 1,
+    "value": 25,
+    "uses": 6,
+    "refill": "water",
+    "use": {
+     "need": "water",
+     "amount": 0.12,
+     "hp": 2
+    },
+    "desc": "A litre in dented steel under a felt cover. Keeps it cooler than plastic does.",
+    "tags": [
+     "steel"
+    ]
+   },
+   "water_can": {
+    "name": "Water can",
+    "kind": "water",
+    "kg": 10.6,
+    "kgEmpty": 0.6,
+    "bulk": 12,
+    "stack": 1,
+    "value": 30,
+    "uses": 40,
+    "refill": "water",
+    "use": {
+     "need": "water",
+     "amount": 0.2
+    },
+    "desc": "Ten litres in a blue plastic can. A week for one careful person. Heavy as sin."
+   },
+   "beans_tin": {
+    "name": "Tin of beans",
+    "kind": "food",
+    "kg": 0.45,
+    "bulk": 0.45,
+    "stack": 6,
+    "value": 8,
+    "use": {
+     "need": "food",
+     "amount": 0.3,
+     "hp": 3
+    },
+    "needs": "blade",
+    "desc": "Beans in sauce, label long gone. Keeps forever. You need a blade or an opener to get in."
+   },
+   "peaches_tin": {
+    "name": "Tin of peaches",
+    "kind": "food",
+    "kg": 0.48,
+    "bulk": 0.45,
+    "stack": 6,
+    "value": 10,
+    "use": {
+     "need": "food",
+     "amount": 0.22,
+     "water": 0.06
+    },
+    "needs": "blade",
+    "desc": "Peaches in syrup. Drink the syrup; out here nobody wastes it."
+   },
+   "jerky": {
+    "name": "Jerky",
+    "kind": "food",
+    "kg": 0.08,
+    "bulk": 0.1,
+    "stack": 10,
+    "value": 4,
+    "use": {
+     "need": "food",
+     "amount": 0.12,
+     "water": -0.03
+    },
+    "dog": {
+     "bond": 6,
+     "hp": 12
+    },
+    "desc": "A strip of dried meat. What kind of meat is a question you stop asking. Salty: it costs you water."
+   },
+   "dried_meat": {
+    "name": "Dried meat",
+    "kind": "food",
+    "kg": 0.4,
+    "bulk": 0.4,
+    "stack": 6,
+    "value": 9,
+    "spoils": 120,
+    "use": {
+     "need": "food",
+     "amount": 0.32,
+     "hp": 2,
+     "water": -0.04
+    },
+    "dog": {
+     "bond": 10,
+     "hp": 30
+    },
+    "desc": "A slab of smoke-dried meat wrapped in paper. A dog will follow you a mile for it. So will people."
+   },
+   "coffee": {
+    "name": "Trail coffee",
+    "kind": "food",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 4,
+    "value": 12,
+    "use": {
+     "need": "rest",
+     "amount": 0.12,
+     "water": 0.04
+    },
+    "desc": "Ground coffee in a twist of foil, boiled black in a can. It buys you an hour on your feet."
+   },
+   "rotgut": {
+    "name": "Rotgut",
+    "kind": "food",
+    "kg": 0.9,
+    "kgEmpty": 0.3,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 14,
+    "uses": 4,
+    "use": {
+     "hp": 3,
+     "calm": true,
+     "water": -0.05
+    },
+    "desc": "Clear liquor from a still behind somebody's garage. Steadies the hands, then doesn't."
+   },
+   "flatbread": {
+    "name": "Flatbread",
+    "kind": "food",
+    "kg": 0.2,
+    "bulk": 0.3,
+    "stack": 4,
+    "value": 5,
+    "spoils": 48,
+    "use": {
+     "need": "food",
+     "amount": 0.25
+    },
+    "desc": "Baked on a steel plate in Rust Haven this week. Eat it before it turns."
+   },
+   "cactus_fruit": {
+    "name": "Cactus fruit",
+    "kind": "food",
+    "kg": 0.1,
+    "bulk": 0.15,
+    "stack": 8,
+    "value": 2,
+    "spoils": 36,
+    "use": {
+     "need": "food",
+     "amount": 0.08,
+     "water": 0.06
+    },
+    "desc": "Red pear off a paddle cactus, spines rubbed off in the sand. Wet and sweet."
+   },
+   "ration": {
+    "name": "Ration pack",
+    "kind": "food",
+    "kg": 0.65,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 40,
+    "use": {
+     "need": "food",
+     "amount": 0.55,
+     "hp": 8
+    },
+    "dog": {
+     "bond": 8,
+     "hp": 20
+    },
+    "desc": "A sealed meal in olive foil, stamped with a date from before the split. Still good. Probably.",
+    "tags": [
+     "military"
+    ]
+   },
+   "honey": {
+    "name": "Jar of honey",
+    "kind": "food",
+    "kg": 0.5,
+    "bulk": 0.4,
+    "stack": 4,
+    "value": 15,
+    "use": {
+     "need": "food",
+     "amount": 0.3,
+     "hp": 4
+    },
+    "desc": "Honey does not go off. Somebody kept bees out here once."
+   },
+   "rag": {
+    "name": "Torn rag",
+    "kind": "med",
+    "kg": 0.04,
+    "bulk": 0.1,
+    "stack": 10,
+    "value": 1,
+    "use": {
+     "hp": 4,
+     "bleed": true
+    },
+    "desc": "A strip of somebody's shirt. It will stop the bleeding. It will not keep it clean."
+   },
+   "bandage": {
+    "name": "Bandage",
+    "kind": "med",
+    "kg": 0.05,
+    "bulk": 0.1,
+    "stack": 8,
+    "value": 12,
+    "use": {
+     "hp": 12,
+     "bleed": true
+    },
+    "desc": "A clean roll of gauze, still in the paper."
+   },
+   "painkillers": {
+    "name": "Painkillers",
+    "kind": "med",
+    "kg": 0.06,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 18,
+    "uses": 8,
+    "use": {
+     "hp": 6,
+     "calm": true
+    },
+    "desc": "A brown bottle with eight pills rattling in it. Takes the edge off; does not take the bullet out."
+   },
+   "antibiotics": {
+    "name": "Antibiotics",
+    "kind": "med",
+    "kg": 0.03,
+    "bulk": 0.05,
+    "stack": 4,
+    "value": 70,
+    "use": {
+     "hp": 4,
+     "cure": true
+    },
+    "desc": "A blister pack, a course for one. Worth more than the gun you'd trade for it."
+   },
+   "suture_kit": {
+    "name": "Suture kit",
+    "kind": "med",
+    "kg": 0.2,
+    "bulk": 0.3,
+    "stack": 2,
+    "value": 45,
+    "use": {
+     "hp": 35,
+     "bleed": true
+    },
+    "desc": "Curved needle, thread, a little bottle of iodine. Sit still."
+   },
+   "first_aid": {
+    "name": "First-aid kit",
+    "kind": "med",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 80,
+    "uses": 3,
+    "use": {
+     "hp": 30,
+     "bleed": true
+    },
+    "desc": "A red tin box with most of what it should have in it. Three proper patch-ups."
+   },
+   "knife": {
+    "name": "Folding knife",
+    "kind": "tool",
+    "kg": 0.15,
+    "bulk": 0.1,
+    "stack": 1,
+    "value": 15,
+    "tags": [
+     "blade"
+    ],
+    "desc": "A lock-back with a chipped edge. Opens tins, cuts cloth."
+   },
+   "can_opener": {
+    "name": "Can opener",
+    "kind": "tool",
+    "kg": 0.1,
+    "bulk": 0.1,
+    "stack": 1,
+    "value": 4,
+    "tags": [
+     "blade"
+    ],
+    "desc": "The little army kind that lives on a keyring."
+   },
+   "lockpicks": {
+    "name": "Lockpicks",
+    "kind": "tool",
+    "kg": 0.05,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 30,
+    "uses": 6,
+    "use": {
+     "act": "pick"
+    },
+    "tags": [
+     "picks"
+    ],
+    "desc": "A roll of picks and a tension wrench. Quiet. Each lock costs you a pick or two."
+   },
+   "hacksaw": {
+    "name": "Hacksaw",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 14,
+    "tags": [
+     "cut",
+     "steel"
+    ],
+    "desc": "A bow saw for metal and a spare blade. Slow work, and nobody hears it."
+   },
+   "crowbar": {
+    "name": "Crowbar",
+    "kind": "tool",
+    "kg": 2.4,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 18,
+    "use": {
+     "act": "pry"
+    },
+    "tags": [
+     "pry",
+     "steel"
+    ],
+    "desc": "Forged steel, the paint worn off the end that does the work. Opens what keys don't. Loudly."
+   },
+   "bolt_cutters": {
+    "name": "Bolt cutters",
+    "kind": "tool",
+    "kg": 3.2,
+    "bulk": 1.4,
+    "stack": 1,
+    "value": 26,
+    "tags": [
+     "cutters",
+     "steel"
+    ],
+    "desc": "Two-foot jaws on long handles. A padlock's shackle or a run of chain-link, quietly."
+   },
+   "sledgehammer": {
+    "name": "Sledgehammer",
+    "kind": "tool",
+    "kg": 4.5,
+    "bulk": 2.2,
+    "stack": 1,
+    "value": 24,
+    "tags": [
+     "melee",
+     "steel",
+     "pry"
+    ],
+    "desc": "Ten pounds of steel on a hickory handle. Slow. Final."
+   },
+   "hammer_nails": {
+    "name": "Hammer and nails",
+    "kind": "tool",
+    "kg": 1.1,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 12,
+    "tags": [
+     "hammer"
+    ],
+    "desc": "A claw hammer and a coffee tin of bent nails. Boards go up, boards come down."
+   },
+   "ladder_portable": {
+    "name": "Aluminium ladder",
+    "kind": "tool",
+    "kg": 7.5,
+    "bulk": 2.8,
+    "stack": 1,
+    "value": 30,
+    "use": {
+     "act": "place_ladder"
+    },
+    "tags": [
+     "ladder"
+    ],
+    "desc": "A folding ladder, sixteen feet open. Set it against a wall and the roof is yours."
+   },
+   "door_key": {
+    "name": "Door key",
+    "kind": "paper",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 4,
+    "value": 2,
+    "desc": "A brass key on a split ring. Somebody's door, somewhere near."
+   },
+   "scrap_note": {
+    "name": "Folded note",
+    "kind": "paper",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 1,
+    "value": 0,
+    "desc": "A page torn from a pad, folded small. Whoever dropped it was in a hurry."
+   },
+   "radio_portable": {
+    "name": "Portable radio",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 40,
+    "tags": [
+     "radio"
+    ],
+    "desc": "A battered transistor set with a bent aerial. Comma and period walk the dial."
+   },
+   "wrench": {
+    "name": "Wrench",
+    "kind": "tool",
+    "kg": 0.6,
+    "bulk": 0.3,
+    "stack": 1,
+    "value": 14,
+    "tags": [
+     "wrench",
+     "steel"
+    ],
+    "desc": "An adjustable wrench. Any repair goes faster with one."
+   },
+   "machete": {
+    "name": "Machete",
+    "kind": "tool",
+    "kg": 0.9,
+    "bulk": 0.7,
+    "stack": 1,
+    "value": 22,
+    "tags": [
+     "blade",
+     "steel"
+    ],
+    "desc": "A cane knife with a taped grip. Opens tins, cuts brush, settles arguments."
+   },
+   "fire_axe": {
+    "name": "Fire axe",
+    "kind": "tool",
+    "kg": 2.8,
+    "bulk": 1.6,
+    "stack": 1,
+    "value": 26,
+    "use": {
+     "act": "pry"
+    },
+    "tags": [
+     "pry",
+     "blade",
+     "steel"
+    ],
+    "desc": "A red-handled axe off a firehouse wall. Takes a locked door off its hinges, loudly."
+   },
+   "flare": {
+    "name": "Road flare",
+    "kind": "tool",
+    "kg": 0.25,
+    "bulk": 0.2,
+    "stack": 6,
+    "value": 6,
+    "use": {
+     "act": "flare"
+    },
+    "desc": "A red flare in a paper tube. Strike it and put it down: a minute of fire nothing with sense walks into."
+   },
+   "duct_tape": {
+    "name": "Duct tape",
+    "kind": "tool",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 1,
+    "value": 10,
+    "uses": 4,
+    "use": {
+     "act": "repair"
+    },
+    "desc": "Half a roll. Holds a radiator, a tank, a cracked hose until it doesn't."
+   },
+   "fuel_can": {
+    "name": "Fuel can",
+    "kind": "part",
+    "kg": 8.4,
+    "kgEmpty": 1.2,
+    "bulk": 11,
+    "stack": 1,
+    "value": 40,
+    "uses": 1,
+    "refill": "fuel",
+    "use": {
+     "act": "refuel",
+     "litres": 10
+    },
+    "desc": "Ten litres of gasoline that smells like it has been through a few cans. Pour it into anything that runs."
+   },
+   "siphon_hose": {
+    "name": "Siphon hose",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 15,
+    "tags": [
+     "hose"
+    ],
+    "desc": "Three metres of fuel line and a hand bulb. Down a station's fill pipe, the dregs come up into your car or your cans."
+   },
+   "spare_tyre": {
+    "name": "Spare tyre",
+    "kind": "part",
+    "kg": 9,
+    "bulk": 40,
+    "stack": 1,
+    "value": 35,
+    "use": {
+     "act": "tyre"
+    },
+    "desc": "A spare on a rim, more patches than tread. Swaps for a flat."
+   },
+   "scrap": {
+    "name": "Scrap steel",
+    "kind": "part",
+    "kg": 1.5,
+    "bulk": 1,
+    "stack": 10,
+    "value": 3,
+    "tags": [
+     "steel"
+    ],
+    "desc": "Sheet steel, a bent hubcap, a length of rebar. A mechanic can make plate out of it."
+   },
+   "spark_plugs": {
+    "name": "Spark plugs",
+    "kind": "part",
+    "kg": 0.2,
+    "bulk": 0.1,
+    "stack": 4,
+    "value": 12,
+    "use": {
+     "act": "repair"
+    },
+    "desc": "A set of four, wrapped in an oily rag. A misfiring engine wants these."
+   },
+   "bedroll": {
+    "name": "Bedroll",
+    "kind": "tool",
+    "kg": 1.6,
+    "bulk": 7,
+    "stack": 1,
+    "value": 18,
+    "use": {
+     "act": "sleep"
+    },
+    "desc": "A rolled blanket and a sheet of foam, tied with cord. Better than the ground; not much better."
+   },
+   "satchel": {
+    "name": "Satchel",
+    "kind": "pack",
+    "kg": 0.5,
+    "bulk": 2,
+    "stack": 1,
+    "value": 12,
+    "pack": 8,
+    "desc": "A canvas bag on a strap. Room for a few days of water and food."
+   },
+   "backpack": {
+    "name": "Backpack",
+    "kind": "pack",
+    "kg": 1.2,
+    "bulk": 4,
+    "stack": 1,
+    "value": 35,
+    "pack": 22,
+    "desc": "A school pack, the zip mended with wire. Twenty-odd litres."
+   },
+   "ruck": {
+    "name": "Frame ruck",
+    "kind": "pack",
+    "kg": 2.3,
+    "bulk": 6,
+    "stack": 1,
+    "value": 90,
+    "pack": 45,
+    "tags": [
+     "military"
+    ],
+    "desc": "An army ruck on an alloy frame. Carries like a mule; you will feel every kilo of it."
+   },
+   "ammo_pistol": {
+    "name": "Pistol rounds (.45 ACP)",
+    "kind": "ammo",
+    "kg": 0.012,
+    "bulk": 0.006,
+    "stack": 200,
+    "value": 0.4,
+    "ammo": "pistol",
+    "desc": "Big, slow revolver rounds, loose in a paper box gone soft at the corners."
+   },
+   "ammo_smg": {
+    "name": "SMG rounds (9mm)",
+    "kind": "ammo",
+    "kg": 0.008,
+    "bulk": 0.004,
+    "stack": 300,
+    "value": 0.3,
+    "ammo": "smg",
+    "desc": "Small, fast rounds for a submachine gun. Some are reloads; you can tell by the dents."
+   },
+   "ammo_shells": {
+    "name": "Shotgun shells (12 gauge buck)",
+    "kind": "ammo",
+    "kg": 0.045,
+    "bulk": 0.04,
+    "stack": 50,
+    "value": 1.2,
+    "ammo": "shells",
+    "desc": "Twelve-gauge buckshot in faded red hulls. Bulky; every one counts."
+   },
+   "ammo_birdshot": {
+    "name": "Birdshot shells",
+    "kind": "ammo",
+    "kg": 0.04,
+    "bulk": 0.04,
+    "stack": 50,
+    "value": 0.8,
+    "ammo": "birdshot",
+    "desc": "Green hulls of fine lead shot for ducks and doves. Peppers a man; stops a dog."
+   },
+   "ammo_slug": {
+    "name": "Slug shells",
+    "kind": "ammo",
+    "kg": 0.05,
+    "bulk": 0.04,
+    "stack": 50,
+    "value": 2,
+    "ammo": "slug",
+    "desc": "Black hulls, each with one soft lead slug the size of your thumb. Goes through a car door."
+   },
+   "ammo_rifle": {
+    "name": "Rifle rounds (5.56)",
+    "kind": "ammo",
+    "kg": 0.025,
+    "bulk": 0.012,
+    "stack": 150,
+    "value": 0.9,
+    "ammo": "rifle",
+    "desc": "Long brass rounds on stripper clips, the old government's issue.",
+    "tags": [
+     "military"
+    ]
+   },
+   "ammo_22lr": {
+    "name": ".22 rounds",
+    "kind": "ammo",
+    "kg": 0.003,
+    "bulk": 0.002,
+    "stack": 500,
+    "value": 0.1,
+    "ammo": "22lr",
+    "desc": "A brick of five hundred little rimfire rounds. Every farmhouse had one in a drawer."
+   },
+   "ammo_357mag": {
+    "name": ".357 Magnum rounds",
+    "kind": "ammo",
+    "kg": 0.016,
+    "bulk": 0.007,
+    "stack": 150,
+    "value": 0.7,
+    "ammo": "357mag",
+    "desc": "Long-cased revolver rounds with soft lead noses. Loud, and they go where you point them."
+   },
+   "ammo_762x39": {
+    "name": "7.62x39 rounds",
+    "kind": "ammo",
+    "kg": 0.016,
+    "bulk": 0.009,
+    "stack": 200,
+    "value": 0.6,
+    "ammo": "762x39",
+    "desc": "Short fat rounds in grey-green lacquered steel cases, a surplus spam can of them."
+   },
+   "ammo_762x51": {
+    "name": ".308 rounds (7.62x51)",
+    "kind": "ammo",
+    "kg": 0.025,
+    "bulk": 0.013,
+    "stack": 150,
+    "value": 1.2,
+    "ammo": "762x51",
+    "desc": "Full-power rifle rounds, some still on their links. The battle rifle and the medium gun eat them.",
+    "tags": [
+     "military"
+    ]
+   },
+   "ammo_50bmg": {
+    "name": ".50 rounds (12.7mm)",
+    "kind": "ammo",
+    "kg": 0.115,
+    "bulk": 0.05,
+    "stack": 40,
+    "value": 6,
+    "ammo": "50bmg",
+    "desc": "Each one as long as your hand and heavy as a full can of beans. Made to stop trucks.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_pistol": {
+    "name": ".45 revolver",
+    "kind": "gun",
+    "kg": 1.2,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 80,
+    "weapon": "pistol",
+    "desc": "A six-shot revolver, the bluing worn to grey where a hand has held it for twenty years."
+   },
+   "gun_smg": {
+    "name": "Rust-9 SMG",
+    "kind": "gun",
+    "kg": 3.2,
+    "bulk": 2.6,
+    "stack": 1,
+    "value": 220,
+    "weapon": "smg",
+    "desc": "A stamped-steel submachine gun from a backyard shop. Eats rounds; jams when it is dirty."
+   },
+   "gun_shotgun": {
+    "name": "Sawn-off",
+    "kind": "gun",
+    "kg": 3.3,
+    "bulk": 3.5,
+    "stack": 1,
+    "value": 160,
+    "weapon": "shotgun",
+    "desc": "A double barrel cut down to the forestock with a hacksaw. Two shots, then a long minute."
+   },
+   "gun_rifle": {
+    "name": "Service rifle",
+    "kind": "gun",
+    "kg": 3.8,
+    "bulk": 5.5,
+    "stack": 1,
+    "value": 350,
+    "weapon": "rifle",
+    "desc": "The Federal Remnant's issue rifle, serial filed off. Reaches further than anything else out here.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_auto": {
+    "name": "Self-loader",
+    "kind": "gun",
+    "kg": 1,
+    "bulk": 0.7,
+    "stack": 1,
+    "value": 120,
+    "weapon": "auto",
+    "desc": "A twelve-round semi-automatic pistol in the small, fast calibre the SMGs eat. Quick to hand, quick to empty."
+   },
+   "gun_pump": {
+    "name": "Pump shotgun",
+    "kind": "gun",
+    "kg": 3.4,
+    "bulk": 4.5,
+    "stack": 1,
+    "value": 190,
+    "weapon": "pump",
+    "desc": "A full-length pump gun with five in the tube. Slower to fire than the sawn-off, slower to run dry."
+   },
+   "gun_rimfire": {
+    "name": ".22 rifle",
+    "kind": "gun",
+    "kg": 2.4,
+    "bulk": 4,
+    "stack": 1,
+    "value": 70,
+    "weapon": "rimfire",
+    "desc": "A tube-fed .22 with a scratched walnut stock. Kept the crows off the corn; now it keeps worse off."
+   },
+   "gun_magnum": {
+    "name": ".357 Magnum",
+    "kind": "gun",
+    "kg": 1.3,
+    "bulk": 0.9,
+    "stack": 1,
+    "value": 140,
+    "weapon": "magnum",
+    "desc": "A heavy-framed six-shot revolver. The rounds crack and the muzzle jumps."
+   },
+   "gun_carbine": {
+    "name": "Surplus carbine",
+    "kind": "gun",
+    "kg": 3.6,
+    "bulk": 4.6,
+    "stack": 1,
+    "value": 260,
+    "weapon": "carbine",
+    "desc": "A stamped-steel carbine with a curved thirty-round magazine. Rattles when you run; fires when it is filthy."
+   },
+   "gun_battle": {
+    "name": "Battle rifle",
+    "kind": "gun",
+    "kg": 4.4,
+    "bulk": 6,
+    "stack": 1,
+    "value": 480,
+    "weapon": "battle",
+    "desc": "A long, heavy rifle in .308, twenty to a magazine. Every shot shoves your shoulder back.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_lmg": {
+    "name": "Light machine gun",
+    "kind": "gun",
+    "kg": 7.5,
+    "bulk": 8,
+    "stack": 1,
+    "value": 700,
+    "weapon": "lmg",
+    "desc": "A 5.56 machine gun with a hundred-round box under it and a bipod folded flat.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_mmg": {
+    "name": "Medium machine gun",
+    "kind": "gun",
+    "kg": 11,
+    "bulk": 10,
+    "stack": 1,
+    "value": 950,
+    "weapon": "mmg",
+    "desc": "A belt-fed .308 gun built for a tripod or a cradle. You can carry it. You will not enjoy it.",
+    "tags": [
+     "military"
+    ]
+   },
+   "gun_amr": {
+    "name": "Anti-materiel rifle",
+    "kind": "gun",
+    "kg": 13,
+    "bulk": 12,
+    "stack": 1,
+    "value": 1400,
+    "weapon": "amr",
+    "desc": "A .50 rifle as long as a man, with a muzzle brake like a fist. It stops engines.",
+    "tags": [
+     "military"
+    ]
+   },
+   "cleaning_kit": {
+    "name": "Gun cleaning kit",
+    "kind": "tool",
+    "kg": 0.35,
+    "bulk": 0.4,
+    "stack": 1,
+    "value": 25,
+    "uses": 5,
+    "use": {
+     "act": "clean"
+    },
+    "desc": "A rod, brushes, patches and a little can of oil. Takes the grit out of whatever you are holding."
+   },
+   "wristwatch": {
+    "name": "Wristwatch",
+    "kind": "valuable",
+    "kg": 0.08,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 20,
+    "desc": "It still ticks. Somebody wound it every morning until they didn't."
+   },
+   "gold_ring": {
+    "name": "Gold ring",
+    "kind": "valuable",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 5,
+    "value": 45,
+    "desc": "Somebody's promise. Worth more than a promise now."
+   },
+   "silverware": {
+    "name": "Silverware",
+    "kind": "valuable",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 5,
+    "value": 6,
+    "desc": "A fork and two spoons, real silver. Traders weigh it."
+   },
+   "road_atlas": {
+    "name": "Road atlas",
+    "kind": "paper",
+    "kg": 0.6,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 10,
+    "desc": "A spiral-bound atlas of the old states, the borders inked over in three colours of pen."
+   },
+   "photograph": {
+    "name": "Photograph",
+    "kind": "paper",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 1,
+    "value": 0,
+    "desc": "A family on a porch, squinting into the sun. Nobody you know."
+   },
+   "dog_collar": {
+    "name": "Dog collar",
+    "kind": "paper",
+    "kg": 0.08,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 0,
+    "tags": [
+     "keepsake"
+    ],
+    "desc": "A worn leather collar with a name scratched into the buckle. You know the name."
+   },
+   "tin_star": {
+    "name": "Deputy's star",
+    "kind": "paper",
+    "kg": 0.03,
+    "bulk": 0.02,
+    "stack": 1,
+    "value": 0,
+    "tags": [
+     "badge"
+    ],
+    "desc": "Pressed tin, the points filed round, RUST HAVEN stamped in a ring. Okonkwo pins one on the people who keep her peace."
+   },
+   "gator_meat": {
+    "name": "Gator tail meat",
+    "kind": "food",
+    "kg": 0.9,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 9,
+    "spoils": 24,
+    "use": {
+     "need": "food",
+     "amount": 0.35,
+     "hp": 2
+    },
+    "desc": "White, tough, tastes like the swamp it came out of. Cook it today: in this heat it turns by tomorrow."
+   },
+   "gator_hide": {
+    "name": "Gator hide",
+    "kind": "valuable",
+    "kg": 2.2,
+    "bulk": 2.5,
+    "stack": 2,
+    "value": 35,
+    "desc": "A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters."
+   },
+   "baseball_bat": {
+    "name": "Baseball bat",
+    "kind": "tool",
+    "kg": 0.95,
+    "bulk": 1.1,
+    "stack": 1,
+    "value": 16,
+    "tags": [
+     "melee"
+    ],
+    "desc": "Ash, taped at the handle, the barrel dented from something that wasn't a ball."
+   },
+   "brass_knuckles": {
+    "name": "Brass knuckles",
+    "kind": "tool",
+    "kg": 0.25,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 20,
+    "tags": [
+     "melee"
+    ],
+    "desc": "Four rings of cast brass. Every punch lands like a hammer."
+   },
+   "lead_pipe": {
+    "name": "Lead pipe",
+    "kind": "tool",
+    "kg": 1.4,
+    "bulk": 0.7,
+    "stack": 1,
+    "value": 6,
+    "tags": [
+     "melee",
+     "steel"
+    ],
+    "desc": "A length of old plumbing, heavy at one end where the joint is still on."
+   },
+   "sword_cane": {
+    "name": "Silver-topped cane",
+    "kind": "tool",
+    "kg": 0.7,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 180,
+    "tags": [
+     "melee",
+     "blade",
+     "steel"
+    ],
+    "desc": "A black walking cane under a worn silver knob. Hold your swing and the knob twists free: a slim blade comes out of the shaft with it."
+   },
+   "jungle_blade": {
+    "name": "Broad jungle blade",
+    "kind": "tool",
+    "kg": 1.1,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 70,
+    "tags": [
+     "melee",
+     "blade",
+     "steel"
+    ],
+    "desc": "A heavy single-edged blade, broad and weighted toward the tip, the grip wrapped in old cord. Made to take a sapling in one cut."
+   },
+   "leather_vest": {
+    "name": "Leather vest",
+    "kind": "armor",
+    "kg": 1.5,
+    "bulk": 6,
+    "stack": 1,
+    "value": 40,
+    "slot": "chest",
+    "desc": "Two layers of cowhide stitched with wire. It turns a knife more often than a round."
+   },
+   "scrap_vest": {
+    "name": "Scrap-plate vest",
+    "kind": "armor",
+    "kg": 2.2,
+    "bulk": 6,
+    "stack": 1,
+    "value": 80,
+    "slot": "chest",
+    "desc": "Hubcaps and sheet steel riveted to a canvas vest. Loud, heavy, better than skin."
+   },
+   "soft_vest": {
+    "name": "Soft armor vest",
+    "kind": "armor",
+    "kg": 2.9,
+    "bulk": 6,
+    "stack": 1,
+    "value": 120,
+    "slot": "chest",
+    "desc": "Woven ballistic panels in a faded carrier. Stops a pistol round; argues with a rifle."
+   },
+   "service_armor": {
+    "name": "Service body armor",
+    "kind": "armor",
+    "kg": 3.6,
+    "bulk": 6,
+    "stack": 1,
+    "value": 160,
+    "slot": "chest",
+    "tags": [
+     "military"
+    ],
+    "desc": "Plate carrier with ceramic inserts, old government issue. The best thing a soldier ever left behind."
+   },
+   "composite_shell": {
+    "name": "Composite shell",
+    "kind": "armor",
+    "kg": 4.3,
+    "bulk": 6,
+    "stack": 1,
+    "value": 200,
+    "slot": "chest",
+    "tags": [
+     "military"
+    ],
+    "desc": "A moulded composite torso shell from a lab nobody comes back from. Light for what it stops."
+   },
+   "leather_cap": {
+    "name": "Leather cap",
+    "kind": "armor",
+    "kg": 0.7,
+    "bulk": 4,
+    "stack": 1,
+    "value": 40,
+    "slot": "head",
+    "desc": "A flying cap gone soft with sweat. It keeps the sun off and a little else."
+   },
+   "riot_helmet": {
+    "name": "Riot helmet",
+    "kind": "armor",
+    "kg": 1.3,
+    "bulk": 4,
+    "stack": 1,
+    "value": 120,
+    "slot": "head",
+    "desc": "A police riot lid with the visor snapped off. Built for bottles, good for worse."
+   },
+   "combat_helmet": {
+    "name": "Combat helmet",
+    "kind": "armor",
+    "kg": 1.6,
+    "bulk": 4,
+    "stack": 1,
+    "value": 160,
+    "slot": "head",
+    "tags": [
+     "military"
+    ],
+    "desc": "A steel-and-resin helmet with the chinstrap mended in paracord."
+   },
+   "armored_collar": {
+    "name": "Armored collar",
+    "kind": "armor",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 80,
+    "slot": "neck",
+    "desc": "A padded collar with a ballistic insert. Where the artery runs, a little helps a lot."
+   },
+   "arm_guards": {
+    "name": "Arm guards",
+    "kind": "armor",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 80,
+    "slot": "arms",
+    "desc": "Hard plastic forearm guards off a riot kit, strapped over the sleeves."
+   },
+   "work_gloves": {
+    "name": "Combat gloves",
+    "kind": "armor",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 80,
+    "slot": "hands",
+    "desc": "Knuckle-padded gloves. Glass, wire and teeth go through less of you."
+   },
+   "padded_leggings": {
+    "name": "Padded leggings",
+    "kind": "armor",
+    "kg": 1.6,
+    "bulk": 3,
+    "stack": 1,
+    "value": 80,
+    "slot": "legs",
+    "desc": "Quilted trousers with shin and knee pads sewn in. The dead bite low."
+   },
+   "plate_leggings": {
+    "name": "Plate leggings",
+    "kind": "armor",
+    "kg": 2.6,
+    "bulk": 3,
+    "stack": 1,
+    "value": 160,
+    "slot": "legs",
+    "desc": "Thigh and shin plates on straps. You walk like a door, and nothing gets your legs."
+   },
+   "flex_base": {
+    "name": "Flex armor base",
+    "kind": "armor",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 80,
+    "slot": "shirt",
+    "desc": "A stretch base layer with cut-resistant weave. Worn under everything."
+   },
+   "trauma_insert": {
+    "name": "Trauma plate insert",
+    "kind": "armor",
+    "kg": 0.9,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 120,
+    "slot": "shirt",
+    "desc": "A steel plate in an undershirt pocket over the heart. It has a dent in it already."
+   },
+   "leather_duster": {
+    "name": "Leather duster",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 3,
+    "stack": 1,
+    "value": 36,
+    "slot": "coat",
+    "desc": "A long riding coat the colour of the road. Breaks your outline at a distance."
+   },
+   "brush_poncho": {
+    "name": "Brush poncho",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 3,
+    "stack": 1,
+    "value": 54,
+    "slot": "coat",
+    "desc": "Burlap strips and dead brush sewn onto netting. Lie still in it and you are scrub."
+   },
+   "combat_boots": {
+    "name": "Combat boots",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 36,
+    "slot": "feet",
+    "desc": "Broken-in boots that fit. Out here that is worth more than a gun."
+   },
+   "trail_boots": {
+    "name": "Trail runners",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 54,
+    "slot": "feet",
+    "desc": "Light boots with a lugged sole. Every step a little longer, a little quicker."
+   },
+   "utility_belt": {
+    "name": "Utility belt",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 36,
+    "slot": "belt",
+    "desc": "Pouches and loops on webbing. Weight on the hips is weight off the shoulders."
+   },
+   "rig_belt": {
+    "name": "Rig belt",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 54,
+    "slot": "belt",
+    "desc": "A padded war belt with a harness. Carries like a second pack."
+   },
+   "ammo_bandolier": {
+    "name": "Ammo bandolier",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 36,
+    "slot": "sash",
+    "desc": "Loops for rounds across the chest. The next reload is already in your hand."
+   },
+   "double_bandolier": {
+    "name": "Double bandolier",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 54,
+    "slot": "sash",
+    "desc": "Two belts crossed over the chest. You can reload in your sleep."
+   },
+   "dust_mask": {
+    "name": "Dust mask",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 36,
+    "slot": "face",
+    "desc": "A rubber mask with two filters. Seals the face slot; the filters do nothing for the air yet."
+   },
+   "knuckle_ring": {
+    "name": "Knuckle ring",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 54,
+    "slot": "ring_r",
+    "desc": "A heavy steel ring with a ridge on it. It does not come off easily, and neither do teeth it meets."
+   },
+   "mechanic_wraps": {
+    "name": "Mechanic wraps",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 36,
+    "slot": "bracelet",
+    "desc": "Leather wrist wraps with a feeler gauge and a pick tucked in. Your patches hold better."
+   },
+   "data_cuff": {
+    "name": "Data cuff",
+    "kind": "gear",
+    "kg": 0.8,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 72,
+    "slot": "bracelet",
+    "desc": "A wrist computer from before the split, still loaded with service manuals. It knows every engine."
+   },
+   "rabbit_foot": {
+    "name": "Lucky foot",
+    "kind": "gear",
+    "kg": 0.5,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 18,
+    "slot": "talisman",
+    "desc": "A dried rabbit's foot on a cord. Your eye catches what others miss. Probably."
+   },
+   "scav_compass": {
+    "name": "Scavver's compass",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 54,
+    "slot": "talisman",
+    "desc": "A brass compass with a needle that never points north. It points at things worth taking."
+   },
+   "wool_coat": {
+    "name": "Wool coat",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 3,
+    "stack": 1,
+    "value": 36,
+    "slot": "coat",
+    "desc": "Heavy grey wool, a button gone. It is the difference between a cold night and a long one."
+   },
+   "parka": {
+    "name": "Insulated parka",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 3,
+    "stack": 1,
+    "value": 54,
+    "slot": "coat",
+    "desc": "A hooded parka stuffed with something that still holds heat. Smells of smoke and diesel."
+   },
+   "knit_cap": {
+    "name": "Knit cap",
+    "kind": "gear",
+    "kg": 0.7,
+    "bulk": 4,
+    "stack": 1,
+    "value": 18,
+    "slot": "head",
+    "desc": "A wool cap pulled to the eyebrows. Most of the heat goes out the top."
+   },
+   "insulated_boots": {
+    "name": "Insulated boots",
+    "kind": "gear",
+    "kg": 0.6,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 36,
+    "slot": "feet",
+    "desc": "Boots with a felt liner. Dry feet are most of winter."
+   },
+   "wool_gloves": {
+    "name": "Wool gloves",
+    "kind": "gear",
+    "kg": 0.5,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 18,
+    "slot": "hands",
+    "desc": "Gloves darned at every finger."
+   },
+   "road_chain": {
+    "name": "Road chain",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 6.5,
+    "bulk": 3.5,
+    "value": 45,
+    "stack": 1,
+    "desc": "Fifteen feet of tow chain wrapped with welded spikes. Swing it across a lane and it eats tyres.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "spike_strip": {
+    "name": "Spike strip",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 4.2,
+    "bulk": 2.5,
+    "value": 60,
+    "stack": 1,
+    "desc": "An accordion of hollow teeth on a plastic spine. Unfolds across a lane in one throw.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "car_mine": {
+    "name": "Car mine",
+    "kind": "ammo",
+    "tags": [
+     "car_ammo",
+     "gadget"
+    ],
+    "kg": 6,
+    "bulk": 3,
+    "stack": 4,
+    "value": 55,
+    "desc": "A pressure plate on a cake tin of explosive. Bury it where the wheels go, or load it in a mine dropper. Do not step on it either.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "fan_mine": {
+    "name": "Fan mine",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 1.6,
+    "bulk": 1,
+    "value": 140,
+    "stack": 2,
+    "desc": "A curved box of ball bearings on scissor legs. FRONT TOWARD THE ROAD, it says, in our own stencil.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "crawler_mine": {
+    "name": "Crawler mine",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 2.2,
+    "bulk": 1.6,
+    "value": 220,
+    "stack": 1,
+    "desc": "A charge on six scrap legs and a cheap eye. Set it down; it walks to the nearest thing that hates you and sits on it.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "noise_maker": {
+    "name": "Noise box",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.5,
+    "bulk": 0.4,
+    "value": 20,
+    "stack": 3,
+    "desc": "A wind-up clacker in a tin. Twenty seconds of racket that every dead thing in a block walks toward.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "bottle_lure": {
+    "name": "Bottle",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.4,
+    "bulk": 0.5,
+    "value": 1,
+    "stack": 4,
+    "desc": "An empty bottle. Throw it where you want them to look.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "signal_flare": {
+    "name": "Signal flare",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.3,
+    "bulk": 0.25,
+    "value": 10,
+    "stack": 6,
+    "desc": "A long-burning red flare. Lights a street at night; every eye and every dead thing turns to it.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "smoke_canister": {
+    "name": "Smoke canister",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.6,
+    "bulk": 0.5,
+    "value": 25,
+    "stack": 3,
+    "desc": "A fat grey can. A street of smoke for half a minute: nobody sees through it, you included.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "gas_can": {
+    "name": "Choke gas",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.6,
+    "bulk": 0.5,
+    "value": 45,
+    "stack": 3,
+    "desc": "A banded can of something that burns the eyes and the throat. People in it cough, stumble and shoot wide.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "remote_charge": {
+    "name": "Remote charge",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 1.4,
+    "bulk": 0.9,
+    "value": 160,
+    "stack": 3,
+    "desc": "A brick of charge taped round a radio receiver. Set it, walk away, press the button.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "breach_charge": {
+    "name": "Breach charge",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.9,
+    "bulk": 0.6,
+    "value": 90,
+    "stack": 3,
+    "desc": "A frame of cord charge you press to a door. Three seconds, then it is not a door.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "car_alarm": {
+    "name": "Car alarm",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.8,
+    "bulk": 0.5,
+    "value": 35,
+    "stack": 2,
+    "desc": "A siren and a motion box off a dead sedan, wired to a battery. Stick it in a car you want to come back to.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "tripwire_bells": {
+    "name": "Tripwire bells",
+    "kind": "gadget",
+    "tags": [
+     "gadget"
+    ],
+    "kg": 0.3,
+    "bulk": 0.3,
+    "value": 8,
+    "stack": 4,
+    "desc": "Fishing line and a string of tin bells. Strung across a door or a gap, it tells you who came.",
+    "use": {
+     "act": "gadget"
+    }
+   },
+   "drone_scout": {
+    "name": "Scout drone",
+    "kind": "drone",
+    "kg": 1.8,
+    "bulk": 3,
+    "value": 260,
+    "stack": 1,
+    "desc": "Four rotors, a cracked camera, a battery that remembers better days. It sees what you cannot and tells on them.",
+    "use": {
+     "act": "drone"
+    },
+    "tags": [
+     "drone"
+    ]
+   },
+   "drone_bomber": {
+    "name": "Drop drone",
+    "kind": "drone",
+    "kg": 3.2,
+    "bulk": 4.5,
+    "value": 420,
+    "stack": 1,
+    "desc": "A heavier frame with a claw under it that lets go of three pipe charges. Loud. Slow. Worth it.",
+    "use": {
+     "act": "drone"
+    },
+    "tags": [
+     "drone"
+    ]
+   },
+   "key_ring": {
+    "name": "Bull's key ring",
+    "kind": "tool",
+    "use": {
+     "act": "keys"
+    },
+    "kg": 0.15,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 40,
+    "tags": [
+     "keys"
+    ],
+    "desc": "A security man's ring of keys. Opens and locks the town's doors, quietly."
+   },
+   "planks": {
+    "name": "Planks",
+    "kind": "part",
+    "use": {
+     "act": "barricade"
+    },
+    "kg": 6,
+    "bulk": 6,
+    "stack": 4,
+    "value": 6,
+    "tags": [
+     "planks"
+    ],
+    "desc": "Three lengths of board and a fistful of nails. Enough to bar one door."
+   },
+   "door_wedge": {
+    "name": "Door wedge",
+    "kind": "part",
+    "use": {
+     "act": "wedge"
+    },
+    "kg": 0.2,
+    "bulk": 0.1,
+    "stack": 3,
+    "value": 3,
+    "tags": [
+     "wedge"
+    ],
+    "desc": "A rubber wedge. Kicked under a door it holds against a shove, not against a boot."
+   },
+   "nvg": {
+    "name": "Night goggles",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "eyes"
+    ],
+    "kg": 0.9,
+    "bulk": 0.8,
+    "value": 380,
+    "stack": 1,
+    "desc": "Two night tubes off a dead tank, epoxied into a welding mask. Green, grainy, priceless. A flare in your face and you see nothing for a while.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "thermal_scope": {
+    "name": "Heat scope",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "eyes"
+    ],
+    "kg": 1.3,
+    "bulk": 1,
+    "value": 900,
+    "stack": 1,
+    "desc": "A pre-war heat camera in a box of foam and electrical tape. People glow white. The dead do not glow at all.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "binoculars": {
+    "name": "Binoculars",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "glass"
+    ],
+    "kg": 0.7,
+    "bulk": 0.6,
+    "value": 70,
+    "stack": 1,
+    "desc": "Field glasses with one cracked lens and a bootlace strap. Scouting is how you live: nobody out there cheats.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "rifle_scope": {
+    "name": "Rifle scope",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "glass"
+    ],
+    "kg": 0.5,
+    "bulk": 0.4,
+    "value": 160,
+    "stack": 1,
+    "desc": "A hunting scope off a deer rifle, the crosshair hairline crooked. Narrow, long, honest.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "flashlight": {
+    "name": "Flashlight",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "beam"
+    ],
+    "kg": 0.5,
+    "bulk": 0.35,
+    "value": 18,
+    "stack": 1,
+    "desc": "A steel torch with a cracked lens held in with tape. It shows you the street, and shows the street you.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "headlamp": {
+    "name": "Headlamp",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "beam"
+    ],
+    "kg": 0.25,
+    "bulk": 0.2,
+    "value": 30,
+    "stack": 1,
+    "desc": "A miner's lamp on a sweatband. Both hands free; it points where you look, and so does everyone who sees it.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "radio_scanner": {
+    "name": "Radio scanner",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "ears"
+    ],
+    "kg": 0.8,
+    "bulk": 0.6,
+    "value": 140,
+    "stack": 1,
+    "desc": "A police scanner with a coat-hanger aerial. It hears the convoys talk and the bulls dispatch. It only hears what somebody actually says.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "gas_mask": {
+    "name": "Gas mask",
+    "kind": "kit",
+    "tags": [
+     "kit",
+     "face"
+    ],
+    "kg": 0.7,
+    "bulk": 0.8,
+    "value": 85,
+    "stack": 1,
+    "desc": "A cracked rubber mask with one good eyepiece and a filter thread wrapped in tape. Smoke, chemicals, the dead air down the drains.",
+    "use": {
+     "act": "kit"
+    }
+   },
+   "battery_cell": {
+    "name": "Battery cell",
+    "kind": "part",
+    "kg": 0.12,
+    "bulk": 0.05,
+    "stack": 8,
+    "value": 6,
+    "tags": [
+     "cell"
+    ],
+    "desc": "A fat dry cell, its label sun-bleached white. Maybe half a charge. Everything worth carrying runs on these."
+   },
+   "mask_filter": {
+    "name": "Mask filter",
+    "kind": "part",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 6,
+    "value": 12,
+    "tags": [
+     "filter"
+    ],
+    "desc": "A screw-on charcoal canister, the seal still in its foil. Five minutes of air you can trust."
+   },
+   "dog_vest": {
+    "name": "Dog vest",
+    "kind": "gear",
+    "tags": [
+     "dog_gear"
+    ],
+    "kg": 1.8,
+    "bulk": 1.4,
+    "value": 60,
+    "stack": 1,
+    "desc": "A cut-down flak vest laced round a dog's chest with paracord. Turns a knife and most of a bite.",
+    "use": {
+     "act": "doggear"
+    }
+   },
+   "dog_lamp": {
+    "name": "Dog lamp",
+    "kind": "gear",
+    "tags": [
+     "dog_gear"
+    ],
+    "kg": 0.3,
+    "bulk": 0.2,
+    "value": 25,
+    "stack": 1,
+    "desc": "A bike lamp zip-tied to a collar. Where the dog goes, the ground lights up.",
+    "use": {
+     "act": "doggear"
+    }
+   },
+   "bark_collar": {
+    "name": "Bark collar",
+    "kind": "gear",
+    "tags": [
+     "dog_gear"
+    ],
+    "kg": 0.2,
+    "bulk": 0.1,
+    "value": 45,
+    "stack": 1,
+    "desc": "A training collar rewired to a buzzer you carry. When the dog smells trouble, you know where.",
+    "use": {
+     "act": "doggear"
+    }
+   },
+   "gun_percussion": {
+    "name": "Percussion revolver",
+    "kind": "gun",
+    "kg": 1.9,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 520,
+    "weapon": "percussion",
+    "desc": "A long-barrelled cap-and-ball revolver, nine chambers round a second, fatter barrel slung under the first. Flip the hammer's nose down and it fires that one: a load of shot."
+   },
+   "ammo_capball": {
+    "name": "Ball, powder and caps",
+    "kind": "ammo",
+    "kg": 0.02,
+    "bulk": 0.01,
+    "stack": 60,
+    "value": 1.6,
+    "ammo": "capball",
+    "desc": "Soft lead balls, a flask of black powder, a tin of percussion caps and a bag of shot. Loads the cylinder and the barrel under it alike. Slowly."
+   },
+   "lapel_counter": {
+    "name": "Lapel counter",
+    "kind": "tool",
+    "kg": 0.05,
+    "bulk": 0.03,
+    "stack": 1,
+    "value": 95,
+    "tags": [
+     "electronic"
+    ],
+    "desc": "A clip-on counter the size of a matchbox. Carry it and it ticks near hot ground, long before you feel it: faster the nearer, faster the hotter."
+   },
+   "heater_meal": {
+    "name": "Self-heating meal",
+    "kind": "food",
+    "kg": 0.5,
+    "bulk": 0.6,
+    "stack": 4,
+    "value": 34,
+    "use": {
+     "act": "heatmeal"
+    },
+    "desc": "A sealed meal pouch in a heater bag. Pull the tab and it hisses and warms with no flame; give it half a minute."
+   },
+   "hot_meal": {
+    "name": "Hot meal pouch",
+    "kind": "food",
+    "kg": 0.45,
+    "bulk": 0.5,
+    "stack": 4,
+    "value": 30,
+    "spoils": 2,
+    "use": {
+     "need": "food",
+     "amount": 0.5,
+     "hp": 6,
+     "water": 0.02
+    },
+    "desc": "Steaming in its bag. Beef and beans, or something that was. Eat it while it is hot."
+   },
+   "cloth_scrap": {
+    "name": "Cloth scrap",
+    "kind": "part",
+    "kg": 0.15,
+    "bulk": 0.2,
+    "stack": 20,
+    "value": 1,
+    "tags": [
+     "cloth"
+    ],
+    "desc": "A piece of curtain, a sleeve, a bedsheet gone grey. Rags, bandage and rope all start here."
+   },
+   "wood_scrap": {
+    "name": "Salvage timber",
+    "kind": "part",
+    "kg": 2,
+    "bulk": 3,
+    "stack": 6,
+    "value": 2,
+    "tags": [
+     "wood"
+    ],
+    "desc": "A broken chair, a fence rail, a joist off a roof. Dry enough to work, or to burn."
+   },
+   "nails": {
+    "name": "Nails",
+    "kind": "part",
+    "kg": 0.01,
+    "bulk": 0.004,
+    "stack": 200,
+    "value": 0.1,
+    "tags": [
+     "steel"
+    ],
+    "desc": "Loose nails in a coffee tin, a few of them straight."
+   },
+   "charcoal": {
+    "name": "Charcoal",
+    "kind": "part",
+    "kg": 0.3,
+    "bulk": 0.6,
+    "stack": 10,
+    "value": 3,
+    "tags": [
+     "fuel"
+    ],
+    "desc": "Wood burnt slow under turf. Burns hot enough to soften steel."
+   },
+   "plant_fibre": {
+    "name": "Plant fibre",
+    "kind": "part",
+    "kg": 0.05,
+    "bulk": 0.1,
+    "stack": 30,
+    "value": 0.5,
+    "tags": [
+     "fibre"
+    ],
+    "desc": "Yucca leaf and cattail stripped long. Twist it and it holds."
+   },
+   "tallow": {
+    "name": "Tallow",
+    "kind": "part",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 6,
+    "value": 3,
+    "tags": [
+     "fat"
+    ],
+    "desc": "Rendered fat in a lump. Burns, waterproofs, greases."
+   },
+   "lead_shot": {
+    "name": "Cast lead",
+    "kind": "part",
+    "kg": 0.05,
+    "bulk": 0.03,
+    "stack": 20,
+    "value": 3,
+    "tags": [
+     "lead"
+    ],
+    "desc": "A pinch of cast slugs, melted down from pipe and fishing weights."
+   },
+   "brass_case": {
+    "name": "Spent brass",
+    "kind": "part",
+    "kg": 0.005,
+    "bulk": 0.004,
+    "stack": 200,
+    "value": 0.2,
+    "tags": [
+     "brass"
+    ],
+    "desc": "Fired cases, picked up after somebody else's fight. Good for one more load."
+   },
+   "gunpowder": {
+    "name": "Gunpowder",
+    "kind": "part",
+    "kg": 0.05,
+    "bulk": 0.04,
+    "stack": 40,
+    "value": 6,
+    "tags": [
+     "powder"
+    ],
+    "desc": "A twist of black grain. Enough for eight loads; not for a flame nearby."
+   },
+   "primer": {
+    "name": "Primers",
+    "kind": "part",
+    "kg": 0.0003,
+    "bulk": 0.0004,
+    "stack": 300,
+    "value": 0.4,
+    "tags": [
+     "primer"
+    ],
+    "desc": "Tiny brass cups of impact paste. Without one a round is a lump."
+   },
+   "oil_flask": {
+    "name": "Lamp oil",
+    "kind": "part",
+    "kg": 0.4,
+    "bulk": 0.4,
+    "stack": 4,
+    "value": 5,
+    "tags": [
+     "fuel"
+    ],
+    "desc": "A flask of rendered oil, clear enough to burn without smoke."
+   },
+   "herbs": {
+    "name": "Dried herbs",
+    "kind": "part",
+    "kg": 0.04,
+    "bulk": 0.05,
+    "stack": 20,
+    "value": 1,
+    "tags": [
+     "herb"
+    ],
+    "desc": "Yarrow, sage and creosote, bundled in string. A medic's pantry."
+   },
+   "camp_stew": {
+    "name": "Camp stew",
+    "kind": "food",
+    "kg": 0.8,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 14,
+    "spoils": 36,
+    "use": {
+     "need": "food",
+     "amount": 0.5,
+     "hp": 4,
+     "water": 0.05
+    },
+    "dog": {
+     "bond": 8,
+     "hp": 18
+    },
+    "desc": "Beans and jerky simmered in a can. Hot, salty, and the first thing that tastes like a place."
+   },
+   "hardtack": {
+    "name": "Hardtack",
+    "kind": "food",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 8,
+    "value": 6,
+    "use": {
+     "need": "food",
+     "amount": 0.22
+    },
+    "desc": "Flatbread baked twice until it keeps. Break a tooth, not a fast."
+   },
+   "cactus_jam": {
+    "name": "Cactus jam",
+    "kind": "food",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 4,
+    "value": 9,
+    "spoils": 240,
+    "use": {
+     "need": "food",
+     "amount": 0.2,
+     "water": 0.04,
+     "hp": 2
+    },
+    "desc": "Prickly pear boiled down in its own juice. Lasts, and it is sweet."
+   },
+   "poultice": {
+    "name": "Herbal poultice",
+    "kind": "med",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 4,
+    "value": 14,
+    "spoils": 96,
+    "use": {
+     "hp": 14,
+     "bleed": true
+    },
+    "desc": "Crushed yarrow bound in cloth. Closes a cut and keeps the rot out of it, mostly."
+   },
+   "tincture": {
+    "name": "Herb tincture",
+    "kind": "med",
+    "kg": 0.1,
+    "bulk": 0.1,
+    "stack": 4,
+    "value": 16,
+    "use": {
+     "hp": 8,
+     "calm": true
+    },
+    "desc": "Creosote and sage steeped in rotgut. Bitter. Eases a hand that shakes."
+   },
+   "bowstring": {
+    "name": "Bowstring",
+    "kind": "part",
+    "kg": 0.02,
+    "bulk": 0.02,
+    "stack": 10,
+    "value": 2,
+    "tags": [
+     "cord"
+    ],
+    "desc": "Waxed cord, three strands. (Stub: needs a bow.)"
+   },
+   "fish_hook": {
+    "name": "Fish hooks",
+    "kind": "part",
+    "kg": 0.01,
+    "bulk": 0.01,
+    "stack": 30,
+    "value": 1,
+    "tags": [
+     "steel"
+    ],
+    "desc": "Bent wire, filed to a barb."
+   },
+   "cord": {
+    "name": "Cord",
+    "kind": "part",
+    "kg": 0.05,
+    "bulk": 0.05,
+    "stack": 20,
+    "value": 1,
+    "tags": [
+     "cord"
+    ],
+    "desc": "Twisted fibre, a few metres. Ties anything that stays still."
+   },
+   "rope": {
+    "name": "Rope",
+    "kind": "part",
+    "kg": 0.6,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 8,
+    "tags": [
+     "rope"
+    ],
+    "desc": "Ten metres of three-strand rope. Holds a man, or a door."
+   },
+   "splint": {
+    "name": "Splint",
+    "kind": "med",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 4,
+    "value": 6,
+    "use": {
+     "hp": 10
+    },
+    "desc": "Two flat boards and cord. Sets a bad ankle so you can walk on it."
+   },
+   "plank_barricade": {
+    "name": "Plank barricade",
+    "kind": "part",
+    "kg": 8,
+    "bulk": 8,
+    "stack": 2,
+    "value": 12,
+    "tags": [
+     "barricade",
+     "planks"
+    ],
+    "desc": "Cross-braced boards, ready to nail across a door or a window."
+   },
+   "metal_barricade": {
+    "name": "Plate barricade",
+    "kind": "part",
+    "kg": 6,
+    "bulk": 5,
+    "stack": 2,
+    "value": 18,
+    "tags": [
+     "barricade",
+     "steel"
+    ],
+    "desc": "Two sheets of scrap steel riveted to a frame. Stops a shoulder and slows a bullet."
+   },
+   "hammer": {
+    "name": "Hammer",
+    "kind": "tool",
+    "kg": 0.9,
+    "bulk": 0.4,
+    "stack": 1,
+    "value": 12,
+    "dur": true,
+    "tags": [
+     "hammer",
+     "steel"
+    ],
+    "desc": "A claw hammer with a taped handle."
+   },
+   "hand_saw": {
+    "name": "Hand saw",
+    "kind": "tool",
+    "kg": 0.6,
+    "bulk": 0.7,
+    "stack": 1,
+    "value": 14,
+    "dur": true,
+    "tags": [
+     "saw",
+     "steel"
+    ],
+    "desc": "A wood saw with a few teeth missing."
+   },
+   "metal_file": {
+    "name": "Metal file",
+    "kind": "tool",
+    "kg": 0.3,
+    "bulk": 0.2,
+    "stack": 1,
+    "value": 10,
+    "dur": true,
+    "tags": [
+     "file",
+     "steel"
+    ],
+    "desc": "A flat file, bright where it works."
+   },
+   "whetstone": {
+    "name": "Whetstone",
+    "kind": "tool",
+    "kg": 0.4,
+    "bulk": 0.2,
+    "stack": 1,
+    "value": 8,
+    "dur": true,
+    "tags": [
+     "stone"
+    ],
+    "desc": "A grey stone worn into a shallow dish by edges."
+   },
+   "needle_kit": {
+    "name": "Needle and thread",
+    "kind": "tool",
+    "kg": 0.05,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 6,
+    "dur": true,
+    "tags": [
+     "needle"
+    ],
+    "desc": "Three needles in a wad of felt, and thread of every colour."
+   },
+   "pliers": {
+    "name": "Pliers",
+    "kind": "tool",
+    "kg": 0.4,
+    "bulk": 0.2,
+    "stack": 1,
+    "value": 10,
+    "dur": true,
+    "tags": [
+     "pliers",
+     "steel"
+    ],
+    "desc": "Long-nosed pliers; the jaws still meet."
+   },
+   "hatchet": {
+    "name": "Hatchet",
+    "kind": "tool",
+    "kg": 1.1,
+    "bulk": 0.8,
+    "stack": 1,
+    "value": 20,
+    "dur": true,
+    "tags": [
+     "blade",
+     "axe",
+     "steel"
+    ],
+    "desc": "A short axe, head wedged tight in a new handle. Chops wood and settles disputes."
+   },
+   "spear": {
+    "name": "Spear",
+    "kind": "tool",
+    "kg": 1.4,
+    "bulk": 2,
+    "stack": 1,
+    "value": 14,
+    "dur": true,
+    "tags": [
+     "spear"
+    ],
+    "desc": "A pole with a steel point lashed on. Longer than a knife, cheaper than a gun."
+   },
+   "repair_kit": {
+    "name": "Repair kit",
+    "kind": "tool",
+    "kg": 0.5,
+    "bulk": 0.5,
+    "stack": 1,
+    "value": 20,
+    "uses": 4,
+    "use": {
+     "act": "mendgear"
+    },
+    "desc": "Patches, thread, rivets and glue in a tin. Four patch-ups for what you wear."
+   },
+   "candle": {
+    "name": "Candle",
+    "kind": "tool",
+    "kg": 0.1,
+    "bulk": 0.1,
+    "stack": 10,
+    "value": 2,
+    "tags": [
+     "light"
+    ],
+    "use": {
+     "act": "flare"
+    },
+    "desc": "A tallow dip on a cord wick. Lights a corner and nothing more."
+   },
+   "torch": {
+    "name": "Torch",
+    "kind": "tool",
+    "kg": 0.5,
+    "bulk": 0.8,
+    "stack": 4,
+    "value": 5,
+    "tags": [
+     "light"
+    ],
+    "use": {
+     "act": "flare"
+    },
+    "desc": "A stick wrapped in oiled cloth. Smoky; the dark keeps its distance."
+   },
+   "oil_lamp": {
+    "name": "Oil lamp",
+    "kind": "tool",
+    "kg": 0.6,
+    "bulk": 0.6,
+    "stack": 1,
+    "value": 15,
+    "dur": true,
+    "tags": [
+     "light"
+    ],
+    "desc": "A jar, a wick and a cork. A warm yellow light."
+   },
+   "trap_trigger": {
+    "name": "Trap trigger",
+    "kind": "part",
+    "kg": 0.1,
+    "bulk": 0.1,
+    "stack": 6,
+    "value": 3,
+    "tags": [
+     "trigger"
+    ],
+    "desc": "A notched peg and a spring of wire. Half a snare."
+   },
+   "bow_stave": {
+    "name": "Bow stave",
+    "kind": "part",
+    "kg": 0.7,
+    "bulk": 1.2,
+    "stack": 1,
+    "value": 10,
+    "tags": [
+     "bow"
+    ],
+    "desc": "A seasoned length of bent wood, not strung. (Stub: bows are not in the arms yet.)"
+   },
+   "arrow_shaft": {
+    "name": "Arrow shaft",
+    "kind": "part",
+    "kg": 0.03,
+    "bulk": 0.04,
+    "stack": 20,
+    "value": 1,
+    "tags": [
+     "arrow"
+    ],
+    "desc": "A straight shaft fletched with feathers. (Stub: needs a bow.)"
+   },
+   "workbench": {
+    "name": "Workbench",
+    "kind": "bench",
+    "kg": 40,
+    "bulk": 90,
+    "stack": 1,
+    "value": 60,
+    "tags": [
+     "bench"
+    ],
+    "bench": "workbench",
+    "desc": "A heavy plank table with a vise. Furniture: it lives where you set it down."
+   },
+   "forge_kit": {
+    "name": "Anvil and forge",
+    "kind": "bench",
+    "kg": 60,
+    "bulk": 70,
+    "stack": 1,
+    "value": 120,
+    "tags": [
+     "bench"
+    ],
+    "bench": "forge",
+    "desc": "A block of steel and a coal-bed bellows in a tub. Heavy; it needs a place."
+   },
+   "sewing_table": {
+    "name": "Sewing table",
+    "kind": "bench",
+    "kg": 18,
+    "bulk": 50,
+    "stack": 1,
+    "value": 40,
+    "tags": [
+     "bench"
+    ],
+    "bench": "sewing",
+    "desc": "A folding table with a treadle machine bolted on."
+   },
+   "camp_stove": {
+    "name": "Camp stove",
+    "kind": "bench",
+    "kg": 6,
+    "bulk": 10,
+    "stack": 1,
+    "value": 30,
+    "tags": [
+     "bench"
+    ],
+    "bench": "kitchen",
+    "desc": "A two-ring stove on a bottle of gas. Cooks anywhere."
+   },
+   "reload_press": {
+    "name": "Reloading press",
+    "kind": "bench",
+    "kg": 7,
+    "bulk": 6,
+    "stack": 1,
+    "value": 80,
+    "tags": [
+     "bench"
+    ],
+    "bench": "reloading",
+    "desc": "A cast press with dies and a scale. Brass, powder, primer and lead go in; rounds come out."
+   },
+   "chem_set": {
+    "name": "Chem set",
+    "kind": "bench",
+    "kg": 5,
+    "bulk": 7,
+    "stack": 1,
+    "value": 70,
+    "tags": [
+     "bench"
+    ],
+    "bench": "chem",
+    "desc": "Flasks, a spirit lamp and a rack of tubes in a wooden case."
+   },
+   "tool_roll": {
+    "name": "Tool roll",
+    "kind": "bench",
+    "kg": 3,
+    "bulk": 4,
+    "stack": 1,
+    "value": 35,
+    "tags": [
+     "bench"
+    ],
+    "bench": "mobile",
+    "desc": "A canvas roll of the small tools. Lets you do the simple jobs from a car's trunk."
+   },
+   "manual_gunsmith": {
+    "name": "Gunsmith's notebook",
+    "kind": "paper",
+    "kg": 0.2,
+    "bulk": 0.2,
+    "stack": 1,
+    "value": 25,
+    "use": {
+     "act": "learn"
+    },
+    "keep": true,
+    "learns": [
+     "load_rifle",
+     "load_shells",
+     "cast_shot",
+     "load_357",
+     "load_slugs"
+    ],
+    "desc": "A grease-stained notebook of loads and charges. Written by somebody who still had all their fingers."
+   },
+   "manual_smith": {
+    "name": "Smith's primer",
+    "kind": "paper",
+    "kg": 0.3,
+    "bulk": 0.3,
+    "stack": 1,
+    "value": 20,
+    "use": {
+     "act": "learn"
+    },
+    "keep": true,
+    "learns": [
+     "forge_hatchet",
+     "forge_blade",
+     "forge_barricade"
+    ],
+    "desc": "A water-stained trade pamphlet: heats, quenches and the colour of good steel."
+   },
+   "manual_field_medicine": {
+    "name": "Field medicine card",
+    "kind": "paper",
+    "kg": 0.05,
+    "bulk": 0.05,
+    "stack": 1,
+    "value": 18,
+    "use": {
+     "act": "learn"
+    },
+    "keep": true,
+    "learns": [
+     "herbal_poultice",
+     "boil_dressing"
+    ],
+    "desc": "A laminated card in a stranger's hand: what to boil, what to bind, what to leave alone."
+   }
+  },
+  "LOOT": {
+   "gator": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 0,
+    "rows": [
+     [
+      "gator_meat",
+      5,
+      1,
+      2
+     ],
+     [
+      "gator_hide",
+      3,
+      1,
+      1
+     ]
+    ]
+   },
+   "kitchen": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 4,
+    "rows": [
+     [
+      "beans_tin",
+      5,
+      1,
+      2
+     ],
+     [
+      "peaches_tin",
+      3,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      2
+     ],
+     [
+      "honey",
+      1,
+      1,
+      1
+     ],
+     [
+      "can_opener",
+      2,
+      1,
+      1
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ],
+     [
+      "silverware",
+      2,
+      1,
+      3
+     ],
+     [
+      "flatbread",
+      1,
+      1,
+      1
+     ],
+     [
+      "tallow",
+      1,
+      1,
+      1
+     ],
+     [
+      "cloth_scrap",
+      1,
+      1,
+      2
+     ]
+    ]
+   },
+   "bathroom": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "bandage",
+      4,
+      1,
+      2
+     ],
+     [
+      "rag",
+      3,
+      1,
+      3
+     ],
+     [
+      "painkillers",
+      2,
+      1,
+      1
+     ],
+     [
+      "antibiotics",
+      1,
+      1,
+      1
+     ],
+     [
+      "suture_kit",
+      1,
+      1,
+      1
+     ],
+     [
+      "cloth_scrap",
+      2,
+      1,
+      3
+     ],
+     [
+      "herbs",
+      1,
+      1,
+      2
+     ],
+     [
+      "manual_field_medicine",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "bedroom": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 5,
+    "rows": [
+     [
+      "ammo_pistol",
+      2,
+      6,
+      14
+     ],
+     [
+      "ammo_shells",
+      1,
+      2,
+      6
+     ],
+     [
+      "wristwatch",
+      2,
+      1,
+      1
+     ],
+     [
+      "gold_ring",
+      1,
+      1,
+      1
+     ],
+     [
+      "photograph",
+      3,
+      1,
+      1
+     ],
+     [
+      "satchel",
+      1,
+      1,
+      1
+     ],
+     [
+      "backpack",
+      1,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      1,
+      1,
+      1
+     ],
+     [
+      "bedroll",
+      2,
+      1,
+      1
+     ],
+     [
+      "leather_duster",
+      1,
+      1,
+      1
+     ],
+     [
+      "combat_boots",
+      1,
+      1,
+      1
+     ],
+     [
+      "rabbit_foot",
+      1,
+      1,
+      1
+     ],
+     [
+      "binoculars",
+      1,
+      1,
+      1
+     ],
+     [
+      "battery_cell",
+      1,
+      1,
+      2
+     ],
+     [
+      "cloth_scrap",
+      4,
+      1,
+      4
+     ],
+     [
+      "needle_kit",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "garage": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "wrench",
+      3,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      3,
+      1,
+      1
+     ],
+     [
+      "scrap",
+      4,
+      1,
+      4
+     ],
+     [
+      "spark_plugs",
+      2,
+      1,
+      1
+     ],
+     [
+      "fuel_can",
+      2,
+      1,
+      1
+     ],
+     [
+      "crowbar",
+      1,
+      1,
+      1
+     ],
+     [
+      "spare_tyre",
+      1,
+      1,
+      1
+     ],
+     [
+      "cleaning_kit",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_shells",
+      1,
+      3,
+      8
+     ],
+     [
+      "battery_cell",
+      3,
+      1,
+      3
+     ],
+     [
+      "flashlight",
+      2,
+      1,
+      1
+     ],
+     [
+      "headlamp",
+      1,
+      1,
+      1
+     ],
+     [
+      "nails",
+      3,
+      10,
+      40
+     ],
+     [
+      "hammer",
+      1,
+      1,
+      1
+     ],
+     [
+      "metal_file",
+      1,
+      1,
+      1
+     ],
+     [
+      "pliers",
+      1,
+      1,
+      1
+     ],
+     [
+      "wood_scrap",
+      1,
+      1,
+      2
+     ],
+     [
+      "hand_saw",
+      1,
+      1,
+      1
+     ],
+     [
+      "manual_smith",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "gunsmith": {
+    "rolls": [
+     3,
+     5
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "ammo_pistol",
+      6,
+      18,
+      48
+     ],
+     [
+      "ammo_smg",
+      5,
+      30,
+      75
+     ],
+     [
+      "ammo_shells",
+      4,
+      8,
+      20
+     ],
+     [
+      "ammo_birdshot",
+      2,
+      4,
+      12
+     ],
+     [
+      "ammo_slug",
+      1,
+      2,
+      8
+     ],
+     [
+      "ammo_rifle",
+      2,
+      15,
+      40
+     ],
+     [
+      "ammo_22lr",
+      2,
+      25,
+      100
+     ],
+     [
+      "ammo_357mag",
+      2,
+      6,
+      24
+     ],
+     [
+      "ammo_762x39",
+      2,
+      15,
+      45
+     ],
+     [
+      "ammo_762x51",
+      1,
+      10,
+      30
+     ],
+     [
+      "cleaning_kit",
+      3,
+      1,
+      1
+     ],
+     [
+      "gun_pistol",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_smg",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_rimfire",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_magnum",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_carbine",
+      1,
+      1,
+      1
+     ],
+     [
+      "wrench",
+      1,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ],
+     [
+      "gunpowder",
+      3,
+      1,
+      3
+     ],
+     [
+      "primer",
+      3,
+      10,
+      40
+     ],
+     [
+      "brass_case",
+      4,
+      8,
+      30
+     ],
+     [
+      "lead_shot",
+      2,
+      1,
+      2
+     ],
+     [
+      "manual_gunsmith",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "office": {
+    "rolls": [
+     1,
+     2
+    ],
+    "none": 5,
+    "rows": [
+     [
+      "photograph",
+      2,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      2,
+      1,
+      3
+     ],
+     [
+      "lockpicks",
+      1,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      2,
+      1,
+      1
+     ],
+     [
+      "painkillers",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_pistol",
+      1,
+      6,
+      18
+     ],
+     [
+      "battery_cell",
+      2,
+      1,
+      2
+     ],
+     [
+      "binoculars",
+      1,
+      1,
+      1
+     ],
+     [
+      "cloth_scrap",
+      1,
+      1,
+      1
+     ],
+     [
+      "manual_gunsmith",
+      0.3,
+      1,
+      1
+     ]
+    ]
+   },
+   "military": {
+    "rolls": [
+     2,
+     4
+    ],
+    "none": 2,
+    "rows": [
+     [
+      "ration",
+      5,
+      1,
+      3
+     ],
+     [
+      "canteen",
+      3,
+      1,
+      1
+     ],
+     [
+      "first_aid",
+      2,
+      1,
+      1
+     ],
+     [
+      "bandage",
+      3,
+      2,
+      4
+     ],
+     [
+      "antibiotics",
+      1,
+      1,
+      2
+     ],
+     [
+      "ruck",
+      1,
+      1,
+      1
+     ],
+     [
+      "crowbar",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_rifle",
+      4,
+      15,
+      60
+     ],
+     [
+      "ammo_762x51",
+      2,
+      20,
+      60
+     ],
+     [
+      "ammo_50bmg",
+      1,
+      5,
+      15
+     ],
+     [
+      "gun_battle",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_lmg",
+      1,
+      1,
+      1
+     ],
+     [
+      "cleaning_kit",
+      1,
+      1,
+      1
+     ],
+     [
+      "service_armor",
+      1,
+      1,
+      1
+     ],
+     [
+      "combat_helmet",
+      2,
+      1,
+      1
+     ],
+     [
+      "soft_vest",
+      2,
+      1,
+      1
+     ],
+     [
+      "rig_belt",
+      1,
+      1,
+      1
+     ],
+     [
+      "double_bandolier",
+      1,
+      1,
+      1
+     ],
+     [
+      "dust_mask",
+      1,
+      1,
+      1
+     ],
+     [
+      "battery_cell",
+      3,
+      2,
+      4
+     ],
+     [
+      "mask_filter",
+      3,
+      1,
+      3
+     ],
+     [
+      "gas_mask",
+      2,
+      1,
+      1
+     ],
+     [
+      "nvg",
+      1,
+      1,
+      1
+     ],
+     [
+      "binoculars",
+      1,
+      1,
+      1
+     ],
+     [
+      "rifle_scope",
+      1,
+      1,
+      1
+     ],
+     [
+      "thermal_scope",
+      0.25,
+      1,
+      1
+     ],
+     [
+      "brass_case",
+      2,
+      10,
+      30
+     ],
+     [
+      "gunpowder",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "wreck": {
+    "rolls": [
+     0,
+     2
+    ],
+    "none": 5,
+    "rows": [
+     [
+      "scrap",
+      5,
+      1,
+      3
+     ],
+     [
+      "fuel_can",
+      1,
+      1,
+      1
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      2,
+      1,
+      2
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ],
+     [
+      "photograph",
+      1,
+      1,
+      1
+     ],
+     [
+      "battery_cell",
+      2,
+      1,
+      2
+     ],
+     [
+      "flashlight",
+      1,
+      1,
+      1
+     ],
+     [
+      "wood_scrap",
+      1,
+      1,
+      1
+     ],
+     [
+      "nails",
+      1,
+      6,
+      20
+     ]
+    ]
+   },
+   "desert": {
+    "rolls": [
+     1,
+     1
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "cactus_fruit",
+      6,
+      1,
+      3
+     ],
+     [
+      "water_bottle",
+      1,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      1,
+      1,
+      2
+     ],
+     [
+      "plant_fibre",
+      3,
+      2,
+      6
+     ]
+    ]
+   },
+   "storefront": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 4,
+    "rows": [
+     [
+      "beans_tin",
+      4,
+      1,
+      3
+     ],
+     [
+      "peaches_tin",
+      3,
+      1,
+      2
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      2
+     ],
+     [
+      "jerky",
+      3,
+      1,
+      2
+     ],
+     [
+      "painkillers",
+      1,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ],
+     [
+      "can_opener",
+      1,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "pumps": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "fuel_can",
+      3,
+      1,
+      1
+     ],
+     [
+      "spare_tyre",
+      1,
+      1,
+      1
+     ],
+     [
+      "spark_plugs",
+      2,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      2,
+      1,
+      2
+     ],
+     [
+      "water_bottle",
+      2,
+      1,
+      1
+     ],
+     [
+      "road_atlas",
+      2,
+      1,
+      1
+     ],
+     [
+      "duct_tape",
+      1,
+      1,
+      1
+     ],
+     [
+      "battery_cell",
+      3,
+      1,
+      3
+     ],
+     [
+      "flashlight",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "person": {
+    "rolls": [
+     0,
+     2
+    ],
+    "none": 3,
+    "rows": [
+     [
+      "ammo_pistol",
+      2,
+      3,
+      10
+     ],
+     [
+      "ammo_smg",
+      1,
+      5,
+      15
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      1
+     ],
+     [
+      "jerky",
+      3,
+      1,
+      2
+     ],
+     [
+      "rag",
+      3,
+      1,
+      2
+     ],
+     [
+      "photograph",
+      3,
+      1,
+      1
+     ],
+     [
+      "flatbread",
+      2,
+      1,
+      1
+     ],
+     [
+      "wristwatch",
+      1,
+      1,
+      1
+     ],
+     [
+      "gold_ring",
+      1,
+      1,
+      1
+     ],
+     [
+      "painkillers",
+      1,
+      1,
+      1
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "raider": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "jerky",
+      4,
+      1,
+      3
+     ],
+     [
+      "water_bottle",
+      3,
+      1,
+      1
+     ],
+     [
+      "rag",
+      3,
+      1,
+      2
+     ],
+     [
+      "scrap",
+      2,
+      1,
+      2
+     ],
+     [
+      "gold_ring",
+      1,
+      1,
+      2
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ],
+     [
+      "canteen",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_smg",
+      4,
+      12,
+      36
+     ],
+     [
+      "ammo_pistol",
+      3,
+      6,
+      18
+     ],
+     [
+      "ammo_shells",
+      2,
+      3,
+      8
+     ],
+     [
+      "leather_vest",
+      1,
+      1,
+      1
+     ],
+     [
+      "leather_cap",
+      1,
+      1,
+      1
+     ],
+     [
+      "brass_knuckles",
+      1,
+      1,
+      1
+     ],
+     [
+      "battery_cell",
+      1,
+      1,
+      2
+     ],
+     [
+      "rifle_scope",
+      0.3,
+      1,
+      1
+     ],
+     [
+      "brass_case",
+      2,
+      3,
+      12
+     ],
+     [
+      "cloth_scrap",
+      1,
+      1,
+      2
+     ]
+    ]
+   },
+   "soldier": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 2,
+    "rows": [
+     [
+      "ration",
+      4,
+      1,
+      1
+     ],
+     [
+      "canteen",
+      3,
+      1,
+      1
+     ],
+     [
+      "bandage",
+      4,
+      1,
+      2
+     ],
+     [
+      "first_aid",
+      1,
+      1,
+      1
+     ],
+     [
+      "knife",
+      1,
+      1,
+      1
+     ],
+     [
+      "photograph",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_rifle",
+      5,
+      20,
+      50
+     ],
+     [
+      "bedroll",
+      1,
+      1,
+      1
+     ],
+     [
+      "soft_vest",
+      1,
+      1,
+      1
+     ],
+     [
+      "combat_helmet",
+      1,
+      1,
+      1
+     ],
+     [
+      "battery_cell",
+      2,
+      1,
+      2
+     ],
+     [
+      "mask_filter",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "trunk_patrol": {
+    "rolls": [
+     2,
+     3
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "ammo_smg",
+      5,
+      12,
+      30
+     ],
+     [
+      "ammo_pistol",
+      4,
+      8,
+      24
+     ],
+     [
+      "ammo_shells",
+      4,
+      4,
+      12
+     ],
+     [
+      "ammo_slug",
+      1,
+      2,
+      6
+     ],
+     [
+      "bandage",
+      2,
+      1,
+      2
+     ],
+     [
+      "flare",
+      2,
+      1,
+      2
+     ],
+     [
+      "gun_pump",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "buried_cache": {
+    "rolls": [
+     2,
+     4
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "scrap",
+      9,
+      2,
+      5
+     ],
+     [
+      "dried_meat",
+      6,
+      1,
+      2
+     ],
+     [
+      "first_aid",
+      2,
+      1,
+      1
+     ],
+     [
+      "scrap_vest",
+      2,
+      1,
+      1
+     ],
+     [
+      "backpack",
+      2,
+      1,
+      1
+     ],
+     [
+      "leather_duster",
+      2,
+      1,
+      1
+     ],
+     [
+      "knuckle_ring",
+      1,
+      1,
+      1
+     ],
+     [
+      "utility_belt",
+      2,
+      1,
+      1
+     ],
+     [
+      "ammo_bandolier",
+      2,
+      1,
+      1
+     ],
+     [
+      "mechanic_wraps",
+      2,
+      1,
+      1
+     ],
+     [
+      "rabbit_foot",
+      1,
+      1,
+      1
+     ],
+     [
+      "gold_ring",
+      2,
+      1,
+      2
+     ],
+     [
+      "ammo_pistol",
+      3,
+      6,
+      18
+     ]
+    ]
+   },
+   "cache_rare": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "machete",
+      3,
+      1,
+      1
+     ],
+     [
+      "first_aid",
+      4,
+      1,
+      1
+     ],
+     [
+      "gun_pistol",
+      2,
+      1,
+      1
+     ],
+     [
+      "gun_auto",
+      2,
+      1,
+      1
+     ],
+     [
+      "ammo_pistol",
+      4,
+      6,
+      18
+     ],
+     [
+      "soft_vest",
+      3,
+      1,
+      1
+     ],
+     [
+      "combat_helmet",
+      2,
+      1,
+      1
+     ],
+     [
+      "brush_poncho",
+      1,
+      1,
+      1
+     ],
+     [
+      "ruck",
+      1,
+      1,
+      1
+     ],
+     [
+      "brass_knuckles",
+      2,
+      1,
+      1
+     ]
+    ]
+   },
+   "armor_cache": {
+    "rolls": [
+     2,
+     3
+    ],
+    "none": 0,
+    "rows": [
+     [
+      "soft_vest",
+      5,
+      1,
+      1
+     ],
+     [
+      "service_armor",
+      2,
+      1,
+      1
+     ],
+     [
+      "combat_helmet",
+      4,
+      1,
+      1
+     ],
+     [
+      "plate_leggings",
+      3,
+      1,
+      1
+     ],
+     [
+      "arm_guards",
+      4,
+      1,
+      1
+     ],
+     [
+      "gun_pump",
+      3,
+      1,
+      1
+     ],
+     [
+      "ammo_shells",
+      5,
+      8,
+      20
+     ],
+     [
+      "ammo_slug",
+      3,
+      4,
+      10
+     ],
+     [
+      "gun_mmg",
+      1,
+      1,
+      1
+     ],
+     [
+      "gun_amr",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_762x51",
+      2,
+      20,
+      50
+     ],
+     [
+      "ammo_50bmg",
+      2,
+      5,
+      10
+     ]
+    ]
+   },
+   "gun_safe": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 1,
+    "rows": [
+     [
+      "gun_pistol",
+      5,
+      1,
+      1
+     ],
+     [
+      "gun_pump",
+      3,
+      1,
+      1
+     ],
+     [
+      "ammo_pistol",
+      7,
+      5,
+      40
+     ],
+     [
+      "ammo_shells",
+      4,
+      2,
+      16
+     ],
+     [
+      "ammo_birdshot",
+      3,
+      4,
+      16
+     ],
+     [
+      "ammo_slug",
+      2,
+      2,
+      8
+     ],
+     [
+      "gun_rimfire",
+      3,
+      1,
+      1
+     ],
+     [
+      "ammo_22lr",
+      3,
+      25,
+      100
+     ],
+     [
+      "gun_magnum",
+      2,
+      1,
+      1
+     ],
+     [
+      "ammo_357mag",
+      2,
+      6,
+      18
+     ],
+     [
+      "gun_carbine",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_762x39",
+      1,
+      15,
+      30
+     ],
+     [
+      "cleaning_kit",
+      3,
+      1,
+      1
+     ]
+    ]
+   },
+   "police_locker": {
+    "rolls": [
+     1,
+     3
+    ],
+    "none": 2,
+    "rows": [
+     [
+      "ammo_smg",
+      6,
+      6,
+      24
+     ],
+     [
+      "gun_auto",
+      2,
+      1,
+      1
+     ],
+     [
+      "bandage",
+      4,
+      1,
+      2
+     ],
+     [
+      "riot_helmet",
+      3,
+      1,
+      1
+     ],
+     [
+      "soft_vest",
+      2,
+      1,
+      1
+     ],
+     [
+      "arm_guards",
+      2,
+      1,
+      1
+     ]
+    ]
+   },
+   "fn_case": {
+    "rolls": [
+     1,
+     1
+    ],
+    "none": 0,
+    "all": true,
+    "rows": [
+     [
+      "gun_percussion",
+      1,
+      1,
+      1
+     ],
+     [
+      "sword_cane",
+      1,
+      1,
+      1
+     ],
+     [
+      "ammo_capball",
+      1,
+      9,
+      18
+     ]
+    ]
+   },
+   "fn_ditch": {
+    "rolls": [
+     1,
+     1
+    ],
+    "none": 0,
+    "all": true,
+    "rows": [
+     [
+      "jungle_blade",
+      1,
+      1,
+      1
+     ]
+    ]
+   },
+   "fn_convoy": {
+    "rolls": [
+     4,
+     7
+    ],
+    "none": 0,
+    "rows": [
+     [
+      "fuel_can",
+      4,
+      1,
+      2
+     ],
+     [
+      "ammo_rifle",
+      4,
+      20,
+      60
+     ],
+     [
+      "ammo_pistol",
+      3,
+      12,
+      36
+     ],
+     [
+      "ammo_shells",
+      3,
+      6,
+      18
+     ],
+     [
+      "water_bottle",
+      4,
+      1,
+      3
+     ],
+     [
+      "ration",
+      3,
+      1,
+      2
+     ],
+     [
+      "heater_meal",
+      2,
+      1,
+      2
+     ],
+     [
+      "bandage",
+      3,
+      1,
+      4
+     ],
+     [
+      "antibiotics",
+      1,
+      1,
+      1
+     ],
+     [
+      "spark_plugs",
+      2,
+      1,
+      2
+     ],
+     [
+      "duct_tape",
+      2,
+      1,
+      1
+     ],
+     [
+      "spare_tyre",
+      1,
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  "AMMO_ITEM": {
+   "pistol": "ammo_pistol",
+   "smg": "ammo_smg",
+   "shells": "ammo_shells",
+   "birdshot": "ammo_birdshot",
+   "slug": "ammo_slug",
+   "rifle": "ammo_rifle",
+   "22lr": "ammo_22lr",
+   "357mag": "ammo_357mag",
+   "762x39": "ammo_762x39",
+   "762x51": "ammo_762x51",
+   "50bmg": "ammo_50bmg",
+   "capball": "ammo_capball"
+  },
+  "GUN_ITEM": {
+   "pistol": "gun_pistol",
+   "smg": "gun_smg",
+   "shotgun": "gun_shotgun",
+   "rifle": "gun_rifle",
+   "auto": "gun_auto",
+   "pump": "gun_pump",
+   "rimfire": "gun_rimfire",
+   "magnum": "gun_magnum",
+   "carbine": "gun_carbine",
+   "battle": "gun_battle",
+   "lmg": "gun_lmg",
+   "mmg": "gun_mmg",
+   "amr": "gun_amr",
+   "percussion": "gun_percussion"
+  },
+  "GUN_WEAR": {
+   "pistol": {
+    "wear": 0.0012,
+    "jam": 0.5
+   },
+   "smg": {
+    "wear": 0.0007,
+    "jam": 1.6
+   },
+   "shotgun": {
+    "wear": 0.0018,
+    "jam": 0.6
+   },
+   "rifle": {
+    "wear": 0.0009,
+    "jam": 1
+   },
+   "auto": {
+    "wear": 0.001,
+    "jam": 0.9
+   },
+   "pump": {
+    "wear": 0.0014,
+    "jam": 0.7
+   }
+  },
+  "GUN_CARE": {
+   "jamBelow": 0.65,
+   "jamRate": 0.06,
+   "clearTime": 0.9,
+   "kit": 0.35,
+   "kitMax": 0.95,
+   "smith": 0.6,
+   "smithMin": 10
+  },
+  "GUN_FOUND": {
+   "raider": {
+    "cond": [
+     0.18,
+     0.6
+    ],
+    "loaded": [
+     0,
+     0.6
+    ],
+    "spare": [
+     0,
+     12
+    ]
+   },
+   "soldier": {
+    "cond": [
+     0.62,
+     0.95
+    ],
+    "loaded": [
+     0.3,
+     1
+    ],
+    "spare": [
+     20,
+     60
+    ]
+   },
+   "warden": {
+    "cond": [
+     0.55,
+     0.9
+    ],
+    "loaded": [
+     0.4,
+     1
+    ],
+    "spare": [
+     6,
+     24
+    ]
+   },
+   "default": {
+    "cond": [
+     0.3,
+     0.8
+    ],
+    "loaded": [
+     0,
+     0.8
+    ],
+    "spare": [
+     0,
+     8
+    ]
+   }
+  },
+  "START_KIT": {
+   "pack": "satchel",
+   "items": [
+    [
+     "water_bottle",
+     1
+    ],
+    [
+     "jerky",
+     2
+    ],
+    [
+     "rag",
+     2
+    ],
+    [
+     "knife",
+     1
+    ],
+    [
+     "flashlight",
+     1
+    ],
+    [
+     "battery_cell",
+     1
+    ]
+   ]
+  },
+  "BODY_LITRES": 3
+ }
+}

@@ -1,0 +1,50 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "LootTables",
+  "family": "items",
+  "key": "Name",
+  "rowStruct": "FDsoaLootTablesRow",
+  "description": "Where things are found. A container rolls `rolls` times (Rolls_Min..Rolls_Max); a roll can come up empty (the None weight). LootTablesRows are the weighted entries: an item key, a weight, a count range.",
+  "legacy": {
+    "file": "src/data/items.js LOOT (the tables typed in that file; other modules add tables and rows by code)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Rolls_Min",
+      "type": "int",
+      "path": "rolls.0",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Rolls_Max",
+      "type": "int",
+      "path": "rolls.1",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "None",
+      "type": "float",
+      "path": "none",
+      "required": true,
+      "unit": "",
+      "description": "Weight of an empty roll."
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

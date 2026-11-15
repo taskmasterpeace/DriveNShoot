@@ -1,0 +1,42 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "GunWear",
+  "family": "items",
+  "key": "Name",
+  "rowStruct": "FDsoaGunWearRow",
+  "description": "What each gun loses per shot (condition 1 clean .. 0 broken) and how readily it jams once worn (x the base rate).",
+  "legacy": {
+    "file": "src/data/items.js GUN_WEAR",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Wear",
+      "type": "float",
+      "path": "wear",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Jam",
+      "type": "float",
+      "path": "jam",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+Name,Item,Source
+pistol,gun_pistol,design: docs/design/WEB_INVENTORY.md
+smg,gun_smg,design: docs/design/WEB_INVENTORY.md
+shotgun,gun_shotgun,design: docs/design/WEB_INVENTORY.md
+rifle,gun_rifle,design: docs/design/WEB_INVENTORY.md
+auto,gun_auto,design: docs/design/WEB_INVENTORY.md
+pump,gun_pump,design: docs/design/WEB_INVENTORY.md
+rimfire,gun_rimfire,design: docs/design/WEB_INVENTORY.md
+magnum,gun_magnum,design: docs/design/WEB_INVENTORY.md
+carbine,gun_carbine,design: docs/design/WEB_INVENTORY.md
+battle,gun_battle,design: docs/design/WEB_INVENTORY.md
+lmg,gun_lmg,design: docs/design/WEB_INVENTORY.md
+mmg,gun_mmg,design: docs/design/WEB_INVENTORY.md
+amr,gun_amr,design: docs/design/WEB_INVENTORY.md

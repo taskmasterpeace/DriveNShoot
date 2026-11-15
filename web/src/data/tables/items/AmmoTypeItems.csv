@@ -1,0 +1,12 @@
+Name,Item,Source
+pistol,ammo_pistol,design: docs/design/WEB_INVENTORY.md
+smg,ammo_smg,design: docs/design/WEB_INVENTORY.md
+shells,ammo_shells,design: docs/design/WEB_INVENTORY.md
+birdshot,ammo_birdshot,design: docs/design/WEB_INVENTORY.md
+slug,ammo_slug,design: docs/design/WEB_INVENTORY.md
+rifle,ammo_rifle,design: docs/design/WEB_INVENTORY.md
+22lr,ammo_22lr,design: docs/design/WEB_INVENTORY.md
+357mag,ammo_357mag,design: docs/design/WEB_INVENTORY.md
+762x39,ammo_762x39,design: docs/design/WEB_INVENTORY.md
+762x51,ammo_762x51,design: docs/design/WEB_INVENTORY.md
+50bmg,ammo_50bmg,design: docs/design/WEB_INVENTORY.md

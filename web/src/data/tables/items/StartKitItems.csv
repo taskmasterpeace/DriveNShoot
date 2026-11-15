@@ -1,0 +1,7 @@
+Name,Kit,Index,Item,Count,Source
+default_0,default,0,water_bottle,1,design: docs/design/WEB_INVENTORY.md
+default_1,default,1,jerky,2,design: docs/design/WEB_INVENTORY.md
+default_2,default,2,rag,2,design: docs/design/WEB_INVENTORY.md
+default_3,default,3,knife,1,design: docs/design/WEB_INVENTORY.md
+default_4,default,4,flashlight,1,design: docs/design/WEB_INVENTORY.md
+default_5,default,5,battery_cell,1,design: docs/design/WEB_INVENTORY.md
