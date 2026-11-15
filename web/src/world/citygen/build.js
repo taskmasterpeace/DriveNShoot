@@ -354,6 +354,28 @@ export function buildBuilding(B, out, T, rng) {
     }
   }
 
+  // ---- a drainpipe to climb (docs/design/WEB_WINDOWS2.md; systems/windowexit.js): on a building with a floor above the
+  // street, between the first two upstairs windows of its back wall (a side wall if the back has none). A record and a
+  // look; no collider (you do not walk into it, you climb it).
+  if (n >= 2 && !B.ruined && !B.open) {
+    const back = { N: 'S', S: 'N', W: 'E', E: 'W' }[B.front];
+    for (const sn of [back, ...['N', 'S', 'W', 'E'].filter((q) => q !== back && q !== B.front)]) {
+      const sd = sides.find((q) => q.s === sn), L = sd.a1 - sd.a0, nw = Math.max(0, Math.floor((L - 2) / VERT.window.every));
+      if (!nw) continue;
+      const stepW = (L - 2) / nw, c = sd.a0 + 1 + 0.5 * stepW; // the first window's centre along this wall
+      const floors = [];
+      for (let k = 1; k < n; k++) { if (esc && esc.side === sn && k <= esc.topL && Math.abs(escDoorAt - c) < VERT.escape.door / 2 + VERT.window.w / 2 + 0.3) continue; floors.push(k); }
+      if (!floors.length) continue;
+      const a = Math.min(sd.a1 - 0.5, c + (nw > 1 ? stepW / 2 : VERT.window.w / 2 + 1.0));
+      if (esc && esc.side === sn && Math.abs(escDoorAt - a) < VERT.escape.door / 2 + 0.6) continue; // never down the face of the fire escape's doors
+      const px = sd.horiz ? a : sd.fixed + sd.nx * (IN + 0.1), pz = sd.horiz ? sd.fixed + sd.nz * (IN + 0.1) : a, hgt = Y[floors[floors.length - 1]] + VERT.window.sill + VERT.window.h;
+      vis(px, hgt / 2, pz, 0.14, hgt, 0.14, '#555a5c', 0);
+      for (const k of floors) vis(px, Y[k] + 0.1, pz, sd.horiz ? 0.34 : 0.2, 0.08, sd.horiz ? 0.2 : 0.34, '#3e4244', 0);
+      B.pipe = { x: px, z: pz, nx: sd.nx, nz: sd.nz, wx: sd.horiz ? c : sd.fixed, wz: sd.horiz ? sd.fixed : c, floors, side: sn };
+      break;
+    }
+  }
+
   // ---- what the building wears on its street face (data/cgrooms.js FRONTS): a sign board and an awning over the front
   // door. Looks only, all of it over head height: no collider, nothing in a lane.
   { const F = FRONTS[B.kind], fd = F && !B.ruined ? B.doors.find((q) => q.kind === 'door' && q.side === B.front) : null;

@@ -102,3 +102,9 @@ get up limping, and hear the one that screams come out of the window after you.
    with its own `windowExit` event; after the follow time has passed a second sprinter stays.
 
 Pictures: `docs/renders/web/window-exit/`.
+
+## Addendum (2026-11-13)
+
+`WEB_WINDOWS2.md` builds on this and covers three of the items listed above as not covered: climbing up and in (a
+drainpipe), climbing down (the same pipe), and landing on a lower roof. This doc's rules for the hang, the drop, its cost
+and the followers are unchanged; where a window now offers a pipe or a roof, that doc says which.

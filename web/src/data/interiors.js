@@ -102,11 +102,20 @@ export const WINDOW_MIX = {
 //   out     m out from the wall you land                           noise  [m base, m per metre dropped] the landing carries
 //   down    s on the ground after landing: clean (inside the safe height) | hurt
 //   follow  who jumps after you: kinds (in their burst only), for `secs` s after you went, from within `reach` m of the sill
-export const WINDOW_EXIT = { wall: 0.9, reach: 1.3, hold: 1.0, minUp: 2.4, hang: 1.9, out: 1.1, noise: [8, 2], down: { clean: 0.4, hurt: 1.2 }, follow: { kinds: ['sprinter'], secs: 25, reach: 1.7 } };
+//   pipe    the drainpipe (world/citygen/build.js B.pipe): reach m along the wall from the window you face to the pipe;
+//           speed m/s you climb it, up or down; foot m out from the wall you stand at its bottom; grab m from that spot
+//           you can take hold of it from the street; noise m the climb carries
+//   roof    landing on the next building's roof instead of the street: min m it must be below your floor (less is a
+//           step, not a drop); in m inside its edge you land (past the parapet); reach m from the window, at most;
+//           jump m out from the wall the next building is looked for across an alley (nearest first)
+export const WINDOW_EXIT = { wall: 0.9, reach: 1.3, hold: 1.0, minUp: 2.4, hang: 1.9, out: 1.1, noise: [8, 2], down: { clean: 0.4, hurt: 1.2 }, follow: { kinds: ['sprinter'], secs: 25, reach: 1.7 },
+  pipe: { reach: 2.8, speed: 1.4, foot: 0.6, grab: 1.2, noise: 6 }, roof: { min: 0.6, in: 0.9, reach: 4.4, jump: [1.8, 2.5, 3.2] } };
 
 export function validateWindowExit(W = WINDOW_EXIT) {
   const bad = [], kinds = ['shambler', 'sprinter', 'echo'];
   if (!(W.reach >= 0.8 && W.reach <= 2)) bad.push('WINDOW_EXIT.reach: 0.8-2 m');
+  if (!(W.pipe && W.pipe.reach >= 1 && W.pipe.reach <= 4 && W.pipe.speed >= 0.5 && W.pipe.speed <= 4 && W.pipe.foot >= 0.4 && W.pipe.foot <= 1 && W.pipe.grab >= 0.8 && W.pipe.grab <= 2 && W.pipe.noise >= 0)) bad.push('WINDOW_EXIT.pipe: reach 1-4, speed 0.5-4, foot 0.4-1, grab 0.8-2');
+  if (!(W.roof && W.roof.min >= 0.3 && W.roof.in >= 0.5 && W.roof.in <= 2 && W.roof.reach >= W.out + W.roof.in && Array.isArray(W.roof.jump) && W.roof.jump.every((q) => q > W.out && q <= 4) && W.roof.reach >= Math.max(...W.roof.jump) + W.roof.in)) bad.push('WINDOW_EXIT.roof: min 0.3+, in 0.5-2, jump each over out and at most 4 m, reach at least the longest jump + in');
   if (!(W.hold >= 0.3 && W.hold <= 5)) bad.push('WINDOW_EXIT.hold: 0.3-5 s (a tap must not throw you out of a window)');
   if (!(W.minUp >= 2 && W.minUp <= 4)) bad.push('WINDOW_EXIT.minUp: 2-4 m');
   if (!(W.hang >= 1 && W.hang <= 2.4)) bad.push('WINDOW_EXIT.hang: 1-2.4 m (a body hanging by its hands, never more than a storey)');
