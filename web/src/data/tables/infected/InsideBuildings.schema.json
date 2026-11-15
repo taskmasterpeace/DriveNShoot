@@ -1,0 +1,63 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "InsideBuildings",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaInsideBuildingsRow",
+  "description": "Who is inside a building when the street is generated, by building kind: bodies on the street storey N_Min..N_Max, and the breed shares (Mix_*, sum 1).",
+  "legacy": {
+    "file": "src/data/infected.js INSIDE",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "N_Min",
+      "type": "int",
+      "path": "n.0",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "N_Max",
+      "type": "int",
+      "path": "n.1",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Mix_Shambler",
+      "type": "float",
+      "path": "mix.shambler",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Mix_Sprinter",
+      "type": "float",
+      "path": "mix.sprinter",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Mix_Echo",
+      "type": "float",
+      "path": "mix.echo",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

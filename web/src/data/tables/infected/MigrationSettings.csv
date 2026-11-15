@@ -1,0 +1,2 @@
+Name,Speed_mps,Every_Min_gh,Every_Max_gh,Size_Min,Size_Max,Length_m,From_Min_m,From_Max_m,DustSeen_m,Witness_m,Report_gmin,Lane_m,MaxLive,Source
+default,1.5,20,40,80,220,6000,1800,3200,2200,220,6,18,2,design: docs/design/WEB_DEATHS.md

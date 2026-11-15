@@ -1,0 +1,55 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "ChoirSites",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaChoirSitesRow",
+  "description": "Choir sites: a silence with an address. Position in world metres; the player must be within Near metres for it to wake.",
+  "legacy": {
+    "file": "src/data/infected.js CHOIR_SITES (an array in the game: Name is the id)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "X_m",
+      "type": "float",
+      "path": "x",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Z_m",
+      "type": "float",
+      "path": "z",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Near_m",
+      "type": "float",
+      "path": "near",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

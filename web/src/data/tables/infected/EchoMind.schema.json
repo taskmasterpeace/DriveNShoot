@@ -1,0 +1,195 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "EchoMind",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaEchoMindRow",
+  "description": "The smart Echo: stalk, hide, ambush, lure, night, learn (systems/echomind.js). One row.",
+  "legacy": {
+    "file": "src/data/hordes.js ECHO_MIND",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Sense",
+      "type": "float",
+      "path": "sense",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Keep_m",
+      "type": "float",
+      "path": "keep",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "KeepMax_m",
+      "type": "float",
+      "path": "keepMax",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "LearnKeep_m",
+      "type": "float",
+      "path": "learnKeep",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Seen_m",
+      "type": "float",
+      "path": "seen",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Fov_deg",
+      "type": "float",
+      "path": "fov",
+      "required": true,
+      "unit": "deg"
+    },
+    {
+      "name": "Stalk_mps",
+      "type": "float",
+      "path": "stalk",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "Flee_mps",
+      "type": "float",
+      "path": "flee",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "HideFor_s",
+      "type": "float",
+      "path": "hideFor",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "Move_m",
+      "type": "float",
+      "path": "move",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "AmbushR_m",
+      "type": "float",
+      "path": "ambushR",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Align",
+      "type": "float",
+      "path": "align",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Strike_m",
+      "type": "float",
+      "path": "strike",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Claw",
+      "type": "float",
+      "path": "claw",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Cool_s",
+      "type": "float",
+      "path": "cool",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "Wait_s",
+      "type": "float",
+      "path": "wait",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "LureAfter_s",
+      "type": "float",
+      "path": "lureAfter",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "LureEvery_s",
+      "type": "float",
+      "path": "lureEvery",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "LureWin_s",
+      "type": "float",
+      "path": "lureWin",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "LureDrew_m",
+      "type": "float",
+      "path": "lureDrew",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "LureLine",
+      "type": "string",
+      "path": "lureLine",
+      "required": true
+    },
+    {
+      "name": "SeenNight_m",
+      "type": "float",
+      "path": "seenNight",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "BeamSee_m",
+      "type": "float",
+      "path": "beamSee",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "BeamHalf_deg",
+      "type": "float",
+      "path": "beamHalf",
+      "required": true,
+      "unit": "deg"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

@@ -1,0 +1,410 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Infected",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaInfectedRow",
+  "description": "The infected, one row per breed (shambler, sprinter, echo, and the choir special): hit points, speed, senses, door work, legs, lunge, fall, fire and light. Sparse: a column applies to the breeds that use it. Claw: damage for a shambler or echo, a damage MULTIPLIER for a sprinter (as the legacy row has it).",
+  "legacy": {
+    "file": "src/data/infected.js INFECTED",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Hp_hp",
+      "type": "float",
+      "path": "hp",
+      "required": true,
+      "unit": "hp"
+    },
+    {
+      "name": "Speed_Min_mps",
+      "type": "float",
+      "path": "speed.0",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Speed_Max_mps",
+      "type": "float",
+      "path": "speed.1",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Claw",
+      "type": "float",
+      "path": "claw",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Sense_Sight_m",
+      "type": "float",
+      "path": "sense.sight",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Sense_Night_m",
+      "type": "float",
+      "path": "sense.night",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Sense_Lit_m",
+      "type": "float",
+      "path": "sense.lit",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Sense_Cone_deg",
+      "type": "float",
+      "path": "sense.cone",
+      "required": true,
+      "unit": "deg"
+    },
+    {
+      "name": "Sense_Near_m",
+      "type": "float",
+      "path": "sense.near",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Sense_Steps",
+      "type": "float",
+      "path": "sense.steps",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Sense_Hear",
+      "type": "float",
+      "path": "sense.hear",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Sense_Smell_m",
+      "type": "float",
+      "path": "sense.smell",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Sense_Memory_s",
+      "type": "float",
+      "path": "sense.memory",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "Sense_Search_s",
+      "type": "float",
+      "path": "sense.search",
+      "required": true,
+      "unit": "s"
+    },
+    {
+      "name": "Sense_SearchR_m",
+      "type": "float",
+      "path": "sense.searchR",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Sense_Scatter_m",
+      "type": "float",
+      "path": "sense.scatter",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Door_Every_s",
+      "type": "float",
+      "path": "door.every",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Door_Dmg_hp",
+      "type": "float",
+      "path": "door.dmg",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Legs_hp",
+      "type": "float",
+      "path": "legs",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Crawl_mps",
+      "type": "float",
+      "path": "crawl",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Lunge_At_m",
+      "type": "float",
+      "path": "lunge.at",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Lunge_Speed_mps",
+      "type": "float",
+      "path": "lunge.speed",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Lunge_T_s",
+      "type": "float",
+      "path": "lunge.t",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Lunge_Cool_s",
+      "type": "float",
+      "path": "lunge.cool",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Fall_Dmg_hp",
+      "type": "float",
+      "path": "fall.dmg",
+      "required": false,
+      "unit": "hp"
+    },
+    {
+      "name": "Fall_Chance",
+      "type": "float",
+      "path": "fall.chance",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Fall_GetUp_s",
+      "type": "float",
+      "path": "fall.getUp",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Fall_Grab_m",
+      "type": "float",
+      "path": "fall.grab",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Fire_m",
+      "type": "float",
+      "path": "fire",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Light_m",
+      "type": "float",
+      "path": "light",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Trigger_mps",
+      "type": "float",
+      "path": "trigger",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Ear_m",
+      "type": "float",
+      "path": "ear",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Wake_m",
+      "type": "float",
+      "path": "wake",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Burst_s",
+      "type": "float",
+      "path": "burst",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Chase_s",
+      "type": "float",
+      "path": "chase",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "BurstSpeed_mps",
+      "type": "float",
+      "path": "burstSpeed",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Overheat_s",
+      "type": "float",
+      "path": "overheat",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Rearm_s",
+      "type": "float",
+      "path": "rearm",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Reach_m",
+      "type": "float",
+      "path": "reach",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "WorkEvery_s",
+      "type": "float",
+      "path": "workEvery",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Boards",
+      "type": "int",
+      "path": "boards",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Watch_m",
+      "type": "float",
+      "path": "watch",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Cone_deg",
+      "type": "float",
+      "path": "cone",
+      "required": false,
+      "unit": "deg"
+    },
+    {
+      "name": "Phrase_s",
+      "type": "float",
+      "path": "phrase",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Hear_m",
+      "type": "float",
+      "path": "hear",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Call_m",
+      "type": "float",
+      "path": "call",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Line",
+      "type": "string",
+      "path": "line",
+      "required": false
+    },
+    {
+      "name": "Hum_m",
+      "type": "float",
+      "path": "hum",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "HumEvery_s",
+      "type": "float",
+      "path": "humEvery",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Aura_m",
+      "type": "float",
+      "path": "aura",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Speed_mps",
+      "type": "float",
+      "path": "speed",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Herd_Min",
+      "type": "int",
+      "path": "herd.0",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Herd_Max",
+      "type": "int",
+      "path": "herd.1",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Site",
+      "type": "bool",
+      "path": "site",
+      "required": false
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

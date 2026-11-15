@@ -1,0 +1,4 @@
+Name,Answer,LatchBelow_mps,Windup_s,Steer_radps,Overshoot_m,Skid_s,CarLeap_m,Hear_m,MinR_m,Delay_s,Gain,Every_s,Source
+shambler,crowd,7,,,,,,,,,,,design: docs/design/WEB_DEATHS.md
+sprinter,reflex,,0.6,1.1,4,0.45,5.5,,,,,,design: docs/design/WEB_DEATHS.md
+echo,stealth,,,,,,,60,10,1.4,1,4,design: docs/design/WEB_DEATHS.md

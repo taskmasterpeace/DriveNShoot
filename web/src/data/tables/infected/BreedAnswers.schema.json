@@ -1,0 +1,111 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "BreedAnswers",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaBreedAnswersRow",
+  "description": "The ANSWER each breed demands (crowd, reflex, stealth) and the numbers that make it demand it. Sparse per breed.",
+  "legacy": {
+    "file": "src/data/hordes.js BREED_ANSWERS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Answer",
+      "type": "string",
+      "path": "answer",
+      "required": true
+    },
+    {
+      "name": "LatchBelow_mps",
+      "type": "float",
+      "path": "latchBelow",
+      "required": false,
+      "unit": "mps"
+    },
+    {
+      "name": "Windup_s",
+      "type": "float",
+      "path": "windup",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Steer_radps",
+      "type": "float",
+      "path": "steer",
+      "required": false,
+      "unit": "radps"
+    },
+    {
+      "name": "Overshoot_m",
+      "type": "float",
+      "path": "overshoot",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Skid_s",
+      "type": "float",
+      "path": "skid",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "CarLeap_m",
+      "type": "float",
+      "path": "carLeap",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Hear_m",
+      "type": "float",
+      "path": "hear",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "MinR_m",
+      "type": "float",
+      "path": "minR",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Delay_s",
+      "type": "float",
+      "path": "delay",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Gain",
+      "type": "float",
+      "path": "gain",
+      "required": false,
+      "unit": ""
+    },
+    {
+      "name": "Every_s",
+      "type": "float",
+      "path": "every",
+      "required": false,
+      "unit": "s"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

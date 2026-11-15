@@ -1,0 +1,119 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "MigrationSettings",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaMigrationSettingsRow",
+  "description": "Hordes as events: a horde migrates down a highway. Speed, game hours between migrations, size, length, start distance, dust and witness ranges. One row.",
+  "legacy": {
+    "file": "src/data/hordes.js MIGRATION",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Speed_mps",
+      "type": "float",
+      "path": "speed",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "Every_Min_gh",
+      "type": "float",
+      "path": "every.0",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Every_Max_gh",
+      "type": "float",
+      "path": "every.1",
+      "required": true,
+      "unit": "gh"
+    },
+    {
+      "name": "Size_Min",
+      "type": "int",
+      "path": "size.0",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Size_Max",
+      "type": "int",
+      "path": "size.1",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Length_m",
+      "type": "float",
+      "path": "length",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "From_Min_m",
+      "type": "float",
+      "path": "from.0",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "From_Max_m",
+      "type": "float",
+      "path": "from.1",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "DustSeen_m",
+      "type": "float",
+      "path": "dustSeen",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Witness_m",
+      "type": "float",
+      "path": "witness",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Report_gmin",
+      "type": "float",
+      "path": "report",
+      "required": true,
+      "unit": "game_min"
+    },
+    {
+      "name": "Lane_m",
+      "type": "float",
+      "path": "lane",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "MaxLive",
+      "type": "int",
+      "path": "maxLive",
+      "required": true,
+      "unit": "count"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

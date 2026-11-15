@@ -1,0 +1,77 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "FootstepSettings",
+  "family": "infected",
+  "key": "Name",
+  "rowStruct": "FDsoaFootstepSettingsRow",
+  "description": "How far the living feet carry, by what they are doing (the infected hear it x their sense.steps); runAt is the speed that counts as running. One row.",
+  "legacy": {
+    "file": "src/data/infected.js FOOTSTEPS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Stand_m",
+      "type": "float",
+      "path": "stand",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Walk_m",
+      "type": "float",
+      "path": "walk",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Run_m",
+      "type": "float",
+      "path": "run",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Crouch_m",
+      "type": "float",
+      "path": "crouch",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Prone_m",
+      "type": "float",
+      "path": "prone",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Swim_m",
+      "type": "float",
+      "path": "swim",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "RunAt_mps",
+      "type": "float",
+      "path": "runAt",
+      "required": true,
+      "unit": "mps"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+Name,Sense,Keep_m,KeepMax_m,LearnKeep_m,Seen_m,Fov_deg,Stalk_mps,Flee_mps,HideFor_s,Move_m,AmbushR_m,Align,Strike_m,Claw,Cool_s,Wait_s,LureAfter_s,LureEvery_s,LureWin_s,LureDrew_m,LureLine,SeenNight_m,BeamSee_m,BeamHalf_deg,Source
+default,0.4,13,26,3,34,70,1.9,2.9,3,1,40,0.82,1.6,1.2,0.9,25,3,12,15,5,help... over here...,10,70,16,design: docs/design/WEB_DEATHS.md

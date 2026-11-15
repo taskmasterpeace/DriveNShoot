@@ -15,7 +15,7 @@
     "shard:seed": "node server/seed-dev.mjs",
     "shard:test": "node tools/shard-test.mjs",
     "tables:check": "node --import ./tools/tables/register-json.mjs tools/tables-check.mjs",
-    "tables:test": "node --import ./tools/tables/register-json.mjs --test tools/tables-load.test.mjs tools/tables-vehicles.test.mjs tools/tables-regions.test.mjs tools/tables-items.test.mjs"
+    "tables:test": "node --import ./tools/tables/register-json.mjs --test tools/tables-load.test.mjs tools/tables-vehicles.test.mjs tools/tables-regions.test.mjs tools/tables-items.test.mjs tools/tables-infected.test.mjs"
   },
   "dependencies": {
     "three": "^0.170.0",

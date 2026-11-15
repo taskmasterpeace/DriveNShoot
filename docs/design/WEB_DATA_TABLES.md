@@ -48,9 +48,9 @@ existed. Never regenerate it from the wrappers (that would compare the tables wi
 | Family | Folder | Status |
 |---|---|---|
 | Vehicles: bodies, seats, driving, towing, trailers, old garage parts, workshop | `tables/vehicles/` | migrated (this change): 41 tables, 367 rows |
-| Region character | `tables/regions/` | new data, nothing reads it yet |
-| Items and loot | | next |
-| Infected and hordes | | next |
+| Region character | `tables/regions/` | new data (11 regions): nothing reads it yet, see WEB_REGION_CHARACTER.md |
+| Items and loot | `tables/items/` | migrated: items.js inline rows, loot tables, gun wear/care/found, start kit |
+| Infected and hordes | `tables/infected/` | tables + equality test done; data/hordes.js is a wrapper; data/infected.js wrapper STAGED (`tools/tables/wrap-infected.mjs`) until the feat/web-zed-* branches land |
 | Building furnishing | | next (coordinate with the zombies/interiors session) |
 | Weather, economy, encounters | | after the live sessions land |
 

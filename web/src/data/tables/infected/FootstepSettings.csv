@@ -1,0 +1,2 @@
+Name,Stand_m,Walk_m,Run_m,Crouch_m,Prone_m,Swim_m,RunAt_mps,Source
+default,0,6,16,2,0,3,5,design: docs/design/THE_INFECTED.md
