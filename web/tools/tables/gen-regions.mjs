@@ -90,7 +90,7 @@ table('Regions', 'One row per region of the country: climate band, terrain, dial
 
 table('RegionStates', 'Which states are in a region, and who rules each (the canon rulers).',
   [NAME, C('Region', 'string', { ref: { table: 'Regions', column: 'Name' } }), C('State', 'string'), C('Ruler', 'string', { required: false }), SRC],
-  REGIONS.flatMap((r) => SITE_REGIONS[r].states.map((st) => [`${r}_${st}`, r, st, RULERS[st] ?? '', 'docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS'])));
+  REGIONS.flatMap((r) => SITE_REGIONS[r].states.map((st) => [`${r}_${st}`, r, st, RULERS[st] ?? (st === 'DC' ? 'no ruler: the Capitol Dead Zone' : ''), 'docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS'])));
 
 table('RegionBiomes', 'Biomes in a region and how many of its site rows use each. Derived from the site catalogue.',
   [NAME, C('Region', 'string', { ref: { table: 'Regions', column: 'Name' } }), C('Biome', 'string', { ref: { table: 'Biomes', column: 'Name' } }), C('SiteCount', 'int', { unit: 'count', min: 1 }), SRC],
