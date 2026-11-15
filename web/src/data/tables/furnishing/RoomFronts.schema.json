@@ -1,0 +1,34 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "RoomFronts",
+  "family": "furnishing",
+  "key": "Name",
+  "rowStruct": "FDsoaRoomFrontsRow",
+  "description": "The island front room for a quarters plan, by programme.",
+  "legacy": {
+    "file": "src/data/floorplans.js FRONTS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Room",
+      "type": "string",
+      "path": "room",
+      "required": true
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

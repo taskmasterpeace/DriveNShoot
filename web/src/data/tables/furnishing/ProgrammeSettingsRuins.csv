@@ -1,0 +1,4 @@
+Name,Setting,Index,Programme,Weight,Source
+default_0,default,0,rhouse,5,design: docs/design/WEB_FLOORPLANS.md
+default_1,default,1,roffice,2.5,design: docs/design/WEB_FLOORPLANS.md
+default_2,default,2,rshop,2.5,design: docs/design/WEB_FLOORPLANS.md

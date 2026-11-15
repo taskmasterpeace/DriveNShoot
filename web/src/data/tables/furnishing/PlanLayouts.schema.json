@@ -1,0 +1,75 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "PlanLayouts",
+  "family": "furnishing",
+  "key": "Name",
+  "rowStruct": "FDsoaPlanLayoutsRow",
+  "description": "One row per floor plan of a building kind: Kind, PlanId, the weight it is picked with (W), and the room types it has with how many of each (PlanLayoutsRooms). Which building kind gets which rooms, hence which furniture.",
+  "legacy": {
+    "file": "src/data/floorplans.js PLANS (the tree is not tabulated; PlanLayoutsRooms counts its rooms)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Kind",
+      "type": "string",
+      "path": "kind",
+      "required": true
+    },
+    {
+      "name": "PlanId",
+      "type": "string",
+      "path": "planId",
+      "required": true
+    },
+    {
+      "name": "W",
+      "type": "float",
+      "path": "w",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "Size_U_Min_m",
+      "type": "float",
+      "path": "size.u.0",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Size_U_Max_m",
+      "type": "float",
+      "path": "size.u.1",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Size_V_Min_m",
+      "type": "float",
+      "path": "size.v.0",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Size_V_Max_m",
+      "type": "float",
+      "path": "size.v.1",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

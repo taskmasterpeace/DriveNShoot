@@ -1,0 +1,20 @@
+Name,Setting,Index,Value,Source
+default_0,default,0,bedroom,design: docs/design/WEB_FLOORPLANS.md
+default_1,default,1,kitchen,design: docs/design/WEB_FLOORPLANS.md
+default_2,default,2,dkitchen,design: docs/design/WEB_FLOORPLANS.md
+default_3,default,3,bath,design: docs/design/WEB_FLOORPLANS.md
+default_4,default,4,restroom,design: docs/design/WEB_FLOORPLANS.md
+default_5,default,5,office,design: docs/design/WEB_FLOORPLANS.md
+default_6,default,6,stock,design: docs/design/WEB_FLOORPLANS.md
+default_7,default,7,exam,design: docs/design/WEB_FLOORPLANS.md
+default_8,default,8,pharmacy,design: docs/design/WEB_FLOORPLANS.md
+default_9,default,9,study,design: docs/design/WEB_FLOORPLANS.md
+default_10,default,10,wc,design: docs/design/WEB_FLOORPLANS.md
+default_11,default,11,backroom,design: docs/design/WEB_FLOORPLANS.md
+default_12,default,12,qkitchen,design: docs/design/WEB_FLOORPLANS.md
+default_13,default,13,qbed,design: docs/design/WEB_FLOORPLANS.md
+default_14,default,14,qbath,design: docs/design/WEB_FLOORPLANS.md
+default_15,default,15,ckitchen,design: docs/design/WEB_FLOORPLANS.md
+default_16,default,16,cell,design: docs/design/WEB_FLOORPLANS.md
+default_17,default,17,sbath,design: docs/design/WEB_FLOORPLANS.md
+default_18,default,18,shackback,design: docs/design/WEB_FLOORPLANS.md

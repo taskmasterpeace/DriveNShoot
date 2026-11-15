@@ -1,0 +1,98 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "RoomTypes",
+  "family": "furnishing",
+  "key": "Name",
+  "rowStruct": "FDsoaRoomTypesRow",
+  "description": "One row per room type: size limits, how it grows, whether the front door opens into it, the floor finish, the loot table its containers roll, and what stands in it (RoomTypesFurniture: piece, min, max). RoomTypesVia lists the room types its doorway may open onto, best first. RoomTypesRare: a piece that appears by chance. `Fix`: exactly this wide along its split axis (a hall).",
+  "legacy": {
+    "file": "src/data/floorplans.js ROOMS",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "DisplayName",
+      "type": "string",
+      "path": "name",
+      "required": true
+    },
+    {
+      "name": "Min_m",
+      "type": "float",
+      "path": "min",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Grow",
+      "type": "float",
+      "path": "grow",
+      "required": true,
+      "unit": "",
+      "description": "Share of the space left over once every room has its minimum."
+    },
+    {
+      "name": "Entry",
+      "type": "bool",
+      "path": "entry",
+      "required": false
+    },
+    {
+      "name": "Back",
+      "type": "int",
+      "path": "back",
+      "required": false,
+      "unit": "",
+      "description": "A back door may go in its outside wall (lower = preferred)."
+    },
+    {
+      "name": "Stay",
+      "type": "bool",
+      "path": "stay",
+      "required": false,
+      "description": "Residents spend their day here."
+    },
+    {
+      "name": "Max_m",
+      "type": "float",
+      "path": "max",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Floor",
+      "type": "string",
+      "path": "floor",
+      "required": false,
+      "description": "Hex colour of a floor finish laid over the building floor; empty = the building's own floor."
+    },
+    {
+      "name": "Loot",
+      "type": "string",
+      "path": "loot",
+      "required": false,
+      "description": "Loot table key (items/LootTables)."
+    },
+    {
+      "name": "Fix_m",
+      "type": "float",
+      "path": "fix",
+      "required": false,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

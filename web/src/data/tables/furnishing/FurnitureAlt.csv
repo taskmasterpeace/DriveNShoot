@@ -1,0 +1,27 @@
+Name,Piece,Index,Value,Source
+bed_0,bed,0,#8a3a2e,design: docs/design/WEB_FLOORPLANS.md
+bed_1,bed,1,#3f5a6a,design: docs/design/WEB_FLOORPLANS.md
+bed_2,bed,2,#6a7a4a,design: docs/design/WEB_FLOORPLANS.md
+bed_3,bed,3,#a0844e,design: docs/design/WEB_FLOORPLANS.md
+bed_4,bed,4,#5a6e7a,design: docs/design/WEB_FLOORPLANS.md
+bed_5,bed,5,#7a5a3a,design: docs/design/WEB_FLOORPLANS.md
+sbed_0,sbed,0,#8a3a2e,design: docs/design/WEB_FLOORPLANS.md
+sbed_1,sbed,1,#3f5a6a,design: docs/design/WEB_FLOORPLANS.md
+sbed_2,sbed,2,#6a7a4a,design: docs/design/WEB_FLOORPLANS.md
+sbed_3,sbed,3,#a0844e,design: docs/design/WEB_FLOORPLANS.md
+sbed_4,sbed,4,#5a6e7a,design: docs/design/WEB_FLOORPLANS.md
+sbed_5,sbed,5,#7a5a3a,design: docs/design/WEB_FLOORPLANS.md
+mattress_0,mattress,0,#5a4a3a,design: docs/design/WEB_FLOORPLANS.md
+mattress_1,mattress,1,#6a5a42,design: docs/design/WEB_FLOORPLANS.md
+mattress_2,mattress,2,#4f5a52,design: docs/design/WEB_FLOORPLANS.md
+mattress_3,mattress,3,#7a5a3a,design: docs/design/WEB_FLOORPLANS.md
+cot_0,cot,0,#a8b8a8,design: docs/design/WEB_FLOORPLANS.md
+cot_1,cot,1,#b8b0a0,design: docs/design/WEB_FLOORPLANS.md
+cot_2,cot,2,#9aaab0,design: docs/design/WEB_FLOORPLANS.md
+cot_3,cot,3,#c2b490,design: docs/design/WEB_FLOORPLANS.md
+dbed_0,dbed,0,#8a3a2e,design: docs/design/WEB_FLOORPLANS.md
+dbed_1,dbed,1,#3f5a6a,design: docs/design/WEB_FLOORPLANS.md
+dbed_2,dbed,2,#6a7a4a,design: docs/design/WEB_FLOORPLANS.md
+dbed_3,dbed,3,#a0844e,design: docs/design/WEB_FLOORPLANS.md
+dbed_4,dbed,4,#5a6e7a,design: docs/design/WEB_FLOORPLANS.md
+dbed_5,dbed,5,#7a5a3a,design: docs/design/WEB_FLOORPLANS.md

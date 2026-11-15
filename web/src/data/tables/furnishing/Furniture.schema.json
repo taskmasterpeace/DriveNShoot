@@ -1,0 +1,116 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "Furniture",
+  "family": "furnishing",
+  "key": "Name",
+  "rowStruct": "FDsoaFurnitureRow",
+  "description": "One row per piece of furniture: size (X along the wall, Y out from it, Z height; metres), colours (FurnitureColors, FurnitureAlt), whether it is a container (Box_*) and the loot table it rolls, solid, bed and sleeping spots, and placement rules: near/far a piece already in the room, FarDoor, Centre.",
+  "legacy": {
+    "file": "src/data/ring.js FURNITURE (without `parts`, the boxes it is drawn from)",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Size_X_m",
+      "type": "float",
+      "path": "size.0",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Size_Y_m",
+      "type": "float",
+      "path": "size.1",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Size_Z_m",
+      "type": "float",
+      "path": "size.2",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Box_Label",
+      "type": "string",
+      "path": "box.label",
+      "required": false
+    },
+    {
+      "name": "Box_Cap_L",
+      "type": "float",
+      "path": "box.cap",
+      "required": false,
+      "unit": "L",
+      "description": "Litres the container holds."
+    },
+    {
+      "name": "Box_Loot",
+      "type": "string",
+      "path": "box.loot",
+      "required": false
+    },
+    {
+      "name": "Solid",
+      "type": "bool",
+      "path": "solid",
+      "required": true
+    },
+    {
+      "name": "Near",
+      "type": "string",
+      "path": "near",
+      "required": false,
+      "description": "Placed close to this piece already in the room (* = any)."
+    },
+    {
+      "name": "Bed",
+      "type": "bool",
+      "path": "bed",
+      "required": false
+    },
+    {
+      "name": "Spots",
+      "type": "int",
+      "path": "spots",
+      "required": false,
+      "unit": "count"
+    },
+    {
+      "name": "FarDoor",
+      "type": "bool",
+      "path": "farDoor",
+      "required": false,
+      "description": "Away from the room's doorway (a bed's head wall)."
+    },
+    {
+      "name": "Far",
+      "type": "string",
+      "path": "far",
+      "required": false,
+      "description": "Placed away from this piece."
+    },
+    {
+      "name": "Centre",
+      "type": "bool",
+      "path": "centre",
+      "required": false,
+      "description": "Stands in the middle of the room, not on a wall."
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

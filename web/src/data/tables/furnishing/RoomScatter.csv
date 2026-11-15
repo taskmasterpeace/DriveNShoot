@@ -1,0 +1,11 @@
+Name,Piece,Every_m,Inset_m,Max,Source
+barroom,ctable,3.6,2.4,6,design: docs/design/WEB_FLOORPLANS.md
+lobby,ctable,4,2.4,2,design: docs/design/WEB_FLOORPLANS.md
+waiting,bench,3.4,2.2,4,design: docs/design/WEB_FLOORPLANS.md
+sales,gondola,3.4,2.4,6,design: docs/design/WEB_FLOORPLANS.md
+offices,desk,3,2.2,8,design: docs/design/WEB_FLOORPLANS.md
+garage,tyres,4,2.4,2,design: docs/design/WEB_FLOORPLANS.md
+qliving,ctable,3.6,2.2,1,design: docs/design/WEB_FLOORPLANS.md
+gunshop,counter,3.6,2.4,2,design: docs/design/WEB_FLOORPLANS.md
+watershop,tank,3.6,2.4,2,design: docs/design/WEB_FLOORPLANS.md
+studio,ctable,4,2.4,1,design: docs/design/WEB_FLOORPLANS.md

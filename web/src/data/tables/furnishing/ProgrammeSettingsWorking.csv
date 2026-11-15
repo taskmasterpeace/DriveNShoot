@@ -1,0 +1,13 @@
+Name,Setting,Index,Value,Source
+default_0,default,0,waiting,design: docs/design/WEB_FLOORPLANS.md
+default_1,default,1,ward,design: docs/design/WEB_FLOORPLANS.md
+default_2,default,2,exam,design: docs/design/WEB_FLOORPLANS.md
+default_3,default,3,pharmacy,design: docs/design/WEB_FLOORPLANS.md
+default_4,default,4,gunshop,design: docs/design/WEB_FLOORPLANS.md
+default_5,default,5,garage,design: docs/design/WEB_FLOORPLANS.md
+default_6,default,6,watershop,design: docs/design/WEB_FLOORPLANS.md
+default_7,default,7,studio,design: docs/design/WEB_FLOORPLANS.md
+default_8,default,8,sales,design: docs/design/WEB_FLOORPLANS.md
+default_9,default,9,backroom,design: docs/design/WEB_FLOORPLANS.md
+default_10,default,10,barroom,design: docs/design/WEB_FLOORPLANS.md
+default_11,default,11,lobby,design: docs/design/WEB_FLOORPLANS.md

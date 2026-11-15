@@ -1,0 +1,84 @@
+{
+  "$comment": "Hand-editable. `path` is where the column lands in the game object the three.js code reads (null = table-only metadata); an engine importing the CSV can ignore it. `required: false` + an empty cell = the field is absent.",
+  "table": "PlanRules",
+  "family": "furnishing",
+  "key": "Name",
+  "rowStruct": "FDsoaPlanRulesRow",
+  "description": "The plan numbers: wall left beside an inside doorway, furniture clearances, aisle widths, jitter, and the room types that are snug (PlanRulesSnug). One row.",
+  "legacy": {
+    "file": "src/data/floorplans.js PLAN_RULES",
+    "note": "migrated from the JS literal; the equality test pins it"
+  },
+  "columns": [
+    {
+      "name": "Name",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Row key (Unreal row name)."
+    },
+    {
+      "name": "Jamb_m",
+      "type": "float",
+      "path": "jamb",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "DoorClear_m",
+      "type": "float",
+      "path": "doorClear",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "FrontClear_m",
+      "type": "float",
+      "path": "frontClear",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Aisle_Snug_m",
+      "type": "float",
+      "path": "aisle.snug",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Aisle_Open_m",
+      "type": "float",
+      "path": "aisle.open",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Jitter",
+      "type": "float",
+      "path": "jitter",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "SameWall",
+      "type": "float",
+      "path": "sameWall",
+      "required": true,
+      "unit": ""
+    },
+    {
+      "name": "CornerGap_m",
+      "type": "float",
+      "path": "cornerGap",
+      "required": true,
+      "unit": "m"
+    },
+    {
+      "name": "Source",
+      "type": "string",
+      "path": null,
+      "required": true,
+      "description": "Where the fact came from: a real source, a doc, or `design` (invented for the game)."
+    }
+  ]
+}

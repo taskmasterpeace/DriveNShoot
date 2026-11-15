@@ -1,0 +1,13 @@
+Name,DisplayName,Loot,Source
+clinic,CLINIC,bathroom,design: docs/design/WEB_FLOORPLANS.md
+gunsmith,GUNSMITH,gunsmith,design: docs/design/WEB_FLOORPLANS.md
+mechanic,GARAGE,garage,design: docs/design/WEB_FLOORPLANS.md
+water,WATER TRADER,kitchen,design: docs/design/WEB_FLOORPLANS.md
+radio,RADIO STATION,office,design: docs/design/WEB_FLOORPLANS.md
+store,STORE,storefront,design: docs/design/WEB_FLOORPLANS.md
+cantina,CANTINA,kitchen,design: docs/design/WEB_FLOORPLANS.md
+boarding,BOARDING HOUSE,bedroom,design: docs/design/WEB_FLOORPLANS.md
+rhouse,OLD HOUSE,bedroom,design: docs/design/WEB_FLOORPLANS.md
+roffice,OLD OFFICES,office,design: docs/design/WEB_FLOORPLANS.md
+rshop,OLD SHOP,storefront,design: docs/design/WEB_FLOORPLANS.md
+shack,SHACK,kitchen,design: docs/design/WEB_FLOORPLANS.md

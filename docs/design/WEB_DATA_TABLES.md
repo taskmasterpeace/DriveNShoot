@@ -51,7 +51,7 @@ existed. Never regenerate it from the wrappers (that would compare the tables wi
 | Region character | `tables/regions/` | new data (11 regions): nothing reads it yet, see WEB_REGION_CHARACTER.md |
 | Items and loot | `tables/items/` | migrated: items.js inline rows, loot tables, gun wear/care/found, start kit |
 | Infected and hordes | `tables/infected/` | tables + equality test done; data/hordes.js is a wrapper; data/infected.js wrapper STAGED (`tools/tables/wrap-infected.mjs`) until the feat/web-zed-* branches land |
-| Building furnishing | | next (coordinate with the zombies/interiors session) |
+| Building furnishing | `tables/furnishing/` | 20 tables, 1160 rows, derived from data/floorplans.js + data/ring.js; NOTHING READS THEM YET; the JS stays the source until the interiors furnishing pass lands (drift test `tables-furnishing.test.mjs`) |
 | Weather, economy, encounters | | after the live sessions land |
 
 ## Not in the vehicle tables (stays JS, on purpose)

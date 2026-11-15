@@ -1,0 +1,64 @@
+Name,DisplayName,Min_m,Grow,Entry,Back,Stay,Max_m,Floor,Loot,Fix_m,Source
+living,LIVING ROOM,4,3,true,4,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+kitchen,KITCHEN,3,1.4,,1,true,4.6,#b3a582,kitchen,,design: docs/design/WEB_FLOORPLANS.md
+dining,DINING ROOM,3.4,1,,3,true,4.4,,kitchen,,design: docs/design/WEB_FLOORPLANS.md
+bedroom,BEDROOM,3,1.5,,,true,4.6,#8a7062,bedroom,,design: docs/design/WEB_FLOORPLANS.md
+bath,BATHROOM,2.4,0.2,,,,2.9,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+hall,HALL,2.6,0,,2,,,,,1.3,design: docs/design/WEB_FLOORPLANS.md
+floor,SHOP FLOOR,5,3,true,3,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+sales,SALES FLOOR,4,3,true,4,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+diningroom,DINING ROOM,5,3,true,4,true,,#a89c84,,,design: docs/design/WEB_FLOORPLANS.md
+stock,STOCK ROOM,2.6,1,,1,true,6,#7e7a72,,,design: docs/design/WEB_FLOORPLANS.md
+restroom,RESTROOM,2,0.2,,,,2.6,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+office,OFFICE,2.6,0.6,,5,true,4.4,#7a786e,office,,design: docs/design/WEB_FLOORPLANS.md
+dkitchen,KITCHEN,3,1.2,,1,true,6,#b3a582,kitchen,,design: docs/design/WEB_FLOORPLANS.md
+stair,STAIR HALL,11.3,0,,,,,,,4,design: docs/design/WEB_FLOORPLANS.md
+corridor,HALL,2.6,0,,2,,,,,1.3,design: docs/design/WEB_FLOORPLANS.md
+waiting,WAITING ROOM,4,3,true,4,true,,#c4bca6,,,design: docs/design/WEB_FLOORPLANS.md
+ward,WARD,4,2.2,,3,true,,#cfc9b9,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+exam,EXAM ROOM,3,0.5,,,,4.2,#cfc9b9,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+pharmacy,PHARMACY,2.6,0.9,,,true,4.4,#c4bca6,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+study,OFFICE,2.6,0.5,,5,true,4.4,#7a786e,office,,design: docs/design/WEB_FLOORPLANS.md
+wc,RESTROOM,2.4,0.2,,,,2.8,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+gunshop,GUN SHOP,5,3,true,4,true,,#8a7660,,,design: docs/design/WEB_FLOORPLANS.md
+garage,GARAGE,5,3,true,3,true,,#8e8a80,,,design: docs/design/WEB_FLOORPLANS.md
+watershop,WATER SHOP,5,3,true,4,true,,#a89c84,,,design: docs/design/WEB_FLOORPLANS.md
+studio,STUDIO,5,3,true,4,true,,#6e5a4a,,,design: docs/design/WEB_FLOORPLANS.md
+backroom,STOCK ROOM,2.6,0.7,,1,true,,#7e7a72,,,design: docs/design/WEB_FLOORPLANS.md
+qkitchen,KITCHEN,3,1.2,,1,true,4.6,#b3a582,kitchen,,design: docs/design/WEB_FLOORPLANS.md
+qbed,BEDROOM,3,1,,,true,4.6,#8a7062,bedroom,,design: docs/design/WEB_FLOORPLANS.md
+qbath,BATHROOM,2.4,0.2,,,,2.9,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+qliving,LIVING ROOM,3.5,2,,,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+barroom,BAR ROOM,5,3,true,4,true,,#9a8466,,,design: docs/design/WEB_FLOORPLANS.md
+ckitchen,KITCHEN,3,1.6,,1,true,7,#b3a582,kitchen,,design: docs/design/WEB_FLOORPLANS.md
+lobby,LOBBY,4,3,true,4,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+cell,ROOM,2.8,0.5,,,true,3.6,#8a7062,bedroom,,design: docs/design/WEB_FLOORPLANS.md
+sbath,SHARED BATH,2.6,0.4,,,,4,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+offices,OFFICE FLOOR,5,3,true,4,true,,#7a786e,,,design: docs/design/WEB_FLOORPLANS.md
+den,FAMILY ROOM,3.5,2,,,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+shack,SHACK,3.5,2,true,2,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+shackback,BACK ROOM,2.6,0.6,,1,true,4,,,,design: docs/design/WEB_FLOORPLANS.md
+clonebay,CLONE BAY,4,2,,3,true,,#c9d2c8,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+jail,HOLDING CELL,2.8,0.4,,,true,3.8,#9a968c,,,design: docs/design/WEB_FLOORPLANS.md
+nave,CHAPEL,6,3,true,4,true,,#a08a6a,,,design: docs/design/WEB_FLOORPLANS.md
+corr18,CORRIDOR,2.6,0,,2,,,#8e877a,,1.8,design: docs/design/WEB_FLOORPLANS.md
+corr24,CORRIDOR,2.6,0,,2,,,#8e877a,,2.4,design: docs/design/WEB_FLOORPLANS.md
+officelobby,LOBBY,4,1.2,true,6,true,8,#9a9284,,,design: docs/design/WEB_FLOORPLANS.md
+officecell,OFFICE,3,1,,6,true,5.2,#7a786e,office,,design: docs/design/WEB_FLOORPLANS.md
+breakroom,BREAK ROOM,3,0.8,,3,true,5.5,#b3a582,kitchen,,design: docs/design/WEB_FLOORPLANS.md
+washroom,RESTROOM,2.4,0.2,,,,3.4,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+supply,SUPPLY ROOM,2.4,0.5,,1,true,4.4,#7e7a72,,,design: docs/design/WEB_FLOORPLANS.md
+schoollobby,ENTRANCE HALL,4,1,true,6,true,7,#9a9284,,,design: docs/design/WEB_FLOORPLANS.md
+classroom,CLASSROOM,6.8,1,,6,true,9.6,#9a8a6a,office,,design: docs/design/WEB_FLOORPLANS.md
+staffroom,STAFF ROOM,3,0.8,,3,true,5.5,#7a786e,office,,design: docs/design/WEB_FLOORPLANS.md
+motelroom,MOTEL ROOM,3.4,1,true,5,true,4.4,#8a7062,bedroom,,design: docs/design/WEB_FLOORPLANS.md
+motelbath,BATHROOM,2,0.2,,,,2.6,#bdbdb4,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+frontdesk,RECEPTION,4,1.2,true,6,true,8,#bdbdb4,,,design: docs/design/WEB_FLOORPLANS.md
+wardroom,WARD,3.8,1,,6,true,6,#c4c2b6,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+nursestation,NURSES' STATION,3,0.6,,4,true,5,#c4c2b6,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+treatment,TREATMENT ROOM,3.2,0.8,,,,5.5,#c4c2b6,bathroom,,design: docs/design/WEB_FLOORPLANS.md
+mezzanine,MEZZANINE,3,1,,,true,,,,,design: docs/design/WEB_FLOORPLANS.md
+officeopen,OPEN OFFICE,4,0.6,,6,true,,#7a786e,office,,design: docs/design/WEB_FLOORPLANS.md
+library,LIBRARY,6.8,0.5,,6,true,,#8a7062,office,,design: docs/design/WEB_FLOORPLANS.md
+artroom,ART ROOM,6.8,0.5,,6,true,,#9a8a6a,office,,design: docs/design/WEB_FLOORPLANS.md
+dayroom,DAY ROOM,3.8,0.5,,6,true,,#a89c84,,,design: docs/design/WEB_FLOORPLANS.md
