@@ -8,7 +8,7 @@ Format and checks: `WEB_DATA_TABLES.md`. Regenerate the derived rows with `tools
 | Table | What it says | Source |
 |---|---|---|
 | `Regions` | climate band, terrain, dialect tag, note, site-row count | climate: real (Koppen-Geiger); terrain: real (USGS provinces); dialect: **design** |
-| `RegionStates` | states in the region and each canon ruler | `docs/DIVIDED_STATES.md`, `data/atlas.js RULERS` |
+| `RegionStates` + `StateRulers` | states in the region (Texas is split: west in SW, east in GULF) and each state's canon rulers, one row per ruler | `docs/DIVIDED_STATES.md`, `data/atlas.js RULERS` |
 | `RegionBiomes` + `Biomes` + `BiomeFlora` | which biomes, and what grows in each (keys are `world/flora.js SPECIES`) | biomes derived from `data/sites`; flora **design** after the real ecoregion |
 | `RegionFactions` | who holds ground (site `society.faction` counts) | derived from `data/sites` |
 | `RegionScarcity` / `RegionSupplies` | what its sites want / make and loot | derived from `data/sites` `economy`, `loot` |

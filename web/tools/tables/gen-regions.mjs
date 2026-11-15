@@ -13,7 +13,7 @@ const OUT = new URL('../../src/data/tables/regions/', import.meta.url).pathname.
 mkdirSync(OUT, { recursive: true });
 
 const REGIONS = ['FL', 'SW', 'CA', 'GULF', 'MW', 'NE', 'SE', 'NW', 'PLAINS', 'AK', 'HI']; // INTL (off the map) has no climate of its own
-const BAND = ['hot_desert', 'semi_arid', 'mediterranean', 'humid_subtropical', 'humid_continental', 'marine_west_coast', 'subarctic_tundra', 'tropical_oceanic'];
+const BAND = ['hot_desert', 'semi_arid', 'mediterranean', 'humid_subtropical', 'humid_continental', 'marine_west_coast', 'subarctic_tundra', 'tropical_humid'];
 const KOPPEN = 'real: Koppen-Geiger climate classification (Peel, Finlayson and McMahon 2007), the class covering most of the region';
 const PHYS = 'real: USGS physiographic provinces, the dominant landform of the region';
 
@@ -29,7 +29,7 @@ const R = {
   NW: { band: 'marine_west_coast', terrain: 'cordillera_and_basalt_plateau', dialect: 'northwest_mountain', note: 'Wet coast ranges, dry basalt plateau and the northern Rockies to the east.' },
   PLAINS: { band: 'semi_arid', terrain: 'open_plains_and_badlands', dialect: 'plains_midland', note: 'Open grass, wind, farm towns and badlands; wide temperature swings.' },
   AK: { band: 'subarctic_tundra', terrain: 'mountain_and_tundra', dialect: 'alaskan_frontier', note: 'Mountains, tundra, long dark winters.' },
-  HI: { band: 'tropical_oceanic', terrain: 'volcanic_islands', dialect: 'island_pidgin', note: 'Volcanic islands; no site rows in the catalogue yet.' },
+  HI: { band: 'tropical_humid', terrain: 'volcanic_islands', dialect: 'island_pidgin', note: 'Volcanic islands; no site rows in the catalogue yet.' },
 };
 const VEH = {
   FL: { airboat: 3, sedan: 2, pickup: 2, skiff: 2, jetski: 1, rv: 1 }, SW: { pickup: 3, buggy: 2, atv: 2, bike: 2, van: 1, patrol: 1 },
@@ -88,9 +88,15 @@ table('Regions', 'One row per region of the country: climate band, terrain, dial
   REGIONS.map((r) => [r, SITE_REGIONS[r].label, R[r].band, R[r].terrain, R[r].dialect, bySite(r).length, R[r].note,
     `climate: ${KOPPEN}; terrain: ${PHYS}; dialect: design (tags only; no data existed); SiteRows: derived from src/data/sites`]));
 
-table('RegionStates', 'Which states are in a region, and who rules each (the canon rulers).',
-  [NAME, C('Region', 'string', { ref: { table: 'Regions', column: 'Name' } }), C('State', 'string'), C('Ruler', 'string', { required: false }), SRC],
-  REGIONS.flatMap((r) => SITE_REGIONS[r].states.map((st) => [`${r}_${st}`, r, st, RULERS[st] ?? (st === 'DC' ? 'no ruler: the Capitol Dead Zone' : ''), 'docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS'])));
+// SITE_REGIONS lists no Texas (its labels say "west Texas" under SW and "east Texas" under GULF): Texas is in both, by the label.
+const STATES = (r) => [...SITE_REGIONS[r].states, ...(r === 'SW' || r === 'GULF' ? ['TX'] : [])];
+const RULER_LIST = (st) => (st === 'DC' ? ['no ruler: the Capitol Dead Zone'] : (RULERS[st] ?? '').split(/, (?:and )?| and /).filter(Boolean));
+table('RegionStates', 'Which states are in a region (Texas is split: west in SW, east in GULF, by the site catalogue labels). Rulers are in StateRulers.',
+  [NAME, C('Region', 'string', { ref: { table: 'Regions', column: 'Name' } }), C('State', 'string'), SRC],
+  REGIONS.flatMap((r) => STATES(r).map((st) => [`${r}_${st}`, r, st, st === 'TX' ? 'docs/DIVIDED_STATES.md; data/sites/index.js SITE_REGIONS labels (west and east Texas)' : 'data/sites/index.js SITE_REGIONS'])));
+table('StateRulers', 'Who rules each state: one row per ruler (California has three). Canon: docs/DIVIDED_STATES.md.',
+  [NAME, C('State', 'string'), C('Index', 'int', { unit: '', min: 0 }), C('Ruler', 'string'), SRC],
+  [...new Set(REGIONS.flatMap(STATES))].flatMap((st) => RULER_LIST(st).map((ru, i) => [`${st}_${i}`, st, i, ru, 'docs/DIVIDED_STATES.md (the fifty rulers), data/atlas.js RULERS'])));
 
 table('RegionBiomes', 'Biomes in a region and how many of its site rows use each. Derived from the site catalogue.',
   [NAME, C('Region', 'string', { ref: { table: 'Regions', column: 'Name' } }), C('Biome', 'string', { ref: { table: 'Biomes', column: 'Name' } }), C('SiteCount', 'int', { unit: 'count', min: 1 }), SRC],
@@ -98,7 +104,7 @@ table('RegionBiomes', 'Biomes in a region and how many of its site rows use each
 
 const derive = (name, desc, colName, pick, limit = TOP) => table(name, desc,
   [NAME, C('Region', 'string', { ref: { table: 'Regions', column: 'Name' } }), C(colName, 'string'), C('SiteCount', 'int', { unit: 'count', min: 1 }), SRC],
-  REGIONS.flatMap((r) => count(bySite(r).flatMap(pick)).slice(0, limit).map(([v, n]) => [`${r}_${id(v)}`, r, id(v), n, `derived: src/data/sites (${n} of ${bySite(r).length} ${r} site rows)`])));
+  REGIONS.flatMap((r) => count(bySite(r).flatMap((s) => [...new Set(pick(s))])).slice(0, limit).map(([v, n]) => [`${r}_${id(v)}`, r, id(v), n, `derived: src/data/sites (${n} of ${bySite(r).length} ${r} site rows; top ${limit} per region)`])));
 
 derive('RegionFactions', 'Who holds ground in a region: the faction id of each site row\'s society, with the number of sites. Local holdout families appear under their own ids.', 'Faction', (s) => [s.society?.faction]);
 derive('RegionScarcity', 'What a region\'s sites WANT (economy.wants): the goods that are scarce there, by how many sites want them.', 'Good', (s) => s.economy?.wants ?? []);
